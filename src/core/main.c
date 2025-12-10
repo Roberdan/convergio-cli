@@ -422,8 +422,8 @@ static void stream_print_callback(const char* chunk, void* user_data) {
     fflush(stdout);
 }
 
-// Check if streaming mode is enabled (default: yes)
-static bool g_streaming_enabled = true;
+// Check if streaming mode is enabled (default: no - use ANSI rendering instead)
+static bool g_streaming_enabled = false;
 
 // External streaming function
 extern char* nous_claude_chat_stream(const char* system_prompt, const char* user_message,
@@ -483,30 +483,16 @@ static int process_natural_input(const char* input) {
 
     char* response = NULL;
 
-    if (g_streaming_enabled && !needs_tools && orch->ali && orch->ali->system_prompt) {
-        // Use streaming for simple chat (faster perceived response)
-        // For streaming, we show raw output immediately then clear line
-        response = process_with_streaming(orch->ali->system_prompt, input);
+    // Always use orchestrator - it handles both simple chat and tool calls
+    // The orchestrator will use tools when needed, simple Claude chat otherwise
+    response = orchestrator_process(input);
 
-        // Record cost
-        if (response && orch->ali) {
-            extern void cost_record_agent_usage(ManagedAgent* agent, uint64_t input, uint64_t output);
-            cost_record_agent_usage(orch->ali,
-                strlen(orch->ali->system_prompt) / 4 + strlen(input) / 4,
-                strlen(response) / 4);
-        }
-
-        // For streaming, response was already printed raw - add newline
+    if (response) {
+        // Render markdown to ANSI for nice terminal output
+        md_print(response);
         printf("\n");
     } else {
-        // Use full orchestrator with tools - render markdown
-        response = orchestrator_process(input);
-        if (response) {
-            md_print(response);
-            printf("\n");
-        } else {
-            printf("Mi dispiace, ho avuto un problema. Riprova.\n");
-        }
+        printf("Mi dispiace, ho avuto un problema. Riprova.\n");
     }
 
     if (response) {
