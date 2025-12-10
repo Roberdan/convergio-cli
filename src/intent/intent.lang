@@ -1,0 +1,254 @@
+// ============================================================================
+// INTENT Language Specification v0.1
+// ============================================================================
+//
+// INTENT è un linguaggio dichiarativo basato su significato, non su sintassi.
+// Non ha una grammatica rigida - il sistema comprende l'intenzione.
+//
+// ============================================================================
+
+// ---------------------------------------------------------------------------
+// 1. ESPRESSIONE DI DESIDERI (Creation Intents)
+// ---------------------------------------------------------------------------
+
+// Forma naturale:
+voglio creare un progetto chiamato "Sinfonia"
+    con partecipanti: Roberto, Aria, Marco
+    scopo: "comporre musica collaborativamente"
+
+// Forma compatta:
+crea progetto Sinfonia (Roberto, Aria, Marco) per "comporre musica"
+
+// Forma minimale:
+nuovo progetto Sinfonia
+
+
+// ---------------------------------------------------------------------------
+// 2. DEFINIZIONE DI AGENTI
+// ---------------------------------------------------------------------------
+
+agente Compositore:
+    essenza: "creo melodie che toccano l'anima"
+
+    personalità:
+        pazienza: alta
+        creatività: molto alta
+        assertività: media
+
+    competenze:
+        - teoria musicale
+        - improvvisazione
+        - arrangiamento
+
+    quando ricevo una melodia:
+        la analizzo emotivamente
+        propongo variazioni
+        attendo feedback
+
+    quando c'è silenzio creativo:
+        suggerisco ispirazioni
+        senza mai imporre
+
+
+// ---------------------------------------------------------------------------
+// 3. DEFINIZIONE DI SPAZI
+// ---------------------------------------------------------------------------
+
+spazio StudioMusicale:
+    scopo: "ambiente per la creazione musicale"
+
+    abitanti:
+        - Roberto (umano, direzione artistica)
+        - Compositore (agente)
+        - Mixer (agente)
+
+    ritmo:
+        urgenza di base: tranquilla
+        si intensifica: quando c'è una scadenza
+        si rilassa: quando il lavoro è completato
+
+    regole:
+        ogni idea merita ascolto
+        le critiche sono costruttive
+        il silenzio è benvenuto
+
+
+// ---------------------------------------------------------------------------
+// 4. RELAZIONI E CONNESSIONI
+// ---------------------------------------------------------------------------
+
+// Connettere concetti:
+collega "melodia" con "emozione" forza: forte
+collega "ritmo" con "energia" forza: media
+
+// Creare percorsi:
+percorso da "idea grezza" a "composizione finita":
+    attraverso: brainstorming, strutturazione, raffinamento, produzione
+
+
+// ---------------------------------------------------------------------------
+// 5. TRASFORMAZIONI
+// ---------------------------------------------------------------------------
+
+trasforma le mie note vocali in:
+    - trascrizione testuale
+    - analisi del sentiment
+    - suggerimenti per melodie
+
+quando il testo diventa lungo:
+    riassumilo mantenendo l'essenza
+    evidenzia i punti chiave
+    suggerisci azioni
+
+
+// ---------------------------------------------------------------------------
+// 6. RICERCA E COMPRENSIONE
+// ---------------------------------------------------------------------------
+
+// Ricerca semantica:
+trova tutto ciò che parla di "nostalgia"
+    nel contesto: progetto Sinfonia
+    includendo: variazioni di significato
+
+// Comprensione:
+spiega come funziona la progressione armonica
+    al livello di: principiante
+    usando: esempi pratici
+    con: pazienza
+
+// Esplorazione:
+mostrami le connessioni tra:
+    - il tema principale
+    - le variazioni
+    - il finale
+
+
+// ---------------------------------------------------------------------------
+// 7. COLLABORAZIONE
+// ---------------------------------------------------------------------------
+
+// Invitare:
+invita Arrangiatore nello spazio StudioMusicale
+    ruolo: consulente
+    accesso: lettura e suggerimenti
+
+// Dialogo:
+Roberto dice: "questa melodia mi sembra incompleta"
+
+Compositore risponde:
+    analizzando la struttura...
+    "Noto che manca una risoluzione nel terzo movimento.
+     Potremmo provare una modulazione in minore?"
+
+Roberto chiede: "puoi mostrarmi come?"
+
+Compositore:
+    genera esempio audio
+    spiega il ragionamento
+    attende feedback
+
+
+// ---------------------------------------------------------------------------
+// 8. DECISIONI CONDIVISE (Consenso)
+// ---------------------------------------------------------------------------
+
+proposta "Aggiungere sezione di archi":
+    motivazione: "arricchirebbe il colore sonoro"
+    impatto: significativo
+    urgenza: media
+
+    voti:
+        Roberto: favorevole, "mi piace l'idea"
+        Compositore: favorevole, "migliorerebbe la texture"
+        Mixer: neutrale, "dipende dall'arrangiamento"
+
+    quando consenso raggiunto:
+        procedi con l'implementazione
+        documenta la decisione
+
+    quando disaccordo:
+        approfondisci le obiezioni
+        cerca compromesso
+        mai forzare
+
+
+// ---------------------------------------------------------------------------
+// 9. FLUSSI TEMPORALI
+// ---------------------------------------------------------------------------
+
+// Eventi:
+quando arriva nuova ispirazione:
+    notifica i partecipanti interessati
+    crea spazio per esplorarla
+    preserva il contesto originale
+
+// Scadenze:
+scadenza "prima bozza": 15 dicembre
+    urgenza cresce: gradualmente
+    reminder: ogni mattina
+    se sforata: discutiamone insieme
+
+// Ritmi:
+ogni giorno alle 9:
+    mostra stato del progetto
+    suggerisci priorità
+    chiedi come mi sento
+
+
+// ---------------------------------------------------------------------------
+// 10. MEMORIA E APPRENDIMENTO
+// ---------------------------------------------------------------------------
+
+ricorda che:
+    - preferisco le melodie in minore
+    - lavoro meglio la mattina
+    - non mi piacciono le deadline strette
+
+quando faccio un errore:
+    aiutami a capire perché
+    suggerisci alternative
+    non giudicare
+
+impara dai nostri pattern:
+    cosa funziona bene
+    cosa crea attrito
+    come migliorare
+
+
+// ---------------------------------------------------------------------------
+// 11. STATI EMOTIVI
+// ---------------------------------------------------------------------------
+
+mi sento: frustrato
+    perché: "non riesco a trovare il tema giusto"
+
+// Il sistema risponde con empatia, non con soluzioni immediate
+// Offre supporto, poi eventualmente suggerimenti
+
+
+mi sento: ispirato
+    voglio: catturare questo momento
+
+// Il sistema facilita la creazione rapida
+// Minimizza le distrazioni
+// Registra tutto per dopo
+
+
+// ---------------------------------------------------------------------------
+// 12. META-LINGUAGGIO (parlare del sistema)
+// ---------------------------------------------------------------------------
+
+mostrami come ragioni
+    → il sistema spiega il suo processo
+
+perché hai suggerito questo?
+    → trasparenza sul ragionamento
+
+cambia il tuo approccio:
+    sii più diretto
+    meno formale
+    più creativo
+
+// ---------------------------------------------------------------------------
+// FINE SPECIFICA
+// ---------------------------------------------------------------------------

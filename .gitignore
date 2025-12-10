@@ -1,0 +1,26 @@
+# Build artifacts
+build/
+*.o
+*.a
+*.dylib
+
+# Data files (user-specific)
+data/
+
+# IDE
+.vscode/
+.idea/
+*.xcodeproj/
+*.xcworkspace/
+
+# macOS
+.DS_Store
+._*
+
+# Temporary files
+*.swp
+*.swo
+*~
+
+# Debug
+*.dSYM/
