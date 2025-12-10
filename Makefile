@@ -53,6 +53,7 @@ BIN_DIR = $(BUILD_DIR)/bin
 # Source files
 C_SOURCES = $(SRC_DIR)/core/fabric.c \
             $(SRC_DIR)/core/main.c \
+            $(SRC_DIR)/core/ansi_md.c \
             $(SRC_DIR)/intent/parser.c \
             $(SRC_DIR)/intent/interpreter.c \
             $(SRC_DIR)/agents/agent.c \

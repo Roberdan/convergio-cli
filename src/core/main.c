@@ -386,14 +386,40 @@ static int cmd_think(int argc, char** argv) {
 }
 
 // ============================================================================
+// MARKDOWN TO ANSI RENDERING
+// ============================================================================
+
+extern char* md_to_ansi(const char* markdown);
+extern void md_print(const char* markdown);
+
+// ============================================================================
 // NATURAL LANGUAGE PROCESSING - Via Ali Orchestrator
 // ============================================================================
 
-// Streaming callback - prints chunks in real-time
+// Streaming buffer for accumulating response before rendering
+static char* g_stream_buffer = NULL;
+static size_t g_stream_size = 0;
+static size_t g_stream_capacity = 0;
+
+// Streaming callback - accumulates chunks for final rendering
 static void stream_print_callback(const char* chunk, void* user_data) {
     (void)user_data;
+    size_t chunk_len = strlen(chunk);
+
+    if (g_stream_size + chunk_len >= g_stream_capacity) {
+        g_stream_capacity = (g_stream_capacity + chunk_len) * 2 + 1024;
+        g_stream_buffer = realloc(g_stream_buffer, g_stream_capacity);
+    }
+
+    if (g_stream_buffer) {
+        memcpy(g_stream_buffer + g_stream_size, chunk, chunk_len);
+        g_stream_size += chunk_len;
+        g_stream_buffer[g_stream_size] = '\0';
+    }
+
+    // Also print raw for immediate feedback (will be replaced with progress indicator)
     printf("%s", chunk);
-    fflush(stdout);  // Force immediate output
+    fflush(stdout);
 }
 
 // Check if streaming mode is enabled (default: yes)
@@ -435,9 +461,18 @@ static int process_natural_input(const char* input) {
     // Detect if this needs tools (complex request) or can stream directly (simple chat)
     // Simple heuristic: if request contains file/shell/web keywords, use tools (non-streaming)
     bool needs_tools = false;
-    const char* tool_keywords[] = {"leggi", "scrivi", "file", "esegui", "comando", "shell",
-                                   "fetch", "url", "http", "ricorda", "memoria", "cerca",
-                                   "read", "write", "execute", "run", "search", "memory", NULL};
+    const char* tool_keywords[] = {
+        // Italian
+        "leggi", "scrivi", "file", "esegui", "comando", "shell",
+        "fetch", "url", "http", "ricorda", "memoria", "cerca",
+        "cartella", "directory", "repository", "repo",
+        // English
+        "read", "write", "execute", "run", "search", "memory",
+        "folder", "list", "show", "check", "status",
+        // Git
+        "git", "commit", "push", "pull", "branch", "merge",
+        NULL
+    };
 
     for (int i = 0; tool_keywords[i] != NULL; i++) {
         if (strcasestr(input, tool_keywords[i]) != NULL) {
@@ -450,8 +485,8 @@ static int process_natural_input(const char* input) {
 
     if (g_streaming_enabled && !needs_tools && orch->ali && orch->ali->system_prompt) {
         // Use streaming for simple chat (faster perceived response)
+        // For streaming, we show raw output immediately then clear line
         response = process_with_streaming(orch->ali->system_prompt, input);
-        printf("\n");  // Add newline after streamed response
 
         // Record cost
         if (response && orch->ali) {
@@ -460,11 +495,15 @@ static int process_natural_input(const char* input) {
                 strlen(orch->ali->system_prompt) / 4 + strlen(input) / 4,
                 strlen(response) / 4);
         }
+
+        // For streaming, response was already printed raw - add newline
+        printf("\n");
     } else {
-        // Use full orchestrator with tools
+        // Use full orchestrator with tools - render markdown
         response = orchestrator_process(input);
         if (response) {
-            printf("%s\n", response);
+            md_print(response);
+            printf("\n");
         } else {
             printf("Mi dispiace, ho avuto un problema. Riprova.\n");
         }
