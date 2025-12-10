@@ -12,6 +12,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <signal.h>
+#include <pthread.h>
+#include <unistd.h>
 #include <readline/readline.h>
 #include <readline/history.h>
 
@@ -393,6 +395,65 @@ extern char* md_to_ansi(const char* markdown);
 extern void md_print(const char* markdown);
 
 // ============================================================================
+// UI HELPERS - Spinner, separators, clearing
+// ============================================================================
+
+// ANSI escape codes for cursor control
+#define ANSI_CLEAR_LINE    "\033[2K"
+#define ANSI_CURSOR_UP     "\033[1A"
+#define ANSI_CURSOR_START  "\r"
+#define ANSI_HIDE_CURSOR   "\033[?25l"
+#define ANSI_SHOW_CURSOR   "\033[?25h"
+#define ANSI_DIM           "\033[2m"
+#define ANSI_RESET         "\033[0m"
+#define ANSI_CYAN          "\033[36m"
+#define ANSI_BOLD          "\033[1m"
+
+// Spinner state
+static volatile bool g_spinner_active = false;
+static pthread_t g_spinner_thread;
+static int g_stream_lines = 0;  // Count lines during streaming
+
+// Print a visual separator
+static void print_separator(void) {
+    printf("\n" ANSI_DIM "────────────────────────────────────────────────────────────────" ANSI_RESET "\n\n");
+}
+
+// Spinner thread function
+static void* spinner_func(void* arg) {
+    (void)arg;
+    const char* frames[] = {"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"};
+    int frame = 0;
+
+    printf(ANSI_HIDE_CURSOR);
+    while (g_spinner_active) {
+        printf(ANSI_CURSOR_START ANSI_DIM "%s pensando..." ANSI_RESET "  ", frames[frame]);
+        fflush(stdout);
+        frame = (frame + 1) % 10;
+        usleep(80000);  // 80ms
+    }
+    // Clear spinner line
+    printf(ANSI_CURSOR_START ANSI_CLEAR_LINE);
+    printf(ANSI_SHOW_CURSOR);
+    fflush(stdout);
+    return NULL;
+}
+
+// Start spinner
+static void spinner_start(void) {
+    g_spinner_active = true;
+    pthread_create(&g_spinner_thread, NULL, spinner_func, NULL);
+}
+
+// Stop spinner
+static void spinner_stop(void) {
+    if (g_spinner_active) {
+        g_spinner_active = false;
+        pthread_join(g_spinner_thread, NULL);
+    }
+}
+
+// ============================================================================
 // NATURAL LANGUAGE PROCESSING - Via Ali Orchestrator
 // ============================================================================
 
@@ -452,51 +513,34 @@ static int process_natural_input(const char* input) {
         return 0;
     }
 
+    // Print separator between input and output
+    print_separator();
+
     // Get Ali's name
     const char* name = orch->ali ? orch->ali->name : "Ali";
 
-    printf("\n%s: ", name);
-    fflush(stdout);
-
-    // Detect if this needs tools (complex request) or can stream directly (simple chat)
-    // Simple heuristic: if request contains file/shell/web keywords, use tools (non-streaming)
-    bool needs_tools = false;
-    const char* tool_keywords[] = {
-        // Italian
-        "leggi", "scrivi", "file", "esegui", "comando", "shell",
-        "fetch", "url", "http", "ricorda", "memoria", "cerca",
-        "cartella", "directory", "repository", "repo",
-        // English
-        "read", "write", "execute", "run", "search", "memory",
-        "folder", "list", "show", "check", "status",
-        // Git
-        "git", "commit", "push", "pull", "branch", "merge",
-        NULL
-    };
-
-    for (int i = 0; tool_keywords[i] != NULL; i++) {
-        if (strcasestr(input, tool_keywords[i]) != NULL) {
-            needs_tools = true;
-            break;
-        }
-    }
+    // Start spinner while waiting for response
+    spinner_start();
 
     char* response = NULL;
 
     // Always use orchestrator - it handles both simple chat and tool calls
-    // The orchestrator will use tools when needed, simple Claude chat otherwise
     response = orchestrator_process(input);
 
+    // Stop spinner
+    spinner_stop();
+
     if (response) {
+        // Print Ali's name as header
+        printf(ANSI_BOLD ANSI_CYAN "%s" ANSI_RESET "\n\n", name);
+
         // Render markdown to ANSI for nice terminal output
         md_print(response);
         printf("\n");
-    } else {
-        printf("Mi dispiace, ho avuto un problema. Riprova.\n");
-    }
-
-    if (response) {
         free(response);
+    } else {
+        printf(ANSI_BOLD ANSI_CYAN "%s" ANSI_RESET "\n\n", name);
+        printf("Mi dispiace, ho avuto un problema. Riprova.\n");
     }
 
     printf("\n");
