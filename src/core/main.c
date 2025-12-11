@@ -713,9 +713,14 @@ static int parse_and_execute(char* line) {
 
     if (argc == 0) return 0;
 
-    // Look for built-in command
+    // Look for built-in command (support both "quit" and "/quit" syntax)
+    const char* cmd_name = argv[0];
+    if (cmd_name[0] == '/') {
+        cmd_name++;  // Skip leading slash
+    }
+
     for (const ReplCommand* cmd = COMMANDS; cmd->name != NULL; cmd++) {
-        if (strcmp(argv[0], cmd->name) == 0) {
+        if (strcmp(cmd_name, cmd->name) == 0) {
             return cmd->handler(argc, argv);
         }
     }
