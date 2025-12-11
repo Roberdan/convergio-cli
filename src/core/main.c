@@ -816,6 +816,7 @@ static void print_banner(void) {
     printf("\n");
     printf("  %sA semantic kernel for human-AI symbiosis%s\n", dim, rst);
     printf("  %sOptimized for Apple M3 Max (10P + 4E + 30GPU + 16NE)%s\n", dim, rst);
+    printf("  %sDeveloped by Roberdan@FightTheStroke.org%s\n", dim, rst);
     printf("\n");
     printf("  Type %s'help'%s for commands, or express your intent naturally.\n", c3, rst);
     printf("\n");
