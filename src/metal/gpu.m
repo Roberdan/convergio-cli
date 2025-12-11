@@ -73,7 +73,9 @@ int nous_gpu_init(void) {
         id<MTLLibrary> library;
 
         if (shaderPath) {
-            library = [g_gpu->device newLibraryWithFile:shaderPath error:&error];
+            // Use newLibraryWithURL instead of deprecated newLibraryWithFile
+            NSURL* shaderURL = [NSURL fileURLWithPath:shaderPath];
+            library = [g_gpu->device newLibraryWithURL:shaderURL error:&error];
         } else {
             // Try to load from source
             NSString* sourcePath = @"shaders/similarity.metal";

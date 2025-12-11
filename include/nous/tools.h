@@ -151,8 +151,20 @@ bool tools_is_path_safe(const char* path);
 // Check if a command is safe to execute (no dangerous patterns)
 bool tools_is_command_safe(const char* command);
 
-// Set allowed directories for file operations
+// Set allowed directories for file operations (replaces existing)
 void tools_set_allowed_paths(const char** paths, size_t count);
+
+// Add a single path to allowed directories
+void tools_add_allowed_path(const char* path);
+
+// Get current allowed paths
+const char** tools_get_allowed_paths(size_t* count);
+
+// Clear all allowed paths
+void tools_clear_allowed_paths(void);
+
+// Initialize workspace sandbox (call at startup with CWD)
+void tools_init_workspace(const char* workspace_path);
 
 // Set blocked commands/patterns
 void tools_set_blocked_commands(const char** patterns, size_t count);

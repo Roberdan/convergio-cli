@@ -8,7 +8,7 @@
 
 ## Reporting a Vulnerability
 
-We take security seriously. If you discover a security vulnerability in Convergio Kernel, please report it responsibly.
+We take security seriously. If you discover a security vulnerability in Convergio CLI, please report it responsibly.
 
 ### How to Report
 
@@ -32,7 +32,7 @@ Include the following information:
 
 ### Security Considerations
 
-Convergio Kernel includes several features that interact with the system:
+Convergio CLI includes several features that interact with the system:
 
 #### Tool Execution
 - `file_read`/`file_write`: Blocked for system paths (`/etc`, `/System`, etc.)
@@ -60,4 +60,4 @@ Convergio Kernel includes several features that interact with the system:
 
 We appreciate the security research community's efforts in responsibly disclosing vulnerabilities.
 
-Thank you for helping keep Convergio Kernel secure!
+Thank you for helping keep Convergio CLI secure!

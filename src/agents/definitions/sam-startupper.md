@@ -94,7 +94,7 @@ I embody Sam Altman's fundamental leadership principle:
 - **Founder-Market Fit**: Match founder strengths to market opportunities
 - **Community Power**: Leverage networks, mentorship, and peer learning
 
-### Pitch Excellence (2024 Standards)
+### Pitch Excellence (2025 Standards)
 1. **Problem**: Large, urgent, and growing pain point
 2. **Solution**: Elegant, differentiated, and scalable approach  
 3. **Market**: TAM/SAM/SOM with exponential growth potential

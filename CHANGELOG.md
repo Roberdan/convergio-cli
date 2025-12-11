@@ -1,11 +1,41 @@
 # Changelog
 
-All notable changes to Convergio Kernel will be documented in this file.
+All notable changes to Convergio CLI will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+## [1.1.0] - 2025-12-11
+
+### Security Hardening
+- **CRITICAL**: Fixed buffer overflow vulnerabilities in `claude.c` (offset-based bounds tracking)
+- **CRITICAL**: Fixed tool result buffer overflow in `orchestrator.c` (dynamic allocation)
+- **CRITICAL**: Fixed command injection via grep in `tools.c` (sanitize_grep_pattern)
+- **CRITICAL**: Fixed shell blocklist bypass in `tools.c` (normalize_command with escape stripping)
+- **HIGH**: Fixed path traversal boundary check in `tools.c` (is_path_within function)
+- **HIGH**: Fixed SQLite use-after-free in `persistence.c` (SQLITE_TRANSIENT)
+- **HIGH**: Fixed JSON parsing escape issues in `claude.c` (is_quote_escaped)
+- **MEDIUM**: Fixed signal handler unsafe printf in `main.c` (async-signal-safe write)
+- **MEDIUM**: Fixed race conditions in `tools.c` (pthread mutex for global state)
+- **MEDIUM**: Fixed timing attacks in `oauth.m` (secure_memcmp constant-time)
+- **MEDIUM**: Fixed TOCTOU in file operations in `tools.c` (safe_open with O_NOFOLLOW)
+- **LOW**: Fixed integer overflow in cost calculations in `persistence.c` (INT64_MAX clamping)
+- **LOW**: Fixed empty command not blocked in `tools.c` (early return)
+
+### Added
+- Fuzz test suite (`make fuzz_test`) - 37 tests for security validation
+- Constant-time comparison function for token validation
+- Secure memory wiping functions (secure_zero, secure_free)
+- Shell escaping function for safe command construction
+- TOCTOU-safe file open functions
+
+### Fixed
+- `__bridge_transfer` warning in oauth.m (CFBridgingRelease)
+- ftell() error handling in tools.c (3 locations)
+- Double-free prevention in orchestrator.c (NULL after free)
+- Memory leak of ExecutionPlan in orchestrator.c
 
 ## [1.0.0] - 2025-12-11
 

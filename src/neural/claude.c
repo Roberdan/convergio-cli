@@ -5,6 +5,7 @@
  */
 
 #include "nous/nous.h"
+#include "../auth/oauth.h"
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
@@ -21,7 +22,6 @@
 #define CLAUDE_MODEL "claude-sonnet-4-20250514"
 #define MAX_RESPONSE_SIZE (256 * 1024)  // 256KB max response
 
-static char* g_api_key = NULL;
 static bool g_initialized = false;
 
 // ============================================================================
@@ -176,6 +176,23 @@ static char* json_escape(const char* str) {
 }
 
 // Extract text content from Claude response (simple parser)
+/**
+ * Check if a quote at position 'pos' is escaped by counting preceding backslashes.
+ * A quote is escaped if preceded by an odd number of backslashes.
+ */
+static bool is_quote_escaped(const char* start, const char* pos) {
+    if (pos <= start) return false;
+
+    int backslash_count = 0;
+    const char* p = pos - 1;
+    while (p >= start && *p == '\\') {
+        backslash_count++;
+        p--;
+    }
+    // Odd number of backslashes means the quote is escaped
+    return (backslash_count % 2) == 1;
+}
+
 static char* extract_response_text(const char* json) {
     // Find "text": " in the response
     const char* text_key = "\"text\":";
@@ -188,12 +205,17 @@ static char* extract_response_text(const char* json) {
     if (*found != '"') return NULL;
     found++;  // Skip opening quote
 
-    // Find end of string (handling escapes)
+    // Find end of string (properly handling escaped quotes and backslashes)
     const char* start = found;
     const char* end = start;
-    while (*end && !(*end == '"' && *(end-1) != '\\')) {
+    while (*end) {
+        if (*end == '"' && !is_quote_escaped(start, end)) {
+            break;  // Found unescaped closing quote
+        }
         end++;
     }
+
+    if (*end != '"') return NULL;  // No closing quote found
 
     size_t len = end - start;
     char* result = malloc(len + 1);
@@ -210,6 +232,9 @@ static char* extract_response_text(const char* json) {
                 case 't': *out++ = '\t'; break;
                 case '"': *out++ = '"'; break;
                 case '\\': *out++ = '\\'; break;
+                case '/': *out++ = '/'; break;
+                case 'b': *out++ = '\b'; break;
+                case 'f': *out++ = '\f'; break;
                 default: *out++ = *p;
             }
         } else {
@@ -225,31 +250,37 @@ static char* extract_response_text(const char* json) {
 // INITIALIZATION
 // ============================================================================
 
-// Claude Max subscription mode (no cost tracking)
-static bool g_claude_max_mode = false;
-
+// Claude Max subscription mode (OAuth or env var)
 bool nous_claude_is_max_subscription(void) {
-    return g_claude_max_mode;
+    // Claude Max if using OAuth or CLAUDE_MAX env var is set
+    if (auth_get_mode() == AUTH_MODE_OAUTH) {
+        return true;
+    }
+    const char* max_mode = getenv("CLAUDE_MAX");
+    return (max_mode && (strcmp(max_mode, "1") == 0 || strcasecmp(max_mode, "true") == 0));
 }
 
 int nous_claude_init(void) {
     if (g_initialized) return 0;
 
-    // Check for Claude Max subscription mode
-    const char* max_mode = getenv("CLAUDE_MAX");
-    if (max_mode && (strcmp(max_mode, "1") == 0 || strcasecmp(max_mode, "true") == 0)) {
-        g_claude_max_mode = true;
+    // Check if authentication is available
+    // Note: auth_init() should be called before this in main.c
+    if (!auth_is_authenticated()) {
+        // Try to initialize auth if not done yet
+        if (auth_init() != 0) {
+            fprintf(stderr, "No authentication configured.\n");
+            fprintf(stderr, "Use 'login' command for Claude Max or set ANTHROPIC_API_KEY.\n");
+            return -1;
+        }
     }
 
-    // Get API key from environment
-    const char* key = getenv("ANTHROPIC_API_KEY");
-    if (!key || strlen(key) == 0) {
-        fprintf(stderr, "ANTHROPIC_API_KEY not set\n");
+    // Get auth header to verify it works
+    char* auth_header = auth_get_header();
+    if (!auth_header) {
+        fprintf(stderr, "Failed to get authentication credentials.\n");
         return -1;
     }
-
-    g_api_key = strdup(key);
-    if (!g_api_key) return -1;
+    free(auth_header);
 
     // Initialize libcurl globally (thread-safe)
     curl_global_init(CURL_GLOBAL_DEFAULT);
@@ -263,10 +294,41 @@ void nous_claude_shutdown(void) {
 
     curl_global_cleanup();
 
-    free(g_api_key);
-    g_api_key = NULL;
+    // Note: auth_shutdown() is called separately in main.c
 
     g_initialized = false;
+}
+
+// ============================================================================
+// AUTH HEADER HELPER
+// ============================================================================
+
+/**
+ * Build authentication header for API calls
+ * Supports both API key (x-api-key) and OAuth (Authorization: Bearer)
+ * Returns header string that must be freed by caller, or NULL on error
+ */
+static char* build_auth_header(void) {
+    char* auth_value = auth_get_header();
+    if (!auth_value) {
+        fprintf(stderr, "Not authenticated. Use 'login' command or set ANTHROPIC_API_KEY.\n");
+        return NULL;
+    }
+
+    char* header = malloc(512);
+    if (!header) {
+        free(auth_value);
+        return NULL;
+    }
+
+    if (auth_get_mode() == AUTH_MODE_OAUTH) {
+        snprintf(header, 512, "Authorization: Bearer %s", auth_value);
+    } else {
+        snprintf(header, 512, "x-api-key: %s", auth_value);
+    }
+
+    free(auth_value);
+    return header;
 }
 
 // ============================================================================
@@ -328,11 +390,17 @@ char* nous_claude_chat(const char* system_prompt, const char* user_message) {
     }
     response.data[0] = '\0';
 
+    // Build auth header
+    char* auth_header = build_auth_header();
+    if (!auth_header) {
+        free(json_body);
+        free(response.data);
+        curl_easy_cleanup(curl);
+        return NULL;
+    }
+
     // Setup headers
     struct curl_slist* headers = NULL;
-    char auth_header[256];
-    snprintf(auth_header, sizeof(auth_header), "x-api-key: %s", g_api_key);
-
     headers = curl_slist_append(headers, "Content-Type: application/json");
     headers = curl_slist_append(headers, auth_header);
     headers = curl_slist_append(headers, "anthropic-version: 2023-06-01");
@@ -349,6 +417,7 @@ char* nous_claude_chat(const char* system_prompt, const char* user_message) {
     CURLcode res = curl_easy_perform(curl);
 
     curl_slist_free_all(headers);
+    free(auth_header);
     free(json_body);
 
     if (res != CURLE_OK) {
@@ -417,7 +486,8 @@ static char* extract_tool_calls(const char* json) {
     return result;
 }
 
-// Parse tool name from tool call JSON
+// Parse tool name from tool call JSON (reserved for tool execution feature)
+__attribute__((unused))
 static char* extract_tool_name(const char* tool_json) {
     const char* name_key = "\"name\":";
     const char* found = strstr(tool_json, name_key);
@@ -444,7 +514,8 @@ static char* extract_tool_name(const char* tool_json) {
     return name;
 }
 
-// Parse tool input from tool call JSON
+// Parse tool input from tool call JSON (reserved for tool execution feature)
+__attribute__((unused))
 static char* extract_tool_input(const char* tool_json) {
     const char* input_key = "\"input\":";
     const char* found = strstr(tool_json, input_key);
@@ -549,11 +620,17 @@ char* nous_claude_chat_with_tools(const char* system_prompt, const char* user_me
     }
     response.data[0] = '\0';
 
+    // Build auth header
+    char* auth_header = build_auth_header();
+    if (!auth_header) {
+        free(json_body);
+        free(response.data);
+        curl_easy_cleanup(curl);
+        return NULL;
+    }
+
     // Setup headers
     struct curl_slist* headers = NULL;
-    char auth_header[256];
-    snprintf(auth_header, sizeof(auth_header), "x-api-key: %s", g_api_key);
-
     headers = curl_slist_append(headers, "Content-Type: application/json");
     headers = curl_slist_append(headers, auth_header);
     headers = curl_slist_append(headers, "anthropic-version: 2023-06-01");
@@ -570,6 +647,7 @@ char* nous_claude_chat_with_tools(const char* system_prompt, const char* user_me
     CURLcode res = curl_easy_perform(curl);
 
     curl_slist_free_all(headers);
+    free(auth_header);
     free(json_body);
 
     if (res != CURLE_OK) {
@@ -773,11 +851,17 @@ char* nous_claude_chat_stream(const char* system_prompt, const char* user_messag
         ctx.accumulated[0] = '\0';
     }
 
+    // Build auth header
+    char* auth_header = build_auth_header();
+    if (!auth_header) {
+        free(json_body);
+        free(ctx.accumulated);
+        curl_easy_cleanup(curl);
+        return NULL;
+    }
+
     // Setup headers
     struct curl_slist* headers = NULL;
-    char auth_header[256];
-    snprintf(auth_header, sizeof(auth_header), "x-api-key: %s", g_api_key);
-
     headers = curl_slist_append(headers, "Content-Type: application/json");
     headers = curl_slist_append(headers, auth_header);
     headers = curl_slist_append(headers, "anthropic-version: 2023-06-01");
@@ -794,6 +878,7 @@ char* nous_claude_chat_stream(const char* system_prompt, const char* user_messag
     CURLcode res = curl_easy_perform(curl);
 
     curl_slist_free_all(headers);
+    free(auth_header);
     free(json_body);
     curl_easy_cleanup(curl);
 
@@ -894,7 +979,8 @@ char* nous_claude_chat_conversation(Conversation* conv, const char* user_message
         return NULL;
     }
 
-    strcpy(messages_json, "[");
+    messages_json[0] = '[';
+    messages_json[1] = '\0';
     size_t offset = 1;
 
     ConvMessage* msg = conv->messages;
@@ -908,26 +994,36 @@ char* nous_claude_chat_conversation(Conversation* conv, const char* user_message
         }
 
         size_t needed = strlen(escaped_content) + strlen(msg->role) + 64;
-        if (offset + needed >= messages_capacity) {
+        if (offset + needed + 2 >= messages_capacity) {  // +2 for trailing "]" and null
             messages_capacity = (messages_capacity + needed) * 2;
-            messages_json = realloc(messages_json, messages_capacity);
-            if (!messages_json) {
+            char* new_buf = realloc(messages_json, messages_capacity);
+            if (!new_buf) {
                 free(escaped_content);
+                free(messages_json);
                 curl_easy_cleanup(curl);
                 return NULL;
             }
+            messages_json = new_buf;
         }
 
-        offset += snprintf(messages_json + offset, messages_capacity - offset,
+        int written = snprintf(messages_json + offset, messages_capacity - offset,
             "%s{\"role\": \"%s\", \"content\": \"%s\"}",
             first ? "" : ",", msg->role, escaped_content);
+
+        if (written > 0 && (size_t)written < messages_capacity - offset) {
+            offset += written;
+        }
 
         free(escaped_content);
         first = false;
         msg = msg->next;
     }
 
-    strcat(messages_json, "]");
+    // Safe append of closing bracket using offset
+    if (offset + 1 < messages_capacity) {
+        messages_json[offset] = ']';
+        messages_json[offset + 1] = '\0';
+    }
 
     // Build full request
     char* escaped_system = json_escape(conv->system_prompt ? conv->system_prompt : "");
@@ -966,11 +1062,17 @@ char* nous_claude_chat_conversation(Conversation* conv, const char* user_message
     }
     response.data[0] = '\0';
 
+    // Build auth header
+    char* auth_header = build_auth_header();
+    if (!auth_header) {
+        free(json_body);
+        free(response.data);
+        curl_easy_cleanup(curl);
+        return NULL;
+    }
+
     // Setup headers
     struct curl_slist* headers = NULL;
-    char auth_header[256];
-    snprintf(auth_header, sizeof(auth_header), "x-api-key: %s", g_api_key);
-
     headers = curl_slist_append(headers, "Content-Type: application/json");
     headers = curl_slist_append(headers, auth_header);
     headers = curl_slist_append(headers, "anthropic-version: 2023-06-01");
@@ -987,6 +1089,7 @@ char* nous_claude_chat_conversation(Conversation* conv, const char* user_message
     CURLcode res = curl_easy_perform(curl);
 
     curl_slist_free_all(headers);
+    free(auth_header);
     free(json_body);
 
     if (res != CURLE_OK) {

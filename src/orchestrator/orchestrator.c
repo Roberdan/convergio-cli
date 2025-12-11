@@ -795,7 +795,14 @@ char* orchestrator_process(const char* user_input) {
             // Parse and execute each tool call
             // Find tool_use blocks in the content array
             const char* search_pos = tool_calls_json;
-            char* tool_results = malloc(16384);
+            size_t tool_results_capacity = 16384;
+            char* tool_results = malloc(tool_results_capacity);
+            if (!tool_results) {
+                free(tool_calls_json);
+                free(conversation);
+                if (response) free(response);
+                return strdup("Error: Memory allocation failed");
+            }
             tool_results[0] = '\0';
             size_t results_len = 0;
             int tool_count = 0;
@@ -840,9 +847,10 @@ char* orchestrator_process(const char* user_input) {
                             "\n\n[Tool: %s]\nResult: %s",
                             tool_name, tool_result);
 
-                        if (results_len + strlen(result_entry) < 16000) {
-                            strcat(tool_results, result_entry);
-                            results_len += strlen(result_entry);
+                        size_t entry_len = strlen(result_entry);
+                        if (results_len + entry_len + 1 < tool_results_capacity) {
+                            memcpy(tool_results + results_len, result_entry, entry_len + 1);
+                            results_len += entry_len;
                         }
 
                         tool_count++;
@@ -861,6 +869,7 @@ char* orchestrator_process(const char* user_input) {
             }
 
             free(tool_calls_json);
+            tool_calls_json = NULL;  // Prevent double-free
 
             if (tool_count > 0) {
                 // Build new conversation with tool results
@@ -870,10 +879,12 @@ char* orchestrator_process(const char* user_input) {
                     conversation = realloc(conversation, conv_capacity);
                 }
 
-                // Append tool results and ask for final response
-                strcat(conversation, "\n\n[Tool Results]");
-                strcat(conversation, tool_results);
-                strcat(conversation, "\n\nBased on these tool results, provide your response to the user.");
+                // Append tool results and ask for final response using snprintf
+                size_t conv_len = strlen(conversation);
+                size_t append_len = snprintf(conversation + conv_len, conv_capacity - conv_len,
+                    "\n\n[Tool Results]%s\n\nBased on these tool results, provide your response to the user.",
+                    tool_results);
+                (void)append_len;  // Suppress unused warning
 
                 free(tool_results);
                 free(response);
@@ -1172,6 +1183,21 @@ char* orchestrator_parallel_analyze(const char* input, const char** agent_names,
         free(tasks[i].output);
     }
     free(tasks);
+
+    // Free the execution plan (including all tasks as linked list)
+    if (plan) {
+        Task* task = plan->tasks;
+        while (task) {
+            Task* next = task->next;
+            free(task->description);
+            free(task->result);
+            free(task);
+            task = next;
+        }
+        free(plan->goal);
+        free(plan->final_result);
+        free(plan);
+    }
 
     return result;
 }

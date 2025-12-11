@@ -1,16 +1,16 @@
 # ADR-003: Cost Control Model
 
-**Date**: 2024-12-10
+**Date**: 2025-12-11
 **Status**: Approved
 **Author**: AI Team
 
 ## Context
 
-L'utente richiede:
-- Sapere esattamente quanto sta spendendo
-- Budget caps per evitare sorprese
-- Tracciamento per agente, sessione, totale
-- Trasparenza completa sui costi
+Users require:
+- Knowing exactly how much they are spending
+- Budget caps to avoid surprises
+- Tracking per agent, session, and total
+- Complete transparency on costs
 
 ## Decision
 
@@ -58,19 +58,19 @@ typedef struct {
 ```
 
 **Enforcement levels:**
-1. **Warning (80%)**: Notifica all'utente, continua
-2. **Soft cap (95%)**: Chiede conferma per continuare
-3. **Hard cap (100%)**: Stop, nessuna chiamata API
+1. **Warning (80%)**: Notify user, continue
+2. **Soft cap (95%)**: Ask for confirmation to continue
+3. **Hard cap (100%)**: Stop, no API calls
 
 ### Real-Time Display
 
-Ogni prompt mostra lo stato:
+Each prompt shows the status:
 
 ```
 convergio [$0.0234 spent | $4.98 remaining]>
 ```
 
-Report dettagliato con comando `cost`:
+Detailed report with `cost` command:
 
 ```
 ╔══════════════════════════════════════════════════════════════╗

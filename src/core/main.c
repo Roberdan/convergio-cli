@@ -8,6 +8,8 @@
 
 #include "nous/nous.h"
 #include "nous/orchestrator.h"
+#include "nous/tools.h"
+#include "../auth/oauth.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -16,6 +18,7 @@
 #include <unistd.h>
 #include <stdarg.h>
 #include <time.h>
+#include <limits.h>
 #include <readline/readline.h>
 #include <readline/history.h>
 
@@ -121,7 +124,9 @@ static NousAgent* g_assistant = NULL;
 static void signal_handler(int sig) {
     (void)sig;
     g_running = 0;
-    printf("\n");
+    // Use write() instead of printf() - it's async-signal-safe
+    // printf() can deadlock if signal arrives during malloc/free
+    (void)write(STDOUT_FILENO, "\n", 1);
 }
 
 // ============================================================================
@@ -144,19 +149,29 @@ static int cmd_think(int argc, char** argv);
 static int cmd_cost(int argc, char** argv);
 static int cmd_agents(int argc, char** argv);
 static int cmd_debug(int argc, char** argv);
+static int cmd_allow_dir(int argc, char** argv);
+static int cmd_allowed_dirs(int argc, char** argv);
+static int cmd_login(int argc, char** argv);
+static int cmd_logout(int argc, char** argv);
+static int cmd_auth(int argc, char** argv);
 
 static const ReplCommand COMMANDS[] = {
-    {"help",    "Show available commands",           cmd_help},
-    {"create",  "Create a semantic node",            cmd_create},
-    {"agent",   "Manage agents",                     cmd_agent},
-    {"agents",  "List all available agents",         cmd_agents},
-    {"space",   "Manage collaborative spaces",       cmd_space},
-    {"status",  "Show system status",                cmd_status},
-    {"cost",    "Show/set cost and budget",          cmd_cost},
-    {"debug",   "Toggle debug mode (off/error/warn/info/debug/trace)", cmd_debug},
-    {"think",   "Process an intent",                 cmd_think},
-    {"quit",    "Exit Convergio",                    cmd_quit},
-    {"exit",    "Exit Convergio",                    cmd_quit},
+    {"help",        "Show available commands",           cmd_help},
+    {"create",      "Create a semantic node",            cmd_create},
+    {"agent",       "Manage agents",                     cmd_agent},
+    {"agents",      "List all available agents",         cmd_agents},
+    {"space",       "Manage collaborative spaces",       cmd_space},
+    {"status",      "Show system status",                cmd_status},
+    {"cost",        "Show/set cost and budget",          cmd_cost},
+    {"debug",       "Toggle debug mode (off/error/warn/info/debug/trace)", cmd_debug},
+    {"allow-dir",   "Add directory to sandbox",          cmd_allow_dir},
+    {"allowed-dirs","Show allowed directories",          cmd_allowed_dirs},
+    {"login",       "Login with Claude Max OAuth",       cmd_login},
+    {"logout",      "Logout and clear credentials",      cmd_logout},
+    {"auth",        "Show authentication status",        cmd_auth},
+    {"think",       "Process an intent",                 cmd_think},
+    {"quit",        "Exit Convergio",                    cmd_quit},
+    {"exit",        "Exit Convergio",                    cmd_quit},
     {NULL, NULL, NULL}
 };
 
@@ -176,6 +191,15 @@ static int cmd_help(int argc, char** argv) {
     printf("  cost report       Detailed cost report\n");
     printf("  cost set <USD>    Set budget limit\n");
     printf("  cost reset        Reset session spending\n");
+
+    printf("\nWorkspace/Sandbox:\n");
+    printf("  allowed-dirs      Show allowed directories\n");
+    printf("  allow-dir <path>  Add directory to sandbox\n");
+
+    printf("\nAuthentication:\n");
+    printf("  auth              Show authentication status\n");
+    printf("  login             Login with Claude Max subscription (OAuth)\n");
+    printf("  logout            Logout and clear credentials\n");
 
     printf("\nOr simply talk to Ali, your Chief of Staff.\n");
     printf("Ali will coordinate specialist agents as needed.\n\n");
@@ -308,6 +332,167 @@ static int cmd_debug(int argc, char** argv) {
         printf("\033[32m✓ Debug level set to: %s\033[0m\n", nous_log_level_name(new_level));
     }
 
+    return 0;
+}
+
+// ============================================================================
+// WORKSPACE/SANDBOX COMMANDS
+// ============================================================================
+
+static int cmd_allow_dir(int argc, char** argv) {
+    if (argc < 2) {
+        printf("Usage: allow-dir <path>\n");
+        printf("Add a directory to the sandbox (allows file operations)\n");
+        return -1;
+    }
+
+    // Resolve to absolute path
+    char resolved[PATH_MAX];
+    if (!realpath(argv[1], resolved)) {
+        printf("Error: Path not found: %s\n", argv[1]);
+        return -1;
+    }
+
+    // Check if it's a system path (block for safety)
+    const char* blocked_prefixes[] = {
+        "/System", "/usr", "/bin", "/sbin", "/etc", "/var",
+        "/private/etc", "/private/var", "/Library", NULL
+    };
+
+    for (int i = 0; blocked_prefixes[i]; i++) {
+        if (strncmp(resolved, blocked_prefixes[i], strlen(blocked_prefixes[i])) == 0) {
+            printf("Error: Cannot add system paths for security reasons\n");
+            return -1;
+        }
+    }
+
+    // Add to allowed paths
+    tools_add_allowed_path(resolved);
+    printf("\033[32m✓ Added to sandbox: %s\033[0m\n", resolved);
+
+    return 0;
+}
+
+static int cmd_allowed_dirs(int argc, char** argv) {
+    (void)argc; (void)argv;
+
+    size_t count = 0;
+    const char** paths = tools_get_allowed_paths(&count);
+
+    printf("\n\033[1mAllowed Directories (Sandbox)\033[0m\n");
+    printf("================================\n");
+
+    if (count == 0) {
+        printf("  (none - workspace not initialized)\n");
+    } else {
+        for (size_t i = 0; i < count; i++) {
+            if (i == 0) {
+                printf("  \033[32m✓\033[0m %s \033[2m(workspace)\033[0m\n", paths[i]);
+            } else {
+                printf("  \033[32m✓\033[0m %s\n", paths[i]);
+            }
+        }
+    }
+
+    printf("\nUse 'allow-dir <path>' to add more directories.\n\n");
+
+    return 0;
+}
+
+// ============================================================================
+// AUTHENTICATION COMMANDS
+// ============================================================================
+
+static int cmd_login(int argc, char** argv) {
+    (void)argc; (void)argv;
+
+    // Check if already authenticated with OAuth
+    if (auth_get_mode() == AUTH_MODE_OAUTH) {
+        printf("Already logged in with Claude Max.\n");
+        char* status = auth_get_status_string();
+        if (status) {
+            printf("Status: %s\n", status);
+            free(status);
+        }
+        return 0;
+    }
+
+    printf("\n\033[1mClaude Max Login\033[0m\n");
+    printf("================\n\n");
+    printf("This will open your browser to authenticate with Claude Max.\n");
+    printf("After logging in, you'll be able to use Convergio without API charges.\n\n");
+
+    int result = auth_oauth_login();
+
+    if (result == 0) {
+        printf("\n\033[32m✓ Successfully logged in with Claude Max!\033[0m\n");
+        printf("Your tokens have been securely stored in the macOS Keychain.\n\n");
+    } else {
+        printf("\n\033[31m✗ Login failed.\033[0m\n");
+        printf("You can still use Convergio by setting the ANTHROPIC_API_KEY environment variable.\n\n");
+    }
+
+    return result;
+}
+
+static int cmd_logout(int argc, char** argv) {
+    (void)argc; (void)argv;
+
+    if (auth_get_mode() == AUTH_MODE_NONE) {
+        printf("Not currently authenticated.\n");
+        return 0;
+    }
+
+    AuthMode prev_mode = auth_get_mode();
+    auth_logout();
+
+    if (prev_mode == AUTH_MODE_OAUTH) {
+        printf("\033[32m✓ Logged out from Claude Max.\033[0m\n");
+        printf("OAuth tokens have been removed from Keychain.\n");
+    }
+
+    // Check if API key is available as fallback
+    if (auth_get_mode() == AUTH_MODE_API_KEY) {
+        printf("\nNow using API key authentication (ANTHROPIC_API_KEY).\n");
+    } else {
+        printf("\nNo authentication configured.\n");
+        printf("Use 'login' to authenticate with Claude Max, or set ANTHROPIC_API_KEY.\n");
+    }
+
+    return 0;
+}
+
+static int cmd_auth(int argc, char** argv) {
+    (void)argc; (void)argv;
+
+    printf("\n\033[1mAuthentication Status\033[0m\n");
+    printf("=====================\n\n");
+
+    char* status = auth_get_status_string();
+    if (status) {
+        AuthMode mode = auth_get_mode();
+        const char* mode_name;
+        switch (mode) {
+            case AUTH_MODE_API_KEY: mode_name = "API Key"; break;
+            case AUTH_MODE_OAUTH:   mode_name = "Claude Max (OAuth)"; break;
+            default:                mode_name = "None"; break;
+        }
+
+        printf("  Mode:   %s\n", mode_name);
+        printf("  Status: %s\n", status);
+
+        if (mode == AUTH_MODE_OAUTH) {
+            printf("\n  \033[2mTokens stored in macOS Keychain\033[0m\n");
+        } else if (mode == AUTH_MODE_API_KEY) {
+            printf("\n  \033[2mUsing ANTHROPIC_API_KEY environment variable\033[0m\n");
+        }
+
+        free(status);
+    } else {
+        printf("  Not authenticated\n");
+    }
+
+    printf("\n");
     return 0;
 }
 
@@ -586,7 +771,6 @@ extern void md_print(const char* markdown);
 // Spinner state
 static volatile bool g_spinner_active = false;
 static pthread_t g_spinner_thread;
-static int g_stream_lines = 0;  // Count lines during streaming
 
 // Print a visual separator
 static void print_separator(void) {
@@ -636,7 +820,8 @@ static char* g_stream_buffer = NULL;
 static size_t g_stream_size = 0;
 static size_t g_stream_capacity = 0;
 
-// Streaming callback - accumulates chunks for final rendering
+// Streaming callback - accumulates chunks for final rendering (reserved for streaming feature)
+__attribute__((unused))
 static void stream_print_callback(const char* chunk, void* user_data) {
     (void)user_data;
     size_t chunk_len = strlen(chunk);
@@ -657,17 +842,9 @@ static void stream_print_callback(const char* chunk, void* user_data) {
     fflush(stdout);
 }
 
-// Check if streaming mode is enabled (default: no - use ANSI rendering instead)
-static bool g_streaming_enabled = false;
-
-// External streaming function
+// External streaming function (reserved for future streaming feature)
 extern char* nous_claude_chat_stream(const char* system_prompt, const char* user_message,
                                       void (*callback)(const char*, void*), void* user_data);
-
-// Process with streaming (for simple queries without tools)
-static char* process_with_streaming(const char* system_prompt, const char* input) {
-    return nous_claude_chat_stream(system_prompt, input, stream_print_callback, NULL);
-}
 
 static int process_natural_input(const char* input) {
     if (!input || strlen(input) == 0) return 0;
@@ -856,6 +1033,10 @@ static void print_banner(void) {
 }
 
 int main(int argc, char** argv) {
+    // Workspace path (default: current directory)
+    char workspace[PATH_MAX];
+    getcwd(workspace, sizeof(workspace));
+
     // Parse command line arguments
     for (int i = 1; i < argc; i++) {
         if (strcmp(argv[i], "--debug") == 0 || strcmp(argv[i], "-d") == 0) {
@@ -864,6 +1045,25 @@ int main(int argc, char** argv) {
             nous_log_set_level(LOG_LEVEL_TRACE);
         } else if (strcmp(argv[i], "--quiet") == 0 || strcmp(argv[i], "-q") == 0) {
             nous_log_set_level(LOG_LEVEL_ERROR);
+        } else if ((strcmp(argv[i], "--workspace") == 0 || strcmp(argv[i], "-w") == 0) && i + 1 < argc) {
+            // Custom workspace path
+            char resolved[PATH_MAX];
+            if (realpath(argv[++i], resolved)) {
+                strncpy(workspace, resolved, sizeof(workspace) - 1);
+                workspace[sizeof(workspace) - 1] = '\0';
+            } else {
+                fprintf(stderr, "Error: Cannot access workspace path: %s\n", argv[i]);
+                return 1;
+            }
+        } else if (strcmp(argv[i], "--help") == 0 || strcmp(argv[i], "-h") == 0) {
+            printf("Usage: convergio [OPTIONS]\n\n");
+            printf("Options:\n");
+            printf("  -w, --workspace <path>  Set workspace directory (default: current dir)\n");
+            printf("  -d, --debug             Enable debug logging\n");
+            printf("  -t, --trace             Enable trace logging (verbose)\n");
+            printf("  -q, --quiet             Suppress non-error output\n");
+            printf("  -h, --help              Show this help message\n");
+            return 0;
         }
     }
 
@@ -880,6 +1080,17 @@ int main(int argc, char** argv) {
 
     // Initialize subsystems
     printf("Initializing Convergio Kernel...\n");
+
+    // Initialize authentication first
+    if (auth_init() != 0) {
+        printf("  \033[33m⚠ No authentication configured\033[0m\n");
+        printf("    Use 'login' to authenticate with Claude Max\n");
+        printf("    Or set ANTHROPIC_API_KEY environment variable\n");
+    } else {
+        char* auth_status = auth_get_status_string();
+        printf("  ✓ Authentication: %s\n", auth_status ? auth_status : "configured");
+        free(auth_status);
+    }
 
     if (nous_init() != 0) {
         fprintf(stderr, "Failed to initialize semantic fabric.\n");
@@ -907,6 +1118,10 @@ int main(int argc, char** argv) {
         printf("  ✓ Orchestrator (Ali - Chief of Staff)\n");
         printf("  ✓ Budget: $%.2f\n", DEFAULT_BUDGET_USD);
     }
+
+    // Initialize workspace sandbox
+    tools_init_workspace(workspace);
+    printf("  ✓ Workspace: %s\n", workspace);
 
     printf("\nConvergio is ready.\n");
     printf("Talk to Ali - your Chief of Staff will coordinate specialist agents.\n\n");
@@ -969,6 +1184,7 @@ int main(int argc, char** argv) {
     nous_gpu_shutdown();
     nous_scheduler_shutdown();
     nous_shutdown();
+    auth_shutdown();
 
     printf("Goodbye.\n");
     return 0;

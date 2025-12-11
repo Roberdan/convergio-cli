@@ -9,7 +9,7 @@
  * - Semantic meaning and computational power
  * - Individual thought and collective intelligence
  *
- * Copyright 2024 - Roberto & AI Team
+ * Copyright 2025 - Roberto D'Angelo & AI Team
  */
 
 #ifndef CONVERGIO_H

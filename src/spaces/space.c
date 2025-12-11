@@ -269,7 +269,9 @@ typedef struct {
     size_t callback_count;
 } SpaceMessageBus;
 
-static SpaceMessageBus* get_or_create_bus(SemanticID space_id);  // Forward decl
+// Forward declaration - implementation pending for message bus feature
+__attribute__((unused))
+static SpaceMessageBus* get_or_create_bus(SemanticID space_id);
 
 int nous_space_broadcast(SemanticID space_id, SemanticID sender, const char* message) {
     if (space_id == SEMANTIC_ID_NULL || !message) return -1;

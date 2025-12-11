@@ -10,6 +10,8 @@
 
 #import <Foundation/Foundation.h>
 #import <Metal/Metal.h>
+// Use updated Accelerate LAPACK interface (macOS 13.3+)
+#define ACCELERATE_NEW_LAPACK
 #import <Accelerate/Accelerate.h>
 #include "mlx_embed.h"
 #include <stdlib.h>
@@ -577,6 +579,7 @@ static float* forward_cpu(const MLXTokens* tokens) {
     float* attn_out = calloc(seq_len * dim, sizeof(float));
     float* ffn_hidden = calloc(seq_len * MLX_INTERMEDIATE, sizeof(float));
     float* residual = calloc(seq_len * dim, sizeof(float));
+    float* embedding = NULL;  // Declare early to avoid uninitialized warning
 
     if (!q || !k || !v || !attn || !attn_out || !ffn_hidden || !residual) {
         goto cleanup;
@@ -656,7 +659,7 @@ static float* forward_cpu(const MLXTokens* tokens) {
                    seq_len, dim);
 
     // Mean pooling to get sentence embedding
-    float* embedding = calloc(dim, sizeof(float));
+    embedding = calloc(dim, sizeof(float));
     if (embedding) {
         mean_pool_cpu(hidden, embedding, seq_len, dim);
 

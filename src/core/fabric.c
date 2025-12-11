@@ -449,7 +449,7 @@ size_t nous_find_similar(const NousEmbedding* query,
 
     // Parallel search across all shards using P-cores
     dispatch_apply(NOUS_FABRIC_SHARDS, g_fabric->p_core_queue, ^(size_t idx) {
-        search_shard(&ctx, idx);
+        search_shard((void*)&ctx, idx);
     });
 
     atomic_fetch_add(&g_fabric->queries_processed, 1);

@@ -1,26 +1,26 @@
 # ADR-002: Agent Execution Model - Parallel vs Sequential
 
-**Date**: 2024-12-10
+**Date**: 2025-12-11
 **Status**: Approved
 **Author**: AI Team
 
 ## Context
 
-Il sistema di orchestrazione deve gestire multipli agenti che possono:
-1. Lavorare in parallelo su task indipendenti
-2. Eseguire in sequenza quando ci sono dipendenze
-3. Convergere i risultati verso l'orchestrator (Ali)
+The orchestration system must manage multiple agents that can:
+1. Work in parallel on independent tasks
+2. Execute sequentially when there are dependencies
+3. Converge results toward the orchestrator (Ali)
 
 ## Decision
 
 ### Hybrid Execution Model
 
-Utilizziamo **Grand Central Dispatch (GCD)** per massimizzare l'uso del M3 Max:
+We use **Grand Central Dispatch (GCD)** to maximize M3 Max utilization:
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
 │                    ALI - ORCHESTRATOR                            │
-│  Analizza il task → Decide execution strategy                    │
+│  Analyzes the task → Decides execution strategy                  │
 └─────────────────────────────────────────────────────────────────┘
                          │
            ┌─────────────┼─────────────┐
@@ -33,7 +33,7 @@ Utilizziamo **Grand Central Dispatch (GCD)** per massimizzare l'uso del M3 Max:
 
 ### 1. Parallel Group (dispatch_group)
 
-Per task indipendenti che possono eseguire contemporaneamente:
+For independent tasks that can execute simultaneously:
 
 ```c
 dispatch_group_t group = dispatch_group_create();
@@ -54,7 +54,7 @@ dispatch_group_wait(group, DISPATCH_TIME_FOREVER);
 
 ### 2. Pipeline Chain (sequential)
 
-Per task con dipendenze dove l'output di uno alimenta il successivo:
+For tasks with dependencies where one output feeds the next:
 
 ```c
 // Sequential execution with dependency
@@ -70,7 +70,7 @@ char* timeline = agent_davide_schedule(architecture); // Finally: project plan
 
 ### 3. Critic Loop (iterative refinement)
 
-Per task che richiedono validazione e raffinamento:
+For tasks requiring validation and refinement:
 
 ```c
 char* draft = agent_create(input);

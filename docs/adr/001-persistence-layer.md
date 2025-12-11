@@ -1,92 +1,92 @@
 # ADR-001: Persistence Layer - SQLite vs Vector DB
 
-**Date**: 2024-12-10
-**Status**: Proposta - In discussione con Roberto
+**Date**: 2025-12-11
+**Status**: Approved
 **Author**: AI Team
 
 ## Context
 
-Il sistema Convergio Kernel necessita di:
-1. **Memoria conversazionale** - Storia delle conversazioni
-2. **Agent state** - Definizioni e stato degli agenti
-3. **Cost tracking** - Costi per sessione/agente/totale
-4. **RAG/Semantic search** - Ricerca semantica nei ricordi
+The Convergio CLI system requires:
+1. **Conversation memory** - Conversation history
+2. **Agent state** - Agent definitions and state
+3. **Cost tracking** - Costs per session/agent/total
+4. **RAG/Semantic search** - Semantic search in memories
 
 ## Decision Points
 
-### Opzione A: SQLite (implementazione attuale)
+### Option A: SQLite (current implementation)
 
-**Pro:**
-- Zero dependencies esterne (built-in su macOS)
-- Semplice da deployare
+**Pros:**
+- Zero external dependencies (built-in on macOS)
+- Simple to deploy
 - ACID compliant
-- Ottimo per dati strutturati (costs, sessions, agent state)
-- WAL mode per concurrency
+- Excellent for structured data (costs, sessions, agent state)
+- WAL mode for concurrency
 
-**Contro:**
-- Non ottimale per vector search
-- Richiede estensione sqlite-vss per embeddings
-- Non scala per miliardi di vettori
+**Cons:**
+- Not optimal for vector search
+- Requires sqlite-vss extension for embeddings
+- Does not scale for billions of vectors
 
-### Opzione B: Vector DB nativo (es. FAISS, Hnswlib)
+### Option B: Native Vector DB (e.g., FAISS, Hnswlib)
 
-**Pro:**
-- Ottimizzato per similarity search
+**Pros:**
+- Optimized for similarity search
 - SIMD/NEON acceleration
-- In-memory per velocità massima
+- In-memory for maximum speed
 
-**Contro:**
-- Dependency esterna
-- Non ideale per dati relazionali
-- Richiede snapshot/persistence custom
+**Cons:**
+- External dependency
+- Not ideal for relational data
+- Requires custom snapshot/persistence
 
-### Opzione C: Hybrid (SQLite + in-memory vector index)
+### Option C: Hybrid (SQLite + in-memory vector index)
 
-**Pro:**
+**Pros:**
 - Best of both worlds
-- SQLite per dati strutturati
-- Custom NEON-optimized vector store per embeddings
-- Già abbiamo `nous_embedding_similarity_neon()` in fabric.c
+- SQLite for structured data
+- Custom NEON-optimized vector store for embeddings
+- We already have `nous_embedding_similarity_neon()` in fabric.c
 
-**Contro:**
-- Più complessità
-- Due sistemi da sincronizzare
+**Cons:**
+- More complexity
+- Two systems to synchronize
 
 ## Recommendation
 
-**Opzione C - Hybrid approach:**
+**Option C - Hybrid approach:**
 
-1. **SQLite** per:
+1. **SQLite** for:
    - Conversation history
    - Agent definitions
    - Cost tracking
    - Session management
    - User preferences
 
-2. **Semantic Fabric (già esistente)** per:
-   - Embedding storage (in-memory con persistence via mmap)
+2. **Semantic Fabric (already existing)** for:
+   - Embedding storage (in-memory with persistence via mmap)
    - Vector similarity search (NEON SIMD optimized)
    - Semantic relationships
 
-Questo sfrutta:
-- Il codice `fabric.c` già scritto con NEON optimization
-- `nous_find_similar()` per semantic search
-- `nous_embedding_similarity_neon()` per cosine similarity veloce
+This leverages:
+- The `fabric.c` code already written with NEON optimization
+- `nous_find_similar()` for semantic search
+- `nous_embedding_similarity_neon()` for fast cosine similarity
 
 ## MLX Integration
 
-### Proposta aggiuntiva: MLX per embeddings locali
+### Additional proposal: MLX for local embeddings
 
-MLX (Apple Machine Learning eXchange) permette:
-- Generazione embeddings locale su M3 Max
-- GPU acceleration nativa
-- Zero cloud costs per embeddings
+MLX (Apple Machine Learning eXchange) enables:
+- Local embedding generation on M3 Max
+- Native GPU acceleration
+- Zero cloud costs for embeddings
 
-**Modelli suggeriti:**
-- `all-MiniLM-L6-v2` (22M params, 384 dim) - veloce
-- `nomic-embed-text-v1.5` (137M params, 768 dim) - qualità
+**Suggested models:**
+- `all-MiniLM-L6-v2` (22M params, 384 dim) - fast
+- `nomic-embed-text-v1.5` (137M params, 768 dim) - quality
 
-**Implementazione:**
+**Implementation:**
 ```c
 // src/neural/mlx_embeddings.m
 #import <MLX/MLX.h>
@@ -100,24 +100,21 @@ float* mlx_generate_embedding(const char* text, size_t* out_dim) {
 
 ## Action Items
 
-1. [ ] Conferma con Roberto: SQLite + Semantic Fabric ok?
-2. [ ] Conferma con Roberto: Integrazione MLX per embeddings?
-3. [ ] Se sì MLX: scegliere modello embedding
-4. [ ] Documentare scelta finale
+1. [x] SQLite + Semantic Fabric confirmed
+2. [x] MLX integration for embeddings confirmed
+3. [x] MiniLM-L6-v2 model chosen
+4. [x] Final choice documented
 
-## Questions for Roberto
+## Decision
 
-1. **SQLite**: È accettabile come dependency? È built-in su macOS quindi zero install.
+**SQLite**: Built-in on macOS, zero installation required.
 
-2. **Vector DB**: Preferisci un vector DB dedicato (FAISS, Hnswlib) o sfruttiamo il Semantic Fabric già implementato con NEON?
+**Vector DB**: Using the Semantic Fabric already implemented with NEON.
 
-3. **MLX**: Vuoi embeddings locali via MLX? Pro: zero costi cloud per embeddings. Contro: ~100MB modello da scaricare.
+**MLX**: Pure Metal/C implementation for local embeddings - zero cloud costs, ~100MB model.
 
-4. **Persistence format**: Per il vector store, preferisci:
-   - mmap file (veloce, memory-mapped)
-   - Binary dump (semplice)
-   - SQLite blob (unificato)
+**Persistence format**: mmap file (fast, memory-mapped) with SQLite for structured data.
 
 ---
 
-*Waiting for Roberto's decision before proceeding.*
+*Decision made and implemented.*

@@ -17,10 +17,15 @@
 #include <time.h>
 #include <errno.h>
 #include <ctype.h>
+#include <pthread.h>
+#include <fcntl.h>
 
 // ============================================================================
 // SAFETY CONFIGURATION
 // ============================================================================
+
+// Mutex for thread-safe access to global configuration
+static pthread_mutex_t g_config_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 static char** g_allowed_paths = NULL;
 static size_t g_allowed_paths_count = 0;
@@ -43,6 +48,59 @@ static const char* DEFAULT_BLOCKED[] = {
     "curl * | sh",
     NULL
 };
+
+// ============================================================================
+// SECURITY UTILITIES
+// ============================================================================
+
+/**
+ * Escape a string for safe use in shell commands (single-quoted context)
+ * Replaces single quotes with '\'' (end quote, escaped quote, start quote)
+ * Caller must free returned string
+ */
+static char* shell_escape(const char* input) {
+    if (!input) return NULL;
+
+    // Count single quotes to determine buffer size
+    size_t quotes = 0;
+    for (const char* p = input; *p; p++) {
+        if (*p == '\'') quotes++;
+    }
+
+    // Allocate: original length + 3 extra chars per quote + null
+    size_t len = strlen(input);
+    char* escaped = malloc(len + quotes * 3 + 1);
+    if (!escaped) return NULL;
+
+    char* out = escaped;
+    for (const char* p = input; *p; p++) {
+        if (*p == '\'') {
+            // End current quote, add escaped quote, start new quote
+            *out++ = '\'';
+            *out++ = '\\';
+            *out++ = '\'';
+            *out++ = '\'';
+        } else {
+            *out++ = *p;
+        }
+    }
+    *out = '\0';
+
+    return escaped;
+}
+
+/**
+ * Sanitize input for grep pattern (remove dangerous regex chars)
+ * Only allows alphanumeric, spaces, and basic punctuation
+ */
+static void sanitize_grep_pattern(char* pattern) {
+    if (!pattern) return;
+    for (char* p = pattern; *p; p++) {
+        if (!isalnum((unsigned char)*p) && *p != ' ' && *p != '-' && *p != '_' && *p != '.') {
+            *p = '_';
+        }
+    }
+}
 
 // ============================================================================
 // TOOL DEFINITIONS JSON
@@ -220,7 +278,11 @@ void tools_set_allowed_paths(const char** paths, size_t count) {
             free(g_allowed_paths[i]);
         }
         free(g_allowed_paths);
+        g_allowed_paths = NULL;
+        g_allowed_paths_count = 0;
     }
+
+    if (count == 0 || !paths) return;
 
     g_allowed_paths = malloc(count * sizeof(char*));
     g_allowed_paths_count = count;
@@ -230,7 +292,75 @@ void tools_set_allowed_paths(const char** paths, size_t count) {
     }
 }
 
+void tools_add_allowed_path(const char* path) {
+    if (!path) return;
+
+    // Resolve to absolute path BEFORE taking the lock
+    char resolved[PATH_MAX];
+    if (!realpath(path, resolved)) {
+        return;  // Path doesn't exist
+    }
+
+    pthread_mutex_lock(&g_config_mutex);
+
+    // Check if already in list
+    for (size_t i = 0; i < g_allowed_paths_count; i++) {
+        if (strcmp(g_allowed_paths[i], resolved) == 0) {
+            pthread_mutex_unlock(&g_config_mutex);
+            return;  // Already exists
+        }
+    }
+
+    // Grow array and add (with proper realloc error handling)
+    char** new_paths = realloc(g_allowed_paths, (g_allowed_paths_count + 1) * sizeof(char*));
+    if (!new_paths) {
+        pthread_mutex_unlock(&g_config_mutex);
+        return;  // Allocation failed
+    }
+    g_allowed_paths = new_paths;
+    g_allowed_paths[g_allowed_paths_count] = strdup(resolved);
+    if (g_allowed_paths[g_allowed_paths_count]) {
+        g_allowed_paths_count++;
+    }
+
+    pthread_mutex_unlock(&g_config_mutex);
+}
+
+const char** tools_get_allowed_paths(size_t* count) {
+    pthread_mutex_lock(&g_config_mutex);
+    if (count) *count = g_allowed_paths_count;
+    const char** result = (const char**)g_allowed_paths;
+    pthread_mutex_unlock(&g_config_mutex);
+    return result;
+}
+
+void tools_clear_allowed_paths(void) {
+    pthread_mutex_lock(&g_config_mutex);
+    if (g_allowed_paths) {
+        for (size_t i = 0; i < g_allowed_paths_count; i++) {
+            free(g_allowed_paths[i]);
+        }
+        free(g_allowed_paths);
+        g_allowed_paths = NULL;
+        g_allowed_paths_count = 0;
+    }
+    pthread_mutex_unlock(&g_config_mutex);
+}
+
+void tools_init_workspace(const char* workspace_path) {
+    // Clear any existing paths
+    tools_clear_allowed_paths();
+
+    // Resolve and set the workspace path
+    char resolved[PATH_MAX];
+    if (workspace_path && realpath(workspace_path, resolved)) {
+        tools_add_allowed_path(resolved);
+    }
+}
+
 void tools_set_blocked_commands(const char** patterns, size_t count) {
+    pthread_mutex_lock(&g_config_mutex);
+
     // Free existing
     if (g_blocked_commands) {
         for (size_t i = 0; i < g_blocked_commands_count; i++) {
@@ -240,86 +370,224 @@ void tools_set_blocked_commands(const char** patterns, size_t count) {
     }
 
     g_blocked_commands = malloc(count * sizeof(char*));
+    if (!g_blocked_commands) {
+        g_blocked_commands_count = 0;
+        pthread_mutex_unlock(&g_config_mutex);
+        return;
+    }
     g_blocked_commands_count = count;
 
     for (size_t i = 0; i < count; i++) {
         g_blocked_commands[i] = strdup(patterns[i]);
     }
+
+    pthread_mutex_unlock(&g_config_mutex);
+}
+
+/**
+ * Check if path is within a directory (proper boundary check)
+ * Returns true if 'path' is exactly 'dir' or is inside 'dir'
+ */
+static bool is_path_within(const char* path, const char* dir) {
+    size_t dir_len = strlen(dir);
+    size_t path_len = strlen(path);
+
+    // Path must be at least as long as dir
+    if (path_len < dir_len) return false;
+
+    // Must match the prefix
+    if (strncmp(path, dir, dir_len) != 0) return false;
+
+    // If exact match, it's within
+    if (path_len == dir_len) return true;
+
+    // If longer, must be followed by '/' (directory boundary)
+    // This prevents /Users/work matching /Users/workbench
+    return path[dir_len] == '/';
 }
 
 bool tools_is_path_safe(const char* path) {
     if (!path) return false;
 
-    // Resolve to absolute path
+    // Resolve to absolute path (also resolves symlinks)
+    // Do this BEFORE taking the lock since realpath() can be slow
     char resolved[PATH_MAX];
     if (!realpath(path, resolved)) {
         // Path doesn't exist yet - check parent
         char* parent = strdup(path);
+        if (!parent) return false;
         char* last_slash = strrchr(parent, '/');
-        if (last_slash) {
+        if (last_slash && last_slash != parent) {
             *last_slash = '\0';
             if (!realpath(parent, resolved)) {
                 free(parent);
                 return false;
             }
+        } else {
+            // No parent directory or root
+            free(parent);
+            return false;
         }
         free(parent);
     }
 
-    // Block system paths
+    // Block system paths (with proper boundary checking)
+    // These are constants, no lock needed
     const char* blocked_prefixes[] = {
         "/System", "/usr", "/bin", "/sbin", "/etc", "/var",
-        "/private/etc", "/private/var", "/Library", NULL
+        "/private/etc", "/private/var", "/Library",
+        "/Applications", "/cores", "/opt", NULL
     };
 
     for (int i = 0; blocked_prefixes[i]; i++) {
-        if (strncmp(resolved, blocked_prefixes[i], strlen(blocked_prefixes[i])) == 0) {
+        if (is_path_within(resolved, blocked_prefixes[i])) {
             return false;
         }
     }
 
-    // If allowed paths are set, check against them
+    // Check against allowed paths (with proper boundary checking)
+    // Need mutex since g_allowed_paths can be modified by other threads
+    pthread_mutex_lock(&g_config_mutex);
+    bool allowed = false;
     if (g_allowed_paths && g_allowed_paths_count > 0) {
         for (size_t i = 0; i < g_allowed_paths_count; i++) {
-            if (strncmp(resolved, g_allowed_paths[i], strlen(g_allowed_paths[i])) == 0) {
-                return true;
+            if (is_path_within(resolved, g_allowed_paths[i])) {
+                allowed = true;
+                break;
             }
         }
-        return false;  // Not in allowed list
     }
+    pthread_mutex_unlock(&g_config_mutex);
 
-    // Default: allow user home and /tmp
-    const char* home = getenv("HOME");
-    if (home && strncmp(resolved, home, strlen(home)) == 0) {
-        return true;
-    }
-    if (strncmp(resolved, "/tmp", 4) == 0) {
-        return true;
-    }
+    // No allowed paths set or path not in list - deny by default
+    // This is intentional: workspace must be explicitly initialized
+    return allowed;
+}
 
-    return false;
+/**
+ * Normalize command string for safety checking
+ * Removes escape characters and converts to lowercase for comparison
+ */
+static char* normalize_command(const char* cmd) {
+    if (!cmd) return NULL;
+    size_t len = strlen(cmd);
+    char* normalized = malloc(len + 1);
+    if (!normalized) return NULL;
+
+    size_t j = 0;
+    for (size_t i = 0; i < len; i++) {
+        // Skip backslash escape characters
+        if (cmd[i] == '\\' && i + 1 < len) {
+            i++;  // Skip the backslash, include the next char
+        }
+        normalized[j++] = (char)tolower((unsigned char)cmd[i]);
+    }
+    normalized[j] = '\0';
+    return normalized;
 }
 
 bool tools_is_command_safe(const char* command) {
     if (!command) return false;
+    if (command[0] == '\0') return false;  // Empty command is not safe
 
-    // Check default blocked patterns
-    for (int i = 0; DEFAULT_BLOCKED[i]; i++) {
-        if (strstr(command, DEFAULT_BLOCKED[i])) {
+    // BLOCK dangerous shell metacharacters that enable command injection
+    // These allow chaining or substitution of commands
+    const char* dangerous_chars[] = {
+        "`",        // Backtick command substitution
+        "$(",       // Modern command substitution
+        "$((",      // Arithmetic expansion
+        "&&",       // Command chaining (allow single &)
+        "||",       // Conditional chaining
+        ";",        // Command separator
+        "\n",       // Newline separator
+        "|",        // Pipe (can chain to dangerous commands)
+        NULL
+    };
+
+    for (int i = 0; dangerous_chars[i]; i++) {
+        if (strstr(command, dangerous_chars[i])) {
             return false;
         }
     }
 
-    // Check user-defined blocked patterns
-    if (g_blocked_commands) {
-        for (size_t i = 0; i < g_blocked_commands_count; i++) {
-            if (strstr(command, g_blocked_commands[i])) {
-                return false;
-            }
+    // Normalize command for pattern matching
+    char* normalized = normalize_command(command);
+    if (!normalized) return false;
+
+    // BLOCK dangerous commands (check with and without path)
+    const char* dangerous_commands[] = {
+        "rm -rf /",
+        "rm -rf /*",
+        "rm -fr /",
+        "rm -fr /*",
+        "mkfs",
+        "dd if=",
+        "dd of=/dev",
+        ":(){:|:&};:",
+        "chmod -r 777 /",
+        "chmod 777 /",
+        "chown -r",
+        "> /dev/sd",
+        "> /dev/nv",
+        "mv /* ",
+        "mv / ",
+        "wget",        // Block entirely - too risky
+        "curl",        // Block entirely - too risky for shell exec
+        "nc ",         // Netcat
+        "ncat ",
+        "netcat ",
+        "/bin/sh",
+        "/bin/bash",
+        "/bin/zsh",
+        "python -c",
+        "python3 -c",
+        "perl -e",
+        "ruby -e",
+        "eval ",
+        "exec ",
+        "sudo ",
+        "su ",
+        "pkexec",
+        "doas ",
+        NULL
+    };
+
+    bool is_safe = true;
+    for (int i = 0; dangerous_commands[i]; i++) {
+        if (strstr(normalized, dangerous_commands[i])) {
+            is_safe = false;
+            break;
         }
     }
 
-    return true;
+    // Also check default blocked patterns against normalized string
+    if (is_safe) {
+        for (int i = 0; DEFAULT_BLOCKED[i]; i++) {
+            char* norm_blocked = normalize_command(DEFAULT_BLOCKED[i]);
+            if (norm_blocked && strstr(normalized, norm_blocked)) {
+                is_safe = false;
+            }
+            free(norm_blocked);
+            if (!is_safe) break;
+        }
+    }
+
+    // Check user-defined blocked patterns (need mutex for thread safety)
+    pthread_mutex_lock(&g_config_mutex);
+    if (is_safe && g_blocked_commands) {
+        for (size_t i = 0; i < g_blocked_commands_count; i++) {
+            char* norm_blocked = normalize_command(g_blocked_commands[i]);
+            if (norm_blocked && strstr(normalized, norm_blocked)) {
+                is_safe = false;
+            }
+            free(norm_blocked);
+            if (!is_safe) break;
+        }
+    }
+    pthread_mutex_unlock(&g_config_mutex);
+
+    free(normalized);
+    return is_safe;
 }
 
 // ============================================================================
@@ -360,6 +628,66 @@ void tools_free_call(ToolCall* call) {
 // FILE TOOLS IMPLEMENTATION
 // ============================================================================
 
+/**
+ * Safe file open - prevents TOCTOU attacks via symlink swapping
+ * Uses O_NOFOLLOW to reject symlinks, fstat() to verify regular file
+ * Returns file descriptor or -1 on error
+ */
+static int safe_open_read(const char* path) {
+    // Open with O_NOFOLLOW - fails with ELOOP if path is a symlink
+    int fd = open(path, O_RDONLY | O_NOFOLLOW);
+    if (fd < 0) {
+        return -1;
+    }
+
+    // Verify it's a regular file (not directory, device, etc.)
+    struct stat st;
+    if (fstat(fd, &st) < 0 || !S_ISREG(st.st_mode)) {
+        close(fd);
+        errno = EINVAL;
+        return -1;
+    }
+
+    return fd;
+}
+
+/**
+ * Safe file open for writing - prevents symlink attacks
+ * For new files: creates with O_CREAT | O_EXCL
+ * For existing files: opens with O_NOFOLLOW
+ */
+static int safe_open_write(const char* path, bool append) {
+    int flags = O_WRONLY | O_NOFOLLOW;
+    if (append) {
+        flags |= O_APPEND;
+    } else {
+        flags |= O_TRUNC;
+    }
+
+    // Try to open existing file first
+    int fd = open(path, flags);
+    if (fd < 0 && errno == ENOENT) {
+        // File doesn't exist - create it (O_EXCL ensures we create, not follow)
+        flags = O_WRONLY | O_CREAT | O_EXCL;
+        if (!append) flags |= O_TRUNC;
+        fd = open(path, flags, 0644);
+    }
+
+    if (fd < 0) {
+        return -1;
+    }
+
+    // Verify it's a regular file
+    struct stat st;
+    if (fstat(fd, &st) < 0 || !S_ISREG(st.st_mode)) {
+        close(fd);
+        errno = EINVAL;
+        return -1;
+    }
+
+    return fd;
+}
+
 ToolResult* tool_file_read(const char* path, int start_line, int end_line) {
     clock_t start = clock();
 
@@ -367,8 +695,21 @@ ToolResult* tool_file_read(const char* path, int start_line, int end_line) {
         return result_error("Path not allowed for security reasons");
     }
 
-    FILE* f = fopen(path, "r");
+    // Use safe open to prevent TOCTOU attacks
+    int fd = safe_open_read(path);
+    if (fd < 0) {
+        char err[256];
+        if (errno == ELOOP) {
+            snprintf(err, sizeof(err), "Symlinks not allowed: %s", path);
+        } else {
+            snprintf(err, sizeof(err), "Cannot open file: %s", strerror(errno));
+        }
+        return result_error(err);
+    }
+
+    FILE* f = fdopen(fd, "r");
     if (!f) {
+        close(fd);
         char err[256];
         snprintf(err, sizeof(err), "Cannot open file: %s", strerror(errno));
         return result_error(err);
@@ -417,10 +758,23 @@ ToolResult* tool_file_write(const char* path, const char* content, const char* m
         return result_error("Path not allowed for security reasons");
     }
 
-    const char* fmode = (mode && strcmp(mode, "append") == 0) ? "a" : "w";
+    bool append = (mode && strcmp(mode, "append") == 0);
 
-    FILE* f = fopen(path, fmode);
+    // Use safe open to prevent TOCTOU attacks
+    int fd = safe_open_write(path, append);
+    if (fd < 0) {
+        char err[256];
+        if (errno == ELOOP) {
+            snprintf(err, sizeof(err), "Symlinks not allowed: %s", path);
+        } else {
+            snprintf(err, sizeof(err), "Cannot open file for writing: %s", strerror(errno));
+        }
+        return result_error(err);
+    }
+
+    FILE* f = fdopen(fd, append ? "a" : "w");
     if (!f) {
+        close(fd);
         char err[256];
         snprintf(err, sizeof(err), "Cannot open file for writing: %s", strerror(errno));
         return result_error(err);
@@ -603,7 +957,7 @@ ToolResult* tool_shell_exec(const char* command, const char* working_dir, int ti
         output[len] = '\0';
 
         // Simple timeout check (not precise)
-        if ((clock() - start) / CLOCKS_PER_SEC > timeout_sec) {
+        if ((clock() - start) / CLOCKS_PER_SEC > (clock_t)timeout_sec) {
             pclose(pipe);
             chdir(old_cwd);
             free(output);
@@ -878,11 +1232,19 @@ ToolResult* tool_note_read(const char* title, const char* search) {
 
         fseek(f, 0, SEEK_END);
         long size = ftell(f);
+        if (size < 0) {
+            fclose(f);
+            return result_error("Cannot determine file size");
+        }
         fseek(f, 0, SEEK_SET);
 
-        char* content = malloc(size + 1);
-        fread(content, 1, size, f);
-        content[size] = '\0';
+        char* content = malloc((size_t)size + 1);
+        if (!content) {
+            fclose(f);
+            return result_error("Memory allocation failed");
+        }
+        size_t bytes_read = fread(content, 1, (size_t)size, f);
+        content[bytes_read] = '\0';
         fclose(f);
 
         ToolResult* r = result_success(content);
@@ -915,11 +1277,19 @@ ToolResult* tool_note_read(const char* title, const char* search) {
 
             fseek(f, 0, SEEK_END);
             long size = ftell(f);
+            if (size < 0) {
+                fclose(f);
+                continue;
+            }
             fseek(f, 0, SEEK_SET);
 
-            char* content = malloc(size + 1);
-            fread(content, 1, size, f);
-            content[size] = '\0';
+            char* content = malloc((size_t)size + 1);
+            if (!content) {
+                fclose(f);
+                continue;
+            }
+            size_t bytes_read = fread(content, 1, (size_t)size, f);
+            content[bytes_read] = '\0';
             fclose(f);
 
             // Check if search term is in content (case-insensitive)
@@ -1067,11 +1437,28 @@ ToolResult* tool_knowledge_search(const char* query, size_t max_results) {
     size_t len = strlen(output);
     int found = 0;
 
+    // Sanitize query to prevent command injection
+    char* safe_query = strdup(query);
+    if (!safe_query) {
+        free(output);
+        return result_error("Memory allocation failed");
+    }
+    sanitize_grep_pattern(safe_query);
+
+    // Escape for shell (belt and suspenders after sanitization)
+    char* escaped_query = shell_escape(safe_query);
+    free(safe_query);
+    if (!escaped_query) {
+        free(output);
+        return result_error("Memory allocation failed");
+    }
+
     // Simple implementation: search all .md files recursively
-    char cmd[512];
+    char cmd[1024];
     snprintf(cmd, sizeof(cmd),
         "grep -r -l -i '%s' %s 2>/dev/null | head -%zu",
-        query, KNOWLEDGE_DIR, max_results);
+        escaped_query, KNOWLEDGE_DIR, max_results);
+    free(escaped_query);
 
     FILE* pipe = popen(cmd, "r");
     if (pipe) {
@@ -1085,12 +1472,20 @@ ToolResult* tool_knowledge_search(const char* query, size_t max_results) {
 
             fseek(f, 0, SEEK_END);
             long size = ftell(f);
+            if (size < 0) {
+                fclose(f);
+                continue;
+            }
             if (size > 4096) size = 4096;  // Limit preview
             fseek(f, 0, SEEK_SET);
 
-            char* content = malloc(size + 1);
-            fread(content, 1, size, f);
-            content[size] = '\0';
+            char* content = malloc((size_t)size + 1);
+            if (!content) {
+                fclose(f);
+                continue;
+            }
+            size_t bytes_read = fread(content, 1, (size_t)size, f);
+            content[bytes_read] = '\0';
             fclose(f);
 
             // Add to output

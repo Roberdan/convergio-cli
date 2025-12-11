@@ -1,7 +1,7 @@
 # ADR-004: MLX Integration for Local Embeddings
 
-**Date**: 2024-12-10
-**Status**: Proposed - Awaiting Roberto's Decision
+**Date**: 2025-12-11
+**Status**: Approved - Implemented
 **Author**: AI Team
 
 ## Context
@@ -101,27 +101,6 @@ char* cmd = "python3 -c 'from mlx_embedding import embed; print(embed(...))'";
 **Pro**: Simplest, uses existing Python ecosystem
 **Con**: Subprocess overhead, requires Python
 
-## Recommendation
-
-**Option B (MLX-Swift Bridge)** with fallback to **Option C** for initial version:
-
-1. **Phase 1**: Use Python MLX subprocess for prototype
-2. **Phase 2**: Migrate to Swift MLX for performance
-3. **Phase 3**: Pure Metal implementation if needed
-
-## Benefits
-
-1. **Zero API cost** for embeddings
-2. **Faster** than network round-trip (~10ms local vs 100ms+ cloud)
-3. **Privacy**: All data stays on device
-4. **Offline capable**: Works without internet
-
-## Tradeoffs
-
-1. **First-run download**: ~200MB model download
-2. **Memory**: Model uses ~400MB RAM when loaded
-3. **Complexity**: Additional build dependencies
-
 ## Decision: Pure Metal/C
 
 **Roberto's choice**: Option A - Pure Metal/C for maximum performance.
@@ -179,10 +158,10 @@ Input Text
 
 ## Current Alternative
 
-Il Semantic Fabric usa già NEON SIMD per similarity search:
+The Semantic Fabric already uses NEON SIMD for similarity search:
 
 ```c
-// fabric.c - già implementato e funzionante
+// fabric.c - already implemented and working
 float nous_embedding_similarity_neon(const NousEmbedding* a, const NousEmbedding* b) {
     float16x8_t sum = vdupq_n_f16(0);
     for (size_t i = 0; i < NOUS_EMBEDDING_DIM; i += 8) {
@@ -194,8 +173,21 @@ float nous_embedding_similarity_neon(const NousEmbedding* a, const NousEmbedding
 }
 ```
 
-Questo funziona per **search** ma non genera embeddings - quelli vengono da Claude API.
+This works for **search** but does not generate embeddings - those come from Claude API.
+
+## Benefits
+
+1. **Zero API cost** for embeddings
+2. **Faster** than network round-trip (~10ms local vs 100ms+ cloud)
+3. **Privacy**: All data stays on device
+4. **Offline capable**: Works without internet
+
+## Tradeoffs
+
+1. **First-run download**: ~200MB model download
+2. **Memory**: Model uses ~400MB RAM when loaded
+3. **Complexity**: Additional build dependencies
 
 ---
 
-*Awaiting Roberto's decision on MLX integration priority and approach.*
+*Decision made and implemented with Pure Metal/C approach.*

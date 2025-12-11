@@ -1,12 +1,14 @@
-# Convergio Kernel
+# Convergio CLI
 
-A semantic kernel for human-AI symbiosis, optimized for Apple Silicon M3 Max.
+> **Optimized for Apple Silicon** - This project is specifically designed and optimized for Apple Silicon (M1/M2/M3/M4) Macs, leveraging NEON SIMD, Metal GPU shaders, and the Accelerate framework for maximum performance.
 
-**Developed by [Roberdan@FightTheStroke.org](mailto:Roberdan@FightTheStroke.org)**
+A semantic kernel for human-AI symbiosis, built natively for Apple Silicon.
+
+**Developed by [Roberto D'Angelo](mailto:Roberdan@FightTheStroke.org) @ [FightTheStroke.org](https://fightthestroke.org)**
 
 ## Overview
 
-Convergio Kernel is a **multi-agent orchestration system** built in pure C/Objective-C, designed as the foundation for intelligent human-AI collaboration. Unlike typical CLI wrappers around LLM APIs, Convergio implements a complete agent architecture with:
+Convergio CLI is a **multi-agent orchestration system** built in pure C/Objective-C, designed as the foundation for intelligent human-AI collaboration. Unlike typical CLI wrappers around LLM APIs, Convergio implements a complete agent architecture with:
 
 - **Ali** - A Chief of Staff agent that serves as your single point of contact
 - **49 specialist agents** that can be spawned on-demand for specific tasks
@@ -142,7 +144,7 @@ Ali can interact with the real world using these tools:
 
 ## How is this different from Claude CLI?
 
-| Feature | Claude CLI | Convergio Kernel |
+| Feature | Claude CLI | Convergio CLI |
 |---------|------------|------------------|
 | Architecture | Single LLM wrapper | Multi-agent orchestration |
 | Language | TypeScript/Node.js | Pure C/Objective-C |
@@ -159,6 +161,16 @@ Ali can interact with the real world using these tools:
 | Convergence | N/A | All agents report to Ali for synthesis |
 
 *Note: Local embeddings currently use random weights. Pre-trained weight loading planned.
+
+### Apple Silicon Optimizations
+
+Convergio CLI is specifically optimized for Apple Silicon with:
+
+- **NEON SIMD**: Vectorized operations for embedding similarity search
+- **Metal GPU Shaders**: Hardware-accelerated compute for neural operations
+- **Accelerate Framework**: BLAS optimizations for matrix operations
+- **GCD (Grand Central Dispatch)**: Optimal thread scheduling across P-cores and E-cores
+- **Unified Memory**: Zero-copy data sharing between CPU and GPU
 
 ## Architecture
 
@@ -226,7 +238,7 @@ Ali can interact with the real world using these tools:
 ## Project Structure
 
 ```
-kernel/
+convergio-cli/
 ├── include/nous/          # Public headers
 │   ├── nous.h            # Core semantic fabric
 │   ├── orchestrator.h    # Multi-agent orchestration
@@ -329,6 +341,6 @@ MIT License - see [LICENSE](LICENSE) for details.
 
 ---
 
-*Convergio Kernel - A semantic kernel for human-AI symbiosis*
+*Convergio CLI - A semantic kernel for human-AI symbiosis*
 
-*Developed by Roberto with AI assistance*
+*Developed by Roberto D'Angelo with AI assistance*

@@ -156,6 +156,7 @@ void nous_destroy_agent(NousAgent* agent) {
 // AGENT STATE MACHINE
 // ============================================================================
 
+__attribute__((unused))
 static const char* state_names[] = {
     "dormant", "listening", "thinking", "acting", "conversing"
 };

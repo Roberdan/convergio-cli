@@ -16,6 +16,7 @@ CFLAGS = $(ARCH_FLAGS) \
          -std=c17 \
          -Wall -Wextra -Wpedantic \
          -Wno-unused-parameter \
+         -Wno-overlength-strings \
          -ffast-math \
          -fvectorize \
          -I./include
@@ -39,7 +40,9 @@ FRAMEWORKS = -framework Metal \
              -framework MetalPerformanceShaders \
              -framework Accelerate \
              -framework Foundation \
-             -framework CoreFoundation
+             -framework CoreFoundation \
+             -framework Security \
+             -framework AppKit
 
 # Libraries
 LIBS = -lreadline -lcurl -lsqlite3
@@ -68,7 +71,8 @@ C_SOURCES = $(SRC_DIR)/core/fabric.c \
             $(SRC_DIR)/tools/tools.c
 
 OBJC_SOURCES = $(SRC_DIR)/metal/gpu.m \
-               $(SRC_DIR)/neural/mlx_embed.m
+               $(SRC_DIR)/neural/mlx_embed.m \
+               $(SRC_DIR)/auth/oauth.m
 
 METAL_SOURCES = shaders/similarity.metal
 
@@ -90,7 +94,7 @@ all: dirs metal $(TARGET)
 	@echo "╔═══════════════════════════════════════════════════╗"
 	@echo "║          CONVERGIO KERNEL                         ║"
 	@echo "║  Build complete!                                  ║"
-	@echo "║  Run with: $(TARGET)                 ║"
+	@echo "║  Run with: $(TARGET)                              ║"
 	@echo "╚═══════════════════════════════════════════════════╝"
 	@echo ""
 
@@ -106,6 +110,7 @@ dirs:
 	@mkdir -p $(OBJ_DIR)/orchestrator
 	@mkdir -p $(OBJ_DIR)/memory
 	@mkdir -p $(OBJ_DIR)/tools
+	@mkdir -p $(OBJ_DIR)/auth
 	@mkdir -p $(BIN_DIR)
 	@mkdir -p data
 
@@ -178,6 +183,20 @@ hwinfo:
 	@echo "Memory: $$(( $$(sysctl -n hw.memsize) / 1024 / 1024 / 1024 )) GB"
 	@system_profiler SPDisplaysDataType 2>/dev/null | grep -A2 "Chipset Model" | head -4
 
+# Fuzz test target - tests security functions with malformed inputs
+FUZZ_TEST = $(BIN_DIR)/fuzz_test
+FUZZ_SOURCES = tests/fuzz_test.c
+# Exclude main.o since fuzz_test has its own main()
+FUZZ_OBJECTS = $(filter-out $(OBJ_DIR)/core/main.o,$(OBJECTS))
+
+fuzz_test: dirs $(OBJECTS) $(FUZZ_TEST)
+	@echo "Running fuzz tests..."
+	@$(FUZZ_TEST)
+
+$(FUZZ_TEST): $(FUZZ_SOURCES) $(FUZZ_OBJECTS)
+	@echo "Compiling fuzz tests..."
+	@$(CC) $(CFLAGS) $(LDFLAGS) -o $(FUZZ_TEST) $(FUZZ_SOURCES) $(FUZZ_OBJECTS) $(FRAMEWORKS) $(LIBS)
+
 # Help
 help:
 	@echo "Convergio Kernel Build System"
@@ -189,10 +208,11 @@ help:
 	@echo "  clean     - Remove build artifacts"
 	@echo "  install   - Install to /usr/local"
 	@echo "  uninstall - Remove from /usr/local"
+	@echo "  fuzz_test - Build and run fuzz tests"
 	@echo "  hwinfo    - Show M3 Max hardware info"
 	@echo "  help      - Show this message"
 	@echo ""
 	@echo "Variables:"
 	@echo "  DEBUG=1   - Enable debug build"
 
-.PHONY: all dirs metal run clean debug install uninstall hwinfo help
+.PHONY: all dirs metal run clean debug install uninstall hwinfo help fuzz_test

@@ -14,6 +14,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <pthread.h>
+#include <stdint.h>
 
 // Database handle
 static sqlite3* g_db = NULL;
@@ -420,8 +421,11 @@ int persistence_save_cost_daily(const char* date, uint64_t input_tokens,
     }
 
     sqlite3_bind_text(stmt, 1, date, -1, SQLITE_STATIC);
-    sqlite3_bind_int64(stmt, 2, input_tokens);
-    sqlite3_bind_int64(stmt, 3, output_tokens);
+    // Clamp uint64_t to int64_t max to prevent overflow (extremely unlikely in practice)
+    int64_t safe_input = (input_tokens > INT64_MAX) ? INT64_MAX : (int64_t)input_tokens;
+    int64_t safe_output = (output_tokens > INT64_MAX) ? INT64_MAX : (int64_t)output_tokens;
+    sqlite3_bind_int64(stmt, 2, safe_input);
+    sqlite3_bind_int64(stmt, 3, safe_output);
     sqlite3_bind_double(stmt, 4, cost);
     sqlite3_bind_int(stmt, 5, calls);
 
@@ -488,10 +492,12 @@ int persistence_save_memory(const char* content, float importance) {
         return -1;
     }
 
-    sqlite3_bind_text(stmt, 1, content, -1, SQLITE_STATIC);
+    // Use SQLITE_TRANSIENT to make SQLite copy the data immediately
+    // This prevents use-after-free if the data is freed before finalize
+    sqlite3_bind_text(stmt, 1, content, -1, SQLITE_TRANSIENT);
 
     if (embedding && embed_dim > 0) {
-        sqlite3_bind_blob(stmt, 2, embedding, embed_dim * sizeof(float), SQLITE_STATIC);
+        sqlite3_bind_blob(stmt, 2, embedding, embed_dim * sizeof(float), SQLITE_TRANSIENT);
     } else {
         sqlite3_bind_null(stmt, 2);
     }

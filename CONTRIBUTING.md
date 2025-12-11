@@ -1,6 +1,6 @@
-# Contributing to Convergio Kernel
+# Contributing to Convergio CLI
 
-First off, thank you for considering contributing to Convergio Kernel! It's people like you that make this project better.
+First off, thank you for considering contributing to Convergio CLI! It's people like you that make this project better.
 
 ## Code of Conduct
 

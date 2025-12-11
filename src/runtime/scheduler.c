@@ -70,6 +70,7 @@ static NousScheduler g_scheduler = {0};
  * QOS_CLASS_BACKGROUND        -> E-cores only (lowest priority)
  */
 
+__attribute__((unused))
 static dispatch_qos_class_t core_class_to_qos(CoreClass class) {
     switch (class) {
         case CORE_CLASS_PERFORMANCE:
