@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.0.4] - 2025-12-11
+
+### Added
+- **ESC key cancellation**: Press ESC while "pensando..." to cancel requests instantly
+- **Direct agent communication**: Use `@agent_name message` to talk directly to any specialist
+  - Example: `@baccio How should I architect this API?`
+  - Example: `@luca Is this code secure?`
+- **Full tool support for all agents**: Every agent can now use web_fetch, file_read, shell_exec, etc.
+- New `orchestrator_agent_chat()` function for direct agent communication with tool loop
+
+### Changed
+- Spinner now shows "(ESC to cancel)" hint
+- `agents` command shows `@name` format for easy copy-paste
+- Improved agents list with usage tip
+
+### Technical
+- Added curl progress callback (`CURLOPT_XFERINFOFUNCTION`) to all API calls
+- Terminal switches to raw mode during spinner for ESC detection
+- Request cancellation via `claude_cancel_request()` / `claude_reset_cancel()`
+
 ## [2.0.3] - 2025-12-11
 
 ### Fixed
