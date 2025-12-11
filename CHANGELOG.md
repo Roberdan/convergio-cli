@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.0.2] - 2025-12-11
+
+### Removed
+- OAuth `login` command (requires Anthropic OAuth client registration - see ADR 005)
+
+### Changed
+- Authentication now uses API key only (via environment variable, Keychain, or config file)
+- Updated help messages to reflect API key authentication
+
+### Added
+- ADR 005: OAuth Authentication documentation explaining requirements for future enablement
+
 ## [2.0.1] - 2025-12-11
 
 ### Fixed

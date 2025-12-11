@@ -154,7 +154,7 @@ static int cmd_agents(int argc, char** argv);
 static int cmd_debug(int argc, char** argv);
 static int cmd_allow_dir(int argc, char** argv);
 static int cmd_allowed_dirs(int argc, char** argv);
-static int cmd_login(int argc, char** argv);
+// static int cmd_login(int argc, char** argv);  // Disabled - see ADR 005
 static int cmd_logout(int argc, char** argv);
 static int cmd_auth(int argc, char** argv);
 static int cmd_update(int argc, char** argv);
@@ -171,7 +171,6 @@ static const ReplCommand COMMANDS[] = {
     {"debug",       "Toggle debug mode (off/error/warn/info/debug/trace)", cmd_debug},
     {"allow-dir",   "Add directory to sandbox",          cmd_allow_dir},
     {"allowed-dirs","Show allowed directories",          cmd_allowed_dirs},
-    {"login",       "Login with Claude Max OAuth",       cmd_login},
     {"logout",      "Logout and clear credentials",      cmd_logout},
     {"auth",        "Show authentication status",        cmd_auth},
     {"update",      "Check for and install updates",     cmd_update},
@@ -205,7 +204,6 @@ static int cmd_help(int argc, char** argv) {
 
     printf("\nAuthentication:\n");
     printf("  auth              Show authentication status\n");
-    printf("  login             Login with Claude Max subscription (OAuth)\n");
     printf("  logout            Logout and clear credentials\n");
 
     printf("\nOr simply talk to Ali, your Chief of Staff.\n");
@@ -410,6 +408,10 @@ static int cmd_allowed_dirs(int argc, char** argv) {
 // AUTHENTICATION COMMANDS
 // ============================================================================
 
+// NOTE: OAuth login disabled - requires Anthropic OAuth client registration.
+// See docs/adr/005-oauth-authentication.md for details on re-enabling.
+// To re-enable: uncomment cmd_login and add to COMMANDS array.
+#if 0
 static int cmd_login(int argc, char** argv) {
     (void)argc; (void)argv;
 
@@ -441,6 +443,7 @@ static int cmd_login(int argc, char** argv) {
 
     return result;
 }
+#endif
 
 static int cmd_logout(int argc, char** argv) {
     (void)argc; (void)argv;
@@ -463,7 +466,7 @@ static int cmd_logout(int argc, char** argv) {
         printf("\nNow using API key authentication (ANTHROPIC_API_KEY).\n");
     } else {
         printf("\nNo authentication configured.\n");
-        printf("Use 'login' to authenticate with Claude Max, or set ANTHROPIC_API_KEY.\n");
+        printf("Run 'convergio setup' or set ANTHROPIC_API_KEY environment variable.\n");
     }
 
     return 0;
@@ -1138,8 +1141,7 @@ int main(int argc, char** argv) {
     // Initialize authentication
     if (auth_init() != 0) {
         printf("  \033[33m⚠ No authentication configured\033[0m\n");
-        printf("    Use 'login' to authenticate with Claude Max\n");
-        printf("    Or set ANTHROPIC_API_KEY environment variable\n");
+        printf("    Run 'convergio setup' or set ANTHROPIC_API_KEY\n");
     } else {
         char* auth_status = auth_get_status_string();
         printf("  ✓ Authentication: %s\n", auth_status ? auth_status : "configured");
