@@ -1,0 +1,55 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+jobs:
+  build:
+    name: Build & Test
+    runs-on: macos-14  # Apple Silicon (M1)
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build
+        run: |
+          make clean
+          make 2>&1 | tee build.log
+
+      - name: Check for warnings
+        run: |
+          if grep -i "warning:" build.log; then
+            echo "::error::Build produced warnings"
+            exit 1
+          fi
+
+      - name: Verify binary exists
+        run: |
+          test -f ./build/bin/convergio || (echo "Binary not found" && exit 1)
+
+      - name: Verify version flag
+        run: |
+          ./build/bin/convergio --version
+
+      - name: Verify help flag
+        run: |
+          ./build/bin/convergio --help
+
+      - name: Check binary size
+        run: |
+          SIZE=$(stat -f%z ./build/bin/convergio)
+          echo "Binary size: $SIZE bytes ($(echo "scale=2; $SIZE/1024/1024" | bc) MB)"
+          if [ $SIZE -gt 10485760 ]; then
+            echo "::warning::Binary size exceeds 10MB"
+          fi
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: convergio-ci-build
+          path: build/bin/convergio
+          retention-days: 7
