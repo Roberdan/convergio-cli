@@ -24,6 +24,7 @@
 #include <limits.h>
 #include <readline/readline.h>
 #include <readline/history.h>
+#include <termios.h>
 
 // ============================================================================
 // FORWARD DECLARATIONS
@@ -797,26 +798,51 @@ extern void md_print(const char* markdown);
 
 // Spinner state
 static volatile bool g_spinner_active = false;
+static volatile bool g_spinner_cancelled = false;
 static pthread_t g_spinner_thread;
+static struct termios g_orig_termios;
 
 // Print a visual separator
 static void print_separator(void) {
     printf("\n" ANSI_DIM "────────────────────────────────────────────────────────────────" ANSI_RESET "\n\n");
 }
 
-// Spinner thread function
+// Spinner thread function - polls for ESC key to cancel
 static void* spinner_func(void* arg) {
     (void)arg;
     const char* frames[] = {"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"};
     int frame = 0;
 
+    // Save terminal settings and enable raw mode for ESC detection
+    struct termios raw;
+    tcgetattr(STDIN_FILENO, &g_orig_termios);
+    raw = g_orig_termios;
+    raw.c_lflag &= ~(ICANON | ECHO);  // Disable canonical mode and echo
+    raw.c_cc[VMIN] = 0;   // Non-blocking read
+    raw.c_cc[VTIME] = 0;  // No timeout
+    tcsetattr(STDIN_FILENO, TCSANOW, &raw);
+
     printf(ANSI_HIDE_CURSOR);
     while (g_spinner_active) {
-        printf(ANSI_CURSOR_START ANSI_DIM "%s pensando..." ANSI_RESET "  ", frames[frame]);
+        // Check for ESC key (ASCII 27)
+        char c;
+        if (read(STDIN_FILENO, &c, 1) == 1) {
+            if (c == 27) {  // ESC key
+                g_spinner_cancelled = true;
+                claude_cancel_request();
+                break;
+            }
+        }
+
+        printf(ANSI_CURSOR_START ANSI_DIM "%s pensando... " ANSI_RESET "(ESC to cancel)  ", frames[frame]);
         fflush(stdout);
         frame = (frame + 1) % 10;
         usleep(80000);  // 80ms
     }
+
+    // Restore terminal settings
+    tcsetattr(STDIN_FILENO, TCSANOW, &g_orig_termios);
+
     // Clear spinner line
     printf(ANSI_CURSOR_START ANSI_CLEAR_LINE);
     printf(ANSI_SHOW_CURSOR);
@@ -827,6 +853,8 @@ static void* spinner_func(void* arg) {
 // Start spinner
 static void spinner_start(void) {
     g_spinner_active = true;
+    g_spinner_cancelled = false;
+    claude_reset_cancel();
     pthread_create(&g_spinner_thread, NULL, spinner_func, NULL);
 }
 
@@ -836,6 +864,11 @@ static void spinner_stop(void) {
         g_spinner_active = false;
         pthread_join(g_spinner_thread, NULL);
     }
+}
+
+// Check if request was cancelled
+static bool spinner_was_cancelled(void) {
+    return g_spinner_cancelled;
 }
 
 // ============================================================================
@@ -908,6 +941,13 @@ static int process_natural_input(const char* input) {
     // Stop spinner
     spinner_stop();
 
+    // Check if request was cancelled by user
+    if (spinner_was_cancelled()) {
+        printf(ANSI_DIM "Request cancelled" ANSI_RESET "\n");
+        if (response) free(response);
+        return 0;
+    }
+
     if (response) {
         // Print Ali's name as header
         printf(ANSI_BOLD ANSI_CYAN "%s" ANSI_RESET "\n\n", name);
@@ -926,6 +966,65 @@ static int process_natural_input(const char* input) {
 }
 
 // ============================================================================
+// DIRECT AGENT COMMUNICATION
+// ============================================================================
+
+// Talk directly to a specific agent by name, bypassing Ali
+static int direct_agent_communication(const char* agent_name, const char* message) {
+    if (!agent_name || !message || strlen(message) == 0) {
+        printf("Usage: @agent_name your message\n");
+        return 0;
+    }
+
+    // Find the agent
+    ManagedAgent* agent = agent_find_by_name(agent_name);
+    if (!agent) {
+        printf(ANSI_DIM "Agent '%s' not found. Use 'agents' to see available agents." ANSI_RESET "\n", agent_name);
+        return 0;
+    }
+
+    if (!agent->system_prompt) {
+        printf(ANSI_DIM "Agent '%s' has no system prompt configured." ANSI_RESET "\n", agent_name);
+        return 0;
+    }
+
+    // Print separator
+    print_separator();
+
+    // Start spinner
+    spinner_start();
+
+    // Use orchestrator_agent_chat for full tool support (web_fetch, file_read, etc.)
+    char* response = orchestrator_agent_chat(agent, message);
+
+    // Stop spinner
+    spinner_stop();
+
+    // Check if cancelled
+    if (spinner_was_cancelled()) {
+        printf(ANSI_DIM "Request cancelled" ANSI_RESET "\n");
+        if (response) free(response);
+        return 0;
+    }
+
+    if (response) {
+        // Print agent's name as header
+        printf(ANSI_BOLD ANSI_CYAN "%s" ANSI_RESET "\n\n", agent->name);
+
+        // Render markdown
+        md_print(response);
+        printf("\n");
+        free(response);
+    } else {
+        printf(ANSI_BOLD ANSI_CYAN "%s" ANSI_RESET "\n\n", agent->name);
+        printf("Non sono riuscito a rispondere. Riprova.\n");
+    }
+
+    printf("\n");
+    return 0;
+}
+
+// ============================================================================
 // COMMAND PARSING
 // ============================================================================
 
@@ -933,7 +1032,34 @@ static int parse_and_execute(char* line) {
     // Skip empty lines
     if (!line || strlen(line) == 0) return 0;
 
-    // Tokenize
+    // Check for direct agent communication: @agent_name message
+    if (line[0] == '@') {
+        // Extract agent name (until first space)
+        char agent_name[128] = {0};
+        const char* msg_start = NULL;
+
+        const char* space = strchr(line, ' ');
+        if (space) {
+            size_t name_len = space - line - 1;  // -1 to skip @
+            if (name_len > 0 && name_len < sizeof(agent_name)) {
+                strncpy(agent_name, line + 1, name_len);
+                agent_name[name_len] = '\0';
+                msg_start = space + 1;
+                // Skip leading whitespace in message
+                while (*msg_start == ' ' || *msg_start == '\t') msg_start++;
+            }
+        }
+
+        if (strlen(agent_name) > 0 && msg_start && strlen(msg_start) > 0) {
+            return direct_agent_communication(agent_name, msg_start);
+        } else {
+            printf("Usage: @agent_name your message\n");
+            printf("Example: @baccio What's the best architecture for this system?\n");
+            return 0;
+        }
+    }
+
+    // Tokenize for command parsing
     char* argv[64];
     int argc = 0;
 

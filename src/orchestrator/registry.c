@@ -1078,12 +1078,15 @@ char* agent_registry_status(void) {
         }
 
         offset += snprintf(status + offset, buf_size - offset,
-            "  - %s (%s) [%s] - $%.4f\n",
+            "  @%-20s %s [%s]\n",
             agent->name,
             role_name,
-            agent->is_active ? "active" : "inactive",
-            agent->usage.cost_usd);
+            agent->is_active ? "active" : "inactive");
     }
+
+    offset += snprintf(status + offset, buf_size - offset,
+        "\nTip: Use @agent_name to talk directly to an agent\n"
+        "Example: @baccio What's the best architecture for this?\n");
 
     pthread_mutex_unlock(&g_registry_mutex);
 

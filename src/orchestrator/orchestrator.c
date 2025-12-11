@@ -1143,6 +1143,160 @@ char* orchestrator_converge(ExecutionPlan* plan) {
 }
 
 // ============================================================================
+// DIRECT AGENT COMMUNICATION (with tools support)
+// ============================================================================
+
+// Chat directly with a specific agent, with full tool support
+char* orchestrator_agent_chat(ManagedAgent* agent, const char* user_message) {
+    if (!g_orchestrator || !agent || !user_message) return NULL;
+
+    const char* tools_json = tools_get_definitions_json();
+
+    // Build conversation
+    size_t conv_capacity = strlen(user_message) + 4096;
+    char* conversation = malloc(conv_capacity);
+    if (!conversation) return NULL;
+    strcpy(conversation, user_message);
+
+    char* final_response = NULL;
+    int max_iterations = 5;  // Max tool loop iterations
+    int iteration = 0;
+
+    while (iteration < max_iterations) {
+        iteration++;
+
+        // Check if cancelled
+        if (claude_is_cancelled()) {
+            free(conversation);
+            return NULL;
+        }
+
+        // Call Claude with tools
+        char* tool_calls_json = NULL;
+        char* response = nous_claude_chat_with_tools(
+            agent->system_prompt,
+            conversation,
+            tools_json,
+            &tool_calls_json
+        );
+
+        if (!response && !tool_calls_json) {
+            free(conversation);
+            return strdup("Error: Failed to get response from agent");
+        }
+
+        // Record cost
+        cost_record_agent_usage(agent,
+                                strlen(agent->system_prompt) / 4 + strlen(conversation) / 4,
+                                (response ? strlen(response) : 0) / 4);
+
+        // Check if there are tool calls to process
+        if (tool_calls_json && strstr(tool_calls_json, "tool_use")) {
+            // Parse and execute each tool call
+            const char* search_pos = tool_calls_json;
+            size_t tool_results_capacity = 16384;
+            char* tool_results = malloc(tool_results_capacity);
+            if (!tool_results) {
+                free(tool_calls_json);
+                free(conversation);
+                if (response) free(response);
+                return strdup("Error: Memory allocation failed");
+            }
+            tool_results[0] = '\0';
+            size_t results_len = 0;
+            int tool_count = 0;
+
+            while ((search_pos = strstr(search_pos, "\"type\"")) != NULL) {
+                if (strstr(search_pos, "\"tool_use\"") &&
+                    (strstr(search_pos, "\"tool_use\"") - search_pos) < 50) {
+
+                    const char* block_start = search_pos;
+                    while (block_start > tool_calls_json && *block_start != '{') block_start--;
+
+                    int depth = 1;
+                    const char* block_end = block_start + 1;
+                    while (*block_end && depth > 0) {
+                        if (*block_end == '{') depth++;
+                        else if (*block_end == '}') depth--;
+                        block_end++;
+                    }
+
+                    size_t block_len = block_end - block_start;
+                    char* block = malloc(block_len + 1);
+                    strncpy(block, block_start, block_len);
+                    block[block_len] = '\0';
+
+                    char* tool_name = parse_tool_name_from_block(block);
+                    char* tool_input = parse_tool_input_from_block(block);
+
+                    if (tool_name && tool_input) {
+                        char* tool_result = execute_tool_call(tool_name, tool_input);
+
+                        char result_entry[8192];
+                        snprintf(result_entry, sizeof(result_entry),
+                            "\n\n[Tool: %s]\nResult: %s",
+                            tool_name, tool_result);
+
+                        size_t entry_len = strlen(result_entry);
+                        if (results_len + entry_len + 1 < tool_results_capacity) {
+                            memcpy(tool_results + results_len, result_entry, entry_len + 1);
+                            results_len += entry_len;
+                        }
+
+                        tool_count++;
+                        free(tool_result);
+                    }
+
+                    free(tool_name);
+                    free(tool_input);
+                    free(block);
+                    search_pos = block_end;
+                } else {
+                    search_pos++;
+                }
+            }
+
+            free(tool_calls_json);
+            tool_calls_json = NULL;
+
+            if (tool_count > 0) {
+                size_t new_conv_len = strlen(conversation) + strlen(tool_results) + 256;
+                if (new_conv_len > conv_capacity) {
+                    conv_capacity = new_conv_len + 4096;
+                    conversation = realloc(conversation, conv_capacity);
+                }
+
+                size_t conv_len = strlen(conversation);
+                snprintf(conversation + conv_len, conv_capacity - conv_len,
+                    "\n\n[Tool Results]%s\n\nBased on these tool results, provide your response to the user.",
+                    tool_results);
+
+                free(tool_results);
+                free(response);
+                continue;  // Continue loop to get response with tool results
+            }
+
+            free(tool_results);
+        }
+
+        // No more tool calls, we have the final response
+        if (response) {
+            final_response = response;
+        }
+        free(tool_calls_json);
+        break;
+    }
+
+    free(conversation);
+
+    if (!final_response) {
+        return strdup("Error: No response generated");
+    }
+
+    return final_response;
+}
+
+// ============================================================================
 // PARALLEL EXECUTION
 // ============================================================================
 

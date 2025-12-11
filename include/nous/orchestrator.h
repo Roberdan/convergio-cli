@@ -252,6 +252,9 @@ void orch_task_complete(Task* task, const char* result);
 // Main entry point - process user input through orchestrator
 char* orchestrator_process(const char* user_input);
 
+// Direct agent communication with tools support
+char* orchestrator_agent_chat(ManagedAgent* agent, const char* user_message);
+
 // Convergence
 char* orchestrator_converge(ExecutionPlan* plan);
 

@@ -13,6 +13,7 @@
 #include <curl/curl.h>
 #include <ctype.h>
 #include <pthread.h>
+#include <signal.h>
 
 // ============================================================================
 // CONFIGURATION
@@ -23,6 +24,34 @@
 #define MAX_RESPONSE_SIZE (256 * 1024)  // 256KB max response
 
 static bool g_initialized = false;
+
+// ============================================================================
+// REQUEST CANCELLATION
+// ============================================================================
+
+static volatile sig_atomic_t g_request_cancelled = 0;
+
+void claude_cancel_request(void) {
+    g_request_cancelled = 1;
+}
+
+void claude_reset_cancel(void) {
+    g_request_cancelled = 0;
+}
+
+bool claude_is_cancelled(void) {
+    return g_request_cancelled != 0;
+}
+
+// Progress callback to check for cancellation
+static int progress_callback(void *clientp, curl_off_t dltotal, curl_off_t dlnow,
+                            curl_off_t ultotal, curl_off_t ulnow) {
+    (void)clientp; (void)dltotal; (void)dlnow; (void)ultotal; (void)ulnow;
+    if (g_request_cancelled) {
+        return 1;  // Non-zero aborts the transfer
+    }
+    return 0;
+}
 
 // ============================================================================
 // HTTP RESPONSE BUFFER
@@ -412,6 +441,8 @@ char* nous_claude_chat(const char* system_prompt, const char* user_message) {
     curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_callback);
     curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response);
     curl_easy_setopt(curl, CURLOPT_TIMEOUT, 60L);
+    curl_easy_setopt(curl, CURLOPT_NOPROGRESS, 0L);
+    curl_easy_setopt(curl, CURLOPT_XFERINFOFUNCTION, progress_callback);
 
     // Execute
     CURLcode res = curl_easy_perform(curl);
@@ -419,6 +450,12 @@ char* nous_claude_chat(const char* system_prompt, const char* user_message) {
     curl_slist_free_all(headers);
     free(auth_header);
     free(json_body);
+
+    if (res == CURLE_ABORTED_BY_CALLBACK) {
+        free(response.data);
+        curl_easy_cleanup(curl);
+        return NULL;  // Cancelled by user
+    }
 
     if (res != CURLE_OK) {
         fprintf(stderr, "Claude API error: %s\n", curl_easy_strerror(res));
@@ -642,6 +679,8 @@ char* nous_claude_chat_with_tools(const char* system_prompt, const char* user_me
     curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_callback);
     curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response);
     curl_easy_setopt(curl, CURLOPT_TIMEOUT, 120L);  // Longer timeout for tool use
+    curl_easy_setopt(curl, CURLOPT_NOPROGRESS, 0L);
+    curl_easy_setopt(curl, CURLOPT_XFERINFOFUNCTION, progress_callback);
 
     // Execute
     CURLcode res = curl_easy_perform(curl);
@@ -649,6 +688,12 @@ char* nous_claude_chat_with_tools(const char* system_prompt, const char* user_me
     curl_slist_free_all(headers);
     free(auth_header);
     free(json_body);
+
+    if (res == CURLE_ABORTED_BY_CALLBACK) {
+        free(response.data);
+        curl_easy_cleanup(curl);
+        return NULL;  // Cancelled by user
+    }
 
     if (res != CURLE_OK) {
         fprintf(stderr, "Claude API error: %s\n", curl_easy_strerror(res));
@@ -873,6 +918,8 @@ char* nous_claude_chat_stream(const char* system_prompt, const char* user_messag
     curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, stream_write_callback);
     curl_easy_setopt(curl, CURLOPT_WRITEDATA, &ctx);
     curl_easy_setopt(curl, CURLOPT_TIMEOUT, 120L);
+    curl_easy_setopt(curl, CURLOPT_NOPROGRESS, 0L);
+    curl_easy_setopt(curl, CURLOPT_XFERINFOFUNCTION, progress_callback);
 
     // Execute
     CURLcode res = curl_easy_perform(curl);
@@ -881,6 +928,11 @@ char* nous_claude_chat_stream(const char* system_prompt, const char* user_messag
     free(auth_header);
     free(json_body);
     curl_easy_cleanup(curl);
+
+    if (res == CURLE_ABORTED_BY_CALLBACK) {
+        free(ctx.accumulated);
+        return NULL;  // Cancelled by user
+    }
 
     if (res != CURLE_OK) {
         fprintf(stderr, "Claude API stream error: %s\n", curl_easy_strerror(res));
@@ -1084,6 +1136,8 @@ char* nous_claude_chat_conversation(Conversation* conv, const char* user_message
     curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_callback);
     curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response);
     curl_easy_setopt(curl, CURLOPT_TIMEOUT, 120L);
+    curl_easy_setopt(curl, CURLOPT_NOPROGRESS, 0L);
+    curl_easy_setopt(curl, CURLOPT_XFERINFOFUNCTION, progress_callback);
 
     // Execute
     CURLcode res = curl_easy_perform(curl);
@@ -1091,6 +1145,12 @@ char* nous_claude_chat_conversation(Conversation* conv, const char* user_message
     curl_slist_free_all(headers);
     free(auth_header);
     free(json_body);
+
+    if (res == CURLE_ABORTED_BY_CALLBACK) {
+        free(response.data);
+        curl_easy_cleanup(curl);
+        return NULL;  // Cancelled by user
+    }
 
     if (res != CURLE_OK) {
         fprintf(stderr, "Claude API error: %s\n", curl_easy_strerror(res));

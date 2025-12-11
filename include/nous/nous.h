@@ -378,7 +378,14 @@ int nous_neural_generate(const char* prompt, size_t len,
 int nous_claude_init(void);
 void nous_claude_shutdown(void);
 char* nous_claude_chat(const char* system_prompt, const char* user_message);
+char* nous_claude_chat_with_tools(const char* system_prompt, const char* user_message,
+                                   const char* tools_json, char** out_tool_calls);
 char* nous_agent_think_with_claude(NousAgent* agent, const char* input);
 int nous_generate_embedding(const char* text, NousEmbedding* out);
+
+// Request cancellation (for ESC key interrupt)
+void claude_cancel_request(void);
+void claude_reset_cancel(void);
+bool claude_is_cancelled(void);
 
 #endif // CONVERGIO_H
