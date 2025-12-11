@@ -1146,16 +1146,39 @@ char* orchestrator_converge(ExecutionPlan* plan) {
 // DIRECT AGENT COMMUNICATION (with tools support)
 // ============================================================================
 
+// Tools instructions to append to agent system prompts
+static const char* AGENT_TOOLS_INSTRUCTIONS =
+    "\n\n## Tools Available\n"
+    "You have access to these tools - USE THEM when needed:\n"
+    "- **file_read**: Read file contents from the filesystem\n"
+    "- **file_write**: Write content to files (create or modify) - USE THIS to make changes\n"
+    "- **file_list**: List directory contents\n"
+    "- **shell_exec**: Execute shell commands\n"
+    "- **web_fetch**: Fetch content from URLs (for research)\n"
+    "- **memory_store**: Store information in semantic memory\n"
+    "- **memory_search**: Search stored memories\n\n"
+    "IMPORTANT: When asked to modify files, DO IT directly using file_write. "
+    "Do not say you cannot write files - you CAN and SHOULD use the tools.\n";
+
 // Chat directly with a specific agent, with full tool support
 char* orchestrator_agent_chat(ManagedAgent* agent, const char* user_message) {
     if (!g_orchestrator || !agent || !user_message) return NULL;
 
     const char* tools_json = tools_get_definitions_json();
 
+    // Build enhanced system prompt with tools instructions
+    size_t prompt_len = strlen(agent->system_prompt) + strlen(AGENT_TOOLS_INSTRUCTIONS) + 1;
+    char* enhanced_prompt = malloc(prompt_len);
+    if (!enhanced_prompt) return NULL;
+    snprintf(enhanced_prompt, prompt_len, "%s%s", agent->system_prompt, AGENT_TOOLS_INSTRUCTIONS);
+
     // Build conversation
     size_t conv_capacity = strlen(user_message) + 4096;
     char* conversation = malloc(conv_capacity);
-    if (!conversation) return NULL;
+    if (!conversation) {
+        free(enhanced_prompt);
+        return NULL;
+    }
     strcpy(conversation, user_message);
 
     char* final_response = NULL;
@@ -1168,13 +1191,14 @@ char* orchestrator_agent_chat(ManagedAgent* agent, const char* user_message) {
         // Check if cancelled
         if (claude_is_cancelled()) {
             free(conversation);
+            free(enhanced_prompt);
             return NULL;
         }
 
-        // Call Claude with tools
+        // Call Claude with tools (using enhanced prompt with tools instructions)
         char* tool_calls_json = NULL;
         char* response = nous_claude_chat_with_tools(
-            agent->system_prompt,
+            enhanced_prompt,
             conversation,
             tools_json,
             &tool_calls_json
@@ -1182,12 +1206,13 @@ char* orchestrator_agent_chat(ManagedAgent* agent, const char* user_message) {
 
         if (!response && !tool_calls_json) {
             free(conversation);
+            free(enhanced_prompt);
             return strdup("Error: Failed to get response from agent");
         }
 
         // Record cost
         cost_record_agent_usage(agent,
-                                strlen(agent->system_prompt) / 4 + strlen(conversation) / 4,
+                                strlen(enhanced_prompt) / 4 + strlen(conversation) / 4,
                                 (response ? strlen(response) : 0) / 4);
 
         // Check if there are tool calls to process
@@ -1199,6 +1224,7 @@ char* orchestrator_agent_chat(ManagedAgent* agent, const char* user_message) {
             if (!tool_results) {
                 free(tool_calls_json);
                 free(conversation);
+                free(enhanced_prompt);
                 if (response) free(response);
                 return strdup("Error: Memory allocation failed");
             }
@@ -1288,6 +1314,7 @@ char* orchestrator_agent_chat(ManagedAgent* agent, const char* user_message) {
     }
 
     free(conversation);
+    free(enhanced_prompt);
 
     if (!final_response) {
         return strdup("Error: No response generated");

@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.0.5] - 2025-12-11
+
+### Fixed
+- **Agents now use tools**: Direct agent communication (`@agent`) now includes tool instructions
+- Agents are explicitly told they CAN use file_write, web_fetch, etc.
+- Enhanced system prompt appended to all agents when called directly
+
 ## [2.0.4] - 2025-12-11
 
 ### Added
