@@ -1,13 +1,13 @@
 class Convergio < Formula
   desc "Multi-agent AI orchestration CLI for Apple Silicon"
   homepage "https://github.com/Roberdan/convergio-cli"
-  version "1.0.0"
+  version "2.0.0"
   license "MIT"
 
   on_macos do
     on_arm do
-      url "https://github.com/Roberdan/convergio-cli/releases/download/v1.0.0/convergio-1.0.0-arm64-apple-darwin.tar.gz"
-      sha256 "PLACEHOLDER_WILL_BE_UPDATED_BY_CI"
+      url "https://github.com/Roberdan/convergio-cli/releases/download/v2.0.0/convergio-2.0.0-darwin-arm64.tar.gz"
+      sha256 "e40983346ae0719a41aacf6b699053f047ce54589789560dbf481198f2ac1414"
     end
   end
 
