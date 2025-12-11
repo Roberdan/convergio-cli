@@ -98,12 +98,10 @@ TARGET = $(BIN_DIR)/convergio
 # Embedded agents (generated from .md files)
 EMBEDDED_AGENTS = $(SRC_DIR)/agents/embedded_agents.c
 
-$(EMBEDDED_AGENTS): $(wildcard $(SRC_DIR)/agents/definitions/*.md) scripts/embed_agents.sh
-	@echo "Generating embedded agents..."
-	@./scripts/embed_agents.sh
+# Default target - MUST be first target in file
+.DEFAULT_GOAL := all
 
-# Default target
-all: $(EMBEDDED_AGENTS) dirs metal $(TARGET)
+all: dirs metal $(TARGET)
 	@echo ""
 	@echo "╔═══════════════════════════════════════════════════╗"
 	@echo "║          CONVERGIO KERNEL v$(VERSION)              "
@@ -111,6 +109,14 @@ all: $(EMBEDDED_AGENTS) dirs metal $(TARGET)
 	@echo "║  Run with: $(TARGET)                              ║"
 	@echo "╚═══════════════════════════════════════════════════╝"
 	@echo ""
+
+# Generate embedded agents if source .md files changed
+$(EMBEDDED_AGENTS): $(wildcard $(SRC_DIR)/agents/definitions/*.md) scripts/embed_agents.sh
+	@echo "Generating embedded agents..."
+	@./scripts/embed_agents.sh
+
+# Ensure embedded agents are generated before compiling
+$(OBJ_DIR)/agents/embedded_agents.o: $(EMBEDDED_AGENTS)
 
 # Create directories
 dirs:
