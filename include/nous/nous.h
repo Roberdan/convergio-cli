@@ -2,7 +2,7 @@
  * CONVERGIO KERNEL
  *
  * A semantic kernel for human-AI symbiosis
- * Optimized for Apple Silicon M3 Max
+ * Optimized for all Apple Silicon chips (M1, M2, M3, M4)
  *
  * The name "Convergio" represents the convergence of:
  * - Human intention and AI understanding
@@ -25,21 +25,20 @@
 #include <Accelerate/Accelerate.h>
 #endif
 
+// Include hardware detection for dynamic configuration
+#include "nous/hardware.h"
+
 // ============================================================================
-// M3 MAX HARDWARE CONSTANTS
+// APPLE SILICON CONSTANTS (common to all chips)
 // ============================================================================
 
-#define NOUS_M3_P_CORES           10      // Performance cores
-#define NOUS_M3_E_CORES           4       // Efficiency cores
-#define NOUS_M3_GPU_CORES         30      // Metal GPU cores
-#define NOUS_M3_NEURAL_CORES      16      // Neural Engine cores
-#define NOUS_M3_CACHE_LINE        128     // Cache line size (bytes)
-#define NOUS_M3_PAGE_SIZE         16384   // 16KB pages (Apple Silicon)
-#define NOUS_M3_L2_SIZE_P         16777216  // 16MB L2 per P-core cluster
-#define NOUS_M3_L2_SIZE_E         4194304   // 4MB L2 for E-cores
-#define NOUS_M3_UNIFIED_MEM       (36ULL * 1024 * 1024 * 1024)  // 36GB
+// Cache line size is 128 bytes on all Apple Silicon
+#define NOUS_CACHE_LINE           128
 
-// SIMD widths for NEON
+// Page size is 16KB on all Apple Silicon
+#define NOUS_PAGE_SIZE            16384
+
+// SIMD widths for NEON (same on all Apple Silicon)
 #define NOUS_SIMD_WIDTH_128       16      // 128-bit NEON registers
 #define NOUS_SIMD_WIDTH_F32       4       // 4x float32 per register
 #define NOUS_SIMD_WIDTH_F16       8       // 8x float16 per register
@@ -122,7 +121,7 @@ typedef enum {
  */
 #define NOUS_EMBEDDING_DIM        768
 
-typedef struct __attribute__((aligned(NOUS_M3_CACHE_LINE))) {
+typedef struct __attribute__((aligned(NOUS_CACHE_LINE))) {
     _Float16 values[NOUS_EMBEDDING_DIM];  // Half precision for memory efficiency
 } NousEmbedding;
 
@@ -165,7 +164,7 @@ typedef struct NousSemanticNode {
 /**
  * ShardedSemanticIndex - Lock-free concurrent access
  *
- * Uses consistent hashing across M3 Max cores
+ * Uses consistent hashing across available CPU cores
  * Each shard fits in L2 cache for optimal performance
  */
 #define NOUS_FABRIC_SHARDS        64    // Power of 2 for fast modulo
@@ -178,7 +177,7 @@ typedef struct {
     os_unfair_lock lock;
 
     // Cache-aligned padding to prevent false sharing
-    uint8_t _padding[NOUS_M3_CACHE_LINE - sizeof(os_unfair_lock)];
+    uint8_t _padding[NOUS_CACHE_LINE - sizeof(os_unfair_lock)];
 } FabricShard;
 
 typedef struct {
@@ -189,7 +188,7 @@ typedef struct {
     void* similarity_pipeline;        // id<MTLComputePipelineState>
     void* embedding_buffer;           // id<MTLBuffer> - all embeddings
 
-    // Dispatch queues for M3 Max topology
+    // Dispatch queues for Apple Silicon topology
     dispatch_queue_t p_core_queue;    // High-priority semantic ops
     dispatch_queue_t e_core_queue;    // Background maintenance
     dispatch_queue_t gpu_queue;       // Metal operations

@@ -9,6 +9,9 @@
 #include "nous/nous.h"
 #include "nous/orchestrator.h"
 #include "nous/tools.h"
+#include "nous/config.h"
+#include "nous/hardware.h"
+#include "nous/updater.h"
 #include "../auth/oauth.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -154,6 +157,8 @@ static int cmd_allowed_dirs(int argc, char** argv);
 static int cmd_login(int argc, char** argv);
 static int cmd_logout(int argc, char** argv);
 static int cmd_auth(int argc, char** argv);
+static int cmd_update(int argc, char** argv);
+static int cmd_hardware(int argc, char** argv);
 
 static const ReplCommand COMMANDS[] = {
     {"help",        "Show available commands",           cmd_help},
@@ -169,6 +174,8 @@ static const ReplCommand COMMANDS[] = {
     {"login",       "Login with Claude Max OAuth",       cmd_login},
     {"logout",      "Logout and clear credentials",      cmd_logout},
     {"auth",        "Show authentication status",        cmd_auth},
+    {"update",      "Check for and install updates",     cmd_update},
+    {"hardware",    "Show hardware information",         cmd_hardware},
     {"think",       "Process an intent",                 cmd_think},
     {"quit",        "Exit Convergio",                    cmd_quit},
     {"exit",        "Exit Convergio",                    cmd_quit},
@@ -493,6 +500,23 @@ static int cmd_auth(int argc, char** argv) {
     }
 
     printf("\n");
+    return 0;
+}
+
+static int cmd_update(int argc, char** argv) {
+    if (argc >= 2 && strcmp(argv[1], "install") == 0) {
+        return convergio_cmd_update_install();
+    }
+    if (argc >= 2 && strcmp(argv[1], "changelog") == 0) {
+        return convergio_cmd_update_changelog();
+    }
+    // Default: check for updates
+    return convergio_cmd_update_check();
+}
+
+static int cmd_hardware(int argc, char** argv) {
+    (void)argc; (void)argv;
+    convergio_print_hardware_info();
     return 0;
 }
 
@@ -1025,7 +1049,7 @@ static void print_banner(void) {
     print_gradient_line("                          K E R N E L");
     printf("\n");
     printf("  %sA semantic kernel for human-AI symbiosis%s\n", dim, rst);
-    printf("  %sOptimized for Apple M3 Max (10P + 4E + 30GPU + 16NE)%s\n", dim, rst);
+    printf("  %sv%s - Optimized for Apple Silicon%s\n", dim, convergio_get_version(), rst);
     printf("  %sDeveloped by Roberdan@FightTheStroke.org%s\n", dim, rst);
     printf("\n");
     printf("  Type %s'help'%s for commands, or express your intent naturally.\n", c3, rst);
@@ -1056,14 +1080,30 @@ int main(int argc, char** argv) {
                 return 1;
             }
         } else if (strcmp(argv[i], "--help") == 0 || strcmp(argv[i], "-h") == 0) {
-            printf("Usage: convergio [OPTIONS]\n\n");
+            printf("Convergio - A semantic kernel for human-AI symbiosis\n\n");
+            printf("Usage: convergio [OPTIONS] [COMMAND]\n\n");
+            printf("Commands:\n");
+            printf("  setup                   Configure API key and settings\n");
+            printf("  update [check|install]  Check for or install updates\n\n");
             printf("Options:\n");
             printf("  -w, --workspace <path>  Set workspace directory (default: current dir)\n");
             printf("  -d, --debug             Enable debug logging\n");
             printf("  -t, --trace             Enable trace logging (verbose)\n");
             printf("  -q, --quiet             Suppress non-error output\n");
+            printf("  -v, --version           Show version\n");
             printf("  -h, --help              Show this help message\n");
             return 0;
+        } else if (strcmp(argv[i], "--version") == 0 || strcmp(argv[i], "-v") == 0) {
+            printf("Convergio %s\n", convergio_get_version());
+            return 0;
+        } else if (strcmp(argv[i], "setup") == 0) {
+            convergio_config_init();
+            return convergio_setup_wizard();
+        } else if (strcmp(argv[i], "update") == 0) {
+            if (i + 1 < argc && strcmp(argv[i + 1], "install") == 0) {
+                return convergio_cmd_update_install();
+            }
+            return convergio_cmd_update_check();
         }
     }
 
@@ -1081,7 +1121,21 @@ int main(int argc, char** argv) {
     // Initialize subsystems
     printf("Initializing Convergio Kernel...\n");
 
-    // Initialize authentication first
+    // Initialize configuration first
+    if (convergio_config_init() != 0) {
+        fprintf(stderr, "Warning: Failed to initialize configuration.\n");
+    } else {
+        printf("  ✓ Configuration (~/.convergio/)\n");
+    }
+
+    // Detect hardware
+    if (convergio_detect_hardware() != 0) {
+        fprintf(stderr, "Warning: Failed to detect hardware.\n");
+    } else {
+        printf("  ✓ Hardware: %s\n", g_hardware.chip_name);
+    }
+
+    // Initialize authentication
     if (auth_init() != 0) {
         printf("  \033[33m⚠ No authentication configured\033[0m\n");
         printf("    Use 'login' to authenticate with Claude Max\n");
@@ -1103,12 +1157,13 @@ int main(int argc, char** argv) {
         nous_shutdown();
         return 1;
     }
-    printf("  ✓ Scheduler (P-cores: 10, E-cores: 4)\n");
+    printf("  ✓ Scheduler (P-cores: %d, E-cores: %d)\n",
+           g_hardware.p_cores, g_hardware.e_cores);
 
     if (nous_gpu_init() != 0) {
         fprintf(stderr, "Warning: GPU initialization failed, using CPU fallback.\n");
     } else {
-        printf("  ✓ GPU (30 cores, Metal 4)\n");
+        printf("  ✓ GPU (%d cores)\n", g_hardware.gpu_cores);
     }
 
     // Initialize Orchestrator with Ali
@@ -1185,6 +1240,7 @@ int main(int argc, char** argv) {
     nous_scheduler_shutdown();
     nous_shutdown();
     auth_shutdown();
+    convergio_config_shutdown();
 
     printf("Goodbye.\n");
     return 0;

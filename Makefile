@@ -1,15 +1,16 @@
 # Convergio Kernel
 # A semantic kernel for human-AI symbiosis
-# Optimized for Apple Silicon M3 Max
+# Optimized for Apple Silicon (M1, M2, M3, M4)
+
+# Version management
+VERSION := $(shell cat VERSION 2>/dev/null || echo "0.0.0")
 
 # Compiler settings
 CC = clang
 OBJC = clang
 
-# M3 Max optimizations
-ARCH_FLAGS = -arch arm64 \
-             -mcpu=apple-m3 \
-             -mtune=apple-m3
+# Apple Silicon optimizations (generic for all M-series chips)
+ARCH_FLAGS = -arch arm64
 
 # Compiler flags
 CFLAGS = $(ARCH_FLAGS) \
@@ -19,7 +20,8 @@ CFLAGS = $(ARCH_FLAGS) \
          -Wno-overlength-strings \
          -ffast-math \
          -fvectorize \
-         -I./include
+         -I./include \
+         -DCONVERGIO_VERSION=\"$(VERSION)\"
 
 OBJCFLAGS = $(CFLAGS) -fobjc-arc
 
@@ -57,6 +59,8 @@ BIN_DIR = $(BUILD_DIR)/bin
 C_SOURCES = $(SRC_DIR)/core/fabric.c \
             $(SRC_DIR)/core/main.c \
             $(SRC_DIR)/core/ansi_md.c \
+            $(SRC_DIR)/core/config.c \
+            $(SRC_DIR)/core/updater.c \
             $(SRC_DIR)/intent/parser.c \
             $(SRC_DIR)/intent/interpreter.c \
             $(SRC_DIR)/agents/agent.c \
@@ -72,7 +76,9 @@ C_SOURCES = $(SRC_DIR)/core/fabric.c \
 
 OBJC_SOURCES = $(SRC_DIR)/metal/gpu.m \
                $(SRC_DIR)/neural/mlx_embed.m \
-               $(SRC_DIR)/auth/oauth.m
+               $(SRC_DIR)/auth/oauth.m \
+               $(SRC_DIR)/auth/keychain.m \
+               $(SRC_DIR)/core/hardware.m
 
 METAL_SOURCES = shaders/similarity.metal
 
@@ -92,7 +98,7 @@ TARGET = $(BIN_DIR)/convergio
 all: dirs metal $(TARGET)
 	@echo ""
 	@echo "╔═══════════════════════════════════════════════════╗"
-	@echo "║          CONVERGIO KERNEL                         ║"
+	@echo "║          CONVERGIO KERNEL v$(VERSION)              "
 	@echo "║  Build complete!                                  ║"
 	@echo "║  Run with: $(TARGET)                              ║"
 	@echo "╚═══════════════════════════════════════════════════╝"
@@ -165,7 +171,7 @@ install: all
 	@echo "Installing to /usr/local/bin..."
 	@sudo cp $(TARGET) /usr/local/bin/
 	@sudo mkdir -p /usr/local/lib/convergio
-	@sudo cp $(METAL_LIB) /usr/local/lib/convergio/
+	@if [ -s $(METAL_LIB) ]; then sudo cp $(METAL_LIB) /usr/local/lib/convergio/; fi
 	@echo "Installed."
 
 # Uninstall
@@ -176,12 +182,25 @@ uninstall:
 
 # Show hardware info
 hwinfo:
-	@echo "=== M3 Max Hardware Info ==="
+	@echo "=== Apple Silicon Hardware Info ==="
 	@sysctl -n machdep.cpu.brand_string
-	@echo "P-cores: $$(sysctl -n hw.perflevel0.physicalcpu)"
-	@echo "E-cores: $$(sysctl -n hw.perflevel1.physicalcpu)"
+	@echo "P-cores: $$(sysctl -n hw.perflevel0.physicalcpu 2>/dev/null || echo 'N/A')"
+	@echo "E-cores: $$(sysctl -n hw.perflevel1.physicalcpu 2>/dev/null || echo 'N/A')"
 	@echo "Memory: $$(( $$(sysctl -n hw.memsize) / 1024 / 1024 / 1024 )) GB"
 	@system_profiler SPDisplaysDataType 2>/dev/null | grep -A2 "Chipset Model" | head -4
+
+# Version info
+version:
+	@echo "Convergio v$(VERSION)"
+
+# Distribution tarball
+dist: all
+	@mkdir -p dist
+	@tar -czvf dist/convergio-$(VERSION)-darwin-arm64.tar.gz \
+		-C $(BIN_DIR) convergio \
+		-C $(BUILD_DIR) similarity.metallib 2>/dev/null || \
+		tar -czvf dist/convergio-$(VERSION)-darwin-arm64.tar.gz -C $(BIN_DIR) convergio
+	@echo "Created dist/convergio-$(VERSION)-darwin-arm64.tar.gz"
 
 # Fuzz test target - tests security functions with malformed inputs
 FUZZ_TEST = $(BIN_DIR)/fuzz_test
@@ -199,7 +218,7 @@ $(FUZZ_TEST): $(FUZZ_SOURCES) $(FUZZ_OBJECTS)
 
 # Help
 help:
-	@echo "Convergio Kernel Build System"
+	@echo "Convergio Kernel Build System v$(VERSION)"
 	@echo ""
 	@echo "Targets:"
 	@echo "  all       - Build Convergio (default)"
@@ -208,11 +227,13 @@ help:
 	@echo "  clean     - Remove build artifacts"
 	@echo "  install   - Install to /usr/local"
 	@echo "  uninstall - Remove from /usr/local"
+	@echo "  dist      - Create distribution tarball"
 	@echo "  fuzz_test - Build and run fuzz tests"
-	@echo "  hwinfo    - Show M3 Max hardware info"
+	@echo "  hwinfo    - Show Apple Silicon hardware info"
+	@echo "  version   - Show version"
 	@echo "  help      - Show this message"
 	@echo ""
 	@echo "Variables:"
 	@echo "  DEBUG=1   - Enable debug build"
 
-.PHONY: all dirs metal run clean debug install uninstall hwinfo help fuzz_test
+.PHONY: all dirs metal run clean debug install uninstall hwinfo help fuzz_test version dist

@@ -7,6 +7,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.0.0] - 2025-12-11
+
+### Changed
+- **BREAKING**: Auto-detect Apple Silicon chip type at runtime (M1/M2/M3/M4 all variants)
+- Removed hardcoded M3 Max optimizations - now dynamically configured
+- Updated Makefile to use generic arm64 target instead of apple-m3
+
+### Added
+- **Auto-Update System**: `convergio update` command to check/install updates from GitHub
+- **Configuration Management**: TOML config file at `~/.convergio/config.toml`
+- **Keychain Integration**: Secure API key storage in macOS Keychain
+- **Hardware Detection**: Runtime detection of CPU cores, GPU cores, Neural Engine, memory
+- **Homebrew Distribution**: Install via `brew tap Roberdan/convergio-cli && brew install convergio`
+- **GitHub Actions CI/CD**: Automated builds, code signing, notarization
+- **Version Management**: Semantic versioning with `--version` flag
+- **Setup Wizard**: `convergio setup` command for initial configuration
+- New CLI commands: `update`, `hardware`, `setup`
+
+### Technical Details
+- Added `include/nous/hardware.h` - Hardware detection API
+- Added `include/nous/config.h` - Configuration management API
+- Added `include/nous/updater.h` - Auto-update API
+- Added `src/core/hardware.m` - Apple Silicon detection via sysctl/Metal
+- Added `src/core/config.c` - TOML parser and path management
+- Added `src/core/updater.c` - GitHub Releases API integration
+- Added `src/auth/keychain.m` - macOS Security.framework integration
+- Added `.github/workflows/ci.yml` - Continuous integration
+- Added `.github/workflows/release.yml` - Release automation
+- Added `Formula/convergio.rb` - Homebrew formula
+- Added `VERSION` file for version tracking
+
 ## [1.1.0] - 2025-12-11
 
 ### Security Hardening
@@ -78,6 +109,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-[Unreleased]: https://github.com/Roberdan/kernel/compare/v1.0.0...HEAD
-[1.0.0]: https://github.com/Roberdan/kernel/releases/tag/v1.0.0
-[0.1.0]: https://github.com/Roberdan/kernel/releases/tag/v0.1.0
+[Unreleased]: https://github.com/Roberdan/convergio-cli/compare/v2.0.0...HEAD
+[2.0.0]: https://github.com/Roberdan/convergio-cli/releases/tag/v2.0.0
+[1.1.0]: https://github.com/Roberdan/convergio-cli/releases/tag/v1.1.0
+[1.0.0]: https://github.com/Roberdan/convergio-cli/releases/tag/v1.0.0
+[0.1.0]: https://github.com/Roberdan/convergio-cli/releases/tag/v0.1.0

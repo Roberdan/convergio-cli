@@ -1,7 +1,7 @@
 /**
  * NOUS Metal GPU Integration
  *
- * Leverages M3 Max's 30 GPU cores for:
+ * Leverages Apple Silicon GPU cores for:
  * - Batch similarity computations
  * - Embedding generation
  * - Graph propagation
@@ -53,7 +53,7 @@ int nous_gpu_init(void) {
     if (!g_gpu) return -1;
 
     @autoreleasepool {
-        // Get the M3 Max GPU
+        // Get the Apple Silicon GPU
         g_gpu->device = MTLCreateSystemDefaultDevice();
         if (!g_gpu->device) {
             free(g_gpu);
@@ -263,7 +263,7 @@ void nous_metal_batch_similarity(const NousEmbedding* query,
             uint32_t candidateCount = (uint32_t)count;
             [encoder setBytes:&candidateCount length:sizeof(uint32_t) atIndex:3];
 
-            // Optimal threadgroup size for M3 Max
+            // Optimal threadgroup size for Apple Silicon
             NSUInteger threadgroupSize = MIN(256, g_gpu->similarityPipeline.maxTotalThreadsPerThreadgroup);
             MTLSize threadgroupsPerGrid = MTLSizeMake((count + threadgroupSize - 1) / threadgroupSize, 1, 1);
             MTLSize threadsPerThreadgroup = MTLSizeMake(threadgroupSize, 1, 1);

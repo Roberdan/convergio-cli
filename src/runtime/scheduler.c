@@ -1,11 +1,11 @@
 /**
  * NOUS Runtime Scheduler
  *
- * Intelligent work distribution across M3 Max cores:
- * - P-cores (10): User-facing, time-critical operations
- * - E-cores (4): Background maintenance, learning
- * - GPU (30 cores): Batch operations, similarity search
- * - Neural Engine (16 cores): Inference, embedding generation
+ * Intelligent work distribution across Apple Silicon cores:
+ * - P-cores: User-facing, time-critical operations
+ * - E-cores: Background maintenance, learning
+ * - GPU: Batch operations, similarity search
+ * - Neural Engine: Inference, embedding generation
  */
 
 #include "nous/nous.h"
@@ -61,7 +61,7 @@ static NousScheduler g_scheduler = {0};
 // ============================================================================
 
 /*
- * M3 Max QoS to Core mapping:
+ * Apple Silicon QoS to Core mapping:
  *
  * QOS_CLASS_USER_INTERACTIVE  -> P-cores only (highest priority)
  * QOS_CLASS_USER_INITIATED    -> P-cores preferred
@@ -238,7 +238,7 @@ void nous_schedule_neural(void (*fn)(void*), void* ctx) {
 }
 
 // ============================================================================
-// PARALLEL PRIMITIVES (SIMD-optimized for M3 Max)
+// PARALLEL PRIMITIVES (SIMD-optimized for Apple Silicon)
 // ============================================================================
 
 typedef void (*ParallelBody)(size_t index, void* ctx);

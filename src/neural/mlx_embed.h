@@ -2,7 +2,7 @@
  * CONVERGIO MLX EMBEDDINGS
  *
  * Pure Metal/C implementation for local text embeddings
- * Optimized for Apple M3 Max - Zero cloud costs
+ * Optimized for Apple Silicon - Zero cloud costs
  *
  * Architecture: Simplified transformer encoder
  * - Tokenizer: BPE-based (compatible with MiniLM vocab)

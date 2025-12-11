@@ -1,7 +1,7 @@
 /**
  * NOUS Semantic Fabric Implementation
  *
- * The living graph of meaning - optimized for M3 Max
+ * The living graph of meaning - optimized for Apple Silicon
  */
 
 #include "nous/nous.h"
@@ -133,7 +133,7 @@ int nous_init(void) {
 
     // Use posix_memalign for portable aligned allocation
     void* ptr = NULL;
-    if (posix_memalign(&ptr, NOUS_M3_CACHE_LINE, sizeof(SemanticFabric)) != 0) {
+    if (posix_memalign(&ptr, NOUS_CACHE_LINE, sizeof(SemanticFabric)) != 0) {
         atomic_store(&g_initialized, false);
         return -1;
     }
@@ -164,7 +164,7 @@ int nous_init(void) {
         }
     }
 
-    // Create dispatch queues optimized for M3 Max topology
+    // Create dispatch queues optimized for Apple Silicon topology
     dispatch_queue_attr_t p_attr = dispatch_queue_attr_make_with_qos_class(
         DISPATCH_QUEUE_CONCURRENT, QOS_CLASS_USER_INTERACTIVE, 0);
     g_fabric->p_core_queue = dispatch_queue_create("nous.p_cores", p_attr);
@@ -227,7 +227,7 @@ SemanticID nous_create_node(SemanticType type, const char* essence) {
     FabricShard* shard = &g_fabric->shards[shard_idx];
 
     // Allocate node (cache-line aligned)
-    NousSemanticNode* node = aligned_alloc(NOUS_M3_CACHE_LINE,
+    NousSemanticNode* node = aligned_alloc(NOUS_CACHE_LINE,
                                            sizeof(NousSemanticNode));
     if (!node) return SEMANTIC_ID_NULL;
 

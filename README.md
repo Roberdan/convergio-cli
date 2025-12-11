@@ -27,53 +27,53 @@ Convergio CLI is a **multi-agent orchestration system** built in pure C/Objectiv
 ### Prerequisites
 
 - macOS 14+ (Sonoma)
-- Apple Silicon (M1/M2/M3/M4)
-- Xcode Command Line Tools
-- libcurl (usually pre-installed on macOS)
-- SQLite3 (usually pre-installed on macOS)
+- Apple Silicon (M1/M2/M3/M4) - auto-detected at runtime
+- Xcode Command Line Tools (for building from source)
 
-### Installation
+### Installation via Homebrew (Recommended)
+
+```bash
+brew tap Roberdan/convergio-cli
+brew install convergio
+```
+
+### Installation from Source
 
 1. **Clone the repository**
    ```bash
-   git clone https://github.com/Roberdan/kernel.git
-   cd kernel
+   git clone https://github.com/Roberdan/convergio-cli.git
+   cd convergio-cli
    ```
 
-2. **Configure your environment**
-
-   Copy the example environment file:
-   ```bash
-   cp .env.example .env
-   ```
-
-   Edit `.env` and add your Anthropic API key:
-   ```bash
-   ANTHROPIC_API_KEY=sk-ant-api03-your-key-here
-   ```
-
-   Then load the environment:
-   ```bash
-   source .env
-   # Or add to ~/.zshrc for persistence:
-   # echo 'source /path/to/kernel/.env' >> ~/.zshrc
-   ```
-
-   **Claude Max Subscription**: If you have a Claude Max subscription ($20/month), add:
-   ```bash
-   CLAUDE_MAX=true
-   ```
-   This disables per-API-call cost tracking since costs are covered by your subscription.
-
-3. **Build the project**
+2. **Build the project**
    ```bash
    make
    ```
+
+3. **Run setup wizard**
+   ```bash
+   ./build/bin/convergio setup
+   ```
+   This will store your API key securely in macOS Keychain.
 
 4. **Run Convergio**
    ```bash
    ./build/bin/convergio
    ```
+
+### Configuration
+
+Your API key can be configured in multiple ways (in order of priority):
+
+1. **Environment variable**: `export ANTHROPIC_API_KEY=sk-ant-...`
+2. **macOS Keychain**: Run `convergio setup` to store securely
+3. **Config file**: `~/.convergio/config.toml`
+
+**Claude Max Subscription**: If you have a Claude Max subscription ($20/month), set:
+```bash
+export CLAUDE_MAX=true
+```
+This disables per-API-call cost tracking since costs are covered by your subscription.
 
 ### First Run
 
@@ -98,12 +98,19 @@ convergio> quit
 ## Command Line Options
 
 ```bash
-./build/bin/convergio [options]
+convergio [OPTIONS] [COMMAND]
+
+Commands:
+  setup                    Configure API key and settings
+  update [check|install]   Check for or install updates
 
 Options:
-  --debug     Enable debug logging (INFO level)
-  --trace     Enable trace logging (maximum verbosity)
-  --quiet     Disable all logging
+  -w, --workspace <path>   Set workspace directory (default: current dir)
+  -d, --debug              Enable debug logging (INFO level)
+  -t, --trace              Enable trace logging (maximum verbosity)
+  -q, --quiet              Disable all logging
+  -v, --version            Show version
+  -h, --help               Show help message
 ```
 
 ## REPL Commands
@@ -119,6 +126,8 @@ Options:
 | `cost reset` | Reset session spending |
 | `debug` | Toggle debug mode on/off |
 | `debug <level>` | Set level: none/error/warn/info/debug/trace |
+| `update` | Check for updates |
+| `hardware` | Show detected hardware info |
 | `quit` | Exit Convergio |
 
 Or simply talk to Ali naturally - no commands needed!

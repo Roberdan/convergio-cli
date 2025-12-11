@@ -2,7 +2,7 @@
  * CONVERGIO MLX EMBEDDINGS - Pure Metal Implementation
  *
  * Local text embedding generation using Metal compute shaders
- * Optimized for Apple M3 Max GPU (30 cores)
+ * Optimized for Apple Silicon GPU
  *
  * This implements a simplified MiniLM-compatible transformer
  * entirely in Metal for maximum performance and zero dependencies.
@@ -424,7 +424,7 @@ bool mlx_embed_is_ready(void) {
 // CPU FALLBACK OPERATIONS (NEON SIMD)
 // ============================================================================
 
-// Matrix multiply using Accelerate framework (optimized for M3)
+// Matrix multiply using Accelerate framework (optimized for Apple Silicon)
 static void matmul_cpu(const float* A, const float* B, float* C,
                        int M, int N, int K) {
     cblas_sgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans,

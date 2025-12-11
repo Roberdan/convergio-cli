@@ -3,15 +3,20 @@ build/
 *.o
 *.a
 *.dylib
+*.air
+*.metallib
+dist/
 
 # Data files (user-specific)
 data/
+*.db
 
 # IDE
 .vscode/
 .idea/
 *.xcodeproj/
 *.xcworkspace/
+xcuserdata/
 
 # macOS
 .DS_Store
@@ -27,15 +32,23 @@ data/
 # Debug
 *.dSYM/
 
-# Environment/secrets
+# Environment/secrets - NEVER COMMIT
 .env
 .env.local
 .env.*.local
 !.env.example
 *.pem
 *.key
+*.p12
+*.cer
+*_base64.txt
 
 # Internal planning docs (not for public)
 masterPlan.md
 recap.md
 ExecutionPlan.md
+RELEASE_PLAN.md
+
+# Credentials
+credentials.json
+secrets.json
