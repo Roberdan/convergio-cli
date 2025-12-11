@@ -84,11 +84,7 @@ int nous_gpu_init(void) {
                                                             error:&error];
             if (source) {
                 MTLCompileOptions* options = [[MTLCompileOptions alloc] init];
-#if defined(__MAC_OS_X_VERSION_MAX_ALLOWED) && __MAC_OS_X_VERSION_MAX_ALLOWED >= 140000
-                if (@available(macOS 14.0, *)) {
-                    options.mathMode = MTLMathModeFast;
-                }
-#endif
+                // Note: MTLMathModeFast requires macOS 14+, skipped for CI compatibility
                 options.languageVersion = MTLLanguageVersion3_0;
                 library = [g_gpu->device newLibraryWithSource:source
                                                       options:options
