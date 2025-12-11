@@ -3,7 +3,7 @@
  *
  * Dynamic agent pool management:
  * - Spawn agents on demand
- * - Load definitions from .md files
+ * - Load definitions from embedded agents (compiled into binary)
  * - Track active agents
  * - Manage agent lifecycle
  */
@@ -15,6 +15,9 @@
 #include <dirent.h>
 #include <pthread.h>
 #include <dispatch/dispatch.h>
+
+// Embedded agents
+#include "nous/embedded_agents.h"
 
 // Forward declarations
 extern Orchestrator* orchestrator_get(void);
@@ -583,30 +586,113 @@ static ManagedAgent* parse_agent_md(const char* filepath) {
     return agent;
 }
 
-// Load all agent definitions from directory
-int agent_load_definitions(const char* dir_path) {
-    DIR* dir = opendir(dir_path);
-    if (!dir) return -1;
+// Parse embedded agent content (not from file)
+static ManagedAgent* parse_embedded_agent(const char* filename, const char* content) {
+    if (!content) return NULL;
 
-    struct dirent* entry;
+    char name[256] = {0};
+    char description[1024] = {0};
+    char* system_prompt = NULL;
+    size_t prompt_size = 0;
+    bool in_frontmatter = false;
+    bool in_content = false;
+
+    const char* ptr = content;
+    char line[4096];
+
+    while (*ptr) {
+        // Read one line
+        const char* eol = strchr(ptr, '\n');
+        size_t line_len = eol ? (size_t)(eol - ptr) : strlen(ptr);
+        if (line_len >= sizeof(line)) line_len = sizeof(line) - 1;
+        strncpy(line, ptr, line_len);
+        line[line_len] = '\0';
+
+        if (strncmp(line, "---", 3) == 0) {
+            if (!in_frontmatter) {
+                in_frontmatter = true;
+            } else {
+                in_frontmatter = false;
+                in_content = true;
+            }
+            ptr = eol ? eol + 1 : ptr + line_len;
+            continue;
+        }
+
+        if (in_frontmatter) {
+            if (strncmp(line, "name:", 5) == 0) {
+                sscanf(line + 5, " %255s", name);
+            } else if (strncmp(line, "description:", 12) == 0) {
+                char* desc = line + 12;
+                while (*desc == ' ') desc++;
+                strncpy(description, desc, sizeof(description) - 1);
+            }
+        } else if (in_content) {
+            size_t len = line_len + 1;  // +1 for newline
+            char* new_prompt = realloc(system_prompt, prompt_size + len + 1);
+            if (new_prompt) {
+                system_prompt = new_prompt;
+                memcpy(system_prompt + prompt_size, line, line_len);
+                system_prompt[prompt_size + line_len] = '\n';
+                system_prompt[prompt_size + len] = '\0';
+                prompt_size += len;
+            }
+        }
+
+        ptr = eol ? eol + 1 : ptr + line_len;
+        if (!eol) break;
+    }
+
+    if (name[0] == '\0' || !system_prompt) {
+        free(system_prompt);
+        return NULL;
+    }
+
+    // Determine role from name/description
+    AgentRole role = AGENT_ROLE_ANALYST;
+    if (strstr(name, "orchestrator") || strstr(name, "ali")) {
+        role = AGENT_ROLE_ORCHESTRATOR;
+    } else if (strstr(description, "architect") || strstr(description, "engineer") || strstr(description, "devops")) {
+        role = AGENT_ROLE_CODER;
+    } else if (strstr(description, "quality") || strstr(description, "security") || strstr(description, "legal")) {
+        role = AGENT_ROLE_CRITIC;
+    } else if (strstr(description, "plan") || strstr(description, "strategy") || strstr(description, "workflow")) {
+        role = AGENT_ROLE_PLANNER;
+    } else if (strstr(description, "design") || strstr(description, "creative") || strstr(description, "writer")) {
+        role = AGENT_ROLE_WRITER;
+    } else if (strstr(description, "execute") || strstr(description, "project") || strstr(description, "program")) {
+        role = AGENT_ROLE_EXECUTOR;
+    } else if (strstr(description, "memory") || strstr(description, "context")) {
+        role = AGENT_ROLE_MEMORY;
+    }
+
+    ManagedAgent* agent = agent_create(name, role, system_prompt);
+    free(system_prompt);
+    return agent;
+}
+
+// Load all agent definitions from embedded data
+int agent_load_definitions(const char* dir_path) {
+    (void)dir_path;  // Ignored - using embedded agents
+
+    size_t agent_count = 0;
+    const EmbeddedAgent* agents = get_all_embedded_agents(&agent_count);
+
+    if (!agents || agent_count == 0) {
+        return -1;
+    }
+
     int loaded = 0;
 
-    while ((entry = readdir(dir)) != NULL) {
-        // Only process .md files
-        size_t len = strlen(entry->d_name);
-        if (len < 4 || strcmp(entry->d_name + len - 3, ".md") != 0) {
-            continue;
-        }
+    for (size_t i = 0; i < agent_count; i++) {
+        const EmbeddedAgent* ea = &agents[i];
 
         // Skip common files
-        if (strcmp(entry->d_name, "CommonValuesAndPrinciples.md") == 0) {
+        if (strcmp(ea->filename, "CommonValuesAndPrinciples.md") == 0) {
             continue;
         }
 
-        char filepath[1024];
-        snprintf(filepath, sizeof(filepath), "%s/%s", dir_path, entry->d_name);
-
-        ManagedAgent* agent = parse_agent_md(filepath);
+        ManagedAgent* agent = parse_embedded_agent(ea->filename, ea->content);
         if (agent) {
             Orchestrator* orch = orchestrator_get();
             if (orch) {
@@ -632,7 +718,6 @@ int agent_load_definitions(const char* dir_path) {
         }
     }
 
-    closedir(dir);
     return loaded;
 }
 

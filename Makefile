@@ -64,6 +64,7 @@ C_SOURCES = $(SRC_DIR)/core/fabric.c \
             $(SRC_DIR)/intent/parser.c \
             $(SRC_DIR)/intent/interpreter.c \
             $(SRC_DIR)/agents/agent.c \
+            $(SRC_DIR)/agents/embedded_agents.c \
             $(SRC_DIR)/spaces/space.c \
             $(SRC_DIR)/runtime/scheduler.c \
             $(SRC_DIR)/neural/claude.c \
@@ -94,8 +95,15 @@ METAL_LIB = $(BUILD_DIR)/similarity.metallib
 # Target
 TARGET = $(BIN_DIR)/convergio
 
+# Embedded agents (generated from .md files)
+EMBEDDED_AGENTS = $(SRC_DIR)/agents/embedded_agents.c
+
+$(EMBEDDED_AGENTS): $(wildcard $(SRC_DIR)/agents/definitions/*.md) scripts/embed_agents.sh
+	@echo "Generating embedded agents..."
+	@./scripts/embed_agents.sh
+
 # Default target
-all: dirs metal $(TARGET)
+all: $(EMBEDDED_AGENTS) dirs metal $(TARGET)
 	@echo ""
 	@echo "╔═══════════════════════════════════════════════════╗"
 	@echo "║          CONVERGIO KERNEL v$(VERSION)              "

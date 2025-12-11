@@ -56,66 +56,89 @@ extern char* nous_claude_chat_with_tools(const char* system_prompt, const char* 
 // Tools header
 #include "nous/tools.h"
 
+// Embedded agents
+#include "nous/embedded_agents.h"
+
 // ============================================================================
-// DYNAMIC AGENT LIST LOADER
+// DYNAMIC AGENT LIST LOADER (using embedded agents)
 // ============================================================================
 
-#define AGENTS_DIR "src/agents/definitions"
+// Helper to parse YAML frontmatter from embedded content
+static void parse_agent_frontmatter(const char* content, char* name, size_t name_size,
+                                     char* description, size_t desc_size) {
+    name[0] = '\0';
+    description[0] = '\0';
+
+    const char* ptr = content;
+    bool in_frontmatter = false;
+
+    while (*ptr) {
+        // Find end of line
+        const char* eol = strchr(ptr, '\n');
+        if (!eol) eol = ptr + strlen(ptr);
+        size_t line_len = eol - ptr;
+
+        // Check for frontmatter delimiter
+        if (line_len >= 3 && strncmp(ptr, "---", 3) == 0) {
+            if (in_frontmatter) break;  // End of frontmatter
+            in_frontmatter = true;
+            ptr = (*eol) ? eol + 1 : eol;
+            continue;
+        }
+
+        if (in_frontmatter && line_len > 0) {
+            if (strncmp(ptr, "name:", 5) == 0) {
+                const char* val = ptr + 5;
+                while (*val == ' ') val++;
+                size_t val_len = eol - val;
+                if (val_len >= name_size) val_len = name_size - 1;
+                strncpy(name, val, val_len);
+                name[val_len] = '\0';
+            } else if (strncmp(ptr, "description:", 12) == 0) {
+                const char* val = ptr + 12;
+                while (*val == ' ') val++;
+                size_t val_len = eol - val;
+                if (val_len >= desc_size) val_len = desc_size - 1;
+                strncpy(description, val, val_len);
+                description[val_len] = '\0';
+            }
+        }
+
+        ptr = (*eol) ? eol + 1 : eol;
+    }
+}
 
 // Load all agent definitions and build a list for the system prompt
 static char* load_agent_list(void) {
-    DIR* dir = opendir(AGENTS_DIR);
-    if (!dir) return strdup("No agents found.");
+    size_t agent_count = 0;
+    const EmbeddedAgent* agents = get_all_embedded_agents(&agent_count);
+
+    if (!agents || agent_count == 0) {
+        return strdup("No agents found.");
+    }
 
     size_t capacity = 8192;
     char* list = malloc(capacity);
     list[0] = '\0';
     size_t len = 0;
 
-    struct dirent* entry;
-    while ((entry = readdir(dir))) {
-        if (entry->d_name[0] == '.' || !strstr(entry->d_name, ".md")) continue;
-        if (strstr(entry->d_name, "CommonValues")) continue;  // Skip non-agent files
-        if (strstr(entry->d_name, "ali-chief")) continue;     // Skip Ali himself
+    for (size_t i = 0; i < agent_count; i++) {
+        const EmbeddedAgent* agent = &agents[i];
 
-        char filepath[PATH_MAX];
-        snprintf(filepath, sizeof(filepath), "%s/%s", AGENTS_DIR, entry->d_name);
+        // Skip non-agent files
+        if (strstr(agent->filename, "CommonValues")) continue;
+        if (strstr(agent->filename, "ali-chief")) continue;  // Skip Ali himself
 
-        FILE* f = fopen(filepath, "r");
-        if (!f) continue;
-
-        // Parse YAML frontmatter for name and description
-        char line[1024];
         char name[256] = "";
         char description[512] = "";
-        bool in_frontmatter = false;
-
-        while (fgets(line, sizeof(line), f)) {
-            if (strncmp(line, "---", 3) == 0) {
-                if (in_frontmatter) break;
-                in_frontmatter = true;
-                continue;
-            }
-            if (in_frontmatter) {
-                if (strncmp(line, "name:", 5) == 0) {
-                    char* val = line + 5;
-                    while (*val == ' ') val++;
-                    strncpy(name, val, sizeof(name) - 1);
-                    name[strcspn(name, "\n\r")] = '\0';
-                } else if (strncmp(line, "description:", 12) == 0) {
-                    char* val = line + 12;
-                    while (*val == ' ') val++;
-                    strncpy(description, val, sizeof(description) - 1);
-                    description[strcspn(description, "\n\r")] = '\0';
-                }
-            }
-        }
-        fclose(f);
+        parse_agent_frontmatter(agent->content, name, sizeof(name),
+                                description, sizeof(description));
 
         if (name[0] && description[0]) {
             // Extract short name (first part before -)
             char short_name[64];
             strncpy(short_name, name, sizeof(short_name) - 1);
+            short_name[sizeof(short_name) - 1] = '\0';
             char* dash = strchr(short_name, '-');
             if (dash) *dash = '\0';
             // Capitalize first letter
@@ -141,7 +164,6 @@ static char* load_agent_list(void) {
                 "- **%s**: %s\n", short_name, description);
         }
     }
-    closedir(dir);
 
     return list;
 }
@@ -293,6 +315,12 @@ int orchestrator_init(double budget_limit_usd) {
     if (g_orchestrator->ali && g_orchestrator->agent_by_id) {
         agent_hash_insert_by_id(g_orchestrator->agent_by_id, g_orchestrator->ali);
         agent_hash_insert_by_name(g_orchestrator->agent_by_name, g_orchestrator->ali);
+    }
+
+    // Load all agent definitions from embedded data
+    int loaded = agent_load_definitions(NULL);  // NULL = use embedded agents
+    if (loaded > 0) {
+        // Agents loaded successfully
     }
 
     // Create or resume session

@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.0.3] - 2025-12-11
+
+### Fixed
+- **CRITICAL**: Agent definitions now embedded in binary (fixes Homebrew installation showing only 1 agent)
+- Added `agent_load_definitions()` call during orchestrator initialization
+
+### Changed
+- Agent definitions compiled into binary instead of loaded from filesystem
+- Build system now auto-generates `embedded_agents.c` from markdown files
+- No longer requires `src/agents/definitions/` directory at runtime
+
+### Added
+- `scripts/embed_agents.sh` - Script to embed agent definitions in binary
+- `include/nous/embedded_agents.h` - Header for embedded agents API
+
 ## [2.0.2] - 2025-12-11
 
 ### Removed
