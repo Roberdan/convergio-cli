@@ -21,6 +21,19 @@ data/
 *.swp
 *.swo
 *~
+*.tmp
+*.log
 
 # Debug
 *.dSYM/
+
+# Environment/secrets
+.env
+.env.*
+*.pem
+*.key
+
+# Internal planning docs (not for public)
+masterPlan.md
+recap.md
+ExecutionPlan.md

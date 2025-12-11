@@ -2,7 +2,9 @@
 
 A semantic kernel for human-AI symbiosis, optimized for Apple Silicon M3 Max.
 
-## What is Convergio Kernel?
+**Developed by [Roberdan@FightTheStroke.org](mailto:Roberdan@FightTheStroke.org)**
+
+## Overview
 
 Convergio Kernel is a **multi-agent orchestration system** built in pure C/Objective-C, designed as the foundation for intelligent human-AI collaboration. Unlike typical CLI wrappers around LLM APIs, Convergio implements a complete agent architecture with:
 
@@ -15,106 +17,66 @@ Convergio Kernel is a **multi-agent orchestration system** built in pure C/Objec
 - **Notes & Knowledge base** - Persistent markdown notes and searchable knowledge storage
 - **Cost control** with granular budget tracking and per-agent attribution
 - **Conversation memory** - Persistent memory across sessions with context loading
-- **Memory search** with keyword fallback (semantic search when pre-trained weights available)
-- **Streaming responses** for real-time output during AI response generation
 - **Debug logging system** - Comprehensive logging with multiple levels for troubleshooting
 - **Local embeddings** via pure Metal/C transformer (infrastructure ready, needs weights)
 
-## How is this different from Claude CLI?
+## Quick Start
 
-| Feature | Claude CLI | Convergio Kernel |
-|---------|------------|------------------|
-| Architecture | Single LLM wrapper | Multi-agent orchestration |
-| Language | TypeScript/Node.js | Pure C/Objective-C |
-| Agent Model | Single assistant | 49 specialist agents + Ali coordinator |
-| Parallel Execution | N/A | GCD-based parallel agent delegation |
-| Agent Communication | N/A | Real-time inter-agent messaging |
-| Tool Execution | Built-in | Custom (file, shell, web, memory, notes, knowledge) |
-| Cost Control | None | Granular budget caps, per-agent tracking |
-| Memory | Session-based | SQLite + conversation history + keyword/semantic search |
-| Notes & Knowledge | N/A | Persistent markdown notes + knowledge base |
-| Embeddings | Cloud API | Local Metal/NEON* |
-| Streaming | Yes | Yes (SSE real-time) |
-| Hardware | Generic | M3 Max optimized (NEON, Metal, Accelerate) |
-| Debug Mode | N/A | Multi-level logging (ERROR→TRACE) |
-| Convergence | N/A | All agents report to Ali for synthesis |
-
-*Note: Local embeddings currently use random weights. Pre-trained weight loading planned.
-
-### Key Differentiators
-
-1. **Multi-Agent Architecture**: Instead of a single assistant, Convergio uses Ali as a "Chief of Staff" who can delegate tasks to specialist agents (analysts, developers, researchers, etc.) and synthesize their outputs.
-
-2. **Parallel Multi-Agent Orchestration**: When Ali delegates to multiple agents, they execute **in parallel** using GCD (Grand Central Dispatch). Agent status is tracked in real-time and responses are converged into a unified answer.
-
-3. **Inter-Agent Communication**: Agents can see each other's status, send messages, and collaborate during execution. The message bus enables asynchronous communication between all agents.
-
-4. **Tool Execution**: Ali can interact with the real world:
-   - Read and write files
-   - Execute shell commands (with safety restrictions)
-   - Fetch web content
-   - Store and search memories semantically
-   - Create and manage markdown notes
-   - Build a searchable knowledge base
-
-5. **Conversation Memory**: Full conversation history is persisted across sessions. Ali loads relevant context from previous conversations to maintain continuity.
-
-6. **Native Performance**: Written in C with Metal GPU shaders and NEON SIMD, specifically tuned for Apple M3 Max. Binary size ~100KB vs hundreds of MB for Node.js apps.
-
-7. **Cost Awareness**: Built-in budget management with real-time tracking. Know exactly how much each conversation costs.
-
-8. **Debug Logging**: Comprehensive logging system with 5 levels (ERROR, WARN, INFO, DEBUG, TRACE) for troubleshooting and development.
-
-9. **Local Intelligence**: MLX-compatible transformer for generating embeddings locally - semantic search without API calls.
-
-## Requirements
+### Prerequisites
 
 - macOS 14+ (Sonoma)
-- Apple Silicon (M1/M2/M3)
+- Apple Silicon (M1/M2/M3/M4)
 - Xcode Command Line Tools
-- Claude API key (`ANTHROPIC_API_KEY` environment variable)
+- libcurl (usually pre-installed on macOS)
+- SQLite3 (usually pre-installed on macOS)
 
-## Build
+### Installation
 
-```bash
-make
+1. **Clone the repository**
+   ```bash
+   git clone https://github.com/Roberdan/kernel.git
+   cd kernel
+   ```
+
+2. **Set your Anthropic API key**
+   ```bash
+   export ANTHROPIC_API_KEY="your-api-key-here"
+   ```
+
+   To make it permanent, add to your `~/.zshrc` or `~/.bashrc`:
+   ```bash
+   echo 'export ANTHROPIC_API_KEY="your-api-key-here"' >> ~/.zshrc
+   source ~/.zshrc
+   ```
+
+3. **Build the project**
+   ```bash
+   make
+   ```
+
+4. **Run Convergio**
+   ```bash
+   ./build/bin/convergio
+   ```
+
+### First Run
+
+When you start Convergio, you'll see a colorful ASCII banner and a prompt. You can:
+
+- **Talk naturally** to Ali, your Chief of Staff agent
+- **Use commands** like `help`, `cost`, `agents`, `debug`
+- **Ask Ali to use tools** - he can read files, execute commands, search the web
+
+Example interaction:
 ```
+convergio> Hello Ali, can you read the Makefile and tell me what it does?
+Ali: [Uses file_read tool]
+The Makefile defines the build process for Convergio Kernel...
 
-## Run
+convergio> cost
+Session: $0.0032 spent | $4.9968 remaining
 
-```bash
-./build/bin/convergio
-```
-
-## Commands
-
-```
-convergio> help
-
-Available commands:
-
-  help         Show available commands
-  create       Create a semantic node
-  agent        Manage agents
-  agents       List all available agents
-  space        Manage collaborative spaces
-  status       Show system status
-  cost         Show/set cost and budget
-  debug        Toggle/set debug logging level
-  think        Process an intent
-  quit         Exit Convergio
-
-Cost commands:
-  cost              Show current spending
-  cost report       Detailed cost report
-  cost set <USD>    Set budget limit
-  cost reset        Reset session spending
-
-Debug commands:
-  debug             Toggle debug mode on/off
-  debug <level>     Set level (none/error/warn/info/debug/trace)
-
-Or simply talk to Ali, your Chief of Staff.
+convergio> quit
 ```
 
 ## Command Line Options
@@ -128,9 +90,26 @@ Options:
   --quiet     Disable all logging
 ```
 
+## REPL Commands
+
+| Command | Description |
+|---------|-------------|
+| `help` | Show available commands |
+| `agents` | List all available agents |
+| `status` | Show system status |
+| `cost` | Show current spending |
+| `cost report` | Detailed cost report |
+| `cost set <USD>` | Set budget limit (default: $5.00) |
+| `cost reset` | Reset session spending |
+| `debug` | Toggle debug mode on/off |
+| `debug <level>` | Set level: none/error/warn/info/debug/trace |
+| `quit` | Exit Convergio |
+
+Or simply talk to Ali naturally - no commands needed!
+
 ## Tools Available to Ali
 
-Ali can use these tools to interact with the real world:
+Ali can interact with the real world using these tools:
 
 | Tool | Description | Safety |
 |------|-------------|--------|
@@ -147,40 +126,25 @@ Ali can use these tools to interact with the real world:
 | `knowledge_add` | Add to knowledge base | Stored in data/knowledge/ |
 | `knowledge_search` | Search knowledge base | Keyword matching |
 
-## Example Session
+## How is this different from Claude CLI?
 
-```
-convergio> ciao Ali, puoi leggere il file Makefile?
-Ali: Certo! Leggo il file Makefile per te.
-[Uses file_read tool]
-Il Makefile contiene la configurazione di build per il progetto...
+| Feature | Claude CLI | Convergio Kernel |
+|---------|------------|------------------|
+| Architecture | Single LLM wrapper | Multi-agent orchestration |
+| Language | TypeScript/Node.js | Pure C/Objective-C |
+| Agent Model | Single assistant | 49 specialist agents + Ali coordinator |
+| Parallel Execution | N/A | GCD-based parallel agent delegation |
+| Agent Communication | N/A | Real-time inter-agent messaging |
+| Tool Execution | Built-in | Custom (file, shell, web, memory, notes, knowledge) |
+| Cost Control | None | Granular budget caps, per-agent tracking |
+| Memory | Session-based | SQLite + conversation history + keyword/semantic search |
+| Notes & Knowledge | N/A | Persistent markdown notes + knowledge base |
+| Embeddings | Cloud API | Local Metal/NEON* |
+| Hardware | Generic | M3 Max optimized (NEON, Metal, Accelerate) |
+| Debug Mode | N/A | Multi-level logging (ERROR→TRACE) |
+| Convergence | N/A | All agents report to Ali for synthesis |
 
-convergio> ricorda che preferisco risposte concise
-Ali: [Uses memory_store tool]
-Ho memorizzato la tua preferenza per risposte concise.
-
-convergio> cerca nei tuoi ricordi le mie preferenze
-Ali: [Uses memory_search tool]
-Ho trovato questa preferenza: "risposte concise"
-
-convergio> come stanno i tuoi agenti sviluppatori?
-Ali: [Delegates to multiple agents in parallel]
-⚡ Working: dev-backend (thinking), dev-frontend (thinking), dev-mobile (thinking)
-[Agents respond in parallel, Ali converges responses]
-
-convergio> cost
-Session: $0.0045 spent | $4.9955 remaining
-
-convergio> agents
-Agent Registry Status
-=====================
-Total agents: 49 (dynamically loaded)
-Active agents:
-  - Ali (Orchestrator) [active]
-
-convergio> debug trace
-Debug level set to: TRACE
-```
+*Note: Local embeddings currently use random weights. Pre-trained weight loading planned.
 
 ## Architecture
 
@@ -233,6 +197,18 @@ Debug level set to: TRACE
 └─────────────────────────────────────────────────────────────────┘
 ```
 
+### Key Differentiators
+
+1. **Multi-Agent Architecture**: Instead of a single assistant, Convergio uses Ali as a "Chief of Staff" who can delegate tasks to specialist agents (analysts, developers, researchers, etc.) and synthesize their outputs.
+
+2. **Parallel Multi-Agent Orchestration**: When Ali delegates to multiple agents, they execute **in parallel** using GCD (Grand Central Dispatch). Agent status is tracked in real-time and responses are converged into a unified answer.
+
+3. **Inter-Agent Communication**: Agents can see each other's status, send messages, and collaborate during execution. The message bus enables asynchronous communication between all agents.
+
+4. **Native Performance**: Written in C with Metal GPU shaders and NEON SIMD, specifically tuned for Apple M3 Max. Binary size ~100KB vs hundreds of MB for Node.js apps.
+
+5. **Cost Awareness**: Built-in budget management with real-time tracking. Know exactly how much each conversation costs.
+
 ## Project Structure
 
 ```
@@ -253,19 +229,92 @@ kernel/
 │   └── runtime/          # Scheduler
 ├── shaders/              # Metal compute shaders
 ├── docs/adr/             # Architecture Decision Records
-└── data/                 # Runtime data (SQLite, etc.)
+├── data/                 # Runtime data (SQLite, notes, knowledge)
+├── Makefile              # Build configuration
+└── README.md             # This file
 ```
 
-## Inspired By
+## Development
 
-- [Convergio](https://github.com/Roberdan/Convergio) - The original multi-agent system
-- Apple's MLX framework - Local ML on Apple Silicon
-- Anthropic's Claude - The underlying LLM
+### Building from Source
+
+```bash
+# Clean build
+make clean && make
+
+# Build with debug symbols
+make DEBUG=1
+
+# Run tests (when available)
+make test
+```
+
+### Adding New Agents
+
+Agent definitions are markdown files in `src/agents/definitions/`. Each file defines:
+- Agent name and role
+- System prompt
+- Specialized context
+- Available tools
+
+### Debug Logging
+
+Enable debug logging to see what's happening under the hood:
+
+```bash
+# Via command line
+./build/bin/convergio --debug
+
+# Or at runtime
+convergio> debug trace
+```
+
+Log levels: `none` < `error` < `warn` < `info` < `debug` < `trace`
+
+## Troubleshooting
+
+### "ANTHROPIC_API_KEY not set"
+Make sure you've exported your API key:
+```bash
+export ANTHROPIC_API_KEY="your-key-here"
+```
+
+### Build Errors
+Ensure you have Xcode Command Line Tools installed:
+```bash
+xcode-select --install
+```
+
+### Permission Denied
+The binary needs execute permissions:
+```bash
+chmod +x ./build/bin/convergio
+```
+
+## Roadmap
+
+- [ ] Pre-trained embedding weights for semantic search
+- [ ] Voice input/output support
+- [ ] Plugin system for custom tools
+- [ ] Web UI interface
+- [ ] Multi-user support
+
+## Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
 
 ## License
 
-MIT
+MIT License - see [LICENSE](LICENSE) for details.
+
+## Acknowledgments
+
+- [FightTheStroke.org](https://fightthestroke.org) - Supporting the project
+- Anthropic's Claude - The underlying LLM
+- Apple's MLX framework - Inspiration for local ML on Apple Silicon
 
 ---
 
-*Roberto & AI Team - Convergio Kernel Project*
+*Convergio Kernel - A semantic kernel for human-AI symbiosis*
+
+*Developed by Roberto with AI assistance*
