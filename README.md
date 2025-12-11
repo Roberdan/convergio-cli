@@ -38,16 +38,30 @@ Convergio Kernel is a **multi-agent orchestration system** built in pure C/Objec
    cd kernel
    ```
 
-2. **Set your Anthropic API key**
+2. **Configure your environment**
+
+   Copy the example environment file:
    ```bash
-   export ANTHROPIC_API_KEY="your-api-key-here"
+   cp .env.example .env
    ```
 
-   To make it permanent, add to your `~/.zshrc` or `~/.bashrc`:
+   Edit `.env` and add your Anthropic API key:
    ```bash
-   echo 'export ANTHROPIC_API_KEY="your-api-key-here"' >> ~/.zshrc
-   source ~/.zshrc
+   ANTHROPIC_API_KEY=sk-ant-api03-your-key-here
    ```
+
+   Then load the environment:
+   ```bash
+   source .env
+   # Or add to ~/.zshrc for persistence:
+   # echo 'source /path/to/kernel/.env' >> ~/.zshrc
+   ```
+
+   **Claude Max Subscription**: If you have a Claude Max subscription ($20/month), add:
+   ```bash
+   CLAUDE_MAX=true
+   ```
+   This disables per-API-call cost tracking since costs are covered by your subscription.
 
 3. **Build the project**
    ```bash

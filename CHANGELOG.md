@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [1.0.0] - 2024-12-11
+## [1.0.0] - 2025-12-11
 
 ### Added
 - **Ali - Chief of Staff**: Central orchestrator agent that coordinates all other agents
@@ -38,7 +38,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - MLX-compatible transformer for local embeddings (weights pending)
 - Binary size ~100KB
 
-## [0.1.0] - 2024-12-10
+## [0.1.0] - 2025-12-10
 
 ### Added
 - Initial project structure

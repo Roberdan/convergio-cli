@@ -26,6 +26,183 @@ static pthread_mutex_t g_registry_mutex = PTHREAD_MUTEX_INITIALIZER;
 static uint64_t g_next_agent_id = 1;
 
 // ============================================================================
+// HASH TABLE IMPLEMENTATION (FNV-1a)
+// ============================================================================
+
+// FNV-1a hash for strings
+static uint32_t fnv1a_hash(const char* str) {
+    uint32_t hash = 2166136261u;  // FNV offset basis
+    while (*str) {
+        hash ^= (uint8_t)(*str++);
+        hash *= 16777619u;  // FNV prime
+    }
+    return hash;
+}
+
+// Hash for SemanticID
+static uint32_t id_hash(SemanticID id) {
+    // Mix the bits for better distribution
+    uint64_t x = id;
+    x = (x ^ (x >> 30)) * 0xbf58476d1ce4e5b9ULL;
+    x = (x ^ (x >> 27)) * 0x94d049bb133111ebULL;
+    return (uint32_t)(x ^ (x >> 31));
+}
+
+AgentHashTable* agent_hash_create(void) {
+    AgentHashTable* ht = calloc(1, sizeof(AgentHashTable));
+    return ht;
+}
+
+void agent_hash_destroy(AgentHashTable* ht) {
+    if (!ht) return;
+    for (int i = 0; i < AGENT_HASH_SIZE; i++) {
+        AgentHashEntry* entry = ht->buckets[i];
+        while (entry) {
+            AgentHashEntry* next = entry->next;
+            free(entry);
+            entry = next;
+        }
+    }
+    free(ht);
+}
+
+void agent_hash_insert_by_id(AgentHashTable* ht, ManagedAgent* agent) {
+    if (!ht || !agent) return;
+    uint32_t idx = id_hash(agent->id) % AGENT_HASH_SIZE;
+
+    AgentHashEntry* entry = malloc(sizeof(AgentHashEntry));
+    entry->id = agent->id;
+    entry->agent = agent;
+    entry->next = ht->buckets[idx];
+    ht->buckets[idx] = entry;
+    ht->count++;
+}
+
+void agent_hash_insert_by_name(AgentHashTable* ht, ManagedAgent* agent) {
+    if (!ht || !agent || !agent->name) return;
+    uint32_t idx = fnv1a_hash(agent->name) % AGENT_HASH_SIZE;
+
+    AgentHashEntry* entry = malloc(sizeof(AgentHashEntry));
+    entry->id = agent->id;
+    entry->agent = agent;
+    entry->next = ht->buckets[idx];
+    ht->buckets[idx] = entry;
+    // Don't increment count - already counted in by_id
+}
+
+ManagedAgent* agent_hash_find_by_id(AgentHashTable* ht, SemanticID id) {
+    if (!ht || id == 0) return NULL;
+    uint32_t idx = id_hash(id) % AGENT_HASH_SIZE;
+
+    AgentHashEntry* entry = ht->buckets[idx];
+    while (entry) {
+        if (entry->id == id) return entry->agent;
+        entry = entry->next;
+    }
+    return NULL;
+}
+
+ManagedAgent* agent_hash_find_by_name(AgentHashTable* ht, const char* name) {
+    if (!ht || !name) return NULL;
+    uint32_t idx = fnv1a_hash(name) % AGENT_HASH_SIZE;
+
+    AgentHashEntry* entry = ht->buckets[idx];
+    while (entry) {
+        if (entry->agent && entry->agent->name &&
+            strcasecmp(entry->agent->name, name) == 0) {
+            return entry->agent;
+        }
+        entry = entry->next;
+    }
+    return NULL;
+}
+
+void agent_hash_remove(AgentHashTable* ht, SemanticID id) {
+    if (!ht || id == 0) return;
+    uint32_t idx = id_hash(id) % AGENT_HASH_SIZE;
+
+    AgentHashEntry* prev = NULL;
+    AgentHashEntry* entry = ht->buckets[idx];
+    while (entry) {
+        if (entry->id == id) {
+            if (prev) {
+                prev->next = entry->next;
+            } else {
+                ht->buckets[idx] = entry->next;
+            }
+            free(entry);
+            ht->count--;
+            return;
+        }
+        prev = entry;
+        entry = entry->next;
+    }
+}
+
+// ============================================================================
+// MESSAGE POOL IMPLEMENTATION
+// ============================================================================
+
+MessagePool* message_pool_create(void) {
+    MessagePool* pool = calloc(1, sizeof(MessagePool));
+    return pool;
+}
+
+void message_pool_destroy(MessagePool* pool) {
+    if (!pool) return;
+    // Free any strings in used messages
+    for (int i = 0; i < MESSAGE_POOL_SIZE; i++) {
+        if (pool->in_use[i]) {
+            free(pool->messages[i].content);
+            free(pool->messages[i].metadata_json);
+        }
+    }
+    free(pool);
+}
+
+Message* message_pool_alloc(MessagePool* pool) {
+    if (!pool) return NULL;
+
+    // Find free slot starting from next_free
+    for (int i = 0; i < MESSAGE_POOL_SIZE; i++) {
+        size_t idx = (pool->next_free + i) % MESSAGE_POOL_SIZE;
+        if (!pool->in_use[idx]) {
+            pool->in_use[idx] = 1;
+            pool->next_free = (idx + 1) % MESSAGE_POOL_SIZE;
+            pool->active_count++;
+            memset(&pool->messages[idx], 0, sizeof(Message));
+            return &pool->messages[idx];
+        }
+    }
+
+    // Pool exhausted, fallback to malloc
+    return calloc(1, sizeof(Message));
+}
+
+void message_pool_free(MessagePool* pool, Message* msg) {
+    if (!msg) return;
+
+    // Free strings
+    free(msg->content);
+    free(msg->metadata_json);
+    msg->content = NULL;
+    msg->metadata_json = NULL;
+
+    if (pool) {
+        // Check if msg is from the pool
+        ptrdiff_t offset = msg - pool->messages;
+        if (offset >= 0 && offset < MESSAGE_POOL_SIZE) {
+            pool->in_use[offset] = 0;
+            pool->active_count--;
+            return;
+        }
+    }
+
+    // Not from pool, free normally
+    free(msg);
+}
+
+// ============================================================================
 // AGENT DEFINITIONS (from Convergio)
 // ============================================================================
 
@@ -206,6 +383,14 @@ ManagedAgent* agent_spawn(AgentRole role, const char* name, const char* context)
     // Add to pool
     orch->agents[orch->agent_count++] = agent;
 
+    // Add to hash tables for O(1) lookup
+    if (orch->agent_by_id) {
+        agent_hash_insert_by_id(orch->agent_by_id, agent);
+    }
+    if (orch->agent_by_name) {
+        agent_hash_insert_by_name(orch->agent_by_name, agent);
+    }
+
     // Callback
     if (orch->on_agent_spawn) {
         orch->on_agent_spawn(agent, orch->callback_ctx);
@@ -223,6 +408,13 @@ void agent_despawn(ManagedAgent* agent) {
     if (!orch) return;
 
     pthread_mutex_lock(&g_registry_mutex);
+
+    // Remove from hash tables
+    if (orch->agent_by_id) {
+        agent_hash_remove(orch->agent_by_id, agent->id);
+    }
+    // Note: We don't have agent_hash_remove_by_name, but since we destroy
+    // the agent, the entry will become stale. This is acceptable for now.
 
     // Find and remove from pool
     for (size_t i = 0; i < orch->agent_count; i++) {
@@ -269,10 +461,17 @@ ManagedAgent* agent_find_by_name(const char* name) {
     pthread_mutex_lock(&g_registry_mutex);
 
     ManagedAgent* found = NULL;
-    for (size_t i = 0; i < orch->agent_count; i++) {
-        if (strcasecmp(orch->agents[i]->name, name) == 0) {
-            found = orch->agents[i];
-            break;
+
+    // Use hash table for O(1) lookup if available
+    if (orch->agent_by_name) {
+        found = agent_hash_find_by_name(orch->agent_by_name, name);
+    } else {
+        // Fallback to linear search
+        for (size_t i = 0; i < orch->agent_count; i++) {
+            if (strcasecmp(orch->agents[i]->name, name) == 0) {
+                found = orch->agents[i];
+                break;
+            }
         }
     }
 

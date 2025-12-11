@@ -13,6 +13,27 @@
 #include <stdint.h>
 #include <time.h>
 
+// Forward declaration for hash table
+typedef struct ManagedAgent ManagedAgent;
+
+// ============================================================================
+// PERFORMANCE OPTIMIZATIONS - Part 1 (Agent Hash Table)
+// ============================================================================
+
+// Hash table for O(1) agent lookup
+#define AGENT_HASH_SIZE 256
+
+typedef struct AgentHashEntry {
+    SemanticID id;
+    ManagedAgent* agent;
+    struct AgentHashEntry* next;  // Chaining for collisions
+} AgentHashEntry;
+
+typedef struct {
+    AgentHashEntry* buckets[AGENT_HASH_SIZE];
+    size_t count;
+} AgentHashTable;
+
 // ============================================================================
 // COST TRACKING
 // ============================================================================
@@ -68,6 +89,20 @@ typedef struct Message {
 } Message;
 
 // ============================================================================
+// PERFORMANCE OPTIMIZATIONS - Part 2 (Message Pool)
+// ============================================================================
+
+// Message object pool for reduced malloc overhead
+#define MESSAGE_POOL_SIZE 128
+
+typedef struct {
+    Message messages[MESSAGE_POOL_SIZE];
+    uint8_t in_use[MESSAGE_POOL_SIZE];  // Bitmap
+    size_t next_free;
+    size_t active_count;
+} MessagePool;
+
+// ============================================================================
 // AGENT SPECIALIZATIONS
 // ============================================================================
 
@@ -90,7 +125,7 @@ typedef enum {
     WORK_STATE_COMMUNICATING  // Talking to another agent
 } AgentWorkState;
 
-typedef struct {
+struct ManagedAgent {
     SemanticID id;
     char* name;
     AgentRole role;
@@ -105,7 +140,7 @@ typedef struct {
     Message* pending_messages;
     time_t created_at;
     time_t last_active;
-} ManagedAgent;
+};
 
 // ============================================================================
 // TASK & PLAN
@@ -151,10 +186,17 @@ typedef struct {
     size_t agent_count;
     size_t agent_capacity;
 
+    // Performance: O(1) agent lookups
+    AgentHashTable* agent_by_id;    // Hash table by SemanticID
+    AgentHashTable* agent_by_name;  // Hash table by name (FNV-1a hash)
+
     CostController cost;            // Budget and spending
 
     Message* message_history;       // Conversation history
     size_t message_count;
+
+    // Performance: Message object pool
+    MessagePool* message_pool;      // Pre-allocated messages
 
     ExecutionPlan* current_plan;    // Active execution plan
 
@@ -182,6 +224,7 @@ Orchestrator* orchestrator_get(void);
 
 // Cost control
 void cost_record_usage(uint64_t input_tokens, uint64_t output_tokens);
+void cost_load_historical(void);  // Load cumulative costs from DB
 double cost_get_session_spend(void);
 double cost_get_total_spend(void);
 bool cost_check_budget(void);
@@ -300,5 +343,24 @@ char* cost_get_agent_report(ManagedAgent* agent);
 void cost_get_top_agents(ManagedAgent** out_agents, size_t* out_count, size_t max_count);
 double cost_estimate_message(const char* text, bool is_input);
 bool cost_can_afford(size_t estimated_turns, size_t avg_input_tokens, size_t avg_output_tokens);
+
+// ============================================================================
+// PERFORMANCE API
+// ============================================================================
+
+// Hash table operations
+AgentHashTable* agent_hash_create(void);
+void agent_hash_destroy(AgentHashTable* ht);
+void agent_hash_insert_by_id(AgentHashTable* ht, ManagedAgent* agent);
+void agent_hash_insert_by_name(AgentHashTable* ht, ManagedAgent* agent);
+ManagedAgent* agent_hash_find_by_id(AgentHashTable* ht, SemanticID id);
+ManagedAgent* agent_hash_find_by_name(AgentHashTable* ht, const char* name);
+void agent_hash_remove(AgentHashTable* ht, SemanticID id);
+
+// Message pool operations
+MessagePool* message_pool_create(void);
+void message_pool_destroy(MessagePool* pool);
+Message* message_pool_alloc(MessagePool* pool);
+void message_pool_free(MessagePool* pool, Message* msg);
 
 #endif // CONVERGIO_ORCHESTRATOR_H

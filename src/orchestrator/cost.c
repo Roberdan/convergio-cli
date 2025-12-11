@@ -17,6 +17,45 @@ static pthread_mutex_t g_cost_mutex = PTHREAD_MUTEX_INITIALIZER;
 // Forward declaration
 extern Orchestrator* orchestrator_get(void);
 
+// Persistence functions
+extern double persistence_get_total_cost(void);
+extern int persistence_save_cost_daily(const char* date, uint64_t input_tokens,
+                                        uint64_t output_tokens, double cost, uint32_t calls);
+
+// Claude Max subscription check
+extern bool nous_claude_is_max_subscription(void);
+
+// Get current date string
+static void get_today_date(char* buf, size_t size) {
+    time_t now = time(NULL);
+    struct tm* tm = localtime(&now);
+    strftime(buf, size, "%Y-%m-%d", tm);
+}
+
+// ============================================================================
+// COST INITIALIZATION (Load historical data)
+// ============================================================================
+
+void cost_load_historical(void) {
+    Orchestrator* orch = orchestrator_get();
+    if (!orch) return;
+
+    pthread_mutex_lock(&g_cost_mutex);
+
+    // Load total historical cost from database
+    double historical_cost = persistence_get_total_cost();
+    orch->cost.total_spend_usd = historical_cost;
+    orch->cost.total_usage.cost_usd = historical_cost;
+
+    // Check if budget already exceeded from historical usage
+    if (orch->cost.budget_limit_usd > 0 &&
+        orch->cost.total_spend_usd >= orch->cost.budget_limit_usd) {
+        orch->cost.budget_exceeded = true;
+    }
+
+    pthread_mutex_unlock(&g_cost_mutex);
+}
+
 // ============================================================================
 // COST CALCULATION
 // ============================================================================
@@ -37,14 +76,18 @@ void cost_record_usage(uint64_t input_tokens, uint64_t output_tokens) {
 
     pthread_mutex_lock(&g_cost_mutex);
 
-    // Update session usage
+    // Update session usage (always track tokens for statistics)
     orch->cost.session_usage.input_tokens += input_tokens;
     orch->cost.session_usage.output_tokens += output_tokens;
     orch->cost.session_usage.total_tokens += (input_tokens + output_tokens);
     orch->cost.session_usage.api_calls++;
 
-    // Calculate cost
-    double call_cost = calculate_cost(input_tokens, output_tokens);
+    // Calculate cost - $0 if Claude Max subscription
+    double call_cost = 0.0;
+    if (!nous_claude_is_max_subscription()) {
+        call_cost = calculate_cost(input_tokens, output_tokens);
+    }
+
     orch->cost.session_usage.cost_usd += call_cost;
     orch->cost.current_spend_usd += call_cost;
 
@@ -56,11 +99,17 @@ void cost_record_usage(uint64_t input_tokens, uint64_t output_tokens) {
     orch->cost.total_usage.cost_usd += call_cost;
     orch->cost.total_spend_usd += call_cost;
 
-    // Check budget
-    if (orch->cost.budget_limit_usd > 0 &&
-        orch->cost.current_spend_usd >= orch->cost.budget_limit_usd) {
+    // Check budget against cumulative total (only if not Claude Max)
+    if (!nous_claude_is_max_subscription() &&
+        orch->cost.budget_limit_usd > 0 &&
+        orch->cost.total_spend_usd >= orch->cost.budget_limit_usd) {
         orch->cost.budget_exceeded = true;
     }
+
+    // Persist to database for cumulative tracking
+    char today[16];
+    get_today_date(today, sizeof(today));
+    persistence_save_cost_daily(today, input_tokens, output_tokens, call_cost, 1);
 
     // Callback if registered
     if (orch->on_cost_update) {

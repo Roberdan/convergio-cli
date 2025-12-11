@@ -284,6 +284,17 @@ int orchestrator_init(double budget_limit_usd) {
         g_orchestrator->agents[g_orchestrator->agent_count++] = g_orchestrator->ali;
     }
 
+    // Initialize hash tables for O(1) agent lookup
+    g_orchestrator->agent_by_id = agent_hash_create();
+    g_orchestrator->agent_by_name = agent_hash_create();
+    g_orchestrator->message_pool = message_pool_create();
+
+    // Add Ali to hash tables
+    if (g_orchestrator->ali && g_orchestrator->agent_by_id) {
+        agent_hash_insert_by_id(g_orchestrator->agent_by_id, g_orchestrator->ali);
+        agent_hash_insert_by_name(g_orchestrator->agent_by_name, g_orchestrator->ali);
+    }
+
     // Create or resume session
     g_current_session_id = persistence_get_or_create_session();
     if (g_current_session_id) {
@@ -300,6 +311,9 @@ int orchestrator_init(double budget_limit_usd) {
     }
 
     g_orchestrator->initialized = true;
+
+    // Load cumulative cost history from database
+    cost_load_historical();
 
     pthread_mutex_unlock(&g_orch_mutex);
 
@@ -318,6 +332,17 @@ void orchestrator_shutdown(void) {
     persistence_shutdown();
     msgbus_shutdown();
     nous_claude_shutdown();
+
+    // Free hash tables and message pool
+    if (g_orchestrator->agent_by_id) {
+        agent_hash_destroy(g_orchestrator->agent_by_id);
+    }
+    if (g_orchestrator->agent_by_name) {
+        agent_hash_destroy(g_orchestrator->agent_by_name);
+    }
+    if (g_orchestrator->message_pool) {
+        message_pool_destroy(g_orchestrator->message_pool);
+    }
 
     // Free agents
     for (size_t i = 0; i < g_orchestrator->agent_count; i++) {
@@ -914,10 +939,11 @@ char* orchestrator_process(const char* user_input) {
                     agent_set_working(tasks[i].agent, WORK_STATE_THINKING,
                                       tasks[i].context ? tasks[i].context : "Analyzing request");
 
-                    char* prompt_with_context = malloc(strlen(tasks[i].agent->system_prompt) +
-                                                       (tasks[i].context ? strlen(tasks[i].context) : 0) + 256);
+                    size_t prompt_size = strlen(tasks[i].agent->system_prompt) +
+                                         (tasks[i].context ? strlen(tasks[i].context) : 0) + 256;
+                    char* prompt_with_context = malloc(prompt_size);
                     if (prompt_with_context) {
-                        sprintf(prompt_with_context, "%s\n\nContext from Ali: %s",
+                        snprintf(prompt_with_context, prompt_size, "%s\n\nContext from Ali: %s",
                                 tasks[i].agent->system_prompt,
                                 tasks[i].context ? tasks[i].context : "Please analyze and respond.");
 

@@ -225,8 +225,21 @@ static char* extract_response_text(const char* json) {
 // INITIALIZATION
 // ============================================================================
 
+// Claude Max subscription mode (no cost tracking)
+static bool g_claude_max_mode = false;
+
+bool nous_claude_is_max_subscription(void) {
+    return g_claude_max_mode;
+}
+
 int nous_claude_init(void) {
     if (g_initialized) return 0;
+
+    // Check for Claude Max subscription mode
+    const char* max_mode = getenv("CLAUDE_MAX");
+    if (max_mode && (strcmp(max_mode, "1") == 0 || strcasecmp(max_mode, "true") == 0)) {
+        g_claude_max_mode = true;
+    }
 
     // Get API key from environment
     const char* key = getenv("ANTHROPIC_API_KEY");

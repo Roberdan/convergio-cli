@@ -395,8 +395,9 @@ ToolResult* tool_file_read(const char* path, int start_line, int end_line) {
             capacity *= 2;
             content = realloc(content, capacity);
         }
-        strcat(content, line);
+        memcpy(content + len, line, line_len);
         len += line_len;
+        content[len] = '\0';
     }
 
     fclose(f);
@@ -474,8 +475,9 @@ static void list_dir_recursive(const char* base_path, const char* pattern,
             *capacity *= 2;
             *output = realloc(*output, *capacity);
         }
-        strcat(*output, line);
+        memcpy(*output + *len, line, line_len);
         *len += line_len;
+        (*output)[*len] = '\0';
 
         // Recurse into directories
         if (S_ISDIR(st.st_mode)) {
@@ -536,8 +538,9 @@ ToolResult* tool_file_list(const char* path, bool recursive, const char* pattern
                 capacity *= 2;
                 output = realloc(output, capacity);
             }
-            strcat(output, line);
+            memcpy(output + len, line, line_len);
             len += line_len;
+            output[len] = '\0';
         }
         closedir(dir);
     }
@@ -595,8 +598,9 @@ ToolResult* tool_shell_exec(const char* command, const char* working_dir, int ti
             capacity *= 2;
             output = realloc(output, capacity);
         }
-        strcat(output, buffer);
+        memcpy(output + len, buffer, buf_len);
         len += buf_len;
+        output[len] = '\0';
 
         // Simple timeout check (not precise)
         if ((clock() - start) / CLOCKS_PER_SEC > timeout_sec) {
@@ -757,17 +761,15 @@ ToolResult* tool_memory_search(const char* query, size_t max_results, float min_
     char* output = malloc(capacity);
     snprintf(output, capacity, "Found %zu relevant memories:\n\n", count);
 
+    size_t out_len = strlen(output);
     for (size_t i = 0; i < count; i++) {
-        size_t needed = strlen(output) + strlen(memories[i]) + 32;
+        size_t mem_len = strlen(memories[i]);
+        size_t needed = out_len + mem_len + 32;
         if (needed > capacity) {
             capacity = needed * 2;
             output = realloc(output, capacity);
         }
-        char entry[64];
-        snprintf(entry, sizeof(entry), "[%zu] ", i + 1);
-        strcat(output, entry);
-        strcat(output, memories[i]);
-        strcat(output, "\n\n");
+        out_len += snprintf(output + out_len, capacity - out_len, "[%zu] %s\n\n", i + 1, memories[i]);
         free(memories[i]);
     }
     free(memories);

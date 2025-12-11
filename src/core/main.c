@@ -318,12 +318,19 @@ static int cmd_create(int argc, char** argv) {
         return -1;
     }
 
-    // Join all arguments as the essence
+    // Join all arguments as the essence (with bounds checking)
     char essence[1024] = {0};
-    for (int i = 1; i < argc; i++) {
-        if (i > 1) strcat(essence, " ");
-        strcat(essence, argv[i]);
+    size_t ess_len = 0;
+    for (int i = 1; i < argc && ess_len < sizeof(essence) - 2; i++) {
+        if (i > 1 && ess_len < sizeof(essence) - 1) {
+            essence[ess_len++] = ' ';
+        }
+        size_t arg_len = strlen(argv[i]);
+        size_t copy_len = (ess_len + arg_len < sizeof(essence) - 1) ? arg_len : (sizeof(essence) - 1 - ess_len);
+        memcpy(essence + ess_len, argv[i], copy_len);
+        ess_len += copy_len;
     }
+    essence[ess_len] = '\0';
 
     SemanticID id = nous_create_node(SEMANTIC_TYPE_CONCEPT, essence);
     if (id == SEMANTIC_ID_NULL) {
@@ -350,10 +357,17 @@ static int cmd_agent(int argc, char** argv) {
         }
 
         char essence[512] = {0};
-        for (int i = 3; i < argc; i++) {
-            if (i > 3) strcat(essence, " ");
-            strcat(essence, argv[i]);
+        size_t ess_len = 0;
+        for (int i = 3; i < argc && ess_len < sizeof(essence) - 2; i++) {
+            if (i > 3 && ess_len < sizeof(essence) - 1) {
+                essence[ess_len++] = ' ';
+            }
+            size_t arg_len = strlen(argv[i]);
+            size_t copy_len = (ess_len + arg_len < sizeof(essence) - 1) ? arg_len : (sizeof(essence) - 1 - ess_len);
+            memcpy(essence + ess_len, argv[i], copy_len);
+            ess_len += copy_len;
         }
+        essence[ess_len] = '\0';
 
         NousAgent* agent = nous_create_agent(argv[2], essence);
         if (!agent) {
@@ -404,10 +418,17 @@ static int cmd_space(int argc, char** argv) {
         }
 
         char purpose[512] = {0};
-        for (int i = 3; i < argc; i++) {
-            if (i > 3) strcat(purpose, " ");
-            strcat(purpose, argv[i]);
+        size_t purp_len = 0;
+        for (int i = 3; i < argc && purp_len < sizeof(purpose) - 2; i++) {
+            if (i > 3 && purp_len < sizeof(purpose) - 1) {
+                purpose[purp_len++] = ' ';
+            }
+            size_t arg_len = strlen(argv[i]);
+            size_t copy_len = (purp_len + arg_len < sizeof(purpose) - 1) ? arg_len : (sizeof(purpose) - 1 - purp_len);
+            memcpy(purpose + purp_len, argv[i], copy_len);
+            purp_len += copy_len;
         }
+        purpose[purp_len] = '\0';
 
         NousSpace* space = nous_create_space(argv[2], purpose);
         if (!space) {
@@ -499,12 +520,19 @@ static int cmd_think(int argc, char** argv) {
         return -1;
     }
 
-    // Join all arguments as intent
+    // Join all arguments as intent (with bounds checking)
     char input[1024] = {0};
-    for (int i = 1; i < argc; i++) {
-        if (i > 1) strcat(input, " ");
-        strcat(input, argv[i]);
+    size_t input_len = 0;
+    for (int i = 1; i < argc && input_len < sizeof(input) - 2; i++) {
+        if (i > 1 && input_len < sizeof(input) - 1) {
+            input[input_len++] = ' ';
+        }
+        size_t arg_len = strlen(argv[i]);
+        size_t copy_len = (input_len + arg_len < sizeof(input) - 1) ? arg_len : (sizeof(input) - 1 - input_len);
+        memcpy(input + input_len, argv[i], copy_len);
+        input_len += copy_len;
     }
+    input[input_len] = '\0';
 
     // Parse intent
     ParsedIntent* intent = nous_parse_intent(input, strlen(input));

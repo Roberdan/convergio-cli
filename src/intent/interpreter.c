@@ -402,14 +402,21 @@ static int execute_connect(TokenStream* ts) {
 }
 
 static int execute_find(TokenStream* ts) {
-    // Build search query from tokens
+    // Build search query from tokens (with bounds checking)
     char query[512] = {0};
-    for (size_t i = 0; i < ts->count; i++) {
+    size_t query_len = 0;
+    for (size_t i = 0; i < ts->count && query_len < sizeof(query) - 2; i++) {
         if (ts->tokens[i].is_string || ts->tokens[i].is_identifier) {
-            if (strlen(query) > 0) strcat(query, " ");
-            strcat(query, ts->tokens[i].text);
+            if (query_len > 0 && query_len < sizeof(query) - 1) {
+                query[query_len++] = ' ';
+            }
+            size_t tok_len = strlen(ts->tokens[i].text);
+            size_t copy_len = (query_len + tok_len < sizeof(query) - 1) ? tok_len : (sizeof(query) - 1 - query_len);
+            memcpy(query + query_len, ts->tokens[i].text, copy_len);
+            query_len += copy_len;
         }
     }
+    query[query_len] = '\0';
 
     if (strlen(query) == 0) {
         output("Cosa vuoi cercare?");
@@ -469,23 +476,34 @@ static int execute_feel(TokenStream* ts) {
 }
 
 static int execute_remember(TokenStream* ts) {
-    // Build memory from tokens
+    // Build memory from tokens (with bounds checking)
     char memory[512] = {0};
+    size_t mem_len = 0;
     for (size_t i = 0; i < ts->count; i++) {
         if (ts->tokens[i].is_string) {
-            strcat(memory, ts->tokens[i].text);
+            size_t tok_len = strlen(ts->tokens[i].text);
+            size_t copy_len = (tok_len < sizeof(memory) - 1) ? tok_len : (sizeof(memory) - 1);
+            memcpy(memory, ts->tokens[i].text, copy_len);
+            mem_len = copy_len;
+            memory[mem_len] = '\0';
             break;
         }
     }
 
-    if (strlen(memory) == 0) {
+    if (mem_len == 0) {
         // Join all non-keyword tokens
-        for (size_t i = 0; i < ts->count; i++) {
+        for (size_t i = 0; i < ts->count && mem_len < sizeof(memory) - 2; i++) {
             if (!ts->tokens[i].is_keyword && ts->tokens[i].text) {
-                if (strlen(memory) > 0) strcat(memory, " ");
-                strcat(memory, ts->tokens[i].text);
+                if (mem_len > 0 && mem_len < sizeof(memory) - 1) {
+                    memory[mem_len++] = ' ';
+                }
+                size_t tok_len = strlen(ts->tokens[i].text);
+                size_t copy_len = (mem_len + tok_len < sizeof(memory) - 1) ? tok_len : (sizeof(memory) - 1 - mem_len);
+                memcpy(memory + mem_len, ts->tokens[i].text, copy_len);
+                mem_len += copy_len;
             }
         }
+        memory[mem_len] = '\0';
     }
 
     if (strlen(memory) == 0) {
