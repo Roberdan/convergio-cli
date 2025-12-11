@@ -831,7 +831,7 @@ int auth_oauth_login(void) {
              port,
              OAUTH_REDIRECT_PATH,
              challenge,
-             "user:inference%%20org:inference",  // URL encoded scope
+             "user:inference+org:inference",  // URL encoded scope (+ = space in query strings)
              g_oauth_state);
 
     secure_free(&challenge);
