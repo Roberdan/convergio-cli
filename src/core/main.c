@@ -14,6 +14,8 @@
 #include <signal.h>
 #include <pthread.h>
 #include <unistd.h>
+#include <stdarg.h>
+#include <time.h>
 #include <readline/readline.h>
 #include <readline/history.h>
 
@@ -31,6 +33,78 @@ extern void nous_destroy_agent(NousAgent* agent);
 
 // Default budget in USD
 #define DEFAULT_BUDGET_USD 5.00
+
+// ============================================================================
+// DEBUG LOGGING IMPLEMENTATION
+// ============================================================================
+
+LogLevel g_log_level = LOG_LEVEL_NONE;
+
+static const char* LOG_LEVEL_NAMES[] = {
+    "NONE", "ERROR", "WARN", "INFO", "DEBUG", "TRACE"
+};
+
+static const char* LOG_CAT_NAMES[] = {
+    "SYSTEM", "AGENT", "TOOL", "API", "MEMORY", "MSGBUS", "COST"
+};
+
+static const char* LOG_CAT_COLORS[] = {
+    "\033[36m",   // Cyan - SYSTEM
+    "\033[33m",   // Yellow - AGENT
+    "\033[32m",   // Green - TOOL
+    "\033[35m",   // Magenta - API
+    "\033[34m",   // Blue - MEMORY
+    "\033[37m",   // White - MSGBUS
+    "\033[31m"    // Red - COST
+};
+
+void nous_log(LogLevel level, LogCategory cat, const char* fmt, ...) {
+    if (level > g_log_level || g_log_level == LOG_LEVEL_NONE) return;
+
+    // Timestamp
+    time_t now = time(NULL);
+    struct tm* tm_info = localtime(&now);
+    char time_str[16];
+    strftime(time_str, sizeof(time_str), "%H:%M:%S", tm_info);
+
+    // Level indicator
+    const char* level_color;
+    switch (level) {
+        case LOG_LEVEL_ERROR: level_color = "\033[31m"; break;  // Red
+        case LOG_LEVEL_WARN:  level_color = "\033[33m"; break;  // Yellow
+        case LOG_LEVEL_INFO:  level_color = "\033[32m"; break;  // Green
+        case LOG_LEVEL_DEBUG: level_color = "\033[36m"; break;  // Cyan
+        case LOG_LEVEL_TRACE: level_color = "\033[2m"; break;   // Dim
+        default: level_color = "\033[0m";
+    }
+
+    // Print header
+    fprintf(stderr, "\033[2m[%s]\033[0m %s[%-5s]\033[0m %s[%s]\033[0m ",
+            time_str,
+            level_color, LOG_LEVEL_NAMES[level],
+            LOG_CAT_COLORS[cat], LOG_CAT_NAMES[cat]);
+
+    // Print message
+    va_list args;
+    va_start(args, fmt);
+    vfprintf(stderr, fmt, args);
+    va_end(args);
+
+    fprintf(stderr, "\033[0m\n");
+}
+
+void nous_log_set_level(LogLevel level) {
+    g_log_level = level;
+}
+
+LogLevel nous_log_get_level(void) {
+    return g_log_level;
+}
+
+const char* nous_log_level_name(LogLevel level) {
+    if (level <= LOG_LEVEL_TRACE) return LOG_LEVEL_NAMES[level];
+    return "UNKNOWN";
+}
 
 // ============================================================================
 // GLOBAL STATE
@@ -69,6 +143,7 @@ static int cmd_quit(int argc, char** argv);
 static int cmd_think(int argc, char** argv);
 static int cmd_cost(int argc, char** argv);
 static int cmd_agents(int argc, char** argv);
+static int cmd_debug(int argc, char** argv);
 
 static const ReplCommand COMMANDS[] = {
     {"help",    "Show available commands",           cmd_help},
@@ -78,6 +153,7 @@ static const ReplCommand COMMANDS[] = {
     {"space",   "Manage collaborative spaces",       cmd_space},
     {"status",  "Show system status",                cmd_status},
     {"cost",    "Show/set cost and budget",          cmd_cost},
+    {"debug",   "Toggle debug mode (off/error/warn/info/debug/trace)", cmd_debug},
     {"think",   "Process an intent",                 cmd_think},
     {"quit",    "Exit Convergio",                    cmd_quit},
     {"exit",    "Exit Convergio",                    cmd_quit},
@@ -155,13 +231,83 @@ static int cmd_cost(int argc, char** argv) {
 }
 
 static int cmd_agents(int argc, char** argv) {
-    (void)argc; (void)argv;
+    (void)argc;
 
+    // Check for subcommands
+    if (argc >= 2) {
+        if (strcmp(argv[1], "working") == 0 || strcmp(argv[1], "active") == 0) {
+            // Show only working agents
+            char* working = agent_get_working_status();
+            if (working) {
+                printf("\n%s\n", working);
+                free(working);
+            }
+            return 0;
+        }
+    }
+
+    // Show working status first
+    char* working = agent_get_working_status();
+    if (working) {
+        printf("\n%s", working);
+        free(working);
+    }
+
+    // Then show full registry
+    printf("\n");
     char* status = agent_registry_status();
     if (status) {
         printf("%s", status);
         free(status);
     }
+    return 0;
+}
+
+static int cmd_debug(int argc, char** argv) {
+    if (argc < 2) {
+        // Show current level and toggle
+        LogLevel current = nous_log_get_level();
+        if (current == LOG_LEVEL_NONE) {
+            nous_log_set_level(LOG_LEVEL_INFO);
+            printf("\033[32m✓ Debug mode enabled (level: INFO)\033[0m\n");
+            printf("  Use 'debug <level>' to change: off, error, warn, info, debug, trace\n");
+        } else {
+            nous_log_set_level(LOG_LEVEL_NONE);
+            printf("\033[33m✗ Debug mode disabled\033[0m\n");
+        }
+        return 0;
+    }
+
+    // Parse level argument
+    LogLevel new_level = LOG_LEVEL_NONE;
+    const char* level_arg = argv[1];
+
+    if (strcmp(level_arg, "off") == 0 || strcmp(level_arg, "none") == 0) {
+        new_level = LOG_LEVEL_NONE;
+    } else if (strcmp(level_arg, "error") == 0) {
+        new_level = LOG_LEVEL_ERROR;
+    } else if (strcmp(level_arg, "warn") == 0 || strcmp(level_arg, "warning") == 0) {
+        new_level = LOG_LEVEL_WARN;
+    } else if (strcmp(level_arg, "info") == 0) {
+        new_level = LOG_LEVEL_INFO;
+    } else if (strcmp(level_arg, "debug") == 0) {
+        new_level = LOG_LEVEL_DEBUG;
+    } else if (strcmp(level_arg, "trace") == 0 || strcmp(level_arg, "all") == 0) {
+        new_level = LOG_LEVEL_TRACE;
+    } else {
+        printf("Unknown debug level: %s\n", level_arg);
+        printf("Valid levels: off, error, warn, info, debug, trace\n");
+        return -1;
+    }
+
+    nous_log_set_level(new_level);
+
+    if (new_level == LOG_LEVEL_NONE) {
+        printf("\033[33m✗ Debug mode disabled\033[0m\n");
+    } else {
+        printf("\033[32m✓ Debug level set to: %s\033[0m\n", nous_log_level_name(new_level));
+    }
+
     return 0;
 }
 
@@ -586,32 +732,117 @@ static int parse_and_execute(char* line) {
 // MAIN
 // ============================================================================
 
+// Print a single UTF-8 character with color
+static void print_colored_char(const char* ch, int len, int col, int total_cols) {
+    // Gradient: cyan (#51) -> blue (#39) -> purple (#135) -> pink (#168)
+    // Map column position to color
+    float t = (float)col / (float)total_cols;
+
+    int color;
+    if (t < 0.25f) {
+        color = 81;  // Light cyan
+    } else if (t < 0.40f) {
+        color = 75;  // Cyan-blue
+    } else if (t < 0.55f) {
+        color = 69;  // Blue
+    } else if (t < 0.70f) {
+        color = 105; // Blue-purple
+    } else if (t < 0.85f) {
+        color = 141; // Purple
+    } else {
+        color = 175; // Pink
+    }
+
+    printf("\033[1m\033[38;5;%dm%.*s\033[0m", color, len, ch);
+}
+
+// Print a line with horizontal gradient
+static void print_gradient_line(const char* line) {
+    int col = 0;
+    int total_cols = 0;
+
+    // First pass: count visible columns (skip spaces for color calculation)
+    const char* p = line;
+    while (*p) {
+        if ((unsigned char)*p >= 0x80) {
+            // UTF-8 multibyte
+            if ((*p & 0xE0) == 0xC0) p += 2;
+            else if ((*p & 0xF0) == 0xE0) p += 3;
+            else if ((*p & 0xF8) == 0xF0) p += 4;
+            else p++;
+        } else {
+            p++;
+        }
+        total_cols++;
+    }
+
+    // Second pass: print with colors
+    p = line;
+    col = 0;
+    while (*p) {
+        int char_len = 1;
+        if ((unsigned char)*p >= 0x80) {
+            if ((*p & 0xE0) == 0xC0) char_len = 2;
+            else if ((*p & 0xF0) == 0xE0) char_len = 3;
+            else if ((*p & 0xF8) == 0xF0) char_len = 4;
+        }
+
+        if (*p == ' ') {
+            printf(" ");
+        } else {
+            print_colored_char(p, char_len, col, total_cols);
+        }
+
+        p += char_len;
+        col++;
+    }
+    printf("\n");
+}
+
 static void print_banner(void) {
+    const char* rst = "\033[0m";
+    const char* dim = "\033[2m";
+    const char* c3 = "\033[38;5;75m";
+
     printf("\n");
-    printf("   ██████╗ ██████╗ ███╗   ██╗██╗   ██╗███████╗██████╗  ██████╗ ██╗ ██████╗ \n");
-    printf("  ██╔════╝██╔═══██╗████╗  ██║██║   ██║██╔════╝██╔══██╗██╔════╝ ██║██╔═══██╗\n");
-    printf("  ██║     ██║   ██║██╔██╗ ██║██║   ██║█████╗  ██████╔╝██║  ███╗██║██║   ██║\n");
-    printf("  ██║     ██║   ██║██║╚██╗██║╚██╗ ██╔╝██╔══╝  ██╔══██╗██║   ██║██║██║   ██║\n");
-    printf("  ╚██████╗╚██████╔╝██║ ╚████║ ╚████╔╝ ███████╗██║  ██║╚██████╔╝██║╚██████╔╝\n");
-    printf("   ╚═════╝ ╚═════╝ ╚═╝  ╚═══╝  ╚═══╝  ╚══════╝╚═╝  ╚═╝ ╚═════╝ ╚═╝ ╚═════╝ \n");
+    print_gradient_line("   ██████╗ ██████╗ ███╗   ██╗██╗   ██╗███████╗██████╗  ██████╗ ██╗ ██████╗ ");
+    print_gradient_line("  ██╔════╝██╔═══██╗████╗  ██║██║   ██║██╔════╝██╔══██╗██╔════╝ ██║██╔═══██╗");
+    print_gradient_line("  ██║     ██║   ██║██╔██╗ ██║██║   ██║█████╗  ██████╔╝██║  ███╗██║██║   ██║");
+    print_gradient_line("  ██║     ██║   ██║██║╚██╗██║╚██╗ ██╔╝██╔══╝  ██╔══██╗██║   ██║██║██║   ██║");
+    print_gradient_line("  ╚██████╗╚██████╔╝██║ ╚████║ ╚████╔╝ ███████╗██║  ██║╚██████╔╝██║╚██████╔╝");
+    print_gradient_line("   ╚═════╝ ╚═════╝ ╚═╝  ╚═══╝  ╚═══╝  ╚══════╝╚═╝  ╚═╝ ╚═════╝ ╚═╝ ╚═════╝ ");
     printf("\n");
-    printf("                         K E R N E L\n");
+    print_gradient_line("                          K E R N E L");
     printf("\n");
-    printf("  A semantic kernel for human-AI symbiosis\n");
-    printf("  Optimized for Apple M3 Max (10P + 4E + 30GPU + 16NE)\n");
+    printf("  %sA semantic kernel for human-AI symbiosis%s\n", dim, rst);
+    printf("  %sOptimized for Apple M3 Max (10P + 4E + 30GPU + 16NE)%s\n", dim, rst);
     printf("\n");
-    printf("  Type 'help' for commands, or express your intent naturally.\n");
+    printf("  Type %s'help'%s for commands, or express your intent naturally.\n", c3, rst);
     printf("\n");
 }
 
 int main(int argc, char** argv) {
-    (void)argc; (void)argv;
+    // Parse command line arguments
+    for (int i = 1; i < argc; i++) {
+        if (strcmp(argv[i], "--debug") == 0 || strcmp(argv[i], "-d") == 0) {
+            nous_log_set_level(LOG_LEVEL_DEBUG);
+        } else if (strcmp(argv[i], "--trace") == 0 || strcmp(argv[i], "-t") == 0) {
+            nous_log_set_level(LOG_LEVEL_TRACE);
+        } else if (strcmp(argv[i], "--quiet") == 0 || strcmp(argv[i], "-q") == 0) {
+            nous_log_set_level(LOG_LEVEL_ERROR);
+        }
+    }
 
     // Setup signal handling
     signal(SIGINT, signal_handler);
     signal(SIGTERM, signal_handler);
 
     print_banner();
+
+    // Show debug mode if enabled
+    if (g_log_level != LOG_LEVEL_NONE) {
+        printf("  \033[33m⚡ Debug mode: %s\033[0m\n\n", nous_log_level_name(g_log_level));
+    }
 
     // Initialize subsystems
     printf("Initializing Convergio Kernel...\n");
@@ -655,14 +886,18 @@ int main(int argc, char** argv) {
     }
 
     // REPL with cost in prompt
-    char prompt[128];
+    char prompt[256];
     char* line;
 
     using_history();
 
     while (g_running) {
-        // Simple prompt without cost (use 'cost' command to see spending)
-        snprintf(prompt, sizeof(prompt), "convergio> ");
+        // Fancy prompt with colored Convergio and arrow
+        // \033[38;5;39m = bright blue color
+        // \033[1m = bold
+        // \033[0m = reset
+        snprintf(prompt, sizeof(prompt),
+            "\033[38;5;39m\033[1mConvergio\033[0m \033[38;5;39m❯\033[0m ");
 
         line = readline(prompt);
 

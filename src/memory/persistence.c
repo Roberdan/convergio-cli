@@ -762,3 +762,191 @@ int persistence_end_session(const char* session_id, double total_cost, int total
 
     return (rc == SQLITE_DONE) ? 0 : -1;
 }
+
+// ============================================================================
+// CONVERSATION HISTORY
+// ============================================================================
+
+// Save a conversation turn (user message + assistant response)
+int persistence_save_conversation(const char* session_id, const char* role,
+                                   const char* content, int tokens) {
+    if (!g_db || !session_id || !role || !content) return -1;
+
+    pthread_mutex_lock(&g_db_mutex);
+
+    const char* sql =
+        "INSERT INTO messages (session_id, type, sender_name, content, input_tokens) "
+        "VALUES (?, ?, ?, ?, ?)";
+
+    sqlite3_stmt* stmt;
+    int rc = sqlite3_prepare_v2(g_db, sql, -1, &stmt, NULL);
+    if (rc != SQLITE_OK) {
+        pthread_mutex_unlock(&g_db_mutex);
+        return -1;
+    }
+
+    int msg_type = (strcmp(role, "user") == 0) ? 1 : 2;  // 1=user, 2=assistant
+
+    sqlite3_bind_text(stmt, 1, session_id, -1, SQLITE_STATIC);
+    sqlite3_bind_int(stmt, 2, msg_type);
+    sqlite3_bind_text(stmt, 3, role, -1, SQLITE_STATIC);
+    sqlite3_bind_text(stmt, 4, content, -1, SQLITE_STATIC);
+    sqlite3_bind_int(stmt, 5, tokens);
+
+    rc = sqlite3_step(stmt);
+    sqlite3_finalize(stmt);
+
+    pthread_mutex_unlock(&g_db_mutex);
+
+    return (rc == SQLITE_DONE) ? 0 : -1;
+}
+
+// Load conversation history for context (most recent first, reversed for chronological order)
+char* persistence_load_conversation_context(const char* session_id, size_t max_messages) {
+    if (!g_db || !session_id) return NULL;
+
+    pthread_mutex_lock(&g_db_mutex);
+
+    const char* sql =
+        "SELECT sender_name, content FROM ("
+        "  SELECT sender_name, content, created_at FROM messages "
+        "  WHERE session_id = ? ORDER BY created_at DESC LIMIT ?"
+        ") ORDER BY created_at ASC";
+
+    sqlite3_stmt* stmt;
+    int rc = sqlite3_prepare_v2(g_db, sql, -1, &stmt, NULL);
+    if (rc != SQLITE_OK) {
+        pthread_mutex_unlock(&g_db_mutex);
+        return NULL;
+    }
+
+    sqlite3_bind_text(stmt, 1, session_id, -1, SQLITE_STATIC);
+    sqlite3_bind_int(stmt, 2, (int)max_messages);
+
+    // Build conversation string
+    size_t capacity = 16384;
+    char* context = malloc(capacity);
+    context[0] = '\0';
+    size_t len = 0;
+
+    while (sqlite3_step(stmt) == SQLITE_ROW) {
+        const char* role = (const char*)sqlite3_column_text(stmt, 0);
+        const char* content = (const char*)sqlite3_column_text(stmt, 1);
+
+        if (!role || !content) continue;
+
+        // Format: [role]: content\n\n
+        size_t needed = strlen(role) + strlen(content) + 8;
+        if (len + needed >= capacity) {
+            capacity *= 2;
+            context = realloc(context, capacity);
+        }
+
+        len += snprintf(context + len, capacity - len, "[%s]: %s\n\n", role, content);
+    }
+
+    sqlite3_finalize(stmt);
+    pthread_mutex_unlock(&g_db_mutex);
+
+    if (len == 0) {
+        free(context);
+        return NULL;
+    }
+
+    return context;
+}
+
+// Load recent conversations across all sessions for long-term memory
+char* persistence_load_recent_context(size_t max_messages) {
+    if (!g_db) return NULL;
+
+    pthread_mutex_lock(&g_db_mutex);
+
+    const char* sql =
+        "SELECT sender_name, content, session_id, date(created_at) as day FROM ("
+        "  SELECT sender_name, content, session_id, created_at FROM messages "
+        "  ORDER BY created_at DESC LIMIT ?"
+        ") ORDER BY created_at ASC";
+
+    sqlite3_stmt* stmt;
+    int rc = sqlite3_prepare_v2(g_db, sql, -1, &stmt, NULL);
+    if (rc != SQLITE_OK) {
+        pthread_mutex_unlock(&g_db_mutex);
+        return NULL;
+    }
+
+    sqlite3_bind_int(stmt, 1, (int)max_messages);
+
+    size_t capacity = 32768;
+    char* context = malloc(capacity);
+    context[0] = '\0';
+    size_t len = 0;
+    char last_session[64] = "";
+
+    while (sqlite3_step(stmt) == SQLITE_ROW) {
+        const char* role = (const char*)sqlite3_column_text(stmt, 0);
+        const char* content = (const char*)sqlite3_column_text(stmt, 1);
+        const char* session = (const char*)sqlite3_column_text(stmt, 2);
+        const char* day = (const char*)sqlite3_column_text(stmt, 3);
+
+        if (!role || !content) continue;
+
+        // Add session separator if new session
+        if (session && strcmp(session, last_session) != 0) {
+            size_t needed = 64;
+            if (len + needed >= capacity) {
+                capacity *= 2;
+                context = realloc(context, capacity);
+            }
+            len += snprintf(context + len, capacity - len,
+                "\n--- Session %s ---\n", day ? day : "unknown");
+            strncpy(last_session, session, sizeof(last_session) - 1);
+        }
+
+        size_t needed = strlen(role) + strlen(content) + 8;
+        if (len + needed >= capacity) {
+            capacity *= 2;
+            context = realloc(context, capacity);
+        }
+
+        len += snprintf(context + len, capacity - len, "[%s]: %s\n\n", role, content);
+    }
+
+    sqlite3_finalize(stmt);
+    pthread_mutex_unlock(&g_db_mutex);
+
+    if (len == 0) {
+        free(context);
+        return NULL;
+    }
+
+    return context;
+}
+
+// Get last session ID or create new one
+char* persistence_get_or_create_session(void) {
+    if (!g_db) return NULL;
+
+    pthread_mutex_lock(&g_db_mutex);
+
+    // Try to get most recent active session (from today)
+    const char* sql =
+        "SELECT id FROM sessions "
+        "WHERE date(started_at) = date('now') AND ended_at IS NULL "
+        "ORDER BY started_at DESC LIMIT 1";
+
+    sqlite3_stmt* stmt;
+    int rc = sqlite3_prepare_v2(g_db, sql, -1, &stmt, NULL);
+    if (rc == SQLITE_OK && sqlite3_step(stmt) == SQLITE_ROW) {
+        const char* id = (const char*)sqlite3_column_text(stmt, 0);
+        char* session_id = strdup(id);
+        sqlite3_finalize(stmt);
+        pthread_mutex_unlock(&g_db_mutex);
+        return session_id;
+    }
+    sqlite3_finalize(stmt);
+    pthread_mutex_unlock(&g_db_mutex);
+
+    // No active session, create new one
+    return persistence_create_session("default");
+}

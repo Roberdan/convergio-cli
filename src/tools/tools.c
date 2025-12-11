@@ -16,6 +16,7 @@
 #include <curl/curl.h>
 #include <time.h>
 #include <errno.h>
+#include <ctype.h>
 
 // ============================================================================
 // SAFETY CONFIGURATION
@@ -46,6 +47,10 @@ static const char* DEFAULT_BLOCKED[] = {
 // ============================================================================
 // TOOL DEFINITIONS JSON
 // ============================================================================
+
+// Notes and knowledge base directories
+#define NOTES_DIR "data/notes"
+#define KNOWLEDGE_DIR "data/knowledge"
 
 static const char* TOOLS_JSON =
 "[\n"
@@ -137,6 +142,65 @@ static const char* TOOLS_JSON =
 "        \"min_similarity\": {\"type\": \"number\", \"description\": \"Minimum similarity threshold 0.0-1.0 (default: 0.5)\"}\n"
 "      },\n"
 "      \"required\": [\"query\"]\n"
+"    }\n"
+"  },\n"
+"  {\n"
+"    \"name\": \"note_write\",\n"
+"    \"description\": \"Write or update a markdown note. Notes are stored in data/notes/ for persistent knowledge.\",\n"
+"    \"input_schema\": {\n"
+"      \"type\": \"object\",\n"
+"      \"properties\": {\n"
+"        \"title\": {\"type\": \"string\", \"description\": \"Note title (becomes filename, e.g. 'meeting-notes' -> meeting-notes.md)\"},\n"
+"        \"content\": {\"type\": \"string\", \"description\": \"Markdown content of the note\"},\n"
+"        \"tags\": {\"type\": \"string\", \"description\": \"Comma-separated tags for categorization\"}\n"
+"      },\n"
+"      \"required\": [\"title\", \"content\"]\n"
+"    }\n"
+"  },\n"
+"  {\n"
+"    \"name\": \"note_read\",\n"
+"    \"description\": \"Read a markdown note by title or search for notes by tag/content.\",\n"
+"    \"input_schema\": {\n"
+"      \"type\": \"object\",\n"
+"      \"properties\": {\n"
+"        \"title\": {\"type\": \"string\", \"description\": \"Note title to read (without .md extension)\"},\n"
+"        \"search\": {\"type\": \"string\", \"description\": \"Search term to find notes containing this text\"}\n"
+"      }\n"
+"    }\n"
+"  },\n"
+"  {\n"
+"    \"name\": \"note_list\",\n"
+"    \"description\": \"List all available notes with their titles, tags, and modification dates.\",\n"
+"    \"input_schema\": {\n"
+"      \"type\": \"object\",\n"
+"      \"properties\": {\n"
+"        \"tag\": {\"type\": \"string\", \"description\": \"Filter notes by tag\"}\n"
+"      }\n"
+"    }\n"
+"  },\n"
+"  {\n"
+"    \"name\": \"knowledge_search\",\n"
+"    \"description\": \"Search the knowledge base (data/knowledge/) for information. Returns relevant markdown content.\",\n"
+"    \"input_schema\": {\n"
+"      \"type\": \"object\",\n"
+"      \"properties\": {\n"
+"        \"query\": {\"type\": \"string\", \"description\": \"Search query to find relevant knowledge\"},\n"
+"        \"max_results\": {\"type\": \"integer\", \"description\": \"Maximum number of results (default: 5)\"}\n"
+"      },\n"
+"      \"required\": [\"query\"]\n"
+"    }\n"
+"  },\n"
+"  {\n"
+"    \"name\": \"knowledge_add\",\n"
+"    \"description\": \"Add a new document to the knowledge base for future reference.\",\n"
+"    \"input_schema\": {\n"
+"      \"type\": \"object\",\n"
+"      \"properties\": {\n"
+"        \"title\": {\"type\": \"string\", \"description\": \"Document title\"},\n"
+"        \"content\": {\"type\": \"string\", \"description\": \"Markdown content\"},\n"
+"        \"category\": {\"type\": \"string\", \"description\": \"Category folder (e.g. 'projects', 'people', 'processes')\"}\n"
+"      },\n"
+"      \"required\": [\"title\", \"content\"]\n"
 "    }\n"
 "  }\n"
 "]\n";
@@ -716,6 +780,410 @@ ToolResult* tool_memory_search(const char* query, size_t max_results, float min_
 }
 
 // ============================================================================
+// NOTE TOOLS IMPLEMENTATION
+// ============================================================================
+
+// Ensure directory exists
+static void ensure_dir(const char* path) {
+    struct stat st = {0};
+    if (stat(path, &st) == -1) {
+        mkdir(path, 0755);
+    }
+}
+
+// Sanitize filename (remove special chars)
+static void sanitize_filename(char* name) {
+    for (char* p = name; *p; p++) {
+        if (!isalnum(*p) && *p != '-' && *p != '_') {
+            *p = '-';
+        }
+    }
+}
+
+ToolResult* tool_note_write(const char* title, const char* content, const char* tags) {
+    clock_t start = clock();
+
+    if (!title || !content) {
+        return result_error("Title and content are required");
+    }
+
+    ensure_dir(NOTES_DIR);
+
+    // Build filename
+    char filename[PATH_MAX];
+    char safe_title[256];
+    strncpy(safe_title, title, sizeof(safe_title) - 1);
+    safe_title[sizeof(safe_title) - 1] = '\0';
+    sanitize_filename(safe_title);
+
+    snprintf(filename, sizeof(filename), "%s/%s.md", NOTES_DIR, safe_title);
+
+    // Build markdown content with frontmatter
+    size_t full_size = strlen(content) + 512;
+    char* full_content = malloc(full_size);
+
+    time_t now = time(NULL);
+    struct tm* tm_info = localtime(&now);
+    char date_str[32];
+    strftime(date_str, sizeof(date_str), "%Y-%m-%d %H:%M", tm_info);
+
+    snprintf(full_content, full_size,
+        "---\n"
+        "title: %s\n"
+        "date: %s\n"
+        "tags: %s\n"
+        "---\n\n"
+        "%s",
+        title, date_str, tags ? tags : "", content);
+
+    FILE* f = fopen(filename, "w");
+    if (!f) {
+        free(full_content);
+        return result_error("Failed to create note file");
+    }
+
+    fputs(full_content, f);
+    fclose(f);
+    free(full_content);
+
+    char msg[512];
+    snprintf(msg, sizeof(msg), "Note '%s' saved to %s", title, filename);
+
+    ToolResult* r = result_success(msg);
+    r->execution_time = (double)(clock() - start) / CLOCKS_PER_SEC;
+    return r;
+}
+
+ToolResult* tool_note_read(const char* title, const char* search) {
+    clock_t start = clock();
+
+    if (title) {
+        // Read specific note
+        char filename[PATH_MAX];
+        char safe_title[256];
+        strncpy(safe_title, title, sizeof(safe_title) - 1);
+        safe_title[sizeof(safe_title) - 1] = '\0';
+        sanitize_filename(safe_title);
+
+        snprintf(filename, sizeof(filename), "%s/%s.md", NOTES_DIR, safe_title);
+
+        FILE* f = fopen(filename, "r");
+        if (!f) {
+            char err[256];
+            snprintf(err, sizeof(err), "Note '%s' not found", title);
+            return result_error(err);
+        }
+
+        fseek(f, 0, SEEK_END);
+        long size = ftell(f);
+        fseek(f, 0, SEEK_SET);
+
+        char* content = malloc(size + 1);
+        fread(content, 1, size, f);
+        content[size] = '\0';
+        fclose(f);
+
+        ToolResult* r = result_success(content);
+        r->execution_time = (double)(clock() - start) / CLOCKS_PER_SEC;
+        free(content);
+        return r;
+    }
+
+    if (search) {
+        // Search notes for content
+        DIR* dir = opendir(NOTES_DIR);
+        if (!dir) {
+            return result_error("Notes directory not found");
+        }
+
+        size_t capacity = 8192;
+        char* output = malloc(capacity);
+        snprintf(output, capacity, "Notes matching '%s':\n\n", search);
+        size_t len = strlen(output);
+
+        struct dirent* entry;
+        while ((entry = readdir(dir))) {
+            if (entry->d_name[0] == '.' || !strstr(entry->d_name, ".md")) continue;
+
+            char filepath[PATH_MAX];
+            snprintf(filepath, sizeof(filepath), "%s/%s", NOTES_DIR, entry->d_name);
+
+            FILE* f = fopen(filepath, "r");
+            if (!f) continue;
+
+            fseek(f, 0, SEEK_END);
+            long size = ftell(f);
+            fseek(f, 0, SEEK_SET);
+
+            char* content = malloc(size + 1);
+            fread(content, 1, size, f);
+            content[size] = '\0';
+            fclose(f);
+
+            // Check if search term is in content (case-insensitive)
+            char* lower_content = strdup(content);
+            char* lower_search = strdup(search);
+            for (char* p = lower_content; *p; p++) *p = tolower(*p);
+            for (char* p = lower_search; *p; p++) *p = tolower(*p);
+
+            if (strstr(lower_content, lower_search)) {
+                size_t needed = len + strlen(entry->d_name) + 256;
+                if (needed > capacity) {
+                    capacity = needed * 2;
+                    output = realloc(output, capacity);
+                }
+
+                // Extract first line (title)
+                char* first_line = content;
+                char* newline = strchr(content, '\n');
+                if (newline) *newline = '\0';
+
+                len += snprintf(output + len, capacity - len,
+                    "- **%s**: %s\n", entry->d_name, first_line);
+            }
+
+            free(lower_content);
+            free(lower_search);
+            free(content);
+        }
+        closedir(dir);
+
+        ToolResult* r = result_success(output);
+        r->execution_time = (double)(clock() - start) / CLOCKS_PER_SEC;
+        free(output);
+        return r;
+    }
+
+    return result_error("Specify either 'title' or 'search' parameter");
+}
+
+ToolResult* tool_note_list(const char* tag_filter) {
+    clock_t start = clock();
+
+    DIR* dir = opendir(NOTES_DIR);
+    if (!dir) {
+        ensure_dir(NOTES_DIR);
+        return result_success("Notes directory is empty.");
+    }
+
+    size_t capacity = 8192;
+    char* output = malloc(capacity);
+    snprintf(output, capacity, "Available notes:\n\n");
+    size_t len = strlen(output);
+    int count = 0;
+
+    struct dirent* entry;
+    while ((entry = readdir(dir))) {
+        if (entry->d_name[0] == '.' || !strstr(entry->d_name, ".md")) continue;
+
+        char filepath[PATH_MAX];
+        snprintf(filepath, sizeof(filepath), "%s/%s", NOTES_DIR, entry->d_name);
+
+        struct stat st;
+        if (stat(filepath, &st) != 0) continue;
+
+        // Read frontmatter to get tags
+        FILE* f = fopen(filepath, "r");
+        if (!f) continue;
+
+        char line[512];
+        char title[256] = "";
+        char tags[256] = "";
+        char date[64] = "";
+        bool in_frontmatter = false;
+
+        while (fgets(line, sizeof(line), f)) {
+            if (strncmp(line, "---", 3) == 0) {
+                if (in_frontmatter) break;
+                in_frontmatter = true;
+                continue;
+            }
+            if (in_frontmatter) {
+                if (strncmp(line, "title:", 6) == 0) {
+                    strncpy(title, line + 7, sizeof(title) - 1);
+                    title[strcspn(title, "\n")] = '\0';
+                } else if (strncmp(line, "tags:", 5) == 0) {
+                    strncpy(tags, line + 6, sizeof(tags) - 1);
+                    tags[strcspn(tags, "\n")] = '\0';
+                } else if (strncmp(line, "date:", 5) == 0) {
+                    strncpy(date, line + 6, sizeof(date) - 1);
+                    date[strcspn(date, "\n")] = '\0';
+                }
+            }
+        }
+        fclose(f);
+
+        // Apply tag filter
+        if (tag_filter && tag_filter[0] && !strstr(tags, tag_filter)) {
+            continue;
+        }
+
+        size_t needed = len + 256;
+        if (needed > capacity) {
+            capacity = needed * 2;
+            output = realloc(output, capacity);
+        }
+
+        len += snprintf(output + len, capacity - len,
+            "- **%s** [%s] - %s\n",
+            title[0] ? title : entry->d_name,
+            tags[0] ? tags : "no tags",
+            date[0] ? date : "unknown date");
+        count++;
+    }
+    closedir(dir);
+
+    if (count == 0) {
+        strcpy(output, "No notes found.");
+    }
+
+    ToolResult* r = result_success(output);
+    r->execution_time = (double)(clock() - start) / CLOCKS_PER_SEC;
+    free(output);
+    return r;
+}
+
+// ============================================================================
+// KNOWLEDGE BASE TOOLS IMPLEMENTATION
+// ============================================================================
+
+ToolResult* tool_knowledge_search(const char* query, size_t max_results) {
+    clock_t start = clock();
+
+    if (!query || strlen(query) == 0) {
+        return result_error("Query cannot be empty");
+    }
+
+    if (max_results == 0) max_results = 5;
+
+    ensure_dir(KNOWLEDGE_DIR);
+
+    // Recursive search in knowledge directory
+    size_t capacity = 16384;
+    char* output = malloc(capacity);
+    snprintf(output, capacity, "Knowledge search results for '%s':\n\n", query);
+    size_t len = strlen(output);
+    int found = 0;
+
+    // Simple implementation: search all .md files recursively
+    char cmd[512];
+    snprintf(cmd, sizeof(cmd),
+        "grep -r -l -i '%s' %s 2>/dev/null | head -%zu",
+        query, KNOWLEDGE_DIR, max_results);
+
+    FILE* pipe = popen(cmd, "r");
+    if (pipe) {
+        char filepath[PATH_MAX];
+        while (fgets(filepath, sizeof(filepath), pipe) && found < (int)max_results) {
+            filepath[strcspn(filepath, "\n")] = '\0';
+
+            // Read file content
+            FILE* f = fopen(filepath, "r");
+            if (!f) continue;
+
+            fseek(f, 0, SEEK_END);
+            long size = ftell(f);
+            if (size > 4096) size = 4096;  // Limit preview
+            fseek(f, 0, SEEK_SET);
+
+            char* content = malloc(size + 1);
+            fread(content, 1, size, f);
+            content[size] = '\0';
+            fclose(f);
+
+            // Add to output
+            size_t needed = len + strlen(filepath) + size + 64;
+            if (needed > capacity) {
+                capacity = needed * 2;
+                output = realloc(output, capacity);
+            }
+
+            len += snprintf(output + len, capacity - len,
+                "### %s\n%s\n\n---\n\n",
+                filepath + strlen(KNOWLEDGE_DIR) + 1,  // Remove prefix
+                content);
+
+            free(content);
+            found++;
+        }
+        pclose(pipe);
+    }
+
+    if (found == 0) {
+        strcpy(output, "No knowledge found matching your query.");
+    }
+
+    ToolResult* r = result_success(output);
+    r->execution_time = (double)(clock() - start) / CLOCKS_PER_SEC;
+    free(output);
+    return r;
+}
+
+ToolResult* tool_knowledge_add(const char* title, const char* content, const char* category) {
+    clock_t start = clock();
+
+    if (!title || !content) {
+        return result_error("Title and content are required");
+    }
+
+    ensure_dir(KNOWLEDGE_DIR);
+
+    // Create category subdirectory if specified
+    char dirpath[PATH_MAX];
+    if (category && category[0]) {
+        snprintf(dirpath, sizeof(dirpath), "%s/%s", KNOWLEDGE_DIR, category);
+        ensure_dir(dirpath);
+    } else {
+        strncpy(dirpath, KNOWLEDGE_DIR, sizeof(dirpath));
+    }
+
+    // Build filename
+    char filename[PATH_MAX];
+    char safe_title[256];
+    strncpy(safe_title, title, sizeof(safe_title) - 1);
+    safe_title[sizeof(safe_title) - 1] = '\0';
+    sanitize_filename(safe_title);
+
+    snprintf(filename, sizeof(filename), "%s/%s.md", dirpath, safe_title);
+
+    // Build markdown content with frontmatter
+    size_t full_size = strlen(content) + 512;
+    char* full_content = malloc(full_size);
+
+    time_t now = time(NULL);
+    struct tm* tm_info = localtime(&now);
+    char date_str[32];
+    strftime(date_str, sizeof(date_str), "%Y-%m-%d", tm_info);
+
+    snprintf(full_content, full_size,
+        "---\n"
+        "title: %s\n"
+        "category: %s\n"
+        "created: %s\n"
+        "---\n\n"
+        "# %s\n\n"
+        "%s",
+        title, category ? category : "general", date_str, title, content);
+
+    FILE* f = fopen(filename, "w");
+    if (!f) {
+        free(full_content);
+        return result_error("Failed to create knowledge file");
+    }
+
+    fputs(full_content, f);
+    fclose(f);
+    free(full_content);
+
+    char msg[512];
+    snprintf(msg, sizeof(msg), "Knowledge '%s' added to %s", title, filename);
+
+    ToolResult* r = result_success(msg);
+    r->execution_time = (double)(clock() - start) / CLOCKS_PER_SEC;
+    return r;
+}
+
+// ============================================================================
 // TOOL CALL PARSING
 // ============================================================================
 
@@ -825,6 +1293,16 @@ ToolCall* tools_parse_call(const char* tool_name, const char* arguments_json) {
         call->type = TOOL_MEMORY_STORE;
     } else if (strcmp(tool_name, "memory_search") == 0) {
         call->type = TOOL_MEMORY_SEARCH;
+    } else if (strcmp(tool_name, "note_write") == 0) {
+        call->type = TOOL_NOTE_WRITE;
+    } else if (strcmp(tool_name, "note_read") == 0) {
+        call->type = TOOL_NOTE_READ;
+    } else if (strcmp(tool_name, "note_list") == 0) {
+        call->type = TOOL_NOTE_LIST;
+    } else if (strcmp(tool_name, "knowledge_search") == 0) {
+        call->type = TOOL_KNOWLEDGE_SEARCH;
+    } else if (strcmp(tool_name, "knowledge_add") == 0) {
+        call->type = TOOL_KNOWLEDGE_ADD;
     } else {
         tools_free_call(call);
         return NULL;
@@ -908,6 +1386,52 @@ ToolResult* tools_execute(const ToolCall* call) {
             float min_sim = (float)json_get_double(args, "min_similarity", 0.5);
             ToolResult* r = tool_memory_search(query, max_results, min_sim);
             free(query);
+            return r;
+        }
+
+        case TOOL_NOTE_WRITE: {
+            char* title = json_get_string(args, "title");
+            char* content = json_get_string(args, "content");
+            char* tags = json_get_string(args, "tags");
+            ToolResult* r = tool_note_write(title, content, tags);
+            free(title);
+            free(content);
+            free(tags);
+            return r;
+        }
+
+        case TOOL_NOTE_READ: {
+            char* title = json_get_string(args, "title");
+            char* search = json_get_string(args, "search");
+            ToolResult* r = tool_note_read(title, search);
+            free(title);
+            free(search);
+            return r;
+        }
+
+        case TOOL_NOTE_LIST: {
+            char* tag = json_get_string(args, "tag");
+            ToolResult* r = tool_note_list(tag);
+            free(tag);
+            return r;
+        }
+
+        case TOOL_KNOWLEDGE_SEARCH: {
+            char* query = json_get_string(args, "query");
+            int max_results = json_get_int(args, "max_results", 5);
+            ToolResult* r = tool_knowledge_search(query, max_results);
+            free(query);
+            return r;
+        }
+
+        case TOOL_KNOWLEDGE_ADD: {
+            char* title = json_get_string(args, "title");
+            char* content = json_get_string(args, "content");
+            char* category = json_get_string(args, "category");
+            ToolResult* r = tool_knowledge_add(title, content, category);
+            free(title);
+            free(content);
+            free(category);
             return r;
         }
 

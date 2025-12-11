@@ -567,6 +567,193 @@ void agent_execute_parallel(ManagedAgent** agents, size_t count, const char* inp
 }
 
 // ============================================================================
+// AGENT STATE MANAGEMENT
+// ============================================================================
+
+void agent_set_working(ManagedAgent* agent, AgentWorkState state, const char* task) {
+    if (!agent) return;
+
+    pthread_mutex_lock(&g_registry_mutex);
+
+    agent->work_state = state;
+    agent->work_started_at = time(NULL);
+
+    free(agent->current_task);
+    agent->current_task = task ? strdup(task) : NULL;
+
+    pthread_mutex_unlock(&g_registry_mutex);
+}
+
+void agent_set_idle(ManagedAgent* agent) {
+    if (!agent) return;
+
+    pthread_mutex_lock(&g_registry_mutex);
+
+    agent->work_state = WORK_STATE_IDLE;
+    free(agent->current_task);
+    agent->current_task = NULL;
+    agent->collaborating_with = 0;
+    agent->work_started_at = 0;
+
+    pthread_mutex_unlock(&g_registry_mutex);
+}
+
+void agent_set_collaborating(ManagedAgent* agent, SemanticID partner_id) {
+    if (!agent) return;
+
+    pthread_mutex_lock(&g_registry_mutex);
+
+    agent->work_state = WORK_STATE_COMMUNICATING;
+    agent->collaborating_with = partner_id;
+
+    pthread_mutex_unlock(&g_registry_mutex);
+}
+
+size_t agent_get_working(ManagedAgent** out_agents, size_t max_count) {
+    Orchestrator* orch = orchestrator_get();
+    if (!orch || !out_agents) return 0;
+
+    pthread_mutex_lock(&g_registry_mutex);
+
+    size_t count = 0;
+    for (size_t i = 0; i < orch->agent_count && count < max_count; i++) {
+        if (orch->agents[i]->work_state != WORK_STATE_IDLE) {
+            out_agents[count++] = orch->agents[i];
+        }
+    }
+
+    pthread_mutex_unlock(&g_registry_mutex);
+
+    return count;
+}
+
+char* agent_get_working_status(void) {
+    Orchestrator* orch = orchestrator_get();
+    if (!orch) return strdup("No orchestrator");
+
+    pthread_mutex_lock(&g_registry_mutex);
+
+    size_t buf_size = 4096;
+    char* status = malloc(buf_size);
+    if (!status) {
+        pthread_mutex_unlock(&g_registry_mutex);
+        return NULL;
+    }
+
+    size_t offset = 0;
+    size_t working_count = 0;
+
+    // Count working agents first
+    for (size_t i = 0; i < orch->agent_count; i++) {
+        if (orch->agents[i]->work_state != WORK_STATE_IDLE) {
+            working_count++;
+        }
+    }
+
+    if (working_count == 0) {
+        offset = snprintf(status, buf_size, "\033[2mNo agents currently working\033[0m\n");
+    } else {
+        offset = snprintf(status, buf_size,
+            "\033[1m🔄 Active Agents (%zu working)\033[0m\n",
+            working_count);
+
+        for (size_t i = 0; i < orch->agent_count && offset < buf_size - 256; i++) {
+            ManagedAgent* agent = orch->agents[i];
+            if (agent->work_state == WORK_STATE_IDLE) continue;
+
+            const char* state_icon;
+            const char* state_color;
+            switch (agent->work_state) {
+                case WORK_STATE_THINKING:
+                    state_icon = "💭";
+                    state_color = "\033[33m";  // Yellow
+                    break;
+                case WORK_STATE_EXECUTING:
+                    state_icon = "⚡";
+                    state_color = "\033[32m";  // Green
+                    break;
+                case WORK_STATE_WAITING:
+                    state_icon = "⏳";
+                    state_color = "\033[34m";  // Blue
+                    break;
+                case WORK_STATE_COMMUNICATING:
+                    state_icon = "💬";
+                    state_color = "\033[35m";  // Magenta
+                    break;
+                default:
+                    state_icon = "•";
+                    state_color = "\033[0m";
+            }
+
+            // Calculate duration
+            time_t now = time(NULL);
+            int duration = agent->work_started_at > 0 ? (int)(now - agent->work_started_at) : 0;
+
+            offset += snprintf(status + offset, buf_size - offset,
+                "  %s %s%s\033[0m", state_icon, state_color, agent->name);
+
+            if (agent->current_task) {
+                offset += snprintf(status + offset, buf_size - offset,
+                    " - %.40s%s", agent->current_task,
+                    strlen(agent->current_task) > 40 ? "..." : "");
+            }
+
+            if (duration > 0) {
+                offset += snprintf(status + offset, buf_size - offset,
+                    " \033[2m(%ds)\033[0m", duration);
+            }
+
+            // Show collaboration
+            if (agent->collaborating_with != 0) {
+                // Find partner name
+                for (size_t j = 0; j < orch->agent_count; j++) {
+                    if (orch->agents[j]->id == agent->collaborating_with) {
+                        offset += snprintf(status + offset, buf_size - offset,
+                            " ↔ %s", orch->agents[j]->name);
+                        break;
+                    }
+                }
+            }
+
+            offset += snprintf(status + offset, buf_size - offset, "\n");
+        }
+    }
+
+    pthread_mutex_unlock(&g_registry_mutex);
+
+    return status;
+}
+
+// ============================================================================
+// INTER-AGENT COMMUNICATION
+// ============================================================================
+
+int agent_send_message(ManagedAgent* from, ManagedAgent* to, const char* content) {
+    if (!from || !to || !content) return -1;
+
+    Message* msg = message_create(MSG_TYPE_AGENT_RESPONSE, from->id, to->id, content);
+    if (!msg) return -1;
+
+    message_send(msg);
+    return 0;
+}
+
+int agent_broadcast_status(ManagedAgent* agent, const char* status_msg) {
+    if (!agent || !status_msg) return -1;
+
+    Message* msg = message_create(MSG_TYPE_AGENT_THOUGHT, agent->id, 0, status_msg);
+    if (!msg) return -1;
+
+    message_broadcast(msg);
+    return 0;
+}
+
+Message* agent_receive_message(ManagedAgent* agent) {
+    if (!agent) return NULL;
+    return message_get_pending(agent);
+}
+
+// ============================================================================
 // REGISTRY STATUS
 // ============================================================================
 

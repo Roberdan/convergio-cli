@@ -82,6 +82,14 @@ typedef enum {
     AGENT_ROLE_MEMORY,        // RAG and context retrieval
 } AgentRole;
 
+typedef enum {
+    WORK_STATE_IDLE,          // Not currently working
+    WORK_STATE_THINKING,      // Processing a request
+    WORK_STATE_EXECUTING,     // Executing tools
+    WORK_STATE_WAITING,       // Waiting for another agent
+    WORK_STATE_COMMUNICATING  // Talking to another agent
+} AgentWorkState;
+
 typedef struct {
     SemanticID id;
     char* name;
@@ -89,6 +97,10 @@ typedef struct {
     char* system_prompt;
     char* specialized_context;
     bool is_active;
+    AgentWorkState work_state;        // Current working state
+    char* current_task;               // What is it working on
+    SemanticID collaborating_with;    // Which agent it's communicating with
+    time_t work_started_at;           // When current work started
     TokenUsage usage;
     Message* pending_messages;
     time_t created_at;
@@ -263,6 +275,18 @@ int agent_load_definitions(const char* dir_path);
 size_t agent_select_for_task(const char* task_description, ManagedAgent** out_agents, size_t max_count);
 void agent_execute_parallel(ManagedAgent** agents, size_t count, const char* input, char** outputs);
 char* agent_registry_status(void);
+
+// Agent state management
+void agent_set_working(ManagedAgent* agent, AgentWorkState state, const char* task);
+void agent_set_idle(ManagedAgent* agent);
+void agent_set_collaborating(ManagedAgent* agent, SemanticID partner_id);
+size_t agent_get_working(ManagedAgent** out_agents, size_t max_count);
+char* agent_get_working_status(void);
+
+// Inter-agent communication
+int agent_send_message(ManagedAgent* from, ManagedAgent* to, const char* content);
+int agent_broadcast_status(ManagedAgent* agent, const char* status);
+Message* agent_receive_message(ManagedAgent* agent);
 
 // ============================================================================
 // COST API (EXTENDED)

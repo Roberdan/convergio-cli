@@ -15,6 +15,8 @@
 #include <string.h>
 #include <pthread.h>
 #include <dispatch/dispatch.h>
+#include <dirent.h>
+#include <limits.h>
 
 // Global orchestrator instance
 static Orchestrator* g_orchestrator = NULL;
@@ -26,6 +28,23 @@ extern void persistence_shutdown(void);
 extern int msgbus_init(void);
 extern void msgbus_shutdown(void);
 extern char* persistence_create_session(const char* user_name);
+extern char* persistence_get_or_create_session(void);
+extern int persistence_save_conversation(const char* session_id, const char* role,
+                                          const char* content, int tokens);
+extern char* persistence_load_conversation_context(const char* session_id, size_t max_messages);
+extern char* persistence_load_recent_context(size_t max_messages);
+extern char** persistence_get_important_memories(size_t limit, size_t* out_count);
+extern char** persistence_search_memories(const char* query, size_t max_results,
+                                          float min_similarity, size_t* out_count);
+
+// Agent state management
+extern void agent_set_working(ManagedAgent* agent, AgentWorkState state, const char* task);
+extern void agent_set_idle(ManagedAgent* agent);
+extern void agent_set_collaborating(ManagedAgent* agent, SemanticID partner_id);
+extern char* agent_get_working_status(void);
+
+// Session management
+static char* g_current_session_id = NULL;
 
 // Claude API (from neural/claude.c)
 extern int nous_claude_init(void);
@@ -38,39 +57,154 @@ extern char* nous_claude_chat_with_tools(const char* system_prompt, const char* 
 #include "nous/tools.h"
 
 // ============================================================================
+// DYNAMIC AGENT LIST LOADER
+// ============================================================================
+
+#define AGENTS_DIR "src/agents/definitions"
+
+// Load all agent definitions and build a list for the system prompt
+static char* load_agent_list(void) {
+    DIR* dir = opendir(AGENTS_DIR);
+    if (!dir) return strdup("No agents found.");
+
+    size_t capacity = 8192;
+    char* list = malloc(capacity);
+    list[0] = '\0';
+    size_t len = 0;
+
+    struct dirent* entry;
+    while ((entry = readdir(dir))) {
+        if (entry->d_name[0] == '.' || !strstr(entry->d_name, ".md")) continue;
+        if (strstr(entry->d_name, "CommonValues")) continue;  // Skip non-agent files
+        if (strstr(entry->d_name, "ali-chief")) continue;     // Skip Ali himself
+
+        char filepath[PATH_MAX];
+        snprintf(filepath, sizeof(filepath), "%s/%s", AGENTS_DIR, entry->d_name);
+
+        FILE* f = fopen(filepath, "r");
+        if (!f) continue;
+
+        // Parse YAML frontmatter for name and description
+        char line[1024];
+        char name[256] = "";
+        char description[512] = "";
+        bool in_frontmatter = false;
+
+        while (fgets(line, sizeof(line), f)) {
+            if (strncmp(line, "---", 3) == 0) {
+                if (in_frontmatter) break;
+                in_frontmatter = true;
+                continue;
+            }
+            if (in_frontmatter) {
+                if (strncmp(line, "name:", 5) == 0) {
+                    char* val = line + 5;
+                    while (*val == ' ') val++;
+                    strncpy(name, val, sizeof(name) - 1);
+                    name[strcspn(name, "\n\r")] = '\0';
+                } else if (strncmp(line, "description:", 12) == 0) {
+                    char* val = line + 12;
+                    while (*val == ' ') val++;
+                    strncpy(description, val, sizeof(description) - 1);
+                    description[strcspn(description, "\n\r")] = '\0';
+                }
+            }
+        }
+        fclose(f);
+
+        if (name[0] && description[0]) {
+            // Extract short name (first part before -)
+            char short_name[64];
+            strncpy(short_name, name, sizeof(short_name) - 1);
+            char* dash = strchr(short_name, '-');
+            if (dash) *dash = '\0';
+            // Capitalize first letter
+            if (short_name[0] >= 'a' && short_name[0] <= 'z') {
+                short_name[0] -= 32;
+            }
+
+            // Truncate description if too long
+            if (strlen(description) > 80) {
+                description[77] = '.';
+                description[78] = '.';
+                description[79] = '.';
+                description[80] = '\0';
+            }
+
+            size_t needed = len + strlen(short_name) + strlen(description) + 32;
+            if (needed > capacity) {
+                capacity = needed * 2;
+                list = realloc(list, capacity);
+            }
+
+            len += snprintf(list + len, capacity - len,
+                "- **%s**: %s\n", short_name, description);
+        }
+    }
+    closedir(dir);
+
+    return list;
+}
+
+// ============================================================================
 // ALI'S SYSTEM PROMPT
 // ============================================================================
 
-static const char* ALI_SYSTEM_PROMPT =
+static const char* ALI_SYSTEM_PROMPT_TEMPLATE =
     "You are Ali, the Chief of Staff and master orchestrator for the Convergio ecosystem.\n\n"
     "## Your Role\n"
-    "You are the single point of contact for the user. You coordinate all specialist agents and use tools to deliver comprehensive solutions.\n\n"
+    "You are the single point of contact for the user. You coordinate all specialist agents and use tools to deliver comprehensive solutions.\n"
+    "You have MEMORY - you remember past conversations and can store important information for future reference.\n\n"
+    "## Memory System\n"
+    "You have access to:\n"
+    "- **Conversation history**: Previous messages from this and past sessions are loaded automatically\n"
+    "- **Important memories**: Key information is retrieved and shown in context\n"
+    "- **Notes**: Persistent markdown notes you can create and reference\n"
+    "- **Knowledge base**: A searchable repository of documents and information\n\n"
+    "When you learn something important about the user (preferences, projects, context), store it using memory_store or note_write.\n\n"
     "## Tools Available\n"
-    "You have access to these tools to interact with the real world:\n"
+    "### File & System Tools\n"
     "- **file_read**: Read file contents from the filesystem\n"
     "- **file_write**: Write content to files (create or modify)\n"
     "- **file_list**: List directory contents\n"
     "- **shell_exec**: Execute shell commands (with safety restrictions)\n"
-    "- **web_fetch**: Fetch content from URLs\n"
-    "- **memory_store**: Store information for later retrieval\n"
-    "- **memory_search**: Search stored memories semantically\n\n"
-    "Use these tools proactively when the user's request requires interacting with files, running commands, or fetching web data.\n\n"
-    "## Specialist Agents\n"
-    "You can delegate complex analysis to specialist agents:\n"
-    "- **Baccio** (Tech Architect): System design, architecture decisions\n"
-    "- **Domik** (Strategy): McKinsey-level strategic analysis\n"
-    "- **Omri** (Data Scientist): ML, statistics, data analysis\n"
-    "- **Luca** (Security): Cybersecurity, risk assessment\n"
-    "- **Thor** (Quality): Quality assurance, validation\n"
-    "- **Sara** (UX/UI): User experience, design\n"
-    "- **Elena** (Legal): Compliance, legal guidance\n"
-    "- **Wanda** (Workflow): Process orchestration\n\n"
+    "- **web_fetch**: Fetch content from URLs\n\n"
+    "### Memory Tools\n"
+    "- **memory_store**: Store information in semantic memory (with importance 0.0-1.0)\n"
+    "- **memory_search**: Search stored memories by natural language query\n\n"
+    "### Note Tools (for persistent markdown notes)\n"
+    "- **note_write**: Create/update a markdown note with title, content, and tags\n"
+    "- **note_read**: Read a note by title or search notes by content\n"
+    "- **note_list**: List all notes, optionally filtered by tag\n\n"
+    "### Knowledge Base Tools\n"
+    "- **knowledge_search**: Search the knowledge base for relevant documents\n"
+    "- **knowledge_add**: Add a new document to the knowledge base (with optional category)\n\n"
+    "## When to Use Memory\n"
+    "- User tells you their name, preferences, or context -> memory_store with high importance\n"
+    "- User starts a project or gives you ongoing context -> note_write with relevant tags\n"
+    "- You learn facts that will be useful later -> memory_store or knowledge_add\n"
+    "- User asks 'do you remember...' -> memory_search and note_read\n\n"
+    "## Specialist Agents & Multi-Agent Orchestration\n"
+    "You can delegate to specialist agents. The system supports PARALLEL execution.\n\n"
+    "### Single Agent Delegation\n"
+    "Use: [DELEGATE: agent_name] reason/context\n\n"
+    "### Multiple Agents (Parallel)\n"
+    "To query multiple agents simultaneously, list them all:\n"
+    "[DELEGATE: Baccio] technical architecture review\n"
+    "[DELEGATE: Luca] security assessment\n"
+    "[DELEGATE: Thor] quality validation\n\n"
+    "All agents execute IN PARALLEL and their responses are automatically converged.\n"
+    "Use multiple agents when you need diverse perspectives or comprehensive analysis.\n\n"
+    "### Available Agents:\n"
+    "%s\n"
     "## Response Guidelines\n"
     "1. Be concise but comprehensive\n"
-    "2. Use tools when the task requires file access, command execution, or web fetching\n"
-    "3. Delegate to specialists for deep analysis\n"
-    "4. Always synthesize insights into actionable recommendations\n"
-    "5. Be honest about limitations and uncertainties\n\n"
+    "2. Use memory tools proactively to store and retrieve relevant context\n"
+    "3. Reference past conversations naturally when relevant\n"
+    "4. Use tools when the task requires file access, command execution, or web fetching\n"
+    "5. Delegate to specialists for deep analysis\n"
+    "6. Always synthesize insights into actionable recommendations\n"
+    "7. Be honest about limitations and uncertainties\n\n"
     "## Output Format\n"
     "IMPORTANT: Never show technical details of tool calls in your response.\n"
     "Do NOT output XML, function_calls, invoke tags, or raw tool results.\n"
@@ -134,7 +268,15 @@ int orchestrator_init(double budget_limit_usd) {
         g_orchestrator->ali->id = 1;
         g_orchestrator->ali->name = strdup("Ali");
         g_orchestrator->ali->role = AGENT_ROLE_ORCHESTRATOR;
-        g_orchestrator->ali->system_prompt = strdup(ALI_SYSTEM_PROMPT);
+
+        // Build system prompt with dynamic agent list
+        char* agent_list = load_agent_list();
+        size_t prompt_size = strlen(ALI_SYSTEM_PROMPT_TEMPLATE) + strlen(agent_list) + 256;
+        char* full_prompt = malloc(prompt_size);
+        snprintf(full_prompt, prompt_size, ALI_SYSTEM_PROMPT_TEMPLATE, agent_list);
+        g_orchestrator->ali->system_prompt = full_prompt;
+        free(agent_list);
+
         g_orchestrator->ali->is_active = true;
         g_orchestrator->ali->created_at = time(NULL);
 
@@ -142,10 +284,19 @@ int orchestrator_init(double budget_limit_usd) {
         g_orchestrator->agents[g_orchestrator->agent_count++] = g_orchestrator->ali;
     }
 
-    // Create session
-    char* session_id = persistence_create_session("default");
-    if (session_id) {
-        free(session_id);  // We'd store this for the session
+    // Create or resume session
+    g_current_session_id = persistence_get_or_create_session();
+    if (g_current_session_id) {
+        // Load conversation context from this session
+        char* context = persistence_load_conversation_context(g_current_session_id, 20);
+        if (context) {
+            // Store as specialized context for Ali
+            if (g_orchestrator->ali) {
+                g_orchestrator->ali->specialized_context = context;
+            } else {
+                free(context);
+            }
+        }
     }
 
     g_orchestrator->initialized = true;
@@ -270,53 +421,120 @@ void orch_task_complete(Task* task, const char* result) {
 // AGENT DELEGATION
 // ============================================================================
 
-// Parse Ali's response for delegation requests
+// Parse Ali's response for delegation requests (supports multiple)
 typedef struct {
     char* agent_name;
     char* reason;
 } DelegationRequest;
 
-static DelegationRequest* parse_delegation(const char* response) {
-    const char* marker = "[DELEGATE:";
-    char* pos = strstr(response, marker);
-    if (!pos) return NULL;
+typedef struct {
+    DelegationRequest** requests;
+    size_t count;
+    size_t capacity;
+} DelegationList;
 
-    DelegationRequest* req = calloc(1, sizeof(DelegationRequest));
-    if (!req) return NULL;
+// Parse ALL delegation requests from response
+static DelegationList* parse_all_delegations(const char* response) {
+    DelegationList* list = calloc(1, sizeof(DelegationList));
+    if (!list) return NULL;
 
-    // Extract agent name
-    pos += strlen(marker);
-    while (*pos == ' ') pos++;
-
-    char* end = strchr(pos, ']');
-    if (!end) {
-        free(req);
+    list->capacity = 16;
+    list->requests = calloc(list->capacity, sizeof(DelegationRequest*));
+    if (!list->requests) {
+        free(list);
         return NULL;
     }
 
-    size_t name_len = end - pos;
-    req->agent_name = malloc(name_len + 1);
-    if (req->agent_name) {
-        strncpy(req->agent_name, pos, name_len);
-        req->agent_name[name_len] = '\0';
+    const char* marker = "[DELEGATE:";
+    const char* pos = response;
+
+    while ((pos = strstr(pos, marker)) != NULL) {
+        DelegationRequest* req = calloc(1, sizeof(DelegationRequest));
+        if (!req) break;
+
+        // Extract agent name
+        pos += strlen(marker);
+        while (*pos == ' ') pos++;
+
+        const char* end = strchr(pos, ']');
+        if (!end) {
+            free(req);
+            break;
+        }
+
+        size_t name_len = end - pos;
+        req->agent_name = malloc(name_len + 1);
+        if (req->agent_name) {
+            strncpy(req->agent_name, pos, name_len);
+            req->agent_name[name_len] = '\0';
+            // Trim trailing spaces
+            char* trim = req->agent_name + strlen(req->agent_name) - 1;
+            while (trim > req->agent_name && *trim == ' ') *trim-- = '\0';
+        }
+
+        // Extract reason (until next [DELEGATE: or newline)
+        pos = end + 1;
+        while (*pos == ' ') pos++;
+
+        const char* reason_end = strstr(pos, "[DELEGATE:");
+        if (!reason_end) {
+            // Find end of line or end of string
+            reason_end = strchr(pos, '\n');
+            if (!reason_end) reason_end = pos + strlen(pos);
+        }
+
+        if (reason_end > pos) {
+            size_t reason_len = reason_end - pos;
+            req->reason = malloc(reason_len + 1);
+            if (req->reason) {
+                strncpy(req->reason, pos, reason_len);
+                req->reason[reason_len] = '\0';
+                // Trim
+                char* trim = req->reason + strlen(req->reason) - 1;
+                while (trim > req->reason && (*trim == ' ' || *trim == '\n')) *trim-- = '\0';
+            }
+        }
+
+        // Add to list
+        if (list->count >= list->capacity) {
+            list->capacity *= 2;
+            list->requests = realloc(list->requests, list->capacity * sizeof(DelegationRequest*));
+        }
+        list->requests[list->count++] = req;
+
+        pos = reason_end;
     }
 
-    // Extract reason
-    pos = end + 1;
-    while (*pos == ' ') pos++;
-    if (*pos) {
-        req->reason = strdup(pos);
+    if (list->count == 0) {
+        free(list->requests);
+        free(list);
+        return NULL;
     }
 
-    return req;
+    return list;
 }
 
-static void free_delegation(DelegationRequest* req) {
-    if (!req) return;
-    free(req->agent_name);
-    free(req->reason);
-    free(req);
+static void free_delegation_list(DelegationList* list) {
+    if (!list) return;
+    for (size_t i = 0; i < list->count; i++) {
+        if (list->requests[i]) {
+            free(list->requests[i]->agent_name);
+            free(list->requests[i]->reason);
+            free(list->requests[i]);
+        }
+    }
+    free(list->requests);
+    free(list);
 }
+
+// Structure for parallel agent execution
+typedef struct {
+    ManagedAgent* agent;
+    const char* user_input;
+    const char* context;
+    char* response;
+    bool completed;
+} AgentTask;
 
 // ============================================================================
 // TOOL EXECUTION HELPERS
@@ -434,6 +652,63 @@ static char* execute_tool_call(const char* tool_name, const char* tool_input) {
 
 #define MAX_TOOL_ITERATIONS 10
 
+// Build context from memories and conversation history
+static char* build_context_prompt(const char* user_input) {
+    size_t capacity = 65536;
+    char* context = malloc(capacity);
+    if (!context) return NULL;
+    context[0] = '\0';
+    size_t len = 0;
+
+    // 1. Load important memories
+    size_t mem_count = 0;
+    char** memories = persistence_get_important_memories(5, &mem_count);
+    if (memories && mem_count > 0) {
+        len += snprintf(context + len, capacity - len,
+            "## Important Memories\n");
+        for (size_t i = 0; i < mem_count; i++) {
+            if (memories[i]) {
+                len += snprintf(context + len, capacity - len, "- %s\n", memories[i]);
+                free(memories[i]);
+            }
+        }
+        free(memories);
+        len += snprintf(context + len, capacity - len, "\n");
+    }
+
+    // 2. Search for relevant memories based on user input
+    size_t rel_count = 0;
+    char** relevant = persistence_search_memories(user_input, 3, 0.3f, &rel_count);
+    if (relevant && rel_count > 0) {
+        len += snprintf(context + len, capacity - len,
+            "## Relevant Context\n");
+        for (size_t i = 0; i < rel_count; i++) {
+            if (relevant[i]) {
+                len += snprintf(context + len, capacity - len, "- %s\n", relevant[i]);
+                free(relevant[i]);
+            }
+        }
+        free(relevant);
+        len += snprintf(context + len, capacity - len, "\n");
+    }
+
+    // 3. Load recent conversation history from current session
+    if (g_current_session_id) {
+        char* conv_history = persistence_load_conversation_context(g_current_session_id, 10);
+        if (conv_history) {
+            len += snprintf(context + len, capacity - len,
+                "## Recent Conversation (this session)\n%s\n", conv_history);
+            free(conv_history);
+        }
+    }
+
+    // 4. Add current user input
+    len += snprintf(context + len, capacity - len,
+        "## Current Request\n%s", user_input);
+
+    return context;
+}
+
 char* orchestrator_process(const char* user_input) {
     if (!g_orchestrator || !g_orchestrator->initialized || !user_input) {
         return strdup("Error: Orchestrator not initialized");
@@ -442,6 +717,11 @@ char* orchestrator_process(const char* user_input) {
     // Check budget
     if (g_orchestrator->cost.budget_exceeded) {
         return strdup("Budget exceeded. Use 'cost set <amount>' to increase budget.");
+    }
+
+    // Save user message to persistence
+    if (g_current_session_id) {
+        persistence_save_conversation(g_current_session_id, "user", user_input, (int)strlen(user_input) / 4);
     }
 
     // Create user message
@@ -453,16 +733,12 @@ char* orchestrator_process(const char* user_input) {
     // Get tools definition
     const char* tools_json = tools_get_definitions_json();
 
-    // Build conversation for multi-turn tool use
-    // Start with user message
-    size_t conv_capacity = 32768;
-    char* conversation = malloc(conv_capacity);
+    // Build conversation with context
+    char* conversation = build_context_prompt(user_input);
     if (!conversation) {
         return strdup("Error: Memory allocation failed");
     }
-
-    // Initial conversation is just the user input
-    snprintf(conversation, conv_capacity, "%s", user_input);
+    size_t conv_capacity = strlen(conversation) + 32768;
 
     char* final_response = NULL;
     int iteration = 0;
@@ -598,68 +874,146 @@ char* orchestrator_process(const char* user_input) {
         return strdup("Error: No response generated");
     }
 
-    // Check for delegation request in final response
-    DelegationRequest* delegation = parse_delegation(final_response);
-    if (delegation) {
-        // Find or spawn the requested agent
-        ManagedAgent* specialist = agent_find_by_name(delegation->agent_name);
-        if (!specialist) {
-            specialist = agent_spawn(AGENT_ROLE_ANALYST, delegation->agent_name, NULL);
-        }
+    // Check for delegation requests in final response (supports multiple)
+    DelegationList* delegations = parse_all_delegations(final_response);
+    if (delegations && delegations->count > 0) {
+        // Prepare parallel execution
+        AgentTask* tasks = calloc(delegations->count, sizeof(AgentTask));
+        dispatch_group_t group = dispatch_group_create();
+        dispatch_queue_t queue = dispatch_get_global_queue(QOS_CLASS_USER_INITIATED, 0);
 
-        if (specialist && specialist->system_prompt) {
-            // Create delegation message
-            Message* delegate_msg = message_create(MSG_TYPE_TASK_DELEGATE,
-                                                    g_orchestrator->ali->id,
-                                                    specialist->id,
-                                                    user_input);
-            if (delegate_msg) {
-                message_send(delegate_msg);
+        // Spawn all agent tasks in parallel
+        for (size_t i = 0; i < delegations->count; i++) {
+            DelegationRequest* req = delegations->requests[i];
+
+            // Find or spawn the requested agent
+            ManagedAgent* specialist = agent_find_by_name(req->agent_name);
+            if (!specialist) {
+                specialist = agent_spawn(AGENT_ROLE_ANALYST, req->agent_name, NULL);
             }
 
-            // Get specialist response
-            char* prompt_with_context = malloc(strlen(specialist->system_prompt) +
-                                               strlen(delegation->reason) + 256);
-            if (prompt_with_context) {
-                sprintf(prompt_with_context, "%s\n\nContext from Ali: %s",
-                        specialist->system_prompt, delegation->reason);
+            if (specialist && specialist->system_prompt) {
+                tasks[i].agent = specialist;
+                tasks[i].user_input = user_input;
+                tasks[i].context = req->reason;
+                tasks[i].response = NULL;
+                tasks[i].completed = false;
 
-                char* specialist_response = nous_claude_chat(prompt_with_context, user_input);
-                free(prompt_with_context);
+                // Create delegation message
+                Message* delegate_msg = message_create(MSG_TYPE_TASK_DELEGATE,
+                                                        g_orchestrator->ali->id,
+                                                        specialist->id,
+                                                        user_input);
+                if (delegate_msg) {
+                    message_send(delegate_msg);
+                }
 
-                if (specialist_response) {
-                    // Record specialist cost
-                    cost_record_agent_usage(specialist,
-                                            strlen(specialist->system_prompt) / 4 + strlen(user_input) / 4,
-                                            strlen(specialist_response) / 4);
+                // Execute in parallel
+                dispatch_group_async(group, queue, ^{
+                    // Set agent as working
+                    agent_set_working(tasks[i].agent, WORK_STATE_THINKING,
+                                      tasks[i].context ? tasks[i].context : "Analyzing request");
 
-                    // Create convergence - Ali synthesizes
-                    char* convergence_prompt = malloc(strlen(final_response) +
-                                                      strlen(specialist_response) + 512);
-                    if (convergence_prompt) {
-                        sprintf(convergence_prompt,
-                            "You previously said: %s\n\n"
-                            "%s responded: %s\n\n"
-                            "Please synthesize this into a final response for the user.",
-                            final_response, delegation->agent_name, specialist_response);
+                    char* prompt_with_context = malloc(strlen(tasks[i].agent->system_prompt) +
+                                                       (tasks[i].context ? strlen(tasks[i].context) : 0) + 256);
+                    if (prompt_with_context) {
+                        sprintf(prompt_with_context, "%s\n\nContext from Ali: %s",
+                                tasks[i].agent->system_prompt,
+                                tasks[i].context ? tasks[i].context : "Please analyze and respond.");
 
-                        char* synthesized = nous_claude_chat(g_orchestrator->ali->system_prompt,
-                                                                convergence_prompt);
-                        free(convergence_prompt);
-                        free(final_response);
-                        free(specialist_response);
-                        free_delegation(delegation);
+                        tasks[i].response = nous_claude_chat(prompt_with_context, tasks[i].user_input);
+                        free(prompt_with_context);
 
-                        if (synthesized) {
-                            cost_record_agent_usage(g_orchestrator->ali, 500, strlen(synthesized) / 4);
-                            return synthesized;
+                        if (tasks[i].response) {
+                            cost_record_agent_usage(tasks[i].agent,
+                                                    strlen(tasks[i].agent->system_prompt) / 4 + strlen(tasks[i].user_input) / 4,
+                                                    strlen(tasks[i].response) / 4);
+                            tasks[i].completed = true;
                         }
                     }
-                    free(specialist_response);
-                }
+
+                    // Set agent back to idle
+                    agent_set_idle(tasks[i].agent);
+                });
             }
         }
-        free_delegation(delegation);
+
+        // Wait for all agents to complete
+        dispatch_group_wait(group, DISPATCH_TIME_FOREVER);
+
+        // Build convergence prompt with all responses
+        size_t convergence_size = strlen(final_response) + 4096;
+        for (size_t i = 0; i < delegations->count; i++) {
+            if (tasks[i].response) {
+                convergence_size += strlen(tasks[i].response) + 256;
+            }
+        }
+
+        char* convergence_prompt = malloc(convergence_size);
+        if (convergence_prompt) {
+            size_t offset = snprintf(convergence_prompt, convergence_size,
+                "You delegated to %zu specialist agents. Here are their responses:\n\n",
+                delegations->count);
+
+            for (size_t i = 0; i < delegations->count; i++) {
+                if (tasks[i].completed && tasks[i].response) {
+                    offset += snprintf(convergence_prompt + offset, convergence_size - offset,
+                        "## %s's Response\n%s\n\n",
+                        tasks[i].agent ? tasks[i].agent->name : "Agent",
+                        tasks[i].response);
+                }
+            }
+
+            offset += snprintf(convergence_prompt + offset, convergence_size - offset,
+                "---\n\nOriginal user request: %s\n\n"
+                "Please synthesize all these specialist perspectives into a unified, comprehensive response for the user. "
+                "Integrate insights from each agent, highlight agreements and different viewpoints, "
+                "and provide actionable conclusions.",
+                user_input);
+
+            // Ali synthesizes all responses
+            char* synthesized = nous_claude_chat(g_orchestrator->ali->system_prompt, convergence_prompt);
+            free(convergence_prompt);
+
+            if (synthesized) {
+                cost_record_agent_usage(g_orchestrator->ali, 1000, strlen(synthesized) / 4);
+
+                // Cleanup
+                for (size_t i = 0; i < delegations->count; i++) {
+                    free(tasks[i].response);
+                }
+                free(tasks);
+                free_delegation_list(delegations);
+                free(final_response);
+
+                // Save synthesized response
+                if (g_current_session_id) {
+                    persistence_save_conversation(g_current_session_id, "assistant", synthesized,
+                                                   (int)strlen(synthesized) / 4);
+                }
+
+                Message* response_msg = message_create(MSG_TYPE_AGENT_RESPONSE,
+                                                        g_orchestrator->ali->id, 0, synthesized);
+                if (response_msg) {
+                    message_send(response_msg);
+                }
+
+                return synthesized;
+            }
+        }
+
+        // Cleanup on failure
+        for (size_t i = 0; i < delegations->count; i++) {
+            free(tasks[i].response);
+        }
+        free(tasks);
+        free_delegation_list(delegations);
+    }
+
+    // Save assistant response to persistence
+    if (g_current_session_id && final_response) {
+        persistence_save_conversation(g_current_session_id, "assistant", final_response,
+                                       (int)strlen(final_response) / 4);
     }
 
     // Create response message

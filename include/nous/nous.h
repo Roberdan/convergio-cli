@@ -45,6 +45,45 @@
 #define NOUS_SIMD_WIDTH_F16       8       // 8x float16 per register
 
 // ============================================================================
+// DEBUG LOGGING SYSTEM
+// ============================================================================
+
+typedef enum {
+    LOG_LEVEL_NONE = 0,    // No logging
+    LOG_LEVEL_ERROR = 1,   // Errors only
+    LOG_LEVEL_WARN = 2,    // Warnings + errors
+    LOG_LEVEL_INFO = 3,    // Info + warnings + errors
+    LOG_LEVEL_DEBUG = 4,   // Everything including debug
+    LOG_LEVEL_TRACE = 5    // Maximum verbosity
+} LogLevel;
+
+typedef enum {
+    LOG_CAT_SYSTEM,        // System/kernel operations
+    LOG_CAT_AGENT,         // Agent lifecycle & delegation
+    LOG_CAT_TOOL,          // Tool execution
+    LOG_CAT_API,           // Claude API calls
+    LOG_CAT_MEMORY,        // Memory/persistence operations
+    LOG_CAT_MSGBUS,        // Message bus communication
+    LOG_CAT_COST           // Cost tracking
+} LogCategory;
+
+// Global log level (set by --debug flag or debug command)
+extern LogLevel g_log_level;
+
+// Logging functions
+void nous_log(LogLevel level, LogCategory cat, const char* fmt, ...);
+void nous_log_set_level(LogLevel level);
+LogLevel nous_log_get_level(void);
+const char* nous_log_level_name(LogLevel level);
+
+// Convenience macros
+#define LOG_ERROR(cat, ...) nous_log(LOG_LEVEL_ERROR, cat, __VA_ARGS__)
+#define LOG_WARN(cat, ...)  nous_log(LOG_LEVEL_WARN, cat, __VA_ARGS__)
+#define LOG_INFO(cat, ...)  nous_log(LOG_LEVEL_INFO, cat, __VA_ARGS__)
+#define LOG_DEBUG(cat, ...) nous_log(LOG_LEVEL_DEBUG, cat, __VA_ARGS__)
+#define LOG_TRACE(cat, ...) nous_log(LOG_LEVEL_TRACE, cat, __VA_ARGS__)
+
+// ============================================================================
 // SEMANTIC PRIMITIVES
 // ============================================================================
 

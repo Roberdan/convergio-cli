@@ -8,6 +8,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
+#include <stdint.h>
 #include <curl/curl.h>
 #include <ctype.h>
 
@@ -60,28 +61,114 @@ static size_t write_callback(void* contents, size_t size, size_t nmemb, void* us
 // ============================================================================
 
 // Escape string for JSON
+// Helper to check if a codepoint is a surrogate (invalid in UTF-8)
+static int is_surrogate(uint32_t cp) {
+    return cp >= 0xD800 && cp <= 0xDFFF;
+}
+
+// Get the number of bytes in a UTF-8 sequence starting with this byte
+static int utf8_seq_len(unsigned char c) {
+    if ((c & 0x80) == 0) return 1;       // 0xxxxxxx
+    if ((c & 0xE0) == 0xC0) return 2;    // 110xxxxx
+    if ((c & 0xF0) == 0xE0) return 3;    // 1110xxxx
+    if ((c & 0xF8) == 0xF0) return 4;    // 11110xxx
+    return 0; // Invalid UTF-8 start byte
+}
+
+// Decode a UTF-8 sequence and return the codepoint (-1 if invalid)
+static int32_t utf8_decode(const unsigned char* p, int len) {
+    if (len == 1) return p[0];
+    if (len == 2) {
+        if ((p[1] & 0xC0) != 0x80) return -1;
+        return ((p[0] & 0x1F) << 6) | (p[1] & 0x3F);
+    }
+    if (len == 3) {
+        if ((p[1] & 0xC0) != 0x80 || (p[2] & 0xC0) != 0x80) return -1;
+        return ((p[0] & 0x0F) << 12) | ((p[1] & 0x3F) << 6) | (p[2] & 0x3F);
+    }
+    if (len == 4) {
+        if ((p[1] & 0xC0) != 0x80 || (p[2] & 0xC0) != 0x80 || (p[3] & 0xC0) != 0x80) return -1;
+        return ((p[0] & 0x07) << 18) | ((p[1] & 0x3F) << 12) | ((p[2] & 0x3F) << 6) | (p[3] & 0x3F);
+    }
+    return -1;
+}
+
 static char* json_escape(const char* str) {
     if (!str) return strdup("");
 
     size_t len = strlen(str);
-    size_t escaped_len = len * 2 + 1;
+    // Worst case: each byte becomes \uXXXX (6 chars)
+    size_t escaped_len = len * 6 + 1;
     char* escaped = malloc(escaped_len);
     if (!escaped) return NULL;
 
     char* out = escaped;
-    for (const char* p = str; *p; p++) {
-        switch (*p) {
-            case '"':  *out++ = '\\'; *out++ = '"'; break;
-            case '\\': *out++ = '\\'; *out++ = '\\'; break;
-            case '\n': *out++ = '\\'; *out++ = 'n'; break;
-            case '\r': *out++ = '\\'; *out++ = 'r'; break;
-            case '\t': *out++ = '\\'; *out++ = 't'; break;
-            default:
-                if ((unsigned char)*p < 32) {
-                    out += sprintf(out, "\\u%04x", (unsigned char)*p);
-                } else {
-                    *out++ = *p;
+    const unsigned char* p = (const unsigned char*)str;
+
+    while (*p) {
+        // Handle ASCII control characters and JSON special chars
+        if (*p < 128) {
+            switch (*p) {
+                case '"':  *out++ = '\\'; *out++ = '"'; break;
+                case '\\': *out++ = '\\'; *out++ = '\\'; break;
+                case '\n': *out++ = '\\'; *out++ = 'n'; break;
+                case '\r': *out++ = '\\'; *out++ = 'r'; break;
+                case '\t': *out++ = '\\'; *out++ = 't'; break;
+                case '\b': *out++ = '\\'; *out++ = 'b'; break;
+                case '\f': *out++ = '\\'; *out++ = 'f'; break;
+                default:
+                    if (*p < 32) {
+                        out += sprintf(out, "\\u%04x", *p);
+                    } else {
+                        *out++ = *p;
+                    }
+            }
+            p++;
+        } else {
+            // Handle multi-byte UTF-8 sequences
+            int seq_len = utf8_seq_len(*p);
+
+            if (seq_len == 0) {
+                // Invalid UTF-8 start byte - replace with replacement char
+                out += sprintf(out, "\\uFFFD");
+                p++;
+                continue;
+            }
+
+            // Check we have enough bytes
+            int valid = 1;
+            for (int i = 1; i < seq_len && valid; i++) {
+                if (p[i] == 0 || (p[i] & 0xC0) != 0x80) {
+                    valid = 0;
                 }
+            }
+
+            if (!valid) {
+                // Incomplete or invalid sequence - replace with replacement char
+                out += sprintf(out, "\\uFFFD");
+                p++;
+                continue;
+            }
+
+            // Decode the codepoint
+            int32_t cp = utf8_decode(p, seq_len);
+
+            // Check for surrogates (invalid in UTF-8) or overlong encodings
+            if (cp < 0 || is_surrogate(cp) ||
+                (seq_len == 2 && cp < 0x80) ||
+                (seq_len == 3 && cp < 0x800) ||
+                (seq_len == 4 && cp < 0x10000)) {
+                // Invalid - replace with replacement char
+                out += sprintf(out, "\\uFFFD");
+                p++;
+                continue;
+            }
+
+            // Valid UTF-8 - copy as-is
+            for (int i = 0; i < seq_len; i++) {
+                *out++ = p[i];
+            }
+            p += seq_len;
         }
     }
     *out = '\0';

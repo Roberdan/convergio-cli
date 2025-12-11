@@ -27,6 +27,11 @@ typedef enum {
     TOOL_WEB_FETCH,       // Fetch URL content
     TOOL_MEMORY_STORE,    // Store in semantic memory
     TOOL_MEMORY_SEARCH,   // Search semantic memory (RAG)
+    TOOL_NOTE_WRITE,      // Write markdown note
+    TOOL_NOTE_READ,       // Read markdown note
+    TOOL_NOTE_LIST,       // List notes
+    TOOL_KNOWLEDGE_SEARCH,// Search knowledge base
+    TOOL_KNOWLEDGE_ADD,   // Add to knowledge base
     TOOL_AGENT_DELEGATE,  // Delegate to another agent
 } ToolType;
 
@@ -112,6 +117,29 @@ ToolResult* tool_memory_store(const char* content, const char* category, float i
 
 // Search memory using semantic similarity
 ToolResult* tool_memory_search(const char* query, size_t max_results, float min_similarity);
+
+// ============================================================================
+// NOTE TOOLS
+// ============================================================================
+
+// Write a markdown note with frontmatter
+ToolResult* tool_note_write(const char* title, const char* content, const char* tags);
+
+// Read a note by title or search for notes
+ToolResult* tool_note_read(const char* title, const char* search);
+
+// List all notes, optionally filtered by tag
+ToolResult* tool_note_list(const char* tag_filter);
+
+// ============================================================================
+// KNOWLEDGE BASE TOOLS
+// ============================================================================
+
+// Search the knowledge base
+ToolResult* tool_knowledge_search(const char* query, size_t max_results);
+
+// Add a document to the knowledge base
+ToolResult* tool_knowledge_add(const char* title, const char* content, const char* category);
 
 // ============================================================================
 // SAFETY
