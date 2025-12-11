@@ -11,6 +11,7 @@
 #include <stdint.h>
 #include <curl/curl.h>
 #include <ctype.h>
+#include <pthread.h>
 
 // ============================================================================
 // CONFIGURATION
@@ -21,7 +22,6 @@
 #define MAX_RESPONSE_SIZE (256 * 1024)  // 256KB max response
 
 static char* g_api_key = NULL;
-static CURL* g_curl = NULL;
 static bool g_initialized = false;
 
 // ============================================================================
@@ -238,14 +238,8 @@ int nous_claude_init(void) {
     g_api_key = strdup(key);
     if (!g_api_key) return -1;
 
-    // Initialize libcurl
+    // Initialize libcurl globally (thread-safe)
     curl_global_init(CURL_GLOBAL_DEFAULT);
-    g_curl = curl_easy_init();
-    if (!g_curl) {
-        free(g_api_key);
-        g_api_key = NULL;
-        return -1;
-    }
 
     g_initialized = true;
     return 0;
@@ -253,11 +247,6 @@ int nous_claude_init(void) {
 
 void nous_claude_shutdown(void) {
     if (!g_initialized) return;
-
-    if (g_curl) {
-        curl_easy_cleanup(g_curl);
-        g_curl = NULL;
-    }
 
     curl_global_cleanup();
 
@@ -274,6 +263,13 @@ void nous_claude_shutdown(void) {
 char* nous_claude_chat(const char* system_prompt, const char* user_message) {
     if (!g_initialized || !user_message) return NULL;
 
+    // Create a fresh curl handle for this request (thread-safe)
+    CURL* curl = curl_easy_init();
+    if (!curl) {
+        fprintf(stderr, "Claude API error: Failed to create curl handle\n");
+        return NULL;
+    }
+
     // Build JSON request
     char* escaped_system = json_escape(system_prompt ? system_prompt : "");
     char* escaped_user = json_escape(user_message);
@@ -281,6 +277,7 @@ char* nous_claude_chat(const char* system_prompt, const char* user_message) {
     if (!escaped_system || !escaped_user) {
         free(escaped_system);
         free(escaped_user);
+        curl_easy_cleanup(curl);
         return NULL;
     }
 
@@ -289,6 +286,7 @@ char* nous_claude_chat(const char* system_prompt, const char* user_message) {
     if (!json_body) {
         free(escaped_system);
         free(escaped_user);
+        curl_easy_cleanup(curl);
         return NULL;
     }
 
@@ -312,6 +310,7 @@ char* nous_claude_chat(const char* system_prompt, const char* user_message) {
     };
     if (!response.data) {
         free(json_body);
+        curl_easy_cleanup(curl);
         return NULL;
     }
     response.data[0] = '\0';
@@ -326,15 +325,15 @@ char* nous_claude_chat(const char* system_prompt, const char* user_message) {
     headers = curl_slist_append(headers, "anthropic-version: 2023-06-01");
 
     // Configure request
-    curl_easy_setopt(g_curl, CURLOPT_URL, CLAUDE_API_URL);
-    curl_easy_setopt(g_curl, CURLOPT_HTTPHEADER, headers);
-    curl_easy_setopt(g_curl, CURLOPT_POSTFIELDS, json_body);
-    curl_easy_setopt(g_curl, CURLOPT_WRITEFUNCTION, write_callback);
-    curl_easy_setopt(g_curl, CURLOPT_WRITEDATA, &response);
-    curl_easy_setopt(g_curl, CURLOPT_TIMEOUT, 60L);
+    curl_easy_setopt(curl, CURLOPT_URL, CLAUDE_API_URL);
+    curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
+    curl_easy_setopt(curl, CURLOPT_POSTFIELDS, json_body);
+    curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_callback);
+    curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response);
+    curl_easy_setopt(curl, CURLOPT_TIMEOUT, 60L);
 
     // Execute
-    CURLcode res = curl_easy_perform(g_curl);
+    CURLcode res = curl_easy_perform(curl);
 
     curl_slist_free_all(headers);
     free(json_body);
@@ -342,21 +341,24 @@ char* nous_claude_chat(const char* system_prompt, const char* user_message) {
     if (res != CURLE_OK) {
         fprintf(stderr, "Claude API error: %s\n", curl_easy_strerror(res));
         free(response.data);
+        curl_easy_cleanup(curl);
         return NULL;
     }
 
     // Check HTTP status
     long http_code = 0;
-    curl_easy_getinfo(g_curl, CURLINFO_RESPONSE_CODE, &http_code);
+    curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &http_code);
     if (http_code != 200) {
         fprintf(stderr, "Claude API HTTP %ld: %s\n", http_code, response.data);
         free(response.data);
+        curl_easy_cleanup(curl);
         return NULL;
     }
 
     // Extract text from response
     char* text = extract_response_text(response.data);
     free(response.data);
+    curl_easy_cleanup(curl);
 
     return text;
 }
@@ -468,6 +470,13 @@ char* nous_claude_chat_with_tools(const char* system_prompt, const char* user_me
                                    const char* tools_json, char** out_tool_calls) {
     if (!g_initialized || !user_message) return NULL;
 
+    // Create a fresh curl handle for this request (thread-safe)
+    CURL* curl = curl_easy_init();
+    if (!curl) {
+        fprintf(stderr, "Claude API error: Failed to create curl handle\n");
+        return NULL;
+    }
+
     // Build JSON request with tools
     char* escaped_system = json_escape(system_prompt ? system_prompt : "");
     char* escaped_user = json_escape(user_message);
@@ -475,6 +484,7 @@ char* nous_claude_chat_with_tools(const char* system_prompt, const char* user_me
     if (!escaped_system || !escaped_user) {
         free(escaped_system);
         free(escaped_user);
+        curl_easy_cleanup(curl);
         return NULL;
     }
 
@@ -485,6 +495,7 @@ char* nous_claude_chat_with_tools(const char* system_prompt, const char* user_me
     if (!json_body) {
         free(escaped_system);
         free(escaped_user);
+        curl_easy_cleanup(curl);
         return NULL;
     }
 
@@ -520,6 +531,7 @@ char* nous_claude_chat_with_tools(const char* system_prompt, const char* user_me
     };
     if (!response.data) {
         free(json_body);
+        curl_easy_cleanup(curl);
         return NULL;
     }
     response.data[0] = '\0';
@@ -534,15 +546,15 @@ char* nous_claude_chat_with_tools(const char* system_prompt, const char* user_me
     headers = curl_slist_append(headers, "anthropic-version: 2023-06-01");
 
     // Configure request
-    curl_easy_setopt(g_curl, CURLOPT_URL, CLAUDE_API_URL);
-    curl_easy_setopt(g_curl, CURLOPT_HTTPHEADER, headers);
-    curl_easy_setopt(g_curl, CURLOPT_POSTFIELDS, json_body);
-    curl_easy_setopt(g_curl, CURLOPT_WRITEFUNCTION, write_callback);
-    curl_easy_setopt(g_curl, CURLOPT_WRITEDATA, &response);
-    curl_easy_setopt(g_curl, CURLOPT_TIMEOUT, 120L);  // Longer timeout for tool use
+    curl_easy_setopt(curl, CURLOPT_URL, CLAUDE_API_URL);
+    curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
+    curl_easy_setopt(curl, CURLOPT_POSTFIELDS, json_body);
+    curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_callback);
+    curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response);
+    curl_easy_setopt(curl, CURLOPT_TIMEOUT, 120L);  // Longer timeout for tool use
 
     // Execute
-    CURLcode res = curl_easy_perform(g_curl);
+    CURLcode res = curl_easy_perform(curl);
 
     curl_slist_free_all(headers);
     free(json_body);
@@ -550,15 +562,17 @@ char* nous_claude_chat_with_tools(const char* system_prompt, const char* user_me
     if (res != CURLE_OK) {
         fprintf(stderr, "Claude API error: %s\n", curl_easy_strerror(res));
         free(response.data);
+        curl_easy_cleanup(curl);
         return NULL;
     }
 
     // Check HTTP status
     long http_code = 0;
-    curl_easy_getinfo(g_curl, CURLINFO_RESPONSE_CODE, &http_code);
+    curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &http_code);
     if (http_code != 200) {
         fprintf(stderr, "Claude API HTTP %ld: %s\n", http_code, response.data);
         free(response.data);
+        curl_easy_cleanup(curl);
         return NULL;
     }
 
@@ -570,6 +584,7 @@ char* nous_claude_chat_with_tools(const char* system_prompt, const char* user_me
     // Extract text from response
     char* text = extract_response_text(response.data);
     free(response.data);
+    curl_easy_cleanup(curl);
 
     return text;
 }
@@ -693,6 +708,13 @@ char* nous_claude_chat_stream(const char* system_prompt, const char* user_messag
                                StreamCallback callback, void* user_data) {
     if (!g_initialized || !user_message) return NULL;
 
+    // Create a fresh curl handle for this request (thread-safe)
+    CURL* curl = curl_easy_init();
+    if (!curl) {
+        fprintf(stderr, "Claude API error: Failed to create curl handle\n");
+        return NULL;
+    }
+
     // Build JSON request with stream: true
     char* escaped_system = json_escape(system_prompt ? system_prompt : "");
     char* escaped_user = json_escape(user_message);
@@ -700,6 +722,7 @@ char* nous_claude_chat_stream(const char* system_prompt, const char* user_messag
     if (!escaped_system || !escaped_user) {
         free(escaped_system);
         free(escaped_user);
+        curl_easy_cleanup(curl);
         return NULL;
     }
 
@@ -708,6 +731,7 @@ char* nous_claude_chat_stream(const char* system_prompt, const char* user_messag
     if (!json_body) {
         free(escaped_system);
         free(escaped_user);
+        curl_easy_cleanup(curl);
         return NULL;
     }
 
@@ -746,18 +770,19 @@ char* nous_claude_chat_stream(const char* system_prompt, const char* user_messag
     headers = curl_slist_append(headers, "anthropic-version: 2023-06-01");
 
     // Configure request
-    curl_easy_setopt(g_curl, CURLOPT_URL, CLAUDE_API_URL);
-    curl_easy_setopt(g_curl, CURLOPT_HTTPHEADER, headers);
-    curl_easy_setopt(g_curl, CURLOPT_POSTFIELDS, json_body);
-    curl_easy_setopt(g_curl, CURLOPT_WRITEFUNCTION, stream_write_callback);
-    curl_easy_setopt(g_curl, CURLOPT_WRITEDATA, &ctx);
-    curl_easy_setopt(g_curl, CURLOPT_TIMEOUT, 120L);
+    curl_easy_setopt(curl, CURLOPT_URL, CLAUDE_API_URL);
+    curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
+    curl_easy_setopt(curl, CURLOPT_POSTFIELDS, json_body);
+    curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, stream_write_callback);
+    curl_easy_setopt(curl, CURLOPT_WRITEDATA, &ctx);
+    curl_easy_setopt(curl, CURLOPT_TIMEOUT, 120L);
 
     // Execute
-    CURLcode res = curl_easy_perform(g_curl);
+    CURLcode res = curl_easy_perform(curl);
 
     curl_slist_free_all(headers);
     free(json_body);
+    curl_easy_cleanup(curl);
 
     if (res != CURLE_OK) {
         fprintf(stderr, "Claude API stream error: %s\n", curl_easy_strerror(res));
@@ -838,13 +863,23 @@ void conversation_free(Conversation* conv) {
 char* nous_claude_chat_conversation(Conversation* conv, const char* user_message) {
     if (!g_initialized || !conv || !user_message) return NULL;
 
+    // Create a fresh curl handle for this request (thread-safe)
+    CURL* curl = curl_easy_init();
+    if (!curl) {
+        fprintf(stderr, "Claude API error: Failed to create curl handle\n");
+        return NULL;
+    }
+
     // Add user message to history
     conversation_add_message(conv, "user", user_message);
 
     // Build messages JSON array
     size_t messages_capacity = 8192;
     char* messages_json = malloc(messages_capacity);
-    if (!messages_json) return NULL;
+    if (!messages_json) {
+        curl_easy_cleanup(curl);
+        return NULL;
+    }
 
     strcpy(messages_json, "[");
     size_t offset = 1;
@@ -855,6 +890,7 @@ char* nous_claude_chat_conversation(Conversation* conv, const char* user_message
         char* escaped_content = json_escape(msg->content);
         if (!escaped_content) {
             free(messages_json);
+            curl_easy_cleanup(curl);
             return NULL;
         }
 
@@ -864,6 +900,7 @@ char* nous_claude_chat_conversation(Conversation* conv, const char* user_message
             messages_json = realloc(messages_json, messages_capacity);
             if (!messages_json) {
                 free(escaped_content);
+                curl_easy_cleanup(curl);
                 return NULL;
             }
         }
@@ -887,6 +924,7 @@ char* nous_claude_chat_conversation(Conversation* conv, const char* user_message
     if (!json_body) {
         free(escaped_system);
         free(messages_json);
+        curl_easy_cleanup(curl);
         return NULL;
     }
 
@@ -910,6 +948,7 @@ char* nous_claude_chat_conversation(Conversation* conv, const char* user_message
     };
     if (!response.data) {
         free(json_body);
+        curl_easy_cleanup(curl);
         return NULL;
     }
     response.data[0] = '\0';
@@ -924,15 +963,15 @@ char* nous_claude_chat_conversation(Conversation* conv, const char* user_message
     headers = curl_slist_append(headers, "anthropic-version: 2023-06-01");
 
     // Configure request
-    curl_easy_setopt(g_curl, CURLOPT_URL, CLAUDE_API_URL);
-    curl_easy_setopt(g_curl, CURLOPT_HTTPHEADER, headers);
-    curl_easy_setopt(g_curl, CURLOPT_POSTFIELDS, json_body);
-    curl_easy_setopt(g_curl, CURLOPT_WRITEFUNCTION, write_callback);
-    curl_easy_setopt(g_curl, CURLOPT_WRITEDATA, &response);
-    curl_easy_setopt(g_curl, CURLOPT_TIMEOUT, 120L);
+    curl_easy_setopt(curl, CURLOPT_URL, CLAUDE_API_URL);
+    curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
+    curl_easy_setopt(curl, CURLOPT_POSTFIELDS, json_body);
+    curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_callback);
+    curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response);
+    curl_easy_setopt(curl, CURLOPT_TIMEOUT, 120L);
 
     // Execute
-    CURLcode res = curl_easy_perform(g_curl);
+    CURLcode res = curl_easy_perform(curl);
 
     curl_slist_free_all(headers);
     free(json_body);
@@ -940,21 +979,24 @@ char* nous_claude_chat_conversation(Conversation* conv, const char* user_message
     if (res != CURLE_OK) {
         fprintf(stderr, "Claude API error: %s\n", curl_easy_strerror(res));
         free(response.data);
+        curl_easy_cleanup(curl);
         return NULL;
     }
 
     // Check HTTP status
     long http_code = 0;
-    curl_easy_getinfo(g_curl, CURLINFO_RESPONSE_CODE, &http_code);
+    curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &http_code);
     if (http_code != 200) {
         fprintf(stderr, "Claude API HTTP %ld: %s\n", http_code, response.data);
         free(response.data);
+        curl_easy_cleanup(curl);
         return NULL;
     }
 
     // Extract text
     char* text = extract_response_text(response.data);
     free(response.data);
+    curl_easy_cleanup(curl);
 
     // Add assistant response to history
     if (text) {
