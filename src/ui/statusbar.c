@@ -41,6 +41,10 @@
 #define ANSI_DIM            "\033[2m"
 #define ANSI_BOLD           "\033[1m"
 
+// Scroll region control - reserves bottom lines for status bar
+#define ANSI_SCROLL_REGION(top, bottom) "\033[%d;%dr"
+#define ANSI_RESET_SCROLL_REGION "\033[r"
+
 // Colors (using 256-color mode for consistency)
 #define COLOR_USER          "\033[38;5;81m"   // Cyan
 #define COLOR_PATH          "\033[38;5;252m"  // Light gray
@@ -61,6 +65,50 @@
 static StatusBarState g_status = {0};
 static pthread_mutex_t g_status_mutex = PTHREAD_MUTEX_INITIALIZER;
 static bool g_initialized = false;
+static bool g_scroll_region_set = false;
+
+// ============================================================================
+// SCROLL REGION MANAGEMENT
+// ============================================================================
+
+/**
+ * Set up scroll region to reserve bottom 2 lines for status bar.
+ * This prevents output from overwriting the status bar.
+ */
+void statusbar_setup_scroll_region(void) {
+    if (!g_initialized || !g_status.visible || !isatty(STDOUT_FILENO)) return;
+
+    pthread_mutex_lock(&g_status_mutex);
+
+    int height = g_status.terminal_height;
+    if (height < 5) {
+        pthread_mutex_unlock(&g_status_mutex);
+        return;
+    }
+
+    // Set scroll region from line 1 to (height - 2), reserving last 2 lines
+    printf("\033[1;%dr", height - 2);
+
+    // Move cursor to top of scrollable region
+    printf("\033[1;1H");
+    fflush(stdout);
+
+    g_scroll_region_set = true;
+
+    pthread_mutex_unlock(&g_status_mutex);
+}
+
+/**
+ * Reset scroll region to full terminal.
+ */
+void statusbar_reset_scroll_region(void) {
+    if (!isatty(STDOUT_FILENO)) return;
+
+    printf("%s", ANSI_RESET_SCROLL_REGION);
+    fflush(stdout);
+
+    g_scroll_region_set = false;
+}
 
 // ============================================================================
 // HELPERS
@@ -167,9 +215,18 @@ void statusbar_shutdown(void) {
         return;
     }
 
+    // Reset scroll region before clearing
+    if (g_scroll_region_set) {
+        pthread_mutex_unlock(&g_status_mutex);
+        statusbar_reset_scroll_region();
+        pthread_mutex_lock(&g_status_mutex);
+    }
+
     // Clear the status bar from display
     if (g_status.visible && isatty(STDOUT_FILENO)) {
+        pthread_mutex_unlock(&g_status_mutex);
         statusbar_clear();
+        pthread_mutex_lock(&g_status_mutex);
     }
 
     // Free state
@@ -464,6 +521,8 @@ void statusbar_handle_resize(void) {
     pthread_mutex_unlock(&g_status_mutex);
 
     if (g_status.visible) {
+        // Re-setup scroll region with new dimensions
+        statusbar_setup_scroll_region();
         statusbar_render();
     }
 }
