@@ -467,10 +467,162 @@ static char* gemini_chat_with_tools(Provider* self, const char* model, const cha
                                     const char* user, ToolDefinition* tools, size_t tool_count,
                                     ToolCall** out_tool_calls, size_t* out_tool_count,
                                     TokenUsage* usage) {
-    // TODO: Implement tool calling
     if (out_tool_calls) *out_tool_calls = NULL;
     if (out_tool_count) *out_tool_count = 0;
-    return gemini_chat(self, model, system, user, usage);
+
+    // If no tools, fall back to regular chat
+    if (!tools || tool_count == 0) {
+        return gemini_chat(self, model, system, user, usage);
+    }
+
+    if (!self || !user) return NULL;
+
+    GeminiProviderData* data = (GeminiProviderData*)self->impl_data;
+    if (!data) return NULL;
+
+    if (!data->initialized) {
+        ProviderError err = gemini_init(self);
+        if (err != PROVIDER_OK) return NULL;
+    }
+
+    const char* api_key = getenv("GEMINI_API_KEY");
+    if (!api_key) {
+        data->last_error.code = PROVIDER_ERR_AUTH;
+        data->last_error.message = strdup("GEMINI_API_KEY not set");
+        return NULL;
+    }
+
+    CURL* curl = curl_easy_init();
+    if (!curl) {
+        data->last_error.code = PROVIDER_ERR_NETWORK;
+        data->last_error.message = strdup("Failed to create curl handle");
+        return NULL;
+    }
+
+    // Build URL
+    char* url = build_api_url(model, api_key);
+    if (!url) {
+        curl_easy_cleanup(curl);
+        return NULL;
+    }
+
+    // Build tools JSON
+    char* tools_json = build_gemini_tools_json(tools, tool_count);
+    if (!tools_json) {
+        free(url);
+        curl_easy_cleanup(curl);
+        return NULL;
+    }
+
+    // Build JSON request with tools
+    char* escaped_system = json_escape(system ? system : "");
+    char* escaped_user = json_escape(user);
+
+    if (!escaped_system || !escaped_user) {
+        free(escaped_system);
+        free(escaped_user);
+        free(tools_json);
+        free(url);
+        curl_easy_cleanup(curl);
+        return NULL;
+    }
+
+    size_t json_size = strlen(escaped_system) + strlen(escaped_user) + strlen(tools_json) + 2048;
+    char* json_body = malloc(json_size);
+    if (!json_body) {
+        free(escaped_system);
+        free(escaped_user);
+        free(tools_json);
+        free(url);
+        curl_easy_cleanup(curl);
+        return NULL;
+    }
+
+    if (system && strlen(system) > 0) {
+        snprintf(json_body, json_size,
+            "{"
+            "\"systemInstruction\": {\"parts\": [{\"text\": \"%s\"}]},"
+            "\"contents\": [{\"parts\": [{\"text\": \"%s\"}]}],"
+            "\"tools\": %s,"
+            "\"generationConfig\": {\"maxOutputTokens\": %d}"
+            "}",
+            escaped_system, escaped_user, tools_json, DEFAULT_MAX_TOKENS);
+    } else {
+        snprintf(json_body, json_size,
+            "{"
+            "\"contents\": [{\"parts\": [{\"text\": \"%s\"}]}],"
+            "\"tools\": %s,"
+            "\"generationConfig\": {\"maxOutputTokens\": %d}"
+            "}",
+            escaped_user, tools_json, DEFAULT_MAX_TOKENS);
+    }
+
+    free(escaped_system);
+    free(escaped_user);
+    free(tools_json);
+
+    // Setup response buffer
+    ResponseBuffer response = {
+        .data = malloc(4096),
+        .size = 0,
+        .capacity = 4096
+    };
+    if (!response.data) {
+        free(json_body);
+        free(url);
+        curl_easy_cleanup(curl);
+        return NULL;
+    }
+    response.data[0] = '\0';
+
+    // Headers
+    struct curl_slist* headers = NULL;
+    headers = curl_slist_append(headers, "Content-Type: application/json");
+
+    // Setup curl
+    curl_easy_setopt(curl, CURLOPT_URL, url);
+    curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
+    curl_easy_setopt(curl, CURLOPT_POSTFIELDS, json_body);
+    curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_callback);
+    curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response);
+    curl_easy_setopt(curl, CURLOPT_TIMEOUT, 120L);
+    curl_easy_setopt(curl, CURLOPT_NOPROGRESS, 0L);
+    curl_easy_setopt(curl, CURLOPT_XFERINFOFUNCTION, progress_callback);
+    curl_easy_setopt(curl, CURLOPT_XFERINFODATA, data);
+
+    data->request_cancelled = 0;
+
+    CURLcode res = curl_easy_perform(curl);
+
+    curl_slist_free_all(headers);
+    curl_easy_cleanup(curl);
+    free(json_body);
+    free(url);
+
+    if (res != CURLE_OK) {
+        free(response.data);
+        data->last_error.code = PROVIDER_ERR_NETWORK;
+        data->last_error.message = strdup(curl_easy_strerror(res));
+        return NULL;
+    }
+
+    // Parse for tool calls
+    size_t tc_count = 0;
+    ToolCall* tc = parse_gemini_tool_calls(response.data, &tc_count);
+    if (tc && tc_count > 0) {
+        if (out_tool_calls) *out_tool_calls = tc;
+        if (out_tool_count) *out_tool_count = tc_count;
+    }
+
+    // Extract text response
+    char* result = extract_response_text(response.data);
+    if (usage) {
+        memset(usage, 0, sizeof(TokenUsage));
+        extract_token_usage(response.data, usage);
+    }
+
+    free(response.data);
+    return result;
 }
 
 // Build streaming API URL (Gemini uses streamGenerateContent)
