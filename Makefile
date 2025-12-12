@@ -88,7 +88,8 @@ OBJC_SOURCES = $(SRC_DIR)/metal/gpu.m \
                $(SRC_DIR)/neural/mlx_embed.m \
                $(SRC_DIR)/auth/oauth.m \
                $(SRC_DIR)/auth/keychain.m \
-               $(SRC_DIR)/core/hardware.m
+               $(SRC_DIR)/core/hardware.m \
+               $(SRC_DIR)/core/clipboard.m
 
 METAL_SOURCES = shaders/similarity.metal
 

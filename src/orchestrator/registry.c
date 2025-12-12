@@ -1068,7 +1068,7 @@ char* agent_registry_status(void) {
 
     CONVERGIO_MUTEX_LOCK(&g_registry_mutex);
 
-    size_t buf_size = 16384;  // Increased for descriptions
+    size_t buf_size = 16384;
     char* status = malloc(buf_size);
     if (!status) {
         CONVERGIO_MUTEX_UNLOCK(&g_registry_mutex);
@@ -1077,76 +1077,60 @@ char* agent_registry_status(void) {
 
     size_t offset = 0;
 
-    // Header as if Ali is presenting
+    // Compact header
     offset += snprintf(status + offset, buf_size - offset,
-        "\033[1;36m┌─────────────────────────────────────────────────────────────────┐\033[0m\n"
-        "\033[1;36m│\033[0m  \033[1mMy Team\033[0m - %zu specialist agents ready                        \033[1;36m│\033[0m\n"
-        "\033[1;36m└─────────────────────────────────────────────────────────────────┘\033[0m\n\n",
+        "\033[1;36m━━━ Agent Registry ━━━\033[0m  \033[2m(%zu agents)\033[0m\n\n",
         orch->agent_count);
 
-    // Group agents by role
+    // Role info
     const char* role_names[] = {
         "Orchestrator", "Analyst", "Coder", "Writer", "Critic", "Planner", "Executor", "Memory"
     };
-    const char* role_emojis[] = {
-        "👔", "📊", "💻", "✍️", "🔍", "📋", "⚡", "🧠"
+    const char* role_colors[] = {
+        "\033[1;35m", "\033[1;33m", "\033[1;32m", "\033[1;34m",
+        "\033[1;31m", "\033[1;36m", "\033[1;33m", "\033[1;35m"
     };
 
     for (int r = 0; r < 8; r++) {
         AgentRole role = (AgentRole)r;
-        bool has_agents = false;
 
-        // First pass - check if there are agents in this role
+        // Count agents in this role
+        int count = 0;
         for (size_t i = 0; i < orch->agent_count; i++) {
-            if (orch->agents[i]->role == role) {
-                has_agents = true;
-                break;
-            }
+            if (orch->agents[i]->role == role) count++;
         }
+        if (count == 0) continue;
 
-        if (!has_agents) continue;
-
-        // Print role header
+        // Role header with count
         offset += snprintf(status + offset, buf_size - offset,
-            "\033[1m%s %s\033[0m\n", role_emojis[r], role_names[r]);
+            "%s%s\033[0m \033[2m(%d)\033[0m\n",
+            role_colors[r], role_names[r], count);
 
-        // Second pass - print agents in this role
+        // Agents in this role - compact format
         for (size_t i = 0; i < orch->agent_count && offset < buf_size - 512; i++) {
             ManagedAgent* agent = orch->agents[i];
             if (agent->role != role) continue;
 
-            // Get short name (capitalize first letter)
-            char short_name[32];
-            const char* src = agent->name;
-            size_t j = 0;
-            while (*src && *src != '-' && j < sizeof(short_name) - 1) {
-                short_name[j++] = *src++;
-            }
-            short_name[j] = '\0';
-            if (short_name[0] >= 'a' && short_name[0] <= 'z') {
-                short_name[0] -= 32;
-            }
-
-            // Truncate description if needed
-            char desc[60] = "";
+            // Truncate description to 50 chars
+            char desc[52] = "";
             if (agent->description) {
-                strncpy(desc, agent->description, sizeof(desc) - 4);
-                if (strlen(agent->description) >= sizeof(desc) - 3) {
-                    strcpy(desc + sizeof(desc) - 4, "...");
+                strncpy(desc, agent->description, 48);
+                desc[48] = '\0';
+                if (strlen(agent->description) > 48) {
+                    strcat(desc, "...");
                 }
             }
 
             offset += snprintf(status + offset, buf_size - offset,
-                "  \033[36m@%s\033[0m\n    \033[2m%s\033[0m\n",
+                "  \033[36m%-12s\033[0m  \033[2m%s\033[0m\n",
                 agent->name,
-                desc[0] ? desc : "Specialist agent");
+                desc[0] ? desc : "-");
         }
         offset += snprintf(status + offset, buf_size - offset, "\n");
     }
 
     offset += snprintf(status + offset, buf_size - offset,
-        "\033[2mType \033[0m\033[36m@agent_name message\033[0m\033[2m to talk directly to an agent\033[0m\n"
-        "\033[2mExample: \033[0m\033[36m@baccio What's the best architecture?\033[0m\n");
+        "\033[2mUsage:\033[0m \033[36m@agent message\033[0m  \033[2m(e.g. @baccio review this code)\033[0m\n");
 
     CONVERGIO_MUTEX_UNLOCK(&g_registry_mutex);
 

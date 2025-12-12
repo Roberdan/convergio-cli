@@ -7,6 +7,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.0.11] - 2025-12-12
+
+### Added
+- **Clipboard image paste support**: Ctrl+V now pastes clipboard content
+  - If clipboard contains an image, it's saved to /tmp and the path is inserted
+  - Also works with regular text paste
+  - New files: `include/nous/clipboard.h`, `src/core/clipboard.m`
+- **Autocomplete @agent anywhere**: Tab-completion for agent names now works anywhere in the line, not just at the beginning
+
+### Changed
+- **Working directory improvements**: CLI now works in the directory from which it's launched
+  - Workspace is communicated to Ali in system prompt
+  - `shell_exec` uses workspace as default directory
+- **Bold prompt**: "Convergio" in the prompt now uses combined ANSI sequences for guaranteed bold display
+- **Improved agents list display**: `/agents` command shows a more compact and readable list with role grouping and colors
+- **Simplified update command**: `convergio update` now checks and directly asks to install (no longer need separate `update install`)
+
+## [2.0.10] - 2025-12-12
+
+### Fixed
+- Agents streaming markdown improvements
+- Various stability fixes
+
+## [2.0.9] - 2025-12-12
+
+### Fixed
+- Hardware info box drawing alignment
+
 ## [2.0.8] - 2025-12-12
 
 ### Added
@@ -254,7 +282,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-[Unreleased]: https://github.com/Roberdan/convergio-cli/compare/v2.0.0...HEAD
+[Unreleased]: https://github.com/Roberdan/convergio-cli/compare/v2.0.11...HEAD
+[2.0.11]: https://github.com/Roberdan/convergio-cli/compare/v2.0.10...v2.0.11
+[2.0.10]: https://github.com/Roberdan/convergio-cli/compare/v2.0.9...v2.0.10
+[2.0.9]: https://github.com/Roberdan/convergio-cli/compare/v2.0.8...v2.0.9
+[2.0.8]: https://github.com/Roberdan/convergio-cli/compare/v2.0.7...v2.0.8
+[2.0.7]: https://github.com/Roberdan/convergio-cli/compare/v2.0.6...v2.0.7
+[2.0.6]: https://github.com/Roberdan/convergio-cli/compare/v2.0.5...v2.0.6
+[2.0.5]: https://github.com/Roberdan/convergio-cli/compare/v2.0.4...v2.0.5
+[2.0.4]: https://github.com/Roberdan/convergio-cli/compare/v2.0.3...v2.0.4
+[2.0.3]: https://github.com/Roberdan/convergio-cli/compare/v2.0.2...v2.0.3
+[2.0.2]: https://github.com/Roberdan/convergio-cli/compare/v2.0.1...v2.0.2
+[2.0.1]: https://github.com/Roberdan/convergio-cli/compare/v2.0.0...v2.0.1
 [2.0.0]: https://github.com/Roberdan/convergio-cli/releases/tag/v2.0.0
 [1.1.0]: https://github.com/Roberdan/convergio-cli/releases/tag/v1.1.0
 [1.0.0]: https://github.com/Roberdan/convergio-cli/releases/tag/v1.0.0

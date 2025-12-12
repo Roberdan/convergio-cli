@@ -332,6 +332,46 @@ int convergio_rollback_update(void) {
 // CLI COMMANDS
 // ============================================================================
 
+// Internal: perform update given info (no confirmation)
+static int convergio_do_update_install(const UpdateInfo* info) {
+    printf("\nInstalling update: %s -> %s\n\n", info->current_version, info->latest_version);
+
+    // Download to temp location
+    char temp_path[256];
+    snprintf(temp_path, sizeof(temp_path), "/tmp/convergio-update-%s.tar.gz", info->latest_version);
+
+    if (convergio_download_update(info, temp_path) != 0) {
+        return -1;
+    }
+
+    // Extract tarball
+    char extract_dir[256];
+    snprintf(extract_dir, sizeof(extract_dir), "/tmp/convergio-update-%s", info->latest_version);
+
+    char cmd[512];
+    snprintf(cmd, sizeof(cmd), "mkdir -p %s && tar -xzf %s -C %s", extract_dir, temp_path, extract_dir);
+
+    if (system(cmd) != 0) {
+        fprintf(stderr, "Error: Failed to extract update\n");
+        return -1;
+    }
+
+    // Apply update
+    char new_binary[512];
+    snprintf(new_binary, sizeof(new_binary), "%s/convergio", extract_dir);
+
+    if (convergio_apply_update(new_binary) != 0) {
+        return -1;
+    }
+
+    // Cleanup
+    unlink(temp_path);
+    snprintf(cmd, sizeof(cmd), "rm -rf %s", extract_dir);
+    system(cmd);
+
+    return 0;
+}
+
 int convergio_cmd_update_check(void) {
     printf("Checking for updates...\n");
 
@@ -342,7 +382,30 @@ int convergio_cmd_update_check(void) {
         return -1;
     }
 
-    convergio_print_update_info(&info);
+    printf("\n");
+    printf("Current version: %s\n", info.current_version);
+    printf("Latest version:  %s", info.latest_version);
+    if (info.is_prerelease) {
+        printf(" (prerelease)");
+    }
+    printf("\n");
+
+    if (info.update_available) {
+        printf("\n\033[33m⚡ Update available!\033[0m\n\n");
+        printf("Do you want to install it? (y/N): ");
+        fflush(stdout);
+
+        char response[16];
+        if (fgets(response, sizeof(response), stdin)) {
+            if (response[0] == 'y' || response[0] == 'Y') {
+                return convergio_do_update_install(&info);
+            }
+        }
+        printf("Update skipped. Run 'convergio update' again to install.\n");
+    } else {
+        printf("\n\033[32m✓ You're up to date.\033[0m\n");
+    }
+    printf("\n");
     return 0;
 }
 
@@ -375,40 +438,7 @@ int convergio_cmd_update_install(void) {
         return 0;
     }
 
-    // Download to temp location
-    char temp_path[256];
-    snprintf(temp_path, sizeof(temp_path), "/tmp/convergio-update-%s.tar.gz", info.latest_version);
-
-    if (convergio_download_update(&info, temp_path) != 0) {
-        return -1;
-    }
-
-    // Extract tarball
-    char extract_dir[256];
-    snprintf(extract_dir, sizeof(extract_dir), "/tmp/convergio-update-%s", info.latest_version);
-
-    char cmd[512];
-    snprintf(cmd, sizeof(cmd), "mkdir -p %s && tar -xzf %s -C %s", extract_dir, temp_path, extract_dir);
-
-    if (system(cmd) != 0) {
-        fprintf(stderr, "Error: Failed to extract update\n");
-        return -1;
-    }
-
-    // Apply update
-    char new_binary[512];
-    snprintf(new_binary, sizeof(new_binary), "%s/convergio", extract_dir);
-
-    if (convergio_apply_update(new_binary) != 0) {
-        return -1;
-    }
-
-    // Cleanup
-    unlink(temp_path);
-    snprintf(cmd, sizeof(cmd), "rm -rf %s", extract_dir);
-    system(cmd);
-
-    return 0;
+    return convergio_do_update_install(&info);
 }
 
 int convergio_cmd_update_changelog(void) {

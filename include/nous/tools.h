@@ -166,6 +166,9 @@ void tools_clear_allowed_paths(void);
 // Initialize workspace sandbox (call at startup with CWD)
 void tools_init_workspace(const char* workspace_path);
 
+// Get the current workspace path (first allowed path)
+const char* tools_get_workspace(void);
+
 // Set blocked commands/patterns
 void tools_set_blocked_commands(const char** patterns, size_t count);
 
