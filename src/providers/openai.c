@@ -438,29 +438,143 @@ static char* openai_chat_with_tools(Provider* self, const char* model, const cha
     return openai_chat(self, model, system, user, usage);
 }
 
+// Bridge context for streaming callbacks (OpenAI)
+typedef struct {
+    StreamHandler* handler;
+    TokenUsage* usage;
+    ProviderError error;
+} OpenAIStreamBridge;
+
+// Bridge callback for stream chunks
+static void openai_stream_chunk_bridge(const char* chunk, void* ctx) {
+    OpenAIStreamBridge* bridge = (OpenAIStreamBridge*)ctx;
+    if (bridge && bridge->handler && bridge->handler->on_chunk) {
+        char* unescaped = stream_unescape_json(chunk);
+        if (unescaped) {
+            bridge->handler->on_chunk(unescaped, false, bridge->handler->user_ctx);
+            free(unescaped);
+        } else {
+            bridge->handler->on_chunk(chunk, false, bridge->handler->user_ctx);
+        }
+    }
+}
+
+// Bridge callback for stream completion
+static void openai_stream_complete_bridge(const char* full_response, TokenUsage* usage, void* ctx) {
+    OpenAIStreamBridge* bridge = (OpenAIStreamBridge*)ctx;
+    if (bridge) {
+        if (bridge->usage && usage) {
+            *bridge->usage = *usage;
+        }
+        if (bridge->handler) {
+            if (bridge->handler->on_chunk) {
+                bridge->handler->on_chunk("", true, bridge->handler->user_ctx);
+            }
+            if (bridge->handler->on_complete) {
+                bridge->handler->on_complete(full_response, bridge->handler->user_ctx);
+            }
+        }
+    }
+}
+
+// Bridge callback for stream errors
+static void openai_stream_error_bridge(ProviderError error, const char* message, void* ctx) {
+    OpenAIStreamBridge* bridge = (OpenAIStreamBridge*)ctx;
+    if (bridge) {
+        bridge->error = error;
+        if (bridge->handler && bridge->handler->on_error) {
+            bridge->handler->on_error(message ? message : "Stream error", bridge->handler->user_ctx);
+        }
+    }
+}
+
 static ProviderError openai_stream_chat(Provider* self, const char* model, const char* system,
                                         const char* user, StreamHandler* handler, TokenUsage* usage) {
-    // TODO: Implement streaming
-    char* response = openai_chat(self, model, system, user, usage);
-    if (!response) {
-        if (handler && handler->on_error) {
-            OpenAIProviderData* data = (OpenAIProviderData*)self->impl_data;
-            handler->on_error(data->last_error.message ? data->last_error.message : "Unknown error",
-                            handler->user_ctx);
-        }
-        return PROVIDER_ERR_UNKNOWN;
+    if (!self || !user) return PROVIDER_ERR_INVALID_REQUEST;
+
+    OpenAIProviderData* data = (OpenAIProviderData*)self->impl_data;
+    if (!data) return PROVIDER_ERR_INVALID_REQUEST;
+
+    if (!data->initialized) {
+        ProviderError err = openai_init(self);
+        if (err != PROVIDER_OK) return err;
     }
 
-    if (handler) {
-        if (handler->on_chunk) {
-            handler->on_chunk(response, true, handler->user_ctx);
-        }
-        if (handler->on_complete) {
-            handler->on_complete(response, handler->user_ctx);
-        }
+    // Get API key
+    const char* api_key = getenv("OPENAI_API_KEY");
+    if (!api_key) {
+        data->last_error.code = PROVIDER_ERR_AUTH;
+        data->last_error.message = strdup("OPENAI_API_KEY not set");
+        return PROVIDER_ERR_AUTH;
     }
 
-    free(response);
+    // Build JSON request with stream: true
+    char* escaped_system = json_escape(system ? system : "You are a helpful assistant.");
+    char* escaped_user = json_escape(user);
+
+    if (!escaped_system || !escaped_user) {
+        free(escaped_system);
+        free(escaped_user);
+        return PROVIDER_ERR_INVALID_REQUEST;
+    }
+
+    const char* api_model = model ? model : "gpt-4o";
+
+    size_t json_size = strlen(escaped_system) + strlen(escaped_user) + 1024;
+    char* json_body = malloc(json_size);
+    if (!json_body) {
+        free(escaped_system);
+        free(escaped_user);
+        return PROVIDER_ERR_NETWORK;
+    }
+
+    snprintf(json_body, json_size,
+        "{"
+        "\"model\": \"%s\","
+        "\"max_tokens\": %d,"
+        "\"stream\": true,"
+        "\"messages\": ["
+        "{\"role\": \"system\", \"content\": \"%s\"},"
+        "{\"role\": \"user\", \"content\": \"%s\"}"
+        "]"
+        "}",
+        api_model, DEFAULT_MAX_TOKENS, escaped_system, escaped_user);
+
+    free(escaped_system);
+    free(escaped_user);
+
+    // Create streaming context
+    StreamContext* stream_ctx = stream_context_create(PROVIDER_OPENAI);
+    if (!stream_ctx) {
+        free(json_body);
+        return PROVIDER_ERR_NETWORK;
+    }
+
+    // Setup bridge context
+    OpenAIStreamBridge bridge = {
+        .handler = handler,
+        .usage = usage,
+        .error = PROVIDER_OK
+    };
+
+    // Set callbacks
+    stream_set_callbacks(stream_ctx, openai_stream_chunk_bridge, openai_stream_complete_bridge,
+                         openai_stream_error_bridge, &bridge);
+
+    // Execute streaming request
+    LOG_DEBUG(LOG_CAT_API, "Starting OpenAI stream to %s", OPENAI_API_URL);
+    int result = stream_execute(stream_ctx, OPENAI_API_URL, json_body, api_key);
+
+    // Cleanup
+    free(json_body);
+    stream_context_destroy(stream_ctx);
+
+    if (result < 0) {
+        return bridge.error != PROVIDER_OK ? bridge.error : PROVIDER_ERR_NETWORK;
+    } else if (result == 1) {
+        return PROVIDER_OK;  // Cancelled
+    }
+
     return PROVIDER_OK;
 }
 
