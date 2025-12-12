@@ -1204,7 +1204,7 @@ char* nous_agent_think_with_claude(NousAgent* agent, const char* input) {
 // ============================================================================
 
 int nous_generate_embedding(const char* text, NousEmbedding* out) {
-    // TODO: Use a proper embedding model (voyage-ai, openai embeddings, etc.)
+    // TODO(#3): Use a proper embedding model (voyage-ai, openai embeddings, etc.)
     // For now, generate a deterministic pseudo-embedding from text hash
 
     if (!text || !out) return -1;

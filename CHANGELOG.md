@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.0.8] - 2025-12-12
+
+### Added
+- **Custom HTTP headers in web_fetch**: Support for `headers_json` parameter
+  - Parse JSON object `{"Header": "Value"}` and apply to CURL requests
+  - Enables authenticated API calls from tools
+- **Category field in memory_store**: Memories now support categorization
+  - New `category` column in database schema
+  - Pass category as second parameter to `persistence_save_memory()`
+
+### Changed
+- TODO comments now reference GitHub issues for tracking (#1, #2, #3)
+- Updated `persistence_save_memory()` signature to include category parameter
+
+### Technical
+- Added `parse_headers_json()` helper in tools.c for JSON header parsing
+- Updated memory schema with category column (default: 'general')
+- Created GitHub issues for future enhancements:
+  - Issue #1: Semantic search implementation
+  - Issue #2: Load pre-trained MLX embedding weights
+  - Issue #3: Use proper embedding model
+
 ## [2.0.7] - 2025-12-12
 
 ### Added

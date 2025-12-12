@@ -429,7 +429,7 @@ static int execute_find(TokenStream* ts) {
     snprintf(msg, sizeof(msg), "Cerco: \"%s\"...", query);
     output(msg);
 
-    // TODO: Implement actual semantic search
+    // TODO(#1): Implement actual semantic search
 
     output("(Ricerca semantica non ancora implementata)");
     return 0;

@@ -293,7 +293,7 @@ int persistence_save_cost_daily(const char* date, uint64_t input_tokens,
                                  uint64_t output_tokens, double cost, uint32_t calls);
 double persistence_get_total_cost(void);
 
-int persistence_save_memory(const char* content, float importance);
+int persistence_save_memory(const char* content, const char* category, float importance);
 char** persistence_get_important_memories(size_t limit, size_t* out_count);
 
 char* persistence_create_session(const char* user_name);

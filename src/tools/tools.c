@@ -1016,9 +1016,61 @@ static size_t write_callback(void* contents, size_t size, size_t nmemb, void* us
     return realsize;
 }
 
-ToolResult* tool_web_fetch(const char* url, const char* method, const char* headers_json) {
-    (void)headers_json;  // TODO: parse and apply headers
+/**
+ * Parse JSON headers object and add to CURL slist
+ * Format: {"Header-Name": "value", "Another": "value2"}
+ * Returns curl_slist that must be freed, or NULL if no headers
+ */
+static struct curl_slist* parse_headers_json(const char* headers_json) {
+    if (!headers_json || headers_json[0] == '\0') return NULL;
 
+    struct curl_slist* headers = NULL;
+    const char* p = headers_json;
+
+    // Skip opening brace
+    while (*p && *p != '{') p++;
+    if (*p == '{') p++;
+
+    while (*p) {
+        // Skip whitespace
+        while (*p && (*p == ' ' || *p == '\n' || *p == '\t' || *p == ',')) p++;
+        if (*p == '}' || *p == '\0') break;
+
+        // Parse key (expect quoted string)
+        if (*p != '"') break;
+        p++;
+        const char* key_start = p;
+        while (*p && *p != '"') p++;
+        size_t key_len = (size_t)(p - key_start);
+        if (*p == '"') p++;
+
+        // Skip colon
+        while (*p && (*p == ' ' || *p == ':')) p++;
+
+        // Parse value (expect quoted string)
+        if (*p != '"') break;
+        p++;
+        const char* val_start = p;
+        while (*p && *p != '"') p++;
+        size_t val_len = (size_t)(p - val_start);
+        if (*p == '"') p++;
+
+        // Build header string: "Key: Value"
+        if (key_len > 0 && val_len > 0) {
+            char header[512];
+            size_t header_len = key_len + 2 + val_len;  // key + ": " + value
+            if (header_len < sizeof(header)) {
+                snprintf(header, sizeof(header), "%.*s: %.*s",
+                         (int)key_len, key_start, (int)val_len, val_start);
+                headers = curl_slist_append(headers, header);
+            }
+        }
+    }
+
+    return headers;
+}
+
+ToolResult* tool_web_fetch(const char* url, const char* method, const char* headers_json) {
     clock_t start = clock();
 
     CURL* curl = curl_easy_init();
@@ -1030,6 +1082,9 @@ ToolResult* tool_web_fetch(const char* url, const char* method, const char* head
     chunk.memory = malloc(1);
     chunk.size = 0;
 
+    // Parse and apply custom headers
+    struct curl_slist* custom_headers = parse_headers_json(headers_json);
+
     curl_easy_setopt(curl, CURLOPT_URL, url);
     curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_callback);
     curl_easy_setopt(curl, CURLOPT_WRITEDATA, (void*)&chunk);
@@ -1038,11 +1093,20 @@ ToolResult* tool_web_fetch(const char* url, const char* method, const char* head
     curl_easy_setopt(curl, CURLOPT_TIMEOUT, 30L);
     curl_easy_setopt(curl, CURLOPT_MAXREDIRS, 5L);
 
+    if (custom_headers) {
+        curl_easy_setopt(curl, CURLOPT_HTTPHEADER, custom_headers);
+    }
+
     if (method && strcmp(method, "POST") == 0) {
         curl_easy_setopt(curl, CURLOPT_POST, 1L);
     }
 
     CURLcode res = curl_easy_perform(curl);
+
+    // Free custom headers
+    if (custom_headers) {
+        curl_slist_free_all(custom_headers);
+    }
 
     ToolResult* r;
     if (res != CURLE_OK) {
@@ -1069,13 +1133,11 @@ ToolResult* tool_web_fetch(const char* url, const char* method, const char* head
 // ============================================================================
 
 // Forward declaration - implemented in memory module
-extern int persistence_save_memory(const char* content, float importance);
+extern int persistence_save_memory(const char* content, const char* category, float importance);
 extern char** persistence_search_memories(const char* query, size_t max_results,
                                           float min_similarity, size_t* out_count);
 
 ToolResult* tool_memory_store(const char* content, const char* category, float importance) {
-    (void)category;  // TODO: use category in storage
-
     clock_t start = clock();
 
     if (!content || strlen(content) == 0) {
@@ -1085,7 +1147,7 @@ ToolResult* tool_memory_store(const char* content, const char* category, float i
     if (importance < 0.0f) importance = 0.0f;
     if (importance > 1.0f) importance = 1.0f;
 
-    int result = persistence_save_memory(content, importance);
+    int result = persistence_save_memory(content, category, importance);
 
     ToolResult* r;
     if (result == 0) {

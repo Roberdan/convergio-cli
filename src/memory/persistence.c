@@ -150,6 +150,7 @@ static const char* SCHEMA_SQL =
     "CREATE TABLE IF NOT EXISTS memories ("
     "  id INTEGER PRIMARY KEY AUTOINCREMENT,"
     "  content TEXT NOT NULL,"
+    "  category TEXT DEFAULT 'general',"
     "  embedding BLOB,"
     "  importance REAL DEFAULT 0.5,"
     "  access_count INTEGER DEFAULT 0,"
@@ -532,17 +533,20 @@ extern float* mlx_embed_text(const char* text, size_t* out_dim);
 extern float mlx_cosine_similarity(const float* a, const float* b, size_t dim);
 extern size_t mlx_get_embedding_dim(void);
 
-int persistence_save_memory(const char* content, float importance) {
+int persistence_save_memory(const char* content, const char* category, float importance) {
     if (!g_db || !content) return -1;
 
     // Generate embedding using MLX local transformer
     size_t embed_dim = 0;
     float* embedding = mlx_embed_text(content, &embed_dim);
 
+    // Default category if not provided
+    const char* cat = (category && category[0]) ? category : "general";
+
     CONVERGIO_MUTEX_LOCK(&g_db_mutex);
 
     const char* sql =
-        "INSERT INTO memories (content, embedding, importance) VALUES (?, ?, ?)";
+        "INSERT INTO memories (content, category, embedding, importance) VALUES (?, ?, ?, ?)";
 
     sqlite3_stmt* stmt;
     int rc = sqlite3_prepare_v2(g_db, sql, -1, &stmt, NULL);
@@ -555,14 +559,15 @@ int persistence_save_memory(const char* content, float importance) {
     // Use SQLITE_TRANSIENT to make SQLite copy the data immediately
     // This prevents use-after-free if the data is freed before finalize
     sqlite3_bind_text(stmt, 1, content, -1, SQLITE_TRANSIENT);
+    sqlite3_bind_text(stmt, 2, cat, -1, SQLITE_TRANSIENT);
 
     if (embedding && embed_dim > 0) {
-        sqlite3_bind_blob(stmt, 2, embedding, embed_dim * sizeof(float), SQLITE_TRANSIENT);
+        sqlite3_bind_blob(stmt, 3, embedding, (int)(embed_dim * sizeof(float)), SQLITE_TRANSIENT);
     } else {
-        sqlite3_bind_null(stmt, 2);
+        sqlite3_bind_null(stmt, 3);
     }
 
-    sqlite3_bind_double(stmt, 3, importance);
+    sqlite3_bind_double(stmt, 4, importance);
 
     rc = sqlite3_step(stmt);
     int64_t new_id = sqlite3_last_insert_rowid(g_db);

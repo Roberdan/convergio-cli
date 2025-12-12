@@ -368,7 +368,7 @@ int mlx_embed_init(const char* model_path) {
 
     // Load or initialize weights
     if (model_path) {
-        // TODO: Load pre-trained weights from file
+        // TODO(#2): Load pre-trained weights from file
         // For now, use random initialization
     }
     init_random_weights(g_model);
