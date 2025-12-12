@@ -10,9 +10,10 @@
 #include <stdlib.h>
 #include <string.h>
 #include <pthread.h>
+#include "nous/debug_mutex.h"
 
 // Thread-safe cost tracking
-static pthread_mutex_t g_cost_mutex = PTHREAD_MUTEX_INITIALIZER;
+CONVERGIO_MUTEX_DECLARE(g_cost_mutex);
 
 // Forward declaration
 extern Orchestrator* orchestrator_get(void);
@@ -40,7 +41,7 @@ void cost_load_historical(void) {
     Orchestrator* orch = orchestrator_get();
     if (!orch) return;
 
-    pthread_mutex_lock(&g_cost_mutex);
+    CONVERGIO_MUTEX_LOCK(&g_cost_mutex);
 
     // Load total historical cost from database
     double historical_cost = persistence_get_total_cost();
@@ -53,7 +54,7 @@ void cost_load_historical(void) {
         orch->cost.budget_exceeded = true;
     }
 
-    pthread_mutex_unlock(&g_cost_mutex);
+    CONVERGIO_MUTEX_UNLOCK(&g_cost_mutex);
 }
 
 // ============================================================================
@@ -74,7 +75,7 @@ void cost_record_usage(uint64_t input_tokens, uint64_t output_tokens) {
     Orchestrator* orch = orchestrator_get();
     if (!orch || !orch->initialized) return;
 
-    pthread_mutex_lock(&g_cost_mutex);
+    CONVERGIO_MUTEX_LOCK(&g_cost_mutex);
 
     // Update session usage (always track tokens for statistics)
     orch->cost.session_usage.input_tokens += input_tokens;
@@ -116,14 +117,14 @@ void cost_record_usage(uint64_t input_tokens, uint64_t output_tokens) {
         orch->on_cost_update(&orch->cost, orch->callback_ctx);
     }
 
-    pthread_mutex_unlock(&g_cost_mutex);
+    CONVERGIO_MUTEX_UNLOCK(&g_cost_mutex);
 }
 
 // Record usage for a specific agent
 void cost_record_agent_usage(ManagedAgent* agent, uint64_t input_tokens, uint64_t output_tokens) {
     if (!agent) return;
 
-    pthread_mutex_lock(&g_cost_mutex);
+    CONVERGIO_MUTEX_LOCK(&g_cost_mutex);
 
     agent->usage.input_tokens += input_tokens;
     agent->usage.output_tokens += output_tokens;
@@ -131,7 +132,7 @@ void cost_record_agent_usage(ManagedAgent* agent, uint64_t input_tokens, uint64_
     agent->usage.api_calls++;
     agent->usage.cost_usd += calculate_cost(input_tokens, output_tokens);
 
-    pthread_mutex_unlock(&g_cost_mutex);
+    CONVERGIO_MUTEX_UNLOCK(&g_cost_mutex);
 
     // Also record globally
     cost_record_usage(input_tokens, output_tokens);
@@ -145,9 +146,9 @@ double cost_get_session_spend(void) {
     Orchestrator* orch = orchestrator_get();
     if (!orch) return 0.0;
 
-    pthread_mutex_lock(&g_cost_mutex);
+    CONVERGIO_MUTEX_LOCK(&g_cost_mutex);
     double spend = orch->cost.current_spend_usd;
-    pthread_mutex_unlock(&g_cost_mutex);
+    CONVERGIO_MUTEX_UNLOCK(&g_cost_mutex);
 
     return spend;
 }
@@ -156,9 +157,9 @@ double cost_get_total_spend(void) {
     Orchestrator* orch = orchestrator_get();
     if (!orch) return 0.0;
 
-    pthread_mutex_lock(&g_cost_mutex);
+    CONVERGIO_MUTEX_LOCK(&g_cost_mutex);
     double spend = orch->cost.total_spend_usd;
-    pthread_mutex_unlock(&g_cost_mutex);
+    CONVERGIO_MUTEX_UNLOCK(&g_cost_mutex);
 
     return spend;
 }
@@ -167,9 +168,9 @@ bool cost_check_budget(void) {
     Orchestrator* orch = orchestrator_get();
     if (!orch) return false;
 
-    pthread_mutex_lock(&g_cost_mutex);
+    CONVERGIO_MUTEX_LOCK(&g_cost_mutex);
     bool exceeded = orch->cost.budget_exceeded;
-    pthread_mutex_unlock(&g_cost_mutex);
+    CONVERGIO_MUTEX_UNLOCK(&g_cost_mutex);
 
     return !exceeded;  // Returns true if within budget
 }
@@ -178,9 +179,9 @@ double cost_get_remaining_budget(void) {
     Orchestrator* orch = orchestrator_get();
     if (!orch || orch->cost.budget_limit_usd <= 0) return -1.0;  // No budget set
 
-    pthread_mutex_lock(&g_cost_mutex);
+    CONVERGIO_MUTEX_LOCK(&g_cost_mutex);
     double remaining = orch->cost.budget_limit_usd - orch->cost.current_spend_usd;
-    pthread_mutex_unlock(&g_cost_mutex);
+    CONVERGIO_MUTEX_UNLOCK(&g_cost_mutex);
 
     return remaining > 0 ? remaining : 0.0;
 }
@@ -193,24 +194,24 @@ void cost_set_budget(double limit_usd) {
     Orchestrator* orch = orchestrator_get();
     if (!orch) return;
 
-    pthread_mutex_lock(&g_cost_mutex);
+    CONVERGIO_MUTEX_LOCK(&g_cost_mutex);
     orch->cost.budget_limit_usd = limit_usd;
     orch->cost.budget_exceeded = (orch->cost.current_spend_usd >= limit_usd);
-    pthread_mutex_unlock(&g_cost_mutex);
+    CONVERGIO_MUTEX_UNLOCK(&g_cost_mutex);
 }
 
 void cost_reset_session(void) {
     Orchestrator* orch = orchestrator_get();
     if (!orch) return;
 
-    pthread_mutex_lock(&g_cost_mutex);
+    CONVERGIO_MUTEX_LOCK(&g_cost_mutex);
 
     orch->cost.current_spend_usd = 0.0;
     memset(&orch->cost.session_usage, 0, sizeof(TokenUsage));
     orch->cost.budget_exceeded = false;
     orch->cost.session_start = time(NULL);
 
-    pthread_mutex_unlock(&g_cost_mutex);
+    CONVERGIO_MUTEX_UNLOCK(&g_cost_mutex);
 }
 
 // ============================================================================
@@ -221,11 +222,11 @@ char* cost_get_report(void) {
     Orchestrator* orch = orchestrator_get();
     if (!orch) return strdup("Error: Orchestrator not initialized");
 
-    pthread_mutex_lock(&g_cost_mutex);
+    CONVERGIO_MUTEX_LOCK(&g_cost_mutex);
 
     char* report = malloc(2048);
     if (!report) {
-        pthread_mutex_unlock(&g_cost_mutex);
+        CONVERGIO_MUTEX_UNLOCK(&g_cost_mutex);
         return NULL;
     }
 
@@ -281,7 +282,7 @@ char* cost_get_report(void) {
         budget_status
     );
 
-    pthread_mutex_unlock(&g_cost_mutex);
+    CONVERGIO_MUTEX_UNLOCK(&g_cost_mutex);
 
     return report;
 }
@@ -291,11 +292,11 @@ char* cost_get_status_line(void) {
     Orchestrator* orch = orchestrator_get();
     if (!orch) return strdup("");
 
-    pthread_mutex_lock(&g_cost_mutex);
+    CONVERGIO_MUTEX_LOCK(&g_cost_mutex);
 
     char* line = malloc(128);
     if (!line) {
-        pthread_mutex_unlock(&g_cost_mutex);
+        CONVERGIO_MUTEX_UNLOCK(&g_cost_mutex);
         return NULL;
     }
 
@@ -307,7 +308,7 @@ char* cost_get_status_line(void) {
         snprintf(line, 128, "[$%.4f spent]", orch->cost.current_spend_usd);
     }
 
-    pthread_mutex_unlock(&g_cost_mutex);
+    CONVERGIO_MUTEX_UNLOCK(&g_cost_mutex);
 
     return line;
 }
@@ -319,11 +320,11 @@ char* cost_get_status_line(void) {
 char* cost_get_agent_report(ManagedAgent* agent) {
     if (!agent) return strdup("Error: Invalid agent");
 
-    pthread_mutex_lock(&g_cost_mutex);
+    CONVERGIO_MUTEX_LOCK(&g_cost_mutex);
 
     char* report = malloc(512);
     if (!report) {
-        pthread_mutex_unlock(&g_cost_mutex);
+        CONVERGIO_MUTEX_UNLOCK(&g_cost_mutex);
         return NULL;
     }
 
@@ -342,7 +343,7 @@ char* cost_get_agent_report(ManagedAgent* agent) {
         agent->usage.cost_usd
     );
 
-    pthread_mutex_unlock(&g_cost_mutex);
+    CONVERGIO_MUTEX_UNLOCK(&g_cost_mutex);
 
     return report;
 }
@@ -352,7 +353,7 @@ void cost_get_top_agents(ManagedAgent** out_agents, size_t* out_count, size_t ma
     Orchestrator* orch = orchestrator_get();
     if (!orch || !out_agents || !out_count) return;
 
-    pthread_mutex_lock(&g_cost_mutex);
+    CONVERGIO_MUTEX_LOCK(&g_cost_mutex);
 
     // Create array of agents sorted by cost (simple bubble sort for small N)
     size_t count = orch->agent_count < max_count ? orch->agent_count : max_count;
@@ -375,7 +376,7 @@ void cost_get_top_agents(ManagedAgent** out_agents, size_t* out_count, size_t ma
 
     *out_count = count;
 
-    pthread_mutex_unlock(&g_cost_mutex);
+    CONVERGIO_MUTEX_UNLOCK(&g_cost_mutex);
 }
 
 // ============================================================================
@@ -408,9 +409,9 @@ bool cost_can_afford(size_t estimated_turns, size_t avg_input_tokens, size_t avg
         estimated_cost += calculate_cost(avg_input_tokens, avg_output_tokens);
     }
 
-    pthread_mutex_lock(&g_cost_mutex);
+    CONVERGIO_MUTEX_LOCK(&g_cost_mutex);
     double remaining = orch->cost.budget_limit_usd - orch->cost.current_spend_usd;
-    pthread_mutex_unlock(&g_cost_mutex);
+    CONVERGIO_MUTEX_UNLOCK(&g_cost_mutex);
 
     return estimated_cost <= remaining;
 }

@@ -97,8 +97,9 @@ const char* nous_log_level_name(LogLevel level);
 typedef uint64_t SemanticID;
 
 #define SEMANTIC_ID_NULL          0ULL
-#define SEMANTIC_TYPE_MASK        0x00FF000000000000ULL
-#define SEMANTIC_TYPE_SHIFT       48
+// Layout: [timestamp:40][type:8][counter:16] -> type sits at bits 16-23
+#define SEMANTIC_TYPE_MASK        0x0000000000FF0000ULL
+#define SEMANTIC_TYPE_SHIFT       16
 
 typedef enum {
     SEMANTIC_TYPE_VOID      = 0x00,

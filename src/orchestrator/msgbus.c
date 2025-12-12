@@ -14,12 +14,13 @@
 #include <string.h>
 #include <pthread.h>
 #include <dispatch/dispatch.h>
+#include "nous/debug_mutex.h"
 
 // Forward declarations
 extern Orchestrator* orchestrator_get(void);
 
 // Thread safety
-static pthread_mutex_t g_msgbus_mutex = PTHREAD_MUTEX_INITIALIZER;
+CONVERGIO_MUTEX_DECLARE(g_msgbus_mutex);
 
 // Message ID counter
 static uint64_t g_next_message_id = 1;
@@ -97,14 +98,14 @@ void message_destroy(Message* msg) {
 static void deliver_to_agent(Message* msg, ManagedAgent* agent) {
     if (!msg || !agent) return;
 
-    pthread_mutex_lock(&g_msgbus_mutex);
+    CONVERGIO_MUTEX_LOCK(&g_msgbus_mutex);
 
     // Add to agent's pending messages
     msg->next = agent->pending_messages;
     agent->pending_messages = msg;
     agent->last_active = time(NULL);
 
-    pthread_mutex_unlock(&g_msgbus_mutex);
+    CONVERGIO_MUTEX_UNLOCK(&g_msgbus_mutex);
 }
 
 // Send message to specific recipient
@@ -118,11 +119,11 @@ void message_send(Message* msg) {
     }
 
     // Add to history
-    pthread_mutex_lock(&g_msgbus_mutex);
+    CONVERGIO_MUTEX_LOCK(&g_msgbus_mutex);
     msg->next = orch->message_history;
     orch->message_history = msg;
     orch->message_count++;
-    pthread_mutex_unlock(&g_msgbus_mutex);
+    CONVERGIO_MUTEX_UNLOCK(&g_msgbus_mutex);
 
     // Trigger callback
     if (orch->on_message) {
@@ -163,11 +164,11 @@ void message_broadcast(Message* msg) {
     }
 
     // Add to history
-    pthread_mutex_lock(&g_msgbus_mutex);
+    CONVERGIO_MUTEX_LOCK(&g_msgbus_mutex);
     msg->next = orch->message_history;
     orch->message_history = msg;
     orch->message_count++;
-    pthread_mutex_unlock(&g_msgbus_mutex);
+    CONVERGIO_MUTEX_UNLOCK(&g_msgbus_mutex);
 
     // Trigger callback
     if (orch->on_message) {
@@ -196,10 +197,10 @@ void message_broadcast(Message* msg) {
 Message* message_get_pending(ManagedAgent* agent) {
     if (!agent) return NULL;
 
-    pthread_mutex_lock(&g_msgbus_mutex);
+    CONVERGIO_MUTEX_LOCK(&g_msgbus_mutex);
     Message* pending = agent->pending_messages;
     agent->pending_messages = NULL;
-    pthread_mutex_unlock(&g_msgbus_mutex);
+    CONVERGIO_MUTEX_UNLOCK(&g_msgbus_mutex);
 
     return pending;
 }
@@ -209,12 +210,12 @@ Message** message_get_history(size_t limit, size_t* out_count) {
     Orchestrator* orch = orchestrator_get();
     if (!orch || !out_count) return NULL;
 
-    pthread_mutex_lock(&g_msgbus_mutex);
+    CONVERGIO_MUTEX_LOCK(&g_msgbus_mutex);
 
     size_t count = orch->message_count < limit ? orch->message_count : limit;
     Message** messages = malloc(sizeof(Message*) * count);
     if (!messages) {
-        pthread_mutex_unlock(&g_msgbus_mutex);
+        CONVERGIO_MUTEX_UNLOCK(&g_msgbus_mutex);
         return NULL;
     }
 
@@ -226,7 +227,7 @@ Message** message_get_history(size_t limit, size_t* out_count) {
     }
 
     *out_count = i;
-    pthread_mutex_unlock(&g_msgbus_mutex);
+    CONVERGIO_MUTEX_UNLOCK(&g_msgbus_mutex);
 
     return messages;
 }
@@ -236,11 +237,11 @@ Message** message_get_by_type(MessageType type, size_t limit, size_t* out_count)
     Orchestrator* orch = orchestrator_get();
     if (!orch || !out_count) return NULL;
 
-    pthread_mutex_lock(&g_msgbus_mutex);
+    CONVERGIO_MUTEX_LOCK(&g_msgbus_mutex);
 
     Message** messages = malloc(sizeof(Message*) * limit);
     if (!messages) {
-        pthread_mutex_unlock(&g_msgbus_mutex);
+        CONVERGIO_MUTEX_UNLOCK(&g_msgbus_mutex);
         return NULL;
     }
 
@@ -254,7 +255,7 @@ Message** message_get_by_type(MessageType type, size_t limit, size_t* out_count)
     }
 
     *out_count = count;
-    pthread_mutex_unlock(&g_msgbus_mutex);
+    CONVERGIO_MUTEX_UNLOCK(&g_msgbus_mutex);
 
     return messages;
 }
@@ -315,13 +316,13 @@ Message** message_get_thread(uint64_t message_id, size_t* out_count) {
     Orchestrator* orch = orchestrator_get();
     if (!orch || !out_count) return NULL;
 
-    pthread_mutex_lock(&g_msgbus_mutex);
+    CONVERGIO_MUTEX_LOCK(&g_msgbus_mutex);
 
     // Find all messages in thread (simplistic: parent_id chain)
     size_t capacity = 32;
     Message** thread = malloc(sizeof(Message*) * capacity);
     if (!thread) {
-        pthread_mutex_unlock(&g_msgbus_mutex);
+        CONVERGIO_MUTEX_UNLOCK(&g_msgbus_mutex);
         return NULL;
     }
 
@@ -355,7 +356,7 @@ Message** message_get_thread(uint64_t message_id, size_t* out_count) {
     }
 
     *out_count = count;
-    pthread_mutex_unlock(&g_msgbus_mutex);
+    CONVERGIO_MUTEX_UNLOCK(&g_msgbus_mutex);
 
     return thread;
 }
@@ -407,7 +408,7 @@ MessageStats message_get_stats(void) {
     Orchestrator* orch = orchestrator_get();
     if (!orch) return stats;
 
-    pthread_mutex_lock(&g_msgbus_mutex);
+    CONVERGIO_MUTEX_LOCK(&g_msgbus_mutex);
 
     Message* current = orch->message_history;
     while (current) {
@@ -435,7 +436,7 @@ MessageStats message_get_stats(void) {
         current = current->next;
     }
 
-    pthread_mutex_unlock(&g_msgbus_mutex);
+    CONVERGIO_MUTEX_UNLOCK(&g_msgbus_mutex);
 
     return stats;
 }

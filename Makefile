@@ -27,7 +27,13 @@ OBJCFLAGS = $(CFLAGS) -fobjc-arc
 
 # Release/Debug flags
 ifeq ($(DEBUG),1)
-    CFLAGS += -g -O0 -DDEBUG -fsanitize=address,undefined
+    # Debug mode: extra warnings and sanitizers
+    CFLAGS += -g -O0 -DDEBUG \
+              -fsanitize=address,undefined \
+              -Wconversion -Wsign-conversion \
+              -Wdouble-promotion -Wformat=2 \
+              -Wnull-dereference -Wuninitialized \
+              -Wstrict-overflow=2 -fstack-protector-strong
     LDFLAGS += -fsanitize=address,undefined
 else
     # Note: LTO disabled because it incorrectly eliminates tool functions
@@ -63,6 +69,7 @@ C_SOURCES = $(SRC_DIR)/core/fabric.c \
             $(SRC_DIR)/core/theme.c \
             $(SRC_DIR)/core/config.c \
             $(SRC_DIR)/core/updater.c \
+            $(SRC_DIR)/core/safe_path.c \
             $(SRC_DIR)/intent/parser.c \
             $(SRC_DIR)/intent/interpreter.c \
             $(SRC_DIR)/agents/agent.c \
@@ -232,6 +239,23 @@ $(FUZZ_TEST): $(FUZZ_SOURCES) $(FUZZ_OBJECTS)
 	@echo "Compiling fuzz tests..."
 	@$(CC) $(CFLAGS) $(LDFLAGS) -o $(FUZZ_TEST) $(FUZZ_SOURCES) $(FUZZ_OBJECTS) $(FRAMEWORKS) $(LIBS)
 
+# Unit test target - tests core components
+UNIT_TEST = $(BIN_DIR)/unit_test
+UNIT_SOURCES = tests/test_unit.c
+UNIT_OBJECTS = $(filter-out $(OBJ_DIR)/core/main.o,$(OBJECTS))
+
+unit_test: dirs $(OBJECTS) $(UNIT_TEST)
+	@echo "Running unit tests..."
+	@$(UNIT_TEST)
+
+$(UNIT_TEST): $(UNIT_SOURCES) $(UNIT_OBJECTS)
+	@echo "Compiling unit tests..."
+	@$(CC) $(CFLAGS) $(LDFLAGS) -o $(UNIT_TEST) $(UNIT_SOURCES) $(UNIT_OBJECTS) $(FRAMEWORKS) $(LIBS)
+
+# Run all tests
+test: fuzz_test unit_test
+	@echo "All tests completed!"
+
 # Help
 help:
 	@echo "Convergio Kernel Build System v$(VERSION)"
@@ -244,7 +268,9 @@ help:
 	@echo "  install   - Install to /usr/local"
 	@echo "  uninstall - Remove from /usr/local"
 	@echo "  dist      - Create distribution tarball"
+	@echo "  test      - Run all tests"
 	@echo "  fuzz_test - Build and run fuzz tests"
+	@echo "  unit_test - Build and run unit tests"
 	@echo "  hwinfo    - Show Apple Silicon hardware info"
 	@echo "  version   - Show version"
 	@echo "  help      - Show this message"
@@ -252,4 +278,4 @@ help:
 	@echo "Variables:"
 	@echo "  DEBUG=1   - Enable debug build"
 
-.PHONY: all dirs metal run clean debug install uninstall hwinfo help fuzz_test version dist
+.PHONY: all dirs metal run clean debug install uninstall hwinfo help fuzz_test unit_test test version dist

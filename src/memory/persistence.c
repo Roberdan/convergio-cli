@@ -18,10 +18,11 @@
 #include <stdint.h>
 #include <sys/stat.h>
 #include <errno.h>
+#include "nous/debug_mutex.h"
 
 // Database handle
 static sqlite3* g_db = NULL;
-static pthread_mutex_t g_db_mutex = PTHREAD_MUTEX_INITIALIZER;
+CONVERGIO_MUTEX_DECLARE(g_db_mutex);
 
 // Get DB path from config, fallback to default
 static const char* get_db_path(void) {
@@ -167,10 +168,10 @@ static const char* SCHEMA_SQL =
 // ============================================================================
 
 int persistence_init(const char* db_path) {
-    pthread_mutex_lock(&g_db_mutex);
+    CONVERGIO_MUTEX_LOCK(&g_db_mutex);
 
     if (g_db != NULL) {
-        pthread_mutex_unlock(&g_db_mutex);
+        CONVERGIO_MUTEX_UNLOCK(&g_db_mutex);
         return 0;  // Already initialized
     }
 
@@ -183,7 +184,7 @@ int persistence_init(const char* db_path) {
     int rc = sqlite3_open(path, &g_db);
     if (rc != SQLITE_OK) {
         fprintf(stderr, "Convergio: Cannot open database '%s': %s\n", path, sqlite3_errmsg(g_db));
-        pthread_mutex_unlock(&g_db_mutex);
+        CONVERGIO_MUTEX_UNLOCK(&g_db_mutex);
         return -1;
     }
 
@@ -201,23 +202,23 @@ int persistence_init(const char* db_path) {
         sqlite3_free(err_msg);
         sqlite3_close(g_db);
         g_db = NULL;
-        pthread_mutex_unlock(&g_db_mutex);
+        CONVERGIO_MUTEX_UNLOCK(&g_db_mutex);
         return -1;
     }
 
-    pthread_mutex_unlock(&g_db_mutex);
+    CONVERGIO_MUTEX_UNLOCK(&g_db_mutex);
     return 0;
 }
 
 void persistence_shutdown(void) {
-    pthread_mutex_lock(&g_db_mutex);
+    CONVERGIO_MUTEX_LOCK(&g_db_mutex);
 
     if (g_db) {
         sqlite3_close(g_db);
         g_db = NULL;
     }
 
-    pthread_mutex_unlock(&g_db_mutex);
+    CONVERGIO_MUTEX_UNLOCK(&g_db_mutex);
 }
 
 // ============================================================================
@@ -227,7 +228,7 @@ void persistence_shutdown(void) {
 int persistence_save_message(const char* session_id, Message* msg) {
     if (!g_db || !session_id || !msg) return -1;
 
-    pthread_mutex_lock(&g_db_mutex);
+    CONVERGIO_MUTEX_LOCK(&g_db_mutex);
 
     const char* sql =
         "INSERT INTO messages (session_id, type, sender_id, content, metadata_json, "
@@ -237,7 +238,7 @@ int persistence_save_message(const char* session_id, Message* msg) {
     sqlite3_stmt* stmt;
     int rc = sqlite3_prepare_v2(g_db, sql, -1, &stmt, NULL);
     if (rc != SQLITE_OK) {
-        pthread_mutex_unlock(&g_db_mutex);
+        CONVERGIO_MUTEX_UNLOCK(&g_db_mutex);
         return -1;
     }
 
@@ -260,7 +261,7 @@ int persistence_save_message(const char* session_id, Message* msg) {
     int64_t new_id = sqlite3_last_insert_rowid(g_db);
     sqlite3_finalize(stmt);
 
-    pthread_mutex_unlock(&g_db_mutex);
+    CONVERGIO_MUTEX_UNLOCK(&g_db_mutex);
 
     if (rc == SQLITE_DONE) {
         msg->id = new_id;
@@ -273,7 +274,7 @@ int persistence_save_message(const char* session_id, Message* msg) {
 Message** persistence_load_recent_messages(const char* session_id, size_t limit, size_t* out_count) {
     if (!g_db || !session_id || !out_count) return NULL;
 
-    pthread_mutex_lock(&g_db_mutex);
+    CONVERGIO_MUTEX_LOCK(&g_db_mutex);
 
     const char* sql =
         "SELECT id, type, sender_id, content, metadata_json, "
@@ -284,7 +285,7 @@ Message** persistence_load_recent_messages(const char* session_id, size_t limit,
     sqlite3_stmt* stmt;
     int rc = sqlite3_prepare_v2(g_db, sql, -1, &stmt, NULL);
     if (rc != SQLITE_OK) {
-        pthread_mutex_unlock(&g_db_mutex);
+        CONVERGIO_MUTEX_UNLOCK(&g_db_mutex);
         return NULL;
     }
 
@@ -295,7 +296,7 @@ Message** persistence_load_recent_messages(const char* session_id, size_t limit,
     Message** messages = malloc(sizeof(Message*) * limit);
     if (!messages) {
         sqlite3_finalize(stmt);
-        pthread_mutex_unlock(&g_db_mutex);
+        CONVERGIO_MUTEX_UNLOCK(&g_db_mutex);
         return NULL;
     }
 
@@ -323,7 +324,7 @@ Message** persistence_load_recent_messages(const char* session_id, size_t limit,
     }
 
     sqlite3_finalize(stmt);
-    pthread_mutex_unlock(&g_db_mutex);
+    CONVERGIO_MUTEX_UNLOCK(&g_db_mutex);
 
     *out_count = count;
     return messages;
@@ -337,7 +338,7 @@ int persistence_save_agent(const char* name, AgentRole role, const char* system_
                            const char* context, const char* color, const char* tools_json) {
     if (!g_db || !name || !system_prompt) return -1;
 
-    pthread_mutex_lock(&g_db_mutex);
+    CONVERGIO_MUTEX_LOCK(&g_db_mutex);
 
     const char* sql =
         "INSERT OR REPLACE INTO agents (name, role, system_prompt, specialized_context, color, tools_json, updated_at) "
@@ -346,7 +347,7 @@ int persistence_save_agent(const char* name, AgentRole role, const char* system_
     sqlite3_stmt* stmt;
     int rc = sqlite3_prepare_v2(g_db, sql, -1, &stmt, NULL);
     if (rc != SQLITE_OK) {
-        pthread_mutex_unlock(&g_db_mutex);
+        CONVERGIO_MUTEX_UNLOCK(&g_db_mutex);
         return -1;
     }
 
@@ -360,7 +361,7 @@ int persistence_save_agent(const char* name, AgentRole role, const char* system_
     rc = sqlite3_step(stmt);
     sqlite3_finalize(stmt);
 
-    pthread_mutex_unlock(&g_db_mutex);
+    CONVERGIO_MUTEX_UNLOCK(&g_db_mutex);
 
     return (rc == SQLITE_DONE) ? 0 : -1;
 }
@@ -369,14 +370,14 @@ int persistence_save_agent(const char* name, AgentRole role, const char* system_
 char* persistence_load_agent_prompt(const char* name) {
     if (!g_db || !name) return NULL;
 
-    pthread_mutex_lock(&g_db_mutex);
+    CONVERGIO_MUTEX_LOCK(&g_db_mutex);
 
     const char* sql = "SELECT system_prompt FROM agents WHERE name = ?";
 
     sqlite3_stmt* stmt;
     int rc = sqlite3_prepare_v2(g_db, sql, -1, &stmt, NULL);
     if (rc != SQLITE_OK) {
-        pthread_mutex_unlock(&g_db_mutex);
+        CONVERGIO_MUTEX_UNLOCK(&g_db_mutex);
         return NULL;
     }
 
@@ -389,7 +390,7 @@ char* persistence_load_agent_prompt(const char* name) {
     }
 
     sqlite3_finalize(stmt);
-    pthread_mutex_unlock(&g_db_mutex);
+    CONVERGIO_MUTEX_UNLOCK(&g_db_mutex);
 
     return prompt;
 }
@@ -401,7 +402,7 @@ char* persistence_load_agent_prompt(const char* name) {
 int persistence_set_pref(const char* key, const char* value) {
     if (!g_db || !key || !value) return -1;
 
-    pthread_mutex_lock(&g_db_mutex);
+    CONVERGIO_MUTEX_LOCK(&g_db_mutex);
 
     const char* sql =
         "INSERT OR REPLACE INTO user_prefs (key, value, updated_at) "
@@ -410,7 +411,7 @@ int persistence_set_pref(const char* key, const char* value) {
     sqlite3_stmt* stmt;
     int rc = sqlite3_prepare_v2(g_db, sql, -1, &stmt, NULL);
     if (rc != SQLITE_OK) {
-        pthread_mutex_unlock(&g_db_mutex);
+        CONVERGIO_MUTEX_UNLOCK(&g_db_mutex);
         return -1;
     }
 
@@ -420,7 +421,7 @@ int persistence_set_pref(const char* key, const char* value) {
     rc = sqlite3_step(stmt);
     sqlite3_finalize(stmt);
 
-    pthread_mutex_unlock(&g_db_mutex);
+    CONVERGIO_MUTEX_UNLOCK(&g_db_mutex);
 
     return (rc == SQLITE_DONE) ? 0 : -1;
 }
@@ -428,14 +429,14 @@ int persistence_set_pref(const char* key, const char* value) {
 char* persistence_get_pref(const char* key) {
     if (!g_db || !key) return NULL;
 
-    pthread_mutex_lock(&g_db_mutex);
+    CONVERGIO_MUTEX_LOCK(&g_db_mutex);
 
     const char* sql = "SELECT value FROM user_prefs WHERE key = ?";
 
     sqlite3_stmt* stmt;
     int rc = sqlite3_prepare_v2(g_db, sql, -1, &stmt, NULL);
     if (rc != SQLITE_OK) {
-        pthread_mutex_unlock(&g_db_mutex);
+        CONVERGIO_MUTEX_UNLOCK(&g_db_mutex);
         return NULL;
     }
 
@@ -448,7 +449,7 @@ char* persistence_get_pref(const char* key) {
     }
 
     sqlite3_finalize(stmt);
-    pthread_mutex_unlock(&g_db_mutex);
+    CONVERGIO_MUTEX_UNLOCK(&g_db_mutex);
 
     return value;
 }
@@ -461,7 +462,7 @@ int persistence_save_cost_daily(const char* date, uint64_t input_tokens,
                                  uint64_t output_tokens, double cost, uint32_t calls) {
     if (!g_db || !date) return -1;
 
-    pthread_mutex_lock(&g_db_mutex);
+    CONVERGIO_MUTEX_LOCK(&g_db_mutex);
 
     const char* sql =
         "INSERT INTO cost_history (date, input_tokens, output_tokens, total_cost, api_calls) "
@@ -475,7 +476,7 @@ int persistence_save_cost_daily(const char* date, uint64_t input_tokens,
     sqlite3_stmt* stmt;
     int rc = sqlite3_prepare_v2(g_db, sql, -1, &stmt, NULL);
     if (rc != SQLITE_OK) {
-        pthread_mutex_unlock(&g_db_mutex);
+        CONVERGIO_MUTEX_UNLOCK(&g_db_mutex);
         return -1;
     }
 
@@ -491,7 +492,7 @@ int persistence_save_cost_daily(const char* date, uint64_t input_tokens,
     rc = sqlite3_step(stmt);
     sqlite3_finalize(stmt);
 
-    pthread_mutex_unlock(&g_db_mutex);
+    CONVERGIO_MUTEX_UNLOCK(&g_db_mutex);
 
     return (rc == SQLITE_DONE) ? 0 : -1;
 }
@@ -500,14 +501,14 @@ int persistence_save_cost_daily(const char* date, uint64_t input_tokens,
 double persistence_get_total_cost(void) {
     if (!g_db) return 0.0;
 
-    pthread_mutex_lock(&g_db_mutex);
+    CONVERGIO_MUTEX_LOCK(&g_db_mutex);
 
     const char* sql = "SELECT SUM(total_cost) FROM cost_history";
 
     sqlite3_stmt* stmt;
     int rc = sqlite3_prepare_v2(g_db, sql, -1, &stmt, NULL);
     if (rc != SQLITE_OK) {
-        pthread_mutex_unlock(&g_db_mutex);
+        CONVERGIO_MUTEX_UNLOCK(&g_db_mutex);
         return 0.0;
     }
 
@@ -517,7 +518,7 @@ double persistence_get_total_cost(void) {
     }
 
     sqlite3_finalize(stmt);
-    pthread_mutex_unlock(&g_db_mutex);
+    CONVERGIO_MUTEX_UNLOCK(&g_db_mutex);
 
     return total;
 }
@@ -538,7 +539,7 @@ int persistence_save_memory(const char* content, float importance) {
     size_t embed_dim = 0;
     float* embedding = mlx_embed_text(content, &embed_dim);
 
-    pthread_mutex_lock(&g_db_mutex);
+    CONVERGIO_MUTEX_LOCK(&g_db_mutex);
 
     const char* sql =
         "INSERT INTO memories (content, embedding, importance) VALUES (?, ?, ?)";
@@ -546,7 +547,7 @@ int persistence_save_memory(const char* content, float importance) {
     sqlite3_stmt* stmt;
     int rc = sqlite3_prepare_v2(g_db, sql, -1, &stmt, NULL);
     if (rc != SQLITE_OK) {
-        pthread_mutex_unlock(&g_db_mutex);
+        CONVERGIO_MUTEX_UNLOCK(&g_db_mutex);
         if (embedding) free(embedding);
         return -1;
     }
@@ -567,7 +568,7 @@ int persistence_save_memory(const char* content, float importance) {
     int64_t new_id = sqlite3_last_insert_rowid(g_db);
     sqlite3_finalize(stmt);
 
-    pthread_mutex_unlock(&g_db_mutex);
+    CONVERGIO_MUTEX_UNLOCK(&g_db_mutex);
 
     if (embedding) free(embedding);
 
@@ -578,7 +579,7 @@ int persistence_save_memory(const char* content, float importance) {
 char** persistence_get_important_memories(size_t limit, size_t* out_count) {
     if (!g_db || !out_count) return NULL;
 
-    pthread_mutex_lock(&g_db_mutex);
+    CONVERGIO_MUTEX_LOCK(&g_db_mutex);
 
     const char* sql =
         "SELECT content FROM memories "
@@ -587,7 +588,7 @@ char** persistence_get_important_memories(size_t limit, size_t* out_count) {
     sqlite3_stmt* stmt;
     int rc = sqlite3_prepare_v2(g_db, sql, -1, &stmt, NULL);
     if (rc != SQLITE_OK) {
-        pthread_mutex_unlock(&g_db_mutex);
+        CONVERGIO_MUTEX_UNLOCK(&g_db_mutex);
         return NULL;
     }
 
@@ -596,7 +597,7 @@ char** persistence_get_important_memories(size_t limit, size_t* out_count) {
     char** memories = malloc(sizeof(char*) * limit);
     if (!memories) {
         sqlite3_finalize(stmt);
-        pthread_mutex_unlock(&g_db_mutex);
+        CONVERGIO_MUTEX_UNLOCK(&g_db_mutex);
         return NULL;
     }
 
@@ -607,7 +608,7 @@ char** persistence_get_important_memories(size_t limit, size_t* out_count) {
     }
 
     sqlite3_finalize(stmt);
-    pthread_mutex_unlock(&g_db_mutex);
+    CONVERGIO_MUTEX_UNLOCK(&g_db_mutex);
 
     *out_count = count;
     return memories;
@@ -633,7 +634,7 @@ char** persistence_search_memories(const char* query, size_t max_results,
 
     // Generate query embedding
     // Simple keyword search (MLX embeddings unreliable without pre-trained weights)
-    pthread_mutex_lock(&g_db_mutex);
+    CONVERGIO_MUTEX_LOCK(&g_db_mutex);
 
     // Use LIKE search for keywords
     char search_sql[512];
@@ -652,7 +653,7 @@ char** persistence_search_memories(const char* query, size_t max_results,
             if (text) results[count++] = strdup(text);
         }
         sqlite3_finalize(keyword_stmt);
-        pthread_mutex_unlock(&g_db_mutex);
+        CONVERGIO_MUTEX_UNLOCK(&g_db_mutex);
 
         if (count > 0) {
             *out_count = count;
@@ -660,7 +661,7 @@ char** persistence_search_memories(const char* query, size_t max_results,
         }
         free(results);
     } else {
-        pthread_mutex_unlock(&g_db_mutex);
+        CONVERGIO_MUTEX_UNLOCK(&g_db_mutex);
     }
 
     // Fallback to returning all important memories
@@ -680,7 +681,7 @@ static char** persistence_search_memories_semantic(const char* query, size_t max
         return persistence_get_important_memories(max_results, out_count);
     }
 
-    pthread_mutex_lock(&g_db_mutex);
+    CONVERGIO_MUTEX_LOCK(&g_db_mutex);
 
     // Load all memories with embeddings
     const char* sql = "SELECT id, content, embedding FROM memories WHERE embedding IS NOT NULL";
@@ -688,7 +689,7 @@ static char** persistence_search_memories_semantic(const char* query, size_t max
     sqlite3_stmt* stmt;
     int rc = sqlite3_prepare_v2(g_db, sql, -1, &stmt, NULL);
     if (rc != SQLITE_OK) {
-        pthread_mutex_unlock(&g_db_mutex);
+        CONVERGIO_MUTEX_UNLOCK(&g_db_mutex);
         free(query_embedding);
         return NULL;
     }
@@ -721,7 +722,7 @@ static char** persistence_search_memories_semantic(const char* query, size_t max
     }
 
     sqlite3_finalize(stmt);
-    pthread_mutex_unlock(&g_db_mutex);
+    CONVERGIO_MUTEX_UNLOCK(&g_db_mutex);
     free(query_embedding);
 
     if (match_count == 0) {
@@ -748,7 +749,7 @@ static char** persistence_search_memories_semantic(const char* query, size_t max
     free(matches);
 
     // Update access counts for returned memories
-    pthread_mutex_lock(&g_db_mutex);
+    CONVERGIO_MUTEX_LOCK(&g_db_mutex);
     const char* update_sql = "UPDATE memories SET access_count = access_count + 1, "
                              "last_accessed = CURRENT_TIMESTAMP WHERE content = ?";
 
@@ -760,7 +761,7 @@ static char** persistence_search_memories_semantic(const char* query, size_t max
             sqlite3_finalize(update_stmt);
         }
     }
-    pthread_mutex_unlock(&g_db_mutex);
+    CONVERGIO_MUTEX_UNLOCK(&g_db_mutex);
 
     *out_count = result_count;
     return results;
@@ -778,14 +779,14 @@ char* persistence_create_session(const char* user_name) {
     snprintf(session_id, sizeof(session_id), "session_%ld_%d",
              (long)time(NULL), rand() % 10000);
 
-    pthread_mutex_lock(&g_db_mutex);
+    CONVERGIO_MUTEX_LOCK(&g_db_mutex);
 
     const char* sql = "INSERT INTO sessions (id, user_name) VALUES (?, ?)";
 
     sqlite3_stmt* stmt;
     int rc = sqlite3_prepare_v2(g_db, sql, -1, &stmt, NULL);
     if (rc != SQLITE_OK) {
-        pthread_mutex_unlock(&g_db_mutex);
+        CONVERGIO_MUTEX_UNLOCK(&g_db_mutex);
         return NULL;
     }
 
@@ -795,7 +796,7 @@ char* persistence_create_session(const char* user_name) {
     rc = sqlite3_step(stmt);
     sqlite3_finalize(stmt);
 
-    pthread_mutex_unlock(&g_db_mutex);
+    CONVERGIO_MUTEX_UNLOCK(&g_db_mutex);
 
     return (rc == SQLITE_DONE) ? strdup(session_id) : NULL;
 }
@@ -803,7 +804,7 @@ char* persistence_create_session(const char* user_name) {
 int persistence_end_session(const char* session_id, double total_cost, int total_messages) {
     if (!g_db || !session_id) return -1;
 
-    pthread_mutex_lock(&g_db_mutex);
+    CONVERGIO_MUTEX_LOCK(&g_db_mutex);
 
     const char* sql =
         "UPDATE sessions SET ended_at = CURRENT_TIMESTAMP, "
@@ -812,7 +813,7 @@ int persistence_end_session(const char* session_id, double total_cost, int total
     sqlite3_stmt* stmt;
     int rc = sqlite3_prepare_v2(g_db, sql, -1, &stmt, NULL);
     if (rc != SQLITE_OK) {
-        pthread_mutex_unlock(&g_db_mutex);
+        CONVERGIO_MUTEX_UNLOCK(&g_db_mutex);
         return -1;
     }
 
@@ -823,7 +824,7 @@ int persistence_end_session(const char* session_id, double total_cost, int total
     rc = sqlite3_step(stmt);
     sqlite3_finalize(stmt);
 
-    pthread_mutex_unlock(&g_db_mutex);
+    CONVERGIO_MUTEX_UNLOCK(&g_db_mutex);
 
     return (rc == SQLITE_DONE) ? 0 : -1;
 }
@@ -837,7 +838,7 @@ int persistence_save_conversation(const char* session_id, const char* role,
                                    const char* content, int tokens) {
     if (!g_db || !session_id || !role || !content) return -1;
 
-    pthread_mutex_lock(&g_db_mutex);
+    CONVERGIO_MUTEX_LOCK(&g_db_mutex);
 
     const char* sql =
         "INSERT INTO messages (session_id, type, sender_name, content, input_tokens) "
@@ -846,7 +847,7 @@ int persistence_save_conversation(const char* session_id, const char* role,
     sqlite3_stmt* stmt;
     int rc = sqlite3_prepare_v2(g_db, sql, -1, &stmt, NULL);
     if (rc != SQLITE_OK) {
-        pthread_mutex_unlock(&g_db_mutex);
+        CONVERGIO_MUTEX_UNLOCK(&g_db_mutex);
         return -1;
     }
 
@@ -861,7 +862,7 @@ int persistence_save_conversation(const char* session_id, const char* role,
     rc = sqlite3_step(stmt);
     sqlite3_finalize(stmt);
 
-    pthread_mutex_unlock(&g_db_mutex);
+    CONVERGIO_MUTEX_UNLOCK(&g_db_mutex);
 
     return (rc == SQLITE_DONE) ? 0 : -1;
 }
@@ -870,7 +871,7 @@ int persistence_save_conversation(const char* session_id, const char* role,
 char* persistence_load_conversation_context(const char* session_id, size_t max_messages) {
     if (!g_db || !session_id) return NULL;
 
-    pthread_mutex_lock(&g_db_mutex);
+    CONVERGIO_MUTEX_LOCK(&g_db_mutex);
 
     const char* sql =
         "SELECT sender_name, content FROM ("
@@ -881,7 +882,7 @@ char* persistence_load_conversation_context(const char* session_id, size_t max_m
     sqlite3_stmt* stmt;
     int rc = sqlite3_prepare_v2(g_db, sql, -1, &stmt, NULL);
     if (rc != SQLITE_OK) {
-        pthread_mutex_unlock(&g_db_mutex);
+        CONVERGIO_MUTEX_UNLOCK(&g_db_mutex);
         return NULL;
     }
 
@@ -911,7 +912,7 @@ char* persistence_load_conversation_context(const char* session_id, size_t max_m
     }
 
     sqlite3_finalize(stmt);
-    pthread_mutex_unlock(&g_db_mutex);
+    CONVERGIO_MUTEX_UNLOCK(&g_db_mutex);
 
     if (len == 0) {
         free(context);
@@ -925,7 +926,7 @@ char* persistence_load_conversation_context(const char* session_id, size_t max_m
 char* persistence_load_recent_context(size_t max_messages) {
     if (!g_db) return NULL;
 
-    pthread_mutex_lock(&g_db_mutex);
+    CONVERGIO_MUTEX_LOCK(&g_db_mutex);
 
     const char* sql =
         "SELECT sender_name, content, session_id, date(created_at) as day FROM ("
@@ -936,7 +937,7 @@ char* persistence_load_recent_context(size_t max_messages) {
     sqlite3_stmt* stmt;
     int rc = sqlite3_prepare_v2(g_db, sql, -1, &stmt, NULL);
     if (rc != SQLITE_OK) {
-        pthread_mutex_unlock(&g_db_mutex);
+        CONVERGIO_MUTEX_UNLOCK(&g_db_mutex);
         return NULL;
     }
 
@@ -978,7 +979,7 @@ char* persistence_load_recent_context(size_t max_messages) {
     }
 
     sqlite3_finalize(stmt);
-    pthread_mutex_unlock(&g_db_mutex);
+    CONVERGIO_MUTEX_UNLOCK(&g_db_mutex);
 
     if (len == 0) {
         free(context);
@@ -992,7 +993,7 @@ char* persistence_load_recent_context(size_t max_messages) {
 char* persistence_get_or_create_session(void) {
     if (!g_db) return NULL;
 
-    pthread_mutex_lock(&g_db_mutex);
+    CONVERGIO_MUTEX_LOCK(&g_db_mutex);
 
     // Try to get most recent active session (from today)
     const char* sql =
@@ -1006,11 +1007,11 @@ char* persistence_get_or_create_session(void) {
         const char* id = (const char*)sqlite3_column_text(stmt, 0);
         char* session_id = strdup(id);
         sqlite3_finalize(stmt);
-        pthread_mutex_unlock(&g_db_mutex);
+        CONVERGIO_MUTEX_UNLOCK(&g_db_mutex);
         return session_id;
     }
     sqlite3_finalize(stmt);
-    pthread_mutex_unlock(&g_db_mutex);
+    CONVERGIO_MUTEX_UNLOCK(&g_db_mutex);
 
     // No active session, create new one
     return persistence_create_session("default");

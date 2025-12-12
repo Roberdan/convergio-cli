@@ -20,13 +20,14 @@
 #include <ctype.h>
 #include <pthread.h>
 #include <fcntl.h>
+#include "nous/debug_mutex.h"
 
 // ============================================================================
 // SAFETY CONFIGURATION
 // ============================================================================
 
 // Mutex for thread-safe access to global configuration
-static pthread_mutex_t g_config_mutex = PTHREAD_MUTEX_INITIALIZER;
+CONVERGIO_MUTEX_DECLARE(g_config_mutex);
 
 static char** g_allowed_paths = NULL;
 static size_t g_allowed_paths_count = 0;
@@ -309,12 +310,12 @@ void tools_add_allowed_path(const char* path) {
         return;  // Path doesn't exist
     }
 
-    pthread_mutex_lock(&g_config_mutex);
+    CONVERGIO_MUTEX_LOCK(&g_config_mutex);
 
     // Check if already in list
     for (size_t i = 0; i < g_allowed_paths_count; i++) {
         if (strcmp(g_allowed_paths[i], resolved) == 0) {
-            pthread_mutex_unlock(&g_config_mutex);
+            CONVERGIO_MUTEX_UNLOCK(&g_config_mutex);
             return;  // Already exists
         }
     }
@@ -322,7 +323,7 @@ void tools_add_allowed_path(const char* path) {
     // Grow array and add (with proper realloc error handling)
     char** new_paths = realloc(g_allowed_paths, (g_allowed_paths_count + 1) * sizeof(char*));
     if (!new_paths) {
-        pthread_mutex_unlock(&g_config_mutex);
+        CONVERGIO_MUTEX_UNLOCK(&g_config_mutex);
         return;  // Allocation failed
     }
     g_allowed_paths = new_paths;
@@ -331,19 +332,19 @@ void tools_add_allowed_path(const char* path) {
         g_allowed_paths_count++;
     }
 
-    pthread_mutex_unlock(&g_config_mutex);
+    CONVERGIO_MUTEX_UNLOCK(&g_config_mutex);
 }
 
 const char** tools_get_allowed_paths(size_t* count) {
-    pthread_mutex_lock(&g_config_mutex);
+    CONVERGIO_MUTEX_LOCK(&g_config_mutex);
     if (count) *count = g_allowed_paths_count;
     const char** result = (const char**)g_allowed_paths;
-    pthread_mutex_unlock(&g_config_mutex);
+    CONVERGIO_MUTEX_UNLOCK(&g_config_mutex);
     return result;
 }
 
 void tools_clear_allowed_paths(void) {
-    pthread_mutex_lock(&g_config_mutex);
+    CONVERGIO_MUTEX_LOCK(&g_config_mutex);
     if (g_allowed_paths) {
         for (size_t i = 0; i < g_allowed_paths_count; i++) {
             free(g_allowed_paths[i]);
@@ -352,7 +353,7 @@ void tools_clear_allowed_paths(void) {
         g_allowed_paths = NULL;
         g_allowed_paths_count = 0;
     }
-    pthread_mutex_unlock(&g_config_mutex);
+    CONVERGIO_MUTEX_UNLOCK(&g_config_mutex);
 }
 
 void tools_init_workspace(const char* workspace_path) {
@@ -367,7 +368,7 @@ void tools_init_workspace(const char* workspace_path) {
 }
 
 void tools_set_blocked_commands(const char** patterns, size_t count) {
-    pthread_mutex_lock(&g_config_mutex);
+    CONVERGIO_MUTEX_LOCK(&g_config_mutex);
 
     // Free existing
     if (g_blocked_commands) {
@@ -380,7 +381,7 @@ void tools_set_blocked_commands(const char** patterns, size_t count) {
     g_blocked_commands = malloc(count * sizeof(char*));
     if (!g_blocked_commands) {
         g_blocked_commands_count = 0;
-        pthread_mutex_unlock(&g_config_mutex);
+        CONVERGIO_MUTEX_UNLOCK(&g_config_mutex);
         return;
     }
     g_blocked_commands_count = count;
@@ -389,7 +390,7 @@ void tools_set_blocked_commands(const char** patterns, size_t count) {
         g_blocked_commands[i] = strdup(patterns[i]);
     }
 
-    pthread_mutex_unlock(&g_config_mutex);
+    CONVERGIO_MUTEX_UNLOCK(&g_config_mutex);
 }
 
 /**
@@ -455,7 +456,7 @@ bool tools_is_path_safe(const char* path) {
 
     // Check against allowed paths (with proper boundary checking)
     // Need mutex since g_allowed_paths can be modified by other threads
-    pthread_mutex_lock(&g_config_mutex);
+    CONVERGIO_MUTEX_LOCK(&g_config_mutex);
     bool allowed = false;
     if (g_allowed_paths && g_allowed_paths_count > 0) {
         for (size_t i = 0; i < g_allowed_paths_count; i++) {
@@ -465,7 +466,7 @@ bool tools_is_path_safe(const char* path) {
             }
         }
     }
-    pthread_mutex_unlock(&g_config_mutex);
+    CONVERGIO_MUTEX_UNLOCK(&g_config_mutex);
 
     // No allowed paths set or path not in list - deny by default
     // This is intentional: workspace must be explicitly initialized
@@ -581,7 +582,7 @@ bool tools_is_command_safe(const char* command) {
     }
 
     // Check user-defined blocked patterns (need mutex for thread safety)
-    pthread_mutex_lock(&g_config_mutex);
+    CONVERGIO_MUTEX_LOCK(&g_config_mutex);
     if (is_safe && g_blocked_commands) {
         for (size_t i = 0; i < g_blocked_commands_count; i++) {
             char* norm_blocked = normalize_command(g_blocked_commands[i]);
@@ -592,7 +593,7 @@ bool tools_is_command_safe(const char* command) {
             if (!is_safe) break;
         }
     }
-    pthread_mutex_unlock(&g_config_mutex);
+    CONVERGIO_MUTEX_UNLOCK(&g_config_mutex);
 
     free(normalized);
     return is_safe;

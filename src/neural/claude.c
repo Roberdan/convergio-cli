@@ -361,6 +361,82 @@ static char* build_auth_header(void) {
 }
 
 // ============================================================================
+// CENTRALIZED HEADER HELPERS (exported via curl_helpers.h)
+// ============================================================================
+
+/**
+ * Build standard headers for Claude API requests.
+ * Returns NULL on authentication failure.
+ */
+struct curl_slist* claude_build_headers(void) {
+    char* auth_header = build_auth_header();
+    if (!auth_header) {
+        return NULL;
+    }
+
+    struct curl_slist* headers = NULL;
+    headers = curl_slist_append(headers, "Content-Type: application/json");
+    headers = curl_slist_append(headers, auth_header);
+    headers = curl_slist_append(headers, "anthropic-version: 2023-06-01");
+
+    free(auth_header);
+
+    if (!headers) {
+        return NULL;
+    }
+
+    return headers;
+}
+
+/**
+ * Free headers - safe wrapper
+ */
+void claude_free_headers(struct curl_slist* headers) {
+    if (headers) {
+        curl_slist_free_all(headers);
+    }
+}
+
+/**
+ * Setup common CURL options for Claude API calls.
+ */
+bool claude_setup_common_opts(CURL* curl, struct curl_slist* headers) {
+    if (!curl || !headers) return false;
+
+    curl_easy_setopt(curl, CURLOPT_URL, CLAUDE_API_URL);
+    curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
+    curl_easy_setopt(curl, CURLOPT_TIMEOUT, 60L);
+    curl_easy_setopt(curl, CURLOPT_NOPROGRESS, 0L);
+    curl_easy_setopt(curl, CURLOPT_XFERINFOFUNCTION, progress_callback);
+
+    return true;
+}
+
+/**
+ * Handle CURL result and check HTTP status
+ */
+bool claude_handle_result(CURL* curl, CURLcode res, const char* response) {
+    if (res == CURLE_ABORTED_BY_CALLBACK) {
+        return false;  // Cancelled by user
+    }
+
+    if (res != CURLE_OK) {
+        fprintf(stderr, "Claude API error: %s\n", curl_easy_strerror(res));
+        return false;
+    }
+
+    long http_code = 0;
+    curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &http_code);
+    if (http_code != 200) {
+        fprintf(stderr, "Claude API HTTP %ld: %s\n", http_code,
+                response ? response : "(no response)");
+        return false;
+    }
+
+    return true;
+}
+
+// ============================================================================
 // CHAT COMPLETION
 // ============================================================================
 
@@ -419,56 +495,28 @@ char* nous_claude_chat(const char* system_prompt, const char* user_message) {
     }
     response.data[0] = '\0';
 
-    // Build auth header
-    char* auth_header = build_auth_header();
-    if (!auth_header) {
+    // Build headers using centralized helper
+    struct curl_slist* headers = claude_build_headers();
+    if (!headers) {
         free(json_body);
         free(response.data);
         curl_easy_cleanup(curl);
         return NULL;
     }
 
-    // Setup headers
-    struct curl_slist* headers = NULL;
-    headers = curl_slist_append(headers, "Content-Type: application/json");
-    headers = curl_slist_append(headers, auth_header);
-    headers = curl_slist_append(headers, "anthropic-version: 2023-06-01");
-
-    // Configure request
-    curl_easy_setopt(curl, CURLOPT_URL, CLAUDE_API_URL);
-    curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
+    // Configure request using centralized setup
+    claude_setup_common_opts(curl, headers);
     curl_easy_setopt(curl, CURLOPT_POSTFIELDS, json_body);
     curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_callback);
     curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response);
-    curl_easy_setopt(curl, CURLOPT_TIMEOUT, 60L);
-    curl_easy_setopt(curl, CURLOPT_NOPROGRESS, 0L);
-    curl_easy_setopt(curl, CURLOPT_XFERINFOFUNCTION, progress_callback);
 
     // Execute
     CURLcode res = curl_easy_perform(curl);
 
-    curl_slist_free_all(headers);
-    free(auth_header);
+    claude_free_headers(headers);
     free(json_body);
 
-    if (res == CURLE_ABORTED_BY_CALLBACK) {
-        free(response.data);
-        curl_easy_cleanup(curl);
-        return NULL;  // Cancelled by user
-    }
-
-    if (res != CURLE_OK) {
-        fprintf(stderr, "Claude API error: %s\n", curl_easy_strerror(res));
-        free(response.data);
-        curl_easy_cleanup(curl);
-        return NULL;
-    }
-
-    // Check HTTP status
-    long http_code = 0;
-    curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &http_code);
-    if (http_code != 200) {
-        fprintf(stderr, "Claude API HTTP %ld: %s\n", http_code, response.data);
+    if (!claude_handle_result(curl, res, response.data)) {
         free(response.data);
         curl_easy_cleanup(curl);
         return NULL;
@@ -657,56 +705,29 @@ char* nous_claude_chat_with_tools(const char* system_prompt, const char* user_me
     }
     response.data[0] = '\0';
 
-    // Build auth header
-    char* auth_header = build_auth_header();
-    if (!auth_header) {
+    // Build headers using centralized helper
+    struct curl_slist* headers = claude_build_headers();
+    if (!headers) {
         free(json_body);
         free(response.data);
         curl_easy_cleanup(curl);
         return NULL;
     }
 
-    // Setup headers
-    struct curl_slist* headers = NULL;
-    headers = curl_slist_append(headers, "Content-Type: application/json");
-    headers = curl_slist_append(headers, auth_header);
-    headers = curl_slist_append(headers, "anthropic-version: 2023-06-01");
-
-    // Configure request
-    curl_easy_setopt(curl, CURLOPT_URL, CLAUDE_API_URL);
-    curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
+    // Configure request using centralized setup
+    claude_setup_common_opts(curl, headers);
     curl_easy_setopt(curl, CURLOPT_POSTFIELDS, json_body);
     curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_callback);
     curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response);
-    curl_easy_setopt(curl, CURLOPT_TIMEOUT, 120L);  // Longer timeout for tool use
-    curl_easy_setopt(curl, CURLOPT_NOPROGRESS, 0L);
-    curl_easy_setopt(curl, CURLOPT_XFERINFOFUNCTION, progress_callback);
+    curl_easy_setopt(curl, CURLOPT_TIMEOUT, 120L);  // Override: longer timeout for tool use
 
     // Execute
     CURLcode res = curl_easy_perform(curl);
 
-    curl_slist_free_all(headers);
-    free(auth_header);
+    claude_free_headers(headers);
     free(json_body);
 
-    if (res == CURLE_ABORTED_BY_CALLBACK) {
-        free(response.data);
-        curl_easy_cleanup(curl);
-        return NULL;  // Cancelled by user
-    }
-
-    if (res != CURLE_OK) {
-        fprintf(stderr, "Claude API error: %s\n", curl_easy_strerror(res));
-        free(response.data);
-        curl_easy_cleanup(curl);
-        return NULL;
-    }
-
-    // Check HTTP status
-    long http_code = 0;
-    curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &http_code);
-    if (http_code != 200) {
-        fprintf(stderr, "Claude API HTTP %ld: %s\n", http_code, response.data);
+    if (!claude_handle_result(curl, res, response.data)) {
         free(response.data);
         curl_easy_cleanup(curl);
         return NULL;
@@ -896,36 +917,26 @@ char* nous_claude_chat_stream(const char* system_prompt, const char* user_messag
         ctx.accumulated[0] = '\0';
     }
 
-    // Build auth header
-    char* auth_header = build_auth_header();
-    if (!auth_header) {
+    // Build headers using centralized helper
+    struct curl_slist* headers = claude_build_headers();
+    if (!headers) {
         free(json_body);
         free(ctx.accumulated);
         curl_easy_cleanup(curl);
         return NULL;
     }
 
-    // Setup headers
-    struct curl_slist* headers = NULL;
-    headers = curl_slist_append(headers, "Content-Type: application/json");
-    headers = curl_slist_append(headers, auth_header);
-    headers = curl_slist_append(headers, "anthropic-version: 2023-06-01");
-
-    // Configure request
-    curl_easy_setopt(curl, CURLOPT_URL, CLAUDE_API_URL);
-    curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
+    // Configure request using centralized setup
+    claude_setup_common_opts(curl, headers);
     curl_easy_setopt(curl, CURLOPT_POSTFIELDS, json_body);
     curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, stream_write_callback);
     curl_easy_setopt(curl, CURLOPT_WRITEDATA, &ctx);
-    curl_easy_setopt(curl, CURLOPT_TIMEOUT, 120L);
-    curl_easy_setopt(curl, CURLOPT_NOPROGRESS, 0L);
-    curl_easy_setopt(curl, CURLOPT_XFERINFOFUNCTION, progress_callback);
+    curl_easy_setopt(curl, CURLOPT_TIMEOUT, 120L);  // Override: longer timeout for streaming
 
     // Execute
     CURLcode res = curl_easy_perform(curl);
 
-    curl_slist_free_all(headers);
-    free(auth_header);
+    claude_free_headers(headers);
     free(json_body);
     curl_easy_cleanup(curl);
 
@@ -1114,56 +1125,29 @@ char* nous_claude_chat_conversation(Conversation* conv, const char* user_message
     }
     response.data[0] = '\0';
 
-    // Build auth header
-    char* auth_header = build_auth_header();
-    if (!auth_header) {
+    // Build headers using centralized helper
+    struct curl_slist* headers = claude_build_headers();
+    if (!headers) {
         free(json_body);
         free(response.data);
         curl_easy_cleanup(curl);
         return NULL;
     }
 
-    // Setup headers
-    struct curl_slist* headers = NULL;
-    headers = curl_slist_append(headers, "Content-Type: application/json");
-    headers = curl_slist_append(headers, auth_header);
-    headers = curl_slist_append(headers, "anthropic-version: 2023-06-01");
-
-    // Configure request
-    curl_easy_setopt(curl, CURLOPT_URL, CLAUDE_API_URL);
-    curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
+    // Configure request using centralized setup
+    claude_setup_common_opts(curl, headers);
     curl_easy_setopt(curl, CURLOPT_POSTFIELDS, json_body);
     curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_callback);
     curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response);
-    curl_easy_setopt(curl, CURLOPT_TIMEOUT, 120L);
-    curl_easy_setopt(curl, CURLOPT_NOPROGRESS, 0L);
-    curl_easy_setopt(curl, CURLOPT_XFERINFOFUNCTION, progress_callback);
+    curl_easy_setopt(curl, CURLOPT_TIMEOUT, 120L);  // Override: longer timeout for multi-turn
 
     // Execute
     CURLcode res = curl_easy_perform(curl);
 
-    curl_slist_free_all(headers);
-    free(auth_header);
+    claude_free_headers(headers);
     free(json_body);
 
-    if (res == CURLE_ABORTED_BY_CALLBACK) {
-        free(response.data);
-        curl_easy_cleanup(curl);
-        return NULL;  // Cancelled by user
-    }
-
-    if (res != CURLE_OK) {
-        fprintf(stderr, "Claude API error: %s\n", curl_easy_strerror(res));
-        free(response.data);
-        curl_easy_cleanup(curl);
-        return NULL;
-    }
-
-    // Check HTTP status
-    long http_code = 0;
-    curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &http_code);
-    if (http_code != 200) {
-        fprintf(stderr, "Claude API HTTP %ld: %s\n", http_code, response.data);
+    if (!claude_handle_result(curl, res, response.data)) {
         free(response.data);
         curl_easy_cleanup(curl);
         return NULL;

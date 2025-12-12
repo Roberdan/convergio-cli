@@ -15,6 +15,7 @@
 #include <dirent.h>
 #include <pthread.h>
 #include <dispatch/dispatch.h>
+#include "nous/debug_mutex.h"
 
 // Embedded agents
 #include "nous/embedded_agents.h"
@@ -23,7 +24,7 @@
 extern Orchestrator* orchestrator_get(void);
 
 // Thread safety
-static pthread_mutex_t g_registry_mutex = PTHREAD_MUTEX_INITIALIZER;
+CONVERGIO_MUTEX_DECLARE(g_registry_mutex);
 
 // Agent ID counter
 static uint64_t g_next_agent_id = 1;
@@ -339,7 +340,7 @@ ManagedAgent* agent_spawn(AgentRole role, const char* name, const char* context)
     Orchestrator* orch = orchestrator_get();
     if (!orch || !orch->initialized) return NULL;
 
-    pthread_mutex_lock(&g_registry_mutex);
+    CONVERGIO_MUTEX_LOCK(&g_registry_mutex);
 
     // Check capacity
     if (orch->agent_count >= orch->agent_capacity) {
@@ -347,7 +348,7 @@ ManagedAgent* agent_spawn(AgentRole role, const char* name, const char* context)
         size_t new_capacity = orch->agent_capacity * 2;
         ManagedAgent** new_agents = realloc(orch->agents, sizeof(ManagedAgent*) * new_capacity);
         if (!new_agents) {
-            pthread_mutex_unlock(&g_registry_mutex);
+            CONVERGIO_MUTEX_UNLOCK(&g_registry_mutex);
             return NULL;
         }
         orch->agents = new_agents;
@@ -375,7 +376,7 @@ ManagedAgent* agent_spawn(AgentRole role, const char* name, const char* context)
 
     ManagedAgent* agent = agent_create(name, role, system_prompt);
     if (!agent) {
-        pthread_mutex_unlock(&g_registry_mutex);
+        CONVERGIO_MUTEX_UNLOCK(&g_registry_mutex);
         return NULL;
     }
 
@@ -399,7 +400,7 @@ ManagedAgent* agent_spawn(AgentRole role, const char* name, const char* context)
         orch->on_agent_spawn(agent, orch->callback_ctx);
     }
 
-    pthread_mutex_unlock(&g_registry_mutex);
+    CONVERGIO_MUTEX_UNLOCK(&g_registry_mutex);
 
     return agent;
 }
@@ -410,7 +411,7 @@ void agent_despawn(ManagedAgent* agent) {
     Orchestrator* orch = orchestrator_get();
     if (!orch) return;
 
-    pthread_mutex_lock(&g_registry_mutex);
+    CONVERGIO_MUTEX_LOCK(&g_registry_mutex);
 
     // Remove from hash tables
     if (orch->agent_by_id) {
@@ -431,7 +432,7 @@ void agent_despawn(ManagedAgent* agent) {
         }
     }
 
-    pthread_mutex_unlock(&g_registry_mutex);
+    CONVERGIO_MUTEX_UNLOCK(&g_registry_mutex);
 
     agent_destroy(agent);
 }
@@ -440,7 +441,7 @@ ManagedAgent* agent_find_by_role(AgentRole role) {
     Orchestrator* orch = orchestrator_get();
     if (!orch) return NULL;
 
-    pthread_mutex_lock(&g_registry_mutex);
+    CONVERGIO_MUTEX_LOCK(&g_registry_mutex);
 
     ManagedAgent* found = NULL;
     for (size_t i = 0; i < orch->agent_count; i++) {
@@ -450,7 +451,7 @@ ManagedAgent* agent_find_by_role(AgentRole role) {
         }
     }
 
-    pthread_mutex_unlock(&g_registry_mutex);
+    CONVERGIO_MUTEX_UNLOCK(&g_registry_mutex);
 
     return found;
 }
@@ -461,7 +462,7 @@ ManagedAgent* agent_find_by_name(const char* name) {
     Orchestrator* orch = orchestrator_get();
     if (!orch) return NULL;
 
-    pthread_mutex_lock(&g_registry_mutex);
+    CONVERGIO_MUTEX_LOCK(&g_registry_mutex);
 
     ManagedAgent* found = NULL;
 
@@ -478,7 +479,7 @@ ManagedAgent* agent_find_by_name(const char* name) {
         }
     }
 
-    pthread_mutex_unlock(&g_registry_mutex);
+    CONVERGIO_MUTEX_UNLOCK(&g_registry_mutex);
 
     return found;
 }
@@ -488,7 +489,7 @@ size_t agent_get_active(ManagedAgent** out_agents, size_t max_count) {
     Orchestrator* orch = orchestrator_get();
     if (!orch || !out_agents) return 0;
 
-    pthread_mutex_lock(&g_registry_mutex);
+    CONVERGIO_MUTEX_LOCK(&g_registry_mutex);
 
     size_t count = 0;
     for (size_t i = 0; i < orch->agent_count && count < max_count; i++) {
@@ -497,7 +498,7 @@ size_t agent_get_active(ManagedAgent** out_agents, size_t max_count) {
         }
     }
 
-    pthread_mutex_unlock(&g_registry_mutex);
+    CONVERGIO_MUTEX_UNLOCK(&g_registry_mutex);
 
     return count;
 }
@@ -697,7 +698,7 @@ int agent_load_definitions(const char* dir_path) {
         if (agent) {
             Orchestrator* orch = orchestrator_get();
             if (orch) {
-                pthread_mutex_lock(&g_registry_mutex);
+                CONVERGIO_MUTEX_LOCK(&g_registry_mutex);
 
                 // Check capacity
                 if (orch->agent_count >= orch->agent_capacity) {
@@ -714,7 +715,7 @@ int agent_load_definitions(const char* dir_path) {
                     loaded++;
                 }
 
-                pthread_mutex_unlock(&g_registry_mutex);
+                CONVERGIO_MUTEX_UNLOCK(&g_registry_mutex);
             }
         }
     }
@@ -858,7 +859,7 @@ void agent_execute_parallel(ManagedAgent** agents, size_t count, const char* inp
 void agent_set_working(ManagedAgent* agent, AgentWorkState state, const char* task) {
     if (!agent) return;
 
-    pthread_mutex_lock(&g_registry_mutex);
+    CONVERGIO_MUTEX_LOCK(&g_registry_mutex);
 
     agent->work_state = state;
     agent->work_started_at = time(NULL);
@@ -866,13 +867,13 @@ void agent_set_working(ManagedAgent* agent, AgentWorkState state, const char* ta
     free(agent->current_task);
     agent->current_task = task ? strdup(task) : NULL;
 
-    pthread_mutex_unlock(&g_registry_mutex);
+    CONVERGIO_MUTEX_UNLOCK(&g_registry_mutex);
 }
 
 void agent_set_idle(ManagedAgent* agent) {
     if (!agent) return;
 
-    pthread_mutex_lock(&g_registry_mutex);
+    CONVERGIO_MUTEX_LOCK(&g_registry_mutex);
 
     agent->work_state = WORK_STATE_IDLE;
     free(agent->current_task);
@@ -880,25 +881,25 @@ void agent_set_idle(ManagedAgent* agent) {
     agent->collaborating_with = 0;
     agent->work_started_at = 0;
 
-    pthread_mutex_unlock(&g_registry_mutex);
+    CONVERGIO_MUTEX_UNLOCK(&g_registry_mutex);
 }
 
 void agent_set_collaborating(ManagedAgent* agent, SemanticID partner_id) {
     if (!agent) return;
 
-    pthread_mutex_lock(&g_registry_mutex);
+    CONVERGIO_MUTEX_LOCK(&g_registry_mutex);
 
     agent->work_state = WORK_STATE_COMMUNICATING;
     agent->collaborating_with = partner_id;
 
-    pthread_mutex_unlock(&g_registry_mutex);
+    CONVERGIO_MUTEX_UNLOCK(&g_registry_mutex);
 }
 
 size_t agent_get_working(ManagedAgent** out_agents, size_t max_count) {
     Orchestrator* orch = orchestrator_get();
     if (!orch || !out_agents) return 0;
 
-    pthread_mutex_lock(&g_registry_mutex);
+    CONVERGIO_MUTEX_LOCK(&g_registry_mutex);
 
     size_t count = 0;
     for (size_t i = 0; i < orch->agent_count && count < max_count; i++) {
@@ -907,7 +908,7 @@ size_t agent_get_working(ManagedAgent** out_agents, size_t max_count) {
         }
     }
 
-    pthread_mutex_unlock(&g_registry_mutex);
+    CONVERGIO_MUTEX_UNLOCK(&g_registry_mutex);
 
     return count;
 }
@@ -916,12 +917,12 @@ char* agent_get_working_status(void) {
     Orchestrator* orch = orchestrator_get();
     if (!orch) return strdup("No orchestrator");
 
-    pthread_mutex_lock(&g_registry_mutex);
+    CONVERGIO_MUTEX_LOCK(&g_registry_mutex);
 
     size_t buf_size = 4096;
     char* status = malloc(buf_size);
     if (!status) {
-        pthread_mutex_unlock(&g_registry_mutex);
+        CONVERGIO_MUTEX_UNLOCK(&g_registry_mutex);
         return NULL;
     }
 
@@ -1004,7 +1005,7 @@ char* agent_get_working_status(void) {
         }
     }
 
-    pthread_mutex_unlock(&g_registry_mutex);
+    CONVERGIO_MUTEX_UNLOCK(&g_registry_mutex);
 
     return status;
 }
@@ -1046,12 +1047,12 @@ char* agent_registry_status(void) {
     Orchestrator* orch = orchestrator_get();
     if (!orch) return strdup("Registry not initialized");
 
-    pthread_mutex_lock(&g_registry_mutex);
+    CONVERGIO_MUTEX_LOCK(&g_registry_mutex);
 
     size_t buf_size = 4096;
     char* status = malloc(buf_size);
     if (!status) {
-        pthread_mutex_unlock(&g_registry_mutex);
+        CONVERGIO_MUTEX_UNLOCK(&g_registry_mutex);
         return NULL;
     }
 
@@ -1089,7 +1090,7 @@ char* agent_registry_status(void) {
         "\nTip: Use @agent_name to talk directly to an agent\n"
         "Example: @baccio What's the best architecture for this?\n");
 
-    pthread_mutex_unlock(&g_registry_mutex);
+    CONVERGIO_MUTEX_UNLOCK(&g_registry_mutex);
 
     return status;
 }

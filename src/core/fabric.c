@@ -38,8 +38,11 @@ static SemanticID generate_semantic_id(SemanticType type) {
     clock_gettime(CLOCK_REALTIME, &ts);
 
     // Pack: [timestamp_ns:40][type:8][counter:16]
+    // - timestamp occupies bits 24-63
+    // - type occupies bits 16-23 (see SEMANTIC_TYPE_MASK/SHIFT)
+    // - counter occupies bits 0-15
     uint64_t time_part = ((uint64_t)ts.tv_sec * 1000000000ULL + ts.tv_nsec) & 0xFFFFFFFFFFULL;
-    uint64_t type_part = ((uint64_t)type & 0xFF) << 48;
+    uint64_t type_part = ((uint64_t)type & 0xFF) << 16;
     uint64_t count_part = (atomic_fetch_add(&counter, 1) & 0xFFFF);
 
     return (time_part << 24) | type_part | count_part;

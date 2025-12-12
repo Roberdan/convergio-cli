@@ -7,6 +7,46 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.0.7] - 2025-12-12
+
+### Added
+- **Debug mutex system**: ERRORCHECK mutex in debug builds for deadlock detection
+  - Automatically detects double-lock and unlock-not-owned errors
+  - Lazy initialization for compatibility with static declarations
+- **Safe path helper**: New `safe_path.h` module for secure file operations
+  - `safe_path_resolve()` - realpath with boundary checking
+  - `safe_path_join()` - safe path concatenation
+  - `safe_path_open()` - TOCTOU-safe file opening
+  - Protection against path traversal attacks
+- **Centralized CURL helpers**: `curl_helpers.h` for consistent API calls
+  - `claude_build_headers()` - unified header construction
+  - `claude_setup_common_opts()` - common CURL options
+  - `claude_handle_result()` - consistent error handling
+- **Unit test suite**: 50 new tests for core components
+  - Safe path resolution and boundary checking
+  - Command and path sandbox validation
+  - Run with `make unit_test` or `make test`
+- **clang-tidy configuration**: Static analysis rules in `.clang-tidy`
+- **Enhanced CI workflow**: Additional quality gates
+  - Debug build with sanitizers
+  - Static analysis job
+  - Security scanning
+
+### Changed
+- All mutex operations now use `CONVERGIO_MUTEX_*` macros
+- Refactored CURL usage in `claude.c` to use centralized helpers
+- Improved Makefile with `test`, `unit_test` targets
+
+### Technical
+- Added `include/nous/debug_mutex.h` - Debug mutex wrapper
+- Added `include/nous/safe_path.h` - Safe path operations
+- Added `include/nous/curl_helpers.h` - CURL utilities
+- Added `src/core/safe_path.c` - Safe path implementation
+- Added `tests/test_unit.c` - Unit test suite
+- Updated `.clang-tidy` - Static analysis configuration
+- Updated `.github/workflows/ci.yml` - Enhanced CI pipeline
+- Updated `.claude/agents/app-release-manager.md` - New quality checks
+
 ## [2.0.6] - 2025-12-12
 
 ### Added

@@ -17,10 +17,11 @@
 #include <dispatch/dispatch.h>
 #include <dirent.h>
 #include <limits.h>
+#include "nous/debug_mutex.h"
 
 // Global orchestrator instance
 static Orchestrator* g_orchestrator = NULL;
-static pthread_mutex_t g_orch_mutex = PTHREAD_MUTEX_INITIALIZER;
+CONVERGIO_MUTEX_DECLARE(g_orch_mutex);
 
 // External functions
 extern int persistence_init(const char* db_path);
@@ -243,17 +244,17 @@ static const char* ALI_SYSTEM_PROMPT_TEMPLATE =
 // ============================================================================
 
 int orchestrator_init(double budget_limit_usd) {
-    pthread_mutex_lock(&g_orch_mutex);
+    CONVERGIO_MUTEX_LOCK(&g_orch_mutex);
 
     if (g_orchestrator != NULL) {
-        pthread_mutex_unlock(&g_orch_mutex);
+        CONVERGIO_MUTEX_UNLOCK(&g_orch_mutex);
         return 0;  // Already initialized
     }
 
     // Allocate orchestrator
     g_orchestrator = calloc(1, sizeof(Orchestrator));
     if (!g_orchestrator) {
-        pthread_mutex_unlock(&g_orch_mutex);
+        CONVERGIO_MUTEX_UNLOCK(&g_orch_mutex);
         return -1;
     }
 
@@ -263,7 +264,7 @@ int orchestrator_init(double budget_limit_usd) {
     if (!g_orchestrator->agents) {
         free(g_orchestrator);
         g_orchestrator = NULL;
-        pthread_mutex_unlock(&g_orch_mutex);
+        CONVERGIO_MUTEX_UNLOCK(&g_orch_mutex);
         return -1;
     }
 
@@ -343,16 +344,16 @@ int orchestrator_init(double budget_limit_usd) {
     // Load cumulative cost history from database
     cost_load_historical();
 
-    pthread_mutex_unlock(&g_orch_mutex);
+    CONVERGIO_MUTEX_UNLOCK(&g_orch_mutex);
 
     return 0;
 }
 
 void orchestrator_shutdown(void) {
-    pthread_mutex_lock(&g_orch_mutex);
+    CONVERGIO_MUTEX_LOCK(&g_orch_mutex);
 
     if (!g_orchestrator) {
-        pthread_mutex_unlock(&g_orch_mutex);
+        CONVERGIO_MUTEX_UNLOCK(&g_orch_mutex);
         return;
     }
 
@@ -416,7 +417,7 @@ void orchestrator_shutdown(void) {
     free(g_orchestrator);
     g_orchestrator = NULL;
 
-    pthread_mutex_unlock(&g_orch_mutex);
+    CONVERGIO_MUTEX_UNLOCK(&g_orch_mutex);
 }
 
 Orchestrator* orchestrator_get(void) {
@@ -1490,7 +1491,7 @@ char* orchestrator_parallel_analyze(const char* input, const char** agent_names,
 void orchestrator_set_user(const char* name, const char* preferences) {
     if (!g_orchestrator) return;
 
-    pthread_mutex_lock(&g_orch_mutex);
+    CONVERGIO_MUTEX_LOCK(&g_orch_mutex);
 
     free(g_orchestrator->user_name);
     g_orchestrator->user_name = name ? strdup(name) : NULL;
@@ -1498,7 +1499,7 @@ void orchestrator_set_user(const char* name, const char* preferences) {
     free(g_orchestrator->user_preferences);
     g_orchestrator->user_preferences = preferences ? strdup(preferences) : NULL;
 
-    pthread_mutex_unlock(&g_orch_mutex);
+    CONVERGIO_MUTEX_UNLOCK(&g_orch_mutex);
 }
 
 // ============================================================================

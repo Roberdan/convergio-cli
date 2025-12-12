@@ -73,6 +73,7 @@ set(NOUS_SOURCES
     src/core/theme.c
     src/core/config.c
     src/core/updater.c
+    src/core/safe_path.c
     src/intent/parser.c
     src/intent/interpreter.c
     src/agents/agent.c

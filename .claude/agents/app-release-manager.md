@@ -228,6 +228,9 @@ After creating GitHub Release:
 - [ ] VERSION file updated
 - [ ] CHANGELOG.md updated with all changes
 - [ ] Build completes with zero warnings: `make clean && make 2>&1 | grep -i warning`
+- [ ] ALL TESTS PASS: `make test` (fuzz + unit tests)
+- [ ] Debug build works: `make debug`
+- [ ] Static analysis clean: check clang-tidy output
 - [ ] Hardware detection works: `./build/bin/convergio --version`
 - [ ] All existing commands work (help, agents, cost, debug, quit)
 - [ ] Keychain integration works: `convergio setup`
@@ -235,6 +238,7 @@ After creating GitHub Release:
 - [ ] No hardcoded M3-specific code (grep for "M3_", "apple-m3")
 - [ ] .gitignore is complete (no build artifacts, no .env)
 - [ ] No secrets in repo
+- [ ] All mutexes use CONVERGIO_MUTEX_* macros
 
 ## Release
 - [ ] Create release branch: `git checkout -b release/v{VERSION}`
@@ -406,6 +410,48 @@ unset ANTHROPIC_API_KEY
 ./build/bin/convergio setup --help 2>&1 | head -5
 ```
 
+#### 11. Automated Test Suite (MANDATORY)
+```bash
+# Run ALL tests - fuzz tests + unit tests
+make clean
+make test 2>&1 | tee test.log
+
+# Verify all tests passed
+grep -E "All tests|passed|PASSED" test.log
+grep -E "FAILED|failed|Error" test.log && echo "TESTS FAILED!" && exit 1
+```
+
+#### 12. Static Analysis with clang-tidy
+```bash
+# Run clang-tidy on critical files
+for f in src/core/*.c src/tools/*.c src/memory/*.c; do
+  echo "=== Analyzing $f ==="
+  clang-tidy "$f" -- -Iinclude -std=c17 2>&1 | grep -E "warning:|error:" || echo "OK"
+done
+
+# Check for critical issues
+clang-tidy src/tools/tools.c -- -Iinclude -std=c17 2>&1 | grep -E "bugprone|security"
+```
+
+#### 13. Debug Build with Sanitizers
+```bash
+# Debug build MUST succeed (sanitizers enabled)
+make clean && make debug 2>&1 | tee debug-build.log
+
+# Verify binary was created
+test -f build/bin/convergio || (echo "DEBUG BUILD FAILED!" && exit 1)
+echo "Debug build with sanitizers: OK"
+```
+
+#### 14. Concurrency & Thread Safety
+```bash
+# Verify all mutex usages use the debug wrapper
+rg "CONVERGIO_MUTEX_LOCK|CONVERGIO_MUTEX_UNLOCK" --type c -c
+
+# Check for raw pthread_mutex calls (should be zero in app code)
+rg "pthread_mutex_lock|pthread_mutex_unlock" --type c src/ | grep -v debug_mutex.h
+```
+
 ### Quality Gate Summary Template
 
 After running all checks, generate this report:
@@ -455,6 +501,26 @@ Commit: {COMMIT_SHA}
 - [ ] --help works: {PASS/FAIL}
 - [ ] Hardware detection works: {PASS/FAIL}
 - [ ] Graceful failure without API key: {PASS/FAIL}
+
+### Automated Tests (MANDATORY)
+- [ ] Fuzz tests pass: {PASS/FAIL}
+- [ ] Unit tests pass: {PASS/FAIL}
+- [ ] All {N} tests passed: {PASS/FAIL}
+
+### Static Analysis
+- [ ] clang-tidy no critical issues: {PASS/FAIL}
+- [ ] No bugprone warnings: {PASS/FAIL}
+- [ ] No security warnings: {PASS/FAIL}
+
+### Debug Build
+- [ ] Debug build with sanitizers: {PASS/FAIL}
+- [ ] Address sanitizer enabled: {PASS/FAIL}
+- [ ] Undefined behavior sanitizer enabled: {PASS/FAIL}
+
+### Thread Safety
+- [ ] All mutexes use CONVERGIO_MUTEX_*: {PASS/FAIL}
+- [ ] No raw pthread_mutex calls: {PASS/FAIL}
+- [ ] ERRORCHECK mutex in debug: {PASS/FAIL}
 
 ### RELEASE DECISION
 {🟢 APPROVED / 🔴 BLOCKED}
