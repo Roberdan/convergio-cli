@@ -371,6 +371,53 @@ int main(int argc, char** argv) {
         free(auth_status);
     }
 
+    // Show multi-provider status (all providers are required for full functionality)
+    {
+        const char* anthropic_key = getenv("ANTHROPIC_API_KEY");
+        const char* openai_key = getenv("OPENAI_API_KEY");
+        const char* gemini_key = getenv("GEMINI_API_KEY");
+
+        bool has_anthropic = (auth_get_mode() != AUTH_MODE_NONE) || (anthropic_key && strlen(anthropic_key) > 0);
+        bool has_openai = (openai_key && strlen(openai_key) > 0);
+        bool has_gemini = (gemini_key && strlen(gemini_key) > 0);
+
+        int missing_count = (!has_anthropic ? 1 : 0) + (!has_openai ? 1 : 0) + (!has_gemini ? 1 : 0);
+
+        // Always show provider status box if any key is missing
+        if (missing_count > 0) {
+            printf("\n");
+            printf("  ╭─ Provider Status ─────────────────────────────────────────╮\n");
+            printf("  │  %s Anthropic   %-42s │\n",
+                   has_anthropic ? "\033[32m✓\033[0m" : "\033[31m✗\033[0m",
+                   has_anthropic ? "(configured)" : "(ANTHROPIC_API_KEY missing)");
+            printf("  │  %s OpenAI      %-42s │\n",
+                   has_openai ? "\033[32m✓\033[0m" : "\033[31m✗\033[0m",
+                   has_openai ? "(configured)" : "(OPENAI_API_KEY missing)");
+            printf("  │  %s Gemini      %-42s │\n",
+                   has_gemini ? "\033[32m✓\033[0m" : "\033[31m✗\033[0m",
+                   has_gemini ? "(configured)" : "(GEMINI_API_KEY missing)");
+            printf("  ╰──────────────────────────────────────────────────────────╯\n");
+
+            printf("\n");
+            printf("  \033[33m⚠ %d provider key(s) missing!\033[0m\n", missing_count);
+            printf("  All keys are required - agents use different providers.\n\n");
+            printf("  \033[1mHow to configure:\033[0m\n");
+            printf("  Add these lines to your ~/.zshrc (or ~/.bashrc):\n\n");
+
+            if (!has_anthropic) {
+                printf("    export ANTHROPIC_API_KEY=\"sk-ant-...\"  \033[2m# https://console.anthropic.com/settings/keys\033[0m\n");
+            }
+            if (!has_openai) {
+                printf("    export OPENAI_API_KEY=\"sk-...\"         \033[2m# https://platform.openai.com/api-keys\033[0m\n");
+            }
+            if (!has_gemini) {
+                printf("    export GEMINI_API_KEY=\"...\"            \033[2m# https://aistudio.google.com/apikey\033[0m\n");
+            }
+
+            printf("\n  Then run: source ~/.zshrc\n\n");
+        }
+    }
+
     if (nous_init() != 0) {
         fprintf(stderr, "Failed to initialize semantic fabric.\n");
         return 1;
