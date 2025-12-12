@@ -439,6 +439,20 @@ int main(int argc, char** argv) {
         printf("  ✓ GPU (%d cores)\n", g_hardware.gpu_cores);
     }
 
+    // Initialize agent configurations from config files
+    extern int agent_config_init(void);
+    extern int agent_config_load_directory(const char* dir_path);
+
+    if (agent_config_init() == 0) {
+        // Try to load custom configs from config directory
+        char config_path[PATH_MAX];
+        snprintf(config_path, sizeof(config_path), "%s/config", workspace);
+        int loaded = agent_config_load_directory(config_path);
+        if (loaded > 0) {
+            printf("  ✓ Agent configs: %d loaded from %s\n", loaded, config_path);
+        }
+    }
+
     // Initialize Orchestrator with Ali
     if (orchestrator_init(DEFAULT_BUDGET_USD) != 0) {
         fprintf(stderr, "Warning: Orchestrator initialization failed.\n");
@@ -545,7 +559,9 @@ int main(int argc, char** argv) {
         free(final_report);
     }
 
-    // Shutdown orchestrator
+    // Shutdown agent configs and orchestrator
+    extern void agent_config_shutdown(void);
+    agent_config_shutdown();
     orchestrator_shutdown();
 
     if (g_assistant) {
