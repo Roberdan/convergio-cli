@@ -681,7 +681,7 @@ static char* parse_tool_id_from_block(const char* block) {
 
 // Execute a tool and return result
 static char* execute_tool_call(const char* tool_name, const char* tool_input) {
-    ToolCall* call = tools_parse_call(tool_name, tool_input);
+    LocalToolCall* call = tools_parse_call(tool_name, tool_input);
     if (!call) {
         return strdup("Error: Failed to parse tool call");
     }
@@ -1103,7 +1103,7 @@ extern char* nous_claude_chat_stream(const char* system_prompt, const char* user
                                       void (*callback)(const char*, void*), void* user_data);
 
 // Streaming variant - uses callback for live output, no tool support
-char* orchestrator_process_stream(const char* user_input, StreamCallback callback, void* user_data) {
+char* orchestrator_process_stream(const char* user_input, OrchestratorStreamCallback callback, void* user_data) {
     if (!g_orchestrator || !g_orchestrator->initialized || !user_input) {
         const char* err = "Error: Orchestrator not initialized";
         if (callback) callback(err, user_data);
@@ -1258,7 +1258,7 @@ char* orchestrator_agent_chat(ManagedAgent* agent, const char* user_message) {
         free(enhanced_prompt);
         return NULL;
     }
-    strcpy(conversation, user_message);
+    snprintf(conversation, conv_capacity, "%s", user_message);
 
     char* final_response = NULL;
     int max_iterations = 5;  // Max tool loop iterations

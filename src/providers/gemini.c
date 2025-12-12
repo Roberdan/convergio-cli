@@ -1,0 +1,561 @@
+/**
+ * CONVERGIO GOOGLE GEMINI PROVIDER ADAPTER
+ *
+ * Implements the Provider interface for Google Gemini models
+ * Supports Gemini 3 Pro, Ultra, Flash
+ *
+ * Copyright 2025 - Roberto D'Angelo & AI Team
+ */
+
+#include "nous/provider.h"
+#include "nous/nous.h"
+#include <stdlib.h>
+#include <string.h>
+#include <stdio.h>
+#include <stdint.h>
+#include <curl/curl.h>
+#include <ctype.h>
+#include <pthread.h>
+#include <signal.h>
+
+// ============================================================================
+// CONFIGURATION
+// ============================================================================
+
+#define GEMINI_API_BASE "https://generativelanguage.googleapis.com/v1beta/models"
+#define MAX_RESPONSE_SIZE (256 * 1024)
+#define DEFAULT_MAX_TOKENS 8192
+
+// ============================================================================
+// INTERNAL DATA STRUCTURES
+// ============================================================================
+
+typedef struct {
+    char* data;
+    size_t size;
+    size_t capacity;
+} ResponseBuffer;
+
+typedef struct {
+    bool initialized;
+    CURL* curl;
+    ProviderErrorInfo last_error;
+    pthread_mutex_t mutex;
+    volatile sig_atomic_t request_cancelled;
+} GeminiProviderData;
+
+// ============================================================================
+// FORWARD DECLARATIONS
+// ============================================================================
+
+static ProviderError gemini_init(Provider* self);
+static void gemini_shutdown(Provider* self);
+static bool gemini_validate_key(Provider* self);
+static char* gemini_chat(Provider* self, const char* model, const char* system,
+                         const char* user, TokenUsage* usage);
+static char* gemini_chat_with_tools(Provider* self, const char* model, const char* system,
+                                    const char* user, ToolDefinition* tools, size_t tool_count,
+                                    ToolCall** out_tool_calls, size_t* out_tool_count,
+                                    TokenUsage* usage);
+static ProviderError gemini_stream_chat(Provider* self, const char* model, const char* system,
+                                        const char* user, StreamHandler* handler, TokenUsage* usage);
+static size_t gemini_estimate_tokens(Provider* self, const char* text);
+static ProviderErrorInfo* gemini_get_last_error(Provider* self);
+static ProviderError gemini_list_models(Provider* self, ModelConfig** out_models, size_t* out_count);
+
+// ============================================================================
+// HELPER FUNCTIONS
+// ============================================================================
+
+static size_t write_callback(void* contents, size_t size, size_t nmemb, void* userp) {
+    size_t total = size * nmemb;
+    ResponseBuffer* buf = (ResponseBuffer*)userp;
+
+    if (buf->size + total >= buf->capacity) {
+        size_t new_cap = buf->capacity * 2;
+        if (new_cap < buf->size + total + 1) {
+            new_cap = buf->size + total + 1;
+        }
+        char* new_data = realloc(buf->data, new_cap);
+        if (!new_data) return 0;
+        buf->data = new_data;
+        buf->capacity = new_cap;
+    }
+
+    memcpy(buf->data + buf->size, contents, total);
+    buf->size += total;
+    buf->data[buf->size] = '\0';
+
+    return total;
+}
+
+static int progress_callback(void* clientp, curl_off_t dltotal, curl_off_t dlnow,
+                            curl_off_t ultotal, curl_off_t ulnow) {
+    (void)dltotal; (void)dlnow; (void)ultotal; (void)ulnow;
+    GeminiProviderData* data = (GeminiProviderData*)clientp;
+    if (data && data->request_cancelled) {
+        return 1;
+    }
+    return 0;
+}
+
+// JSON escape helper
+static char* json_escape(const char* str) {
+    if (!str) return strdup("");
+
+    size_t len = strlen(str);
+    size_t escaped_len = len * 6 + 1;
+    char* escaped = malloc(escaped_len);
+    if (!escaped) return NULL;
+
+    char* out = escaped;
+    const unsigned char* p = (const unsigned char*)str;
+
+    while (*p) {
+        if (*p < 128) {
+            switch (*p) {
+                case '"':  *out++ = '\\'; *out++ = '"'; break;
+                case '\\': *out++ = '\\'; *out++ = '\\'; break;
+                case '\n': *out++ = '\\'; *out++ = 'n'; break;
+                case '\r': *out++ = '\\'; *out++ = 'r'; break;
+                case '\t': *out++ = '\\'; *out++ = 't'; break;
+                default:
+                    if (*p < 32) {
+                        int written = snprintf(out, 7, "\\u%04x", *p);
+                        if (written > 0) out += written;
+                    } else {
+                        *out++ = *p;
+                    }
+            }
+            p++;
+        } else {
+            *out++ = *p++;
+        }
+    }
+    *out = '\0';
+    return escaped;
+}
+
+// Extract content from Gemini response
+// Format: {"candidates":[{"content":{"parts":[{"text":"..."}]}}]}
+static char* extract_response_text(const char* json) {
+    const char* text_key = "\"text\":";
+    const char* found = strstr(json, text_key);
+    if (!found) return NULL;
+
+    found += strlen(text_key);
+    while (*found && isspace(*found)) found++;
+
+    if (*found != '"') return NULL;
+    found++;
+
+    const char* start = found;
+    const char* end = start;
+    int escape = 0;
+    while (*end) {
+        if (escape) {
+            escape = 0;
+            end++;
+            continue;
+        }
+        if (*end == '\\') {
+            escape = 1;
+            end++;
+            continue;
+        }
+        if (*end == '"') {
+            break;
+        }
+        end++;
+    }
+
+    if (*end != '"') return NULL;
+
+    size_t len = end - start;
+    char* result = malloc(len + 1);
+    if (!result) return NULL;
+
+    // Unescape
+    char* out = result;
+    for (const char* p = start; p < end; p++) {
+        if (*p == '\\' && p + 1 < end) {
+            p++;
+            switch (*p) {
+                case 'n': *out++ = '\n'; break;
+                case 'r': *out++ = '\r'; break;
+                case 't': *out++ = '\t'; break;
+                case '"': *out++ = '"'; break;
+                case '\\': *out++ = '\\'; break;
+                default: *out++ = *p;
+            }
+        } else {
+            *out++ = *p;
+        }
+    }
+    *out = '\0';
+
+    return result;
+}
+
+// Extract token usage from Gemini response
+static void extract_token_usage(const char* json, TokenUsage* usage) {
+    if (!json || !usage) return;
+
+    const char* usage_key = "\"usageMetadata\":";
+    const char* found = strstr(json, usage_key);
+    if (!found) return;
+
+    // promptTokenCount
+    const char* prompt = strstr(found, "\"promptTokenCount\":");
+    if (prompt) {
+        prompt += strlen("\"promptTokenCount\":");
+        while (*prompt && isspace(*prompt)) prompt++;
+        usage->input_tokens = (size_t)atol(prompt);
+    }
+
+    // candidatesTokenCount
+    const char* candidates = strstr(found, "\"candidatesTokenCount\":");
+    if (candidates) {
+        candidates += strlen("\"candidatesTokenCount\":");
+        while (*candidates && isspace(*candidates)) candidates++;
+        usage->output_tokens = (size_t)atol(candidates);
+    }
+
+    // cachedContentTokenCount
+    const char* cached = strstr(found, "\"cachedContentTokenCount\":");
+    if (cached) {
+        cached += strlen("\"cachedContentTokenCount\":");
+        while (*cached && isspace(*cached)) cached++;
+        usage->cached_tokens = (size_t)atol(cached);
+    }
+}
+
+// Build Gemini API URL
+static char* build_api_url(const char* model, const char* api_key) {
+    // Format: https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={key}
+    const char* model_name = model ? model : "gemini-3-flash";
+
+    size_t url_len = strlen(GEMINI_API_BASE) + strlen(model_name) + strlen(api_key) + 64;
+    char* url = malloc(url_len);
+    if (!url) return NULL;
+
+    snprintf(url, url_len, "%s/%s:generateContent?key=%s",
+             GEMINI_API_BASE, model_name, api_key);
+    return url;
+}
+
+// ============================================================================
+// PROVIDER INTERFACE IMPLEMENTATION
+// ============================================================================
+
+static ProviderError gemini_init(Provider* self) {
+    if (!self) return PROVIDER_ERR_INVALID_REQUEST;
+
+    GeminiProviderData* data = (GeminiProviderData*)self->impl_data;
+    if (!data) return PROVIDER_ERR_INVALID_REQUEST;
+
+    pthread_mutex_lock(&data->mutex);
+
+    if (data->initialized) {
+        pthread_mutex_unlock(&data->mutex);
+        return PROVIDER_OK;
+    }
+
+    // Check API key
+    const char* api_key = getenv("GEMINI_API_KEY");
+    if (!api_key || strlen(api_key) == 0) {
+        data->last_error.code = PROVIDER_ERR_AUTH;
+        data->last_error.message = strdup("GEMINI_API_KEY not set");
+        pthread_mutex_unlock(&data->mutex);
+        return PROVIDER_ERR_AUTH;
+    }
+
+    curl_global_init(CURL_GLOBAL_DEFAULT);
+
+    data->initialized = true;
+    self->initialized = true;
+
+    pthread_mutex_unlock(&data->mutex);
+
+    LOG_INFO(LOG_CAT_API, "Gemini provider initialized");
+    return PROVIDER_OK;
+}
+
+static void gemini_shutdown(Provider* self) {
+    if (!self) return;
+
+    GeminiProviderData* data = (GeminiProviderData*)self->impl_data;
+    if (!data) return;
+
+    pthread_mutex_lock(&data->mutex);
+
+    if (data->initialized) {
+        curl_global_cleanup();
+        data->initialized = false;
+        self->initialized = false;
+    }
+
+    free(data->last_error.message);
+    free(data->last_error.provider_code);
+    memset(&data->last_error, 0, sizeof(data->last_error));
+
+    pthread_mutex_unlock(&data->mutex);
+    pthread_mutex_destroy(&data->mutex);
+
+    LOG_INFO(LOG_CAT_API, "Gemini provider shutdown");
+}
+
+static bool gemini_validate_key(Provider* self) {
+    (void)self;
+    const char* api_key = getenv("GEMINI_API_KEY");
+    return (api_key && strlen(api_key) > 0);
+}
+
+static char* gemini_chat(Provider* self, const char* model, const char* system,
+                         const char* user, TokenUsage* usage) {
+    if (!self || !user) return NULL;
+
+    GeminiProviderData* data = (GeminiProviderData*)self->impl_data;
+    if (!data) return NULL;
+
+    // Ensure initialized
+    if (!data->initialized) {
+        ProviderError err = gemini_init(self);
+        if (err != PROVIDER_OK) return NULL;
+    }
+
+    // Get API key
+    const char* api_key = getenv("GEMINI_API_KEY");
+    if (!api_key) {
+        data->last_error.code = PROVIDER_ERR_AUTH;
+        data->last_error.message = strdup("GEMINI_API_KEY not set");
+        return NULL;
+    }
+
+    CURL* curl = curl_easy_init();
+    if (!curl) {
+        data->last_error.code = PROVIDER_ERR_NETWORK;
+        data->last_error.message = strdup("Failed to create curl handle");
+        return NULL;
+    }
+
+    // Build URL
+    char* url = build_api_url(model, api_key);
+    if (!url) {
+        curl_easy_cleanup(curl);
+        return NULL;
+    }
+
+    // Build JSON request (Gemini format)
+    char* escaped_system = json_escape(system ? system : "");
+    char* escaped_user = json_escape(user);
+
+    if (!escaped_system || !escaped_user) {
+        free(escaped_system);
+        free(escaped_user);
+        free(url);
+        curl_easy_cleanup(curl);
+        return NULL;
+    }
+
+    // Gemini uses a different message format
+    // Include system prompt in the first user message if provided
+    size_t json_size = strlen(escaped_system) + strlen(escaped_user) + 1024;
+    char* json_body = malloc(json_size);
+    if (!json_body) {
+        free(escaped_system);
+        free(escaped_user);
+        free(url);
+        curl_easy_cleanup(curl);
+        return NULL;
+    }
+
+    if (system && strlen(system) > 0) {
+        snprintf(json_body, json_size,
+            "{"
+            "\"systemInstruction\": {\"parts\": [{\"text\": \"%s\"}]},"
+            "\"contents\": [{\"parts\": [{\"text\": \"%s\"}]}],"
+            "\"generationConfig\": {\"maxOutputTokens\": %d}"
+            "}",
+            escaped_system, escaped_user, DEFAULT_MAX_TOKENS);
+    } else {
+        snprintf(json_body, json_size,
+            "{"
+            "\"contents\": [{\"parts\": [{\"text\": \"%s\"}]}],"
+            "\"generationConfig\": {\"maxOutputTokens\": %d}"
+            "}",
+            escaped_user, DEFAULT_MAX_TOKENS);
+    }
+
+    free(escaped_system);
+    free(escaped_user);
+
+    // Setup response buffer
+    ResponseBuffer response = {
+        .data = malloc(4096),
+        .size = 0,
+        .capacity = 4096
+    };
+    if (!response.data) {
+        free(json_body);
+        free(url);
+        curl_easy_cleanup(curl);
+        return NULL;
+    }
+    response.data[0] = '\0';
+
+    // Headers
+    struct curl_slist* headers = NULL;
+    headers = curl_slist_append(headers, "Content-Type: application/json");
+
+    // Setup curl
+    curl_easy_setopt(curl, CURLOPT_URL, url);
+    curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
+    curl_easy_setopt(curl, CURLOPT_POSTFIELDS, json_body);
+    curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_callback);
+    curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response);
+    curl_easy_setopt(curl, CURLOPT_TIMEOUT, 120L);
+    curl_easy_setopt(curl, CURLOPT_NOPROGRESS, 0L);
+    curl_easy_setopt(curl, CURLOPT_XFERINFOFUNCTION, progress_callback);
+    curl_easy_setopt(curl, CURLOPT_XFERINFODATA, data);
+
+    data->request_cancelled = 0;
+
+    LOG_DEBUG(LOG_CAT_API, "Gemini API call: model=%s", model ? model : "gemini-3-flash");
+    CURLcode res = curl_easy_perform(curl);
+
+    long http_code = 0;
+    curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &http_code);
+    data->last_error.http_status = (int)http_code;
+
+    char* result = NULL;
+
+    if (res == CURLE_ABORTED_BY_CALLBACK) {
+        data->last_error.code = PROVIDER_ERR_TIMEOUT;
+        data->last_error.message = strdup("Request cancelled");
+    } else if (res != CURLE_OK) {
+        data->last_error.code = PROVIDER_ERR_NETWORK;
+        data->last_error.message = strdup(curl_easy_strerror(res));
+    } else if (http_code != 200) {
+        data->last_error.code = PROVIDER_ERR_UNKNOWN;
+        data->last_error.message = strdup(response.data ? response.data : "Unknown error");
+        LOG_WARN(LOG_CAT_API, "Gemini API error: HTTP %ld", http_code);
+    } else {
+        result = extract_response_text(response.data);
+        if (!result) {
+            data->last_error.code = PROVIDER_ERR_INVALID_REQUEST;
+            data->last_error.message = strdup("Failed to parse response");
+        } else if (usage) {
+            memset(usage, 0, sizeof(TokenUsage));
+            extract_token_usage(response.data, usage);
+            usage->estimated_cost = model_estimate_cost(model, usage->input_tokens, usage->output_tokens);
+            LOG_DEBUG(LOG_CAT_COST, "Tokens: in=%zu out=%zu cost=$%.6f",
+                     usage->input_tokens, usage->output_tokens, usage->estimated_cost);
+        }
+    }
+
+    curl_slist_free_all(headers);
+    curl_easy_cleanup(curl);
+    free(json_body);
+    free(url);
+    free(response.data);
+
+    return result;
+}
+
+static char* gemini_chat_with_tools(Provider* self, const char* model, const char* system,
+                                    const char* user, ToolDefinition* tools, size_t tool_count,
+                                    ToolCall** out_tool_calls, size_t* out_tool_count,
+                                    TokenUsage* usage) {
+    // TODO: Implement tool calling
+    if (out_tool_calls) *out_tool_calls = NULL;
+    if (out_tool_count) *out_tool_count = 0;
+    return gemini_chat(self, model, system, user, usage);
+}
+
+static ProviderError gemini_stream_chat(Provider* self, const char* model, const char* system,
+                                        const char* user, StreamHandler* handler, TokenUsage* usage) {
+    // TODO: Implement streaming
+    char* response = gemini_chat(self, model, system, user, usage);
+    if (!response) {
+        if (handler && handler->on_error) {
+            GeminiProviderData* data = (GeminiProviderData*)self->impl_data;
+            handler->on_error(data->last_error.message ? data->last_error.message : "Unknown error",
+                            handler->user_ctx);
+        }
+        return PROVIDER_ERR_UNKNOWN;
+    }
+
+    if (handler) {
+        if (handler->on_chunk) {
+            handler->on_chunk(response, true, handler->user_ctx);
+        }
+        if (handler->on_complete) {
+            handler->on_complete(response, handler->user_ctx);
+        }
+    }
+
+    free(response);
+    return PROVIDER_OK;
+}
+
+static size_t gemini_estimate_tokens(Provider* self, const char* text) {
+    (void)self;
+    if (!text) return 0;
+    // SentencePiece tokenizer: ~4 chars per token
+    size_t len = strlen(text);
+    return (len + 3) / 4;
+}
+
+static ProviderErrorInfo* gemini_get_last_error(Provider* self) {
+    if (!self) return NULL;
+    GeminiProviderData* data = (GeminiProviderData*)self->impl_data;
+    if (!data) return NULL;
+    return &data->last_error;
+}
+
+static ProviderError gemini_list_models(Provider* self, ModelConfig** out_models, size_t* out_count) {
+    (void)self;
+    if (out_models) {
+        *out_models = (ModelConfig*)model_get_by_provider(PROVIDER_GEMINI, out_count);
+    }
+    return PROVIDER_OK;
+}
+
+// ============================================================================
+// PROVIDER CREATION
+// ============================================================================
+
+Provider* gemini_provider_create(void) {
+    Provider* provider = calloc(1, sizeof(Provider));
+    if (!provider) return NULL;
+
+    GeminiProviderData* data = calloc(1, sizeof(GeminiProviderData));
+    if (!data) {
+        free(provider);
+        return NULL;
+    }
+
+    pthread_mutex_init(&data->mutex, NULL);
+
+    provider->type = PROVIDER_GEMINI;
+    provider->name = "Google Gemini";
+    provider->api_key_env = "GEMINI_API_KEY";
+    provider->base_url = GEMINI_API_BASE;
+    provider->initialized = false;
+
+    provider->init = gemini_init;
+    provider->shutdown = gemini_shutdown;
+    provider->validate_key = gemini_validate_key;
+    provider->chat = gemini_chat;
+    provider->chat_with_tools = gemini_chat_with_tools;
+    provider->stream_chat = gemini_stream_chat;
+    provider->estimate_tokens = gemini_estimate_tokens;
+    provider->get_last_error = gemini_get_last_error;
+    provider->list_models = gemini_list_models;
+
+    provider->impl_data = data;
+
+    LOG_DEBUG(LOG_CAT_SYSTEM, "Gemini provider created");
+    return provider;
+}
