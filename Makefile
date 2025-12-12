@@ -292,8 +292,13 @@ $(UNIT_TEST): $(UNIT_SOURCES) $(UNIT_OBJECTS)
 	@echo "Compiling unit tests..."
 	@$(CC) $(CFLAGS) $(LDFLAGS) -o $(UNIT_TEST) $(UNIT_SOURCES) $(UNIT_OBJECTS) $(FRAMEWORKS) $(LIBS)
 
+# Check help documentation coverage
+check-docs:
+	@echo "Checking help documentation coverage..."
+	@./scripts/check_help_docs.sh
+
 # Run all tests
-test: fuzz_test unit_test
+test: fuzz_test unit_test check-docs
 	@echo "All tests completed!"
 
 # Help
@@ -301,21 +306,22 @@ help:
 	@echo "Convergio Kernel Build System v$(VERSION)"
 	@echo ""
 	@echo "Targets:"
-	@echo "  all       - Build Convergio (default)"
-	@echo "  debug     - Build with debug symbols and sanitizers"
-	@echo "  run       - Build and run Convergio"
-	@echo "  clean     - Remove build artifacts"
-	@echo "  install   - Install to /usr/local"
-	@echo "  uninstall - Remove from /usr/local"
-	@echo "  dist      - Create distribution tarball"
-	@echo "  test      - Run all tests"
-	@echo "  fuzz_test - Build and run fuzz tests"
-	@echo "  unit_test - Build and run unit tests"
-	@echo "  hwinfo    - Show Apple Silicon hardware info"
-	@echo "  version   - Show version"
-	@echo "  help      - Show this message"
+	@echo "  all        - Build Convergio (default)"
+	@echo "  debug      - Build with debug symbols and sanitizers"
+	@echo "  run        - Build and run Convergio"
+	@echo "  clean      - Remove build artifacts"
+	@echo "  install    - Install to /usr/local"
+	@echo "  uninstall  - Remove from /usr/local"
+	@echo "  dist       - Create distribution tarball"
+	@echo "  test       - Run all tests (unit, fuzz, docs)"
+	@echo "  fuzz_test  - Build and run fuzz tests"
+	@echo "  unit_test  - Build and run unit tests"
+	@echo "  check-docs - Verify all REPL commands are documented"
+	@echo "  hwinfo     - Show Apple Silicon hardware info"
+	@echo "  version    - Show version"
+	@echo "  help       - Show this message"
 	@echo ""
 	@echo "Variables:"
 	@echo "  DEBUG=1   - Enable debug build"
 
-.PHONY: all dirs metal run clean debug install uninstall hwinfo help fuzz_test unit_test test version dist
+.PHONY: all dirs metal run clean debug install uninstall hwinfo help fuzz_test unit_test check-docs test version dist
