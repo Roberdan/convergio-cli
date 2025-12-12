@@ -155,7 +155,7 @@ static char* create_content_hash(const char* system, const char* user) {
     char* combined = malloc(sys_len + usr_len + 2);
     if (!combined) return NULL;
 
-    size_t total_len = sys_len + usr_len + 2;
+    (void)(sys_len + usr_len);  // total_len was unused
     size_t offset = 0;
     if (system) {
         memcpy(combined, system, sys_len);
