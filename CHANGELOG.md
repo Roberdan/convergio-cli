@@ -7,6 +7,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.0.5] - 2025-12-12
+
+### Security
+
+- **CRITICAL: Mutex initialization fix**: Fixed uninitialized mutex in streaming.c causing potential deadlocks
+- **HIGH: Keychain security hardening**: Disabled iCloud sync for API keys stored in Keychain (kSecAttrSynchronizable = false)
+- **MEDIUM: Buffer overflow prevention**: Replaced sprintf with snprintf in oauth.m
+
+### Fixed
+
+- **Model pricing accuracy**: cost.c now uses actual model prices instead of hardcoded values
+- **OOM safety**: Added NULL checks after memory allocations in multiple files
+- **TTY fallback**: ANSI output now falls back gracefully when not in a TTY
+- **Test linking**: Fixed test compilation with globals.h and test_stubs.c
+- **Agent config loading**: agent_config_load() was never being called - now properly loads agent configurations from JSON files
+
+### Added
+
+- **Enhanced agentic capabilities (Issue #15)**: Integrated agentic tools with REPL commands
+- **Privacy-first telemetry system (Issue #14)**: Optional anonymous usage analytics
+- **Model Competition & Benchmark commands (Issue #13)**: Compare model responses side-by-side
+- **Multi-provider API key check**: Validates API keys at startup for all configured providers
+- **News command**: View release notes directly from CLI
+- **Help documentation verification**: Build-time check ensures all commands have proper documentation
+
+### Changed
+
+- **File organization (Issue #11)**: Split oversized main.c and orchestrator.c into smaller modules
+- **Prompt styling**: Restored 'Convergio >' prompt with blinking block cursor
+
+### Technical
+
+- Updated .env.example with all required provider keys
+- Added separator line styling like Claude Code
+- Improved test suite with globals.h integration
+
 ## [3.0.4] - 2025-12-12
 
 ### Fixed
@@ -433,7 +469,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-[Unreleased]: https://github.com/Roberdan/convergio-cli/compare/v3.0.4...HEAD
+[Unreleased]: https://github.com/Roberdan/convergio-cli/compare/v3.0.5...HEAD
+[3.0.5]: https://github.com/Roberdan/convergio-cli/compare/v3.0.4...v3.0.5
 [3.0.4]: https://github.com/Roberdan/convergio-cli/compare/v3.0.3...v3.0.4
 [3.0.3]: https://github.com/Roberdan/convergio-cli/compare/v3.0.2...v3.0.3
 [3.0.2]: https://github.com/Roberdan/convergio-cli/compare/v3.0.1...v3.0.2
