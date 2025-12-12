@@ -52,11 +52,11 @@ Convergio CLI is a **multi-agent orchestration system** built in pure C/Objectiv
 
 ## Supported Providers & Models
 
-| Provider | Models | Best For | Pricing (Dec 2025) |
-|----------|--------|----------|-------------------|
-| **Anthropic** | Claude Opus 4.5, Sonnet 4.5 | Complex reasoning, coding, agents | $3-75/M tokens |
-| **OpenAI** | GPT-5.2 (Thinking/Pro/Instant), o3, o3-mini | Coding, reasoning, fast responses | $0.50-30/M tokens |
-| **Google** | Gemini 3.0 Pro, 3.0 Deep Think, 2.0 Flash | Long context (2M), cost-effective | $0.10-20/M tokens |
+| Provider | Models (examples) | Best For | Pricing (indicative) |
+|----------|--------------------|----------|---------------------|
+| **Anthropic** | Claude Opus 4.5, Sonnet 4.5 | Complex reasoning, coding, agents | Varies by plan |
+| **OpenAI** | GPT-4o, o3 | Coding, reasoning, multimodal | See provider docs |
+| **Google** | Gemini 3 Pro, 3 Flash | Long context, cost-effective | See provider docs |
 
 ## Quick Start
 
@@ -132,8 +132,8 @@ convergio --provider gemini "Analyze this document"
 ### Specify a Model
 ```bash
 convergio --model claude-opus-4.5 "Complex reasoning task"
-convergio --model gpt-5.2 "Analyze this code"
-convergio --model gemini-3.0-pro "Summarize these documents"
+convergio --model gpt-4o "Analyze this code"
+convergio --model gemini-3-pro "Summarize these documents"
 ```
 
 ### Budget-Limited Session
