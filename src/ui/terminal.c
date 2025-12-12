@@ -533,9 +533,9 @@ char* terminal_info(void) {
         "  Supports hyperlinks: %s\n"
         "  Supports unicode: %s\n",
         g_terminal.width, g_terminal.height,
-        getenv("TERM") ?: "(not set)",
-        getenv("TERM_PROGRAM") ?: "(not set)",
-        getenv("COLORTERM") ?: "(not set)",
+        getenv("TERM") ? getenv("TERM") : "(not set)",
+        getenv("TERM_PROGRAM") ? getenv("TERM_PROGRAM") : "(not set)",
+        getenv("COLORTERM") ? getenv("COLORTERM") : "(not set)",
         terminal_is_tty() ? "yes" : "no",
         g_terminal.raw_mode ? "yes" : "no",
         terminal_supports_color() ? "yes" : "no",
