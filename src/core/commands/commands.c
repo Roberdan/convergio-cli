@@ -302,6 +302,76 @@ static const CommandHelp DETAILED_HELP[] = {
         "think implementa una cache per le query"
     },
     {
+        "compare",
+        "compare <prompt> <model1> <model2> [model3...]",
+        "Compare multiple models side-by-side",
+        "Compares responses from different AI models using the same prompt.\n"
+        "Runs models in parallel and shows:\n"
+        "  - Response from each model\n"
+        "  - Token counts (input/output)\n"
+        "  - Latency and cost per model\n"
+        "  - Diff between responses\n\n"
+        "Options:\n"
+        "  --no-diff      Skip diff generation\n"
+        "  --json         Output as JSON\n"
+        "  --sequential   Run sequentially instead of parallel",
+        "compare \"Explain quantum computing\" claude-opus-4 gpt-4\n"
+        "compare \"Write a haiku\" claude-sonnet-4 claude-opus-4 --no-diff"
+    },
+    {
+        "benchmark",
+        "benchmark <prompt> <model> [iterations]",
+        "Benchmark a model's performance",
+        "Runs the same prompt multiple times against a model to measure:\n"
+        "  - Average latency\n"
+        "  - Token throughput\n"
+        "  - Cost per run\n"
+        "  - Consistency of responses\n\n"
+        "Default iterations: 3\n"
+        "Maximum iterations: 100",
+        "benchmark \"Write a haiku\" claude-opus-4\n"
+        "benchmark \"Summarize this\" claude-sonnet-4 5"
+    },
+    {
+        "telemetry",
+        "telemetry <subcommand>",
+        "Manage telemetry settings",
+        "Privacy-first, opt-in telemetry for improving Convergio.\n\n"
+        "Subcommands:\n"
+        "  status     Show current telemetry status\n"
+        "  info       Show what data is collected\n"
+        "  enable     Enable telemetry (opt-in)\n"
+        "  disable    Disable telemetry (opt-out)\n"
+        "  view       View collected data\n"
+        "  export     Export data as JSON\n"
+        "  delete     Delete all collected data\n\n"
+        "Core Principles:\n"
+        "  - OPT-IN ONLY (never enabled by default)\n"
+        "  - Privacy-first (no PII, anonymous metrics only)\n"
+        "  - User control (view/export/delete at any time)",
+        "telemetry status\n"
+        "telemetry enable\n"
+        "telemetry view\n"
+        "telemetry delete"
+    },
+    {
+        "tools",
+        "tools <subcommand>",
+        "Manage development tools",
+        "Check for and install development tools used by Convergio.\n\n"
+        "Subcommands:\n"
+        "  check            Show installed/missing development tools\n"
+        "  install <tool>   Install a tool (requires approval)\n\n"
+        "Checks for common development tools like:\n"
+        "  - gh (GitHub CLI)\n"
+        "  - git, node, npm, python3\n"
+        "  - docker, make, cmake\n"
+        "  - curl, wget, jq",
+        "tools check\n"
+        "tools install gh\n"
+        "tools install docker"
+    },
+    {
         "quit",
         "quit",
         "Exit Convergio",
