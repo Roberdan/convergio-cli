@@ -555,3 +555,81 @@ int convergio_cmd_update_changelog(void) {
 
     return 0;
 }
+
+// ============================================================================
+// FETCH RELEASE BY VERSION
+// ============================================================================
+
+int convergio_fetch_release(const char* version, UpdateInfo* info) {
+    if (!info) return -1;
+
+    memset(info, 0, sizeof(UpdateInfo));
+    strncpy(info->current_version, CONVERGIO_VERSION, sizeof(info->current_version) - 1);
+
+    CURL* curl = curl_easy_init();
+    if (!curl) {
+        return -1;
+    }
+
+    ResponseBuffer response = {0};
+    response.data = malloc(1);
+    response.data[0] = '\0';
+
+    // Build URL - either latest or specific version
+    char url[256];
+    if (version && *version) {
+        // Ensure version has 'v' prefix for GitHub tags
+        if (version[0] == 'v') {
+            snprintf(url, sizeof(url),
+                "https://api.github.com/repos/%s/releases/tags/%s",
+                CONVERGIO_GITHUB_REPO, version);
+        } else {
+            snprintf(url, sizeof(url),
+                "https://api.github.com/repos/%s/releases/tags/v%s",
+                CONVERGIO_GITHUB_REPO, version);
+        }
+    } else {
+        strncpy(url, CONVERGIO_GITHUB_API, sizeof(url) - 1);
+    }
+
+    curl_easy_setopt(curl, CURLOPT_URL, url);
+    curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_callback);
+    curl_easy_setopt(curl, CURLOPT_WRITEDATA, (void*)&response);
+    curl_easy_setopt(curl, CURLOPT_USERAGENT, "Convergio-CLI/" CONVERGIO_VERSION);
+    curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
+    curl_easy_setopt(curl, CURLOPT_TIMEOUT, 10L);
+
+    CURLcode res = curl_easy_perform(curl);
+    long http_code = 0;
+    curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &http_code);
+    curl_easy_cleanup(curl);
+
+    if (res != CURLE_OK || http_code != 200) {
+        free(response.data);
+        return -1;
+    }
+
+    // Parse response
+    char tag_name[32] = {0};
+    find_json_string(response.data, "tag_name", tag_name, sizeof(tag_name));
+
+    // Remove 'v' prefix if present
+    const char* ver = tag_name;
+    if (tag_name[0] == 'v') {
+        ver = tag_name + 1;
+    }
+    strncpy(info->latest_version, ver, sizeof(info->latest_version) - 1);
+
+    // Get other fields
+    find_json_string(response.data, "published_at", info->published_at, sizeof(info->published_at));
+    find_json_string(response.data, "body", info->release_notes, sizeof(info->release_notes));
+
+    // Check if prerelease
+    if (strstr(response.data, "\"prerelease\":true") || strstr(response.data, "\"prerelease\": true")) {
+        info->is_prerelease = true;
+    }
+
+    free(response.data);
+
+    return 0;
+}
