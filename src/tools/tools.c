@@ -749,8 +749,15 @@ ToolResult* tool_file_read(const char* path, int start_line, int end_line) {
 
         size_t line_len = strlen(line);
         if (len + line_len + 1 > capacity) {
-            capacity *= 2;
-            content = realloc(content, capacity);
+            size_t new_capacity = capacity * 2;
+            char* new_content = realloc(content, new_capacity);
+            if (!new_content) {
+                free(content);
+                fclose(f);
+                return result_error("Out of memory");
+            }
+            content = new_content;
+            capacity = new_capacity;
         }
         memcpy(content + len, line, line_len);
         len += line_len;
@@ -842,8 +849,15 @@ static void list_dir_recursive(const char* base_path, const char* pattern,
 
         size_t line_len = strlen(line);
         if (*len + line_len + 1 > *capacity) {
-            *capacity *= 2;
-            *output = realloc(*output, *capacity);
+            size_t new_capacity = *capacity * 2;
+            char* new_output = realloc(*output, new_capacity);
+            if (!new_output) {
+                // OOM - stop recursion gracefully
+                closedir(dir);
+                return;
+            }
+            *output = new_output;
+            *capacity = new_capacity;
         }
         memcpy(*output + *len, line, line_len);
         *len += line_len;
@@ -1231,8 +1245,17 @@ ToolResult* tool_memory_search(const char* query, size_t max_results, float min_
         size_t mem_len = strlen(memories[i]);
         size_t needed = out_len + mem_len + 32;
         if (needed > capacity) {
-            capacity = needed * 2;
-            output = realloc(output, capacity);
+            size_t new_capacity = needed * 2;
+            char* new_output = realloc(output, new_capacity);
+            if (!new_output) {
+                // Free remaining memories and return error
+                for (size_t j = i; j < count; j++) free(memories[j]);
+                free(memories);
+                free(output);
+                return result_error("Out of memory");
+            }
+            output = new_output;
+            capacity = new_capacity;
         }
         out_len += snprintf(output + out_len, capacity - out_len, "[%zu] %s\n\n", i + 1, memories[i]);
         free(memories[i]);
@@ -1512,8 +1535,15 @@ ToolResult* tool_note_list(const char* tag_filter) {
 
         size_t needed = len + 256;
         if (needed > capacity) {
-            capacity = needed * 2;
-            output = realloc(output, capacity);
+            size_t new_capacity = needed * 2;
+            char* new_output = realloc(output, new_capacity);
+            if (!new_output) {
+                free(output);
+                closedir(dir);
+                return result_error("Out of memory");
+            }
+            output = new_output;
+            capacity = new_capacity;
         }
 
         len += snprintf(output + len, capacity - len,
@@ -1609,10 +1639,18 @@ ToolResult* tool_knowledge_search(const char* query, size_t max_results) {
             fclose(f);
 
             // Add to output
-            size_t needed = len + strlen(filepath) + size + 64;
+            size_t needed = len + strlen(filepath) + (size_t)size + 64;
             if (needed > capacity) {
-                capacity = needed * 2;
-                output = realloc(output, capacity);
+                size_t new_capacity = needed * 2;
+                char* new_output = realloc(output, new_capacity);
+                if (!new_output) {
+                    free(content);
+                    free(output);
+                    pclose(pipe);
+                    return result_error("Out of memory");
+                }
+                output = new_output;
+                capacity = new_capacity;
             }
 
             len += snprintf(output + len, capacity - len,
