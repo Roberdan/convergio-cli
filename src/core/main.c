@@ -26,6 +26,7 @@
 #include <stdarg.h>
 #include <time.h>
 #include <limits.h>
+#include <sys/ioctl.h>
 #include <readline/readline.h>
 #include <readline/history.h>
 
@@ -489,13 +490,23 @@ int main(int argc, char** argv) {
     rl_bind_key(22, repl_paste_clipboard_image);
 
     while (g_running) {
-        // Build prompt with theme colors
-        // \001 and \002 = readline markers for non-printable chars (RL_PROMPT_START/END_IGNORE)
-        // Without these, readline miscalculates cursor position and corrupts input display
+        // Get terminal width for separator line
+        struct winsize ws;
+        int term_width = 80;
+        if (ioctl(STDOUT_FILENO, TIOCGWINSZ, &ws) == 0 && ws.ws_col > 0) {
+            term_width = ws.ws_col;
+        }
+
+        // Print top separator line (dim horizontal line)
+        printf("\033[2m");
+        for (int i = 0; i < term_width; i++) printf("─");
+        printf("\033[0m\n");
+
+        // Simple prompt like Claude Code: "> "
         const Theme* t = theme_get();
         snprintf(prompt, sizeof(prompt),
-            "\001%s\002Convergio\001\033[0m\002 \001%s\002❯\001\033[0m\002 \001%s\002",
-            t->prompt_name, t->prompt_arrow, t->user_input);
+            "\001%s\002>\001\033[0m\002 \001%s\002",
+            t->prompt_arrow, t->user_input);
 
         line = readline(prompt);
 
