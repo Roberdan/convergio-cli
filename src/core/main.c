@@ -14,6 +14,7 @@
 #include "nous/updater.h"
 #include "nous/stream_md.h"
 #include "nous/theme.h"
+#include "nous/clipboard.h"
 #include "../auth/oauth.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -71,15 +72,64 @@ static char* agent_name_generator(const char* text, int state) {
 static char** agent_completion(const char* text, int start, int end) {
     (void)end;
 
-    // Only complete @agent names at the start of the line
-    if (start == 0 && text[0] == '@') {
+    // Complete @agent names anywhere in the line if text starts with @
+    if (text[0] == '@') {
         rl_attempted_completion_over = 1;  // Don't fall back to filename completion
         return rl_completion_matches(text, agent_name_generator);
+    }
+
+    // Check if we're completing after a space followed by @
+    // (e.g., "hello @ba<TAB>")
+    if (start > 0 && rl_line_buffer[start - 1] == ' ') {
+        // Look for @ at current position
+        char* at_pos = strchr(rl_line_buffer + start, '@');
+        if (at_pos && at_pos == rl_line_buffer + start) {
+            rl_attempted_completion_over = 1;
+            return rl_completion_matches(text, agent_name_generator);
+        }
     }
 
     // For other cases, disable completion (no filename completion)
     rl_attempted_completion_over = 1;
     return NULL;
+}
+
+// ============================================================================
+// CLIPBOARD IMAGE PASTE (Ctrl+I)
+// ============================================================================
+
+// Readline callback for pasting clipboard image
+static int paste_clipboard_image(int count, int key) {
+    (void)count;
+    (void)key;
+
+    if (clipboard_has_image()) {
+        // Save image to temp directory
+        char* image_path = clipboard_save_image(NULL);  // NULL = use temp directory
+        if (image_path) {
+            // Insert path at cursor position
+            rl_insert_text(image_path);
+            free(image_path);
+            rl_redisplay();
+            return 0;
+        } else {
+            printf("\a");  // Beep on error
+            fflush(stdout);
+            return 1;
+        }
+    } else {
+        // No image in clipboard - try normal paste
+        char* text = clipboard_get_text();
+        if (text) {
+            rl_insert_text(text);
+            free(text);
+            rl_redisplay();
+            return 0;
+        }
+        printf("\a");  // Beep - nothing to paste
+        fflush(stdout);
+        return 1;
+    }
 }
 
 // ============================================================================
@@ -1597,6 +1647,10 @@ int main(int argc, char** argv) {
 
     // Set up readline completion for @agent names
     rl_attempted_completion_function = agent_completion;
+
+    // Bind Ctrl+V to clipboard paste (including images)
+    // Ctrl+V is ASCII 22 (0x16)
+    rl_bind_key(22, paste_clipboard_image);
 
     while (g_running) {
         // Build prompt with theme colors

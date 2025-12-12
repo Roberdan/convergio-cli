@@ -175,6 +175,10 @@ static char* load_agent_list(void) {
 
 static const char* ALI_SYSTEM_PROMPT_TEMPLATE =
     "You are Ali, the Chief of Staff and master orchestrator for the Convergio ecosystem.\n\n"
+    "## Working Directory\n"
+    "**Current workspace**: `%s`\n"
+    "All file operations and shell commands should use paths relative to this directory, or absolute paths within it.\n"
+    "When the user references files without a full path, assume they are relative to this workspace.\n\n"
     "## Your Role\n"
     "You are the single point of contact for the user. You coordinate all specialist agents and use tools to deliver comprehensive solutions.\n"
     "You have MEMORY - you remember past conversations and can store important information for future reference.\n\n"
@@ -292,11 +296,13 @@ int orchestrator_init(double budget_limit_usd) {
         g_orchestrator->ali->name = strdup("Ali");
         g_orchestrator->ali->role = AGENT_ROLE_ORCHESTRATOR;
 
-        // Build system prompt with dynamic agent list
+        // Build system prompt with workspace and dynamic agent list
         char* agent_list = load_agent_list();
-        size_t prompt_size = strlen(ALI_SYSTEM_PROMPT_TEMPLATE) + strlen(agent_list) + 256;
+        const char* workspace = tools_get_workspace();
+        if (!workspace) workspace = ".";  // Fallback to current directory
+        size_t prompt_size = strlen(ALI_SYSTEM_PROMPT_TEMPLATE) + strlen(workspace) + strlen(agent_list) + 256;
         char* full_prompt = malloc(prompt_size);
-        snprintf(full_prompt, prompt_size, ALI_SYSTEM_PROMPT_TEMPLATE, agent_list);
+        snprintf(full_prompt, prompt_size, ALI_SYSTEM_PROMPT_TEMPLATE, workspace, agent_list);
         g_orchestrator->ali->system_prompt = full_prompt;
         free(agent_list);
 
