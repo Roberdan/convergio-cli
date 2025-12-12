@@ -7,6 +7,7 @@
  */
 
 #include "nous/updater.h"
+#include "nous/nous.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -252,12 +253,12 @@ void convergio_print_update_info(const UpdateInfo* info) {
 
 int convergio_download_update(const UpdateInfo* info, const char* dest_path) {
     if (!info || !dest_path) {
-        fprintf(stderr, "Error: Invalid update info\n");
+        LOG_ERROR(LOG_CAT_SYSTEM, "Invalid update info");
         return -1;
     }
     if (strlen(info->download_url) == 0) {
-        fprintf(stderr, "Error: No download URL found for your platform (arm64-darwin)\n");
-        fprintf(stderr, "Please update manually: brew upgrade convergio\n");
+        LOG_ERROR(LOG_CAT_SYSTEM, "No download URL found for your platform (arm64-darwin)");
+        LOG_INFO(LOG_CAT_SYSTEM, "Please update manually: brew upgrade convergio");
         return -1;
     }
 
@@ -265,7 +266,7 @@ int convergio_download_update(const UpdateInfo* info, const char* dest_path) {
 
     FILE* fp = fopen(dest_path, "wb");
     if (!fp) {
-        fprintf(stderr, "Error: Cannot write to %s\n", dest_path);
+        LOG_ERROR(LOG_CAT_SYSTEM, "Cannot write to %s", dest_path);
         return -1;
     }
 
@@ -288,7 +289,7 @@ int convergio_download_update(const UpdateInfo* info, const char* dest_path) {
 
     if (res != CURLE_OK) {
         unlink(dest_path);
-        fprintf(stderr, "Error: Download failed: %s\n", curl_easy_strerror(res));
+        LOG_ERROR(LOG_CAT_SYSTEM, "Download failed: %s", curl_easy_strerror(res));
         return -1;
     }
 
@@ -305,7 +306,7 @@ int convergio_apply_update(const char* new_binary_path) {
 
     #ifdef __APPLE__
     if (_NSGetExecutablePath(current_path, &size) != 0) {
-        fprintf(stderr, "Error: Cannot determine current executable path\n");
+        LOG_ERROR(LOG_CAT_SYSTEM, "Cannot determine current executable path");
         return -1;
     }
     #else
@@ -322,7 +323,7 @@ int convergio_apply_update(const char* new_binary_path) {
 
     printf("Creating backup: %s\n", backup_path);
     if (rename(current_path, backup_path) != 0) {
-        fprintf(stderr, "Error: Cannot create backup\n");
+        LOG_ERROR(LOG_CAT_SYSTEM, "Cannot create backup");
         return -1;
     }
 
@@ -331,7 +332,7 @@ int convergio_apply_update(const char* new_binary_path) {
     if (rename(new_binary_path, current_path) != 0) {
         // Restore backup
         rename(backup_path, current_path);
-        fprintf(stderr, "Error: Cannot install new version\n");
+        LOG_ERROR(LOG_CAT_SYSTEM, "Cannot install new version");
         return -1;
     }
 
@@ -361,14 +362,14 @@ int convergio_rollback_update(void) {
 
     struct stat st;
     if (stat(backup_path, &st) != 0) {
-        fprintf(stderr, "Error: No backup found at %s\n", backup_path);
+        LOG_ERROR(LOG_CAT_SYSTEM, "No backup found at %s", backup_path);
         return -1;
     }
 
     // Remove current and restore backup
     unlink(current_path);
     if (rename(backup_path, current_path) != 0) {
-        fprintf(stderr, "Error: Cannot restore backup\n");
+        LOG_ERROR(LOG_CAT_SYSTEM, "Cannot restore backup");
         return -1;
     }
 
@@ -386,7 +387,7 @@ static int convergio_do_update_install(const UpdateInfo* info) {
 
     // SECURITY: Validate version string to prevent command injection
     if (!is_safe_version_string(info->latest_version)) {
-        fprintf(stderr, "Error: Invalid version string format\n");
+        LOG_ERROR(LOG_CAT_SYSTEM, "Invalid version string format");
         return -1;
     }
 
@@ -405,7 +406,7 @@ static int convergio_do_update_install(const UpdateInfo* info) {
     // Create directory using mkdir (no shell)
     char* mkdir_args[] = {"/bin/mkdir", "-p", extract_dir, NULL};
     if (safe_exec(mkdir_args) != 0) {
-        fprintf(stderr, "Error: Failed to create extraction directory\n");
+        LOG_ERROR(LOG_CAT_SYSTEM, "Failed to create extraction directory");
         unlink(temp_path);
         return -1;
     }
@@ -413,7 +414,7 @@ static int convergio_do_update_install(const UpdateInfo* info) {
     // Extract using tar (no shell)
     char* tar_args[] = {"/usr/bin/tar", "-xzf", temp_path, "-C", extract_dir, NULL};
     if (safe_exec(tar_args) != 0) {
-        fprintf(stderr, "Error: Failed to extract update\n");
+        LOG_ERROR(LOG_CAT_SYSTEM, "Failed to extract update");
         unlink(temp_path);
         return -1;
     }
@@ -440,8 +441,8 @@ int convergio_cmd_update_check(void) {
 
     UpdateInfo info;
     if (convergio_check_update(&info) != 0) {
-        fprintf(stderr, "Error: Could not check for updates.\n");
-        fprintf(stderr, "Please check your internet connection.\n");
+        LOG_ERROR(LOG_CAT_SYSTEM, "Could not check for updates");
+        LOG_INFO(LOG_CAT_SYSTEM, "Please check your internet connection");
         return -1;
     }
 
@@ -477,7 +478,7 @@ int convergio_cmd_update_install(void) {
 
     UpdateInfo info;
     if (convergio_check_update(&info) != 0) {
-        fprintf(stderr, "Error: Could not check for updates.\n");
+        LOG_ERROR(LOG_CAT_SYSTEM, "Could not check for updates");
         return -1;
     }
 
@@ -507,7 +508,7 @@ int convergio_cmd_update_install(void) {
 int convergio_cmd_update_changelog(void) {
     UpdateInfo info;
     if (convergio_check_update(&info) != 0) {
-        fprintf(stderr, "Error: Could not fetch changelog.\n");
+        LOG_ERROR(LOG_CAT_SYSTEM, "Could not fetch changelog");
         return -1;
     }
 

@@ -11,6 +11,7 @@
 
 #include "nous/orchestrator.h"
 #include "nous/updater.h"
+#include "nous/nous.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -319,15 +320,15 @@ int orchestrator_init(double budget_limit_usd) {
 
     // Initialize subsystems
     if (persistence_init(NULL) != 0) {
-        fprintf(stderr, "Warning: persistence init failed, continuing without DB\n");
+        LOG_WARN(LOG_CAT_SYSTEM, "persistence init failed, continuing without DB");
     }
 
     if (msgbus_init() != 0) {
-        fprintf(stderr, "Warning: message bus init failed\n");
+        LOG_WARN(LOG_CAT_SYSTEM, "message bus init failed");
     }
 
     if (nous_claude_init() != 0) {
-        fprintf(stderr, "Warning: Claude API init failed\n");
+        LOG_WARN(LOG_CAT_API, "Claude API init failed");
     }
 
     // Create Ali - the chief of staff
