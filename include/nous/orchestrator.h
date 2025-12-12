@@ -225,6 +225,7 @@ Orchestrator* orchestrator_get(void);
 
 // Cost control
 void cost_record_usage(uint64_t input_tokens, uint64_t output_tokens);
+void cost_record_usage_for_model(const char* model_id, uint64_t input_tokens, uint64_t output_tokens);
 void cost_load_historical(void);  // Load cumulative costs from DB
 double cost_get_session_spend(void);
 double cost_get_total_spend(void);

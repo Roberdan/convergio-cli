@@ -63,7 +63,20 @@ typedef struct {
     bool initialized;
 } RouterState;
 
-static RouterState g_router = {0};
+static RouterState g_router = {
+    .configs = {{0}},
+    .config_count = 0,
+    .daily_budget = 0.0,
+    .session_budget = 0.0,
+    .daily_spent = 0.0,
+    .session_spent = 0.0,
+    .budget_reset_time = 0,
+    .total_requests = 0,
+    .fallback_requests = 0,
+    .downgrade_requests = 0,
+    .mutex = PTHREAD_MUTEX_INITIALIZER,
+    .initialized = false
+};
 
 // ============================================================================
 // DEFAULT AGENT MODEL CONFIGURATIONS (from models.json)
@@ -94,13 +107,29 @@ static void load_default_configs(void) {
     };
 
     for (int i = 0; defaults[i].name != NULL; i++) {
-        AgentModelConfig* cfg = &g_router.configs[g_router.config_count++];
+        AgentModelConfig* cfg = &g_router.configs[g_router.config_count];
         cfg->agent_name = strdup(defaults[i].name);
         cfg->primary_model = strdup(defaults[i].primary);
         cfg->fallback_model = strdup(defaults[i].fallback);
+        cfg->reason = strdup(defaults[i].reason);
+
+        // OOM check - if any allocation failed, clean up and skip this entry
+        if (!cfg->agent_name || !cfg->primary_model || !cfg->fallback_model || !cfg->reason) {
+            free(cfg->agent_name);
+            free(cfg->primary_model);
+            free(cfg->fallback_model);
+            free(cfg->reason);
+            cfg->agent_name = NULL;
+            cfg->primary_model = NULL;
+            cfg->fallback_model = NULL;
+            cfg->reason = NULL;
+            LOG_ERROR(LOG_CAT_SYSTEM, "OOM loading agent config for %s", defaults[i].name);
+            continue;
+        }
+
         cfg->cost_tier = defaults[i].tier;
         cfg->auto_downgrade = true;
-        cfg->reason = strdup(defaults[i].reason);
+        g_router.config_count++;
     }
 }
 
@@ -200,19 +229,35 @@ int router_set_agent_model(const char* agent_name, const char* primary_model,
             pthread_mutex_unlock(&g_router.mutex);
             return -1;
         }
-        cfg = &g_router.configs[g_router.config_count++];
+        cfg = &g_router.configs[g_router.config_count];
         cfg->agent_name = strdup(agent_name);
+        if (!cfg->agent_name) {
+            pthread_mutex_unlock(&g_router.mutex);
+            return -1;  // OOM
+        }
         cfg->primary_model = NULL;
         cfg->fallback_model = NULL;
         cfg->auto_downgrade = true;
         cfg->cost_tier = COST_TIER_MID;
+        g_router.config_count++;
     }
 
     // Update models (free old values if any)
+    char* new_primary = strdup(primary_model);
+    char* new_fallback = fallback_model ? strdup(fallback_model) : NULL;
+
+    // OOM check
+    if (!new_primary || (fallback_model && !new_fallback)) {
+        free(new_primary);
+        free(new_fallback);
+        pthread_mutex_unlock(&g_router.mutex);
+        return -1;
+    }
+
     free(cfg->primary_model);
     free(cfg->fallback_model);
-    cfg->primary_model = strdup(primary_model);
-    cfg->fallback_model = fallback_model ? strdup(fallback_model) : NULL;
+    cfg->primary_model = new_primary;
+    cfg->fallback_model = new_fallback;
 
     pthread_mutex_unlock(&g_router.mutex);
 
