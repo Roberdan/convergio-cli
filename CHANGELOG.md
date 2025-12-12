@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.0.2] - 2025-12-12
+
+### Changed
+
+- **Branding update**: Updated startup banner gradient colors to match Convergio logo (teal to turquoise to cyan to slate blue to purple to magenta)
+- **Tagline**: Changed from "A semantic kernel for human-AI symbiosis" to "Human purpose. AI momentum."
+- Updated help text and file header comment with new tagline
+
 ## [3.0.1] - 2025-12-12
 
 ### Security
@@ -387,7 +395,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-[Unreleased]: https://github.com/Roberdan/convergio-cli/compare/v3.0.1...HEAD
+[Unreleased]: https://github.com/Roberdan/convergio-cli/compare/v3.0.2...HEAD
+[3.0.2]: https://github.com/Roberdan/convergio-cli/compare/v3.0.1...v3.0.2
 [3.0.1]: https://github.com/Roberdan/convergio-cli/compare/v3.0.0...v3.0.1
 [3.0.0]: https://github.com/Roberdan/convergio-cli/compare/v2.0.11...v3.0.0
 [2.0.11]: https://github.com/Roberdan/convergio-cli/compare/v2.0.10...v2.0.11
