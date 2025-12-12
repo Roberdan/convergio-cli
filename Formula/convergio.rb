@@ -6,8 +6,8 @@ class Convergio < Formula
 
   on_macos do
     on_arm do
-      url "https://github.com/Roberdan/convergio-cli/releases/download/v2.0.11/convergio-2.0.11-arm64-apple-darwin.tar.gz"
-      sha256 "03c2e3a6d0d2ab03b13f6242b0aff1930f5524445efdd62dd3eadc29c1553cd9"
+      url "https://github.com/Roberdan/convergio-cli/releases/download/v2.0.11/convergio-2.0.11-darwin-arm64.tar.gz"
+      sha256 "52acdacbd634d9c5fe703061725d52d50e5789c32063bd85400aed45f58da0eb"
     end
   end
 
@@ -30,7 +30,7 @@ class Convergio < Formula
       Quick start:
         convergio              # Start interactive session with Ali
         convergio --help       # Show all options
-        convergio update check # Check for updates
+        convergio update       # Check for and install updates
 
       Documentation: https://github.com/Roberdan/convergio-cli
     EOS
