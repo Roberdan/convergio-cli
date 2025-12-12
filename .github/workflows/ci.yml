@@ -22,10 +22,12 @@ jobs:
 
       - name: Check for warnings
         run: |
-          if grep -i "warning:" build.log; then
+          # Filter out Metal Toolchain message (not a compiler warning)
+          if grep -i "warning:" build.log | grep -v "Metal Toolchain"; then
             echo "::error::Build produced warnings"
             exit 1
           fi
+          echo "No compiler warnings found"
 
       - name: Verify binary exists
         run: |
