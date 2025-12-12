@@ -132,9 +132,10 @@ static char* json_escape(const char* str) {
     if (!escaped) return NULL;
 
     char* out = escaped;
+    char* out_end = escaped + escaped_len;  // Buffer boundary for safety
     const unsigned char* p = (const unsigned char*)str;
 
-    while (*p) {
+    while (*p && out < out_end - 7) {  // Ensure space for \uXXXX + null
         // Handle ASCII control characters and JSON special chars
         if (*p < 128) {
             switch (*p) {
@@ -147,7 +148,8 @@ static char* json_escape(const char* str) {
                 case '\f': *out++ = '\\'; *out++ = 'f'; break;
                 default:
                     if (*p < 32) {
-                        out += sprintf(out, "\\u%04x", *p);
+                        int written = snprintf(out, (size_t)(out_end - out), "\\u%04x", *p);
+                        if (written > 0) out += written;
                     } else {
                         *out++ = *p;
                     }
@@ -159,7 +161,8 @@ static char* json_escape(const char* str) {
 
             if (seq_len == 0) {
                 // Invalid UTF-8 start byte - replace with replacement char
-                out += sprintf(out, "\\uFFFD");
+                int written = snprintf(out, (size_t)(out_end - out), "\\uFFFD");
+                if (written > 0) out += written;
                 p++;
                 continue;
             }
@@ -174,7 +177,8 @@ static char* json_escape(const char* str) {
 
             if (!valid) {
                 // Incomplete or invalid sequence - replace with replacement char
-                out += sprintf(out, "\\uFFFD");
+                int written = snprintf(out, (size_t)(out_end - out), "\\uFFFD");
+                if (written > 0) out += written;
                 p++;
                 continue;
             }
@@ -188,7 +192,8 @@ static char* json_escape(const char* str) {
                 (seq_len == 3 && cp < 0x800) ||
                 (seq_len == 4 && cp < 0x10000)) {
                 // Invalid - replace with replacement char
-                out += sprintf(out, "\\uFFFD");
+                int written = snprintf(out, (size_t)(out_end - out), "\\uFFFD");
+                if (written > 0) out += written;
                 p++;
                 continue;
             }

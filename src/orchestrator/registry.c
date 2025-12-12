@@ -1114,10 +1114,12 @@ char* agent_registry_status(void) {
             // Truncate description to 50 chars
             char desc[52] = "";
             if (agent->description) {
-                strncpy(desc, agent->description, 48);
-                desc[48] = '\0';
-                if (strlen(agent->description) > 48) {
-                    strcat(desc, "...");
+                size_t desc_len = strlen(agent->description);
+                if (desc_len > 48) {
+                    memcpy(desc, agent->description, 48);
+                    memcpy(desc + 48, "...", 4);  // includes null terminator
+                } else {
+                    memcpy(desc, agent->description, desc_len + 1);
                 }
             }
 

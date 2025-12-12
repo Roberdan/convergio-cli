@@ -633,7 +633,7 @@ void tools_free_result(ToolResult* result) {
     free(result);
 }
 
-void tools_free_call(ToolCall* call) {
+void tools_free_call(LocalToolCall* call) {
     if (!call) return;
     free(call->tool_name);
     free(call->parameters_json);
@@ -1490,7 +1490,7 @@ ToolResult* tool_note_list(const char* tag_filter) {
     closedir(dir);
 
     if (count == 0) {
-        strcpy(output, "No notes found.");
+        snprintf(output, 8192, "No notes found.");
     }
 
     ToolResult* r = result_success(output);
@@ -1591,7 +1591,7 @@ ToolResult* tool_knowledge_search(const char* query, size_t max_results) {
     }
 
     if (found == 0) {
-        strcpy(output, "No knowledge found matching your query.");
+        snprintf(output, 8192, "No knowledge found matching your query.");
     }
 
     ToolResult* r = result_success(output);
@@ -1752,10 +1752,10 @@ static bool json_get_bool(const char* json, const char* key, bool default_val) {
     return default_val;
 }
 
-ToolCall* tools_parse_call(const char* tool_name, const char* arguments_json) {
+LocalToolCall* tools_parse_call(const char* tool_name, const char* arguments_json) {
     if (!tool_name) return NULL;
 
-    ToolCall* call = calloc(1, sizeof(ToolCall));
+    LocalToolCall* call = calloc(1, sizeof(LocalToolCall));
     call->tool_name = strdup(tool_name);
     call->parameters_json = arguments_json ? strdup(arguments_json) : strdup("{}");
 
@@ -1796,7 +1796,7 @@ ToolCall* tools_parse_call(const char* tool_name, const char* arguments_json) {
 // TOOL EXECUTION
 // ============================================================================
 
-ToolResult* tools_execute(const ToolCall* call) {
+ToolResult* tools_execute(const LocalToolCall* call) {
     if (!call) return result_error("Invalid tool call");
 
     const char* args = call->parameters_json;
