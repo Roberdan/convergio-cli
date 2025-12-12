@@ -11,6 +11,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdbool.h>
 #include <ctype.h>
 #include <curl/curl.h>
 #include <unistd.h>
@@ -263,7 +264,7 @@ int convergio_download_update(const UpdateInfo* info, const char* dest_path) {
         return -1;
     }
 
-    printf("Downloading update from:\n%s\n\n", info->download_url);
+    printf("Downloading update...\n");
 
     FILE* fp = fopen(dest_path, "wb");
     if (!fp) {
@@ -282,9 +283,14 @@ int convergio_download_update(const UpdateInfo* info, const char* dest_path) {
     curl_easy_setopt(curl, CURLOPT_WRITEDATA, fp);
     curl_easy_setopt(curl, CURLOPT_USERAGENT, "Convergio-CLI/" CONVERGIO_VERSION);
     curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
-    curl_easy_setopt(curl, CURLOPT_NOPROGRESS, 0L);  // Show progress
+    curl_easy_setopt(curl, CURLOPT_NOPROGRESS, 1L);  // Hide useless progress (GitHub doesn't send Content-Length)
 
     CURLcode res = curl_easy_perform(curl);
+
+    // Get download size for user feedback
+    double dl_size = 0;
+    curl_easy_getinfo(curl, CURLINFO_SIZE_DOWNLOAD, &dl_size);
+
     curl_easy_cleanup(curl);
     fclose(fp);
 
@@ -294,7 +300,7 @@ int convergio_download_update(const UpdateInfo* info, const char* dest_path) {
         return -1;
     }
 
-    printf("\nDownload complete: %s\n", dest_path);
+    printf("Downloaded %.1f KB\n", dl_size / 1024.0);
     return 0;
 }
 
@@ -326,29 +332,54 @@ int convergio_apply_update(const char* new_binary_path) {
         return -1;
     }
 
+    // Check if we have write access to current binary
+    bool need_sudo = (access(current_path, W_OK) != 0);
+
     // Create backup
     char backup_path[1100];
     snprintf(backup_path, sizeof(backup_path), "%s.backup", current_path);
 
-    printf("Creating backup: %s\n", backup_path);
-    if (rename(current_path, backup_path) != 0) {
-        fprintf(stderr, "\033[31mError: Cannot create backup (permission denied?)\033[0m\n");
-        fprintf(stderr, "Try: sudo convergio update install\n");
-        return -1;
+    printf("Creating backup...\n");
+
+    if (need_sudo) {
+        // Use sudo for privileged locations
+        printf("Administrator privileges required.\n");
+        char* sudo_mv[] = {"/usr/bin/sudo", "-p", "Password: ", "/bin/mv", current_path, backup_path, NULL};
+        if (safe_exec(sudo_mv) != 0) {
+            fprintf(stderr, "\033[31mError: Cannot create backup\033[0m\n");
+            return -1;
+        }
+    } else {
+        if (rename(current_path, backup_path) != 0) {
+            fprintf(stderr, "\033[31mError: Cannot create backup\033[0m\n");
+            return -1;
+        }
     }
 
-    // Move new binary to current path
+    // Install new binary
     printf("Installing new version...\n");
-    if (rename(new_binary_path, current_path) != 0) {
-        // Restore backup
-        rename(backup_path, current_path);
-        fprintf(stderr, "\033[31mError: Cannot install new version (permission denied?)\033[0m\n");
-        fprintf(stderr, "Try: sudo convergio update install\n");
-        return -1;
-    }
 
-    // Make executable
-    chmod(current_path, 0755);
+    if (need_sudo) {
+        char* sudo_cp[] = {"/usr/bin/sudo", "/bin/cp", (char*)new_binary_path, current_path, NULL};
+        if (safe_exec(sudo_cp) != 0) {
+            // Restore backup
+            char* sudo_restore[] = {"/usr/bin/sudo", "/bin/mv", backup_path, current_path, NULL};
+            safe_exec(sudo_restore);
+            fprintf(stderr, "\033[31mError: Cannot install new version\033[0m\n");
+            return -1;
+        }
+        // Set permissions
+        char* sudo_chmod[] = {"/usr/bin/sudo", "/bin/chmod", "755", current_path, NULL};
+        safe_exec(sudo_chmod);
+    } else {
+        if (rename(new_binary_path, current_path) != 0) {
+            // Restore backup
+            rename(backup_path, current_path);
+            fprintf(stderr, "\033[31mError: Cannot install new version\033[0m\n");
+            return -1;
+        }
+        chmod(current_path, 0755);
+    }
 
     printf("\n\033[32m✓ Update installed successfully!\033[0m\n");
     printf("Restart Convergio to use the new version.\n");
