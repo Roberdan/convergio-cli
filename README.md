@@ -171,6 +171,11 @@ Ali can interact with the real world using these tools:
 
 *Note: Local embeddings currently use random weights. Pre-trained weight loading planned.
 
+## Contributor Guide
+
+- See `AGENTS.md` for repository guidelines (structure, build/test commands, style).
+- Read `CONTRIBUTING.md` for contribution flow and etiquette.
+
 ### Apple Silicon Optimizations
 
 Convergio CLI is specifically optimized for Apple Silicon with:

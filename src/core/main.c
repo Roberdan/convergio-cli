@@ -12,6 +12,8 @@
 #include "nous/config.h"
 #include "nous/hardware.h"
 #include "nous/updater.h"
+#include "nous/stream_md.h"
+#include "nous/theme.h"
 #include "../auth/oauth.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -40,6 +42,9 @@ extern void nous_destroy_agent(NousAgent* agent);
 
 // Default budget in USD
 #define DEFAULT_BUDGET_USD 5.00
+
+// Streaming mode flag (live markdown rendering)
+static bool g_streaming_enabled = true;
 
 // ============================================================================
 // DEBUG LOGGING IMPLEMENTATION
@@ -160,6 +165,8 @@ static int cmd_logout(int argc, char** argv);
 static int cmd_auth(int argc, char** argv);
 static int cmd_update(int argc, char** argv);
 static int cmd_hardware(int argc, char** argv);
+static int cmd_stream(int argc, char** argv);
+static int cmd_theme(int argc, char** argv);
 
 static const ReplCommand COMMANDS[] = {
     {"help",        "Show available commands",           cmd_help},
@@ -176,6 +183,8 @@ static const ReplCommand COMMANDS[] = {
     {"auth",        "Show authentication status",        cmd_auth},
     {"update",      "Check for and install updates",     cmd_update},
     {"hardware",    "Show hardware information",         cmd_hardware},
+    {"stream",      "Toggle streaming mode (on/off)",    cmd_stream},
+    {"theme",       "Change color theme (ocean/forest/sunset/mono)", cmd_theme},
     {"think",       "Process an intent",                 cmd_think},
     {"quit",        "Exit Convergio",                    cmd_quit},
     {"exit",        "Exit Convergio",                    cmd_quit},
@@ -521,6 +530,51 @@ static int cmd_update(int argc, char** argv) {
 static int cmd_hardware(int argc, char** argv) {
     (void)argc; (void)argv;
     convergio_print_hardware_info();
+    return 0;
+}
+
+static int cmd_stream(int argc, char** argv) {
+    if (argc > 1) {
+        if (strcmp(argv[1], "on") == 0) {
+            g_streaming_enabled = true;
+            printf("Streaming mode: \033[32mON\033[0m\n");
+            printf("  Live markdown rendering enabled\n");
+            printf("  Note: Tool calls are disabled in streaming mode\n");
+        } else if (strcmp(argv[1], "off") == 0) {
+            g_streaming_enabled = false;
+            printf("Streaming mode: \033[2mOFF\033[0m\n");
+            printf("  Full tool support enabled, responses wait until complete\n");
+        } else {
+            printf("Usage: stream [on|off]\n");
+        }
+    } else {
+        // Toggle
+        g_streaming_enabled = !g_streaming_enabled;
+        if (g_streaming_enabled) {
+            printf("Streaming mode: \033[32mON\033[0m\n");
+            printf("  Live markdown rendering enabled\n");
+            printf("  Note: Tool calls are disabled in streaming mode\n");
+        } else {
+            printf("Streaming mode: \033[2mOFF\033[0m\n");
+            printf("  Full tool support enabled, responses wait until complete\n");
+        }
+    }
+    return 0;
+}
+
+static int cmd_theme(int argc, char** argv) {
+    if (argc > 1) {
+        if (theme_set_by_name(argv[1])) {
+            const Theme* t = theme_get();
+            printf("Theme changed to: %s%s%s\n", t->prompt_name, t->name, theme_reset());
+            theme_save();
+        } else {
+            printf("Unknown theme: %s\n", argv[1]);
+            theme_list();
+        }
+    } else {
+        theme_list();
+    }
     return 0;
 }
 
@@ -875,36 +929,105 @@ static bool spinner_was_cancelled(void) {
 // NATURAL LANGUAGE PROCESSING - Via Ali Orchestrator
 // ============================================================================
 
-// Streaming buffer for accumulating response before rendering
-static char* g_stream_buffer = NULL;
-static size_t g_stream_size = 0;
-static size_t g_stream_capacity = 0;
+// Streaming markdown renderer context
+static StreamMd* g_stream_md = NULL;
 
-// Streaming callback - accumulates chunks for final rendering (reserved for streaming feature)
-__attribute__((unused))
-static void stream_print_callback(const char* chunk, void* user_data) {
+// Streaming callback - renders markdown incrementally as chunks arrive
+static void stream_md_callback(const char* chunk, void* user_data) {
     (void)user_data;
-    size_t chunk_len = strlen(chunk);
+    if (!chunk) return;
 
-    if (g_stream_size + chunk_len >= g_stream_capacity) {
-        g_stream_capacity = (g_stream_capacity + chunk_len) * 2 + 1024;
-        g_stream_buffer = realloc(g_stream_buffer, g_stream_capacity);
+    // Create renderer if needed
+    if (!g_stream_md) {
+        g_stream_md = stream_md_create();
     }
 
-    if (g_stream_buffer) {
-        memcpy(g_stream_buffer + g_stream_size, chunk, chunk_len);
-        g_stream_size += chunk_len;
-        g_stream_buffer[g_stream_size] = '\0';
+    // Process chunk through streaming markdown renderer
+    if (g_stream_md) {
+        stream_md_process(g_stream_md, chunk, strlen(chunk));
     }
-
-    // Also print raw for immediate feedback (will be replaced with progress indicator)
-    printf("%s", chunk);
-    fflush(stdout);
 }
 
 // External streaming function (reserved for future streaming feature)
 extern char* nous_claude_chat_stream(const char* system_prompt, const char* user_message,
                                       void (*callback)(const char*, void*), void* user_data);
+
+// Handle budget exceeded interactively
+// Returns: true if user wants to continue (budget increased), false to abort
+static bool handle_budget_exceeded(void) {
+    Orchestrator* orch = orchestrator_get();
+    if (!orch) return false;
+
+    const Theme* t = theme_get();
+
+    printf("\n");
+    printf("  %s┌─────────────────────────────────────────────────────────────┐%s\n", t->warning, theme_reset());
+    printf("  %s│  ⚠  BUDGET LIMIT REACHED                                    │%s\n", t->warning, theme_reset());
+    printf("  %s└─────────────────────────────────────────────────────────────┘%s\n", t->warning, theme_reset());
+    printf("\n");
+    printf("  Current spend:  %s$%.4f%s\n", t->cost, orch->cost.current_spend_usd, theme_reset());
+    printf("  Budget limit:   %s$%.2f%s\n", t->cost, orch->cost.budget_limit_usd, theme_reset());
+    printf("\n");
+    printf("  What would you like to do?\n");
+    printf("\n");
+    printf("    %s1%s) Increase budget by $5.00\n", t->prompt_arrow, theme_reset());
+    printf("    %s2%s) Increase budget by $10.00\n", t->prompt_arrow, theme_reset());
+    printf("    %s3%s) Set custom budget\n", t->prompt_arrow, theme_reset());
+    printf("    %s4%s) View cost report\n", t->prompt_arrow, theme_reset());
+    printf("    %s5%s) Cancel (don't send this message)\n", t->prompt_arrow, theme_reset());
+    printf("\n");
+    printf("  Choice [1-5]: ");
+    fflush(stdout);
+
+    char choice[16] = {0};
+    if (!fgets(choice, sizeof(choice), stdin)) {
+        return false;
+    }
+
+    switch (choice[0]) {
+        case '1':
+            cost_set_budget(orch->cost.budget_limit_usd + 5.0);
+            printf("\n  %s✓ Budget increased to $%.2f%s\n\n", t->success, orch->cost.budget_limit_usd, theme_reset());
+            return true;
+
+        case '2':
+            cost_set_budget(orch->cost.budget_limit_usd + 10.0);
+            printf("\n  %s✓ Budget increased to $%.2f%s\n\n", t->success, orch->cost.budget_limit_usd, theme_reset());
+            return true;
+
+        case '3': {
+            printf("  Enter new budget limit (USD): $");
+            fflush(stdout);
+            char amount[32] = {0};
+            if (fgets(amount, sizeof(amount), stdin)) {
+                double new_budget = atof(amount);
+                if (new_budget > 0) {
+                    cost_set_budget(new_budget);
+                    printf("\n  %s✓ Budget set to $%.2f%s\n\n", t->success, new_budget, theme_reset());
+                    return true;
+                } else {
+                    printf("\n  %sInvalid amount.%s\n\n", t->error, theme_reset());
+                }
+            }
+            return false;
+        }
+
+        case '4': {
+            char* report = cost_get_report();
+            if (report) {
+                printf("\n%s\n", report);
+                free(report);
+            }
+            // Show menu again
+            return handle_budget_exceeded();
+        }
+
+        case '5':
+        default:
+            printf("\n  %sMessage cancelled.%s\n\n", t->info, theme_reset());
+            return false;
+    }
+}
 
 static int process_natural_input(const char* input) {
     if (!input || strlen(input) == 0) return 0;
@@ -924,41 +1047,73 @@ static int process_natural_input(const char* input) {
         return 0;
     }
 
+    // Check budget before processing
+    if (orch->cost.budget_exceeded) {
+        if (!handle_budget_exceeded()) {
+            return 0;  // User cancelled
+        }
+    }
+
     // Print separator between input and output
     print_separator();
 
     // Get Ali's name
     const char* name = orch->ali ? orch->ali->name : "Ali";
 
-    // Start spinner while waiting for response
-    spinner_start();
-
     char* response = NULL;
 
-    // Always use orchestrator - it handles both simple chat and tool calls
-    response = orchestrator_process(input);
-
-    // Stop spinner
-    spinner_stop();
-
-    // Check if request was cancelled by user
-    if (spinner_was_cancelled()) {
-        printf(ANSI_DIM "Request cancelled" ANSI_RESET "\n");
-        if (response) free(response);
-        return 0;
-    }
-
-    if (response) {
-        // Print Ali's name as header
+    if (g_streaming_enabled) {
+        // STREAMING MODE: Live markdown rendering as response arrives
+        // Print Ali's name header before streaming starts
         printf(ANSI_BOLD ANSI_CYAN "%s" ANSI_RESET "\n\n", name);
 
-        // Render markdown to ANSI for nice terminal output
-        md_print(response);
-        printf("\n");
-        free(response);
+        // Initialize streaming markdown renderer
+        g_stream_md = stream_md_create();
+
+        // Process with streaming callback - output renders live
+        response = orchestrator_process_stream(input, stream_md_callback, NULL);
+
+        // Finalize streaming renderer
+        if (g_stream_md) {
+            stream_md_finish(g_stream_md);
+            stream_md_destroy(g_stream_md);
+            g_stream_md = NULL;
+        }
+
+        // Response already displayed via streaming, just free it
+        if (response) {
+            free(response);
+        }
     } else {
-        printf(ANSI_BOLD ANSI_CYAN "%s" ANSI_RESET "\n\n", name);
-        printf("Mi dispiace, ho avuto un problema. Riprova.\n");
+        // BATCH MODE: Wait for full response, then render with nice formatting
+        // Start spinner while waiting for response
+        spinner_start();
+
+        // Use orchestrator with full tool support
+        response = orchestrator_process(input);
+
+        // Stop spinner
+        spinner_stop();
+
+        // Check if request was cancelled by user
+        if (spinner_was_cancelled()) {
+            printf(ANSI_DIM "Request cancelled" ANSI_RESET "\n");
+            if (response) free(response);
+            return 0;
+        }
+
+        if (response) {
+            // Print Ali's name as header
+            printf(ANSI_BOLD ANSI_CYAN "%s" ANSI_RESET "\n\n", name);
+
+            // Render markdown to ANSI for nice terminal output
+            md_print(response);
+            printf("\n");
+            free(response);
+        } else {
+            printf(ANSI_BOLD ANSI_CYAN "%s" ANSI_RESET "\n\n", name);
+            printf("Mi dispiace, ho avuto un problema. Riprova.\n");
+        }
     }
 
     printf("\n");
@@ -1257,6 +1412,9 @@ int main(int argc, char** argv) {
         printf("  ✓ Configuration (~/.convergio/)\n");
     }
 
+    // Initialize theme system
+    theme_init();
+
     // Detect hardware
     if (convergio_detect_hardware() != 0) {
         fprintf(stderr, "Warning: Failed to detect hardware.\n");
@@ -1266,8 +1424,68 @@ int main(int argc, char** argv) {
 
     // Initialize authentication
     if (auth_init() != 0) {
-        printf("  \033[33m⚠ No authentication configured\033[0m\n");
-        printf("    Run 'convergio setup' or set ANTHROPIC_API_KEY\n");
+        printf("  \033[33m⚠ No API key found\033[0m\n");
+        printf("\n");
+        printf("  ┌─────────────────────────────────────────────────────────────┐\n");
+        printf("  │  \033[1mWelcome to Convergio!\033[0m                                      │\n");
+        printf("  │                                                             │\n");
+        printf("  │  To get started, you need an Anthropic API key.            │\n");
+        printf("  │                                                             │\n");
+        printf("  │  \033[1mHow to get your API key:\033[0m                                   │\n");
+        printf("  │  1. Go to \033[36mhttps://console.anthropic.com/settings/keys\033[0m      │\n");
+        printf("  │  2. Sign up or log in to your Anthropic account            │\n");
+        printf("  │  3. Click \"Create Key\" and copy it                         │\n");
+        printf("  └─────────────────────────────────────────────────────────────┘\n");
+        printf("\n");
+
+        // Ask if user wants to open browser
+        printf("  Would you like to open the Anthropic console in your browser? [Y/n]: ");
+        fflush(stdout);
+
+        char response[16] = {0};
+        if (fgets(response, sizeof(response), stdin)) {
+            if (response[0] != 'n' && response[0] != 'N') {
+                // Open browser on macOS
+                system("open 'https://console.anthropic.com/settings/keys' 2>/dev/null");
+                printf("\n  \033[32m✓ Browser opened!\033[0m\n\n");
+            }
+        }
+
+        // Now ask for the key
+        printf("  Enter your API key (starts with 'sk-ant-'): ");
+        fflush(stdout);
+
+        char api_key[256] = {0};
+        if (fgets(api_key, sizeof(api_key), stdin)) {
+            // Trim newline
+            size_t len = strlen(api_key);
+            if (len > 0 && api_key[len-1] == '\n') {
+                api_key[len-1] = '\0';
+                len--;
+            }
+
+            // Validate and store if provided
+            if (len > 10 && strncmp(api_key, "sk-", 3) == 0) {
+                if (convergio_store_api_key(api_key) == 0) {
+                    printf("\n  \033[32m✓ API key saved to macOS Keychain!\033[0m\n");
+                    printf("    Your key is stored securely and you won't need to enter it again.\n\n");
+                    // Re-initialize auth with the new key
+                    auth_init();
+                } else {
+                    // Fallback: set environment variable for this session
+                    setenv("ANTHROPIC_API_KEY", api_key, 1);
+                    printf("\n  \033[32m✓ API key configured for this session.\033[0m\n");
+                    printf("    Run 'convergio setup' later to save it permanently.\n\n");
+                    auth_init();
+                }
+            } else if (len > 0) {
+                printf("\n  \033[33m⚠ Invalid key format.\033[0m Keys should start with 'sk-ant-'.\n");
+                printf("    You can run 'convergio setup' later to configure it.\n\n");
+            } else {
+                printf("\n  \033[2mSkipped.\033[0m You can run 'convergio setup' later.\n");
+                printf("    \033[33mNote: Convergio won't work until you configure an API key.\033[0m\n\n");
+            }
+        }
     } else {
         char* auth_status = auth_get_status_string();
         printf("  ✓ Authentication: %s\n", auth_status ? auth_status : "configured");
@@ -1324,14 +1542,18 @@ int main(int argc, char** argv) {
     using_history();
 
     while (g_running) {
-        // Fancy prompt with colored Convergio and arrow
-        // \033[38;5;39m = bright blue color
-        // \033[1m = bold
-        // \033[0m = reset
+        // Build prompt with theme colors
+        // \001 and \002 = readline markers for non-printable chars (RL_PROMPT_START/END_IGNORE)
+        // Without these, readline miscalculates cursor position and corrupts input display
+        const Theme* t = theme_get();
         snprintf(prompt, sizeof(prompt),
-            "\033[38;5;39m\033[1mConvergio\033[0m \033[38;5;39m❯\033[0m ");
+            "\001%s\002Convergio\001\033[0m\002 \001%s\002❯\001\033[0m\002 \001%s\002",
+            t->prompt_name, t->prompt_arrow, t->user_input);
 
         line = readline(prompt);
+
+        // Reset color after user input
+        printf("\033[0m");
 
         if (!line) {
             // EOF

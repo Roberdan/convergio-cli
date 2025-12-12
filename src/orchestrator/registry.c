@@ -506,7 +506,8 @@ size_t agent_get_active(ManagedAgent** out_agents, size_t max_count) {
 // AGENT DEFINITION LOADING
 // ============================================================================
 
-// Parse markdown agent definition file
+// Parse markdown agent definition file (reserved for future dynamic agent loading)
+__attribute__((unused))
 static ManagedAgent* parse_agent_md(const char* filepath) {
     FILE* f = fopen(filepath, "r");
     if (!f) return NULL;

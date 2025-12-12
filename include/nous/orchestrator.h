@@ -252,6 +252,11 @@ void orch_task_complete(Task* task, const char* result);
 // Main entry point - process user input through orchestrator
 char* orchestrator_process(const char* user_input);
 
+// Streaming variant - live output via callback, returns accumulated response
+// NOTE: Streaming mode does not support tool calls (simple chat only)
+typedef void (*StreamCallback)(const char* chunk, void* user_data);
+char* orchestrator_process_stream(const char* user_input, StreamCallback callback, void* user_data);
+
 // Direct agent communication with tools support
 char* orchestrator_agent_chat(ManagedAgent* agent, const char* user_message);
 

@@ -9,18 +9,68 @@
  */
 
 #include "nous/orchestrator.h"
+#include "nous/config.h"
 #include <sqlite3.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <pthread.h>
 #include <stdint.h>
+#include <sys/stat.h>
+#include <errno.h>
 
 // Database handle
 static sqlite3* g_db = NULL;
 static pthread_mutex_t g_db_mutex = PTHREAD_MUTEX_INITIALIZER;
 
-#define DB_PATH "data/convergio.db"
+// Get DB path from config, fallback to default
+static const char* get_db_path(void) {
+    const char* path = convergio_config_get("db_path");
+    if (path && strlen(path) > 0) {
+        return path;
+    }
+    // Fallback for when config not initialized
+    return "data/convergio.db";
+}
+
+// Ensure parent directory exists
+static int ensure_db_directory(const char* db_path) {
+    if (!db_path) return -1;
+
+    // Find last slash to get directory
+    char dir[512];
+    strncpy(dir, db_path, sizeof(dir) - 1);
+    dir[sizeof(dir) - 1] = '\0';
+
+    char* last_slash = strrchr(dir, '/');
+    if (!last_slash) return 0;  // No directory component
+
+    *last_slash = '\0';  // Truncate to get directory only
+
+    // Create directory recursively
+    struct stat st;
+    if (stat(dir, &st) == 0) {
+        return 0;  // Already exists
+    }
+
+    // Try to create it
+    if (mkdir(dir, 0755) == 0) {
+        return 0;
+    }
+
+    // Try parent directory first
+    char* parent_slash = strrchr(dir, '/');
+    if (parent_slash) {
+        *parent_slash = '\0';
+        if (strlen(dir) > 0) {
+            mkdir(dir, 0755);  // Create parent
+        }
+        *parent_slash = '/';
+        mkdir(dir, 0755);  // Try again
+    }
+
+    return 0;
+}
 
 // ============================================================================
 // SCHEMA
@@ -124,11 +174,15 @@ int persistence_init(const char* db_path) {
         return 0;  // Already initialized
     }
 
-    const char* path = db_path ? db_path : DB_PATH;
+    // Use provided path, or get from config, or fallback to default
+    const char* path = db_path ? db_path : get_db_path();
+
+    // Ensure the directory exists before opening
+    ensure_db_directory(path);
 
     int rc = sqlite3_open(path, &g_db);
     if (rc != SQLITE_OK) {
-        fprintf(stderr, "Convergio: Cannot open database: %s\n", sqlite3_errmsg(g_db));
+        fprintf(stderr, "Convergio: Cannot open database '%s': %s\n", path, sqlite3_errmsg(g_db));
         pthread_mutex_unlock(&g_db_mutex);
         return -1;
     }
@@ -191,7 +245,12 @@ int persistence_save_message(const char* session_id, Message* msg) {
     sqlite3_bind_int(stmt, 2, msg->type);
     sqlite3_bind_int64(stmt, 3, msg->sender);
     sqlite3_bind_text(stmt, 4, msg->content, -1, SQLITE_STATIC);
-    sqlite3_bind_text(stmt, 5, msg->metadata_json, -1, SQLITE_STATIC);
+    // Guard against NULL metadata_json (would crash strlen in sqlite3_bind_text)
+    if (msg->metadata_json) {
+        sqlite3_bind_text(stmt, 5, msg->metadata_json, -1, SQLITE_STATIC);
+    } else {
+        sqlite3_bind_null(stmt, 5);
+    }
     sqlite3_bind_int64(stmt, 6, msg->tokens_used.input_tokens);
     sqlite3_bind_int64(stmt, 7, msg->tokens_used.output_tokens);
     sqlite3_bind_double(stmt, 8, msg->tokens_used.cost_usd);

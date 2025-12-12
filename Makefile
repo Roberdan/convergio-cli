@@ -59,6 +59,8 @@ BIN_DIR = $(BUILD_DIR)/bin
 C_SOURCES = $(SRC_DIR)/core/fabric.c \
             $(SRC_DIR)/core/main.c \
             $(SRC_DIR)/core/ansi_md.c \
+            $(SRC_DIR)/core/stream_md.c \
+            $(SRC_DIR)/core/theme.c \
             $(SRC_DIR)/core/config.c \
             $(SRC_DIR)/core/updater.c \
             $(SRC_DIR)/intent/parser.c \

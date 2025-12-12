@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.0.6] - 2025-12-12
+
+### Added
+- **Theme system**: 4 terminal color themes to customize appearance
+  - `theme ocean` - Cool blue/cyan tones (default)
+  - `theme forest` - Green nature tones
+  - `theme sunset` - Warm orange/red tones
+  - `theme mono` - Classic grayscale
+- **Streaming markdown**: Live rendering as responses arrive (toggle with `stream on/off`)
+- **Colored user input**: User text now has distinct color based on theme
+- **Interactive budget management**: When budget is exceeded, choose to increase/set/view
+- **First-run onboarding**: Clear API key setup wizard with browser auto-open
+
+### Fixed
+- **Readline prompt bug**: Fixed text corruption when typing long inputs (proper ANSI marker wrapping)
+- **CRITICAL: DB path**: Now uses `~/.convergio/convergio.db` instead of repo-relative `data/`
+- **CRITICAL: NULL crash**: Fixed crash when `metadata_json` is NULL in persistence
+- **Notes/knowledge paths**: Now use `~/.convergio/notes` and `~/.convergio/knowledge`
+- CMakeLists.txt updated with all source files for CMake builds
+
+### Changed
+- Default streaming mode enabled for faster perceived response time
+- Theme preference persisted in config
+
 ## [2.0.5] - 2025-12-11
 
 ### Fixed

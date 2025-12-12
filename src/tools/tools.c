@@ -5,6 +5,7 @@
  */
 
 #include "nous/tools.h"
+#include "nous/config.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -106,9 +107,16 @@ static void sanitize_grep_pattern(char* pattern) {
 // TOOL DEFINITIONS JSON
 // ============================================================================
 
-// Notes and knowledge base directories
-#define NOTES_DIR "data/notes"
-#define KNOWLEDGE_DIR "data/knowledge"
+// Notes and knowledge base directories - get from config with fallback
+static const char* get_notes_dir(void) {
+    const char* dir = convergio_config_get("notes_dir");
+    return (dir && strlen(dir) > 0) ? dir : "data/notes";
+}
+
+static const char* get_knowledge_dir(void) {
+    const char* dir = convergio_config_get("knowledge_dir");
+    return (dir && strlen(dir) > 0) ? dir : "data/knowledge";
+}
 
 static const char* TOOLS_JSON =
 "[\n"
@@ -1163,7 +1171,7 @@ ToolResult* tool_note_write(const char* title, const char* content, const char* 
         return result_error("Title and content are required");
     }
 
-    ensure_dir(NOTES_DIR);
+    ensure_dir(get_notes_dir());
 
     // Build filename
     char filename[PATH_MAX];
@@ -1172,7 +1180,7 @@ ToolResult* tool_note_write(const char* title, const char* content, const char* 
     safe_title[sizeof(safe_title) - 1] = '\0';
     sanitize_filename(safe_title);
 
-    snprintf(filename, sizeof(filename), "%s/%s.md", NOTES_DIR, safe_title);
+    snprintf(filename, sizeof(filename), "%s/%s.md", get_notes_dir(), safe_title);
 
     // Build markdown content with frontmatter
     size_t full_size = strlen(content) + 512;
@@ -1221,7 +1229,7 @@ ToolResult* tool_note_read(const char* title, const char* search) {
         safe_title[sizeof(safe_title) - 1] = '\0';
         sanitize_filename(safe_title);
 
-        snprintf(filename, sizeof(filename), "%s/%s.md", NOTES_DIR, safe_title);
+        snprintf(filename, sizeof(filename), "%s/%s.md", get_notes_dir(), safe_title);
 
         FILE* f = fopen(filename, "r");
         if (!f) {
@@ -1255,7 +1263,7 @@ ToolResult* tool_note_read(const char* title, const char* search) {
 
     if (search) {
         // Search notes for content
-        DIR* dir = opendir(NOTES_DIR);
+        DIR* dir = opendir(get_notes_dir());
         if (!dir) {
             return result_error("Notes directory not found");
         }
@@ -1270,7 +1278,7 @@ ToolResult* tool_note_read(const char* title, const char* search) {
             if (entry->d_name[0] == '.' || !strstr(entry->d_name, ".md")) continue;
 
             char filepath[PATH_MAX];
-            snprintf(filepath, sizeof(filepath), "%s/%s", NOTES_DIR, entry->d_name);
+            snprintf(filepath, sizeof(filepath), "%s/%s", get_notes_dir(), entry->d_name);
 
             FILE* f = fopen(filepath, "r");
             if (!f) continue;
@@ -1332,9 +1340,9 @@ ToolResult* tool_note_read(const char* title, const char* search) {
 ToolResult* tool_note_list(const char* tag_filter) {
     clock_t start = clock();
 
-    DIR* dir = opendir(NOTES_DIR);
+    DIR* dir = opendir(get_notes_dir());
     if (!dir) {
-        ensure_dir(NOTES_DIR);
+        ensure_dir(get_notes_dir());
         return result_success("Notes directory is empty.");
     }
 
@@ -1349,7 +1357,7 @@ ToolResult* tool_note_list(const char* tag_filter) {
         if (entry->d_name[0] == '.' || !strstr(entry->d_name, ".md")) continue;
 
         char filepath[PATH_MAX];
-        snprintf(filepath, sizeof(filepath), "%s/%s", NOTES_DIR, entry->d_name);
+        snprintf(filepath, sizeof(filepath), "%s/%s", get_notes_dir(), entry->d_name);
 
         struct stat st;
         if (stat(filepath, &st) != 0) continue;
@@ -1428,7 +1436,7 @@ ToolResult* tool_knowledge_search(const char* query, size_t max_results) {
 
     if (max_results == 0) max_results = 5;
 
-    ensure_dir(KNOWLEDGE_DIR);
+    ensure_dir(get_knowledge_dir());
 
     // Recursive search in knowledge directory
     size_t capacity = 16384;
@@ -1457,7 +1465,7 @@ ToolResult* tool_knowledge_search(const char* query, size_t max_results) {
     char cmd[1024];
     snprintf(cmd, sizeof(cmd),
         "grep -r -l -i '%s' %s 2>/dev/null | head -%zu",
-        escaped_query, KNOWLEDGE_DIR, max_results);
+        escaped_query, get_knowledge_dir(), max_results);
     free(escaped_query);
 
     FILE* pipe = popen(cmd, "r");
@@ -1497,7 +1505,7 @@ ToolResult* tool_knowledge_search(const char* query, size_t max_results) {
 
             len += snprintf(output + len, capacity - len,
                 "### %s\n%s\n\n---\n\n",
-                filepath + strlen(KNOWLEDGE_DIR) + 1,  // Remove prefix
+                filepath + strlen(get_knowledge_dir()) + 1,  // Remove prefix
                 content);
 
             free(content);
@@ -1523,15 +1531,15 @@ ToolResult* tool_knowledge_add(const char* title, const char* content, const cha
         return result_error("Title and content are required");
     }
 
-    ensure_dir(KNOWLEDGE_DIR);
+    ensure_dir(get_knowledge_dir());
 
     // Create category subdirectory if specified
     char dirpath[PATH_MAX];
     if (category && category[0]) {
-        snprintf(dirpath, sizeof(dirpath), "%s/%s", KNOWLEDGE_DIR, category);
+        snprintf(dirpath, sizeof(dirpath), "%s/%s", get_knowledge_dir(), category);
         ensure_dir(dirpath);
     } else {
-        strncpy(dirpath, KNOWLEDGE_DIR, sizeof(dirpath));
+        strncpy(dirpath, get_knowledge_dir(), sizeof(dirpath));
     }
 
     // Build filename

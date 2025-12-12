@@ -1091,6 +1091,78 @@ char* orchestrator_process(const char* user_input) {
     return final_response;
 }
 
+// External streaming function from claude.c
+extern char* nous_claude_chat_stream(const char* system_prompt, const char* user_message,
+                                      void (*callback)(const char*, void*), void* user_data);
+
+// Streaming variant - uses callback for live output, no tool support
+char* orchestrator_process_stream(const char* user_input, StreamCallback callback, void* user_data) {
+    if (!g_orchestrator || !g_orchestrator->initialized || !user_input) {
+        const char* err = "Error: Orchestrator not initialized";
+        if (callback) callback(err, user_data);
+        return strdup(err);
+    }
+
+    // Check budget
+    if (g_orchestrator->cost.budget_exceeded) {
+        const char* err = "Budget exceeded. Use 'cost set <amount>' to increase budget.";
+        if (callback) callback(err, user_data);
+        return strdup(err);
+    }
+
+    // Save user message to persistence
+    if (g_current_session_id) {
+        persistence_save_conversation(g_current_session_id, "user", user_input, (int)strlen(user_input) / 4);
+    }
+
+    // Create user message
+    Message* user_msg = message_create(MSG_TYPE_USER_INPUT, 0, g_orchestrator->ali->id, user_input);
+    if (user_msg) {
+        message_send(user_msg);
+    }
+
+    // Build conversation with context
+    char* conversation = build_context_prompt(user_input);
+    if (!conversation) {
+        const char* err = "Error: Memory allocation failed";
+        if (callback) callback(err, user_data);
+        return strdup(err);
+    }
+
+    // Call Claude with streaming - no tools in streaming mode
+    char* response = nous_claude_chat_stream(
+        g_orchestrator->ali->system_prompt,
+        conversation,
+        callback,
+        user_data
+    );
+
+    free(conversation);
+
+    // Track costs (estimate based on input/output length)
+    if (response) {
+        size_t input_tokens = strlen(g_orchestrator->ali->system_prompt) / 4 + strlen(user_input) / 4;
+        size_t output_tokens = strlen(response) / 4;
+        cost_record_usage(input_tokens, output_tokens);
+        cost_record_agent_usage(g_orchestrator->ali, input_tokens, output_tokens);
+
+        // Save response to persistence
+        if (g_current_session_id) {
+            persistence_save_conversation(g_current_session_id, "assistant", response,
+                                           (int)strlen(response) / 4);
+        }
+
+        // Create response message
+        Message* response_msg = message_create(MSG_TYPE_AGENT_RESPONSE,
+                                                g_orchestrator->ali->id, 0, response);
+        if (response_msg) {
+            message_send(response_msg);
+        }
+    }
+
+    return response;
+}
+
 // ============================================================================
 // CONVERGENCE
 // ============================================================================

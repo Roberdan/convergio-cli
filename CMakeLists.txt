@@ -44,24 +44,57 @@ if(NOT READLINE_LIBRARY)
     find_library(READLINE_LIBRARY edit)
 endif()
 
+# Find curl
+find_library(CURL_LIBRARY curl)
+find_path(CURL_INCLUDE_DIR curl/curl.h)
+
+# Find sqlite3
+find_library(SQLITE3_LIBRARY sqlite3)
+find_path(SQLITE3_INCLUDE_DIR sqlite3.h)
+
+# Find Security framework for keychain
+find_library(SECURITY_FRAMEWORK Security)
+find_library(APPKIT_FRAMEWORK AppKit)
+
 # Include directories
 include_directories(
     ${CMAKE_SOURCE_DIR}/include
     ${READLINE_INCLUDE_DIR}
+    ${CURL_INCLUDE_DIR}
+    ${SQLITE3_INCLUDE_DIR}
 )
 
-# Source files
+# Source files - all C sources
 set(NOUS_SOURCES
     src/core/fabric.c
     src/core/main.c
+    src/core/ansi_md.c
+    src/core/stream_md.c
+    src/core/theme.c
+    src/core/config.c
+    src/core/updater.c
     src/intent/parser.c
+    src/intent/interpreter.c
     src/agents/agent.c
+    src/agents/embedded_agents.c
     src/spaces/space.c
     src/runtime/scheduler.c
+    src/neural/claude.c
+    src/orchestrator/cost.c
+    src/orchestrator/registry.c
+    src/orchestrator/msgbus.c
+    src/orchestrator/orchestrator.c
+    src/memory/persistence.c
+    src/tools/tools.c
 )
 
+# Objective-C sources
 set(NOUS_OBJC_SOURCES
     src/metal/gpu.m
+    src/neural/mlx_embed.m
+    src/auth/oauth.m
+    src/auth/keychain.m
+    src/core/hardware.m
 )
 
 # Metal shaders
@@ -102,14 +135,18 @@ add_executable(convergio
 
 add_dependencies(convergio metal_shaders)
 
-# Link frameworks
+# Link frameworks and libraries
 target_link_libraries(convergio
     ${METAL_FRAMEWORK}
     ${METALKIT_FRAMEWORK}
     ${MPS_FRAMEWORK}
     ${ACCELERATE_FRAMEWORK}
     ${FOUNDATION_FRAMEWORK}
+    ${SECURITY_FRAMEWORK}
+    ${APPKIT_FRAMEWORK}
     ${READLINE_LIBRARY}
+    ${CURL_LIBRARY}
+    ${SQLITE3_LIBRARY}
     "-framework CoreFoundation"
 )
 
