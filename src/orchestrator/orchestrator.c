@@ -3,13 +3,16 @@
  *
  * The heart of the system - Ali coordinates everything:
  * - User input processing
- * - Agent delegation
- * - Task planning
- * - Convergence
+ * - Agent delegation (see delegation.c)
+ * - Task planning (see planning.c)
+ * - Convergence (see convergence.c)
  * - Cost management
  */
 
 #include "nous/orchestrator.h"
+#include "nous/delegation.h"
+#include "nous/planning.h"
+#include "nous/convergence.h"
 #include "nous/updater.h"
 #include "nous/nous.h"
 #include <stdio.h>
@@ -502,178 +505,10 @@ Orchestrator* orchestrator_get(void) {
 }
 
 // ============================================================================
-// TASK PLANNING
+// NOTE: Task planning moved to planning.c
+// NOTE: Agent delegation moved to delegation.c
+// NOTE: Convergence logic moved to convergence.c
 // ============================================================================
-
-static uint64_t g_next_task_id = 1;
-static uint64_t g_next_plan_id = 1;
-
-ExecutionPlan* orch_plan_create(const char* goal) {
-    ExecutionPlan* plan = calloc(1, sizeof(ExecutionPlan));
-    if (!plan) return NULL;
-
-    plan->id = __sync_fetch_and_add(&g_next_plan_id, 1);
-    plan->goal = strdup(goal);
-    if (!plan->goal) {
-        free(plan);
-        return NULL;
-    }
-    plan->created_at = time(NULL);
-
-    return plan;
-}
-
-Task* orch_task_create(const char* description, SemanticID assignee) {
-    Task* task = calloc(1, sizeof(Task));
-    if (!task) return NULL;
-
-    task->id = __sync_fetch_and_add(&g_next_task_id, 1);
-    task->description = strdup(description);
-    if (!task->description) {
-        free(task);
-        return NULL;
-    }
-    task->assigned_to = assignee;
-    task->status = TASK_STATUS_PENDING;
-    task->created_at = time(NULL);
-
-    return task;
-}
-
-void orch_plan_add_task(ExecutionPlan* plan, Task* task) {
-    if (!plan || !task) return;
-
-    // Add to linked list
-    task->next = plan->tasks;
-    plan->tasks = task;
-}
-
-void orch_task_complete(Task* task, const char* result) {
-    if (!task) return;
-
-    task->status = TASK_STATUS_COMPLETED;
-    task->result = result ? strdup(result) : NULL;
-    task->completed_at = time(NULL);
-}
-
-// ============================================================================
-// AGENT DELEGATION
-// ============================================================================
-
-// Parse Ali's response for delegation requests (supports multiple)
-typedef struct {
-    char* agent_name;
-    char* reason;
-} DelegationRequest;
-
-typedef struct {
-    DelegationRequest** requests;
-    size_t count;
-    size_t capacity;
-} DelegationList;
-
-// Parse ALL delegation requests from response
-static DelegationList* parse_all_delegations(const char* response) {
-    DelegationList* list = calloc(1, sizeof(DelegationList));
-    if (!list) return NULL;
-
-    list->capacity = 16;
-    list->requests = calloc(list->capacity, sizeof(DelegationRequest*));
-    if (!list->requests) {
-        free(list);
-        return NULL;
-    }
-
-    const char* marker = "[DELEGATE:";
-    const char* pos = response;
-
-    while ((pos = strstr(pos, marker)) != NULL) {
-        DelegationRequest* req = calloc(1, sizeof(DelegationRequest));
-        if (!req) break;
-
-        // Extract agent name
-        pos += strlen(marker);
-        while (*pos == ' ') pos++;
-
-        const char* end = strchr(pos, ']');
-        if (!end) {
-            free(req);
-            break;
-        }
-
-        size_t name_len = end - pos;
-        req->agent_name = malloc(name_len + 1);
-        if (req->agent_name) {
-            strncpy(req->agent_name, pos, name_len);
-            req->agent_name[name_len] = '\0';
-            // Trim trailing spaces
-            char* trim = req->agent_name + strlen(req->agent_name) - 1;
-            while (trim > req->agent_name && *trim == ' ') *trim-- = '\0';
-        }
-
-        // Extract reason (until next [DELEGATE: or newline)
-        pos = end + 1;
-        while (*pos == ' ') pos++;
-
-        const char* reason_end = strstr(pos, "[DELEGATE:");
-        if (!reason_end) {
-            // Find end of line or end of string
-            reason_end = strchr(pos, '\n');
-            if (!reason_end) reason_end = pos + strlen(pos);
-        }
-
-        if (reason_end > pos) {
-            size_t reason_len = reason_end - pos;
-            req->reason = malloc(reason_len + 1);
-            if (req->reason) {
-                strncpy(req->reason, pos, reason_len);
-                req->reason[reason_len] = '\0';
-                // Trim
-                char* trim = req->reason + strlen(req->reason) - 1;
-                while (trim > req->reason && (*trim == ' ' || *trim == '\n')) *trim-- = '\0';
-            }
-        }
-
-        // Add to list
-        if (list->count >= list->capacity) {
-            list->capacity *= 2;
-            list->requests = realloc(list->requests, list->capacity * sizeof(DelegationRequest*));
-        }
-        list->requests[list->count++] = req;
-
-        pos = reason_end;
-    }
-
-    if (list->count == 0) {
-        free(list->requests);
-        free(list);
-        return NULL;
-    }
-
-    return list;
-}
-
-static void free_delegation_list(DelegationList* list) {
-    if (!list) return;
-    for (size_t i = 0; i < list->count; i++) {
-        if (list->requests[i]) {
-            free(list->requests[i]->agent_name);
-            free(list->requests[i]->reason);
-            free(list->requests[i]);
-        }
-    }
-    free(list->requests);
-    free(list);
-}
-
-// Structure for parallel agent execution
-typedef struct {
-    ManagedAgent* agent;
-    const char* user_input;
-    const char* context;
-    char* response;
-    bool completed;
-} AgentTask;
 
 // ============================================================================
 // TOOL EXECUTION HELPERS
@@ -1027,138 +862,30 @@ char* orchestrator_process(const char* user_input) {
     // Check for delegation requests in final response (supports multiple)
     DelegationList* delegations = parse_all_delegations(final_response);
     if (delegations && delegations->count > 0) {
-        // Prepare parallel execution
-        AgentTask* tasks = calloc(delegations->count, sizeof(AgentTask));
-        dispatch_group_t group = dispatch_group_create();
-        dispatch_queue_t queue = dispatch_get_global_queue(QOS_CLASS_USER_INITIATED, 0);
-
-        // Spawn all agent tasks in parallel
-        for (size_t i = 0; i < delegations->count; i++) {
-            DelegationRequest* req = delegations->requests[i];
-
-            // Find or spawn the requested agent
-            ManagedAgent* specialist = agent_find_by_name(req->agent_name);
-            if (!specialist) {
-                specialist = agent_spawn(AGENT_ROLE_ANALYST, req->agent_name, NULL);
-            }
-
-            if (specialist && specialist->system_prompt) {
-                tasks[i].agent = specialist;
-                tasks[i].user_input = user_input;
-                tasks[i].context = req->reason;
-                tasks[i].response = NULL;
-                tasks[i].completed = false;
-
-                // Create delegation message
-                Message* delegate_msg = message_create(MSG_TYPE_TASK_DELEGATE,
-                                                        g_orchestrator->ali->id,
-                                                        specialist->id,
-                                                        user_input);
-                if (delegate_msg) {
-                    message_send(delegate_msg);
-                }
-
-                // Execute in parallel
-                dispatch_group_async(group, queue, ^{
-                    // Set agent as working
-                    agent_set_working(tasks[i].agent, WORK_STATE_THINKING,
-                                      tasks[i].context ? tasks[i].context : "Analyzing request");
-
-                    size_t prompt_size = strlen(tasks[i].agent->system_prompt) +
-                                         (tasks[i].context ? strlen(tasks[i].context) : 0) + 256;
-                    char* prompt_with_context = malloc(prompt_size);
-                    if (prompt_with_context) {
-                        snprintf(prompt_with_context, prompt_size, "%s\n\nContext from Ali: %s",
-                                tasks[i].agent->system_prompt,
-                                tasks[i].context ? tasks[i].context : "Please analyze and respond.");
-
-                        tasks[i].response = nous_claude_chat(prompt_with_context, tasks[i].user_input);
-                        free(prompt_with_context);
-
-                        if (tasks[i].response) {
-                            cost_record_agent_usage(tasks[i].agent,
-                                                    strlen(tasks[i].agent->system_prompt) / 4 + strlen(tasks[i].user_input) / 4,
-                                                    strlen(tasks[i].response) / 4);
-                            tasks[i].completed = true;
-                        }
-                    }
-
-                    // Set agent back to idle
-                    agent_set_idle(tasks[i].agent);
-                });
-            }
-        }
-
-        // Wait for all agents to complete
-        dispatch_group_wait(group, DISPATCH_TIME_FOREVER);
-
-        // Build convergence prompt with all responses
-        size_t convergence_size = strlen(final_response) + 4096;
-        for (size_t i = 0; i < delegations->count; i++) {
-            if (tasks[i].response) {
-                convergence_size += strlen(tasks[i].response) + 256;
-            }
-        }
-
-        char* convergence_prompt = malloc(convergence_size);
-        if (convergence_prompt) {
-            size_t offset = snprintf(convergence_prompt, convergence_size,
-                "You delegated to %zu specialist agents. Here are their responses:\n\n",
-                delegations->count);
-
-            for (size_t i = 0; i < delegations->count; i++) {
-                if (tasks[i].completed && tasks[i].response) {
-                    offset += snprintf(convergence_prompt + offset, convergence_size - offset,
-                        "## %s's Response\n%s\n\n",
-                        tasks[i].agent ? tasks[i].agent->name : "Agent",
-                        tasks[i].response);
-                }
-            }
-
-            offset += snprintf(convergence_prompt + offset, convergence_size - offset,
-                "---\n\nOriginal user request: %s\n\n"
-                "Please synthesize all these specialist perspectives into a unified, comprehensive response for the user. "
-                "Integrate insights from each agent, highlight agreements and different viewpoints, "
-                "and provide actionable conclusions.",
-                user_input);
-
-            // Ali synthesizes all responses
-            char* synthesized = nous_claude_chat(g_orchestrator->ali->system_prompt, convergence_prompt);
-            free(convergence_prompt);
-
-            if (synthesized) {
-                cost_record_agent_usage(g_orchestrator->ali, 1000, strlen(synthesized) / 4);
-
-                // Cleanup
-                for (size_t i = 0; i < delegations->count; i++) {
-                    free(tasks[i].response);
-                }
-                free(tasks);
-                free_delegation_list(delegations);
-                free(final_response);
-
-                // Save synthesized response
-                if (g_current_session_id) {
-                    persistence_save_conversation(g_current_session_id, "assistant", synthesized,
-                                                   (int)strlen(synthesized) / 4);
-                }
-
-                Message* response_msg = message_create(MSG_TYPE_AGENT_RESPONSE,
-                                                        g_orchestrator->ali->id, 0, synthesized);
-                if (response_msg) {
-                    message_send(response_msg);
-                }
-
-                return synthesized;
-            }
-        }
-
-        // Cleanup on failure
-        for (size_t i = 0; i < delegations->count; i++) {
-            free(tasks[i].response);
-        }
-        free(tasks);
+        // Execute all delegations in parallel and get synthesized result
+        char* synthesized = execute_delegations(delegations, user_input, final_response, g_orchestrator->ali);
         free_delegation_list(delegations);
+        free(final_response);
+
+        if (synthesized) {
+            // Save synthesized response
+            if (g_current_session_id) {
+                persistence_save_conversation(g_current_session_id, "assistant", synthesized,
+                                               (int)strlen(synthesized) / 4);
+            }
+
+            Message* response_msg = message_create(MSG_TYPE_AGENT_RESPONSE,
+                                                    g_orchestrator->ali->id, 0, synthesized);
+            if (response_msg) {
+                message_send(response_msg);
+            }
+
+            return synthesized;
+        }
+
+        // If delegation failed, fall through to return original response
+        // (already freed above, so this shouldn't happen - return error)
+        return strdup("Error: Delegation failed");
     }
 
     // Save assistant response to persistence
@@ -1250,55 +977,8 @@ char* orchestrator_process_stream(const char* user_input, OrchestratorStreamCall
 }
 
 // ============================================================================
-// CONVERGENCE
+// NOTE: Convergence logic moved to convergence.c
 // ============================================================================
-
-// Converge results from multiple agents into unified response
-char* orchestrator_converge(ExecutionPlan* plan) {
-    if (!g_orchestrator || !plan) return NULL;
-
-    // Collect all task results
-    size_t buf_size = 8192;
-    char* combined = malloc(buf_size);
-    if (!combined) return NULL;
-
-    size_t offset = snprintf(combined, buf_size,
-        "Synthesize the following results into a unified response:\n\nGoal: %s\n\n",
-        plan->goal);
-
-    Task* task = plan->tasks;
-    while (task && offset < buf_size - 512) {
-        if (task->status == TASK_STATUS_COMPLETED && task->result) {
-            ManagedAgent* agent = NULL;
-            for (size_t i = 0; i < g_orchestrator->agent_count; i++) {
-                if (g_orchestrator->agents[i]->id == task->assigned_to) {
-                    agent = g_orchestrator->agents[i];
-                    break;
-                }
-            }
-
-            offset += snprintf(combined + offset, buf_size - offset,
-                "## %s's Analysis\n%s\n\n",
-                agent ? agent->name : "Agent",
-                task->result);
-        }
-        task = task->next;
-    }
-
-    // Ask Ali to synthesize
-    char* final = nous_claude_chat(
-        "You are Ali. Synthesize the following multi-agent analysis into a clear, actionable response.",
-        combined);
-
-    free(combined);
-
-    if (final) {
-        plan->final_result = strdup(final);
-        plan->is_complete = true;
-    }
-
-    return final;
-}
 
 // ============================================================================
 // DIRECT AGENT COMMUNICATION (with tools support)

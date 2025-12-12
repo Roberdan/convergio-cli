@@ -64,6 +64,9 @@ BIN_DIR = $(BUILD_DIR)/bin
 # Source files
 C_SOURCES = $(SRC_DIR)/core/fabric.c \
             $(SRC_DIR)/core/main.c \
+            $(SRC_DIR)/core/signals.c \
+            $(SRC_DIR)/core/repl.c \
+            $(SRC_DIR)/core/commands/commands.c \
             $(SRC_DIR)/core/ansi_md.c \
             $(SRC_DIR)/core/stream_md.c \
             $(SRC_DIR)/core/theme.c \
@@ -82,6 +85,9 @@ C_SOURCES = $(SRC_DIR)/core/fabric.c \
             $(SRC_DIR)/orchestrator/registry.c \
             $(SRC_DIR)/orchestrator/msgbus.c \
             $(SRC_DIR)/orchestrator/orchestrator.c \
+            $(SRC_DIR)/orchestrator/delegation.c \
+            $(SRC_DIR)/orchestrator/planning.c \
+            $(SRC_DIR)/orchestrator/convergence.c \
             $(SRC_DIR)/memory/persistence.c \
             $(SRC_DIR)/tools/tools.c \
             $(SRC_DIR)/providers/provider.c \
@@ -146,6 +152,7 @@ $(OBJ_DIR)/agents/embedded_agents.o: $(EMBEDDED_AGENTS)
 # Create directories
 dirs:
 	@mkdir -p $(OBJ_DIR)/core
+	@mkdir -p $(OBJ_DIR)/core/commands
 	@mkdir -p $(OBJ_DIR)/intent
 	@mkdir -p $(OBJ_DIR)/agents
 	@mkdir -p $(OBJ_DIR)/spaces

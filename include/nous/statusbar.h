@@ -218,4 +218,21 @@ void statusbar_handle_resize(void);
  */
 void statusbar_get_terminal_size(int* width, int* height);
 
+// ============================================================================
+// SCROLL REGION MANAGEMENT
+// ============================================================================
+
+/**
+ * Set up scroll region to reserve bottom 2 lines for status bar.
+ * This prevents output from overwriting the status bar.
+ * Should be called after statusbar_init() and statusbar_set_visible(true).
+ */
+void statusbar_setup_scroll_region(void);
+
+/**
+ * Reset scroll region to full terminal.
+ * Should be called before statusbar_shutdown() or when hiding the status bar.
+ */
+void statusbar_reset_scroll_region(void);
+
 #endif // CONVERGIO_STATUSBAR_H
