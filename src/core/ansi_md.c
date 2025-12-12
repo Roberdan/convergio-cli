@@ -9,6 +9,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdbool.h>
+#include <unistd.h>
 
 // ANSI escape codes
 #define ANSI_RESET      "\033[0m"
@@ -263,8 +264,17 @@ char* md_to_ansi(const char* markdown) {
 
 /**
  * Print markdown directly to stdout with ANSI formatting.
+ * Falls back to plain markdown if stdout is not a TTY.
  */
 void md_print(const char* markdown) {
+    if (!markdown) return;
+
+    // If not a TTY (e.g., redirected to file), output plain markdown
+    if (!isatty(STDOUT_FILENO)) {
+        printf("%s", markdown);
+        return;
+    }
+
     char* formatted = md_to_ansi(markdown);
     if (formatted) {
         printf("%s", formatted);
