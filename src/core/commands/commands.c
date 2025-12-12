@@ -12,6 +12,7 @@
 #include "nous/hardware.h"
 #include "nous/updater.h"
 #include "nous/theme.h"
+#include "nous/compare.h"
 #include "../../auth/oauth.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -51,6 +52,9 @@ static const ReplCommand COMMANDS[] = {
     {"stream",      "Toggle streaming mode (on/off)",    cmd_stream},
     {"theme",       "Change color theme (ocean/forest/sunset/mono)", cmd_theme},
     {"think",       "Process an intent",                 cmd_think},
+    {"compare",     "Compare models side-by-side",       cmd_compare},
+    {"benchmark",   "Benchmark a model's performance",   cmd_benchmark},
+    {"news",        "Show release notes",                cmd_news},
     {"quit",        "Exit Convergio",                    cmd_quit},
     {"exit",        "Exit Convergio",                    cmd_quit},
     {NULL, NULL, NULL}
@@ -239,6 +243,17 @@ static const CommandHelp DETAILED_HELP[] = {
         "  - GPU information (Metal support)\n"
         "  - Neural Engine availability",
         "hardware"
+    },
+    {
+        "news",
+        "news [version]",
+        "Show release notes for Convergio",
+        "Displays the release notes and changelog for a specific version.\n"
+        "Without arguments, shows the latest release notes.\n\n"
+        "You can specify a version number with or without the 'v' prefix.",
+        "news           # Show latest release notes\n"
+        "news 3.0.4     # Show notes for v3.0.4\n"
+        "news v3.0.3    # Also works with 'v' prefix"
     },
     {
         "stream",
@@ -1019,6 +1034,81 @@ int cmd_hardware(int argc, char** argv) {
     return 0;
 }
 
+int cmd_news(int argc, char** argv) {
+    UpdateInfo info;
+    const char* version = NULL;
+
+    // Optional version argument: news v3.0.3 or news 3.0.3
+    if (argc > 1) {
+        version = argv[1];
+    }
+
+    // Fetch release info (NULL = latest, otherwise specific version)
+    if (convergio_fetch_release(version, &info) != 0) {
+        if (version) {
+            printf("\033[31mError:\033[0m Could not fetch release notes for version %s\n", version);
+            printf("  Make sure the version exists (e.g., 3.0.4 or v3.0.4)\n");
+        } else {
+            printf("\033[31mError:\033[0m Could not fetch latest release notes\n");
+        }
+        return -1;
+    }
+
+    // Print release notes in a nice box
+    printf("\n");
+    printf("╭─ \033[1;36mConvergio v%s\033[0m ", info.latest_version);
+
+    // Pad the header line
+    int header_len = 15 + (int)strlen(info.latest_version);
+    for (int i = header_len; i < 54; i++) printf("─");
+    printf("╮\n");
+
+    if (info.is_prerelease) {
+        printf("│  \033[33m⚠ Pre-release\033[0m                                       │\n");
+    }
+
+    if (info.published_at[0]) {
+        // Format: 2025-12-12T... -> 2025-12-12
+        char date[11] = {0};
+        strncpy(date, info.published_at, 10);
+        printf("│  Released: %s                                  │\n", date);
+    }
+
+    printf("├──────────────────────────────────────────────────────┤\n");
+
+    if (strlen(info.release_notes) > 0) {
+        // Print release notes with word wrap
+        const char* p = info.release_notes;
+        while (*p) {
+            printf("│  ");
+            int col = 0;
+            while (*p && *p != '\n' && col < 52) {
+                // Handle \r\n
+                if (*p == '\r') {
+                    p++;
+                    continue;
+                }
+                putchar(*p);
+                p++;
+                col++;
+            }
+            while (col < 52) {
+                putchar(' ');
+                col++;
+            }
+            printf(" │\n");
+            if (*p == '\n') p++;
+        }
+    } else {
+        printf("│  No release notes available.                         │\n");
+    }
+
+    printf("╰──────────────────────────────────────────────────────╯\n");
+    printf("\n");
+
+    return 0;
+}
+
 int cmd_stream(int argc, char** argv) {
     if (argc > 1) {
         if (strcmp(argv[1], "on") == 0) {
@@ -1062,4 +1152,113 @@ int cmd_theme(int argc, char** argv) {
         theme_list();
     }
     return 0;
+}
+
+// ============================================================================
+// MODEL COMPARISON COMMANDS
+// ============================================================================
+
+int cmd_compare(int argc, char** argv) {
+    if (argc < 3) {
+        printf("\n\033[1mCommand: compare\033[0m - Compare models side-by-side\n\n");
+        printf("\033[1mUsage:\033[0m\n");
+        printf("  compare <prompt> <model1> <model2> [model3...]\n\n");
+        printf("\033[1mExample:\033[0m\n");
+        printf("  compare \"Explain quantum computing\" claude-opus-4 gpt-4 gemini-pro\n\n");
+        printf("\033[1mOptions:\033[0m\n");
+        printf("  --no-diff      Skip diff generation\n");
+        printf("  --json         Output as JSON\n");
+        printf("  --sequential   Run sequentially instead of parallel\n\n");
+        return 0;
+    }
+
+    // Parse prompt
+    const char* prompt = argv[1];
+
+    // Parse models
+    const char** models = (const char**)&argv[2];
+    size_t model_count = 0;
+
+    // Count models and check for options
+    CompareOptions opts = compare_options_default();
+
+    for (int i = 2; i < argc; i++) {
+        if (strcmp(argv[i], "--no-diff") == 0) {
+            opts.show_diff = false;
+        } else if (strcmp(argv[i], "--json") == 0) {
+            opts.output_format = "json";
+        } else if (strcmp(argv[i], "--sequential") == 0) {
+            opts.mode = COMPARE_MODE_SEQUENTIAL;
+        } else {
+            model_count++;
+        }
+    }
+
+    if (model_count < 2) {
+        printf("Error: At least 2 models required for comparison.\n");
+        printf("Use 'compare' without arguments for help.\n");
+        return -1;
+    }
+
+    // Filter out options from models list
+    const char** clean_models = malloc(sizeof(char*) * model_count);
+    if (!clean_models) {
+        printf("Error: Memory allocation failed.\n");
+        return -1;
+    }
+
+    size_t idx = 0;
+    for (int i = 2; i < argc; i++) {
+        if (argv[i][0] != '-') {
+            clean_models[idx++] = argv[i];
+        }
+    }
+
+    // Run comparison
+    CompareResult* results = NULL;
+    int ret = compare_models(prompt, NULL, clean_models, model_count, &opts, &results);
+
+    // Cleanup
+    if (results) {
+        compare_results_free(results, model_count);
+    }
+    free(clean_models);
+
+    return ret;
+}
+
+int cmd_benchmark(int argc, char** argv) {
+    if (argc < 3) {
+        printf("\n\033[1mCommand: benchmark\033[0m - Benchmark a model's performance\n\n");
+        printf("\033[1mUsage:\033[0m\n");
+        printf("  benchmark <prompt> <model> [iterations]\n\n");
+        printf("\033[1mExample:\033[0m\n");
+        printf("  benchmark \"Write a haiku\" claude-opus-4 5\n\n");
+        printf("\033[1mDefault iterations:\033[0m 3\n\n");
+        return 0;
+    }
+
+    const char* prompt = argv[1];
+    const char* model = argv[2];
+    size_t iterations = 3;
+
+    if (argc >= 4) {
+        iterations = (size_t)atoi(argv[3]);
+        if (iterations == 0 || iterations > 100) {
+            printf("Error: Iterations must be between 1 and 100.\n");
+            return -1;
+        }
+    }
+
+    printf("Starting benchmark: %zu iterations of %s\n\n", iterations, model);
+
+    CompareResult result = {0};
+    int ret = benchmark_model(prompt, NULL, model, iterations, &result);
+
+    // Cleanup
+    if (result.model_id) free(result.model_id);
+    if (result.response) free(result.response);
+    if (result.error) free(result.error);
+
+    return ret;
 }

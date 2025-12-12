@@ -58,6 +58,11 @@ int cmd_auth(int argc, char** argv);
 // System updates
 int cmd_update(int argc, char** argv);
 int cmd_hardware(int argc, char** argv);
+int cmd_news(int argc, char** argv);
+
+// Model comparison
+int cmd_compare(int argc, char** argv);
+int cmd_benchmark(int argc, char** argv);
 
 // ============================================================================
 // GLOBAL STATE ACCESS

@@ -102,6 +102,13 @@ int convergio_cmd_update_install(void);
  */
 int convergio_cmd_update_changelog(void);
 
+/**
+ * Fetch release info for a specific version
+ * If version is NULL, fetches the latest release
+ * Returns 0 on success, -1 on failure
+ */
+int convergio_fetch_release(const char* version, UpdateInfo* info);
+
 // ============================================================================
 // GITHUB API
 // ============================================================================
