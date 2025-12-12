@@ -293,6 +293,7 @@ static const char* g_provider_names[] = {
     [PROVIDER_OLLAMA] = "ollama"
 };
 
+__attribute__((unused))
 static const char* g_provider_display_names[] = {
     [PROVIDER_ANTHROPIC] = "Anthropic",
     [PROVIDER_OPENAI] = "OpenAI",
