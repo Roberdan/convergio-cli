@@ -367,6 +367,13 @@ void tools_init_workspace(const char* workspace_path) {
     }
 }
 
+const char* tools_get_workspace(void) {
+    CONVERGIO_MUTEX_LOCK(&g_config_mutex);
+    const char* workspace = (g_allowed_paths && g_allowed_paths_count > 0) ? g_allowed_paths[0] : NULL;
+    CONVERGIO_MUTEX_UNLOCK(&g_config_mutex);
+    return workspace;
+}
+
 void tools_set_blocked_commands(const char** patterns, size_t count) {
     CONVERGIO_MUTEX_LOCK(&g_config_mutex);
 
@@ -932,12 +939,18 @@ ToolResult* tool_shell_exec(const char* command, const char* working_dir, int ti
     char old_cwd[PATH_MAX];
     getcwd(old_cwd, sizeof(old_cwd));
 
-    // Change to working dir if specified
-    if (working_dir && working_dir[0]) {
-        if (!tools_is_path_safe(working_dir)) {
+    // Determine working directory: use provided, or workspace, or stay in current
+    const char* effective_dir = working_dir;
+    if (!effective_dir || !effective_dir[0]) {
+        effective_dir = tools_get_workspace();
+    }
+
+    // Change to working dir if we have one
+    if (effective_dir && effective_dir[0]) {
+        if (!tools_is_path_safe(effective_dir)) {
             return result_error("Working directory not allowed");
         }
-        if (chdir(working_dir) != 0) {
+        if (chdir(effective_dir) != 0) {
             return result_error("Cannot change to working directory");
         }
     }

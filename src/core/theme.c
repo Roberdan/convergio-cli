@@ -42,6 +42,7 @@
 
 // 256-color mode
 #define COLOR256(n) "\033[38;5;" #n "m"
+#define BOLD_COLOR256(n) "\033[1;38;5;" #n "m"
 
 // ============================================================================
 // THEME DEFINITIONS
@@ -52,7 +53,7 @@ static const Theme THEMES[THEME_COUNT] = {
     {
         .name = "Ocean",
 
-        .prompt_name   = BOLD COLOR256(39),      // Bright blue
+        .prompt_name   = BOLD_COLOR256(39),      // Bright blue (bold)
         .prompt_arrow  = COLOR256(39),           // Blue arrow
         .user_input    = COLOR256(117),          // Light cyan for user text
 
@@ -81,7 +82,7 @@ static const Theme THEMES[THEME_COUNT] = {
     {
         .name = "Forest",
 
-        .prompt_name   = BOLD COLOR256(34),      // Forest green
+        .prompt_name   = BOLD_COLOR256(34),      // Forest green (bold)
         .prompt_arrow  = COLOR256(76),           // Lime green arrow
         .user_input    = COLOR256(157),          // Light green for user text
 
@@ -110,7 +111,7 @@ static const Theme THEMES[THEME_COUNT] = {
     {
         .name = "Sunset",
 
-        .prompt_name   = BOLD COLOR256(208),     // Orange
+        .prompt_name   = BOLD_COLOR256(208),     // Orange (bold)
         .prompt_arrow  = COLOR256(203),          // Coral arrow
         .user_input    = COLOR256(223),          // Peach for user text
 
