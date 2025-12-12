@@ -906,7 +906,13 @@ ToolResult* tool_file_list(const char* path, bool recursive, const char* pattern
             size_t line_len = strlen(line);
             if (len + line_len + 1 > capacity) {
                 capacity *= 2;
-                output = realloc(output, capacity);
+                char* new_output = realloc(output, capacity);
+                if (!new_output) {
+                    free(output);
+                    closedir(dir);
+                    return result_error("Out of memory");
+                }
+                output = new_output;
             }
             memcpy(output + len, line, line_len);
             len += line_len;
@@ -935,9 +941,11 @@ ToolResult* tool_shell_exec(const char* command, const char* working_dir, int ti
 
     if (timeout_sec <= 0) timeout_sec = 30;
 
-    // Save current dir
-    char old_cwd[PATH_MAX];
-    getcwd(old_cwd, sizeof(old_cwd));
+    // Thread-safe: save current directory as file descriptor
+    int old_cwd_fd = open(".", O_RDONLY | O_DIRECTORY);
+    if (old_cwd_fd < 0) {
+        return result_error("Cannot save current directory");
+    }
 
     // Determine working directory: use provided, or workspace, or stay in current
     const char* effective_dir = working_dir;
@@ -948,9 +956,11 @@ ToolResult* tool_shell_exec(const char* command, const char* working_dir, int ti
     // Change to working dir if we have one
     if (effective_dir && effective_dir[0]) {
         if (!tools_is_path_safe(effective_dir)) {
+            close(old_cwd_fd);
             return result_error("Working directory not allowed");
         }
         if (chdir(effective_dir) != 0) {
+            close(old_cwd_fd);
             return result_error("Cannot change to working directory");
         }
     }
@@ -958,13 +968,20 @@ ToolResult* tool_shell_exec(const char* command, const char* working_dir, int ti
     // Execute with popen
     FILE* pipe = popen(command, "r");
     if (!pipe) {
-        chdir(old_cwd);
+        fchdir(old_cwd_fd);
+        close(old_cwd_fd);
         return result_error("Failed to execute command");
     }
 
     size_t capacity = 4096;
     size_t len = 0;
     char* output = malloc(capacity);
+    if (!output) {
+        pclose(pipe);
+        fchdir(old_cwd_fd);
+        close(old_cwd_fd);
+        return result_error("Out of memory");
+    }
     output[0] = '\0';
 
     char buffer[1024];
@@ -972,7 +989,15 @@ ToolResult* tool_shell_exec(const char* command, const char* working_dir, int ti
         size_t buf_len = strlen(buffer);
         if (len + buf_len + 1 > capacity) {
             capacity *= 2;
-            output = realloc(output, capacity);
+            char* new_output = realloc(output, capacity);
+            if (!new_output) {
+                free(output);
+                pclose(pipe);
+                fchdir(old_cwd_fd);
+                close(old_cwd_fd);
+                return result_error("Out of memory");
+            }
+            output = new_output;
         }
         memcpy(output + len, buffer, buf_len);
         len += buf_len;
@@ -981,7 +1006,8 @@ ToolResult* tool_shell_exec(const char* command, const char* working_dir, int ti
         // Simple timeout check (not precise)
         if ((clock() - start) / CLOCKS_PER_SEC > (clock_t)timeout_sec) {
             pclose(pipe);
-            chdir(old_cwd);
+            fchdir(old_cwd_fd);
+            close(old_cwd_fd);
             free(output);
             return result_error("Command timed out");
         }
@@ -990,7 +1016,8 @@ ToolResult* tool_shell_exec(const char* command, const char* working_dir, int ti
     int status = pclose(pipe);
     int exit_code = WEXITSTATUS(status);
 
-    chdir(old_cwd);
+    fchdir(old_cwd_fd);
+    close(old_cwd_fd);
 
     ToolResult* r = result_success(output);
     r->exit_code = exit_code;
@@ -1379,14 +1406,23 @@ ToolResult* tool_note_read(const char* title, const char* search) {
             // Check if search term is in content (case-insensitive)
             char* lower_content = strdup(content);
             char* lower_search = strdup(search);
-            for (char* p = lower_content; *p; p++) *p = tolower(*p);
-            for (char* p = lower_search; *p; p++) *p = tolower(*p);
+            for (char* p = lower_content; *p; p++) *p = (char)tolower((unsigned char)*p);
+            for (char* p = lower_search; *p; p++) *p = (char)tolower((unsigned char)*p);
 
             if (strstr(lower_content, lower_search)) {
                 size_t needed = len + strlen(entry->d_name) + 256;
                 if (needed > capacity) {
                     capacity = needed * 2;
-                    output = realloc(output, capacity);
+                    char* new_output = realloc(output, capacity);
+                    if (!new_output) {
+                        free(output);
+                        free(lower_content);
+                        free(lower_search);
+                        free(content);
+                        closedir(dir);
+                        return result_error("Out of memory");
+                    }
+                    output = new_output;
                 }
 
                 // Extract first line (title)

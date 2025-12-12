@@ -245,8 +245,9 @@ static void tokenize(const char* input, TokenStream* out) {
 static PatternType detect_pattern(const char* line) {
     // Convert to lowercase for matching
     char* lower = strdup(line);
+    if (!lower) return PATTERN_UNKNOWN;
     for (char* p = lower; *p; p++) {
-        *p = tolower(*p);
+        *p = (char)tolower((unsigned char)*p);
     }
 
     PatternType result = PATTERN_UNKNOWN;
