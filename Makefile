@@ -110,7 +110,10 @@ C_SOURCES = $(SRC_DIR)/core/fabric.c \
             $(SRC_DIR)/compare/diff.c \
             $(SRC_DIR)/telemetry/telemetry.c \
             $(SRC_DIR)/telemetry/consent.c \
-            $(SRC_DIR)/telemetry/export.c
+            $(SRC_DIR)/telemetry/export.c \
+            $(SRC_DIR)/agentic/tool_detector.c \
+            $(SRC_DIR)/agentic/tool_installer.c \
+            $(SRC_DIR)/agentic/approval.c
 
 OBJC_SOURCES = $(SRC_DIR)/metal/gpu.m \
                $(SRC_DIR)/neural/mlx_embed.m \
@@ -176,6 +179,7 @@ dirs:
 	@mkdir -p $(OBJ_DIR)/sync
 	@mkdir -p $(OBJ_DIR)/compare
 	@mkdir -p $(OBJ_DIR)/telemetry
+	@mkdir -p $(OBJ_DIR)/agentic
 	@mkdir -p $(BIN_DIR)
 	@mkdir -p data
 
