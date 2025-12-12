@@ -10,6 +10,7 @@
 
 #include "nous/orchestrator.h"
 #include "nous/config.h"
+#include "nous/nous.h"
 #include <sqlite3.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -184,7 +185,7 @@ int persistence_init(const char* db_path) {
 
     int rc = sqlite3_open(path, &g_db);
     if (rc != SQLITE_OK) {
-        fprintf(stderr, "Convergio: Cannot open database '%s': %s\n", path, sqlite3_errmsg(g_db));
+        LOG_ERROR(LOG_CAT_MEMORY, "Cannot open database '%s': %s", path, sqlite3_errmsg(g_db));
         CONVERGIO_MUTEX_UNLOCK(&g_db_mutex);
         return -1;
     }
@@ -199,7 +200,7 @@ int persistence_init(const char* db_path) {
     // Create schema
     rc = sqlite3_exec(g_db, SCHEMA_SQL, NULL, NULL, &err_msg);
     if (rc != SQLITE_OK) {
-        fprintf(stderr, "Convergio: Schema creation failed: %s\n", err_msg);
+        LOG_ERROR(LOG_CAT_MEMORY, "Schema creation failed: %s", err_msg);
         sqlite3_free(err_msg);
         sqlite3_close(g_db);
         g_db = NULL;
