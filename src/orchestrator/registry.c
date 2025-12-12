@@ -20,6 +20,41 @@
 // Embedded agents
 #include "nous/embedded_agents.h"
 
+// ============================================================================
+// ANTI-HALLUCINATION CONSTITUTION (MANDATORY FOR ALL AGENTS)
+// ============================================================================
+// This constitution is prepended to EVERY agent's system prompt to ensure
+// brutal honesty, prevent hallucinations, and enforce uncertainty disclosure.
+
+static const char* AGENT_CONSTITUTION =
+    "## MANDATORY CONSTITUTION (NON-NEGOTIABLE)\n\n"
+    "**You are bound by this constitution. Violating it is unacceptable.**\n\n"
+    "### Rule 1: ABSOLUTE HONESTY\n"
+    "- NEVER fabricate, invent, or guess information\n"
+    "- NEVER pretend to have done something you haven't done\n"
+    "- NEVER claim capabilities you don't have\n"
+    "- If you don't know something, say \"I don't know\"\n"
+    "- If you're not 100% certain, explicitly state your uncertainty level\n\n"
+    "### Rule 2: UNCERTAINTY DISCLOSURE\n"
+    "- When uncertain, preface with: \"I'm not certain, but...\"\n"
+    "- When making assumptions, clearly state: \"I'm assuming...\"\n"
+    "- When guessing, say: \"This is my best guess...\"\n"
+    "- Distinguish clearly between facts you know and inferences you make\n\n"
+    "### Rule 3: SOURCE ATTRIBUTION\n"
+    "- If you read it from a file, say so\n"
+    "- If you searched for it, say so\n"
+    "- If you're inferring it, say so\n"
+    "- If it's from your training knowledge, acknowledge the cutoff date\n\n"
+    "### Rule 4: ERROR ACKNOWLEDGMENT\n"
+    "- If you make a mistake, immediately acknowledge it\n"
+    "- Never double down on errors\n"
+    "- Correct yourself promptly when wrong\n\n"
+    "### Rule 5: LIMITATION TRANSPARENCY\n"
+    "- State clearly what you cannot do\n"
+    "- Don't overpromise capabilities\n"
+    "- Recommend external resources when you've reached your limits\n\n"
+    "**END OF CONSTITUTION - Your specific role follows below:**\n\n";
+
 // Forward declarations
 extern Orchestrator* orchestrator_get(void);
 
@@ -307,7 +342,26 @@ ManagedAgent* agent_create(const char* name, AgentRole role, const char* system_
     agent->id = generate_agent_id();
     agent->name = strdup(name);
     agent->role = role;
-    agent->system_prompt = strdup(system_prompt);
+
+    // CRITICAL: Prepend the anti-hallucination constitution to ALL agent prompts
+    // This ensures every agent is bound by brutal honesty requirements
+    size_t constitution_len = strlen(AGENT_CONSTITUTION);
+    size_t prompt_len = system_prompt ? strlen(system_prompt) : 0;
+    size_t total_len = constitution_len + prompt_len + 1;
+
+    char* full_prompt = malloc(total_len);
+    if (full_prompt) {
+        memcpy(full_prompt, AGENT_CONSTITUTION, constitution_len);
+        if (system_prompt) {
+            memcpy(full_prompt + constitution_len, system_prompt, prompt_len);
+        }
+        full_prompt[total_len - 1] = '\0';
+        agent->system_prompt = full_prompt;
+    } else {
+        // Fallback: just use original prompt if allocation fails
+        agent->system_prompt = system_prompt ? strdup(system_prompt) : NULL;
+    }
+
     agent->is_active = true;
     agent->created_at = time(NULL);
     agent->last_active = time(NULL);
@@ -500,6 +554,23 @@ size_t agent_get_active(ManagedAgent** out_agents, size_t max_count) {
         if (orch->agents[i]->is_active) {
             out_agents[count++] = orch->agents[i];
         }
+    }
+
+    CONVERGIO_MUTEX_UNLOCK(&g_registry_mutex);
+
+    return count;
+}
+
+// Get ALL registered agents (for autocomplete, regardless of active state)
+size_t agent_get_all(ManagedAgent** out_agents, size_t max_count) {
+    Orchestrator* orch = orchestrator_get();
+    if (!orch || !out_agents) return 0;
+
+    CONVERGIO_MUTEX_LOCK(&g_registry_mutex);
+
+    size_t count = 0;
+    for (size_t i = 0; i < orch->agent_count && count < max_count; i++) {
+        out_agents[count++] = orch->agents[i];
     }
 
     CONVERGIO_MUTEX_UNLOCK(&g_registry_mutex);
@@ -1062,13 +1133,66 @@ Message* agent_receive_message(ManagedAgent* agent) {
 // REGISTRY STATUS
 // ============================================================================
 
+// Helper: categorize agent by name/description into expertise area
+static int get_agent_category(const ManagedAgent* agent) {
+    if (!agent || !agent->name) return 9; // Other
+
+    const char* n = agent->name;
+    const char* d = agent->description ? agent->description : "";
+
+    // Leadership & Strategy
+    if (strcasestr(n, "ali") || strcasestr(n, "domik") || strcasestr(n, "satya") ||
+        strcasestr(n, "sam-") || strcasestr(n, "antonio") || strcasestr(n, "mckinsey") ||
+        strcasestr(d, "strategic") || strcasestr(d, "CEO") || strcasestr(d, "Chief")) return 0;
+
+    // Technology & Engineering
+    if (strcasestr(n, "baccio") || strcasestr(n, "dan-") || strcasestr(n, "marco") ||
+        strcasestr(n, "luca") || strcasestr(n, "devops") || strcasestr(n, "guardian") ||
+        strcasestr(d, "architect") || strcasestr(d, "engineer") || strcasestr(d, "security")) return 1;
+
+    // Data & Analytics
+    if (strcasestr(n, "angela") || strcasestr(n, "ethan") || strcasestr(n, "ava") ||
+        strcasestr(n, "omri") || strcasestr(n, "data") ||
+        strcasestr(d, "analytics") || strcasestr(d, "data")) return 2;
+
+    // Product & Design
+    if (strcasestr(n, "sara") || strcasestr(n, "stefano") || strcasestr(n, "oliver") ||
+        strcasestr(n, "marcus") || strcasestr(n, "ux") || strcasestr(n, "design") ||
+        strcasestr(d, "design") || strcasestr(d, "UX") || strcasestr(d, "product")) return 3;
+
+    // Business Operations
+    if (strcasestr(n, "amy") || strcasestr(n, "fabio") || strcasestr(n, "sofia") ||
+        strcasestr(n, "enrico") || strcasestr(n, "cfo") || strcasestr(n, "sales") ||
+        strcasestr(d, "financial") || strcasestr(d, "sales") || strcasestr(d, "marketing")) return 4;
+
+    // Project Management
+    if (strcasestr(n, "wanda") || strcasestr(n, "thor") || strcasestr(n, "dave") ||
+        strcasestr(n, "coach") || strcasestr(n, "workflow") ||
+        strcasestr(d, "project") || strcasestr(d, "workflow") || strcasestr(d, "quality")) return 5;
+
+    // Customer & HR
+    if (strcasestr(n, "andrea") || strcasestr(n, "giulia") || strcasestr(n, "behice") ||
+        strcasestr(n, "customer") || strcasestr(n, "hr") ||
+        strcasestr(d, "customer") || strcasestr(d, "HR") || strcasestr(d, "talent")) return 6;
+
+    // Healthcare & Compliance
+    if (strcasestr(n, "enzo") || strcasestr(n, "healthcare") || strcasestr(n, "compliance") ||
+        strcasestr(d, "healthcare") || strcasestr(d, "compliance")) return 7;
+
+    // Creative & Content
+    if (strcasestr(n, "po-") || strcasestr(n, "prompt") || strcasestr(n, "content") ||
+        strcasestr(d, "content") || strcasestr(d, "prompt") || strcasestr(d, "creative")) return 8;
+
+    return 9; // Other
+}
+
 char* agent_registry_status(void) {
     Orchestrator* orch = orchestrator_get();
     if (!orch) return strdup("Registry not initialized");
 
     CONVERGIO_MUTEX_LOCK(&g_registry_mutex);
 
-    size_t buf_size = 16384;
+    size_t buf_size = 32768;
     char* status = malloc(buf_size);
     if (!status) {
         CONVERGIO_MUTEX_UNLOCK(&g_registry_mutex);
@@ -1077,62 +1201,84 @@ char* agent_registry_status(void) {
 
     size_t offset = 0;
 
-    // Compact header
+    // Header
     offset += snprintf(status + offset, buf_size - offset,
-        "\033[1;36m━━━ Agent Registry ━━━\033[0m  \033[2m(%zu agents)\033[0m\n\n",
+        "\033[1mI Miei Agenti Disponibili\033[0m\n\n"
+        "Ho a disposizione \033[1;36m%zu agenti specialistici\033[0m organizzati per area:\n\n",
         orch->agent_count);
 
-    // Role info
-    const char* role_names[] = {
-        "Orchestrator", "Analyst", "Coder", "Writer", "Critic", "Planner", "Executor", "Memory"
-    };
-    const char* role_colors[] = {
-        "\033[1;35m", "\033[1;33m", "\033[1;32m", "\033[1;34m",
-        "\033[1;31m", "\033[1;36m", "\033[1;33m", "\033[1;35m"
+    // Categories with emojis
+    const char* cat_names[] = {
+        "🎯 Leadership & Strategia",
+        "⚡ Tecnologia & Ingegneria",
+        "📊 Data & Analytics",
+        "🎨 Product & Design",
+        "💼 Business Operations",
+        "📋 Project Management",
+        "👥 Customer & HR",
+        "🏥 Healthcare & Compliance",
+        "✨ Creative & Content",
+        "🔧 Altri Specialisti"
     };
 
-    for (int r = 0; r < 8; r++) {
-        AgentRole role = (AgentRole)r;
-
-        // Count agents in this role
+    for (int cat = 0; cat < 10; cat++) {
+        // Count agents in this category
         int count = 0;
         for (size_t i = 0; i < orch->agent_count; i++) {
-            if (orch->agents[i]->role == role) count++;
+            if (get_agent_category(orch->agents[i]) == cat) count++;
         }
         if (count == 0) continue;
 
-        // Role header with count
+        // Category header
         offset += snprintf(status + offset, buf_size - offset,
-            "%s%s\033[0m \033[2m(%d)\033[0m\n",
-            role_colors[r], role_names[r], count);
+            "\033[1m%s\033[0m\n", cat_names[cat]);
 
-        // Agents in this role - compact format
+        // Agents in this category
         for (size_t i = 0; i < orch->agent_count && offset < buf_size - 512; i++) {
             ManagedAgent* agent = orch->agents[i];
-            if (agent->role != role) continue;
+            if (get_agent_category(agent) != cat) continue;
 
-            // Truncate description to 50 chars
-            char desc[52] = "";
+            // Extract short name (capitalize first letter)
+            char short_name[32];
+            strncpy(short_name, agent->name, sizeof(short_name) - 1);
+            short_name[sizeof(short_name) - 1] = '\0';
+            // Remove suffix like -cto, -pm, etc for cleaner display
+            char* dash = strchr(short_name, '-');
+            if (dash && strlen(dash) < 6) *dash = '\0';
+            if (short_name[0] >= 'a' && short_name[0] <= 'z') {
+                short_name[0] -= 32; // Capitalize
+            }
+
+            // Short description
+            char desc[60] = "";
             if (agent->description) {
-                size_t desc_len = strlen(agent->description);
-                if (desc_len > 48) {
-                    memcpy(desc, agent->description, 48);
-                    memcpy(desc + 48, "...", 4);  // includes null terminator
+                // Find first meaningful part
+                const char* d = agent->description;
+                // Skip "Elite" prefix
+                if (strncasecmp(d, "Elite ", 6) == 0) d += 6;
+                // Skip "Senior" prefix
+                if (strncasecmp(d, "Senior ", 7) == 0) d += 7;
+                // Skip "IC6" etc
+                if (strncasecmp(d, "IC6 ", 4) == 0) d += 4;
+
+                size_t len = strlen(d);
+                if (len > 55) {
+                    memcpy(desc, d, 52);
+                    memcpy(desc + 52, "...", 4);
                 } else {
-                    memcpy(desc, agent->description, desc_len + 1);
+                    memcpy(desc, d, len + 1);
                 }
             }
 
             offset += snprintf(status + offset, buf_size - offset,
-                "  \033[36m%-12s\033[0m  \033[2m%s\033[0m\n",
-                agent->name,
-                desc[0] ? desc : "-");
+                "  • \033[36m%-12s\033[0m \033[2m- %s\033[0m\n",
+                short_name, desc[0] ? desc : "-");
         }
         offset += snprintf(status + offset, buf_size - offset, "\n");
     }
 
     offset += snprintf(status + offset, buf_size - offset,
-        "\033[2mUsage:\033[0m \033[36m@agent message\033[0m  \033[2m(e.g. @baccio review this code)\033[0m\n");
+        "\033[2mUsa:\033[0m \033[36m@nome messaggio\033[0m  \033[2m(es. @baccio rivedi questo codice)\033[0m\n");
 
     CONVERGIO_MUTEX_UNLOCK(&g_registry_mutex);
 

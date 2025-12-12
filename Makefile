@@ -73,6 +73,7 @@ C_SOURCES = $(SRC_DIR)/core/fabric.c \
             $(SRC_DIR)/intent/parser.c \
             $(SRC_DIR)/intent/interpreter.c \
             $(SRC_DIR)/agents/agent.c \
+            $(SRC_DIR)/agents/agent_config.c \
             $(SRC_DIR)/agents/embedded_agents.c \
             $(SRC_DIR)/spaces/space.c \
             $(SRC_DIR)/runtime/scheduler.c \
@@ -82,7 +83,21 @@ C_SOURCES = $(SRC_DIR)/core/fabric.c \
             $(SRC_DIR)/orchestrator/msgbus.c \
             $(SRC_DIR)/orchestrator/orchestrator.c \
             $(SRC_DIR)/memory/persistence.c \
-            $(SRC_DIR)/tools/tools.c
+            $(SRC_DIR)/tools/tools.c \
+            $(SRC_DIR)/providers/provider.c \
+            $(SRC_DIR)/providers/anthropic.c \
+            $(SRC_DIR)/providers/openai.c \
+            $(SRC_DIR)/providers/gemini.c \
+            $(SRC_DIR)/providers/retry.c \
+            $(SRC_DIR)/providers/streaming.c \
+            $(SRC_DIR)/providers/tokens.c \
+            $(SRC_DIR)/providers/tools.c \
+            $(SRC_DIR)/router/model_router.c \
+            $(SRC_DIR)/router/cost_optimizer.c \
+            $(SRC_DIR)/sync/file_lock.c \
+            $(SRC_DIR)/ui/statusbar.c \
+            $(SRC_DIR)/ui/terminal.c \
+            $(SRC_DIR)/ui/hyperlink.c
 
 OBJC_SOURCES = $(SRC_DIR)/metal/gpu.m \
                $(SRC_DIR)/neural/mlx_embed.m \
@@ -141,6 +156,10 @@ dirs:
 	@mkdir -p $(OBJ_DIR)/memory
 	@mkdir -p $(OBJ_DIR)/tools
 	@mkdir -p $(OBJ_DIR)/auth
+	@mkdir -p $(OBJ_DIR)/ui
+	@mkdir -p $(OBJ_DIR)/providers
+	@mkdir -p $(OBJ_DIR)/router
+	@mkdir -p $(OBJ_DIR)/sync
 	@mkdir -p $(BIN_DIR)
 	@mkdir -p data
 

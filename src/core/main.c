@@ -15,6 +15,7 @@
 #include "nous/stream_md.h"
 #include "nous/theme.h"
 #include "nous/clipboard.h"
+#include "nous/statusbar.h"
 #include "../auth/oauth.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -42,7 +43,7 @@ static char* agent_name_generator(const char* text, int state) {
     // First call - build agent list
     if (state == 0) {
         list_index = 0;
-        agent_count = agent_get_active(agents, 64);
+        agent_count = agent_get_all(agents, 64);
     }
 
     // Skip the @ prefix for matching
@@ -717,13 +718,79 @@ static int cmd_create(int argc, char** argv) {
 
 static int cmd_agent(int argc, char** argv) {
     if (argc < 2) {
-        printf("Usage: agent <create|list|skill> [args]\n");
-        return -1;
+        printf("\n\033[1mComando: agent\033[0m - Gestione agenti\n\n");
+        printf("\033[1mSottocomandi:\033[0m\n");
+        printf("  \033[36mlist\033[0m                    Lista tutti gli agenti disponibili\n");
+        printf("  \033[36minfo <nome>\033[0m             Mostra dettagli agente (modello, ruolo, etc.)\n");
+        printf("  \033[36mcreate <nome> <desc>\033[0m    Crea un nuovo agente dinamico\n");
+        printf("  \033[36mskill <skill_name>\033[0m      Aggiungi skill all'assistente\n");
+        printf("\n\033[1mEsempi:\033[0m\n");
+        printf("  agent list              # Mostra tutti gli agenti\n");
+        printf("  agent info baccio       # Dettagli su Baccio\n");
+        printf("  agent create helper \"Un assistente generico\"\n");
+        printf("\n");
+        return 0;
     }
 
+    // agent list
+    if (strcmp(argv[1], "list") == 0) {
+        char* status = agent_registry_status();
+        if (status) {
+            printf("\n%s", status);
+            free(status);
+        }
+        return 0;
+    }
+
+    // agent info <name>
+    if (strcmp(argv[1], "info") == 0) {
+        if (argc < 3) {
+            printf("Usage: agent info <nome_agente>\n");
+            printf("Esempio: agent info baccio\n");
+            return -1;
+        }
+
+        ManagedAgent* agent = agent_find_by_name(argv[2]);
+        if (!agent) {
+            printf("Agente '%s' non trovato.\n", argv[2]);
+            printf("Usa 'agent list' per vedere gli agenti disponibili.\n");
+            return -1;
+        }
+
+        printf("\n\033[1m📋 Informazioni Agente: %s\033[0m\n\n", agent->name);
+        printf("  \033[36mNome:\033[0m        %s\n", agent->name);
+        printf("  \033[36mDescrizione:\033[0m %s\n", agent->description ? agent->description : "-");
+
+        const char* role_names[] = {
+            "Orchestrator", "Analyst", "Coder", "Writer", "Critic", "Planner", "Executor", "Memory"
+        };
+        printf("  \033[36mRuolo:\033[0m       %s\n", role_names[agent->role]);
+
+        // Model is determined by role for now
+        const char* model = "claude-sonnet-4-20250514";  // Default
+        if (agent->role == AGENT_ROLE_ORCHESTRATOR) {
+            model = "claude-opus-4-20250514";
+        }
+        printf("  \033[36mModello:\033[0m     %s\n", model);
+
+        printf("  \033[36mAttivo:\033[0m      %s\n", agent->is_active ? "Sì" : "No");
+
+        const char* state_names[] = {"Idle", "Thinking", "Executing", "Reviewing", "Waiting"};
+        printf("  \033[36mStato:\033[0m       %s\n", state_names[agent->work_state]);
+
+        if (agent->current_task) {
+            printf("  \033[36mTask:\033[0m        %s\n", agent->current_task);
+        }
+
+        printf("\n  \033[2mUsa @%s <messaggio> per comunicare con questo agente\033[0m\n\n", agent->name);
+        return 0;
+    }
+
+    // agent create <name> <essence>
     if (strcmp(argv[1], "create") == 0) {
         if (argc < 4) {
-            printf("Usage: agent create <name> <essence>\n");
+            printf("Usage: agent create <nome> <descrizione>\n");
+            printf("Esempio: agent create helper \"Un assistente per task generici\"\n");
             return -1;
         }
 
@@ -742,37 +809,43 @@ static int cmd_agent(int argc, char** argv) {
 
         NousAgent* agent = nous_create_agent(argv[2], essence);
         if (!agent) {
-            printf("Failed to create agent.\n");
+            printf("Errore: impossibile creare l'agente.\n");
             return -1;
         }
 
-        printf("Created agent \"%s\"\n", agent->name);
+        printf("✅ Creato agente \"%s\"\n", agent->name);
         printf("  Patience: %.2f\n", agent->patience);
         printf("  Creativity: %.2f\n", agent->creativity);
         printf("  Assertiveness: %.2f\n", agent->assertiveness);
 
-        // Make this the assistant if none exists
         if (!g_assistant) {
             g_assistant = agent;
-            printf("Set as primary assistant.\n");
+            printf("Impostato come assistente principale.\n");
         }
 
         return 0;
     }
 
+    // agent skill <skill_name>
     if (strcmp(argv[1], "skill") == 0) {
-        if (argc < 3 || !g_assistant) {
-            printf("Usage: agent skill <skill_name>\n");
+        if (argc < 3) {
+            printf("Usage: agent skill <nome_skill>\n");
+            return -1;
+        }
+        if (!g_assistant) {
+            printf("Errore: nessun assistente attivo.\n");
+            printf("Crea prima un agente con: agent create <nome> <descrizione>\n");
             return -1;
         }
 
         if (nous_agent_add_skill(g_assistant, argv[2]) == 0) {
-            printf("Added skill \"%s\" to %s\n", argv[2], g_assistant->name);
+            printf("✅ Aggiunta skill \"%s\" a %s\n", argv[2], g_assistant->name);
         }
         return 0;
     }
 
-    printf("Unknown agent command: %s\n", argv[1]);
+    printf("Sottocomando sconosciuto: %s\n", argv[1]);
+    printf("Usa 'agent' senza argomenti per vedere l'help.\n");
     return -1;
 }
 
@@ -1636,6 +1709,17 @@ int main(int argc, char** argv) {
         nous_agent_add_skill(g_assistant, "programmazione");
         nous_agent_add_skill(g_assistant, "analisi");
         nous_agent_add_skill(g_assistant, "creatività");
+    }
+
+    // Initialize status bar
+    if (statusbar_init() == 0) {
+        statusbar_set_cwd(workspace);
+        statusbar_set_model("Sonnet 4.5");
+        Orchestrator* orch = orchestrator_get();
+        if (orch) {
+            statusbar_set_agent_count((int)orch->agent_count);
+        }
+        statusbar_set_visible(true);
     }
 
     // REPL with cost in prompt

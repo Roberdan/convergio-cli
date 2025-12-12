@@ -251,7 +251,13 @@ void convergio_print_update_info(const UpdateInfo* info) {
 // ============================================================================
 
 int convergio_download_update(const UpdateInfo* info, const char* dest_path) {
-    if (!info || !dest_path || strlen(info->download_url) == 0) {
+    if (!info || !dest_path) {
+        fprintf(stderr, "Error: Invalid update info\n");
+        return -1;
+    }
+    if (strlen(info->download_url) == 0) {
+        fprintf(stderr, "Error: No download URL found for your platform (arm64-darwin)\n");
+        fprintf(stderr, "Please update manually: brew upgrade convergio\n");
         return -1;
     }
 

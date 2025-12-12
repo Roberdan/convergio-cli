@@ -324,6 +324,7 @@ void message_print(Message* msg);
 // ============================================================================
 
 size_t agent_get_active(ManagedAgent** out_agents, size_t max_count);
+size_t agent_get_all(ManagedAgent** out_agents, size_t max_count);
 int agent_load_definitions(const char* dir_path);
 size_t agent_select_for_task(const char* task_description, ManagedAgent** out_agents, size_t max_count);
 void agent_execute_parallel(ManagedAgent** agents, size_t count, const char* input, char** outputs);
