@@ -106,11 +106,11 @@ static char* generate_state_param(void) {
     fclose(f);
     if (read != sizeof(random_bytes)) return NULL;
 
-    // Convert to hex string
+    // Convert to hex string (16 bytes -> 32 hex chars + null)
     char* state = malloc(33);
     if (!state) return NULL;
     for (int i = 0; i < 16; i++) {
-        sprintf(state + i * 2, "%02x", random_bytes[i]);
+        snprintf(state + i * 2, 3, "%02x", random_bytes[i]);
     }
     state[32] = '\0';
     return state;
