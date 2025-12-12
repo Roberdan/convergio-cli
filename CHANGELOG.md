@@ -7,6 +7,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.0.3] - 2025-12-12
+
+### Added
+
+**Anti-Hallucination Constitution**
+- All agents now have a mandatory constitution enforcing brutal honesty
+- Rule 1: ABSOLUTE HONESTY - Never fabricate or guess information
+- Rule 2: UNCERTAINTY DISCLOSURE - Explicitly state uncertainty levels (0-100%)
+- Rule 3: SOURCE ATTRIBUTION - Clearly state where information comes from
+- Rule 4: ERROR ACKNOWLEDGMENT - Admit mistakes immediately when discovered
+- Rule 5: LIMITATION TRANSPARENCY - Be clear about what the agent cannot do
+
+**Agent Command Improvements**
+- Added `agent list` subcommand for listing all available agents
+- Added `agent info <name>` subcommand for detailed agent information
+- Added `agent_get_all()` function for autocomplete of all registered agents
+
+### Fixed
+
+- Improved updater error messages for empty download URLs
+
+### Technical
+
+**Complete Makefile Integration** - Added 13 missing source files from the multimodal roadmap:
+- Provider layer: `provider.c`, `anthropic.c`, `openai.c`, `gemini.c`, `retry.c`, `streaming.c`, `tokens.c`, `tools.c`
+- Router: `model_router.c`, `cost_optimizer.c`
+- Agent config: `agent_config.c`
+- Sync: `file_lock.c`
+- UI: `hyperlink.c`
+
 ## [3.0.2] - 2025-12-12
 
 ### Changed
@@ -395,7 +425,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-[Unreleased]: https://github.com/Roberdan/convergio-cli/compare/v3.0.2...HEAD
+[Unreleased]: https://github.com/Roberdan/convergio-cli/compare/v3.0.3...HEAD
+[3.0.3]: https://github.com/Roberdan/convergio-cli/compare/v3.0.2...v3.0.3
 [3.0.2]: https://github.com/Roberdan/convergio-cli/compare/v3.0.1...v3.0.2
 [3.0.1]: https://github.com/Roberdan/convergio-cli/compare/v3.0.0...v3.0.1
 [3.0.0]: https://github.com/Roberdan/convergio-cli/compare/v2.0.11...v3.0.0

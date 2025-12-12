@@ -12,6 +12,20 @@
 #include <unistd.h>
 #include <sys/stat.h>
 #include <limits.h>
+#include <stdarg.h>
+#include "nous/nous.h"
+
+// Stub for nous_log since we exclude main.o which has the real implementation
+LogLevel g_log_level = LOG_LEVEL_ERROR;
+
+void nous_log(LogLevel level, LogCategory cat, const char* fmt, ...) {
+    (void)level; (void)cat; (void)fmt;
+    // Silent stub for tests
+}
+
+void nous_log_set_level(LogLevel level) { g_log_level = level; }
+LogLevel nous_log_get_level(void) { return g_log_level; }
+const char* nous_log_level_name(LogLevel level) { (void)level; return ""; }
 
 // Safe path helper (from safe_path.c)
 #include "nous/safe_path.h"
