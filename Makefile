@@ -107,7 +107,10 @@ C_SOURCES = $(SRC_DIR)/core/fabric.c \
             $(SRC_DIR)/compare/compare.c \
             $(SRC_DIR)/compare/parallel.c \
             $(SRC_DIR)/compare/render.c \
-            $(SRC_DIR)/compare/diff.c
+            $(SRC_DIR)/compare/diff.c \
+            $(SRC_DIR)/telemetry/telemetry.c \
+            $(SRC_DIR)/telemetry/consent.c \
+            $(SRC_DIR)/telemetry/export.c
 
 OBJC_SOURCES = $(SRC_DIR)/metal/gpu.m \
                $(SRC_DIR)/neural/mlx_embed.m \
@@ -172,6 +175,7 @@ dirs:
 	@mkdir -p $(OBJ_DIR)/router
 	@mkdir -p $(OBJ_DIR)/sync
 	@mkdir -p $(OBJ_DIR)/compare
+	@mkdir -p $(OBJ_DIR)/telemetry
 	@mkdir -p $(BIN_DIR)
 	@mkdir -p data
 
