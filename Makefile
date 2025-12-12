@@ -265,10 +265,13 @@ dist: all
 		tar -czvf dist/convergio-$(VERSION)-darwin-arm64.tar.gz -C $(BIN_DIR) convergio
 	@echo "Created dist/convergio-$(VERSION)-darwin-arm64.tar.gz"
 
+# Test stubs (provides globals normally in main.c)
+TEST_STUBS = tests/test_stubs.c
+
 # Fuzz test target - tests security functions with malformed inputs
 FUZZ_TEST = $(BIN_DIR)/fuzz_test
-FUZZ_SOURCES = tests/fuzz_test.c
-# Exclude main.o since fuzz_test has its own main()
+FUZZ_SOURCES = tests/fuzz_test.c $(TEST_STUBS)
+# Exclude main.o since fuzz_test has its own main() and stubs provide globals
 FUZZ_OBJECTS = $(filter-out $(OBJ_DIR)/core/main.o,$(OBJECTS))
 
 fuzz_test: dirs $(OBJECTS) $(FUZZ_TEST)
@@ -281,7 +284,7 @@ $(FUZZ_TEST): $(FUZZ_SOURCES) $(FUZZ_OBJECTS)
 
 # Unit test target - tests core components
 UNIT_TEST = $(BIN_DIR)/unit_test
-UNIT_SOURCES = tests/test_unit.c
+UNIT_SOURCES = tests/test_unit.c $(TEST_STUBS)
 UNIT_OBJECTS = $(filter-out $(OBJ_DIR)/core/main.o,$(OBJECTS))
 
 unit_test: dirs $(OBJECTS) $(UNIT_TEST)

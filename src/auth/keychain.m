@@ -38,12 +38,16 @@ int convergio_keychain_store(const char* service, const char* account, const cha
         SecItemDelete((__bridge CFDictionaryRef)deleteQuery);
 
         // Now add the new item
+        // Note: kSecAttrAccessible = WhenUnlocked for reasonable security
+        // The item is only accessible when device is unlocked
         NSDictionary* addQuery = @{
             (__bridge id)kSecClass: (__bridge id)kSecClassGenericPassword,
             (__bridge id)kSecAttrService: serviceStr,
             (__bridge id)kSecAttrAccount: accountStr,
             (__bridge id)kSecValueData: passwordData,
-            (__bridge id)kSecAttrAccessible: (__bridge id)kSecAttrAccessibleWhenUnlocked
+            (__bridge id)kSecAttrAccessible: (__bridge id)kSecAttrAccessibleWhenUnlocked,
+            // Sync to iCloud Keychain is disabled for API keys
+            (__bridge id)kSecAttrSynchronizable: @NO
         };
 
         OSStatus status = SecItemAdd((__bridge CFDictionaryRef)addQuery, NULL);
@@ -87,6 +91,7 @@ char* convergio_keychain_read(const char* service, const char* account) {
             (__bridge id)kSecClass: (__bridge id)kSecClassGenericPassword,
             (__bridge id)kSecAttrService: serviceStr,
             (__bridge id)kSecAttrAccount: accountStr,
+            (__bridge id)kSecAttrSynchronizable: @NO,
             (__bridge id)kSecReturnData: @YES,
             (__bridge id)kSecMatchLimit: (__bridge id)kSecMatchLimitOne
         };
@@ -125,7 +130,8 @@ int convergio_keychain_delete(const char* service, const char* account) {
         NSDictionary* query = @{
             (__bridge id)kSecClass: (__bridge id)kSecClassGenericPassword,
             (__bridge id)kSecAttrService: serviceStr,
-            (__bridge id)kSecAttrAccount: accountStr
+            (__bridge id)kSecAttrAccount: accountStr,
+            (__bridge id)kSecAttrSynchronizable: @NO
         };
 
         OSStatus status = SecItemDelete((__bridge CFDictionaryRef)query);
@@ -151,6 +157,7 @@ int convergio_keychain_exists(const char* service, const char* account) {
             (__bridge id)kSecClass: (__bridge id)kSecClassGenericPassword,
             (__bridge id)kSecAttrService: serviceStr,
             (__bridge id)kSecAttrAccount: accountStr,
+            (__bridge id)kSecAttrSynchronizable: @NO,
             (__bridge id)kSecMatchLimit: (__bridge id)kSecMatchLimitOne
         };
 
