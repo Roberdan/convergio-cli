@@ -64,6 +64,9 @@ int cmd_news(int argc, char** argv);
 int cmd_compare(int argc, char** argv);
 int cmd_benchmark(int argc, char** argv);
 
+// Telemetry
+int cmd_telemetry(int argc, char** argv);
+
 // ============================================================================
 // GLOBAL STATE ACCESS
 // ============================================================================
