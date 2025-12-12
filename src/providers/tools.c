@@ -600,3 +600,241 @@ void tools_register_builtins(void) {
     tool_set_handler(read_file, tool_read_file, NULL);
     tools_register(read_file);
 }
+
+// ============================================================================
+// TOOL CALL PARSING - OPENAI
+// ============================================================================
+
+/**
+ * Parse tool calls from OpenAI response
+ */
+ToolCall* parse_openai_tool_calls(const char* response, size_t* count) {
+    // Look for "tool_calls":[...] in choices
+    *count = 0;
+    if (!response) return NULL;
+
+    // Count function call occurrences
+    const char* ptr = response;
+    while ((ptr = strstr(ptr, "\"type\":\"function\"")) != NULL) {
+        (*count)++;
+        ptr++;
+    }
+
+    if (*count == 0) return NULL;
+
+    ToolCall* calls = calloc(*count, sizeof(ToolCall));
+    if (!calls) {
+        *count = 0;
+        return NULL;
+    }
+
+    // Parse each function call
+    ptr = response;
+    for (size_t i = 0; i < *count; i++) {
+        ptr = strstr(ptr, "\"type\":\"function\"");
+        if (!ptr) break;
+
+        // Find function name
+        const char* name_start = strstr(ptr, "\"name\":\"");
+        if (name_start) {
+            name_start += 8;
+            const char* name_end = strchr(name_start, '"');
+            if (name_end) {
+                calls[i].tool_name = strndup(name_start, name_end - name_start);
+            }
+        }
+
+        // Find call id
+        const char* id_start = strstr(ptr, "\"id\":\"");
+        if (id_start && id_start < strstr(ptr + 1, "\"type\":\"function\"")) {
+            id_start += 6;
+            const char* id_end = strchr(id_start, '"');
+            if (id_end) {
+                calls[i].tool_id = strndup(id_start, id_end - id_start);
+            }
+        }
+
+        // Find arguments
+        const char* args_start = strstr(ptr, "\"arguments\":\"");
+        if (args_start) {
+            args_start += 13;
+            // Arguments are escaped JSON string
+            const char* args_end = args_start;
+            while (*args_end && !(*args_end == '"' && *(args_end - 1) != '\\')) {
+                args_end++;
+            }
+            // Unescape the JSON string
+            size_t len = args_end - args_start;
+            char* escaped = strndup(args_start, len);
+            // Simple unescape - real implementation would be more robust
+            calls[i].arguments_json = escaped;
+        }
+
+        ptr++;
+    }
+
+    return calls;
+}
+
+// ============================================================================
+// TOOL CALL PARSING - GEMINI
+// ============================================================================
+
+/**
+ * Parse tool calls from Gemini response
+ */
+ToolCall* parse_gemini_tool_calls(const char* response, size_t* count) {
+    // Look for "functionCall": blocks
+    *count = 0;
+    if (!response) return NULL;
+
+    // Count functionCall occurrences
+    const char* ptr = response;
+    while ((ptr = strstr(ptr, "\"functionCall\"")) != NULL) {
+        (*count)++;
+        ptr++;
+    }
+
+    if (*count == 0) return NULL;
+
+    ToolCall* calls = calloc(*count, sizeof(ToolCall));
+    if (!calls) {
+        *count = 0;
+        return NULL;
+    }
+
+    // Parse each function call
+    ptr = response;
+    for (size_t i = 0; i < *count; i++) {
+        ptr = strstr(ptr, "\"functionCall\"");
+        if (!ptr) break;
+
+        // Find name
+        const char* name_start = strstr(ptr, "\"name\":\"");
+        if (name_start) {
+            name_start += 8;
+            const char* name_end = strchr(name_start, '"');
+            if (name_end) {
+                calls[i].tool_name = strndup(name_start, name_end - name_start);
+            }
+        }
+
+        // Gemini doesn't have tool_id, generate one
+        char id_buf[32];
+        snprintf(id_buf, sizeof(id_buf), "gemini_%zu", i);
+        calls[i].tool_id = strdup(id_buf);
+
+        // Find args
+        const char* args_start = strstr(ptr, "\"args\":");
+        if (args_start) {
+            args_start += 7;
+            // Find matching brace
+            int depth = 0;
+            const char* args_end = args_start;
+            while (*args_end) {
+                if (*args_end == '{') depth++;
+                if (*args_end == '}') {
+                    depth--;
+                    if (depth == 0) {
+                        args_end++;
+                        break;
+                    }
+                }
+                args_end++;
+            }
+            calls[i].arguments_json = strndup(args_start, args_end - args_start);
+        }
+
+        ptr++;
+    }
+
+    return calls;
+}
+
+// ============================================================================
+// TOOL DEFINITION BUILDING
+// ============================================================================
+
+/**
+ * Build tools JSON array for Anthropic API
+ */
+char* build_anthropic_tools_json(ToolDefinition* tools, size_t count) {
+    if (!tools || count == 0) return strdup("[]");
+
+    size_t size = 256 + count * 2048;
+    char* json = malloc(size);
+    if (!json) return NULL;
+
+    int offset = snprintf(json, size, "[");
+
+    for (size_t i = 0; i < count; i++) {
+        if (i > 0) {
+            offset += snprintf(json + offset, size - offset, ",");
+        }
+        offset += snprintf(json + offset, size - offset,
+            "{\"name\":\"%s\",\"description\":\"%s\",\"input_schema\":%s}",
+            tools[i].name, tools[i].description,
+            tools[i].parameters_json ? tools[i].parameters_json : "{\"type\":\"object\",\"properties\":{}}");
+    }
+
+    snprintf(json + offset, size - offset, "]");
+    return json;
+}
+
+/**
+ * Build tools JSON array for OpenAI API
+ */
+char* build_openai_tools_json(ToolDefinition* tools, size_t count) {
+    if (!tools || count == 0) return strdup("[]");
+
+    size_t size = 256 + count * 2048;
+    char* json = malloc(size);
+    if (!json) return NULL;
+
+    int offset = snprintf(json, size, "[");
+
+    for (size_t i = 0; i < count; i++) {
+        if (i > 0) {
+            offset += snprintf(json + offset, size - offset, ",");
+        }
+        offset += snprintf(json + offset, size - offset,
+            "{\"type\":\"function\",\"function\":{\"name\":\"%s\",\"description\":\"%s\",\"parameters\":%s}}",
+            tools[i].name, tools[i].description,
+            tools[i].parameters_json ? tools[i].parameters_json : "{\"type\":\"object\",\"properties\":{}}");
+    }
+
+    snprintf(json + offset, size - offset, "]");
+    return json;
+}
+
+/**
+ * Build tools JSON array for Gemini API
+ */
+char* build_gemini_tools_json(ToolDefinition* tools, size_t count) {
+    if (!tools || count == 0) return strdup("[]");
+
+    size_t size = 256 + count * 2048;
+    char* json = malloc(size);
+    if (!json) return NULL;
+
+    // Gemini wraps tools in functionDeclarations
+    int offset = snprintf(json, size, "[{\"functionDeclarations\":[");
+
+    for (size_t i = 0; i < count; i++) {
+        if (i > 0) {
+            offset += snprintf(json + offset, size - offset, ",");
+        }
+        offset += snprintf(json + offset, size - offset,
+            "{\"name\":\"%s\",\"description\":\"%s\",\"parameters\":%s}",
+            tools[i].name, tools[i].description,
+            tools[i].parameters_json ? tools[i].parameters_json : "{\"type\":\"OBJECT\",\"properties\":{}}");
+    }
+
+    snprintf(json + offset, size - offset, "]}]");
+    return json;
+}
+
+// Alias for backwards compatibility
+void tool_calls_free(ToolCall* calls, size_t count) {
+    free_tool_calls(calls, count);
+}

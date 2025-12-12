@@ -579,20 +579,6 @@ void provider_error_free(ProviderErrorInfo* info) {
 }
 
 // ============================================================================
-// TOOL CALL UTILITIES
-// ============================================================================
-
-void tool_calls_free(ToolCall* calls, size_t count) {
-    if (!calls) return;
-    for (size_t i = 0; i < count; i++) {
-        free(calls[i].tool_name);
-        free(calls[i].tool_id);
-        free(calls[i].arguments_json);
-    }
-    free(calls);
-}
-
-// ============================================================================
 // RETRY CONFIGURATION
 // ============================================================================
 

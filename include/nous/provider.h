@@ -352,6 +352,54 @@ void provider_error_free(ProviderErrorInfo* info);
  */
 void tool_calls_free(ToolCall* calls, size_t count);
 
+/**
+ * Parse tool calls from Anthropic API response
+ * @param response JSON response string
+ * @param count Output: number of tool calls found
+ * @return Array of ToolCall structs (caller must free with tool_calls_free)
+ */
+ToolCall* parse_anthropic_tool_calls(const char* response, size_t* count);
+
+/**
+ * Parse tool calls from OpenAI API response
+ * @param response JSON response string
+ * @param count Output: number of tool calls found
+ * @return Array of ToolCall structs (caller must free with tool_calls_free)
+ */
+ToolCall* parse_openai_tool_calls(const char* response, size_t* count);
+
+/**
+ * Parse tool calls from Gemini API response
+ * @param response JSON response string
+ * @param count Output: number of tool calls found
+ * @return Array of ToolCall structs (caller must free with tool_calls_free)
+ */
+ToolCall* parse_gemini_tool_calls(const char* response, size_t* count);
+
+/**
+ * Build tools JSON array for Anthropic API
+ * @param tools Array of tool definitions
+ * @param count Number of tools
+ * @return JSON string (caller must free)
+ */
+char* build_anthropic_tools_json(ToolDefinition* tools, size_t count);
+
+/**
+ * Build tools JSON array for OpenAI API
+ * @param tools Array of tool definitions
+ * @param count Number of tools
+ * @return JSON string (caller must free)
+ */
+char* build_openai_tools_json(ToolDefinition* tools, size_t count);
+
+/**
+ * Build tools JSON array for Gemini API
+ * @param tools Array of tool definitions
+ * @param count Number of tools
+ * @return JSON string (caller must free)
+ */
+char* build_gemini_tools_json(ToolDefinition* tools, size_t count);
+
 // ============================================================================
 // RETRY CONFIGURATION
 // ============================================================================
