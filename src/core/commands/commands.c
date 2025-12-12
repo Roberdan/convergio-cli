@@ -401,6 +401,10 @@ int cmd_help(int argc, char** argv) {
     printf("  \033[33mauth\033[0m              Show authentication status\n");
     printf("  \033[33mlogout\033[0m            Logout and clear credentials\n");
 
+    printf("\n\033[36mModel Comparison:\033[0m\n");
+    printf("  \033[33mcompare\033[0m           Compare multiple models side-by-side\n");
+    printf("  \033[33mbenchmark\033[0m         Benchmark a model's performance\n");
+
     printf("\n\033[2mType 'help <command>' for detailed help on a specific command.\033[0m\n");
     printf("\033[2mOr simply talk to Ali, your Chief of Staff.\033[0m\n\n");
 
@@ -1175,8 +1179,7 @@ int cmd_compare(int argc, char** argv) {
     // Parse prompt
     const char* prompt = argv[1];
 
-    // Parse models
-    const char** models = (const char**)&argv[2];
+    // Count models
     size_t model_count = 0;
 
     // Count models and check for options
