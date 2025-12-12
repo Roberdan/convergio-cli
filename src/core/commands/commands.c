@@ -13,6 +13,7 @@
 #include "nous/updater.h"
 #include "nous/theme.h"
 #include "nous/compare.h"
+#include "nous/telemetry.h"
 #include "../../auth/oauth.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -54,6 +55,7 @@ static const ReplCommand COMMANDS[] = {
     {"think",       "Process an intent",                 cmd_think},
     {"compare",     "Compare models side-by-side",       cmd_compare},
     {"benchmark",   "Benchmark a model's performance",   cmd_benchmark},
+    {"telemetry",   "Manage telemetry settings",         cmd_telemetry},
     {"news",        "Show release notes",                cmd_news},
     {"quit",        "Exit Convergio",                    cmd_quit},
     {"exit",        "Exit Convergio",                    cmd_quit},
@@ -1192,6 +1194,9 @@ int cmd_compare(int argc, char** argv) {
             opts.output_format = "json";
         } else if (strcmp(argv[i], "--sequential") == 0) {
             opts.mode = COMPARE_MODE_SEQUENTIAL;
+        } else if (argv[i][0] == '-') {
+            // Unknown flag - warn and skip
+            printf("Warning: Unknown option '%s' ignored.\n", argv[i]);
         } else {
             model_count++;
         }
@@ -1264,4 +1269,99 @@ int cmd_benchmark(int argc, char** argv) {
     if (result.error) free(result.error);
 
     return ret;
+}
+
+// ============================================================================
+// TELEMETRY COMMAND
+// ============================================================================
+
+int cmd_telemetry(int argc, char** argv) {
+    if (argc < 2) {
+        printf("\n\033[1mTelemetry Management\033[0m\n\n");
+        printf("Privacy-first, opt-in telemetry for improving Convergio\n\n");
+        printf("\033[1mUsage:\033[0m\n");
+        printf("  telemetry status   - Show current telemetry status\n");
+        printf("  telemetry info     - Show what data is collected\n");
+        printf("  telemetry enable   - Enable telemetry (opt-in)\n");
+        printf("  telemetry disable  - Disable telemetry (opt-out)\n");
+        printf("  telemetry view     - View collected data\n");
+        printf("  telemetry export   - Export data as JSON\n");
+        printf("  telemetry delete   - Delete all collected data\n\n");
+        printf("\033[1mCore Principles:\033[0m\n");
+        printf("  • OPT-IN ONLY (never enabled by default)\n");
+        printf("  • Privacy-first (no PII, anonymous metrics only)\n");
+        printf("  • User control (view/export/delete at any time)\n\n");
+        return 0;
+    }
+
+    const char* subcommand = argv[1];
+
+    if (strcmp(subcommand, "status") == 0) {
+        telemetry_status();
+        return 0;
+    }
+
+    if (strcmp(subcommand, "info") == 0) {
+        telemetry_show_consent_prompt();
+        return 0;
+    }
+
+    if (strcmp(subcommand, "enable") == 0) {
+        int ret = telemetry_enable();
+        if (ret == 0) {
+            printf("\nTelemetry has been enabled.\n");
+            printf("Thank you for helping improve Convergio!\n\n");
+            printf("You can view collected data with: telemetry view\n");
+            printf("You can disable at any time with: telemetry disable\n\n");
+        } else {
+            printf("\nFailed to enable telemetry.\n");
+        }
+        return ret;
+    }
+
+    if (strcmp(subcommand, "disable") == 0) {
+        int ret = telemetry_disable();
+        if (ret == 0) {
+            printf("\nTelemetry has been disabled.\n");
+            printf("No further data will be collected.\n\n");
+            printf("Existing data is still stored locally.\n");
+            printf("To delete it, use: telemetry delete\n\n");
+        } else {
+            printf("\nFailed to disable telemetry.\n");
+        }
+        return ret;
+    }
+
+    if (strcmp(subcommand, "view") == 0) {
+        telemetry_view();
+        return 0;
+    }
+
+    if (strcmp(subcommand, "export") == 0) {
+        char* data = telemetry_export();
+        if (data) {
+            printf("\n");
+            printf("╔═══════════════════════════════════════════════════════════════════════╗\n");
+            printf("║                     TELEMETRY DATA EXPORT                             ║\n");
+            printf("╚═══════════════════════════════════════════════════════════════════════╝\n");
+            printf("\n");
+            printf("%s\n", data);
+            printf("\n");
+            printf("You can save this output with:\n");
+            printf("  telemetry export > telemetry_export.json\n\n");
+            free(data);
+            return 0;
+        } else {
+            printf("\nNo telemetry data to export.\n");
+            return -1;
+        }
+    }
+
+    if (strcmp(subcommand, "delete") == 0) {
+        return telemetry_delete();
+    }
+
+    printf("Unknown telemetry subcommand: %s\n", subcommand);
+    printf("Run 'telemetry' without arguments for usage information.\n");
+    return -1;
 }

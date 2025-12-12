@@ -205,8 +205,14 @@ void cost_reset_session(void) {
 
     orch->cost.current_spend_usd = 0.0;
     memset(&orch->cost.session_usage, 0, sizeof(TokenUsage));
-    orch->cost.budget_exceeded = false;
     orch->cost.session_start = time(NULL);
+
+    // Preserve budget_exceeded if total spend is still over budget
+    if (orch->cost.budget_limit_usd > 0) {
+        orch->cost.budget_exceeded = (orch->cost.total_spend_usd >= orch->cost.budget_limit_usd);
+    } else {
+        orch->cost.budget_exceeded = false;
+    }
 
     CONVERGIO_MUTEX_UNLOCK(&g_cost_mutex);
 }
