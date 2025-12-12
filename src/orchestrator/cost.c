@@ -46,7 +46,7 @@ void cost_load_historical(void) {
     // Load total historical cost from database
     double historical_cost = persistence_get_total_cost();
     orch->cost.total_spend_usd = historical_cost;
-    orch->cost.total_usage.cost_usd = historical_cost;
+    orch->cost.total_usage.estimated_cost = historical_cost;
 
     // Check if budget already exceeded from historical usage
     if (orch->cost.budget_limit_usd > 0 &&
@@ -80,8 +80,7 @@ void cost_record_usage(uint64_t input_tokens, uint64_t output_tokens) {
     // Update session usage (always track tokens for statistics)
     orch->cost.session_usage.input_tokens += input_tokens;
     orch->cost.session_usage.output_tokens += output_tokens;
-    orch->cost.session_usage.total_tokens += (input_tokens + output_tokens);
-    orch->cost.session_usage.api_calls++;
+    // Note: cached_tokens tracked separately when cache hits occur
 
     // Calculate cost - $0 if Claude Max subscription
     double call_cost = 0.0;
@@ -89,15 +88,13 @@ void cost_record_usage(uint64_t input_tokens, uint64_t output_tokens) {
         call_cost = calculate_cost(input_tokens, output_tokens);
     }
 
-    orch->cost.session_usage.cost_usd += call_cost;
+    orch->cost.session_usage.estimated_cost += call_cost;
     orch->cost.current_spend_usd += call_cost;
 
     // Update total usage
     orch->cost.total_usage.input_tokens += input_tokens;
     orch->cost.total_usage.output_tokens += output_tokens;
-    orch->cost.total_usage.total_tokens += (input_tokens + output_tokens);
-    orch->cost.total_usage.api_calls++;
-    orch->cost.total_usage.cost_usd += call_cost;
+    orch->cost.total_usage.estimated_cost += call_cost;
     orch->cost.total_spend_usd += call_cost;
 
     // Check budget against cumulative total (only if not Claude Max)
@@ -128,9 +125,7 @@ void cost_record_agent_usage(ManagedAgent* agent, uint64_t input_tokens, uint64_
 
     agent->usage.input_tokens += input_tokens;
     agent->usage.output_tokens += output_tokens;
-    agent->usage.total_tokens += (input_tokens + output_tokens);
-    agent->usage.api_calls++;
-    agent->usage.cost_usd += calculate_cost(input_tokens, output_tokens);
+    agent->usage.estimated_cost += calculate_cost(input_tokens, output_tokens);
 
     CONVERGIO_MUTEX_UNLOCK(&g_cost_mutex);
 
@@ -253,15 +248,13 @@ char* cost_get_report(void) {
         "║                    COST REPORT                               ║\n"
         "╠══════════════════════════════════════════════════════════════╣\n"
         "║ SESSION (%d min)                                              \n"
-        "║   Input tokens:  %'12llu ($%.4f)                             \n"
-        "║   Output tokens: %'12llu ($%.4f)                             \n"
-        "║   API calls:     %'12u                                       \n"
+        "║   Input tokens:  %12llu ($%.4f)                             \n"
+        "║   Output tokens: %12llu ($%.4f)                             \n"
         "║   Total cost:    $%.4f                                       \n"
         "╠══════════════════════════════════════════════════════════════╣\n"
         "║ ALL-TIME                                                     \n"
-        "║   Input tokens:  %'12llu ($%.4f)                             \n"
-        "║   Output tokens: %'12llu ($%.4f)                             \n"
-        "║   API calls:     %'12u                                       \n"
+        "║   Input tokens:  %12llu ($%.4f)                             \n"
+        "║   Output tokens: %12llu ($%.4f)                             \n"
         "║   Total cost:    $%.4f                                       \n"
         "╠══════════════════════════════════════════════════════════════╣\n"
         "║ %s\n"
@@ -271,14 +264,12 @@ char* cost_get_report(void) {
         (orch->cost.session_usage.input_tokens / 1000000.0) * CLAUDE_SONNET_INPUT_COST,
         (unsigned long long)orch->cost.session_usage.output_tokens,
         (orch->cost.session_usage.output_tokens / 1000000.0) * CLAUDE_SONNET_OUTPUT_COST,
-        orch->cost.session_usage.api_calls,
-        orch->cost.session_usage.cost_usd,
+        orch->cost.session_usage.estimated_cost,
         (unsigned long long)orch->cost.total_usage.input_tokens,
         (orch->cost.total_usage.input_tokens / 1000000.0) * CLAUDE_SONNET_INPUT_COST,
         (unsigned long long)orch->cost.total_usage.output_tokens,
         (orch->cost.total_usage.output_tokens / 1000000.0) * CLAUDE_SONNET_OUTPUT_COST,
-        orch->cost.total_usage.api_calls,
-        orch->cost.total_usage.cost_usd,
+        orch->cost.total_usage.estimated_cost,
         budget_status
     );
 
@@ -332,15 +323,13 @@ char* cost_get_agent_report(ManagedAgent* agent) {
         "Agent: %s\n"
         "  Input tokens:  %llu ($%.4f)\n"
         "  Output tokens: %llu ($%.4f)\n"
-        "  API calls:     %u\n"
         "  Total cost:    $%.4f\n",
         agent->name,
         (unsigned long long)agent->usage.input_tokens,
         (agent->usage.input_tokens / 1000000.0) * CLAUDE_SONNET_INPUT_COST,
         (unsigned long long)agent->usage.output_tokens,
         (agent->usage.output_tokens / 1000000.0) * CLAUDE_SONNET_OUTPUT_COST,
-        agent->usage.api_calls,
-        agent->usage.cost_usd
+        agent->usage.estimated_cost
     );
 
     CONVERGIO_MUTEX_UNLOCK(&g_cost_mutex);
@@ -366,7 +355,7 @@ void cost_get_top_agents(ManagedAgent** out_agents, size_t* out_count, size_t ma
     // Sort by cost descending
     for (size_t i = 0; i < count - 1; i++) {
         for (size_t j = 0; j < count - i - 1; j++) {
-            if (out_agents[j]->usage.cost_usd < out_agents[j+1]->usage.cost_usd) {
+            if (out_agents[j]->usage.estimated_cost < out_agents[j+1]->usage.estimated_cost) {
                 ManagedAgent* tmp = out_agents[j];
                 out_agents[j] = out_agents[j+1];
                 out_agents[j+1] = tmp;

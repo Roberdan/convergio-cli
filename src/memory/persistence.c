@@ -255,7 +255,7 @@ int persistence_save_message(const char* session_id, Message* msg) {
     }
     sqlite3_bind_int64(stmt, 6, msg->tokens_used.input_tokens);
     sqlite3_bind_int64(stmt, 7, msg->tokens_used.output_tokens);
-    sqlite3_bind_double(stmt, 8, msg->tokens_used.cost_usd);
+    sqlite3_bind_double(stmt, 8, msg->tokens_used.estimated_cost);
     sqlite3_bind_int64(stmt, 9, msg->parent_id);
 
     rc = sqlite3_step(stmt);
@@ -318,7 +318,7 @@ Message** persistence_load_recent_messages(const char* session_id, size_t limit,
 
         msg->tokens_used.input_tokens = sqlite3_column_int64(stmt, 5);
         msg->tokens_used.output_tokens = sqlite3_column_int64(stmt, 6);
-        msg->tokens_used.cost_usd = sqlite3_column_double(stmt, 7);
+        msg->tokens_used.estimated_cost = sqlite3_column_double(stmt, 7);
         msg->parent_id = sqlite3_column_int64(stmt, 8);
 
         messages[count++] = msg;

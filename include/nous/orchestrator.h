@@ -35,16 +35,16 @@ typedef struct {
 } AgentHashTable;
 
 // ============================================================================
-// COST TRACKING
+// COST TRACKING (using provider.h TokenUsage definition)
 // ============================================================================
 
-typedef struct {
-    uint64_t input_tokens;
-    uint64_t output_tokens;
-    uint64_t total_tokens;
-    double cost_usd;
-    uint32_t api_calls;
-} TokenUsage;
+#include "nous/provider.h"
+
+// TokenUsage is defined in provider.h with these fields:
+// - input_tokens
+// - output_tokens
+// - cached_tokens
+// - estimated_cost
 
 typedef struct {
     double budget_limit_usd;      // Max spend allowed
@@ -255,8 +255,9 @@ char* orchestrator_process(const char* user_input);
 
 // Streaming variant - live output via callback, returns accumulated response
 // NOTE: Streaming mode does not support tool calls (simple chat only)
-typedef void (*StreamCallback)(const char* chunk, void* user_data);
-char* orchestrator_process_stream(const char* user_input, StreamCallback callback, void* user_data);
+// NOTE: OrchestratorStreamCallback is different from provider.h's StreamCallback
+typedef void (*OrchestratorStreamCallback)(const char* chunk, void* user_data);
+char* orchestrator_process_stream(const char* user_input, OrchestratorStreamCallback callback, void* user_data);
 
 // Direct agent communication with tools support
 char* orchestrator_agent_chat(ManagedAgent* agent, const char* user_message);

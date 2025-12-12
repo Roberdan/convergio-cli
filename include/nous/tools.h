@@ -35,12 +35,13 @@ typedef enum {
     TOOL_AGENT_DELEGATE,  // Delegate to another agent
 } ToolType;
 
+// Local tool definition (distinct from provider.h's ToolDefinition for API calls)
 typedef struct {
     ToolType type;
     char* name;
     char* description;
     char* parameters_json;  // JSON schema for parameters
-} ToolDefinition;
+} LocalToolDefinition;
 
 typedef struct {
     bool success;
@@ -51,11 +52,12 @@ typedef struct {
     double execution_time; // Seconds
 } ToolResult;
 
+// Local tool call (distinct from provider.h's ToolCall for API calls)
 typedef struct {
     ToolType type;
     char* tool_name;
     char* parameters_json; // JSON with actual parameters
-} ToolCall;
+} LocalToolCall;
 
 // ============================================================================
 // TOOL DEFINITIONS (for Claude's tool_use)
@@ -65,21 +67,21 @@ typedef struct {
 const char* tools_get_definitions_json(void);
 
 // Get a specific tool definition
-const ToolDefinition* tools_get_definition(ToolType type);
+const LocalToolDefinition* tools_get_definition(ToolType type);
 
 // ============================================================================
 // TOOL EXECUTION
 // ============================================================================
 
 // Parse tool call from Claude's response
-ToolCall* tools_parse_call(const char* tool_name, const char* arguments_json);
+LocalToolCall* tools_parse_call(const char* tool_name, const char* arguments_json);
 
 // Execute a tool call
-ToolResult* tools_execute(const ToolCall* call);
+ToolResult* tools_execute(const LocalToolCall* call);
 
 // Free results
 void tools_free_result(ToolResult* result);
-void tools_free_call(ToolCall* call);
+void tools_free_call(LocalToolCall* call);
 
 // ============================================================================
 // FILE TOOLS

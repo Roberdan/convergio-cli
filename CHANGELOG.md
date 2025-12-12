@@ -7,6 +7,87 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.0.0] - 2025-12-12
+
+### Added - Multi-Provider Architecture
+
+**Provider Support**
+- **Anthropic** (Claude Opus 4.5, Sonnet 4.5, Haiku 4.5)
+- **OpenAI** (GPT-5.2-pro, GPT-5, GPT-4o, o3, o4-mini, GPT-5-nano)
+- **Google Gemini** (Gemini 3 Ultra, Pro, Flash)
+- **Ollama** (Local models - planned)
+
+**Provider Abstraction Layer**
+- `include/nous/provider.h` - Unified provider interface
+- `src/providers/provider.c` - Provider registry and model catalog
+- `src/providers/anthropic.c` - Anthropic Claude adapter
+- `src/providers/openai.c` - OpenAI GPT adapter
+- `src/providers/gemini.c` - Google Gemini adapter
+- `src/providers/retry.c` - Exponential backoff with circuit breaker
+- `src/providers/streaming.c` - Server-Sent Events streaming handler
+- `src/providers/tools.c` - Multi-provider tool/function calling
+- `src/providers/tokens.c` - Token estimation and cost calculation
+
+**Intelligent Model Routing**
+- `src/router/model_router.c` - Smart model selection per agent
+- `src/router/cost_optimizer.c` - Prompt caching, batch processing, budget management
+- Agent-specific model assignments (Ali→Opus, Marco→Sonnet, etc.)
+- Automatic fallback chains when providers fail
+- Budget-aware model downgrading
+
+**Agent Configuration System**
+- `src/agents/agent_config.c` - JSON-based agent configuration
+- Per-agent model, provider, and behavior settings
+- Runtime configuration updates
+- Default configurations for all built-in agents
+
+**Synchronization & Concurrency**
+- `include/nous/file_lock.h` + `src/sync/file_lock.c` - File-level locking
+- Deadlock detection for multi-agent file access
+- Read-write lock semantics with timeout support
+- Enhanced message bus with provider-aware routing
+- Priority message queue and topic-based subscriptions
+
+**UI Enhancements**
+- `include/nous/statusbar.h` + `src/ui/statusbar.c` - Two-line status bar
+- `include/nous/hyperlink.h` + `src/ui/hyperlink.c` - OSC 8 terminal hyperlinks
+- `src/ui/terminal.c` - SIGWINCH handling and terminal capability detection
+- Real-time token counter and cost display
+- Clickable file paths in output (iTerm2, WezTerm, VS Code Terminal)
+
+**Testing Framework**
+- `tests/mock_provider.h` + `tests/mock_provider.c` - Mock LLM provider
+- `tests/test_providers.c` - Comprehensive provider unit tests
+- Configurable latency, error injection, rate limiting simulation
+- Request logging and assertion helpers
+
+**Documentation**
+- `docs/PROVIDERS.md` - Provider setup guide with model pricing
+- `docs/MODEL_SELECTION.md` - Model selection and routing guide
+- `docs/COST_OPTIMIZATION.md` - Cost management and optimization guide
+- `docs/AGENT_DEVELOPMENT.md` - Custom agent creation guide
+- `docs/MIGRATION_v3.md` - v2.x to v3.0 migration guide
+- `docs/TROUBLESHOOTING.md` - Common issues and solutions
+- `docs/DISCLAIMER.md` - AI limitations and liability disclaimer
+- `TERMS_OF_SERVICE.md` - Terms of Service
+- `PRIVACY_POLICY.md` - Privacy Policy
+- `config/models.json` - Complete model catalog with pricing
+
+### Changed
+- **BREAKING**: Configuration moved from `~/.nous/` to `~/.convergio/`
+- **BREAKING**: Agent definitions now use JSON format instead of Markdown
+- Default model changed from `claude-sonnet-4` to `claude-sonnet-4.5`
+- CMakeLists.txt updated with all new source files
+- Enhanced message bus with multi-provider support
+
+### Technical
+- Provider interface uses function pointers for polymorphism
+- Circuit breaker pattern prevents cascade failures
+- Token estimation based on content type detection
+- BPE-approximation token counting per provider
+- Context window management with automatic truncation
+- Cost tracking per provider, model, and agent
+
 ## [2.0.11] - 2025-12-12
 
 ### Added
