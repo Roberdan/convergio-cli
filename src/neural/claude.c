@@ -767,7 +767,15 @@ typedef struct {
     size_t acc_capacity;
 } StreamContext;
 
+// Import stream cancellation check
+extern volatile sig_atomic_t g_stream_cancelled;
+
 static size_t stream_write_callback(void* contents, size_t size, size_t nmemb, void* userp) {
+    // Check for cancellation
+    if (g_stream_cancelled) {
+        return 0;  // Abort transfer
+    }
+
     size_t total = size * nmemb;
     StreamContext* ctx = (StreamContext*)userp;
 
