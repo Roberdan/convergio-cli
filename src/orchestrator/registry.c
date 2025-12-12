@@ -33,11 +33,14 @@ static uint64_t g_next_agent_id = 1;
 // HASH TABLE IMPLEMENTATION (FNV-1a)
 // ============================================================================
 
-// FNV-1a hash for strings
+// FNV-1a hash for strings (case-insensitive for consistent lookup)
 static uint32_t fnv1a_hash(const char* str) {
     uint32_t hash = 2166136261u;  // FNV offset basis
     while (*str) {
-        hash ^= (uint8_t)(*str++);
+        // Convert to lowercase for case-insensitive hashing
+        uint8_t c = (uint8_t)(*str++);
+        if (c >= 'A' && c <= 'Z') c += 32;
+        hash ^= c;
         hash *= 16777619u;  // FNV prime
     }
     return hash;
@@ -316,6 +319,7 @@ void agent_destroy(ManagedAgent* agent) {
     if (!agent) return;
 
     free(agent->name);
+    free(agent->description);
     free(agent->system_prompt);
     free(agent->specialized_context);
 
@@ -669,6 +673,9 @@ static ManagedAgent* parse_embedded_agent(const char* filename, const char* cont
     }
 
     ManagedAgent* agent = agent_create(name, role, system_prompt);
+    if (agent && description[0]) {
+        agent->description = strdup(description);
+    }
     free(system_prompt);
     return agent;
 }
@@ -689,9 +696,12 @@ int agent_load_definitions(const char* dir_path) {
     for (size_t i = 0; i < agent_count; i++) {
         const EmbeddedAgent* ea = &agents[i];
 
-        // Skip common files
+        // Skip common files and Ali (Ali is created manually)
         if (strcmp(ea->filename, "CommonValuesAndPrinciples.md") == 0) {
             continue;
+        }
+        if (strstr(ea->filename, "ali-chief-of-staff") != NULL) {
+            continue;  // Ali is created manually in orchestrator_init
         }
 
         ManagedAgent* agent = parse_embedded_agent(ea->filename, ea->content);
@@ -712,6 +722,15 @@ int agent_load_definitions(const char* dir_path) {
 
                 if (orch->agent_count < orch->agent_capacity) {
                     orch->agents[orch->agent_count++] = agent;
+
+                    // Add to hash tables for O(1) lookup
+                    if (orch->agent_by_id) {
+                        agent_hash_insert_by_id(orch->agent_by_id, agent);
+                    }
+                    if (orch->agent_by_name) {
+                        agent_hash_insert_by_name(orch->agent_by_name, agent);
+                    }
+
                     loaded++;
                 }
 
@@ -1049,7 +1068,7 @@ char* agent_registry_status(void) {
 
     CONVERGIO_MUTEX_LOCK(&g_registry_mutex);
 
-    size_t buf_size = 4096;
+    size_t buf_size = 16384;  // Increased for descriptions
     char* status = malloc(buf_size);
     if (!status) {
         CONVERGIO_MUTEX_UNLOCK(&g_registry_mutex);
@@ -1057,38 +1076,77 @@ char* agent_registry_status(void) {
     }
 
     size_t offset = 0;
-    offset += snprintf(status + offset, buf_size - offset,
-        "Agent Registry Status\n"
-        "=====================\n"
-        "Total agents: %zu / %zu\n\n"
-        "Active agents:\n",
-        orch->agent_count, orch->agent_capacity);
 
-    for (size_t i = 0; i < orch->agent_count && offset < buf_size - 256; i++) {
-        ManagedAgent* agent = orch->agents[i];
-        const char* role_name;
-        switch (agent->role) {
-            case AGENT_ROLE_ORCHESTRATOR: role_name = "Orchestrator"; break;
-            case AGENT_ROLE_ANALYST: role_name = "Analyst"; break;
-            case AGENT_ROLE_CODER: role_name = "Coder"; break;
-            case AGENT_ROLE_WRITER: role_name = "Writer"; break;
-            case AGENT_ROLE_CRITIC: role_name = "Critic"; break;
-            case AGENT_ROLE_PLANNER: role_name = "Planner"; break;
-            case AGENT_ROLE_EXECUTOR: role_name = "Executor"; break;
-            case AGENT_ROLE_MEMORY: role_name = "Memory"; break;
-            default: role_name = "Unknown"; break;
+    // Header as if Ali is presenting
+    offset += snprintf(status + offset, buf_size - offset,
+        "\033[1;36m┌─────────────────────────────────────────────────────────────────┐\033[0m\n"
+        "\033[1;36m│\033[0m  \033[1mMy Team\033[0m - %zu specialist agents ready                        \033[1;36m│\033[0m\n"
+        "\033[1;36m└─────────────────────────────────────────────────────────────────┘\033[0m\n\n",
+        orch->agent_count);
+
+    // Group agents by role
+    const char* role_names[] = {
+        "Orchestrator", "Analyst", "Coder", "Writer", "Critic", "Planner", "Executor", "Memory"
+    };
+    const char* role_emojis[] = {
+        "👔", "📊", "💻", "✍️", "🔍", "📋", "⚡", "🧠"
+    };
+
+    for (int r = 0; r < 8; r++) {
+        AgentRole role = (AgentRole)r;
+        bool has_agents = false;
+
+        // First pass - check if there are agents in this role
+        for (size_t i = 0; i < orch->agent_count; i++) {
+            if (orch->agents[i]->role == role) {
+                has_agents = true;
+                break;
+            }
         }
 
+        if (!has_agents) continue;
+
+        // Print role header
         offset += snprintf(status + offset, buf_size - offset,
-            "  @%-20s %s [%s]\n",
-            agent->name,
-            role_name,
-            agent->is_active ? "active" : "inactive");
+            "\033[1m%s %s\033[0m\n", role_emojis[r], role_names[r]);
+
+        // Second pass - print agents in this role
+        for (size_t i = 0; i < orch->agent_count && offset < buf_size - 512; i++) {
+            ManagedAgent* agent = orch->agents[i];
+            if (agent->role != role) continue;
+
+            // Get short name (capitalize first letter)
+            char short_name[32];
+            const char* src = agent->name;
+            size_t j = 0;
+            while (*src && *src != '-' && j < sizeof(short_name) - 1) {
+                short_name[j++] = *src++;
+            }
+            short_name[j] = '\0';
+            if (short_name[0] >= 'a' && short_name[0] <= 'z') {
+                short_name[0] -= 32;
+            }
+
+            // Truncate description if needed
+            char desc[60] = "";
+            if (agent->description) {
+                strncpy(desc, agent->description, sizeof(desc) - 4);
+                if (strlen(agent->description) >= sizeof(desc) - 3) {
+                    strcpy(desc + sizeof(desc) - 4, "...");
+                }
+            }
+
+            offset += snprintf(status + offset, buf_size - offset,
+                "  \033[36m@%s\033[0m\n    \033[2m%s\033[0m\n",
+                agent->name,
+                desc[0] ? desc : "Specialist agent");
+        }
+        offset += snprintf(status + offset, buf_size - offset, "\n");
     }
 
     offset += snprintf(status + offset, buf_size - offset,
-        "\nTip: Use @agent_name to talk directly to an agent\n"
-        "Example: @baccio What's the best architecture for this?\n");
+        "\033[2mType \033[0m\033[36m@agent_name message\033[0m\033[2m to talk directly to an agent\033[0m\n"
+        "\033[2mExample: \033[0m\033[36m@baccio What's the best architecture?\033[0m\n");
 
     CONVERGIO_MUTEX_UNLOCK(&g_registry_mutex);
 

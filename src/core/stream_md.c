@@ -181,6 +181,13 @@ void stream_md_process_char(StreamMd* sm, char c) {
             sm->line_start = false;
             return;
         }
+        if (c == '*' && sm->pending[0] == '*') {
+            // It's bold ** at line start, not a bullet
+            sm->pending_len = 0;
+            sm->state = STATE_IN_BOLD;
+            emit(ANSI_BOLD);
+            return;
+        }
         if (c == '-' && sm->pending[0] == '-') {
             // Could be horizontal rule ---
             sm->pending[1] = '-';

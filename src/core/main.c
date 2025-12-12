@@ -29,6 +29,60 @@
 #include <termios.h>
 
 // ============================================================================
+// READLINE COMPLETION FOR @AGENTS
+// ============================================================================
+
+// Generator function for @agent completions
+static char* agent_name_generator(const char* text, int state) {
+    static size_t list_index;
+    static ManagedAgent* agents[64];
+    static size_t agent_count;
+
+    // First call - build agent list
+    if (state == 0) {
+        list_index = 0;
+        agent_count = agent_get_active(agents, 64);
+    }
+
+    // Skip the @ prefix for matching
+    const char* partial = text;
+    if (partial[0] == '@') partial++;
+
+    // Return matches
+    while (list_index < agent_count) {
+        ManagedAgent* agent = agents[list_index++];
+        if (agent && agent->name) {
+            // Check if agent name starts with the partial text (case-insensitive)
+            if (strncasecmp(agent->name, partial, strlen(partial)) == 0) {
+                // Return @name format
+                char* match = malloc(strlen(agent->name) + 2);
+                if (match) {
+                    snprintf(match, strlen(agent->name) + 2, "@%s", agent->name);
+                    return match;
+                }
+            }
+        }
+    }
+
+    return NULL;
+}
+
+// Completion function - called when tab is pressed
+static char** agent_completion(const char* text, int start, int end) {
+    (void)end;
+
+    // Only complete @agent names at the start of the line
+    if (start == 0 && text[0] == '@') {
+        rl_attempted_completion_over = 1;  // Don't fall back to filename completion
+        return rl_completion_matches(text, agent_name_generator);
+    }
+
+    // For other cases, disable completion (no filename completion)
+    rl_attempted_completion_over = 1;
+    return NULL;
+}
+
+// ============================================================================
 // FORWARD DECLARATIONS
 // ============================================================================
 
@@ -1540,6 +1594,9 @@ int main(int argc, char** argv) {
     char* line;
 
     using_history();
+
+    // Set up readline completion for @agent names
+    rl_attempted_completion_function = agent_completion;
 
     while (g_running) {
         // Build prompt with theme colors

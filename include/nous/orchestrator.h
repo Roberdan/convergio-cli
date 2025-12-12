@@ -128,6 +128,7 @@ typedef enum {
 struct ManagedAgent {
     SemanticID id;
     char* name;
+    char* description;           // Short description of agent's role
     AgentRole role;
     char* system_prompt;
     char* specialized_context;
