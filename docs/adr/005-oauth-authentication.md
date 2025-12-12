@@ -16,7 +16,7 @@ The OAuth implementation cannot work because:
 
 2. **Redirect URI Mismatch**: Each OAuth application has registered redirect URIs. Convergio's localhost callback doesn't match Claude Code's registered URIs.
 
-3. **No Public OAuth API**: As of December 2024, Anthropic does not offer a public OAuth registration process for third-party CLI tools.
+3. **No Public OAuth API**: As of December 2025, Anthropic does not offer a public OAuth registration process for third-party CLI tools.
 
 ## Decision
 
@@ -81,4 +81,4 @@ The existing implementation uses PKCE (Proof Key for Code Exchange):
 
 ## Date
 
-2024-12-11
+2025-12-11

@@ -55,29 +55,27 @@ kernel void batch_cosine_similarity(
     device const half* candidate = candidates + gid * EMBEDDING_DIM;
 
     // Compute dot product and norms using SIMD
-    float dot = 0.0f;
+    float dot_prod = 0.0f;
     float norm_q = 0.0f;
     float norm_c = 0.0f;
 
-    // Process 8 elements at a time for optimal half-precision throughput
-    for (uint i = 0; i < EMBEDDING_DIM; i += 8) {
-        half8 q = *reinterpret_cast<threadgroup const half8*>(&shared_query[i]);
-        half8 c = *reinterpret_cast<device const half8*>(&candidate[i]);
+    // Process 4 elements at a time using half4 (half8 deprecated in Metal 3.2+)
+    for (uint i = 0; i < EMBEDDING_DIM; i += 4) {
+        half4 q = *reinterpret_cast<threadgroup const half4*>(&shared_query[i]);
+        half4 c = *reinterpret_cast<device const half4*>(&candidate[i]);
 
         // Convert to float for accumulation
-        float4 q_lo = float4(q.lo);
-        float4 q_hi = float4(q.hi);
-        float4 c_lo = float4(c.lo);
-        float4 c_hi = float4(c.hi);
+        float4 q_f = float4(q);
+        float4 c_f = float4(c);
 
-        dot += dot(q_lo, c_lo) + dot(q_hi, c_hi);
-        norm_q += dot(q_lo, q_lo) + dot(q_hi, q_hi);
-        norm_c += dot(c_lo, c_lo) + dot(c_hi, c_hi);
+        dot_prod += dot(q_f, c_f);
+        norm_q += dot(q_f, q_f);
+        norm_c += dot(c_f, c_f);
     }
 
     // Compute cosine similarity
     float denom = sqrt(norm_q) * sqrt(norm_c);
-    similarities[gid] = (denom > 1e-8f) ? (dot / denom) : 0.0f;
+    similarities[gid] = (denom > 1e-8f) ? (dot_prod / denom) : 0.0f;
 }
 
 // ============================================================================
@@ -244,14 +242,14 @@ kernel void kmeans_assign(
         device const half* cent = centroids + c * EMBEDDING_DIM;
 
         float dist = 0.0f;
-        for (uint i = 0; i < EMBEDDING_DIM; i += 8) {
-            half8 e = *reinterpret_cast<device const half8*>(&emb[i]);
-            half8 ce = *reinterpret_cast<device const half8*>(&cent[i]);
-            half8 diff = e - ce;
+        // Process 4 elements at a time (half8 deprecated in Metal 3.2+)
+        for (uint i = 0; i < EMBEDDING_DIM; i += 4) {
+            half4 e = *reinterpret_cast<device const half4*>(&emb[i]);
+            half4 ce = *reinterpret_cast<device const half4*>(&cent[i]);
+            half4 diff = e - ce;
 
-            float4 d_lo = float4(diff.lo);
-            float4 d_hi = float4(diff.hi);
-            dist += dot(d_lo, d_lo) + dot(d_hi, d_hi);
+            float4 d_f = float4(diff);
+            dist += dot(d_f, d_f);
         }
 
         if (dist < min_dist) {

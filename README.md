@@ -1,10 +1,24 @@
+<p align="center">
+  <img src="docs/logo/CovergioLogo.jpeg" alt="Convergio Logo" width="200"/>
+</p>
+
 # Convergio CLI
 
-> **Optimized for Apple Silicon** - This project is specifically designed and optimized for Apple Silicon (M1/M2/M3/M4) Macs, leveraging NEON SIMD, Metal GPU shaders, and the Accelerate framework for maximum performance.
+> **Multi-Model AI Orchestration for Apple Silicon** - The first CLI that lets you mix Claude, GPT, and Gemini models with intelligent routing, cost optimization, and per-agent model selection.
 
 A semantic kernel for human-AI symbiosis, built natively for Apple Silicon.
 
 **Developed by [Roberto D'Angelo](mailto:Roberdan@FightTheStroke.org) @ [FightTheStroke.org](https://fightthestroke.org)**
+
+## What's New in v3.0
+
+- **Multi-Provider Support**: Use Anthropic, OpenAI, and Google Gemini in the same session
+- **Intelligent Model Routing**: Automatically select the best model for each task
+- **Per-Agent Model Selection**: Assign different models to different agents
+- **Budget-Aware Downgrading**: Automatically switch to cheaper models when budget runs low
+- **Provider Failover**: Automatic fallback when one provider is unavailable
+- **Real-Time Cost Tracking**: See exactly how much each query costs across providers
+- **Status Bar**: Live display of tokens, costs, and active model
 
 ## Overview
 
@@ -12,6 +26,8 @@ Convergio CLI is a **multi-agent orchestration system** built in pure C/Objectiv
 
 - **Ali** - A Chief of Staff agent that serves as your single point of contact
 - **49 specialist agents** that can be spawned on-demand for specific tasks
+- **Multi-provider support** - Mix Claude, GPT, and Gemini models seamlessly
+- **Intelligent model routing** - Best model for each task, budget-aware
 - **Parallel multi-agent orchestration** - Ali can delegate to multiple agents simultaneously
 - **Real-time agent status tracking** - See which agents are working and on what
 - **Inter-agent communication** - Agents can communicate and collaborate during execution
@@ -19,8 +35,28 @@ Convergio CLI is a **multi-agent orchestration system** built in pure C/Objectiv
 - **Notes & Knowledge base** - Persistent markdown notes and searchable knowledge storage
 - **Cost control** with granular budget tracking and per-agent attribution
 - **Conversation memory** - Persistent memory across sessions with context loading
-- **Debug logging system** - Comprehensive logging with multiple levels for troubleshooting
 - **Local embeddings** via pure Metal/C transformer (infrastructure ready, needs weights)
+
+## Why Convergio?
+
+**For Developers:**
+- **No vendor lock-in** - Switch providers without code changes
+- **Cost control** - Set budgets, track spending per agent, auto-downgrade when needed
+- **Resilience** - Automatic failover if one provider is down or rate-limited
+- **Best tool for each job** - Use Claude for coding, GPT for multimodal, Gemini for long context
+
+**For Teams:**
+- **Predictable costs** - Hard budget limits prevent surprise bills
+- **Audit trail** - Full logging of which model handled what task
+- **Native performance** - Pure C, no runtime dependencies, Apple Silicon optimized
+
+## Supported Providers & Models
+
+| Provider | Models | Best For | Pricing (Dec 2025) |
+|----------|--------|----------|-------------------|
+| **Anthropic** | Claude Opus 4.5, Sonnet 4.5 | Complex reasoning, coding, agents | $3-75/M tokens |
+| **OpenAI** | GPT-5.2 (Thinking/Pro/Instant), o3, o3-mini | Coding, reasoning, fast responses | $0.50-30/M tokens |
+| **Google** | Gemini 3.0 Pro, 3.0 Deep Think, 2.0 Flash | Long context (2M), cost-effective | $0.10-20/M tokens |
 
 ## Quick Start
 
@@ -54,7 +90,7 @@ brew install convergio
    ```bash
    ./build/bin/convergio setup
    ```
-   This will store your API key securely in macOS Keychain.
+   This will configure your API keys and store them securely in macOS Keychain.
 
 4. **Run Convergio**
    ```bash
@@ -63,36 +99,55 @@ brew install convergio
 
 ### Configuration
 
-Your API key can be configured in multiple ways (in order of priority):
+API keys can be configured in multiple ways (in order of priority):
 
-1. **Environment variable**: `export ANTHROPIC_API_KEY=sk-ant-...`
-2. **macOS Keychain**: Run `convergio setup` to store securely
-3. **Config file**: `~/.convergio/config.toml`
+1. **macOS Keychain** (Recommended): Run `convergio setup`
+2. **Environment variables**:
+   ```bash
+   export ANTHROPIC_API_KEY=sk-ant-...
+   export OPENAI_API_KEY=sk-proj-...
+   export GEMINI_API_KEY=AIza...
+   ```
+3. **Config file**: `~/.convergio/config.json`
 
 **Claude Max Subscription**: If you have a Claude Max subscription ($20/month), set:
 ```bash
 export CLAUDE_MAX=true
 ```
-This disables per-API-call cost tracking since costs are covered by your subscription.
 
-### First Run
+## Usage Examples
 
-When you start Convergio, you'll see a colorful ASCII banner and a prompt. You can:
-
-- **Talk naturally** to Ali, your Chief of Staff agent
-- **Use commands** like `help`, `cost`, `agents`, `debug`
-- **Ask Ali to use tools** - he can read files, execute commands, search the web
-
-Example interaction:
+### Basic Chat
+```bash
+convergio "What is the capital of France?"
 ```
-convergio> Hello Ali, can you read the Makefile and tell me what it does?
-Ali: [Uses file_read tool]
-The Makefile defines the build process for Convergio Kernel...
 
-convergio> cost
-Session: $0.0032 spent | $4.9968 remaining
+### Specify a Provider
+```bash
+convergio --provider openai "Generate a poem"
+convergio --provider anthropic "Review this code"
+convergio --provider gemini "Analyze this document"
+```
 
-convergio> quit
+### Specify a Model
+```bash
+convergio --model claude-opus-4.5 "Complex reasoning task"
+convergio --model gpt-5.2 "Analyze this code"
+convergio --model gemini-3.0-pro "Summarize these documents"
+```
+
+### Budget-Limited Session
+```bash
+convergio --budget 2.00 "Start a session with $2 limit"
+```
+
+### Interactive REPL
+```bash
+convergio
+> Hello Ali, can you help me with a coding task?
+Ali: Of course! What would you like to work on?
+> cost
+Session: $0.0032 spent | $4.9968 remaining (using Claude Sonnet 4.5)
 ```
 
 ## Command Line Options
@@ -101,14 +156,25 @@ convergio> quit
 convergio [OPTIONS] [COMMAND]
 
 Commands:
-  setup                    Configure API key and settings
+  setup                    Configure API keys and settings
   update [check|install]   Check for or install updates
+  providers test           Test all configured providers
+  providers status         Show provider status
+  models list              List available models
+  cost status              Show current spending
+  cost agents              Show per-agent costs
 
 Options:
-  -w, --workspace <path>   Set workspace directory (default: current dir)
-  -d, --debug              Enable debug logging (INFO level)
-  -t, --trace              Enable trace logging (maximum verbosity)
+  -p, --provider <name>    Use specific provider (anthropic, openai, gemini)
+  -m, --model <id>         Use specific model
+  -b, --budget <USD>       Set session budget limit
+  -a, --agent <name>       Use specific agent
+  -w, --workspace <path>   Set workspace directory
+  -d, --debug              Enable debug logging
+  -t, --trace              Enable trace logging
   -q, --quiet              Disable all logging
+  --stream                 Enable streaming output
+  --no-status              Disable status bar
   -v, --version            Show version
   -h, --help               Show help message
 ```
@@ -119,18 +185,48 @@ Options:
 |---------|-------------|
 | `help` | Show available commands |
 | `agents` | List all available agents |
+| `providers status` | Show provider status |
+| `providers test` | Test provider connectivity |
+| `models list` | List available models |
 | `status` | Show system status |
 | `cost` | Show current spending |
 | `cost report` | Detailed cost report |
-| `cost set <USD>` | Set budget limit (default: $5.00) |
+| `cost agents` | Per-agent cost breakdown |
+| `cost set <USD>` | Set budget limit |
 | `cost reset` | Reset session spending |
-| `debug` | Toggle debug mode on/off |
-| `debug <level>` | Set level: none/error/warn/info/debug/trace |
-| `update` | Check for updates |
-| `hardware` | Show detected hardware info |
+| `debug` | Toggle debug mode |
 | `quit` | Exit Convergio |
 
-Or simply talk to Ali naturally - no commands needed!
+## Agent-Model Mapping
+
+Different agents can use different models optimized for their tasks:
+
+| Agent | Default Model | Fallback | Use Case |
+|-------|--------------|----------|----------|
+| **Ali** (Chief of Staff) | Claude Opus 4.5 | GPT-5.2 Pro | Coordination, synthesis |
+| **Marco** (Coder) | Claude Sonnet 4.5 | GPT-5-Codex | Code generation |
+| **Baccio** (Architect) | Claude Opus 4.5 | GPT-5.2 Pro | System design |
+| **Luca** (Security) | o3 | Claude Opus 4.5 | Security analysis |
+| **Nina** (Analyst) | Gemini 3.0 Pro | GPT-5.2 | Data analysis (2M context) |
+| **Thor** (Reviewer) | GPT-5.2 Instant | Gemini 2.0 Flash | Fast reviews |
+| **Router** | GPT-5.2 Instant | Gemini 2.0 Flash | Fast routing decisions |
+
+## Cost Optimization
+
+Convergio automatically optimizes costs:
+
+1. **Smart Model Selection**: Uses cheaper models for simple tasks
+2. **Prompt Caching**: Reduces costs by up to 90% for repeated queries
+3. **Budget Enforcement**: Prevents overspending with hard limits
+4. **Downgrade Strategy**: Automatically switches to cheaper models when budget runs low
+
+Example budget progression:
+```
+Budget > $3.00 → Claude Opus 4.5 / GPT-5.2 Pro (full capability)
+Budget > $1.00 → Claude Sonnet 4.5 / GPT-5.2 (balanced)
+Budget > $0.10 → GPT-5.2 Instant / Gemini 2.0 Flash (fast, cheap)
+Budget < $0.10 → Session paused (user confirmation required)
+```
 
 ## Tools Available to Ali
 
@@ -151,41 +247,6 @@ Ali can interact with the real world using these tools:
 | `knowledge_add` | Add to knowledge base | Stored in data/knowledge/ |
 | `knowledge_search` | Search knowledge base | Keyword matching |
 
-## How is this different from Claude CLI?
-
-| Feature | Claude CLI | Convergio CLI |
-|---------|------------|------------------|
-| Architecture | Single LLM wrapper | Multi-agent orchestration |
-| Language | TypeScript/Node.js | Pure C/Objective-C |
-| Agent Model | Single assistant | 49 specialist agents + Ali coordinator |
-| Parallel Execution | N/A | GCD-based parallel agent delegation |
-| Agent Communication | N/A | Real-time inter-agent messaging |
-| Tool Execution | Built-in | Custom (file, shell, web, memory, notes, knowledge) |
-| Cost Control | None | Granular budget caps, per-agent tracking |
-| Memory | Session-based | SQLite + conversation history + keyword/semantic search |
-| Notes & Knowledge | N/A | Persistent markdown notes + knowledge base |
-| Embeddings | Cloud API | Local Metal/NEON* |
-| Hardware | Generic | M3 Max optimized (NEON, Metal, Accelerate) |
-| Debug Mode | N/A | Multi-level logging (ERROR→TRACE) |
-| Convergence | N/A | All agents report to Ali for synthesis |
-
-*Note: Local embeddings currently use random weights. Pre-trained weight loading planned.
-
-## Contributor Guide
-
-- See `AGENTS.md` for repository guidelines (structure, build/test commands, style).
-- Read `CONTRIBUTING.md` for contribution flow and etiquette.
-
-### Apple Silicon Optimizations
-
-Convergio CLI is specifically optimized for Apple Silicon with:
-
-- **NEON SIMD**: Vectorized operations for embedding similarity search
-- **Metal GPU Shaders**: Hardware-accelerated compute for neural operations
-- **Accelerate Framework**: BLAS optimizations for matrix operations
-- **GCD (Grand Central Dispatch)**: Optimal thread scheduling across P-cores and E-cores
-- **Unified Memory**: Zero-copy data sharing between CPU and GPU
-
 ## Architecture
 
 ```
@@ -195,15 +256,29 @@ Convergio CLI is specifically optimized for Apple Silicon with:
                                │
                                ▼
 ┌─────────────────────────────────────────────────────────────────┐
+│                    INTELLIGENT MODEL ROUTER                      │
+│  ┌───────────────┐  ┌───────────────┐  ┌───────────────┐       │
+│  │ Budget Check  │  │ Task Classify │  │ Provider Avail│       │
+│  └───────────────┘  └───────────────┘  └───────────────┘       │
+└─────────────────────────────────────────────────────────────────┘
+                               │
+          ┌────────────────────┼────────────────────┐
+          ▼                    ▼                    ▼
+┌──────────────────┐  ┌──────────────────┐  ┌──────────────────┐
+│   ANTHROPIC      │  │    OPENAI        │  │    GEMINI        │
+│  Claude Opus 4.5 │  │   GPT-5.2 Pro    │  │  Gemini 3.0 Pro  │
+│  Claude Sonnet4.5│  │   GPT-5.2/o3     │  │  Gemini DeepThink│
+│                  │  │   GPT-5.2 Instant│  │  Gemini 2.0 Flash│
+└──────────────────┘  └──────────────────┘  └──────────────────┘
+          │                    │                    │
+          └────────────────────┼────────────────────┘
+                               │
+                               ▼
+┌─────────────────────────────────────────────────────────────────┐
 │                    ALI - Chief of Staff                          │
 │  ┌───────────────┐  ┌───────────────┐  ┌───────────────┐       │
 │  │ Cost Control  │  │ Task Planner  │  │ Memory/RAG    │       │
 │  └───────────────┘  └───────────────┘  └───────────────┘       │
-│                                                                  │
-│  ┌───────────────────────────────────────────────────────────┐  │
-│  │                     TOOL EXECUTION                         │  │
-│  │  file | shell | web | memory | notes | knowledge           │  │
-│  └───────────────────────────────────────────────────────────┘  │
 │                                                                  │
 │  ┌───────────────────────────────────────────────────────────┐  │
 │  │              PARALLEL DELEGATION (GCD)                     │  │
@@ -217,37 +292,33 @@ Convergio CLI is specifically optimized for Apple Silicon with:
 ┌──────────────────┐  ┌──────────────────┐  ┌──────────────────┐
 │  Agent Pool      │  │  Message Bus     │  │  SQLite DB       │
 │  (49 agents)     │  │  (inter-agent)   │  │  (persistence)   │
-│  Status Tracking │  │  Real-time comm  │  │  Conversations   │
+│  Model per agent │  │  Priority queues │  │  Cost tracking   │
 └──────────────────┘  └──────────────────┘  └──────────────────┘
-          │                                          │
-          ▼                                          ▼
-┌──────────────────┐                       ┌──────────────────┐
-│  Debug Logging   │                       │  Notes/Knowledge │
-│  ERROR→TRACE     │                       │  data/notes/     │
-│  5 levels        │                       │  data/knowledge/ │
-└──────────────────┘                       └──────────────────┘
-          │
-          ▼
-┌─────────────────────────────────────────────────────────────────┐
-│              MLX EMBEDDINGS (Pure Metal/C)                       │
-│  ┌─────────┐ ┌─────────┐ ┌─────────┐ ┌─────────┐               │
-│  │Tokenizer│ │6-Layer  │ │  NEON   │ │  Mean   │               │
-│  │  BPE    │→│Transform│→│  SIMD   │→│ Pooling │→ 384-dim      │
-│  └─────────┘ └─────────┘ └─────────┘ └─────────┘               │
-└─────────────────────────────────────────────────────────────────┘
 ```
 
-### Key Differentiators
+## How is this different from Claude CLI?
 
-1. **Multi-Agent Architecture**: Instead of a single assistant, Convergio uses Ali as a "Chief of Staff" who can delegate tasks to specialist agents (analysts, developers, researchers, etc.) and synthesize their outputs.
+| Feature | Claude CLI | Convergio CLI |
+|---------|------------|------------------|
+| **Providers** | Anthropic only | Anthropic + OpenAI + Gemini |
+| **Model Selection** | Single model | Per-agent model routing |
+| **Architecture** | Single LLM wrapper | Multi-agent orchestration |
+| **Language** | TypeScript/Node.js | Pure C/Objective-C |
+| **Agent Model** | Single assistant | 49 specialist agents + Ali coordinator |
+| **Parallel Execution** | N/A | GCD-based parallel agent delegation |
+| **Cost Control** | Basic | Granular budget caps, per-agent tracking |
+| **Provider Failover** | N/A | Automatic fallback chains |
+| **Hardware** | Generic | Apple Silicon optimized |
 
-2. **Parallel Multi-Agent Orchestration**: When Ali delegates to multiple agents, they execute **in parallel** using GCD (Grand Central Dispatch). Agent status is tracked in real-time and responses are converged into a unified answer.
+## Apple Silicon Optimizations
 
-3. **Inter-Agent Communication**: Agents can see each other's status, send messages, and collaborate during execution. The message bus enables asynchronous communication between all agents.
+Convergio CLI is specifically optimized for Apple Silicon with:
 
-4. **Native Performance**: Written in C with Metal GPU shaders and NEON SIMD, specifically tuned for Apple M3 Max. Binary size ~100KB vs hundreds of MB for Node.js apps.
-
-5. **Cost Awareness**: Built-in budget management with real-time tracking. Know exactly how much each conversation costs.
+- **NEON SIMD**: Vectorized operations for embedding similarity search
+- **Metal GPU Shaders**: Hardware-accelerated compute for neural operations
+- **Accelerate Framework**: BLAS optimizations for matrix operations
+- **GCD (Grand Central Dispatch)**: Optimal thread scheduling across P-cores and E-cores
+- **Unified Memory**: Zero-copy data sharing between CPU and GPU
 
 ## Project Structure
 
@@ -255,24 +326,37 @@ Convergio CLI is specifically optimized for Apple Silicon with:
 convergio-cli/
 ├── include/nous/          # Public headers
 │   ├── nous.h            # Core semantic fabric
+│   ├── provider.h        # Provider abstraction
 │   ├── orchestrator.h    # Multi-agent orchestration
 │   └── tools.h           # Tool execution
 ├── src/
 │   ├── core/             # Main entry point, fabric
+│   ├── providers/        # Provider adapters (anthropic, openai, gemini)
+│   ├── router/           # Model routing, cost optimization
 │   ├── orchestrator/     # Ali, cost, registry, msgbus
 │   ├── neural/           # Claude API, MLX embeddings
 │   ├── memory/           # SQLite persistence + RAG
 │   ├── tools/            # Tool execution (file, shell, web)
 │   ├── agents/           # Agent definitions (49 specialists)
-│   ├── intent/           # Natural language parsing
-│   ├── metal/            # GPU compute
-│   └── runtime/          # Scheduler
+│   ├── sync/             # File locking, synchronization
+│   ├── ui/               # Status bar, hyperlinks, terminal
+│   └── metal/            # GPU compute
+├── config/               # Model configurations
 ├── shaders/              # Metal compute shaders
-├── docs/adr/             # Architecture Decision Records
+├── docs/                 # Documentation
+├── tests/                # Unit tests
 ├── data/                 # Runtime data (SQLite, notes, knowledge)
-├── Makefile              # Build configuration
 └── README.md             # This file
 ```
+
+## Documentation
+
+- [Provider Setup Guide](docs/PROVIDERS.md) - Configure Anthropic, OpenAI, Gemini
+- [Model Selection Guide](docs/MODEL_SELECTION.md) - Per-agent model configuration
+- [Cost Optimization](docs/COST_OPTIMIZATION.md) - Budget management strategies
+- [Agent Development](docs/AGENT_DEVELOPMENT.md) - Create custom agents
+- [Migration Guide](docs/MIGRATION_v3.md) - Upgrade from v2.x
+- [Troubleshooting](docs/TROUBLESHOOTING.md) - Common issues and solutions
 
 ## Development
 
@@ -285,17 +369,9 @@ make clean && make
 # Build with debug symbols
 make DEBUG=1
 
-# Run tests (when available)
+# Run tests
 make test
 ```
-
-### Adding New Agents
-
-Agent definitions are markdown files in `src/agents/definitions/`. Each file defines:
-- Agent name and role
-- System prompt
-- Specialized context
-- Available tools
 
 ### Debug Logging
 
@@ -309,39 +385,31 @@ Enable debug logging to see what's happening under the hood:
 convergio> debug trace
 ```
 
-Log levels: `none` < `error` < `warn` < `info` < `debug` < `trace`
-
-## Troubleshooting
-
-### "ANTHROPIC_API_KEY not set"
-Make sure you've exported your API key:
-```bash
-export ANTHROPIC_API_KEY="your-key-here"
-```
-
-### Build Errors
-Ensure you have Xcode Command Line Tools installed:
-```bash
-xcode-select --install
-```
-
-### Permission Denied
-The binary needs execute permissions:
-```bash
-chmod +x ./build/bin/convergio
-```
-
 ## Roadmap
 
+- [x] Multi-provider support (Anthropic, OpenAI, Gemini)
+- [x] Intelligent model routing
+- [x] Per-agent model selection
+- [x] Budget-aware cost optimization
+- [x] Provider failover chains
+- [x] Status bar with live metrics
 - [ ] Pre-trained embedding weights for semantic search
 - [ ] Voice input/output support
 - [ ] Plugin system for custom tools
 - [ ] Web UI interface
-- [ ] Multi-user support
 
 ## Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.
+
+- See `AGENTS.md` for repository guidelines
+- Read `CONTRIBUTING.md` for contribution flow
+
+## Legal
+
+- [Terms of Service](TERMS_OF_SERVICE.md)
+- [Privacy Policy](PRIVACY_POLICY.md)
+- [Disclaimer](docs/DISCLAIMER.md)
 
 ## License
 
@@ -350,11 +418,11 @@ MIT License - see [LICENSE](LICENSE) for details.
 ## Acknowledgments
 
 - [FightTheStroke.org](https://fightthestroke.org) - Supporting the project
-- Anthropic's Claude - The underlying LLM
+- Anthropic, OpenAI, Google - LLM providers
 - Apple's MLX framework - Inspiration for local ML on Apple Silicon
 
 ---
 
-*Convergio CLI - A semantic kernel for human-AI symbiosis*
+*Convergio CLI v3.0 - Multi-Model AI Orchestration for Apple Silicon*
 
 *Developed by Roberto D'Angelo with AI assistance*

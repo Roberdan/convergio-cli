@@ -1,0 +1,515 @@
+/**
+ * CONVERGIO MODEL ROUTER
+ *
+ * Intelligent model selection based on:
+ * - Agent configuration (primary/fallback models)
+ * - Provider availability
+ * - Budget constraints
+ * - Task complexity hints
+ *
+ * Copyright 2025 - Roberto D'Angelo & AI Team
+ */
+
+#include "nous/provider.h"
+#include "nous/nous.h"
+#include <stdlib.h>
+#include <string.h>
+#include <stdio.h>
+#include <pthread.h>
+#include <time.h>
+
+// ============================================================================
+// CONFIGURATION
+// ============================================================================
+
+#define MAX_AGENT_CONFIGS 64
+#define BUDGET_WARNING_THRESHOLD 0.8  // Warn at 80% budget usage
+
+// ============================================================================
+// AGENT MODEL CONFIGURATION
+// ============================================================================
+
+typedef struct {
+    char* agent_name;               // e.g., "ali", "marco", "thor"
+    char* primary_model;            // e.g., "anthropic/claude-opus-4.5"
+    char* fallback_model;           // e.g., "openai/gpt-5.2-thinking"
+    CostTier cost_tier;             // Cost tier preference
+    bool auto_downgrade;            // Auto-downgrade on budget limits
+    char* reason;                   // Reason for model selection
+} AgentModelConfig;
+
+// ============================================================================
+// ROUTER STATE
+// ============================================================================
+
+typedef struct {
+    // Agent configurations
+    AgentModelConfig configs[MAX_AGENT_CONFIGS];
+    size_t config_count;
+
+    // Budget tracking
+    double daily_budget;
+    double session_budget;
+    double daily_spent;
+    double session_spent;
+    time_t budget_reset_time;
+
+    // Statistics
+    size_t total_requests;
+    size_t fallback_requests;
+    size_t downgrade_requests;
+
+    pthread_mutex_t mutex;
+    bool initialized;
+} RouterState;
+
+static RouterState g_router = {0};
+
+// ============================================================================
+// DEFAULT AGENT MODEL CONFIGURATIONS (from models.json)
+// ============================================================================
+
+static void load_default_configs(void) {
+    // These defaults match the agent_defaults in models.json
+    static const struct {
+        const char* name;
+        const char* primary;
+        const char* fallback;
+        CostTier tier;
+        const char* reason;
+    } defaults[] = {
+        {"ali", "anthropic/claude-opus-4.5", "openai/gpt-5.2-pro", COST_TIER_PREMIUM,
+         "Chief of Staff needs best reasoning for delegation"},
+        {"baccio", "anthropic/claude-opus-4.5", "openai/gpt-5.2-pro", COST_TIER_PREMIUM,
+         "Architecture requires deep reasoning and planning"},
+        {"marco", "anthropic/claude-sonnet-4.5", "openai/gpt-5-codex", COST_TIER_MID,
+         "Sonnet 4.5 for coding, GPT-5-Codex as specialized fallback"},
+        {"luca", "openai/o3", "anthropic/claude-opus-4.5", COST_TIER_PREMIUM,
+         "o3 excels at deep reasoning for security analysis"},
+        {"thor", "openai/gpt-5.2-instant", "gemini/gemini-2.0-flash", COST_TIER_CHEAP,
+         "Fast, cheap for quick reviews"},
+        {"router", "openai/gpt-5.2-instant", "gemini/gemini-2.0-flash", COST_TIER_CHEAP,
+         "Fastest for routing decisions"},
+        {NULL, NULL, NULL, COST_TIER_MID, NULL}
+    };
+
+    for (int i = 0; defaults[i].name != NULL; i++) {
+        AgentModelConfig* cfg = &g_router.configs[g_router.config_count++];
+        cfg->agent_name = strdup(defaults[i].name);
+        cfg->primary_model = strdup(defaults[i].primary);
+        cfg->fallback_model = strdup(defaults[i].fallback);
+        cfg->cost_tier = defaults[i].tier;
+        cfg->auto_downgrade = true;
+        cfg->reason = strdup(defaults[i].reason);
+    }
+}
+
+// ============================================================================
+// INITIALIZATION
+// ============================================================================
+
+int router_init(void) {
+    pthread_mutex_lock(&g_router.mutex);
+
+    if (g_router.initialized) {
+        pthread_mutex_unlock(&g_router.mutex);
+        return 0;
+    }
+
+    // Initialize provider registry first
+    ProviderError err = provider_registry_init();
+    if (err != PROVIDER_OK) {
+        pthread_mutex_unlock(&g_router.mutex);
+        return -1;
+    }
+
+    // Load default configurations
+    load_default_configs();
+
+    // Set default budgets (can be overridden via config)
+    g_router.daily_budget = 50.0;     // $50/day default
+    g_router.session_budget = 10.0;   // $10/session default
+    g_router.daily_spent = 0.0;
+    g_router.session_spent = 0.0;
+    g_router.budget_reset_time = time(NULL);
+
+    g_router.initialized = true;
+
+    pthread_mutex_unlock(&g_router.mutex);
+
+    LOG_INFO(LOG_CAT_SYSTEM, "Model router initialized with %zu agent configs",
+             g_router.config_count);
+    return 0;
+}
+
+void router_shutdown(void) {
+    pthread_mutex_lock(&g_router.mutex);
+
+    if (!g_router.initialized) {
+        pthread_mutex_unlock(&g_router.mutex);
+        return;
+    }
+
+    // Free agent configurations
+    for (size_t i = 0; i < g_router.config_count; i++) {
+        free(g_router.configs[i].agent_name);
+        free(g_router.configs[i].primary_model);
+        free(g_router.configs[i].fallback_model);
+        free(g_router.configs[i].reason);
+    }
+    g_router.config_count = 0;
+
+    provider_registry_shutdown();
+
+    g_router.initialized = false;
+
+    pthread_mutex_unlock(&g_router.mutex);
+
+    LOG_INFO(LOG_CAT_SYSTEM, "Model router shutdown. Total requests: %zu, Fallbacks: %zu",
+             g_router.total_requests, g_router.fallback_requests);
+}
+
+// ============================================================================
+// AGENT CONFIGURATION
+// ============================================================================
+
+static AgentModelConfig* find_agent_config(const char* agent_name) {
+    if (!agent_name) return NULL;
+
+    for (size_t i = 0; i < g_router.config_count; i++) {
+        if (strcmp(g_router.configs[i].agent_name, agent_name) == 0) {
+            return &g_router.configs[i];
+        }
+    }
+    return NULL;
+}
+
+int router_set_agent_model(const char* agent_name, const char* primary_model,
+                           const char* fallback_model) {
+    // Validate required parameters
+    if (!agent_name || !primary_model) {
+        return -1;
+    }
+
+    pthread_mutex_lock(&g_router.mutex);
+
+    AgentModelConfig* cfg = find_agent_config(agent_name);
+    if (!cfg) {
+        // Create new config
+        if (g_router.config_count >= MAX_AGENT_CONFIGS) {
+            pthread_mutex_unlock(&g_router.mutex);
+            return -1;
+        }
+        cfg = &g_router.configs[g_router.config_count++];
+        cfg->agent_name = strdup(agent_name);
+        cfg->primary_model = NULL;
+        cfg->fallback_model = NULL;
+        cfg->auto_downgrade = true;
+        cfg->cost_tier = COST_TIER_MID;
+    }
+
+    // Update models (free old values if any)
+    free(cfg->primary_model);
+    free(cfg->fallback_model);
+    cfg->primary_model = strdup(primary_model);
+    cfg->fallback_model = fallback_model ? strdup(fallback_model) : NULL;
+
+    pthread_mutex_unlock(&g_router.mutex);
+
+    LOG_INFO(LOG_CAT_AGENT, "Agent %s model config updated: primary=%s, fallback=%s",
+             agent_name, primary_model, fallback_model ? fallback_model : "(none)");
+    return 0;
+}
+
+const char* router_get_agent_model(const char* agent_name) {
+    AgentModelConfig* cfg = find_agent_config(agent_name);
+    if (cfg) {
+        return cfg->primary_model;
+    }
+    // Default model if agent not configured
+    return "anthropic/claude-sonnet-4.5";
+}
+
+// ============================================================================
+// BUDGET MANAGEMENT
+// ============================================================================
+
+void router_set_budget(double daily, double session) {
+    pthread_mutex_lock(&g_router.mutex);
+    g_router.daily_budget = daily;
+    g_router.session_budget = session;
+    pthread_mutex_unlock(&g_router.mutex);
+
+    LOG_INFO(LOG_CAT_COST, "Budget set: daily=$%.2f, session=$%.2f", daily, session);
+}
+
+void router_reset_session_budget(void) {
+    pthread_mutex_lock(&g_router.mutex);
+    g_router.session_spent = 0.0;
+    pthread_mutex_unlock(&g_router.mutex);
+}
+
+double router_get_remaining_budget(void) {
+    pthread_mutex_lock(&g_router.mutex);
+
+    // Check if daily budget needs reset
+    time_t now = time(NULL);
+    if (now - g_router.budget_reset_time >= 86400) {  // 24 hours
+        g_router.daily_spent = 0.0;
+        g_router.budget_reset_time = now;
+    }
+
+    double daily_remaining = g_router.daily_budget - g_router.daily_spent;
+    double session_remaining = g_router.session_budget - g_router.session_spent;
+    double remaining = (daily_remaining < session_remaining) ? daily_remaining : session_remaining;
+
+    pthread_mutex_unlock(&g_router.mutex);
+    return remaining;
+}
+
+void router_record_cost(double cost) {
+    pthread_mutex_lock(&g_router.mutex);
+    g_router.daily_spent += cost;
+    g_router.session_spent += cost;
+
+    // Check budget warnings
+    double daily_pct = g_router.daily_spent / g_router.daily_budget;
+    double session_pct = g_router.session_spent / g_router.session_budget;
+
+    if (daily_pct >= BUDGET_WARNING_THRESHOLD && daily_pct < 1.0) {
+        LOG_WARN(LOG_CAT_COST, "Daily budget %.0f%% used ($%.2f of $%.2f)",
+                 daily_pct * 100, g_router.daily_spent, g_router.daily_budget);
+    }
+    if (session_pct >= BUDGET_WARNING_THRESHOLD && session_pct < 1.0) {
+        LOG_WARN(LOG_CAT_COST, "Session budget %.0f%% used ($%.2f of $%.2f)",
+                 session_pct * 100, g_router.session_spent, g_router.session_budget);
+    }
+
+    pthread_mutex_unlock(&g_router.mutex);
+}
+
+// ============================================================================
+// MODEL SELECTION
+// ============================================================================
+
+typedef enum {
+    SELECT_REASON_PRIMARY,          // Using primary model
+    SELECT_REASON_FALLBACK,         // Primary unavailable, using fallback
+    SELECT_REASON_BUDGET_DOWNGRADE, // Budget low, downgraded model
+    SELECT_REASON_DEFAULT,          // Using system default
+} SelectReason;
+
+typedef struct {
+    const char* model_id;
+    ProviderType provider;
+    SelectReason reason;
+    bool is_fallback;
+} ModelSelection;
+
+static bool is_model_available(const char* model_id) {
+    const ModelConfig* config = model_get_config(model_id);
+    if (!config) return false;
+    return provider_is_available(config->provider);
+}
+
+static const char* get_cheaper_model(ProviderType provider) {
+    // Find cheapest available model for provider
+    const ModelConfig* cheapest = model_get_cheapest(provider);
+    if (cheapest && provider_is_available(provider)) {
+        return cheapest->id;
+    }
+    return NULL;
+}
+
+ModelSelection router_select_model_for_agent(const char* agent_name,
+                                             double remaining_budget) {
+    ModelSelection selection = {
+        .model_id = NULL,
+        .provider = PROVIDER_ANTHROPIC,
+        .reason = SELECT_REASON_DEFAULT,
+        .is_fallback = false
+    };
+
+    pthread_mutex_lock(&g_router.mutex);
+    g_router.total_requests++;
+
+    AgentModelConfig* cfg = find_agent_config(agent_name);
+
+    // 1. Try primary model
+    if (cfg && cfg->primary_model) {
+        if (is_model_available(cfg->primary_model)) {
+            // Check budget for auto-downgrade
+            const ModelConfig* model = model_get_config(cfg->primary_model);
+            if (model && cfg->auto_downgrade && remaining_budget < 1.0) {
+                // Low budget - try to find cheaper alternative
+                const char* cheaper = get_cheaper_model(model->provider);
+                if (cheaper && strcmp(cheaper, cfg->primary_model) != 0) {
+                    selection.model_id = cheaper;
+                    selection.provider = model->provider;
+                    selection.reason = SELECT_REASON_BUDGET_DOWNGRADE;
+                    g_router.downgrade_requests++;
+                    LOG_INFO(LOG_CAT_COST, "Agent %s downgraded from %s to %s (budget: $%.2f)",
+                             agent_name, cfg->primary_model, cheaper, remaining_budget);
+                    pthread_mutex_unlock(&g_router.mutex);
+                    return selection;
+                }
+            }
+
+            selection.model_id = cfg->primary_model;
+            selection.provider = model ? model->provider : PROVIDER_ANTHROPIC;
+            selection.reason = SELECT_REASON_PRIMARY;
+            pthread_mutex_unlock(&g_router.mutex);
+            return selection;
+        }
+    }
+
+    // 2. Try fallback model
+    if (cfg && cfg->fallback_model) {
+        if (is_model_available(cfg->fallback_model)) {
+            const ModelConfig* model = model_get_config(cfg->fallback_model);
+            selection.model_id = cfg->fallback_model;
+            selection.provider = model ? model->provider : PROVIDER_ANTHROPIC;
+            selection.reason = SELECT_REASON_FALLBACK;
+            selection.is_fallback = true;
+            g_router.fallback_requests++;
+            LOG_WARN(LOG_CAT_AGENT, "Agent %s using fallback model %s",
+                     agent_name, cfg->fallback_model);
+            pthread_mutex_unlock(&g_router.mutex);
+            return selection;
+        }
+    }
+
+    // 3. Use system default
+    const char* default_model = "anthropic/claude-sonnet-4.5";
+    if (provider_is_available(PROVIDER_ANTHROPIC)) {
+        selection.model_id = default_model;
+        selection.provider = PROVIDER_ANTHROPIC;
+    } else if (provider_is_available(PROVIDER_OPENAI)) {
+        selection.model_id = "openai/gpt-4o";
+        selection.provider = PROVIDER_OPENAI;
+    } else if (provider_is_available(PROVIDER_GEMINI)) {
+        selection.model_id = "gemini/gemini-3-flash";
+        selection.provider = PROVIDER_GEMINI;
+    } else {
+        LOG_ERROR(LOG_CAT_API, "No providers available!");
+    }
+
+    selection.reason = SELECT_REASON_DEFAULT;
+    pthread_mutex_unlock(&g_router.mutex);
+    return selection;
+}
+
+// ============================================================================
+// HIGH-LEVEL API
+// ============================================================================
+
+/**
+ * Select the best model for an agent and execute a chat request
+ *
+ * @param agent_name Name of the agent
+ * @param system System prompt
+ * @param user User message
+ * @param usage Output token usage (can be NULL)
+ * @return Response string (caller must free) or NULL on error
+ */
+char* router_chat(const char* agent_name, const char* system, const char* user, TokenUsage* usage) {
+    if (!g_router.initialized) {
+        LOG_ERROR(LOG_CAT_SYSTEM, "Router not initialized");
+        return NULL;
+    }
+
+    // Get remaining budget
+    double remaining = router_get_remaining_budget();
+
+    // Select model
+    ModelSelection selection = router_select_model_for_agent(agent_name, remaining);
+    if (!selection.model_id) {
+        LOG_ERROR(LOG_CAT_API, "No model available for agent %s", agent_name);
+        return NULL;
+    }
+
+    // Get provider
+    Provider* provider = provider_get(selection.provider);
+    if (!provider) {
+        LOG_ERROR(LOG_CAT_API, "Provider %d not available", selection.provider);
+        return NULL;
+    }
+
+    // Ensure provider is initialized
+    if (!provider->initialized && provider->init) {
+        ProviderError err = provider->init(provider);
+        if (err != PROVIDER_OK) {
+            LOG_ERROR(LOG_CAT_API, "Failed to initialize provider: %s",
+                     provider_error_message(err));
+            return NULL;
+        }
+    }
+
+    // Execute chat
+    LOG_DEBUG(LOG_CAT_API, "Routing %s request to %s via %s",
+              agent_name, selection.model_id, provider->name);
+
+    TokenUsage local_usage = {0};
+    char* response = provider->chat(provider, selection.model_id, system, user, &local_usage);
+
+    // Record cost
+    if (response) {
+        router_record_cost(local_usage.estimated_cost);
+    }
+
+    // Copy usage if requested
+    if (usage) {
+        *usage = local_usage;
+    }
+
+    return response;
+}
+
+/**
+ * List all available models across all providers
+ */
+void router_list_models(void) {
+    printf("\n━━━ Available Models ━━━\n\n");
+
+    const char* provider_names[] = {"Anthropic", "OpenAI", "Gemini"};
+    ProviderType providers[] = {PROVIDER_ANTHROPIC, PROVIDER_OPENAI, PROVIDER_GEMINI};
+
+    for (int p = 0; p < 3; p++) {
+        bool available = provider_is_available(providers[p]);
+        printf("%s%s%s\n",
+               available ? "\033[32m" : "\033[90m",
+               provider_names[p],
+               available ? "" : " (not configured)");
+        printf("\033[0m");
+
+        size_t count;
+        const ModelConfig* models = model_get_by_provider(providers[p], &count);
+        for (size_t i = 0; i < count; i++) {
+            const ModelConfig* m = &models[i];
+            printf("  %-22s $%.2f/$%.2f MTok   %zuK ctx",
+                   m->id, m->input_cost_per_mtok, m->output_cost_per_mtok,
+                   m->context_window / 1000);
+            if (m->deprecated) {
+                printf("   \033[33m(deprecated)\033[0m");
+            }
+            printf("\n");
+        }
+        printf("\n");
+    }
+
+    printf("Use: convergio -m <provider>/<model> to override default\n");
+}
+
+/**
+ * Get router statistics
+ */
+void router_get_stats(size_t* total, size_t* fallbacks, size_t* downgrades,
+                      double* daily_spent, double* session_spent) {
+    pthread_mutex_lock(&g_router.mutex);
+    if (total) *total = g_router.total_requests;
+    if (fallbacks) *fallbacks = g_router.fallback_requests;
+    if (downgrades) *downgrades = g_router.downgrade_requests;
+    if (daily_spent) *daily_spent = g_router.daily_spent;
+    if (session_spent) *session_spent = g_router.session_spent;
+    pthread_mutex_unlock(&g_router.mutex);
+}

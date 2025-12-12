@@ -87,6 +87,25 @@ set(NOUS_SOURCES
     src/orchestrator/orchestrator.c
     src/memory/persistence.c
     src/tools/tools.c
+    # Multi-provider support (Phase 2)
+    src/providers/provider.c
+    src/providers/anthropic.c
+    src/providers/openai.c
+    src/providers/gemini.c
+    src/providers/retry.c
+    src/providers/streaming.c
+    src/providers/tools.c
+    src/providers/tokens.c
+    src/router/model_router.c
+    src/router/cost_optimizer.c
+    # Agent configuration
+    src/agents/agent_config.c
+    # Synchronization (Phase 3)
+    src/sync/file_lock.c
+    # UI enhancements (Phase 4)
+    src/ui/hyperlink.c
+    src/ui/statusbar.c
+    src/ui/terminal.c
 )
 
 # Objective-C sources
@@ -96,6 +115,7 @@ set(NOUS_OBJC_SOURCES
     src/auth/oauth.m
     src/auth/keychain.m
     src/core/hardware.m
+    src/core/clipboard.m
 )
 
 # Metal shaders
@@ -195,6 +215,56 @@ target_link_libraries(test_fabric
 )
 
 add_test(NAME fabric_test COMMAND test_fabric)
+
+# Provider tests (mock provider only - registry tests are stubbed)
+add_executable(test_providers
+    tests/test_providers.c
+    tests/mock_provider.c
+)
+
+target_link_libraries(test_providers
+    ${FOUNDATION_FRAMEWORK}
+)
+
+add_test(NAME provider_test COMMAND test_providers)
+
+# Model router unit tests
+add_executable(test_model_router
+    tests/unit/test_model_router.c
+    tests/unit/test_stubs.c
+    src/router/model_router.c
+)
+
+target_include_directories(test_model_router PRIVATE
+    ${CMAKE_SOURCE_DIR}/include
+)
+
+target_link_libraries(test_model_router
+    ${FOUNDATION_FRAMEWORK}
+    pthread
+)
+
+add_test(NAME model_router_test COMMAND test_model_router)
+
+# Multi-provider integration tests
+add_executable(test_multi_provider
+    tests/integration/test_multi_provider.c
+    tests/mock_provider.c
+    tests/mocks/mock_anthropic.c
+    tests/mocks/mock_openai.c
+    tests/mocks/mock_gemini.c
+)
+
+target_include_directories(test_multi_provider PRIVATE
+    ${CMAKE_SOURCE_DIR}/include
+    ${CMAKE_SOURCE_DIR}/tests
+)
+
+target_link_libraries(test_multi_provider
+    ${FOUNDATION_FRAMEWORK}
+)
+
+add_test(NAME multi_provider_test COMMAND test_multi_provider)
 
 # Print configuration
 message(STATUS "")
