@@ -8,6 +8,7 @@
  */
 
 #include "nous/config.h"
+#include "nous/nous.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -213,7 +214,7 @@ int convergio_config_init(void) {
 
     // Create directories if they don't exist
     if (create_directories() != 0) {
-        fprintf(stderr, "Warning: Could not create config directories\n");
+        LOG_WARN(LOG_CAT_SYSTEM, "Could not create config directories");
     }
 
     // Load config file if it exists

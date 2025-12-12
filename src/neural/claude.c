@@ -302,8 +302,8 @@ int nous_claude_init(void) {
     if (!auth_is_authenticated()) {
         // Try to initialize auth if not done yet
         if (auth_init() != 0) {
-            fprintf(stderr, "No authentication configured.\n");
-            fprintf(stderr, "Use 'login' command for Claude Max or set ANTHROPIC_API_KEY.\n");
+            LOG_ERROR(LOG_CAT_API, "No authentication configured");
+            LOG_INFO(LOG_CAT_API, "Use 'login' command for Claude Max or set ANTHROPIC_API_KEY");
             return -1;
         }
     }
@@ -311,7 +311,7 @@ int nous_claude_init(void) {
     // Get auth header to verify it works
     char* auth_header = auth_get_header();
     if (!auth_header) {
-        fprintf(stderr, "Failed to get authentication credentials.\n");
+        LOG_ERROR(LOG_CAT_API, "Failed to get authentication credentials");
         return -1;
     }
     free(auth_header);
@@ -345,7 +345,7 @@ void nous_claude_shutdown(void) {
 static char* build_auth_header(void) {
     char* auth_value = auth_get_header();
     if (!auth_value) {
-        fprintf(stderr, "Not authenticated. Use 'login' command or set ANTHROPIC_API_KEY.\n");
+        LOG_ERROR(LOG_CAT_API, "Not authenticated. Use 'login' command or set ANTHROPIC_API_KEY");
         return NULL;
     }
 
@@ -426,14 +426,14 @@ bool claude_handle_result(CURL* curl, CURLcode res, const char* response) {
     }
 
     if (res != CURLE_OK) {
-        fprintf(stderr, "Claude API error: %s\n", curl_easy_strerror(res));
+        LOG_ERROR(LOG_CAT_API, "Claude API error: %s", curl_easy_strerror(res));
         return false;
     }
 
     long http_code = 0;
     curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &http_code);
     if (http_code != 200) {
-        fprintf(stderr, "Claude API HTTP %ld: %s\n", http_code,
+        LOG_ERROR(LOG_CAT_API, "Claude API HTTP %ld: %s", http_code,
                 response ? response : "(no response)");
         return false;
     }
@@ -451,7 +451,7 @@ char* nous_claude_chat(const char* system_prompt, const char* user_message) {
     // Create a fresh curl handle for this request (thread-safe)
     CURL* curl = curl_easy_init();
     if (!curl) {
-        fprintf(stderr, "Claude API error: Failed to create curl handle\n");
+        LOG_ERROR(LOG_CAT_API, "Claude API error: Failed to create curl handle");
         return NULL;
     }
 
@@ -647,7 +647,7 @@ char* nous_claude_chat_with_tools(const char* system_prompt, const char* user_me
     // Create a fresh curl handle for this request (thread-safe)
     CURL* curl = curl_easy_init();
     if (!curl) {
-        fprintf(stderr, "Claude API error: Failed to create curl handle\n");
+        LOG_ERROR(LOG_CAT_API, "Claude API error: Failed to create curl handle");
         return NULL;
     }
 
@@ -873,7 +873,7 @@ char* nous_claude_chat_stream(const char* system_prompt, const char* user_messag
     // Create a fresh curl handle for this request (thread-safe)
     CURL* curl = curl_easy_init();
     if (!curl) {
-        fprintf(stderr, "Claude API error: Failed to create curl handle\n");
+        LOG_ERROR(LOG_CAT_API, "Claude API error: Failed to create curl handle");
         return NULL;
     }
 
@@ -951,7 +951,7 @@ char* nous_claude_chat_stream(const char* system_prompt, const char* user_messag
     }
 
     if (res != CURLE_OK) {
-        fprintf(stderr, "Claude API stream error: %s\n", curl_easy_strerror(res));
+        LOG_ERROR(LOG_CAT_API, "Claude API stream error: %s", curl_easy_strerror(res));
         free(ctx.accumulated);
         return NULL;
     }
@@ -1032,7 +1032,7 @@ char* nous_claude_chat_conversation(Conversation* conv, const char* user_message
     // Create a fresh curl handle for this request (thread-safe)
     CURL* curl = curl_easy_init();
     if (!curl) {
-        fprintf(stderr, "Claude API error: Failed to create curl handle\n");
+        LOG_ERROR(LOG_CAT_API, "Claude API error: Failed to create curl handle");
         return NULL;
     }
 
