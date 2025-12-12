@@ -52,3 +52,11 @@ RELEASE_PLAN.md
 # Credentials
 credentials.json
 secrets.json
+
+# CMake generated
+compile_commands.json
+Testing/
+CMakeFiles/
+
+# Instruments/Profiling
+*.plist
