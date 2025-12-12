@@ -15,6 +15,7 @@
  */
 
 #include "oauth.h"
+#include "nous/nous.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -437,7 +438,7 @@ static char* wait_for_oauth_code(int server_fd) {
 
     // CSRF validation failed - reject the request
     if (!csrf_valid) {
-        fprintf(stderr, "CSRF validation failed - state parameter mismatch\n");
+        LOG_ERROR(LOG_CAT_API, "CSRF validation failed - state parameter mismatch");
         secure_free(&code);
         code = NULL;
     }
@@ -606,7 +607,7 @@ static int exchange_code_for_tokens(const char* code, const char* verifier, int 
     curl_easy_cleanup(curl);
 
     if (res != CURLE_OK || http_code != 200) {
-        fprintf(stderr, "Token exchange failed: HTTP %ld\n", http_code);
+        LOG_ERROR(LOG_CAT_API, "Token exchange failed: HTTP %ld", http_code);
         // Note: Don't log response.data - may contain sensitive information
         if (response.data) {
             secure_zero(response.data, strlen(response.data));
@@ -626,14 +627,14 @@ static int exchange_code_for_tokens(const char* code, const char* verifier, int 
 
     // Validate token formats
     if (!access_token || !refresh_token) {
-        fprintf(stderr, "Invalid token response: missing tokens\n");
+        LOG_ERROR(LOG_CAT_API, "Invalid token response: missing tokens");
         secure_free(&access_token);
         secure_free(&refresh_token);
         return -1;
     }
 
     if (!validate_token_format(access_token, false) || !validate_token_format(refresh_token, true)) {
-        fprintf(stderr, "Invalid token response: unexpected token format\n");
+        LOG_ERROR(LOG_CAT_API, "Invalid token response: unexpected token format");
         secure_free(&access_token);
         secure_free(&refresh_token);
         return -1;
@@ -648,7 +649,7 @@ static int exchange_code_for_tokens(const char* code, const char* verifier, int 
 
     // Save to Keychain
     if (keychain_store_tokens(&g_tokens) != 0) {
-        fprintf(stderr, "Warning: Failed to save tokens to Keychain\n");
+        LOG_WARN(LOG_CAT_API, "Failed to save tokens to Keychain");
     }
 
     return 0;
@@ -790,7 +791,7 @@ int auth_oauth_login(void) {
     char* challenge = verifier ? generate_code_challenge(verifier) : NULL;
 
     if (!verifier || !challenge) {
-        fprintf(stderr, "Failed to generate PKCE\n");
+        LOG_ERROR(LOG_CAT_API, "Failed to generate PKCE");
         secure_free(&verifier);
         secure_free(&challenge);
         return -1;
@@ -800,7 +801,7 @@ int auth_oauth_login(void) {
     secure_free(&g_oauth_state);
     g_oauth_state = generate_state_param();
     if (!g_oauth_state) {
-        fprintf(stderr, "Failed to generate state parameter\n");
+        LOG_ERROR(LOG_CAT_API, "Failed to generate state parameter");
         secure_free(&verifier);
         secure_free(&challenge);
         return -1;
@@ -810,7 +811,7 @@ int auth_oauth_login(void) {
     int port;
     int server_fd = start_callback_server(&port);
     if (server_fd < 0) {
-        fprintf(stderr, "Failed to start callback server\n");
+        LOG_ERROR(LOG_CAT_API, "Failed to start callback server");
         secure_free(&verifier);
         secure_free(&challenge);
         return -1;
@@ -849,7 +850,7 @@ int auth_oauth_login(void) {
     close(server_fd);
 
     if (!code) {
-        fprintf(stderr, "Authorization failed or timed out\n");
+        LOG_ERROR(LOG_CAT_API, "Authorization failed or timed out");
         secure_free(&verifier);
         return -1;
     }
