@@ -265,6 +265,9 @@ dist: all
 		tar -czvf dist/convergio-$(VERSION)-darwin-arm64.tar.gz -C $(BIN_DIR) convergio
 	@echo "Created dist/convergio-$(VERSION)-darwin-arm64.tar.gz"
 
+release: dist
+	@echo "Release build complete!"
+
 # Test stubs (provides globals normally in main.c)
 TEST_STUBS = tests/test_stubs.c
 
@@ -327,4 +330,4 @@ help:
 	@echo "Variables:"
 	@echo "  DEBUG=1   - Enable debug build"
 
-.PHONY: all dirs metal run clean debug install uninstall hwinfo help fuzz_test unit_test check-docs test version dist
+.PHONY: all dirs metal run clean debug install uninstall hwinfo help fuzz_test unit_test check-docs test version dist release

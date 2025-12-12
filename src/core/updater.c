@@ -200,7 +200,8 @@ int convergio_check_update(UpdateInfo* info) {
     find_json_string(response.data, "published_at", info->published_at, sizeof(info->published_at));
 
     // Look for download URL (arm64 darwin tarball)
-    char* browser_url_start = strstr(response.data, "browser_download_url");
+    // Search for the full JSON key including quotes so find_json_string works correctly
+    char* browser_url_start = strstr(response.data, "\"browser_download_url\"");
     while (browser_url_start) {
         char url[512] = {0};
         find_json_string(browser_url_start, "browser_download_url", url, sizeof(url));
@@ -208,7 +209,7 @@ int convergio_check_update(UpdateInfo* info) {
             strncpy(info->download_url, url, sizeof(info->download_url) - 1);
             break;
         }
-        browser_url_start = strstr(browser_url_start + 1, "browser_download_url");
+        browser_url_start = strstr(browser_url_start + 1, "\"browser_download_url\"");
     }
 
     // Get release notes (body)

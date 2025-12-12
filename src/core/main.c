@@ -476,19 +476,9 @@ int main(int argc, char** argv) {
         nous_agent_add_skill(g_assistant, "creatività");
     }
 
-    // Initialize status bar
-    if (statusbar_init() == 0) {
-        statusbar_set_cwd(workspace);
-        statusbar_set_model("Sonnet 4.5");
-        Orchestrator* orch = orchestrator_get();
-        if (orch) {
-            statusbar_set_agent_count((int)orch->agent_count);
-        }
-        statusbar_set_visible(true);
-        // Set up scroll region to reserve bottom 2 lines for status bar
-        statusbar_setup_scroll_region();
-        statusbar_render();
-    }
+    // Status bar disabled - was too cluttered
+    // Users can re-enable via config if needed in future versions
+    (void)statusbar_init();  // Initialize but keep hidden
 
     // REPL with cost in prompt
     char prompt[256];
