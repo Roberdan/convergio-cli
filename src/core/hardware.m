@@ -265,6 +265,23 @@ void convergio_print_hardware_info(void) {
         return;
     }
 
+    // Pre-format strings with values to ensure proper alignment
+    char cpu_line[64];
+    snprintf(cpu_line, sizeof(cpu_line), "%d P-cores + %d E-cores = %d total",
+             g_hardware.p_cores, g_hardware.e_cores, g_hardware.total_cores);
+
+    char memory_line[32];
+    snprintf(memory_line, sizeof(memory_line), "%llu GB",
+             g_hardware.memory_bytes / (1024ULL * 1024 * 1024));
+
+    char bandwidth_line[32];
+    snprintf(bandwidth_line, sizeof(bandwidth_line), "~%d GB/s",
+             g_hardware.memory_bandwidth_gbps);
+
+    char pagesize_line[32];
+    snprintf(pagesize_line, sizeof(pagesize_line), "%d KB",
+             g_hardware.page_size / 1024);
+
     printf("\n");
     printf("╔══════════════════════════════════════════════════════╗\n");
     printf("║              APPLE SILICON HARDWARE INFO             ║\n");
@@ -273,14 +290,13 @@ void convergio_print_hardware_info(void) {
     printf("║  Family: %-44s ║\n", convergio_chip_family_name(g_hardware.family));
     printf("║  Variant: %-43s ║\n", convergio_chip_variant_name(g_hardware.variant));
     printf("╠══════════════════════════════════════════════════════╣\n");
-    printf("║  CPU Cores: %d P-cores + %d E-cores = %d total        ║\n",
-           g_hardware.p_cores, g_hardware.e_cores, g_hardware.total_cores);
+    printf("║  CPU Cores: %-41s ║\n", cpu_line);
     printf("║  GPU Cores: %-41d ║\n", g_hardware.gpu_cores);
     printf("║  Neural Engine: %-37d ║\n", g_hardware.neural_cores);
     printf("╠══════════════════════════════════════════════════════╣\n");
-    printf("║  Unified Memory: %-35llu GB ║\n", g_hardware.memory_bytes / (1024ULL * 1024 * 1024));
-    printf("║  Memory Bandwidth: ~%-32d GB/s ║\n", g_hardware.memory_bandwidth_gbps);
-    printf("║  Page Size: %-41d KB ║\n", g_hardware.page_size / 1024);
+    printf("║  Unified Memory: %-36s ║\n", memory_line);
+    printf("║  Memory Bandwidth: %-34s ║\n", bandwidth_line);
+    printf("║  Page Size: %-41s ║\n", pagesize_line);
     printf("╠══════════════════════════════════════════════════════╣\n");
     printf("║  Optimized Parameters:                               ║\n");
     printf("║    Fabric Shards: %-35d ║\n", g_hardware.optimal_fabric_shards);
