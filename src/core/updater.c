@@ -253,12 +253,12 @@ void convergio_print_update_info(const UpdateInfo* info) {
 
 int convergio_download_update(const UpdateInfo* info, const char* dest_path) {
     if (!info || !dest_path) {
-        LOG_ERROR(LOG_CAT_SYSTEM, "Invalid update info");
+        fprintf(stderr, "\033[31mError: Invalid update info\033[0m\n");
         return -1;
     }
     if (strlen(info->download_url) == 0) {
-        LOG_ERROR(LOG_CAT_SYSTEM, "No download URL found for your platform (arm64-darwin)");
-        LOG_INFO(LOG_CAT_SYSTEM, "Please update manually: brew upgrade convergio");
+        fprintf(stderr, "\033[31mError: No download URL found for your platform (arm64-darwin)\033[0m\n");
+        fprintf(stderr, "\033[33mPlease update manually:\033[0m brew upgrade convergio\n\n");
         return -1;
     }
 
@@ -306,16 +306,24 @@ int convergio_apply_update(const char* new_binary_path) {
 
     #ifdef __APPLE__
     if (_NSGetExecutablePath(current_path, &size) != 0) {
-        LOG_ERROR(LOG_CAT_SYSTEM, "Cannot determine current executable path");
+        fprintf(stderr, "\033[31mError: Cannot determine current executable path\033[0m\n");
         return -1;
     }
     #else
     ssize_t len = readlink("/proc/self/exe", current_path, sizeof(current_path) - 1);
     if (len == -1) {
+        fprintf(stderr, "\033[31mError: Cannot determine current executable path\033[0m\n");
         return -1;
     }
     current_path[len] = '\0';
     #endif
+
+    // Check if installed via Homebrew
+    if (strstr(current_path, "/homebrew/") || strstr(current_path, "/Cellar/")) {
+        fprintf(stderr, "\033[33mHomebrew installation detected.\033[0m\n");
+        fprintf(stderr, "Please update using: \033[1mbrew upgrade convergio\033[0m\n\n");
+        return -1;
+    }
 
     // Create backup
     char backup_path[1100];
@@ -323,7 +331,8 @@ int convergio_apply_update(const char* new_binary_path) {
 
     printf("Creating backup: %s\n", backup_path);
     if (rename(current_path, backup_path) != 0) {
-        LOG_ERROR(LOG_CAT_SYSTEM, "Cannot create backup");
+        fprintf(stderr, "\033[31mError: Cannot create backup (permission denied?)\033[0m\n");
+        fprintf(stderr, "Try: sudo convergio update install\n");
         return -1;
     }
 
@@ -332,7 +341,8 @@ int convergio_apply_update(const char* new_binary_path) {
     if (rename(new_binary_path, current_path) != 0) {
         // Restore backup
         rename(backup_path, current_path);
-        LOG_ERROR(LOG_CAT_SYSTEM, "Cannot install new version");
+        fprintf(stderr, "\033[31mError: Cannot install new version (permission denied?)\033[0m\n");
+        fprintf(stderr, "Try: sudo convergio update install\n");
         return -1;
     }
 
@@ -387,7 +397,7 @@ static int convergio_do_update_install(const UpdateInfo* info) {
 
     // SECURITY: Validate version string to prevent command injection
     if (!is_safe_version_string(info->latest_version)) {
-        LOG_ERROR(LOG_CAT_SYSTEM, "Invalid version string format");
+        fprintf(stderr, "\033[31mError: Invalid version string format\033[0m\n");
         return -1;
     }
 
@@ -404,9 +414,10 @@ static int convergio_do_update_install(const UpdateInfo* info) {
     snprintf(extract_dir, sizeof(extract_dir), "/tmp/convergio-update-%s", info->latest_version);
 
     // Create directory using mkdir (no shell)
+    printf("Extracting update...\n");
     char* mkdir_args[] = {"/bin/mkdir", "-p", extract_dir, NULL};
     if (safe_exec(mkdir_args) != 0) {
-        LOG_ERROR(LOG_CAT_SYSTEM, "Failed to create extraction directory");
+        fprintf(stderr, "\033[31mError: Failed to create extraction directory\033[0m\n");
         unlink(temp_path);
         return -1;
     }
@@ -414,7 +425,7 @@ static int convergio_do_update_install(const UpdateInfo* info) {
     // Extract using tar (no shell)
     char* tar_args[] = {"/usr/bin/tar", "-xzf", temp_path, "-C", extract_dir, NULL};
     if (safe_exec(tar_args) != 0) {
-        LOG_ERROR(LOG_CAT_SYSTEM, "Failed to extract update");
+        fprintf(stderr, "\033[31mError: Failed to extract update\033[0m\n");
         unlink(temp_path);
         return -1;
     }
