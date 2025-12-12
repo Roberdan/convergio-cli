@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.0.7] - 2025-12-12
+
+### Fixed
+
+- **Auto-update without manual sudo**: Update process now works seamlessly without requiring manual sudo invocation
+- **Clean download display**: Hidden useless curl progress bar (GitHub API doesn't send Content-Length header)
+- **Download size display**: Shows clean file size in KB during download
+
+### Security
+
+- **Safe privilege escalation**: Uses `posix_spawn()` for sudo calls instead of `system()` - prevents shell injection vulnerabilities
+- **Auto-detect sudo requirement**: Automatically detects when elevated privileges are needed and prompts for password securely
+
 ## [3.0.6] - 2025-12-12
 
 ### Removed
@@ -483,7 +496,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-[Unreleased]: https://github.com/Roberdan/convergio-cli/compare/v3.0.6...HEAD
+[Unreleased]: https://github.com/Roberdan/convergio-cli/compare/v3.0.7...HEAD
+[3.0.7]: https://github.com/Roberdan/convergio-cli/compare/v3.0.6...v3.0.7
 [3.0.6]: https://github.com/Roberdan/convergio-cli/compare/v3.0.5...v3.0.6
 [3.0.5]: https://github.com/Roberdan/convergio-cli/compare/v3.0.4...v3.0.5
 [3.0.4]: https://github.com/Roberdan/convergio-cli/compare/v3.0.3...v3.0.4
