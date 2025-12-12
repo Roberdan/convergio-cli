@@ -502,11 +502,11 @@ int main(int argc, char** argv) {
         for (int i = 0; i < term_width; i++) printf("─");
         printf("\033[0m\n");
 
-        // Simple prompt like Claude Code: "> "
+        // Convergio prompt with separator style
         const Theme* t = theme_get();
         snprintf(prompt, sizeof(prompt),
-            "\001%s\002>\001\033[0m\002 \001%s\002",
-            t->prompt_arrow, t->user_input);
+            "\001%s\002Convergio\001\033[0m\002 \001%s\002>\001\033[0m\002 \001%s\002",
+            t->prompt_name, t->prompt_arrow, t->user_input);
 
         line = readline(prompt);
 
