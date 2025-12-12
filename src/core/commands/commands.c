@@ -14,6 +14,7 @@
 #include "nous/theme.h"
 #include "nous/compare.h"
 #include "nous/telemetry.h"
+#include "nous/agentic.h"
 #include "../../auth/oauth.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -56,6 +57,7 @@ static const ReplCommand COMMANDS[] = {
     {"compare",     "Compare models side-by-side",       cmd_compare},
     {"benchmark",   "Benchmark a model's performance",   cmd_benchmark},
     {"telemetry",   "Manage telemetry settings",         cmd_telemetry},
+    {"tools",       "Manage development tools",          cmd_tools},
     {"news",        "Show release notes",                cmd_news},
     {"quit",        "Exit Convergio",                    cmd_quit},
     {"exit",        "Exit Convergio",                    cmd_quit},
@@ -1363,5 +1365,106 @@ int cmd_telemetry(int argc, char** argv) {
 
     printf("Unknown telemetry subcommand: %s\n", subcommand);
     printf("Run 'telemetry' without arguments for usage information.\n");
+    return -1;
+}
+
+// ============================================================================
+// DEVELOPMENT TOOLS COMMAND
+// ============================================================================
+
+int cmd_tools(int argc, char** argv) {
+    if (argc < 2) {
+        printf("\n\033[1mCommand: tools\033[0m - Manage development tools\n\n");
+        printf("Usage:\n");
+        printf("  tools check            - Show installed/missing development tools\n");
+        printf("  tools install <tool>   - Install a tool (requires approval)\n\n");
+        printf("Example:\n");
+        printf("  tools check            - List all tools\n");
+        printf("  tools install gh       - Install GitHub CLI\n\n");
+        return 0;
+    }
+
+    const char* subcommand = argv[1];
+
+    if (strcmp(subcommand, "check") == 0) {
+        printf("\n\033[1mDevelopment Tools Status\033[0m\n");
+        printf("═══════════════════════════════════════════\n\n");
+
+        const char* tools[] = {"gh", "git", "node", "npm", "python3", "pip3",
+                               "cargo", "go", "make", "cmake", "docker", "jq",
+                               "curl", "wget", NULL};
+
+        int installed = 0, missing = 0;
+
+        for (int i = 0; tools[i] != NULL; i++) {
+            bool exists = tool_exists(tools[i]);
+            if (exists) {
+                printf("  \033[32m✓\033[0m %-12s installed\n", tools[i]);
+                installed++;
+            } else {
+                printf("  \033[31m✗\033[0m %-12s not found\n", tools[i]);
+                missing++;
+            }
+        }
+
+        printf("\n%d installed, %d missing\n\n", installed, missing);
+
+        if (missing > 0) {
+            printf("To install: \033[33mtools install <tool>\033[0m\n\n");
+        }
+        return 0;
+    }
+
+    if (strcmp(subcommand, "install") == 0) {
+        if (argc < 3) {
+            printf("Usage: tools install <tool>\n");
+            printf("Example: tools install gh\n");
+            return -1;
+        }
+
+        const char* tool = argv[2];
+
+        // Check if already installed
+        if (tool_exists(tool)) {
+            printf("\033[32m%s is already installed.\033[0m\n", tool);
+            return 0;
+        }
+
+        // Get install command
+        const char* install_cmd = get_install_command(tool);
+        if (!install_cmd) {
+            printf("\033[31mError: Don't know how to install '%s'\033[0m\n", tool);
+            printf("Please install manually.\n");
+            return -1;
+        }
+
+        // Request approval
+        ApprovalRequest req = {
+            .action = tool,
+            .reason = "Development tool needed",
+            .command = install_cmd,
+            .is_destructive = false
+        };
+
+        if (!request_user_approval(&req)) {
+            printf("\nInstallation cancelled.\n");
+            return 0;
+        }
+
+        // Install
+        printf("\nInstalling %s...\n", tool);
+        int ret = install_tool(tool, "Development tool needed");
+
+        if (ret == 0) {
+            printf("\033[32m✓ %s installed successfully.\033[0m\n", tool);
+        } else {
+            printf("\033[31m✗ Failed to install %s.\033[0m\n", tool);
+        }
+
+        return ret;
+    }
+
+    printf("Unknown tools subcommand: %s\n", subcommand);
+    printf("Run 'tools' without arguments for usage information.\n");
     return -1;
 }

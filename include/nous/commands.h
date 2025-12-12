@@ -67,6 +67,9 @@ int cmd_benchmark(int argc, char** argv);
 // Telemetry
 int cmd_telemetry(int argc, char** argv);
 
+// Development Tools
+int cmd_tools(int argc, char** argv);
+
 // ============================================================================
 // GLOBAL STATE ACCESS
 // ============================================================================

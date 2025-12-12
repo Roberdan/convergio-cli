@@ -8,7 +8,6 @@
  */
 
 #include "nous/agentic.h"
-#include "nous/safe_path.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -17,20 +16,18 @@
 #include <errno.h>
 #include <unistd.h>
 
-// JSON parsing helper (simple)
-#include <cjson/cJSON.h>
-
-#define APPROVALS_FILE "approvals.json"
+#define APPROVALS_FILE "approvals.txt"
 #define MAX_INPUT 128
+#define MAX_LINE 512
 
 // ============================================================================
-// APPROVAL FILE MANAGEMENT
+// APPROVAL FILE MANAGEMENT (Simple text format: "action=0" or "action=1")
 // ============================================================================
 
 static char* get_approvals_path(void) {
     static char path[1024];
 
-    // Use ~/.convergio/approvals.json
+    // Use ~/.convergio/approvals.txt
     const char* home = getenv("HOME");
     if (!home) {
         return NULL;
@@ -40,85 +37,13 @@ static char* get_approvals_path(void) {
     return path;
 }
 
-static cJSON* load_approvals(void) {
-    const char* path = get_approvals_path();
-    if (!path) {
-        return NULL;
-    }
-
-    FILE* f = fopen(path, "r");
-    if (!f) {
-        // File doesn't exist yet - return empty object
-        return cJSON_CreateObject();
-    }
-
-    // Read file
-    fseek(f, 0, SEEK_END);
-    long size = ftell(f);
-    fseek(f, 0, SEEK_SET);
-
-    if (size <= 0) {
-        fclose(f);
-        return cJSON_CreateObject();
-    }
-
-    char* content = malloc((size_t)size + 1);
-    if (!content) {
-        fclose(f);
-        return NULL;
-    }
-
-    size_t read_size = fread(content, 1, (size_t)size, f);
-    content[read_size] = '\0';
-    fclose(f);
-
-    cJSON* json = cJSON_Parse(content);
-    free(content);
-
-    if (!json) {
-        // Parse error - return empty object
-        return cJSON_CreateObject();
-    }
-
-    return json;
-}
-
-static int save_approvals(cJSON* approvals) {
-    if (!approvals) {
-        return -1;
-    }
-
-    const char* path = get_approvals_path();
-    if (!path) {
-        return -1;
-    }
-
-    // Ensure ~/.convergio directory exists
+static void ensure_config_dir(void) {
     const char* home = getenv("HOME");
     if (home) {
         char dir[1024];
         snprintf(dir, sizeof(dir), "%s/.convergio", home);
         mkdir(dir, 0755);
     }
-
-    // Serialize JSON
-    char* json_str = cJSON_Print(approvals);
-    if (!json_str) {
-        return -1;
-    }
-
-    // Write file
-    FILE* f = fopen(path, "w");
-    if (!f) {
-        free(json_str);
-        return -1;
-    }
-
-    fputs(json_str, f);
-    fclose(f);
-    free(json_str);
-
-    return 0;
 }
 
 // ============================================================================
@@ -130,19 +55,25 @@ bool is_action_approved(const char* action) {
         return false;
     }
 
-    cJSON* approvals = load_approvals();
-    if (!approvals) {
-        return false;
-    }
+    const char* path = get_approvals_path();
+    if (!path) return false;
 
-    cJSON* item = cJSON_GetObjectItem(approvals, action);
+    FILE* f = fopen(path, "r");
+    if (!f) return false;
+
+    char line[MAX_LINE];
     bool approved = false;
+    size_t action_len = strlen(action);
 
-    if (item && cJSON_IsBool(item)) {
-        approved = cJSON_IsTrue(item);
+    while (fgets(line, sizeof(line), f)) {
+        // Format: action=1 or action=0
+        if (strncmp(line, action, action_len) == 0 && line[action_len] == '=') {
+            approved = (line[action_len + 1] == '1');
+            break;
+        }
     }
 
-    cJSON_Delete(approvals);
+    fclose(f);
     return approved;
 }
 
@@ -156,18 +87,47 @@ int store_approval(const char* action, bool approved, bool remember) {
         return 0;
     }
 
-    cJSON* approvals = load_approvals();
-    if (!approvals) {
-        return -1;
+    ensure_config_dir();
+
+    const char* path = get_approvals_path();
+    if (!path) return -1;
+
+    // Read existing approvals
+    FILE* f = fopen(path, "r");
+    char lines[100][MAX_LINE];
+    int count = 0;
+    size_t action_len = strlen(action);
+    bool found = false;
+
+    if (f) {
+        while (count < 100 && fgets(lines[count], MAX_LINE, f)) {
+            // Update if action already exists
+            if (strncmp(lines[count], action, action_len) == 0 &&
+                lines[count][action_len] == '=') {
+                snprintf(lines[count], MAX_LINE, "%s=%d\n", action, approved ? 1 : 0);
+                found = true;
+            }
+            count++;
+        }
+        fclose(f);
     }
 
-    // Add or update the approval
-    cJSON_AddBoolToObject(approvals, action, approved);
+    // Add new entry if not found
+    if (!found && count < 100) {
+        snprintf(lines[count], MAX_LINE, "%s=%d\n", action, approved ? 1 : 0);
+        count++;
+    }
 
-    int result = save_approvals(approvals);
-    cJSON_Delete(approvals);
+    // Write back
+    f = fopen(path, "w");
+    if (!f) return -1;
 
-    return result;
+    for (int i = 0; i < count; i++) {
+        fputs(lines[i], f);
+    }
+    fclose(f);
+
+    return 0;
 }
 
 int clear_approvals(void) {
@@ -187,24 +147,6 @@ int clear_approvals(void) {
 // USER APPROVAL PROMPT
 // ============================================================================
 
-static void trim_whitespace(char* str) {
-    if (!str) return;
-
-    // Trim leading whitespace
-    char* start = str;
-    while (isspace((unsigned char)*start)) start++;
-
-    // Trim trailing whitespace
-    char* end = start + strlen(start) - 1;
-    while (end > start && isspace((unsigned char)*end)) end--;
-    *(end + 1) = '\0';
-
-    // Move trimmed string to beginning
-    if (start != str) {
-        memmove(str, start, strlen(start) + 1);
-    }
-}
-
 bool request_user_approval(ApprovalRequest* req) {
     if (!req || !req->action || !req->command) {
         return false;
@@ -212,86 +154,65 @@ bool request_user_approval(ApprovalRequest* req) {
 
     // Check if already approved
     if (is_action_approved(req->action)) {
-        printf("\033[2m(Previously approved: %s)\033[0m\n", req->action);
         return true;
     }
 
     // Display approval prompt
     printf("\n");
-    printf("╔═══════════════════════════════════════════════════════════╗\n");
-    printf("║              \033[1;33mUSER APPROVAL REQUIRED\033[0m                   ║\n");
-    printf("╚═══════════════════════════════════════════════════════════╝\n");
-    printf("\n");
-    printf("  \033[1mAction:\033[0m   %s\n", req->action);
-    printf("  \033[1mReason:\033[0m   %s\n", req->reason);
-    printf("  \033[1mCommand:\033[0m  %s\n", req->command);
-    printf("\n");
+    printf("┌─────────────────────────────────────────────────────────────┐\n");
+    printf("│  \033[1;33mAPPROVAL REQUIRED\033[0m                                          │\n");
+    printf("├─────────────────────────────────────────────────────────────┤\n");
+    printf("│  Action: \033[1m%-48s\033[0m │\n", req->action);
+    if (req->reason) {
+        printf("│  Reason: %-48s │\n", req->reason);
+    }
+    printf("│  Command: \033[33m%-47s\033[0m │\n", req->command);
 
     if (req->is_destructive) {
-        printf("  \033[31m⚠ WARNING: This action could modify system files\033[0m\n");
-        printf("\n");
+        printf("│  \033[31m⚠ WARNING: This action may be destructive!\033[0m                 │\n");
     }
 
-    printf("Do you approve this action?\n");
-    printf("  [y]es      - Approve once\n");
-    printf("  [N]o       - Deny (default)\n");
-    printf("  [a]lways   - Approve and remember\n");
-    printf("  [n]ever    - Deny and remember\n");
-    printf("\n");
-    printf("Your choice: ");
+    printf("├─────────────────────────────────────────────────────────────┤\n");
+    printf("│  [y] Yes    [n] No (default)    [a] Always    [N] Never    │\n");
+    printf("└─────────────────────────────────────────────────────────────┘\n");
+    printf("\nApprove? ");
     fflush(stdout);
 
     // Read user input
     char input[MAX_INPUT];
     if (!fgets(input, sizeof(input), stdin)) {
-        return false;  // EOF or error - deny
+        return false;
     }
 
-    trim_whitespace(input);
+    // Parse input
+    char c = tolower(input[0]);
 
-    // Convert to lowercase for comparison
-    for (char* p = input; *p; p++) {
-        *p = (char)tolower((unsigned char)*p);
+    switch (c) {
+        case 'y':
+            // Yes - approve once
+            return true;
+
+        case 'a':
+            // Always - approve and remember
+            store_approval(req->action, true, true);
+            printf("\033[32m✓ Approved and remembered.\033[0m\n");
+            return true;
+
+        case 'n':
+        case '\n':
+        case '\0':
+            // No - deny once (default)
+            return false;
+
+        case 'N':
+            // Never - deny and remember
+            store_approval(req->action, false, true);
+            printf("\033[31m✗ Denied and remembered.\033[0m\n");
+            return false;
+
+        default:
+            // Unknown - default to no
+            printf("Unknown response. Defaulting to No.\n");
+            return false;
     }
-
-    // Parse response
-    bool approved = false;
-    bool remember = false;
-
-    if (strcmp(input, "y") == 0 || strcmp(input, "yes") == 0) {
-        approved = true;
-        remember = false;
-    } else if (strcmp(input, "a") == 0 || strcmp(input, "always") == 0) {
-        approved = true;
-        remember = true;
-    } else if (strcmp(input, "n") == 0 || strcmp(input, "no") == 0 || input[0] == '\0') {
-        approved = false;
-        remember = false;
-    } else if (strcmp(input, "never") == 0) {
-        approved = false;
-        remember = true;
-    } else {
-        // Unknown response - default to deny
-        printf("\nInvalid response. Defaulting to: No\n");
-        approved = false;
-        remember = false;
-    }
-
-    // Store decision if remember is requested
-    if (remember) {
-        store_approval(req->action, approved, true);
-        if (approved) {
-            printf("\n\033[32m✓ Approved and remembered\033[0m\n");
-        } else {
-            printf("\n\033[31m✗ Denied and remembered\033[0m\n");
-        }
-    } else {
-        if (approved) {
-            printf("\n\033[32m✓ Approved (once)\033[0m\n");
-        } else {
-            printf("\n\033[31m✗ Denied\033[0m\n");
-        }
-    }
-
-    return approved;
 }
