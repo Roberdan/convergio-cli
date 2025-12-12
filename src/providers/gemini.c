@@ -473,29 +473,167 @@ static char* gemini_chat_with_tools(Provider* self, const char* model, const cha
     return gemini_chat(self, model, system, user, usage);
 }
 
+// Build streaming API URL (Gemini uses streamGenerateContent)
+static char* build_stream_api_url(const char* model, const char* api_key) {
+    const char* model_name = model ? model : "gemini-3-flash";
+    size_t url_len = strlen(GEMINI_API_BASE) + strlen(model_name) + strlen(api_key) + 80;
+    char* url = malloc(url_len);
+    if (!url) return NULL;
+    snprintf(url, url_len, "%s/%s:streamGenerateContent?alt=sse&key=%s",
+             GEMINI_API_BASE, model_name, api_key);
+    return url;
+}
+
+// Bridge context for streaming callbacks (Gemini)
+typedef struct {
+    StreamHandler* handler;
+    TokenUsage* usage;
+    ProviderError error;
+} GeminiStreamBridge;
+
+// Bridge callback for stream chunks
+static void gemini_stream_chunk_bridge(const char* chunk, void* ctx) {
+    GeminiStreamBridge* bridge = (GeminiStreamBridge*)ctx;
+    if (bridge && bridge->handler && bridge->handler->on_chunk) {
+        char* unescaped = stream_unescape_json(chunk);
+        if (unescaped) {
+            bridge->handler->on_chunk(unescaped, false, bridge->handler->user_ctx);
+            free(unescaped);
+        } else {
+            bridge->handler->on_chunk(chunk, false, bridge->handler->user_ctx);
+        }
+    }
+}
+
+// Bridge callback for stream completion
+static void gemini_stream_complete_bridge(const char* full_response, TokenUsage* usage, void* ctx) {
+    GeminiStreamBridge* bridge = (GeminiStreamBridge*)ctx;
+    if (bridge) {
+        if (bridge->usage && usage) {
+            *bridge->usage = *usage;
+        }
+        if (bridge->handler) {
+            if (bridge->handler->on_chunk) {
+                bridge->handler->on_chunk("", true, bridge->handler->user_ctx);
+            }
+            if (bridge->handler->on_complete) {
+                bridge->handler->on_complete(full_response, bridge->handler->user_ctx);
+            }
+        }
+    }
+}
+
+// Bridge callback for stream errors
+static void gemini_stream_error_bridge(ProviderError error, const char* message, void* ctx) {
+    GeminiStreamBridge* bridge = (GeminiStreamBridge*)ctx;
+    if (bridge) {
+        bridge->error = error;
+        if (bridge->handler && bridge->handler->on_error) {
+            bridge->handler->on_error(message ? message : "Stream error", bridge->handler->user_ctx);
+        }
+    }
+}
+
 static ProviderError gemini_stream_chat(Provider* self, const char* model, const char* system,
                                         const char* user, StreamHandler* handler, TokenUsage* usage) {
-    // TODO: Implement streaming
-    char* response = gemini_chat(self, model, system, user, usage);
-    if (!response) {
-        if (handler && handler->on_error) {
-            GeminiProviderData* data = (GeminiProviderData*)self->impl_data;
-            handler->on_error(data->last_error.message ? data->last_error.message : "Unknown error",
-                            handler->user_ctx);
-        }
-        return PROVIDER_ERR_UNKNOWN;
+    if (!self || !user) return PROVIDER_ERR_INVALID_REQUEST;
+
+    GeminiProviderData* data = (GeminiProviderData*)self->impl_data;
+    if (!data) return PROVIDER_ERR_INVALID_REQUEST;
+
+    if (!data->initialized) {
+        ProviderError err = gemini_init(self);
+        if (err != PROVIDER_OK) return err;
     }
 
-    if (handler) {
-        if (handler->on_chunk) {
-            handler->on_chunk(response, true, handler->user_ctx);
-        }
-        if (handler->on_complete) {
-            handler->on_complete(response, handler->user_ctx);
-        }
+    // Get API key
+    const char* api_key = getenv("GEMINI_API_KEY");
+    if (!api_key) {
+        data->last_error.code = PROVIDER_ERR_AUTH;
+        data->last_error.message = strdup("GEMINI_API_KEY not set");
+        return PROVIDER_ERR_AUTH;
     }
 
-    free(response);
+    // Build streaming URL
+    char* url = build_stream_api_url(model, api_key);
+    if (!url) {
+        return PROVIDER_ERR_NETWORK;
+    }
+
+    // Build JSON request (Gemini format)
+    char* escaped_system = json_escape(system ? system : "");
+    char* escaped_user = json_escape(user);
+
+    if (!escaped_system || !escaped_user) {
+        free(escaped_system);
+        free(escaped_user);
+        free(url);
+        return PROVIDER_ERR_INVALID_REQUEST;
+    }
+
+    size_t json_size = strlen(escaped_system) + strlen(escaped_user) + 1024;
+    char* json_body = malloc(json_size);
+    if (!json_body) {
+        free(escaped_system);
+        free(escaped_user);
+        free(url);
+        return PROVIDER_ERR_NETWORK;
+    }
+
+    if (system && strlen(system) > 0) {
+        snprintf(json_body, json_size,
+            "{"
+            "\"systemInstruction\": {\"parts\": [{\"text\": \"%s\"}]},"
+            "\"contents\": [{\"parts\": [{\"text\": \"%s\"}]}],"
+            "\"generationConfig\": {\"maxOutputTokens\": %d}"
+            "}",
+            escaped_system, escaped_user, DEFAULT_MAX_TOKENS);
+    } else {
+        snprintf(json_body, json_size,
+            "{"
+            "\"contents\": [{\"parts\": [{\"text\": \"%s\"}]}],"
+            "\"generationConfig\": {\"maxOutputTokens\": %d}"
+            "}",
+            escaped_user, DEFAULT_MAX_TOKENS);
+    }
+
+    free(escaped_system);
+    free(escaped_user);
+
+    // Create streaming context
+    StreamContext* stream_ctx = stream_context_create(PROVIDER_GEMINI);
+    if (!stream_ctx) {
+        free(json_body);
+        free(url);
+        return PROVIDER_ERR_NETWORK;
+    }
+
+    // Setup bridge context
+    GeminiStreamBridge bridge = {
+        .handler = handler,
+        .usage = usage,
+        .error = PROVIDER_OK
+    };
+
+    // Set callbacks
+    stream_set_callbacks(stream_ctx, gemini_stream_chunk_bridge, gemini_stream_complete_bridge,
+                         gemini_stream_error_bridge, &bridge);
+
+    // Execute streaming request (Gemini uses URL-based auth, pass empty string for api_key)
+    LOG_DEBUG(LOG_CAT_API, "Starting Gemini stream to %s", url);
+    int result = stream_execute(stream_ctx, url, json_body, "");
+
+    // Cleanup
+    free(json_body);
+    free(url);
+    stream_context_destroy(stream_ctx);
+
+    if (result < 0) {
+        return bridge.error != PROVIDER_OK ? bridge.error : PROVIDER_ERR_NETWORK;
+    } else if (result == 1) {
+        return PROVIDER_OK;  // Cancelled
+    }
+
     return PROVIDER_OK;
 }
 

@@ -30,7 +30,7 @@ typedef enum {
     STREAM_STATE_CANCELLED,
 } StreamState;
 
-typedef struct {
+struct StreamContext {
     // State
     StreamState state;
     ProviderType provider;
@@ -59,7 +59,7 @@ typedef struct {
 
     // Thread safety
     pthread_mutex_t mutex;
-} StreamContext;
+};
 
 // ============================================================================
 // BUFFER MANAGEMENT
