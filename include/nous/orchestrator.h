@@ -244,11 +244,8 @@ Message* message_create(MessageType type, SemanticID sender,
 void message_send(Message* msg);
 void message_broadcast(Message* msg);
 
-// Task execution
-ExecutionPlan* orch_plan_create(const char* goal);
-Task* orch_task_create(const char* description, SemanticID assignee);
-void orch_plan_add_task(ExecutionPlan* plan, Task* task);
-void orch_task_complete(Task* task, const char* result);
+// Task execution (implemented in planning.c)
+// See nous/planning.h for function declarations
 
 // Main entry point - process user input through orchestrator
 char* orchestrator_process(const char* user_input);
@@ -262,8 +259,8 @@ char* orchestrator_process_stream(const char* user_input, OrchestratorStreamCall
 // Direct agent communication with tools support
 char* orchestrator_agent_chat(ManagedAgent* agent, const char* user_message);
 
-// Convergence
-char* orchestrator_converge(ExecutionPlan* plan);
+// Convergence (implemented in convergence.c)
+// See nous/convergence.h for function declarations
 
 // Parallel execution
 char* orchestrator_parallel_analyze(const char* input, const char** agent_names, size_t agent_count);
