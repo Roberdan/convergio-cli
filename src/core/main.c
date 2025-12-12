@@ -485,9 +485,6 @@ int main(int argc, char** argv) {
             statusbar_set_agent_count((int)orch->agent_count);
         }
         statusbar_set_visible(true);
-        // Set up scroll region to reserve bottom 2 lines for status bar
-        statusbar_setup_scroll_region();
-        statusbar_render();
     }
 
     // REPL with cost in prompt
@@ -538,11 +535,6 @@ int main(int argc, char** argv) {
         if (strlen(line) > 0) {
             add_history(line);
             repl_parse_and_execute(line);
-
-            // Re-render status bar after command execution
-            if (statusbar_is_visible()) {
-                statusbar_render();
-            }
         }
 
         free(line);
