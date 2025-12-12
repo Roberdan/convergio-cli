@@ -379,4 +379,76 @@ RetryConfig retry_config_default(void);
  */
 int retry_calculate_delay(const RetryConfig* cfg, int attempt);
 
+// ============================================================================
+// STREAMING INFRASTRUCTURE
+// ============================================================================
+
+// Opaque stream context type
+typedef struct StreamContext StreamContext;
+
+/**
+ * Create a new streaming context for a provider
+ * @param provider Provider type
+ * @return New stream context or NULL on error
+ */
+StreamContext* stream_context_create(ProviderType provider);
+
+/**
+ * Destroy a stream context and free resources
+ * @param ctx Stream context to destroy
+ */
+void stream_context_destroy(StreamContext* ctx);
+
+/**
+ * Set callbacks for streaming events
+ * @param ctx Stream context
+ * @param on_chunk Called for each text chunk
+ * @param on_complete Called when streaming completes
+ * @param on_error Called on error
+ * @param user_ctx User data passed to callbacks
+ */
+void stream_set_callbacks(StreamContext* ctx,
+                          void (*on_chunk)(const char*, void*),
+                          void (*on_complete)(const char*, TokenUsage*, void*),
+                          void (*on_error)(ProviderError, const char*, void*),
+                          void* user_ctx);
+
+/**
+ * Execute a streaming request
+ * @param ctx Stream context
+ * @param url API endpoint URL
+ * @param body Request body JSON
+ * @param api_key API key for authentication
+ * @return 0 on success, 1 if cancelled, -1 on error
+ */
+int stream_execute(StreamContext* ctx, const char* url, const char* body,
+                   const char* api_key);
+
+/**
+ * Cancel an ongoing stream
+ * @param ctx Stream context
+ */
+void stream_cancel(StreamContext* ctx);
+
+/**
+ * Check if stream was cancelled
+ * @param ctx Stream context
+ * @return true if cancelled
+ */
+bool stream_is_cancelled(StreamContext* ctx);
+
+/**
+ * Get the accumulated response from a completed stream
+ * @param ctx Stream context
+ * @return Full response text (do not free)
+ */
+const char* stream_get_response(StreamContext* ctx);
+
+/**
+ * Unescape JSON string content (handles \n, \t, \", etc.)
+ * @param input JSON-escaped string
+ * @return Unescaped string (caller must free) or NULL on error
+ */
+char* stream_unescape_json(const char* input);
+
 #endif // CONVERGIO_PROVIDER_H

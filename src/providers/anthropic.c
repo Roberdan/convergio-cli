@@ -647,30 +647,147 @@ static char* anthropic_chat_with_tools(Provider* self, const char* model, const 
     return anthropic_chat(self, model, system, user, usage);
 }
 
+// Bridge context for streaming callbacks
+typedef struct {
+    StreamHandler* handler;
+    TokenUsage* usage;
+    ProviderError error;
+} StreamBridgeContext;
+
+// Bridge callback for stream chunks
+static void stream_chunk_bridge(const char* chunk, void* ctx) {
+    StreamBridgeContext* bridge = (StreamBridgeContext*)ctx;
+    if (bridge && bridge->handler && bridge->handler->on_chunk) {
+        // Unescape JSON content
+        char* unescaped = stream_unescape_json(chunk);
+        if (unescaped) {
+            bridge->handler->on_chunk(unescaped, false, bridge->handler->user_ctx);
+            free(unescaped);
+        } else {
+            bridge->handler->on_chunk(chunk, false, bridge->handler->user_ctx);
+        }
+    }
+}
+
+// Bridge callback for stream completion
+static void stream_complete_bridge(const char* full_response, TokenUsage* usage, void* ctx) {
+    StreamBridgeContext* bridge = (StreamBridgeContext*)ctx;
+    if (bridge) {
+        if (bridge->usage && usage) {
+            *bridge->usage = *usage;
+        }
+        if (bridge->handler) {
+            // Send final chunk marker
+            if (bridge->handler->on_chunk) {
+                bridge->handler->on_chunk("", true, bridge->handler->user_ctx);
+            }
+            if (bridge->handler->on_complete) {
+                bridge->handler->on_complete(full_response, bridge->handler->user_ctx);
+            }
+        }
+    }
+}
+
+// Bridge callback for stream errors
+static void stream_error_bridge(ProviderError error, const char* message, void* ctx) {
+    StreamBridgeContext* bridge = (StreamBridgeContext*)ctx;
+    if (bridge) {
+        bridge->error = error;
+        if (bridge->handler && bridge->handler->on_error) {
+            bridge->handler->on_error(message ? message : "Stream error", bridge->handler->user_ctx);
+        }
+    }
+}
+
 static ProviderError anthropic_stream_chat(Provider* self, const char* model, const char* system,
                                            const char* user, StreamHandler* handler, TokenUsage* usage) {
-    // TODO: Implement streaming support
-    // For now, use regular chat and call the callbacks
-    char* response = anthropic_chat(self, model, system, user, usage);
-    if (!response) {
-        if (handler && handler->on_error) {
-            AnthropicProviderData* data = (AnthropicProviderData*)self->impl_data;
-            handler->on_error(data->last_error.message ? data->last_error.message : "Unknown error",
-                            handler->user_ctx);
-        }
-        return PROVIDER_ERR_UNKNOWN;
+    if (!self || !user) return PROVIDER_ERR_INVALID_REQUEST;
+
+    AnthropicProviderData* data = (AnthropicProviderData*)self->impl_data;
+    if (!data) return PROVIDER_ERR_INVALID_REQUEST;
+
+    // Ensure initialized
+    if (!data->initialized) {
+        ProviderError err = anthropic_init(self);
+        if (err != PROVIDER_OK) return err;
     }
 
-    if (handler) {
-        if (handler->on_chunk) {
-            handler->on_chunk(response, true, handler->user_ctx);
-        }
-        if (handler->on_complete) {
-            handler->on_complete(response, handler->user_ctx);
-        }
+    // Build JSON request with stream: true
+    char* escaped_system = json_escape(system ? system : "");
+    char* escaped_user = json_escape(user);
+
+    if (!escaped_system || !escaped_user) {
+        free(escaped_system);
+        free(escaped_user);
+        return PROVIDER_ERR_INVALID_REQUEST;
     }
 
-    free(response);
+    const char* api_model = get_model_api_id(model);
+
+    size_t json_size = strlen(escaped_system) + strlen(escaped_user) + 1024;
+    char* json_body = malloc(json_size);
+    if (!json_body) {
+        free(escaped_system);
+        free(escaped_user);
+        return PROVIDER_ERR_NETWORK;
+    }
+
+    snprintf(json_body, json_size,
+        "{"
+        "\"model\": \"%s\","
+        "\"max_tokens\": %d,"
+        "\"stream\": true,"
+        "\"system\": \"%s\","
+        "\"messages\": [{\"role\": \"user\", \"content\": \"%s\"}]"
+        "}",
+        api_model, DEFAULT_MAX_TOKENS, escaped_system, escaped_user);
+
+    free(escaped_system);
+    free(escaped_user);
+
+    // Get API key
+    char* api_key = auth_get_header();
+    if (!api_key) {
+        free(json_body);
+        data->last_error.code = PROVIDER_ERR_AUTH;
+        data->last_error.message = strdup("Failed to get authentication");
+        return PROVIDER_ERR_AUTH;
+    }
+
+    // Create streaming context
+    StreamContext* stream_ctx = stream_context_create(PROVIDER_ANTHROPIC);
+    if (!stream_ctx) {
+        free(json_body);
+        free(api_key);
+        return PROVIDER_ERR_NETWORK;
+    }
+
+    // Setup bridge context
+    StreamBridgeContext bridge = {
+        .handler = handler,
+        .usage = usage,
+        .error = PROVIDER_OK
+    };
+
+    // Set callbacks
+    stream_set_callbacks(stream_ctx, stream_chunk_bridge, stream_complete_bridge,
+                         stream_error_bridge, &bridge);
+
+    // Execute streaming request
+    LOG_DEBUG(LOG_CAT_API, "Starting Anthropic stream to %s", ANTHROPIC_API_URL);
+    int result = stream_execute(stream_ctx, ANTHROPIC_API_URL, json_body, api_key);
+
+    // Cleanup
+    free(json_body);
+    free(api_key);
+    stream_context_destroy(stream_ctx);
+
+    if (result < 0) {
+        return bridge.error != PROVIDER_OK ? bridge.error : PROVIDER_ERR_NETWORK;
+    } else if (result == 1) {
+        return PROVIDER_OK;  // Cancelled
+    }
+
     return PROVIDER_OK;
 }
 
