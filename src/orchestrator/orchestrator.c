@@ -294,23 +294,35 @@ int orchestrator_init(double budget_limit_usd) {
     if (g_orchestrator->ali) {
         g_orchestrator->ali->id = 1;
         g_orchestrator->ali->name = strdup("Ali");
-        g_orchestrator->ali->role = AGENT_ROLE_ORCHESTRATOR;
+        if (!g_orchestrator->ali->name) {
+            free(g_orchestrator->ali);
+            g_orchestrator->ali = NULL;
+        } else {
+            g_orchestrator->ali->role = AGENT_ROLE_ORCHESTRATOR;
 
-        // Build system prompt with workspace and dynamic agent list
-        char* agent_list = load_agent_list();
-        const char* workspace = tools_get_workspace();
-        if (!workspace) workspace = ".";  // Fallback to current directory
-        size_t prompt_size = strlen(ALI_SYSTEM_PROMPT_TEMPLATE) + strlen(workspace) + strlen(agent_list) + 256;
-        char* full_prompt = malloc(prompt_size);
-        snprintf(full_prompt, prompt_size, ALI_SYSTEM_PROMPT_TEMPLATE, workspace, agent_list);
-        g_orchestrator->ali->system_prompt = full_prompt;
-        free(agent_list);
+            // Build system prompt with workspace and dynamic agent list
+            char* agent_list = load_agent_list();
+            const char* workspace = tools_get_workspace();
+            if (!workspace) workspace = ".";  // Fallback to current directory
+            size_t prompt_size = strlen(ALI_SYSTEM_PROMPT_TEMPLATE) + strlen(workspace) + strlen(agent_list) + 256;
+            char* full_prompt = malloc(prompt_size);
+            if (!full_prompt) {
+                free(g_orchestrator->ali->name);
+                free(g_orchestrator->ali);
+                g_orchestrator->ali = NULL;
+                free(agent_list);
+            } else {
+                snprintf(full_prompt, prompt_size, ALI_SYSTEM_PROMPT_TEMPLATE, workspace, agent_list);
+                g_orchestrator->ali->system_prompt = full_prompt;
+                free(agent_list);
 
-        g_orchestrator->ali->is_active = true;
-        g_orchestrator->ali->created_at = time(NULL);
+                g_orchestrator->ali->is_active = true;
+                g_orchestrator->ali->created_at = time(NULL);
 
-        // Add to agent pool
-        g_orchestrator->agents[g_orchestrator->agent_count++] = g_orchestrator->ali;
+                // Add to agent pool
+                g_orchestrator->agents[g_orchestrator->agent_count++] = g_orchestrator->ali;
+            }
+        }
     }
 
     // Initialize hash tables for O(1) agent lookup
@@ -443,6 +455,10 @@ ExecutionPlan* orch_plan_create(const char* goal) {
 
     plan->id = __sync_fetch_and_add(&g_next_plan_id, 1);
     plan->goal = strdup(goal);
+    if (!plan->goal) {
+        free(plan);
+        return NULL;
+    }
     plan->created_at = time(NULL);
 
     return plan;
@@ -454,6 +470,10 @@ Task* orch_task_create(const char* description, SemanticID assignee) {
 
     task->id = __sync_fetch_and_add(&g_next_task_id, 1);
     task->description = strdup(description);
+    if (!task->description) {
+        free(task);
+        return NULL;
+    }
     task->assigned_to = assignee;
     task->status = TASK_STATUS_PENDING;
     task->created_at = time(NULL);

@@ -10,14 +10,56 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <ctype.h>
 #include <curl/curl.h>
 #include <unistd.h>
 #include <sys/stat.h>
+#include <sys/wait.h>
+#include <spawn.h>
+
+extern char **environ;
 
 // Version is defined at compile time
 #ifndef CONVERGIO_VERSION
 #define CONVERGIO_VERSION "0.0.0"
 #endif
+
+// ============================================================================
+// SECURITY HELPERS
+// ============================================================================
+
+/**
+ * Validate version string to prevent command injection
+ * Only allows: alphanumeric, dots, dashes
+ */
+static int is_safe_version_string(const char* str) {
+    if (!str || !*str) return 0;
+    for (const char* p = str; *p; p++) {
+        if (!isalnum((unsigned char)*p) && *p != '.' && *p != '-' && *p != '_') {
+            return 0;
+        }
+    }
+    return 1;
+}
+
+/**
+ * Safe command execution using posix_spawn (no shell)
+ * Returns 0 on success, -1 on failure
+ */
+static int safe_exec(char* const argv[]) {
+    pid_t pid;
+    int status;
+
+    if (posix_spawn(&pid, argv[0], NULL, NULL, argv, environ) != 0) {
+        return -1;
+    }
+
+    if (waitpid(pid, &status, 0) == -1) {
+        return -1;
+    }
+
+    return WIFEXITED(status) && WEXITSTATUS(status) == 0 ? 0 : -1;
+}
 
 // ============================================================================
 // CURL HELPERS
@@ -336,6 +378,12 @@ int convergio_rollback_update(void) {
 static int convergio_do_update_install(const UpdateInfo* info) {
     printf("\nInstalling update: %s -> %s\n\n", info->current_version, info->latest_version);
 
+    // SECURITY: Validate version string to prevent command injection
+    if (!is_safe_version_string(info->latest_version)) {
+        fprintf(stderr, "Error: Invalid version string format\n");
+        return -1;
+    }
+
     // Download to temp location
     char temp_path[256];
     snprintf(temp_path, sizeof(temp_path), "/tmp/convergio-update-%s.tar.gz", info->latest_version);
@@ -344,15 +392,23 @@ static int convergio_do_update_install(const UpdateInfo* info) {
         return -1;
     }
 
-    // Extract tarball
+    // Extract tarball using posix_spawn (no shell injection possible)
     char extract_dir[256];
     snprintf(extract_dir, sizeof(extract_dir), "/tmp/convergio-update-%s", info->latest_version);
 
-    char cmd[512];
-    snprintf(cmd, sizeof(cmd), "mkdir -p %s && tar -xzf %s -C %s", extract_dir, temp_path, extract_dir);
+    // Create directory using mkdir (no shell)
+    char* mkdir_args[] = {"/bin/mkdir", "-p", extract_dir, NULL};
+    if (safe_exec(mkdir_args) != 0) {
+        fprintf(stderr, "Error: Failed to create extraction directory\n");
+        unlink(temp_path);
+        return -1;
+    }
 
-    if (system(cmd) != 0) {
+    // Extract using tar (no shell)
+    char* tar_args[] = {"/usr/bin/tar", "-xzf", temp_path, "-C", extract_dir, NULL};
+    if (safe_exec(tar_args) != 0) {
         fprintf(stderr, "Error: Failed to extract update\n");
+        unlink(temp_path);
         return -1;
     }
 
@@ -361,13 +417,14 @@ static int convergio_do_update_install(const UpdateInfo* info) {
     snprintf(new_binary, sizeof(new_binary), "%s/convergio", extract_dir);
 
     if (convergio_apply_update(new_binary) != 0) {
+        unlink(temp_path);
         return -1;
     }
 
-    // Cleanup
+    // Cleanup using rm (no shell)
     unlink(temp_path);
-    snprintf(cmd, sizeof(cmd), "rm -rf %s", extract_dir);
-    system(cmd);
+    char* rm_args[] = {"/bin/rm", "-rf", extract_dir, NULL};
+    (void)safe_exec(rm_args);  // Ignore cleanup errors
 
     return 0;
 }

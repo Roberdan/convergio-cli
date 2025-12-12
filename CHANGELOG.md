@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.0.1] - 2025-12-12
+
+### Security
+
+- **CRITICAL: Command injection fix in updater**: Replaced `system()` calls with `posix_spawn()` in `src/core/updater.c`
+  - Added version string validation to prevent malicious version strings
+  - All shell commands now use direct exec (mkdir, tar, rm) without shell interpretation
+  - Eliminates command injection vector in auto-update system
+- **HIGH: Thread safety fix in shell_exec**: Changed from `getcwd()`/`chdir()` to `fchdir()` in `src/tools/tools.c`
+  - Uses file descriptor to save/restore working directory
+  - Prevents race conditions in multi-threaded tool execution
+- **MEDIUM: OOM safety improvements**: Added NULL checks after `realloc()` in `src/tools/tools.c`
+  - `tool_file_list()` - prevents crash on memory exhaustion
+  - `tool_shell_exec()` - prevents crash on memory exhaustion
+  - `tool_note_read()` - prevents crash on memory exhaustion
+- **LOW: Undefined behavior fix**: Cast to `unsigned char` before `tolower()` calls
+  - `src/intent/interpreter.c` - `detect_pattern()` function
+  - `src/tools/tools.c` - `sanitize_grep_pattern()` and `tool_note_read()` functions
+  - Prevents UB with negative char values on non-ASCII input
+
+### Fixed
+
+- **Homebrew formula URL**: Corrected tarball URL format in `Formula/convergio.rb`
+
 ## [3.0.0] - 2025-12-12
 
 ### Added - Multi-Provider Architecture
@@ -363,7 +387,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-[Unreleased]: https://github.com/Roberdan/convergio-cli/compare/v2.0.11...HEAD
+[Unreleased]: https://github.com/Roberdan/convergio-cli/compare/v3.0.1...HEAD
+[3.0.1]: https://github.com/Roberdan/convergio-cli/compare/v3.0.0...v3.0.1
+[3.0.0]: https://github.com/Roberdan/convergio-cli/compare/v2.0.11...v3.0.0
 [2.0.11]: https://github.com/Roberdan/convergio-cli/compare/v2.0.10...v2.0.11
 [2.0.10]: https://github.com/Roberdan/convergio-cli/compare/v2.0.9...v2.0.10
 [2.0.9]: https://github.com/Roberdan/convergio-cli/compare/v2.0.8...v2.0.9
