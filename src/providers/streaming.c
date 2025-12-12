@@ -11,6 +11,7 @@
  */
 
 #include "nous/provider.h"
+#include "../auth/oauth.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -383,7 +384,12 @@ int stream_execute(StreamContext* ctx, const char* url, const char* body,
     char auth_header[256];
     switch (ctx->provider) {
         case PROVIDER_ANTHROPIC:
-            snprintf(auth_header, sizeof(auth_header), "x-api-key: %s", api_key);
+            // Use correct header based on auth mode (OAuth vs API key)
+            if (auth_get_mode() == AUTH_MODE_OAUTH) {
+                snprintf(auth_header, sizeof(auth_header), "Authorization: Bearer %s", api_key);
+            } else {
+                snprintf(auth_header, sizeof(auth_header), "x-api-key: %s", api_key);
+            }
             headers = curl_slist_append(headers, auth_header);
             headers = curl_slist_append(headers, "anthropic-version: 2024-01-01");
             break;
