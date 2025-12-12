@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.0.6] - 2025-12-12
+
+### Removed
+
+- **Status bar UI**: Completely removed cluttered status bar for cleaner interface
+
+### Fixed
+
+- **Auto-update URL parsing**: Fixed `browser_download_url` JSON parsing that was causing "No download URL found" errors in the update checker
+
+### Added
+
+- **Makefile release target**: Added `make release` target for streamlined release builds
+
 ## [3.0.5] - 2025-12-12
 
 ### Security
@@ -469,7 +483,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-[Unreleased]: https://github.com/Roberdan/convergio-cli/compare/v3.0.5...HEAD
+[Unreleased]: https://github.com/Roberdan/convergio-cli/compare/v3.0.6...HEAD
+[3.0.6]: https://github.com/Roberdan/convergio-cli/compare/v3.0.5...v3.0.6
 [3.0.5]: https://github.com/Roberdan/convergio-cli/compare/v3.0.4...v3.0.5
 [3.0.4]: https://github.com/Roberdan/convergio-cli/compare/v3.0.3...v3.0.4
 [3.0.3]: https://github.com/Roberdan/convergio-cli/compare/v3.0.2...v3.0.3
