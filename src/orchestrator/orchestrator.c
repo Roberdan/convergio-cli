@@ -10,6 +10,7 @@
  */
 
 #include "nous/orchestrator.h"
+#include "nous/updater.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -59,6 +60,41 @@ extern char* nous_claude_chat_with_tools(const char* system_prompt, const char* 
 
 // Embedded agents
 #include "nous/embedded_agents.h"
+
+// ============================================================================
+// ANTI-HALLUCINATION CONSTITUTION (MANDATORY FOR ALI AND ALL AGENTS)
+// ============================================================================
+// This constitution ensures brutal honesty and prevents hallucinations.
+// It is prepended to ALL agent prompts, including Ali.
+
+static const char* ALI_CONSTITUTION =
+    "## MANDATORY CONSTITUTION (NON-NEGOTIABLE)\n\n"
+    "**You are bound by this constitution. Violating it is unacceptable.**\n\n"
+    "### Rule 1: ABSOLUTE HONESTY\n"
+    "- NEVER fabricate, invent, or guess information\n"
+    "- NEVER pretend to have done something you haven't done\n"
+    "- NEVER claim capabilities you don't have\n"
+    "- If you don't know something, say \"I don't know\"\n"
+    "- If you're not 100% certain, explicitly state your uncertainty level\n\n"
+    "### Rule 2: UNCERTAINTY DISCLOSURE\n"
+    "- When uncertain, preface with: \"I'm not certain, but...\"\n"
+    "- When making assumptions, clearly state: \"I'm assuming...\"\n"
+    "- When guessing, say: \"This is my best guess...\"\n"
+    "- Distinguish clearly between facts you know and inferences you make\n\n"
+    "### Rule 3: SOURCE ATTRIBUTION\n"
+    "- If you read it from a file, say so\n"
+    "- If you searched for it, say so\n"
+    "- If you're inferring it, say so\n"
+    "- If it's from your training knowledge, acknowledge the cutoff date\n\n"
+    "### Rule 4: ERROR ACKNOWLEDGMENT\n"
+    "- If you make a mistake, immediately acknowledge it\n"
+    "- Never double down on errors\n"
+    "- Correct yourself promptly when wrong\n\n"
+    "### Rule 5: LIMITATION TRANSPARENCY\n"
+    "- State clearly what you cannot do\n"
+    "- Don't overpromise capabilities\n"
+    "- Recommend external resources when you've reached your limits\n\n"
+    "**END OF CONSTITUTION - Your specific role follows below:**\n\n";
 
 // ============================================================================
 // DYNAMIC AGENT LIST LOADER (using embedded agents)
@@ -175,6 +211,11 @@ static char* load_agent_list(void) {
 
 static const char* ALI_SYSTEM_PROMPT_TEMPLATE =
     "You are Ali, the Chief of Staff and master orchestrator for the Convergio ecosystem.\n\n"
+    "## System Information\n"
+    "- **Current date**: %s\n"
+    "- **Convergio version**: %s\n"
+    "- **Your model**: Claude Sonnet 4 (claude-sonnet-4-20250514)\n"
+    "- **Available agents**: %d specialists ready to assist\n\n"
     "## Working Directory\n"
     "**Current workspace**: `%s`\n"
     "All file operations and shell commands should use paths relative to this directory, or absolute paths within it.\n"
@@ -300,11 +341,26 @@ int orchestrator_init(double budget_limit_usd) {
         } else {
             g_orchestrator->ali->role = AGENT_ROLE_ORCHESTRATOR;
 
-            // Build system prompt with workspace and dynamic agent list
+            // Build system prompt with date, version, workspace, and dynamic agent list
             char* agent_list = load_agent_list();
             const char* workspace = tools_get_workspace();
             if (!workspace) workspace = ".";  // Fallback to current directory
-            size_t prompt_size = strlen(ALI_SYSTEM_PROMPT_TEMPLATE) + strlen(workspace) + strlen(agent_list) + 256;
+
+            // Get current date
+            time_t now = time(NULL);
+            struct tm* tm_info = localtime(&now);
+            char date_str[32];
+            strftime(date_str, sizeof(date_str), "%Y-%m-%d", tm_info);
+
+            // Get version
+            const char* version = convergio_get_version();
+
+            // Count agents (will be set properly after all agents are loaded)
+            int agent_count = 48;  // Approximate count
+
+            // CRITICAL: Include the anti-hallucination constitution in Ali's prompt
+            size_t constitution_len = strlen(ALI_CONSTITUTION);
+            size_t prompt_size = constitution_len + strlen(ALI_SYSTEM_PROMPT_TEMPLATE) + strlen(workspace) + strlen(agent_list) + strlen(date_str) + strlen(version) + 512;
             char* full_prompt = malloc(prompt_size);
             if (!full_prompt) {
                 free(g_orchestrator->ali->name);
@@ -312,7 +368,9 @@ int orchestrator_init(double budget_limit_usd) {
                 g_orchestrator->ali = NULL;
                 free(agent_list);
             } else {
-                snprintf(full_prompt, prompt_size, ALI_SYSTEM_PROMPT_TEMPLATE, workspace, agent_list);
+                // Prepend constitution, then add the role-specific prompt
+                memcpy(full_prompt, ALI_CONSTITUTION, constitution_len);
+                snprintf(full_prompt + constitution_len, prompt_size - constitution_len, ALI_SYSTEM_PROMPT_TEMPLATE, date_str, version, agent_count, workspace, agent_list);
                 g_orchestrator->ali->system_prompt = full_prompt;
                 free(agent_list);
 
