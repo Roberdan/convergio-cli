@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.0.4] - 2025-12-12
+
+### Fixed
+
+- **Update command error handling**: Now shows clear error messages instead of silent failures
+- **Homebrew detection**: When installed via Homebrew, redirects user to `brew upgrade convergio`
+- **Permission errors**: Clear messages when update fails due to filesystem permissions
+
 ## [3.0.3] - 2025-12-12
 
 ### Added
@@ -425,7 +433,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-[Unreleased]: https://github.com/Roberdan/convergio-cli/compare/v3.0.3...HEAD
+[Unreleased]: https://github.com/Roberdan/convergio-cli/compare/v3.0.4...HEAD
+[3.0.4]: https://github.com/Roberdan/convergio-cli/compare/v3.0.3...v3.0.4
 [3.0.3]: https://github.com/Roberdan/convergio-cli/compare/v3.0.2...v3.0.3
 [3.0.2]: https://github.com/Roberdan/convergio-cli/compare/v3.0.1...v3.0.2
 [3.0.1]: https://github.com/Roberdan/convergio-cli/compare/v3.0.0...v3.0.1
