@@ -640,11 +640,150 @@ static char* anthropic_chat_with_tools(Provider* self, const char* model, const 
                                        const char* user, ToolDefinition* tools, size_t tool_count,
                                        ToolCall** out_tool_calls, size_t* out_tool_count,
                                        TokenUsage* usage) {
-    // TODO: Implement tool calling support
-    // For now, fall back to regular chat
     if (out_tool_calls) *out_tool_calls = NULL;
     if (out_tool_count) *out_tool_count = 0;
-    return anthropic_chat(self, model, system, user, usage);
+
+    // If no tools, fall back to regular chat
+    if (!tools || tool_count == 0) {
+        return anthropic_chat(self, model, system, user, usage);
+    }
+
+    if (!self || !user) return NULL;
+
+    AnthropicProviderData* data = (AnthropicProviderData*)self->impl_data;
+    if (!data) return NULL;
+
+    if (!data->initialized) {
+        ProviderError err = anthropic_init(self);
+        if (err != PROVIDER_OK) return NULL;
+    }
+
+    CURL* curl = curl_easy_init();
+    if (!curl) {
+        data->last_error.code = PROVIDER_ERR_NETWORK;
+        data->last_error.message = strdup("Failed to create curl handle");
+        return NULL;
+    }
+
+    // Build tools JSON
+    char* tools_json = build_anthropic_tools_json(tools, tool_count);
+    if (!tools_json) {
+        curl_easy_cleanup(curl);
+        return NULL;
+    }
+
+    // Build JSON request with tools
+    char* escaped_system = json_escape(system ? system : "");
+    char* escaped_user = json_escape(user);
+
+    if (!escaped_system || !escaped_user) {
+        free(escaped_system);
+        free(escaped_user);
+        free(tools_json);
+        curl_easy_cleanup(curl);
+        return NULL;
+    }
+
+    const char* api_model = get_model_api_id(model);
+
+    size_t json_size = strlen(escaped_system) + strlen(escaped_user) + strlen(tools_json) + 2048;
+    char* json_body = malloc(json_size);
+    if (!json_body) {
+        free(escaped_system);
+        free(escaped_user);
+        free(tools_json);
+        curl_easy_cleanup(curl);
+        return NULL;
+    }
+
+    snprintf(json_body, json_size,
+        "{"
+        "\"model\": \"%s\","
+        "\"max_tokens\": %d,"
+        "\"system\": \"%s\","
+        "\"tools\": %s,"
+        "\"messages\": [{\"role\": \"user\", \"content\": \"%s\"}]"
+        "}",
+        api_model, DEFAULT_MAX_TOKENS, escaped_system, tools_json, escaped_user);
+
+    free(escaped_system);
+    free(escaped_user);
+    free(tools_json);
+
+    // Setup response buffer
+    ResponseBuffer response = {
+        .data = malloc(4096),
+        .size = 0,
+        .capacity = 4096
+    };
+    if (!response.data) {
+        free(json_body);
+        curl_easy_cleanup(curl);
+        return NULL;
+    }
+    response.data[0] = '\0';
+
+    // Build headers
+    char* auth_header = build_auth_header();
+    if (!auth_header) {
+        free(json_body);
+        free(response.data);
+        curl_easy_cleanup(curl);
+        data->last_error.code = PROVIDER_ERR_AUTH;
+        data->last_error.message = strdup("Failed to get authentication");
+        return NULL;
+    }
+
+    struct curl_slist* headers = NULL;
+    headers = curl_slist_append(headers, "Content-Type: application/json");
+    headers = curl_slist_append(headers, auth_header);
+    headers = curl_slist_append(headers, "anthropic-version: " ANTHROPIC_VERSION);
+    free(auth_header);
+
+    // Setup curl
+    curl_easy_setopt(curl, CURLOPT_URL, ANTHROPIC_API_URL);
+    curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
+    curl_easy_setopt(curl, CURLOPT_POSTFIELDS, json_body);
+    curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_callback);
+    curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response);
+    curl_easy_setopt(curl, CURLOPT_TIMEOUT, 120L);
+    curl_easy_setopt(curl, CURLOPT_NOPROGRESS, 0L);
+    curl_easy_setopt(curl, CURLOPT_XFERINFOFUNCTION, progress_callback);
+    curl_easy_setopt(curl, CURLOPT_XFERINFODATA, data);
+
+    data->request_cancelled = 0;
+
+    CURLcode res = curl_easy_perform(curl);
+
+    curl_slist_free_all(headers);
+    curl_easy_cleanup(curl);
+    free(json_body);
+
+    if (res != CURLE_OK) {
+        free(response.data);
+        data->last_error.code = PROVIDER_ERR_NETWORK;
+        data->last_error.message = strdup(curl_easy_strerror(res));
+        return NULL;
+    }
+
+    // Parse for tool calls
+    size_t tc_count = 0;
+    ToolCall* tc = parse_anthropic_tool_calls(response.data, &tc_count);
+    if (tc && tc_count > 0) {
+        if (out_tool_calls) *out_tool_calls = tc;
+        if (out_tool_count) *out_tool_count = tc_count;
+    }
+
+    // Extract text response
+    char* result = extract_response_text(response.data);
+    if (usage) {
+        memset(usage, 0, sizeof(TokenUsage));
+        extract_token_usage(response.data, usage);
+        usage->estimated_cost = model_estimate_cost(model, usage->input_tokens, usage->output_tokens);
+    }
+
+    free(response.data);
+    return result;
 }
 
 // Bridge context for streaming callbacks
