@@ -2,7 +2,7 @@
  * CONVERGIO KERNEL
  *
  * Main entry point and CLI interface
- * A semantic kernel for human-AI symbiosis
+ * Human purpose. AI momentum.
  * With Ali as Chief of Staff orchestrating all agents
  */
 
@@ -1361,18 +1361,18 @@ static void print_colored_char(const char* ch, int len, int col, int total_cols)
     float t = (float)col / (float)total_cols;
 
     int color;
-    if (t < 0.25f) {
-        color = 81;  // Light cyan
-    } else if (t < 0.40f) {
-        color = 75;  // Cyan-blue
-    } else if (t < 0.55f) {
-        color = 69;  // Blue
-    } else if (t < 0.70f) {
-        color = 105; // Blue-purple
-    } else if (t < 0.85f) {
-        color = 141; // Purple
+    if (t < 0.20f) {
+        color = 43;  // Teal (Convergio logo start)
+    } else if (t < 0.35f) {
+        color = 44;  // Turquoise
+    } else if (t < 0.50f) {
+        color = 80;  // Medium cyan
+    } else if (t < 0.65f) {
+        color = 99;  // Slate blue
+    } else if (t < 0.80f) {
+        color = 135; // Medium purple
     } else {
-        color = 175; // Pink
+        color = 170; // Magenta (Convergio logo end)
     }
 
     printf("\033[1m\033[38;5;%dm%.*s\033[0m", color, len, ch);
@@ -1434,9 +1434,8 @@ static void print_banner(void) {
     print_gradient_line("  ╚██████╗╚██████╔╝██║ ╚████║ ╚████╔╝ ███████╗██║  ██║╚██████╔╝██║╚██████╔╝");
     print_gradient_line("   ╚═════╝ ╚═════╝ ╚═╝  ╚═══╝  ╚═══╝  ╚══════╝╚═╝  ╚═╝ ╚═════╝ ╚═╝ ╚═════╝ ");
     printf("\n");
-    print_gradient_line("                          K E R N E L");
+    print_gradient_line("            Human purpose. AI momentum.");
     printf("\n");
-    printf("  %sA semantic kernel for human-AI symbiosis%s\n", dim, rst);
     printf("  %sv%s - Optimized for Apple Silicon%s\n", dim, convergio_get_version(), rst);
     printf("  %sDeveloped by Roberdan@FightTheStroke.org%s\n", dim, rst);
     printf("\n");
@@ -1468,7 +1467,7 @@ int main(int argc, char** argv) {
                 return 1;
             }
         } else if (strcmp(argv[i], "--help") == 0 || strcmp(argv[i], "-h") == 0) {
-            printf("Convergio - A semantic kernel for human-AI symbiosis\n\n");
+            printf("Convergio — Human purpose. AI momentum.\n\n");
             printf("Usage: convergio [OPTIONS] [COMMAND]\n\n");
             printf("Commands:\n");
             printf("  setup                   Configure API key and settings\n");
