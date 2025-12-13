@@ -1737,6 +1737,92 @@ Before declaring a release ready:
 2. **Contents**: Binary + README.md + LICENSE
 3. **SHA256**: Calculate and record for Homebrew formula
 
+### Binary Distribution Verification (MANDATORY)
+
+**⚠️ CRITICAL: These checks MUST pass BEFORE any release is published.**
+
+#### 16. Dynamic Library Dependencies Check
+```bash
+# After building release binary, verify NO external dynamic dependencies
+echo "=== Binary Dependencies Check ==="
+otool -L build/bin/convergio
+
+# Check for problematic dependencies (MUST BE ZERO)
+EXTERNAL_DEPS=$(otool -L build/bin/convergio | grep -E "/opt/homebrew|/usr/local" | grep -v "System" | wc -l)
+if [ "$EXTERNAL_DEPS" -gt 0 ]; then
+    echo "❌ RELEASE BLOCKED: Binary has external dynamic dependencies!"
+    otool -L build/bin/convergio | grep -E "/opt/homebrew|/usr/local"
+    echo ""
+    echo "FIX: Link libraries statically (use .a instead of -l flag)"
+    echo "Example: Change '-lcjson' to '/opt/homebrew/opt/cjson/lib/libcjson.a'"
+    exit 1
+fi
+
+# Verify only system libraries are linked
+ALLOWED_DEPS=$(otool -L build/bin/convergio | grep -E "/System/|/usr/lib/" | wc -l)
+echo "System dependencies: $ALLOWED_DEPS (OK)"
+echo "External dependencies: $EXTERNAL_DEPS (MUST BE 0)"
+
+# List all dependencies for verification
+echo ""
+echo "Full dependency list:"
+otool -L build/bin/convergio | tail -n +2
+```
+
+#### 17. Post-Release Binary Verification
+```bash
+# After GitHub Release is published, download and verify the tarball
+echo "=== Post-Release Binary Verification ==="
+VERSION=$(cat VERSION)
+TARBALL_URL="https://github.com/Roberdan/convergio-cli/releases/download/v${VERSION}/convergio-${VERSION}-arm64-apple-darwin.tar.gz"
+
+# Download and extract
+cd /tmp
+curl -sL "$TARBALL_URL" | tar xz
+
+# Verify binary works
+./convergio --version | grep "$VERSION" || (echo "❌ Version mismatch!" && exit 1)
+
+# Verify no external dependencies in released binary
+EXTERNAL_DEPS=$(otool -L ./convergio | grep -E "/opt/homebrew|/usr/local" | wc -l)
+if [ "$EXTERNAL_DEPS" -gt 0 ]; then
+    echo "❌ CRITICAL: Released binary has external dependencies!"
+    echo "Users will get dyld errors. DELETE THIS RELEASE IMMEDIATELY."
+    exit 1
+fi
+
+echo "✅ Released binary verified - no external dependencies"
+```
+
+#### 18. Homebrew Installation Simulation
+```bash
+# Verify the Homebrew formula will work for end users
+echo "=== Homebrew Formula Verification ==="
+
+# Check formula in tap repo
+gh api repos/Roberdan/homebrew-convergio-cli/contents/Formula/convergio.rb --jq '.content' | base64 -d > /tmp/formula.rb
+
+# Verify version matches
+FORMULA_VERSION=$(grep "version" /tmp/formula.rb | head -1 | grep -oE "[0-9]+\.[0-9]+\.[0-9]+")
+RELEASE_VERSION=$(cat VERSION)
+if [ "$FORMULA_VERSION" != "$RELEASE_VERSION" ]; then
+    echo "❌ Formula version ($FORMULA_VERSION) != Release version ($RELEASE_VERSION)"
+    exit 1
+fi
+
+# Verify SHA256 matches
+FORMULA_SHA=$(grep "sha256" /tmp/formula.rb | grep -oE "[a-f0-9]{64}")
+ACTUAL_SHA=$(curl -sL "$TARBALL_URL" | shasum -a 256 | cut -d' ' -f1)
+if [ "$FORMULA_SHA" != "$ACTUAL_SHA" ]; then
+    echo "❌ Formula SHA256 doesn't match tarball!"
+    echo "Formula: $FORMULA_SHA"
+    echo "Actual:  $ACTUAL_SHA"
+    exit 1
+fi
+
+echo "✅ Homebrew formula verified"
+```
+
 ### Homebrew Formula Update
 After creating GitHub Release:
 1. Calculate SHA256 of tarball: `shasum -a 256 convergio-*.tar.gz`
@@ -2195,6 +2281,14 @@ RUNTIME VERIFICATION
 --version works:             {required}   ACTUAL: {Y/N} → PASS/BLOCK
 --help works:                {required}   ACTUAL: {Y/N} → PASS/BLOCK
 Hardware detection:          {required}   ACTUAL: {Y/N} → PASS/BLOCK
+
+───────────────────────────────────────────────────────────────
+BINARY DISTRIBUTION (BLOCKING - PREVENTS DYLD ERRORS)
+───────────────────────────────────────────────────────────────
+External dylib deps:         {0 required} ACTUAL: {N} → PASS/BLOCK
+System-only dependencies:    {required}   ACTUAL: {Y/N} → PASS/BLOCK
+Homebrew formula valid:      {required}   ACTUAL: {Y/N} → PASS/BLOCK
+Released binary works:       {required}   ACTUAL: {Y/N} → PASS/BLOCK
 
 ───────────────────────────────────────────────────────────────
 ENGINEERING FUNDAMENTALS (ALL BLOCKING)
