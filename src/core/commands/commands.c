@@ -537,8 +537,15 @@ int cmd_help(int argc, char** argv) {
     printf("  \033[33mcompare\033[0m           Compare multiple models side-by-side\n");
     printf("  \033[33mbenchmark\033[0m         Benchmark a model's performance\n");
 
+    printf("\n\033[36mTalking to Agents:\033[0m\n");
+    printf("  \033[33m@ali\033[0m              Talk to Ali (Chief of Staff) - default\n");
+    printf("  \033[33m@jenny\033[0m            Talk to Jenny (or any agent name)\n");
+    printf("  \033[33m@marco hello\033[0m      Send message directly to Marco\n");
+    printf("  \033[33magents\033[0m            List all available agents\n");
+    printf("\n  \033[2mUse @ali to return to Ali from any other agent.\033[0m\n");
+    printf("  \033[2mThe prompt shows which agent(s) you're talking to.\033[0m\n");
+
     printf("\n\033[2mType 'help <command>' for detailed help on a specific command.\033[0m\n");
-    printf("\033[2mOr simply talk to Ali, your Chief of Staff.\033[0m\n\n");
 
     return 0;
 }
