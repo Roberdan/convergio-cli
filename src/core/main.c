@@ -513,9 +513,37 @@ int main(int argc, char** argv) {
         // Set blinking block cursor
         printf("\033[1 q");
 
-        // Check for active project
+        // Check for current agent and active project
+        ManagedAgent* current_agent = repl_get_current_agent();
         ConvergioProject* current_proj = project_current();
-        if (current_proj) {
+
+        // Format: Convergio [Project] @Agent > or Convergio @Agent > or Convergio >
+        if (current_agent && current_proj) {
+            // Extract short name (first part before hyphen)
+            char short_name[32];
+            strncpy(short_name, current_agent->name, sizeof(short_name) - 1);
+            char* hyphen = strchr(short_name, '-');
+            if (hyphen) *hyphen = '\0';
+            // Capitalize first letter
+            if (short_name[0] >= 'a' && short_name[0] <= 'z') {
+                short_name[0] -= 32;
+            }
+            snprintf(prompt, sizeof(prompt),
+                "\001%s\002Convergio\001\033[0m\002 \001\033[1;36m\002[%s]\001\033[0m\002 \001\033[1;33m\002@%s\001\033[0m\002 \001%s\002>\001\033[0m\002 \001%s\002",
+                t->prompt_name, current_proj->name, short_name, t->prompt_arrow, t->user_input);
+        } else if (current_agent) {
+            // Extract short name
+            char short_name[32];
+            strncpy(short_name, current_agent->name, sizeof(short_name) - 1);
+            char* hyphen = strchr(short_name, '-');
+            if (hyphen) *hyphen = '\0';
+            if (short_name[0] >= 'a' && short_name[0] <= 'z') {
+                short_name[0] -= 32;
+            }
+            snprintf(prompt, sizeof(prompt),
+                "\001%s\002Convergio\001\033[0m\002 \001\033[1;33m\002@%s\001\033[0m\002 \001%s\002>\001\033[0m\002 \001%s\002",
+                t->prompt_name, short_name, t->prompt_arrow, t->user_input);
+        } else if (current_proj) {
             // Show project name in prompt: Convergio [ProjectName] >
             snprintf(prompt, sizeof(prompt),
                 "\001%s\002Convergio\001\033[0m\002 \001\033[1;36m\002[%s]\001\033[0m\002 \001%s\002>\001\033[0m\002 \001%s\002",

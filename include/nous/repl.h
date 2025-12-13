@@ -9,6 +9,23 @@
 
 #include <stdbool.h>
 
+// Forward declaration
+struct ManagedAgent;
+typedef struct ManagedAgent ManagedAgent;
+
+// ============================================================================
+// CURRENT AGENT CONTEXT
+// ============================================================================
+
+// Get the current agent in conversation (NULL = Ali)
+ManagedAgent* repl_get_current_agent(void);
+
+// Set the current agent for conversation continuity
+void repl_set_current_agent(ManagedAgent* agent);
+
+// Clear current agent (return to Ali)
+void repl_clear_current_agent(void);
+
 // ============================================================================
 // REPL FUNCTIONS
 // ============================================================================

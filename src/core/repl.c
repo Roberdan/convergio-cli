@@ -54,6 +54,28 @@ static struct termios g_orig_termios;
 static StreamMd* g_stream_md = NULL;
 
 // ============================================================================
+// CURRENT AGENT CONTEXT
+// ============================================================================
+
+// Track which agent we're currently in conversation with (NULL = Ali)
+static ManagedAgent* g_current_agent = NULL;
+
+// Get the current agent (NULL means Ali is handling the conversation)
+ManagedAgent* repl_get_current_agent(void) {
+    return g_current_agent;
+}
+
+// Set the current agent for conversation continuity
+void repl_set_current_agent(ManagedAgent* agent) {
+    g_current_agent = agent;
+}
+
+// Clear current agent (return to Ali)
+void repl_clear_current_agent(void) {
+    g_current_agent = NULL;
+}
+
+// ============================================================================
 // READLINE COMPLETION FOR @AGENTS
 // ============================================================================
 
@@ -505,6 +527,9 @@ int repl_direct_agent_communication(const char* agent_name, const char* message)
         md_print(response);
         printf("\n");
         free(response);
+
+        // Set this agent as current for conversation continuity
+        repl_set_current_agent(agent);
     } else {
         printf(ANSI_BOLD ANSI_CYAN "%s" ANSI_RESET "\n\n", agent->name);
         printf("I couldn't respond. Please try again.\n");
@@ -592,6 +617,17 @@ int repl_parse_and_execute(char* line) {
         cmd_name++;  // Skip leading slash
     }
 
+    // Check for special commands to switch agents
+    if (strcmp(cmd_name, "ali") == 0 || strcmp(cmd_name, "back") == 0) {
+        if (g_current_agent) {
+            printf(ANSI_DIM "Returning to Ali..." ANSI_RESET "\n");
+            repl_clear_current_agent();
+        } else {
+            printf(ANSI_DIM "Already talking to Ali." ANSI_RESET "\n");
+        }
+        return 0;
+    }
+
     const ReplCommand* commands = commands_get_table();
     for (const ReplCommand* cmd = commands; cmd->name != NULL; cmd++) {
         if (strcmp(cmd_name, cmd->name) == 0) {
@@ -600,7 +636,12 @@ int repl_parse_and_execute(char* line) {
     }
 
     // Not a command, treat as natural language intent
-    // Reconstruct the original line
+    // If we have a current agent, continue with that agent
+    if (g_current_agent) {
+        return repl_direct_agent_communication(g_current_agent->name, line);
+    }
+
+    // Otherwise, go to Ali via orchestrator
     char* original = strdup(rl_line_buffer);
     int result = repl_process_natural_input(original);
     free(original);
