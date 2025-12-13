@@ -187,6 +187,24 @@ static const char* SCHEMA_SQL =
     "  FOREIGN KEY (to_id) REFERENCES semantic_nodes(id) ON DELETE CASCADE"
     ");"
 
+    // Checkpoint summaries for context compaction
+    "CREATE TABLE IF NOT EXISTS checkpoint_summaries ("
+    "  id INTEGER PRIMARY KEY AUTOINCREMENT,"
+    "  session_id TEXT NOT NULL,"
+    "  checkpoint_num INTEGER NOT NULL,"
+    "  from_message_id INTEGER NOT NULL,"
+    "  to_message_id INTEGER NOT NULL,"
+    "  messages_compressed INTEGER,"
+    "  summary_content TEXT NOT NULL,"
+    "  key_facts TEXT,"
+    "  original_tokens INTEGER,"
+    "  compressed_tokens INTEGER,"
+    "  compression_ratio REAL,"
+    "  summary_cost_usd REAL,"
+    "  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,"
+    "  UNIQUE(session_id, checkpoint_num)"
+    ");"
+
     // Indexes for performance
     "CREATE INDEX IF NOT EXISTS idx_messages_session ON messages(session_id);"
     "CREATE INDEX IF NOT EXISTS idx_messages_created ON messages(created_at);"
@@ -198,7 +216,8 @@ static const char* SCHEMA_SQL =
     "CREATE INDEX IF NOT EXISTS idx_nodes_context ON semantic_nodes(context_id);"
     "CREATE INDEX IF NOT EXISTS idx_relations_from ON semantic_relations(from_id);"
     "CREATE INDEX IF NOT EXISTS idx_relations_to ON semantic_relations(to_id);"
-    "CREATE INDEX IF NOT EXISTS idx_relations_type ON semantic_relations(relation_type);";
+    "CREATE INDEX IF NOT EXISTS idx_relations_type ON semantic_relations(relation_type);"
+    "CREATE INDEX IF NOT EXISTS idx_checkpoint_session ON checkpoint_summaries(session_id);";
 
 // ============================================================================
 // INITIALIZATION
@@ -1078,4 +1097,221 @@ char* persistence_get_or_create_session(void) {
 
     // No active session, create new one
     return persistence_create_session("default");
+}
+
+// ============================================================================
+// CHECKPOINT PERSISTENCE (for context compaction)
+// ============================================================================
+
+int persistence_save_checkpoint(
+    const char* session_id,
+    int checkpoint_num,
+    int64_t from_msg_id,
+    int64_t to_msg_id,
+    int messages_compressed,
+    const char* summary,
+    const char* key_facts,
+    size_t original_tokens,
+    size_t compressed_tokens,
+    double cost
+) {
+    if (!g_db || !session_id || !summary) return -1;
+
+    CONVERGIO_MUTEX_LOCK(&g_db_mutex);
+
+    const char* sql =
+        "INSERT OR REPLACE INTO checkpoint_summaries "
+        "(session_id, checkpoint_num, from_message_id, to_message_id, "
+        "messages_compressed, summary_content, key_facts, "
+        "original_tokens, compressed_tokens, compression_ratio, summary_cost_usd) "
+        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+
+    sqlite3_stmt* stmt;
+    int rc = sqlite3_prepare_v2(g_db, sql, -1, &stmt, NULL);
+    if (rc != SQLITE_OK) {
+        CONVERGIO_MUTEX_UNLOCK(&g_db_mutex);
+        return -1;
+    }
+
+    double ratio = (compressed_tokens > 0)
+        ? (double)original_tokens / compressed_tokens
+        : 1.0;
+
+    sqlite3_bind_text(stmt, 1, session_id, -1, SQLITE_STATIC);
+    sqlite3_bind_int(stmt, 2, checkpoint_num);
+    sqlite3_bind_int64(stmt, 3, from_msg_id);
+    sqlite3_bind_int64(stmt, 4, to_msg_id);
+    sqlite3_bind_int(stmt, 5, messages_compressed);
+    sqlite3_bind_text(stmt, 6, summary, -1, SQLITE_STATIC);
+    if (key_facts) {
+        sqlite3_bind_text(stmt, 7, key_facts, -1, SQLITE_STATIC);
+    } else {
+        sqlite3_bind_null(stmt, 7);
+    }
+    sqlite3_bind_int64(stmt, 8, (int64_t)original_tokens);
+    sqlite3_bind_int64(stmt, 9, (int64_t)compressed_tokens);
+    sqlite3_bind_double(stmt, 10, ratio);
+    sqlite3_bind_double(stmt, 11, cost);
+
+    rc = sqlite3_step(stmt);
+    sqlite3_finalize(stmt);
+
+    CONVERGIO_MUTEX_UNLOCK(&g_db_mutex);
+
+    return (rc == SQLITE_DONE) ? 0 : -1;
+}
+
+char* persistence_load_latest_checkpoint(const char* session_id) {
+    if (!g_db || !session_id) return NULL;
+
+    CONVERGIO_MUTEX_LOCK(&g_db_mutex);
+
+    const char* sql =
+        "SELECT summary_content FROM checkpoint_summaries "
+        "WHERE session_id = ? ORDER BY checkpoint_num DESC LIMIT 1";
+
+    sqlite3_stmt* stmt;
+    int rc = sqlite3_prepare_v2(g_db, sql, -1, &stmt, NULL);
+    if (rc != SQLITE_OK) {
+        CONVERGIO_MUTEX_UNLOCK(&g_db_mutex);
+        return NULL;
+    }
+
+    sqlite3_bind_text(stmt, 1, session_id, -1, SQLITE_STATIC);
+
+    char* summary = NULL;
+    if (sqlite3_step(stmt) == SQLITE_ROW) {
+        const char* text = (const char*)sqlite3_column_text(stmt, 0);
+        if (text) summary = strdup(text);
+    }
+
+    sqlite3_finalize(stmt);
+    CONVERGIO_MUTEX_UNLOCK(&g_db_mutex);
+
+    return summary;
+}
+
+int persistence_get_checkpoint_count(const char* session_id) {
+    if (!g_db || !session_id) return 0;
+
+    CONVERGIO_MUTEX_LOCK(&g_db_mutex);
+
+    const char* sql =
+        "SELECT COUNT(*) FROM checkpoint_summaries WHERE session_id = ?";
+
+    sqlite3_stmt* stmt;
+    int rc = sqlite3_prepare_v2(g_db, sql, -1, &stmt, NULL);
+    if (rc != SQLITE_OK) {
+        CONVERGIO_MUTEX_UNLOCK(&g_db_mutex);
+        return 0;
+    }
+
+    sqlite3_bind_text(stmt, 1, session_id, -1, SQLITE_STATIC);
+
+    int count = 0;
+    if (sqlite3_step(stmt) == SQLITE_ROW) {
+        count = sqlite3_column_int(stmt, 0);
+    }
+
+    sqlite3_finalize(stmt);
+    CONVERGIO_MUTEX_UNLOCK(&g_db_mutex);
+
+    return count;
+}
+
+char* persistence_load_messages_range(
+    const char* session_id,
+    int64_t from_id,
+    int64_t to_id,
+    size_t* out_count
+) {
+    if (!g_db || !session_id || !out_count) return NULL;
+
+    CONVERGIO_MUTEX_LOCK(&g_db_mutex);
+
+    const char* sql =
+        "SELECT sender_name, content FROM messages "
+        "WHERE session_id = ? AND id >= ? AND id <= ? "
+        "ORDER BY created_at ASC";
+
+    sqlite3_stmt* stmt;
+    int rc = sqlite3_prepare_v2(g_db, sql, -1, &stmt, NULL);
+    if (rc != SQLITE_OK) {
+        CONVERGIO_MUTEX_UNLOCK(&g_db_mutex);
+        return NULL;
+    }
+
+    sqlite3_bind_text(stmt, 1, session_id, -1, SQLITE_STATIC);
+    sqlite3_bind_int64(stmt, 2, from_id);
+    sqlite3_bind_int64(stmt, 3, to_id);
+
+    size_t capacity = 32768;
+    char* result = malloc(capacity);
+    if (!result) {
+        sqlite3_finalize(stmt);
+        CONVERGIO_MUTEX_UNLOCK(&g_db_mutex);
+        return NULL;
+    }
+    result[0] = '\0';
+    size_t len = 0;
+    size_t count = 0;
+
+    while (sqlite3_step(stmt) == SQLITE_ROW) {
+        const char* role = (const char*)sqlite3_column_text(stmt, 0);
+        const char* content = (const char*)sqlite3_column_text(stmt, 1);
+
+        if (!role || !content) continue;
+
+        size_t needed = strlen(role) + strlen(content) + 10;
+        if (len + needed >= capacity) {
+            capacity *= 2;
+            result = realloc(result, capacity);
+            if (!result) break;
+        }
+
+        len += snprintf(result + len, capacity - len, "[%s]: %s\n\n", role, content);
+        count++;
+    }
+
+    sqlite3_finalize(stmt);
+    CONVERGIO_MUTEX_UNLOCK(&g_db_mutex);
+
+    *out_count = count;
+    return result;
+}
+
+int persistence_get_message_id_range(
+    const char* session_id,
+    int64_t* out_first,
+    int64_t* out_last
+) {
+    if (!g_db || !session_id || !out_first || !out_last) return -1;
+
+    CONVERGIO_MUTEX_LOCK(&g_db_mutex);
+
+    const char* sql =
+        "SELECT MIN(id), MAX(id) FROM messages WHERE session_id = ?";
+
+    sqlite3_stmt* stmt;
+    int rc = sqlite3_prepare_v2(g_db, sql, -1, &stmt, NULL);
+    if (rc != SQLITE_OK) {
+        CONVERGIO_MUTEX_UNLOCK(&g_db_mutex);
+        return -1;
+    }
+
+    sqlite3_bind_text(stmt, 1, session_id, -1, SQLITE_STATIC);
+
+    int result = -1;
+    if (sqlite3_step(stmt) == SQLITE_ROW) {
+        if (sqlite3_column_type(stmt, 0) != SQLITE_NULL) {
+            *out_first = sqlite3_column_int64(stmt, 0);
+            *out_last = sqlite3_column_int64(stmt, 1);
+            result = 0;
+        }
+    }
+
+    sqlite3_finalize(stmt);
+    CONVERGIO_MUTEX_UNLOCK(&g_db_mutex);
+
+    return result;
 }
