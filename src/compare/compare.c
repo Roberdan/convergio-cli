@@ -150,6 +150,13 @@ int compare_models(const char* prompt, const char* system,
         return -1;
     }
 
+    // Ensure provider registry is initialized
+    ProviderError reg_err = provider_registry_init();
+    if (reg_err != PROVIDER_OK) {
+        LOG_ERROR(LOG_CAT_SYSTEM, "Failed to initialize provider registry");
+        return -1;
+    }
+
     // Use default options if not provided
     CompareOptions opts = options ? *options : compare_options_default();
 
@@ -204,6 +211,13 @@ int benchmark_model(const char* prompt, const char* system,
                     CompareResult* result) {
     if (!prompt || !model || iterations == 0 || !result) {
         LOG_ERROR(LOG_CAT_SYSTEM, "Invalid arguments to benchmark_model");
+        return -1;
+    }
+
+    // Ensure provider registry is initialized
+    ProviderError reg_err = provider_registry_init();
+    if (reg_err != PROVIDER_OK) {
+        LOG_ERROR(LOG_CAT_SYSTEM, "Failed to initialize provider registry");
         return -1;
     }
 

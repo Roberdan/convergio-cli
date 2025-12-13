@@ -8,6 +8,7 @@
  */
 
 #include "nous/provider.h"
+#include "nous/model_loader.h"
 #include "nous/nous.h"
 #include <stdlib.h>
 #include <string.h>
@@ -27,54 +28,38 @@ static pthread_mutex_t g_registry_mutex = PTHREAD_MUTEX_INITIALIZER;
 // BUILT-IN MODEL CONFIGURATIONS (December 2025)
 // ============================================================================
 
-// Anthropic Models
+// Anthropic Models (December 2025)
 static ModelConfig g_anthropic_models[] = {
     {
-        .id = "claude-opus-4",
+        .id = "claude-opus-4.5",
         .display_name = "Claude Opus 4.5",
         .provider = PROVIDER_ANTHROPIC,
         .input_cost_per_mtok = 15.0,
         .output_cost_per_mtok = 75.0,
         .thinking_cost_per_mtok = 40.0,
         .context_window = 200000,
-        .max_output = 8192,
+        .max_output = 32000,
         .supports_tools = true,
         .supports_vision = true,
         .supports_streaming = true,
         .tier = COST_TIER_PREMIUM,
-        .released = "2025-02-01",
+        .released = "2025-11-01",
         .deprecated = false
     },
     {
-        .id = "claude-sonnet-4",
+        .id = "claude-sonnet-4.5",
         .display_name = "Claude Sonnet 4.5",
         .provider = PROVIDER_ANTHROPIC,
         .input_cost_per_mtok = 3.0,
         .output_cost_per_mtok = 15.0,
         .thinking_cost_per_mtok = 0.0,
         .context_window = 1000000,
-        .max_output = 8192,
+        .max_output = 64000,
         .supports_tools = true,
         .supports_vision = true,
         .supports_streaming = true,
         .tier = COST_TIER_MID,
-        .released = "2025-05-01",
-        .deprecated = false
-    },
-    {
-        .id = "claude-sonnet-4",
-        .display_name = "Claude Sonnet 4",
-        .provider = PROVIDER_ANTHROPIC,
-        .input_cost_per_mtok = 3.0,
-        .output_cost_per_mtok = 15.0,
-        .thinking_cost_per_mtok = 0.0,
-        .context_window = 200000,
-        .max_output = 8192,
-        .supports_tools = true,
-        .supports_vision = true,
-        .supports_streaming = true,
-        .tier = COST_TIER_MID,
-        .released = "2025-05-01",
+        .released = "2025-09-29",
         .deprecated = false
     },
     {
@@ -87,39 +72,39 @@ static ModelConfig g_anthropic_models[] = {
         .context_window = 200000,
         .max_output = 8192,
         .supports_tools = true,
-        .supports_vision = false,
+        .supports_vision = true,
         .supports_streaming = true,
         .tier = COST_TIER_CHEAP,
-        .released = "2025-03-01",
+        .released = "2025-10-01",
         .deprecated = false
     }
 };
 static size_t g_anthropic_model_count = sizeof(g_anthropic_models) / sizeof(g_anthropic_models[0]);
 
-// OpenAI Models
+// OpenAI Models (December 2025) - IDs match JSON config
 static ModelConfig g_openai_models[] = {
     {
-        .id = "gpt-4o",
+        .id = "gpt-5.2-pro",
         .display_name = "GPT-5.2 Pro",
         .provider = PROVIDER_OPENAI,
         .input_cost_per_mtok = 5.0,
-        .output_cost_per_mtok = 20.0,
+        .output_cost_per_mtok = 30.0,
         .thinking_cost_per_mtok = 0.0,
         .context_window = 400000,
         .max_output = 128000,
         .supports_tools = true,
         .supports_vision = true,
         .supports_streaming = true,
-        .tier = COST_TIER_MID,
-        .released = "2025-12-01",
+        .tier = COST_TIER_PREMIUM,
+        .released = "2025-12-11",
         .deprecated = false
     },
     {
-        .id = "o1",
+        .id = "gpt-5.2",
         .display_name = "GPT-5.2 Thinking",
         .provider = PROVIDER_OPENAI,
-        .input_cost_per_mtok = 2.5,
-        .output_cost_per_mtok = 15.0,
+        .input_cost_per_mtok = 1.75,
+        .output_cost_per_mtok = 14.0,
         .thinking_cost_per_mtok = 0.0,
         .context_window = 400000,
         .max_output = 128000,
@@ -127,15 +112,15 @@ static ModelConfig g_openai_models[] = {
         .supports_vision = true,
         .supports_streaming = true,
         .tier = COST_TIER_MID,
-        .released = "2025-12-01",
+        .released = "2025-12-11",
         .deprecated = false
     },
     {
-        .id = "gpt-4o-mini",
+        .id = "gpt-5.2-instant",
         .display_name = "GPT-5.2 Instant",
         .provider = PROVIDER_OPENAI,
-        .input_cost_per_mtok = 1.25,
-        .output_cost_per_mtok = 10.0,
+        .input_cost_per_mtok = 0.50,
+        .output_cost_per_mtok = 2.0,
         .thinking_cost_per_mtok = 0.0,
         .context_window = 400000,
         .max_output = 128000,
@@ -143,39 +128,7 @@ static ModelConfig g_openai_models[] = {
         .supports_vision = true,
         .supports_streaming = true,
         .tier = COST_TIER_CHEAP,
-        .released = "2025-12-01",
-        .deprecated = false
-    },
-    {
-        .id = "gpt-4o",
-        .display_name = "GPT-5",
-        .provider = PROVIDER_OPENAI,
-        .input_cost_per_mtok = 1.25,
-        .output_cost_per_mtok = 10.0,
-        .thinking_cost_per_mtok = 0.0,
-        .context_window = 256000,
-        .max_output = 64000,
-        .supports_tools = true,
-        .supports_vision = true,
-        .supports_streaming = true,
-        .tier = COST_TIER_CHEAP,
-        .released = "2025-06-01",
-        .deprecated = false
-    },
-    {
-        .id = "gpt-4o",
-        .display_name = "GPT-4o",
-        .provider = PROVIDER_OPENAI,
-        .input_cost_per_mtok = 5.0,
-        .output_cost_per_mtok = 15.0,
-        .thinking_cost_per_mtok = 0.0,
-        .context_window = 128000,
-        .max_output = 16384,
-        .supports_tools = true,
-        .supports_vision = true,
-        .supports_streaming = true,
-        .tier = COST_TIER_MID,
-        .released = "2024-05-01",
+        .released = "2025-12-11",
         .deprecated = false
     },
     {
@@ -185,45 +138,77 @@ static ModelConfig g_openai_models[] = {
         .input_cost_per_mtok = 10.0,
         .output_cost_per_mtok = 40.0,
         .thinking_cost_per_mtok = 0.0,
-        .context_window = 128000,
-        .max_output = 32000,
+        .context_window = 200000,
+        .max_output = 100000,
         .supports_tools = true,
         .supports_vision = true,
         .supports_streaming = true,
         .tier = COST_TIER_PREMIUM,
-        .released = "2025-01-01",
+        .released = "2025-04-16",
+        .deprecated = false
+    },
+    {
+        .id = "o3-mini",
+        .display_name = "o3-mini",
+        .provider = PROVIDER_OPENAI,
+        .input_cost_per_mtok = 1.10,
+        .output_cost_per_mtok = 4.40,
+        .thinking_cost_per_mtok = 0.0,
+        .context_window = 200000,
+        .max_output = 100000,
+        .supports_tools = true,
+        .supports_vision = false,
+        .supports_streaming = true,
+        .tier = COST_TIER_MID,
+        .released = "2025-01-31",
         .deprecated = false
     },
     {
         .id = "o4-mini",
         .display_name = "o4-mini",
         .provider = PROVIDER_OPENAI,
-        .input_cost_per_mtok = 0.15,
-        .output_cost_per_mtok = 0.60,
+        .input_cost_per_mtok = 1.10,
+        .output_cost_per_mtok = 4.40,
         .thinking_cost_per_mtok = 0.0,
-        .context_window = 128000,
-        .max_output = 16384,
+        .context_window = 200000,
+        .max_output = 100000,
+        .supports_tools = true,
+        .supports_vision = true,
+        .supports_streaming = true,
+        .tier = COST_TIER_MID,
+        .released = "2025-04-16",
+        .deprecated = false
+    },
+    {
+        .id = "gpt-4.1",
+        .display_name = "GPT-4.1",
+        .provider = PROVIDER_OPENAI,
+        .input_cost_per_mtok = 2.0,
+        .output_cost_per_mtok = 8.0,
+        .thinking_cost_per_mtok = 0.0,
+        .context_window = 1000000,
+        .max_output = 32768,
+        .supports_tools = true,
+        .supports_vision = true,
+        .supports_streaming = true,
+        .tier = COST_TIER_MID,
+        .released = "2025-04-14",
+        .deprecated = false
+    },
+    {
+        .id = "gpt-4.1-mini",
+        .display_name = "GPT-4.1 mini",
+        .provider = PROVIDER_OPENAI,
+        .input_cost_per_mtok = 0.40,
+        .output_cost_per_mtok = 1.60,
+        .thinking_cost_per_mtok = 0.0,
+        .context_window = 1000000,
+        .max_output = 32768,
         .supports_tools = true,
         .supports_vision = true,
         .supports_streaming = true,
         .tier = COST_TIER_CHEAP,
-        .released = "2025-04-01",
-        .deprecated = false
-    },
-    {
-        .id = "gpt-4o-mini",
-        .display_name = "GPT-5 Nano",
-        .provider = PROVIDER_OPENAI,
-        .input_cost_per_mtok = 0.05,
-        .output_cost_per_mtok = 0.40,
-        .thinking_cost_per_mtok = 0.0,
-        .context_window = 128000,
-        .max_output = 16384,
-        .supports_tools = true,
-        .supports_vision = false,
-        .supports_streaming = true,
-        .tier = COST_TIER_CHEAP,
-        .released = "2025-09-01",
+        .released = "2025-04-14",
         .deprecated = false
     }
 };
@@ -705,6 +690,59 @@ static ModelConfig* find_model_in_array(const char* model_id, ModelConfig* model
     return NULL;
 }
 
+// Convert provider name string to ProviderType
+static ProviderType provider_name_to_type(const char* name) {
+    if (!name) return PROVIDER_COUNT;
+    if (strcmp(name, "anthropic") == 0) return PROVIDER_ANTHROPIC;
+    if (strcmp(name, "openai") == 0) return PROVIDER_OPENAI;
+    if (strcmp(name, "gemini") == 0) return PROVIDER_GEMINI;
+    if (strcmp(name, "openrouter") == 0) return PROVIDER_OPENROUTER;
+    if (strcmp(name, "ollama") == 0) return PROVIDER_OLLAMA;
+    return PROVIDER_COUNT;
+}
+
+// Convert tier string to CostTier
+static CostTier tier_string_to_enum(const char* tier) {
+    if (!tier) return COST_TIER_MID;
+    if (strcmp(tier, "premium") == 0) return COST_TIER_PREMIUM;
+    if (strcmp(tier, "mid") == 0) return COST_TIER_MID;
+    if (strcmp(tier, "cheap") == 0) return COST_TIER_CHEAP;
+    return COST_TIER_MID;
+}
+
+// Static storage for JSON-loaded model (converted to ModelConfig)
+// We use a small cache to avoid repeated conversions
+#define JSON_MODEL_CACHE_SIZE 8
+static ModelConfig g_json_model_cache[JSON_MODEL_CACHE_SIZE];
+static size_t g_json_cache_index = 0;
+
+// Convert JsonModelConfig to ModelConfig (returns pointer to static storage)
+static const ModelConfig* json_to_model_config(const JsonModelConfig* json, const char* provider_name) {
+    if (!json) return NULL;
+
+    // Use circular buffer for cache
+    ModelConfig* cfg = &g_json_model_cache[g_json_cache_index];
+    g_json_cache_index = (g_json_cache_index + 1) % JSON_MODEL_CACHE_SIZE;
+
+    // Copy data (note: id and display_name point to JSON loader's memory)
+    cfg->id = json->id;
+    cfg->display_name = json->display_name;
+    cfg->provider = provider_name_to_type(provider_name);
+    cfg->input_cost_per_mtok = json->input_cost;
+    cfg->output_cost_per_mtok = json->output_cost;
+    cfg->thinking_cost_per_mtok = json->thinking_cost;
+    cfg->context_window = json->context_window;
+    cfg->max_output = json->max_output;
+    cfg->supports_tools = json->supports_tools;
+    cfg->supports_vision = json->supports_vision;
+    cfg->supports_streaming = json->supports_streaming;
+    cfg->tier = tier_string_to_enum(json->tier);
+    cfg->released = json->released;
+    cfg->deprecated = json->deprecated;
+
+    return cfg;
+}
+
 const ModelConfig* model_get_config(const char* model_id) {
     if (!model_id) return NULL;
 
@@ -712,6 +750,14 @@ const ModelConfig* model_get_config(const char* model_id) {
     const char* slash = strchr(model_id, '/');
     const char* actual_id = slash ? slash + 1 : model_id;
 
+    // FIRST: Try JSON loader (single source of truth)
+    const JsonModelConfig* json_model = models_get_json_model(actual_id);
+    if (json_model) {
+        const char* provider_name = models_get_model_provider(actual_id);
+        return json_to_model_config(json_model, provider_name);
+    }
+
+    // FALLBACK: Search in hardcoded arrays (for when JSON is not available)
     // Determine provider from prefix if present
     ProviderType hint = PROVIDER_COUNT;  // Invalid, search all
     if (slash) {

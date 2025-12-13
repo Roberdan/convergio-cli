@@ -252,7 +252,9 @@ int main(int argc, char** argv) {
             printf("Usage: convergio [OPTIONS] [COMMAND]\n\n");
             printf("Commands:\n");
             printf("  setup                   Configure API key and settings\n");
-            printf("  update [check|install]  Check for or install updates\n\n");
+            printf("  update [check|install]  Check for or install updates\n");
+            printf("  compare \"<prompt>\"      Compare responses from multiple AI models\n");
+            printf("  benchmark [model]       Benchmark a model's response time\n\n");
             printf("Options:\n");
             printf("  -w, --workspace <path>  Set workspace directory (default: current dir)\n");
             printf("  -d, --debug             Enable debug logging\n");
@@ -272,6 +274,26 @@ int main(int argc, char** argv) {
                 return convergio_cmd_update_install();
             }
             return convergio_cmd_update_check();
+        } else if (strcmp(argv[i], "compare") == 0) {
+            // CLI compare mode
+            // Initialize minimal systems needed for compare
+            convergio_config_init();
+            auth_init();
+            // Pass remaining args to compare command
+            // cmd_compare expects (argc, argv) where argv[0] is "compare"
+            // If no prompt provided, it shows help
+            int cmd_argc = argc - i;
+            char** cmd_argv = &argv[i];
+            return cmd_compare(cmd_argc, cmd_argv);
+        } else if (strcmp(argv[i], "benchmark") == 0) {
+            // CLI benchmark mode
+            // Initialize minimal systems
+            convergio_config_init();
+            auth_init();
+            // Pass remaining args to benchmark command
+            int cmd_argc = argc - i;
+            char** cmd_argv = &argv[i];
+            return cmd_benchmark(cmd_argc, cmd_argv);
         }
     }
 

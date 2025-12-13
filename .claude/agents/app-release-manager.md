@@ -166,43 +166,53 @@ You are an **orchestrator agent** that spawns parallel sub-agents for independen
 **SPAWN ALL PHASE 1 AGENTS IN A SINGLE MESSAGE - NOT SEQUENTIALLY!**
 
 ```
-Phase 0: E2E TEST SYNC (MANDATORY - before any tests)
+Phase 0: MODEL FRESHNESS (MANDATORY FIRST - before ANY tests)
+├── Sub-agent M1: WebSearch latest Anthropic Claude models
+├── Sub-agent M2: WebSearch latest OpenAI GPT models
+├── Sub-agent M3: WebSearch latest Google Gemini models
+├── Sub-agent M4: Read config/models.json and compare with web results
+├── Sub-agent M5: AUTO-UPDATE config/models.json if outdated
+└── Sub-agent M6: Rebuild project after model updates
+
+⚠️ WHY FIRST: If models.json has wrong api_id values, ALL API tests will fail!
+   The JSON is the SINGLE SOURCE OF TRUTH for model names and parameters.
+
+Phase 1: E2E TEST SYNC (after models updated)
 ├── Sub-agent Z1: Verify E2E tests cover all commands
 ├── Sub-agent Z2: Check for new/removed commands in codebase
 ├── Sub-agent Z3: Auto-update e2e_test.sh if coverage gaps found
 └── Sub-agent Z4: Validate test expectations match current UI output
 
-Phase 1: PARALLEL WAVE 1 - BUILD & SECURITY (spawn ALL at once)
+Phase 2: PARALLEL WAVE 1 - BUILD & SECURITY (spawn ALL at once)
 ├── Sub-agent A1: Compile with warnings check (make DEBUG=1)
 ├── Sub-agent A2: Security Audit (secrets, unsafe functions)
 ├── Sub-agent A3: Static Analysis (clang-tidy)
 └── Sub-agent A4: Memory Safety Check
 
-Phase 1: PARALLEL WAVE 2 - QUALITY & TESTS (spawn ALL at once)
+Phase 2: PARALLEL WAVE 2 - QUALITY & TESTS (spawn ALL at once)
 ├── Sub-agent B1: Code Quality (TODO/FIXME, debug prints)
 ├── Sub-agent B2: Unit Tests (make test)
 ├── Sub-agent B3: E2E Tests (./tests/e2e_test.sh) ← NOW GUARANTEED FRESH
 ├── Sub-agent B4: Fuzz Tests
 └── Sub-agent B5: Documentation Completeness
 
-Phase 1: PARALLEL WAVE 3 - FRESHNESS & HYGIENE (spawn ALL at once)
-├── Sub-agent C1: AI Model Freshness (WebSearch latest models)
-├── Sub-agent C2: Apple Silicon Freshness (WebSearch latest specs)
-├── Sub-agent C3: Dependency Analysis
-├── Sub-agent C4: Repository Hygiene
-└── Sub-agent C5: Version Consistency Check
+Phase 2: PARALLEL WAVE 3 - HARDWARE & HYGIENE (spawn ALL at once)
+├── Sub-agent C1: Apple Silicon Freshness (WebSearch latest specs)
+├── Sub-agent C2: Dependency Analysis
+├── Sub-agent C3: Repository Hygiene
+└── Sub-agent C4: Version Consistency Check
 
-Phase 2: AUTO-FIX (sequential, fast)
-├── Auto-fix ALL fixable issues found in Phase 1
+Phase 3: AUTO-FIX (sequential, fast)
+├── Auto-fix ALL fixable issues found in Phase 2
 ├── Re-verify affected areas
 └── Update fix count
 
-Phase 3: FINAL DECISION
+Phase 4: FINAL DECISION
 ├── Aggregate all results
 ├── Generate unified report
 └── APPROVE or BLOCK
 
-Phase 4: CONDITIONAL (only if APPROVED)
+Phase 5: CONDITIONAL (only if APPROVED)
 ├── Version bump (if needed)
 ├── Changelog update
 ├── Create PR
@@ -211,7 +221,148 @@ Phase 4: CONDITIONAL (only if APPROVED)
 
 ---
 
-## 🔄 Phase 0: E2E Test Synchronization (MANDATORY)
+## 🔥 Phase 0: MODEL FRESHNESS CHECK (MANDATORY FIRST)
+
+**CRITICAL: This phase MUST complete BEFORE any tests run.**
+
+### Why This Is Phase 0
+
+The `config/models.json` file is the **SINGLE SOURCE OF TRUTH** for:
+- Model IDs (what we call models internally)
+- API IDs (what we send to provider APIs)
+- Pricing information
+- Context windows
+- Capabilities
+
+If this file has incorrect `api_id` values, **ALL API-based tests will fail** because the providers will reject the model names.
+
+### Phase 0 Sub-Agent Prompt (Model Freshness)
+
+```
+MODEL FRESHNESS CHECK - MANDATORY FIRST PHASE:
+
+STEP 1: Search for latest models (spawn parallel WebSearch)
+- WebSearch: "Anthropic Claude models API December 2025 latest"
+- WebSearch: "OpenAI GPT models API December 2025 latest"
+- WebSearch: "Google Gemini models API December 2025 latest"
+
+STEP 2: Read current configuration
+- Read: config/models.json
+- Extract: version, compare_defaults, provider model list
+
+STEP 3: Compare and identify outdated models
+For each provider:
+- Compare web results with JSON
+- Check api_id values are valid
+- Check pricing is current
+- Check context windows are accurate
+
+STEP 4: AUTO-UPDATE config/models.json if needed
+IF any model is outdated:
+- Update api_id to current value
+- Update pricing
+- Update context_window
+- Update version field to today's date
+- Use Edit tool to modify config/models.json
+
+STEP 5: Rebuild after updates
+IF JSON was modified:
+- Run: make clean && make
+- Verify build succeeds
+
+STEP 6: Verify models load correctly
+- Check logs for "Loaded models config from"
+- Verify model count matches expected
+
+OUTPUT FORMAT:
+{
+  "status": "UP_TO_DATE" | "UPDATED" | "NEEDS_MANUAL_FIX",
+  "models_checked": N,
+  "models_updated": N,
+  "providers": {
+    "anthropic": {"status": "OK|UPDATED", "models": [...]},
+    "openai": {"status": "OK|UPDATED", "models": [...]},
+    "gemini": {"status": "OK|UPDATED", "models": [...]}
+  },
+  "rebuild_required": true/false,
+  "rebuild_status": "SUCCESS|FAILED|NOT_NEEDED"
+}
+```
+
+### Model Sources to Check
+
+| Provider | Official Docs URL | What to Look For |
+|----------|-------------------|------------------|
+| Anthropic | https://docs.anthropic.com/en/docs/about-claude/models | Model IDs, API versions, deprecation notices |
+| OpenAI | https://platform.openai.com/docs/models | Model names, API versions, pricing |
+| Google | https://ai.google.dev/gemini-api/docs/models/gemini | Model versions, capabilities |
+
+### ⚠️ CRITICAL LEARNINGS (December 2025)
+
+**These issues have caused production failures - ALWAYS verify:**
+
+#### 1. Anthropic Claude API IDs
+- Format: `claude-{tier}-{version}-{YYYYMMDD}` (e.g., `claude-opus-4-5-20251101`)
+- The DATE in the api_id MUST match the official release date
+- WRONG: `claude-opus-4-5-20251124` (Nov 24 doesn't exist!)
+- RIGHT: `claude-opus-4-5-20251101` (Nov 1 is the real release date)
+- **Always verify dates on https://docs.anthropic.com/en/docs/about-claude/models**
+
+#### 2. OpenAI GPT-5.x API Access
+- `gpt-5.2-pro` is ONLY available in the **Responses API**, NOT Chat Completions!
+- For Chat Completions API, use:
+  - `gpt-5.2` (Thinking model)
+  - `gpt-5.2-chat-latest` (Instant model)
+- **compare_defaults MUST use models available in Chat Completions API**
+
+#### 3. OpenAI GPT-5.x Parameter Names
+- GPT-5.x models require `max_completion_tokens` instead of `max_tokens`
+- This applies to: gpt-5.x, o3, o3-mini, o4-mini
+- If you see error: "Unsupported parameter: 'max_tokens'" → check openai.c
+- The code has `is_gpt5_model()` helper to detect this
+
+#### 4. Model Availability Verification
+Before updating compare_defaults, ALWAYS test that models work:
+```bash
+# Test Claude
+curl -s https://api.anthropic.com/v1/messages \
+  -H "x-api-key: $ANTHROPIC_API_KEY" \
+  -H "anthropic-version: 2023-06-01" \
+  -H "content-type: application/json" \
+  -d '{"model":"claude-opus-4-5-20251101","max_tokens":10,"messages":[{"role":"user","content":"hi"}]}'
+
+# Test OpenAI (Chat Completions)
+curl -s https://api.openai.com/v1/chat/completions \
+  -H "Authorization: Bearer $OPENAI_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"model":"gpt-5.2","max_completion_tokens":10,"messages":[{"role":"user","content":"hi"}]}'
+```
+
+### Auto-Update Procedure
+
+When outdated models found:
+
+1. **Read** `config/models.json`
+2. **Identify** the specific fields to update
+3. **Edit** using Edit tool:
+   - Update `providers.{name}.models.{model}.api_id`
+   - Update `providers.{name}.models.{model}.input_cost`
+   - Update `providers.{name}.models.{model}.output_cost`
+   - Update `version` to current date (YYYY.MM.DD format)
+4. **Validate** JSON syntax: `cat config/models.json | jq .`
+5. **Rebuild**: `make clean && make`
+6. **Log**: "Auto-updated: {model} api_id from {old} to {new}"
+
+### Phase 0 MUST Block If:
+
+- [ ] WebSearch fails to find model information
+- [ ] config/models.json has invalid JSON syntax
+- [ ] Build fails after model updates
+- [ ] Model api_id cannot be determined from official docs
+
+---
+
+## 🔄 Phase 1: E2E Test Synchronization (MANDATORY)
 
 **CRITICAL: Before running E2E tests, VERIFY they cover ALL current functionality.**
 
@@ -1069,10 +1220,34 @@ If outdated specs are found:
 
 #### Model Freshness Check Process
 
+**CRITICAL: Models are now stored in `config/models.json` - THIS FILE MUST BE VERIFIED AND UPDATED**
+
 ```bash
-# This check MUST be performed by searching the web for latest models
-# The agent should use WebSearch to verify current model availability
+# Step 1: Read current models from JSON
+cat config/models.json | jq '.providers | keys'
+cat config/models.json | jq '.compare_defaults'
+
+# Step 2: Use WebSearch to verify current model availability
+
+# Step 3: Update config/models.json if models are outdated
+# - Update model IDs, pricing, context windows
+# - Update compare_defaults with most powerful models
+# - Update version field with current date
 ```
+
+#### Models.json Update Procedure
+
+When updating models:
+
+1. **Read** `config/models.json` to understand current state
+2. **WebSearch** for latest models from each provider
+3. **Update** the following in `config/models.json`:
+   - `version`: Update to current date (YYYY-MM-DD format)
+   - `providers.{name}.models`: Update model configs
+   - `compare_defaults.models`: Update with most powerful models
+   - `benchmark_defaults.model`: Update if better cheap model available
+4. **Validate** JSON syntax: `cat config/models.json | jq .`
+5. **Build** to verify models load correctly
 
 #### Required Checks
 
@@ -1097,8 +1272,24 @@ If outdated specs are found:
 #### Verification Script
 
 ```bash
-# Find all model references in codebase
-echo "=== Model References in Code ==="
+# PRIMARY CHECK: Verify config/models.json
+echo "=== Models Configuration (config/models.json) ==="
+cat config/models.json | jq '.version'
+cat config/models.json | jq '.compare_defaults'
+cat config/models.json | jq '.providers | keys'
+
+# List all models per provider
+echo "=== Anthropic Models ==="
+cat config/models.json | jq '.providers.anthropic.models | keys'
+
+echo "=== OpenAI Models ==="
+cat config/models.json | jq '.providers.openai.models | keys'
+
+echo "=== Gemini Models ==="
+cat config/models.json | jq '.providers.gemini.models | keys'
+
+# SECONDARY CHECK: Find model references in C code (should match JSON)
+echo "=== Model References in Code (should align with JSON) ==="
 rg -i "claude-|gpt-|gemini-|o1-|opus|sonnet|haiku" --type c -n src/
 
 # Check provider configuration files
@@ -1118,11 +1309,16 @@ If outdated models are found:
 
 1. **Research** - Use WebSearch to find current model names and capabilities
 2. **Document** - Create ADR documenting model change decision
-3. **Update Code** - Modify provider files with new model names
-4. **Update Agents** - Update agent configurations if model assignments change
-5. **Update Docs** - Update MODEL_SELECTION.md and PROVIDERS.md
-6. **Test** - Verify API calls work with new models
-7. **Changelog** - Document model updates in CHANGELOG.md
+3. **Update config/models.json** - PRIMARY SOURCE OF TRUTH:
+   - Update `version` to current date
+   - Add/update model entries in `providers.{name}.models`
+   - Update `compare_defaults.models` with most powerful models
+   - Update pricing, context windows, capabilities
+4. **Update Code** - Modify provider files if needed (fallback models)
+5. **Update Agents** - Update agent configurations if model assignments change
+6. **Update Docs** - Update MODEL_SELECTION.md and PROVIDERS.md
+7. **Build & Test** - Run `make` and verify models load from JSON
+8. **Changelog** - Document model updates in CHANGELOG.md
 
 #### Model Deprecation Handling
 
