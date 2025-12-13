@@ -210,15 +210,15 @@ static void print_banner(void) {
     const char* c3 = "\033[38;5;75m";
 
     printf("\n");
-    // Block-style > arrow with CONVERGIO text
-    print_gradient_line(" ███           ██████╗ ██████╗ ███╗   ██╗██╗   ██╗███████╗██████╗  ██████╗ ██╗ ██████╗ ");
-    print_gradient_line("  ░░███       ██╔════╝██╔═══██╗████╗  ██║██║   ██║██╔════╝██╔══██╗██╔════╝ ██║██╔═══██╗");
-    print_gradient_line("    ░░███     ██║     ██║   ██║██╔██╗ ██║██║   ██║█████╗  ██████╔╝██║  ███╗██║██║   ██║");
-    print_gradient_line("     ███░     ██║     ██║   ██║██║╚██╗██║╚██╗ ██╔╝██╔══╝  ██╔══██╗██║   ██║██║██║   ██║");
-    print_gradient_line("   ███░      ╚██████╗╚██████╔╝██║ ╚████║ ╚████╔╝ ███████╗██║  ██║╚██████╔╝██║╚██████╔╝");
-    print_gradient_line(" ███░         ╚═════╝ ╚═════╝ ╚═╝  ╚═══╝  ╚═══╝  ╚══════╝╚═╝  ╚═╝ ╚═════╝ ╚═╝ ╚═════╝ ");
+    // Pixel-art style logo with gradient cyan → purple → pink
+    print_gradient_line("  ██████╗ ██████╗ ███╗   ██╗██╗   ██╗███████╗██████╗  ██████╗ ██╗ ██████╗ ");
+    print_gradient_line(" ██╔════╝██╔═══██╗████╗  ██║██║   ██║██╔════╝██╔══██╗██╔════╝ ██║██╔═══██╗");
+    print_gradient_line(" ██║     ██║   ██║██╔██╗ ██║██║   ██║█████╗  ██████╔╝██║  ███╗██║██║   ██║");
+    print_gradient_line(" ██║     ██║   ██║██║╚██╗██║╚██╗ ██╔╝██╔══╝  ██╔══██╗██║   ██║██║██║   ██║");
+    print_gradient_line(" ╚██████╗╚██████╔╝██║ ╚████║ ╚████╔╝ ███████╗██║  ██║╚██████╔╝██║╚██████╔╝");
+    print_gradient_line("  ╚═════╝ ╚═════╝ ╚═╝  ╚═══╝  ╚═══╝  ╚══════╝╚═╝  ╚═╝ ╚═════╝ ╚═╝ ╚═════╝ ");
     printf("\n");
-    print_gradient_line("          Your team, with human purpose and AI momentum.");
+    print_gradient_line("         Your team, with human purpose and AI momentum.");
     printf("\n");
     printf("  %sv%s%s  •  %s/help%s for commands\n", dim, convergio_get_version(), rst, c3, rst);
     printf("\n");
