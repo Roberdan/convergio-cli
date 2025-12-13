@@ -190,7 +190,7 @@ static void* spinner_func(void* arg) {
             }
         }
 
-        printf(ANSI_CURSOR_START ANSI_DIM "%s pensando... " ANSI_RESET "(ESC to cancel)  ", frames[frame]);
+        printf(ANSI_CURSOR_START ANSI_DIM "%s thinking... " ANSI_RESET "(ESC to cancel)  ", frames[frame]);
         fflush(stdout);
         frame = (frame + 1) % 10;
         usleep(80000);  // 80ms
@@ -423,7 +423,7 @@ int repl_process_natural_input(const char* input) {
             free(response);
         } else {
             printf(ANSI_BOLD ANSI_CYAN "%s" ANSI_RESET "\n\n", name);
-            printf("Mi dispiace, ho avuto un problema. Riprova.\n");
+            printf("Sorry, I encountered a problem. Please try again.\n");
         }
     }
 
@@ -507,7 +507,7 @@ int repl_direct_agent_communication(const char* agent_name, const char* message)
         free(response);
     } else {
         printf(ANSI_BOLD ANSI_CYAN "%s" ANSI_RESET "\n\n", agent->name);
-        printf("Non sono riuscito a rispondere. Riprova.\n");
+        printf("I couldn't respond. Please try again.\n");
     }
 
     printf("\n");

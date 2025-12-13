@@ -218,6 +218,7 @@ static void print_banner(void) {
     printf("  %sv%s - Optimized for Apple Silicon%s\n", dim, convergio_get_version(), rst);
     printf("  %sDeveloped by Roberdan@FightTheStroke.org%s\n", dim, rst);
     printf("\n");
+    printf("  %s⚠ Disclaimer: Provided as-is, no warranty. AI may produce errors.%s\n", dim, rst);
     printf("  Type %s'help'%s for commands, or express your intent naturally.\n", c3, rst);
     printf("\n");
 }
@@ -283,14 +284,13 @@ int main(int argc, char** argv) {
         printf("  \033[33m⚡ Debug mode: %s\033[0m\n\n", nous_log_level_name(g_log_level));
     }
 
-    // Initialize subsystems
-    printf("Initializing Convergio Kernel...\n");
+    // Initialize subsystems (compact output)
+    printf("Initializing...");
+    fflush(stdout);
 
     // Initialize configuration first
     if (convergio_config_init() != 0) {
-        fprintf(stderr, "Warning: Failed to initialize configuration.\n");
-    } else {
-        printf("  ✓ Configuration (~/.convergio/)\n");
+        fprintf(stderr, " ✗ config");
     }
 
     // Initialize theme system
@@ -298,9 +298,7 @@ int main(int argc, char** argv) {
 
     // Detect hardware
     if (convergio_detect_hardware() != 0) {
-        fprintf(stderr, "Warning: Failed to detect hardware.\n");
-    } else {
-        printf("  ✓ Hardware: %s\n", g_hardware.chip_name);
+        fprintf(stderr, " ✗ hw");
     }
 
     // Initialize authentication
@@ -421,23 +419,18 @@ int main(int argc, char** argv) {
     }
 
     if (nous_init() != 0) {
-        fprintf(stderr, "Failed to initialize semantic fabric.\n");
+        fprintf(stderr, " ✗ fabric");
         return 1;
     }
-    printf("  ✓ Semantic Fabric\n");
 
     if (nous_scheduler_init() != 0) {
-        fprintf(stderr, "Failed to initialize scheduler.\n");
+        fprintf(stderr, " ✗ scheduler");
         nous_shutdown();
         return 1;
     }
-    printf("  ✓ Scheduler (P-cores: %d, E-cores: %d)\n",
-           g_hardware.p_cores, g_hardware.e_cores);
 
     if (nous_gpu_init() != 0) {
-        fprintf(stderr, "Warning: GPU initialization failed, using CPU fallback.\n");
-    } else {
-        printf("  ✓ GPU (%d cores)\n", g_hardware.gpu_cores);
+        // GPU optional, continue without it
     }
 
     // Initialize agent configurations from config files
@@ -448,43 +441,41 @@ int main(int argc, char** argv) {
         // Try to load custom configs from config directory
         char config_path[PATH_MAX];
         snprintf(config_path, sizeof(config_path), "%s/config", workspace);
-        int loaded = agent_config_load_directory(config_path);
-        if (loaded > 0) {
-            printf("  ✓ Agent configs: %d loaded from %s\n", loaded, config_path);
-        }
+        agent_config_load_directory(config_path);
     }
 
     // Initialize Orchestrator with Ali
     if (orchestrator_init(DEFAULT_BUDGET_USD) != 0) {
-        fprintf(stderr, "Warning: Orchestrator initialization failed.\n");
-    } else {
-        printf("  ✓ Orchestrator (Ali - Chief of Staff)\n");
-        printf("  ✓ Budget: $%.2f\n", DEFAULT_BUDGET_USD);
+        fprintf(stderr, " ✗ orchestrator");
     }
 
     // Initialize workspace sandbox
     tools_init_workspace(workspace);
-    printf("  ✓ Workspace: %s\n", workspace);
 
     // Initialize projects
+    ConvergioProject* current_proj = NULL;
     if (projects_init()) {
-        ConvergioProject* current = project_current();
-        if (current) {
-            printf("  ✓ Project: %s (%zu agents)\n", current->name, current->team_count);
-        } else {
-            printf("  ✓ Projects: ready (no active project)\n");
-        }
+        current_proj = project_current();
     }
 
-    printf("\nConvergio is ready.\n");
-    printf("Talk to Ali - your Chief of Staff will coordinate specialist agents.\n\n");
+    // Compact status line
+    printf(" ready!\n");
+    printf("  %s | %d+%d cores | GPU %d | $%.2f budget",
+           g_hardware.chip_name,
+           g_hardware.p_cores, g_hardware.e_cores,
+           g_hardware.gpu_cores,
+           DEFAULT_BUDGET_USD);
+    if (current_proj) {
+        printf(" | Project: %s", current_proj->name);
+    }
+    printf("\n\n");
 
     // Create fallback assistant (only used if orchestrator fails)
-    g_assistant = nous_create_agent("Aria", "assistente creativo e collaborativo");
+    g_assistant = nous_create_agent("Aria", "creative and collaborative assistant");
     if (g_assistant) {
-        nous_agent_add_skill(g_assistant, "programmazione");
-        nous_agent_add_skill(g_assistant, "analisi");
-        nous_agent_add_skill(g_assistant, "creatività");
+        nous_agent_add_skill(g_assistant, "programming");
+        nous_agent_add_skill(g_assistant, "analysis");
+        nous_agent_add_skill(g_assistant, "creativity");
     }
 
     // Status bar disabled - was causing terminal issues
@@ -525,13 +516,13 @@ int main(int argc, char** argv) {
         // Check for active project
         ConvergioProject* current_proj = project_current();
         if (current_proj) {
-            // Show project name in prompt: Convergio [ProjectName] ❯
+            // Show project name in prompt: Convergio [ProjectName] >
             snprintf(prompt, sizeof(prompt),
-                "\001%s\002Convergio\001\033[0m\002 \001\033[1;36m\002[%s]\001\033[0m\002 \001%s\002❯\001\033[0m\002 \001%s\002",
+                "\001%s\002Convergio\001\033[0m\002 \001\033[1;36m\002[%s]\001\033[0m\002 \001%s\002>\001\033[0m\002 \001%s\002",
                 t->prompt_name, current_proj->name, t->prompt_arrow, t->user_input);
         } else {
             snprintf(prompt, sizeof(prompt),
-                "\001%s\002Convergio\001\033[0m\002 \001%s\002❯\001\033[0m\002 \001%s\002",
+                "\001%s\002Convergio\001\033[0m\002 \001%s\002>\001\033[0m\002 \001%s\002",
                 t->prompt_name, t->prompt_arrow, t->user_input);
         }
 

@@ -607,8 +607,8 @@ static int execute_line(const char* line) {
             if (ts.count > 0) {
                 char msg[256];
                 snprintf(msg, sizeof(msg),
-                         "Non sono sicuro di aver capito. "
-                         "Puoi riformulare?");
+                         "I'm not sure I understood. "
+                         "Could you rephrase?");
                 output(msg);
             }
             break;

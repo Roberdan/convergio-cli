@@ -15,6 +15,9 @@ typedef enum {
     THEME_FOREST,     // Green tones (nature, calm)
     THEME_SUNSET,     // Orange/red tones (warm, energetic)
     THEME_MONO,       // Grayscale (minimal, classic terminal)
+    THEME_LIGHT,      // Light mode for bright environments
+    THEME_DARK,       // Dark mode for OLED screens
+    THEME_COLORBLIND, // Accessible colors (blue/orange, safe for all types)
     THEME_COUNT
 } ThemeId;
 
@@ -24,7 +27,7 @@ typedef struct {
 
     // Prompt colors
     const char* prompt_name;    // "Convergio" text color
-    const char* prompt_arrow;   // "❯" arrow color
+    const char* prompt_arrow;   // ">" arrow color
     const char* user_input;     // User typed text color
 
     // Agent/response colors
