@@ -264,6 +264,14 @@ $(OBJ_DIR)/%.o: $(SRC_DIR)/%.m
 	@echo "Compiling $<..."
 	@$(OBJC) $(OBJCFLAGS) -c $< -o $@
 
+# MLX Stubs (for when Swift library is not available)
+MLX_STUBS_SRC = $(SRC_DIR)/providers/mlx_stubs.c
+MLX_STUBS_OBJ = $(OBJ_DIR)/providers/mlx_stubs.o
+
+$(MLX_STUBS_OBJ): $(MLX_STUBS_SRC)
+	@echo "Compiling MLX stubs (fallback for missing Swift library)..."
+	@$(CC) $(CFLAGS) -c $< -o $@
+
 # Link
 # Swift/MLX library requires C++ runtime and additional Swift runtime libs
 # Include Xcode Swift toolchain for compatibility libraries
@@ -275,14 +283,15 @@ SWIFT_RUNTIME_LIBS = -L/usr/lib/swift \
                      -lswiftCompatibility56 -lswiftCompatibilityConcurrency \
                      -lc++
 
-$(TARGET): $(OBJECTS) $(SWIFT_LIB)
+$(TARGET): $(OBJECTS) $(SWIFT_LIB) $(MLX_STUBS_OBJ)
 	@echo "Linking $(TARGET)..."
 	@if [ -s "$(SWIFT_LIB)" ]; then \
 		echo "  Including MLX Swift library (with C++ runtime)..."; \
 		$(CC) $(LDFLAGS) $(OBJECTS) $(SWIFT_LIB) -o $(TARGET) $(FRAMEWORKS) $(LIBS) \
 			$(SWIFT_RUNTIME_LIBS) $(SWIFT_FRAMEWORKS); \
 	else \
-		$(CC) $(LDFLAGS) $(OBJECTS) -o $(TARGET) $(FRAMEWORKS) $(LIBS); \
+		echo "  Swift library unavailable - using MLX stubs..."; \
+		$(CC) $(LDFLAGS) $(OBJECTS) $(MLX_STUBS_OBJ) -o $(TARGET) $(FRAMEWORKS) $(LIBS); \
 	fi
 
 # Run
@@ -364,16 +373,16 @@ FUZZ_SOURCES = tests/fuzz_test.c $(TEST_STUBS)
 # Exclude main.o since fuzz_test has its own main() and stubs provide globals
 FUZZ_OBJECTS = $(filter-out $(OBJ_DIR)/core/main.o,$(OBJECTS))
 
-fuzz_test: dirs swift $(OBJECTS) $(FUZZ_TEST)
+fuzz_test: dirs swift $(OBJECTS) $(MLX_STUBS_OBJ) $(FUZZ_TEST)
 	@echo "Running fuzz tests..."
 	@$(FUZZ_TEST)
 
-$(FUZZ_TEST): $(FUZZ_SOURCES) $(FUZZ_OBJECTS) $(SWIFT_LIB)
+$(FUZZ_TEST): $(FUZZ_SOURCES) $(FUZZ_OBJECTS) $(SWIFT_LIB) $(MLX_STUBS_OBJ)
 	@echo "Compiling fuzz tests..."
 	@if [ -s "$(SWIFT_LIB)" ]; then \
 		$(CC) $(CFLAGS) $(LDFLAGS) -o $(FUZZ_TEST) $(FUZZ_SOURCES) $(FUZZ_OBJECTS) $(SWIFT_LIB) $(FRAMEWORKS) $(LIBS) $(SWIFT_RUNTIME_LIBS); \
 	else \
-		$(CC) $(CFLAGS) $(LDFLAGS) -o $(FUZZ_TEST) $(FUZZ_SOURCES) $(FUZZ_OBJECTS) $(FRAMEWORKS) $(LIBS); \
+		$(CC) $(CFLAGS) $(LDFLAGS) -o $(FUZZ_TEST) $(FUZZ_SOURCES) $(FUZZ_OBJECTS) $(MLX_STUBS_OBJ) $(FRAMEWORKS) $(LIBS); \
 	fi
 
 # Unit test target - tests core components
@@ -381,16 +390,16 @@ UNIT_TEST = $(BIN_DIR)/unit_test
 UNIT_SOURCES = tests/test_unit.c $(TEST_STUBS)
 UNIT_OBJECTS = $(filter-out $(OBJ_DIR)/core/main.o,$(OBJECTS))
 
-unit_test: dirs swift $(OBJECTS) $(UNIT_TEST)
+unit_test: dirs swift $(OBJECTS) $(MLX_STUBS_OBJ) $(UNIT_TEST)
 	@echo "Running unit tests..."
 	@$(UNIT_TEST)
 
-$(UNIT_TEST): $(UNIT_SOURCES) $(UNIT_OBJECTS) $(SWIFT_LIB)
+$(UNIT_TEST): $(UNIT_SOURCES) $(UNIT_OBJECTS) $(SWIFT_LIB) $(MLX_STUBS_OBJ)
 	@echo "Compiling unit tests..."
 	@if [ -s "$(SWIFT_LIB)" ]; then \
 		$(CC) $(CFLAGS) $(LDFLAGS) -o $(UNIT_TEST) $(UNIT_SOURCES) $(UNIT_OBJECTS) $(SWIFT_LIB) $(FRAMEWORKS) $(LIBS) $(SWIFT_RUNTIME_LIBS); \
 	else \
-		$(CC) $(CFLAGS) $(LDFLAGS) -o $(UNIT_TEST) $(UNIT_SOURCES) $(UNIT_OBJECTS) $(FRAMEWORKS) $(LIBS); \
+		$(CC) $(CFLAGS) $(LDFLAGS) -o $(UNIT_TEST) $(UNIT_SOURCES) $(UNIT_OBJECTS) $(MLX_STUBS_OBJ) $(FRAMEWORKS) $(LIBS); \
 	fi
 
 # Compaction test target - tests context compaction module
