@@ -14,6 +14,7 @@
 #include "nous/planning.h"
 #include "nous/convergence.h"
 #include "nous/updater.h"
+#include "nous/compaction.h"
 #include "nous/nous.h"
 #include "nous/projects.h"
 #include <stdio.h>
@@ -390,6 +391,11 @@ int orchestrator_init(double budget_limit_usd) {
         LOG_WARN(LOG_CAT_SYSTEM, "persistence init failed, continuing without DB");
     }
 
+    // Initialize context compaction (must be after persistence)
+    if (compaction_init() != 0) {
+        LOG_WARN(LOG_CAT_SYSTEM, "context compaction init failed, continuing without compaction");
+    }
+
     if (msgbus_init() != 0) {
         LOG_WARN(LOG_CAT_SYSTEM, "message bus init failed");
     }
@@ -502,6 +508,7 @@ void orchestrator_shutdown(void) {
     }
 
     // Shutdown subsystems
+    compaction_shutdown();  // Must be before persistence_shutdown
     persistence_shutdown();
     msgbus_shutdown();
     nous_claude_shutdown();
@@ -760,13 +767,29 @@ static char* build_context_prompt(const char* user_input) {
         len += snprintf(context + len, capacity - len, "\n");
     }
 
-    // 3. Load recent conversation history from current session
+    // 3. Load conversation history with compaction support
     if (g_current_session_id) {
-        char* conv_history = persistence_load_conversation_context(g_current_session_id, 10);
-        if (conv_history) {
-            len += snprintf(context + len, capacity - len,
-                "## Recent Conversation (this session)\n%s\n", conv_history);
-            free(conv_history);
+        // Use compaction-aware context building
+        bool was_compacted = false;
+        char* conv_context = compaction_build_context(g_current_session_id, user_input, &was_compacted);
+
+        if (conv_context && strlen(conv_context) > 0) {
+            // compaction_build_context already formats the output
+            len += snprintf(context + len, capacity - len, "%s\n", conv_context);
+            free(conv_context);
+
+            if (was_compacted) {
+                LOG_DEBUG(LOG_CAT_MEMORY, "Context compaction applied for session %s",
+                         g_current_session_id);
+            }
+        } else {
+            // Fallback to simple load if compaction module returns nothing
+            char* conv_history = persistence_load_conversation_context(g_current_session_id, 10);
+            if (conv_history) {
+                len += snprintf(context + len, capacity - len,
+                    "## Recent Conversation (this session)\n%s\n", conv_history);
+                free(conv_history);
+            }
         }
     }
 
