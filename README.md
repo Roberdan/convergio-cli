@@ -496,6 +496,7 @@ flowchart TB
         REPL["REPL Commands"]
         StatusBar["Status Bar<br/>(tokens, costs, model)"]
         Terminal["Terminal UI<br/>(ANSI, Hyperlinks)"]
+        SetupWizard["Setup Wizard<br/>(interactive config)"]
     end
 
     subgraph ORCH["🎯 Orchestrator Layer"]
@@ -514,10 +515,17 @@ flowchart TB
     end
 
     subgraph PROVIDERS["☁️ Multi-Provider Layer"]
-        direction LR
-        Anthropic["Anthropic<br/>Claude Opus 4<br/>Claude Sonnet 4"]
-        OpenAI["OpenAI<br/>GPT-4o<br/>o1, GPT-4o-mini"]
-        Gemini["Google Gemini<br/>Gemini 1.5 Pro<br/>Gemini 1.5 Flash"]
+        direction TB
+        subgraph CloudAPI["Cloud APIs"]
+            Anthropic["Anthropic<br/>Claude Opus 4.5<br/>Claude Sonnet 4.5"]
+            OpenAI["OpenAI<br/>GPT-4o, o1<br/>GPT-4o-mini"]
+            Gemini["Google Gemini<br/>Gemini 3.0 Pro<br/>Gemini 2.0 Flash"]
+            OpenRouter["OpenRouter<br/>DeepSeek R1<br/>Llama 3.3, Mistral"]
+        end
+        subgraph LocalInference["🏠 Local (FREE)"]
+            MLX["MLX Swift<br/>Llama 3.2, DeepSeek R1<br/>100% offline"]
+            Ollama["Ollama<br/>Local models<br/>No API costs"]
+        end
     end
 
     subgraph AGENTS["👥 Agent Execution Layer"]
@@ -536,12 +544,14 @@ flowchart TB
 
     subgraph FABRIC["🧬 Semantic Fabric Layer"]
         SemanticGraph["Semantic Node Graph<br/>(64-shard, lock-free)"]
+        SemanticPersist["Semantic Persistence<br/>(SQLite write-through)"]
         NEON["NEON SIMD Search"]
-        SQLite["SQLite Persistence"]
+        SQLite["SQLite Storage"]
     end
 
     subgraph SILICON["⚡ Apple Silicon Layer"]
         Metal["Metal GPU"]
+        MLXSwift["MLX-Swift<br/>(Neural Engine)"]
         Accelerate["Accelerate Framework"]
         GCDQueues["GCD Dispatch Queues"]
         Keychain["macOS Keychain"]
@@ -567,6 +577,10 @@ flowchart TB
 
     AgentPool --> GCD
     GCD --> AgentState
+
+    MLX --> MLXSwift
+    SemanticGraph --> SemanticPersist
+    SemanticPersist --> SQLite
 ```
 
 ### Request Flow
@@ -639,6 +653,7 @@ graph TB
         Fabric["fabric.c<br/>Semantic Graph"]
         Config["config.c<br/>Configuration"]
         REPL["repl.c<br/>Interactive Shell"]
+        SetupWiz["setup_wizard.c<br/>Interactive Setup"]
     end
 
     subgraph Orchestration["Orchestration"]
@@ -654,6 +669,9 @@ graph TB
         AnthropicC["anthropic.c<br/>Claude API"]
         OpenAIC["openai.c<br/>GPT API"]
         GeminiC["gemini.c<br/>Gemini API"]
+        OpenRouterC["openrouter.c<br/>300+ Models"]
+        OllamaC["ollama.c<br/>Local Models"]
+        MLXC["mlx.m<br/>MLX Swift Bridge"]
         Streaming["streaming.c<br/>SSE Processing"]
         Retry["retry.c<br/>Resilience"]
     end
@@ -666,6 +684,7 @@ graph TB
 
     subgraph Storage["Storage & Memory"]
         Persistence["persistence.c<br/>SQLite Backend"]
+        SemanticPersist["semantic_persistence.c<br/>Knowledge Graph"]
         Tools["tools.c<br/>Tool Execution"]
     end
 
@@ -673,6 +692,7 @@ graph TB
     Main --> Config
     Main --> REPL
     REPL --> Orch
+    REPL --> SetupWiz
     Orch --> Registry
     Orch --> Cost
     Orch --> Delegation
@@ -684,27 +704,33 @@ graph TB
     ProviderC --> AnthropicC
     ProviderC --> OpenAIC
     ProviderC --> GeminiC
+    ProviderC --> OpenRouterC
+    ProviderC --> OllamaC
+    ProviderC --> MLXC
     AnthropicC --> Streaming
     OpenAIC --> Streaming
     GeminiC --> Streaming
+    OpenRouterC --> Streaming
     Streaming --> Retry
     Agent --> Tools
     Tools --> Persistence
+    Tools --> SemanticPersist
     Cost --> Persistence
+    Fabric --> SemanticPersist
 ```
 
 ### Data Flow Summary
 
 | Layer | Components | Responsibility |
 |-------|------------|----------------|
-| **UI** | REPL, Status Bar, Terminal | User interaction, display |
+| **UI** | REPL, Status Bar, Terminal, Setup Wizard | User interaction, configuration |
 | **Orchestrator** | Ali, Planning, Cost Control | Task coordination, resource management |
 | **Router** | Model Router, Cost Optimizer | Intelligent model selection, failover |
-| **Providers** | Anthropic, OpenAI, Gemini adapters | API communication, streaming |
+| **Providers** | Anthropic, OpenAI, Gemini, OpenRouter, Ollama, MLX | API/local inference |
 | **Agents** | 49 specialists + Agent Pool | Specialized task execution |
 | **Tools** | File, Shell, Web, Memory | External interactions |
-| **Fabric** | Semantic Graph, NEON SIMD | Vector search, embeddings |
-| **Silicon** | Metal GPU, GCD, Keychain | Hardware acceleration, security |
+| **Fabric** | Semantic Graph, Semantic Persistence | Knowledge graph, write-through cache |
+| **Silicon** | Metal GPU, MLX-Swift, GCD, Keychain | Neural Engine, hardware acceleration |
 
 ## How is this different from Claude CLI?
 
