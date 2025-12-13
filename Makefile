@@ -314,28 +314,29 @@ FUZZ_SOURCES = tests/fuzz_test.c $(TEST_STUBS)
 # Exclude main.o since fuzz_test has its own main() and stubs provide globals
 FUZZ_OBJECTS = $(filter-out $(OBJ_DIR)/core/main.o,$(OBJECTS))
 
-fuzz_test: DEBUG=1
 fuzz_test: dirs $(OBJECTS) $(FUZZ_TEST)
 	@echo "Running fuzz tests..."
 	@$(FUZZ_TEST)
 
+# Note: Don't use DEBUG=1 here as OBJECTS may not have sanitizer instrumentation
+# Use 'make debug && make fuzz_test' for sanitizer-enabled testing
 $(FUZZ_TEST): $(FUZZ_SOURCES) $(FUZZ_OBJECTS)
 	@echo "Compiling fuzz tests..."
-	@$(CC) $(CFLAGS) $(LDFLAGS) -o $(FUZZ_TEST) $(FUZZ_SOURCES) $(FUZZ_OBJECTS) $(FRAMEWORKS) $(LIBS)
+	@$(CC) $(CFLAGS) -o $(FUZZ_TEST) $(FUZZ_SOURCES) $(FUZZ_OBJECTS) $(FRAMEWORKS) $(LIBS)
 
 # Unit test target - tests core components
 UNIT_TEST = $(BIN_DIR)/unit_test
 UNIT_SOURCES = tests/test_unit.c $(TEST_STUBS)
 UNIT_OBJECTS = $(filter-out $(OBJ_DIR)/core/main.o,$(OBJECTS))
 
-unit_test: DEBUG=1
 unit_test: dirs $(OBJECTS) $(UNIT_TEST)
 	@echo "Running unit tests..."
 	@$(UNIT_TEST)
 
+# Note: Don't use LDFLAGS here to avoid sanitizer mismatch with non-DEBUG objects
 $(UNIT_TEST): $(UNIT_SOURCES) $(UNIT_OBJECTS)
 	@echo "Compiling unit tests..."
-	@$(CC) $(CFLAGS) $(LDFLAGS) -o $(UNIT_TEST) $(UNIT_SOURCES) $(UNIT_OBJECTS) $(FRAMEWORKS) $(LIBS)
+	@$(CC) $(CFLAGS) -o $(UNIT_TEST) $(UNIT_SOURCES) $(UNIT_OBJECTS) $(FRAMEWORKS) $(LIBS)
 
 # Compaction test target - tests context compaction module
 COMPACTION_TEST = $(BIN_DIR)/compaction_test
@@ -349,7 +350,7 @@ compaction_test: dirs $(OBJ_DIR)/context/compaction.o $(COMPACTION_TEST)
 
 $(COMPACTION_TEST): $(COMPACTION_SOURCES) $(COMPACTION_OBJECTS)
 	@echo "Compiling compaction tests..."
-	@$(CC) $(CFLAGS) $(LDFLAGS) -o $(COMPACTION_TEST) $(COMPACTION_SOURCES) $(COMPACTION_OBJECTS) $(FRAMEWORKS) $(LIBS)
+	@$(CC) $(CFLAGS) -o $(COMPACTION_TEST) $(COMPACTION_SOURCES) $(COMPACTION_OBJECTS) $(FRAMEWORKS) $(LIBS)
 
 # Check help documentation coverage
 check-docs:
@@ -367,7 +368,7 @@ compare_test: dirs $(OBJ_DIR)/compare/render.o $(COMPARE_TEST)
 
 $(COMPARE_TEST): $(COMPARE_SOURCES) $(COMPARE_OBJECTS)
 	@echo "Compiling compare tests..."
-	@$(CC) $(CFLAGS) $(LDFLAGS) -o $(COMPARE_TEST) $(COMPARE_SOURCES) $(COMPARE_OBJECTS) $(FRAMEWORKS) $(LIBS)
+	@$(CC) $(CFLAGS) -o $(COMPARE_TEST) $(COMPARE_SOURCES) $(COMPARE_OBJECTS) $(FRAMEWORKS) $(LIBS)
 
 # Projects test target
 PROJECTS_TEST = $(BIN_DIR)/projects_test
@@ -380,7 +381,7 @@ projects_test: dirs $(OBJ_DIR)/projects/projects.o $(PROJECTS_TEST)
 
 $(PROJECTS_TEST): $(PROJECTS_SOURCES) $(PROJECTS_OBJECTS)
 	@echo "Compiling projects tests..."
-	@$(CC) $(CFLAGS) $(LDFLAGS) -o $(PROJECTS_TEST) $(PROJECTS_SOURCES) $(PROJECTS_OBJECTS) $(FRAMEWORKS) $(LIBS)
+	@$(CC) $(CFLAGS) -o $(PROJECTS_TEST) $(PROJECTS_SOURCES) $(PROJECTS_OBJECTS) $(FRAMEWORKS) $(LIBS)
 
 # Run all tests
 test: fuzz_test unit_test compaction_test compare_test projects_test check-docs

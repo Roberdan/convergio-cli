@@ -368,10 +368,21 @@ int mlx_embed_init(const char* model_path) {
 
     // Load or initialize weights
     if (model_path) {
-        // TODO(#2): Load pre-trained weights from file
-        // Status: Infrastructure ready, needs model weights file
-        // Blocked: Waiting for model weights distribution license
-        // For now, use random initialization
+        // LIMITATION: Pre-trained weight loading not implemented
+        // ============================================================================
+        // Infrastructure: Ready for file-based weight loading
+        // Blocker: Awaiting model weights distribution license resolution
+        //
+        // Pre-trained weights (e.g., distilBERT, MiniLM-L6) would provide better
+        // semantic embeddings than random initialization. Implementation requires:
+        // 1. Licensing agreement for distributing model weights
+        // 2. Binary weight format parser (PyTorch .pt or ONNX format)
+        // 3. Weight validation checksums
+        //
+        // Current behavior: Falls back to random Xavier initialization.
+        // This provides functional embeddings but with poor semantic quality.
+        // ============================================================================
+        // Fallback: Use random initialization
     }
     init_random_weights(g_model);
 

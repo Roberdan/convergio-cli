@@ -1218,14 +1218,29 @@ char* nous_agent_think_with_claude(NousAgent* agent, const char* input) {
 // ============================================================================
 
 int nous_generate_embedding(const char* text, NousEmbedding* out) {
-    // TODO(#3): Use a proper embedding model (voyage-ai, openai embeddings, etc.)
-    // Status: Currently using simple character-based estimation
-    // Future: Integrate with embedding API providers for accurate token counting
-    // For now, generate a deterministic pseudo-embedding from text hash
+    // LIMITATION: Currently uses deterministic hash-based pseudo-embeddings
+    //
+    // A proper embedding model has not been integrated because:
+    // 1. External API dependency: Requires Voyage AI, OpenAI, or MLX embeddings
+    // 2. Authentication overhead: Would need separate API keys/setup
+    // 3. Development stage: This is a placeholder for semantic search/RAG features
+    // 4. Performance cost: Real embeddings add latency to every operation
+    //
+    // This implementation provides:
+    // - Deterministic output (same input -> same embedding)
+    // - Fast local computation (no network calls)
+    // - Suitable for testing and development
+    //
+    // For production use, integrate one of:
+    // - Voyage AI embeddings (voyage_embed_2)
+    // - OpenAI embeddings (text-embedding-3-small)
+    // - MLX embeddings (local, via src/neural/mlx_embed.m)
+    //
+    // Issue reference: #3
 
     if (!text || !out) return -1;
 
-    // Simple hash-based pseudo-embedding (NOT semantic, just for testing)
+    // Deterministic pseudo-embedding from text hash (NOT semantic)
     memset(out->values, 0, sizeof(out->values));
 
     unsigned long hash = 5381;

@@ -40,7 +40,7 @@ static const char* truncate_string(const char* str, size_t max_len, char* buffer
 
     // Truncate and add ellipsis
     if (max_len <= 3) {
-        size_t copy_len = buf_size - 1;
+        size_t copy_len = (len < buf_size - 1) ? len : buf_size - 1;
         memcpy(buffer, str, copy_len);
         buffer[copy_len] = '\0';
         return buffer;
