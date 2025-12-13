@@ -2,7 +2,7 @@
  * CONVERGIO HARDWARE DETECTION
  *
  * Auto-detection and optimization for Apple Silicon chips
- * Supports M1, M2, M3, M4 and all variants (Pro, Max, Ultra)
+ * Supports M1, M2, M3, M4, M5 and all variants (Pro, Max, Ultra)
  *
  * Copyright 2025 - Roberto D'Angelo & AI Team
  */
@@ -29,7 +29,8 @@ typedef enum {
     CHIP_FAMILY_M1 = 1,
     CHIP_FAMILY_M2 = 2,
     CHIP_FAMILY_M3 = 3,
-    CHIP_FAMILY_M4 = 4
+    CHIP_FAMILY_M4 = 4,
+    CHIP_FAMILY_M5 = 5   // Nov 2025 - Neural Accelerators in GPU
 } ChipFamily;
 
 // ============================================================================

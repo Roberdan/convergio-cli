@@ -333,7 +333,7 @@ $(UNIT_TEST): $(UNIT_SOURCES) $(UNIT_OBJECTS)
 # Compaction test target - tests context compaction module
 COMPACTION_TEST = $(BIN_DIR)/compaction_test
 COMPACTION_SOURCES = tests/test_compaction.c
-# Only need compaction.o and its minimal dependencies for this test
+# Only need compaction.o - test file provides stubs for persistence functions
 COMPACTION_OBJECTS = $(OBJ_DIR)/context/compaction.o
 
 compaction_test: dirs $(OBJ_DIR)/context/compaction.o $(COMPACTION_TEST)

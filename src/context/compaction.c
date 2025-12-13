@@ -20,6 +20,15 @@
 
 // External persistence functions
 extern char* persistence_load_conversation_context(const char* session_id, size_t max_messages);
+extern int persistence_get_message_id_range(const char* session_id, int64_t* out_first, int64_t* out_last);
+extern char* persistence_load_messages_range(const char* session_id, int64_t from_id, int64_t to_id, size_t* out_count);
+extern char* persistence_load_latest_checkpoint(const char* session_id);
+extern int persistence_get_checkpoint_count(const char* session_id);
+extern int persistence_save_checkpoint(const char* session_id, int checkpoint_num, int64_t from_msg_id,
+                                       int64_t to_msg_id, int messages_compressed, const char* summary,
+                                       const char* key_facts, size_t original_tokens, size_t compressed_tokens,
+                                       double cost);
+extern int64_t persistence_get_cutoff_message_id(const char* session_id, int keep_recent);
 
 // ============================================================================
 // INTERNAL STATE
@@ -268,9 +277,10 @@ char* compaction_build_context(
         return full_conv;  // Can't get range, return as-is
     }
 
-    // Calculate cutoff: summarize all but the last KEEP_RECENT messages
-    int64_t cutoff_msg_id = last_msg_id - COMPACTION_KEEP_RECENT_MSGS;
-    if (cutoff_msg_id <= first_msg_id) {
+    // Calculate cutoff: get the actual message ID that is KEEP_RECENT messages from the end
+    // This properly handles non-consecutive message IDs
+    int64_t cutoff_msg_id = persistence_get_cutoff_message_id(session_id, COMPACTION_KEEP_RECENT_MSGS);
+    if (cutoff_msg_id < 0 || cutoff_msg_id <= first_msg_id) {
         return full_conv;  // Not enough messages to compact
     }
 

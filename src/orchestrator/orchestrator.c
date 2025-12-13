@@ -767,29 +767,15 @@ static char* build_context_prompt(const char* user_input) {
         len += snprintf(context + len, capacity - len, "\n");
     }
 
-    // 3. Load conversation history with compaction support
+    // 3. Load only recent conversation from current session (not full history)
+    // Full session summaries are created on quit and loaded via /recall if needed
     if (g_current_session_id) {
-        // Use compaction-aware context building
-        bool was_compacted = false;
-        char* conv_context = compaction_build_context(g_current_session_id, user_input, &was_compacted);
-
-        if (conv_context && strlen(conv_context) > 0) {
-            // compaction_build_context already formats the output
-            len += snprintf(context + len, capacity - len, "%s\n", conv_context);
-            free(conv_context);
-
-            if (was_compacted) {
-                LOG_DEBUG(LOG_CAT_MEMORY, "Context compaction applied for session %s",
-                         g_current_session_id);
-            }
-        } else {
-            // Fallback to simple load if compaction module returns nothing
-            char* conv_history = persistence_load_conversation_context(g_current_session_id, 10);
-            if (conv_history) {
-                len += snprintf(context + len, capacity - len,
-                    "## Recent Conversation (this session)\n%s\n", conv_history);
-                free(conv_history);
-            }
+        // Only load last 10 messages for immediate context
+        char* conv_history = persistence_load_conversation_context(g_current_session_id, 10);
+        if (conv_history && strlen(conv_history) > 0) {
+            len += snprintf(context + len, capacity - len,
+                "## Recent Conversation\n%s\n", conv_history);
+            free(conv_history);
         }
     }
 
@@ -1415,4 +1401,71 @@ char* orchestrator_status(void) {
     free(cost_line);
 
     return status;
+}
+
+// ============================================================================
+// SESSION COMPACTION ON EXIT
+// ============================================================================
+
+// Get current session ID (for external use)
+const char* orchestrator_get_session_id(void) {
+    return g_current_session_id;
+}
+
+// Compact current session into a summary (called on quit)
+// Returns 0 on success, -1 on error
+int orchestrator_compact_session(void (*progress_callback)(int percent, const char* msg)) {
+    if (!g_current_session_id) {
+        return 0;  // No session to compact
+    }
+
+    // Check if there are enough messages to warrant compaction (use real count, not ID math)
+    int msg_count = persistence_get_session_message_count(g_current_session_id);
+    if (msg_count < 5) {
+        return 0;  // Too few messages, skip compaction
+    }
+
+    // Get message ID range for loading
+    int64_t first_msg_id = 0, last_msg_id = 0;
+    if (persistence_get_message_id_range(g_current_session_id, &first_msg_id, &last_msg_id) != 0) {
+        return 0;  // No messages
+    }
+
+    if (progress_callback) progress_callback(10, "Loading conversation...");
+
+    // Load all messages from this session
+    size_t count = 0;
+    char* messages = persistence_load_messages_range(
+        g_current_session_id, first_msg_id, last_msg_id, &count);
+
+    if (!messages || count == 0) {
+        if (messages) free(messages);
+        return 0;
+    }
+
+    if (progress_callback) progress_callback(30, "Generating summary...");
+
+    // Create summary using compaction module
+    CompactionResult* result = compaction_summarize(
+        g_current_session_id,
+        first_msg_id,
+        last_msg_id,
+        messages
+    );
+
+    free(messages);
+
+    if (!result) {
+        if (progress_callback) progress_callback(100, "No summary needed");
+        return 0;
+    }
+
+    if (progress_callback) progress_callback(90, "Saving summary...");
+
+    // Result already saved by compaction_summarize
+    compaction_result_free(result);
+
+    if (progress_callback) progress_callback(100, "Done");
+
+    return 0;
 }

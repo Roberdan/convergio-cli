@@ -33,31 +33,38 @@ typedef struct {
     uint32_t bandwidth_gbps; // Memory bandwidth estimate
 } ChipProfile;
 
-// Known Apple Silicon profiles
+// Known Apple Silicon profiles (Dec 2025 - macOS Tahoe 26.2)
+// Bandwidth values in GB/s - verified from Apple specs where available
 static const ChipProfile CHIP_PROFILES[] = {
-    // M1 family
-    {"M1 Ultra", CHIP_FAMILY_M1, CHIP_VARIANT_ULTRA, 32, 800},
-    {"M1 Max",   CHIP_FAMILY_M1, CHIP_VARIANT_MAX,   16, 400},
-    {"M1 Pro",   CHIP_FAMILY_M1, CHIP_VARIANT_PRO,   16, 200},
-    {"M1",       CHIP_FAMILY_M1, CHIP_VARIANT_BASE,  16, 68},
+    // M5 family (Oct 2025) - Base verified, Pro/Max/Ultra expected 2026
+    {"M5 Ultra", CHIP_FAMILY_M5, CHIP_VARIANT_ULTRA, 32, 1200},  // Projected (2026)
+    {"M5 Max",   CHIP_FAMILY_M5, CHIP_VARIANT_MAX,   32, 600},   // Projected (2026)
+    {"M5 Pro",   CHIP_FAMILY_M5, CHIP_VARIANT_PRO,   16, 200},   // Projected (spring 2026)
+    {"M5",       CHIP_FAMILY_M5, CHIP_VARIANT_BASE,  16, 154},   // Verified: 153.6 GB/s
 
-    // M2 family
-    {"M2 Ultra", CHIP_FAMILY_M2, CHIP_VARIANT_ULTRA, 32, 800},
-    {"M2 Max",   CHIP_FAMILY_M2, CHIP_VARIANT_MAX,   16, 400},
-    {"M2 Pro",   CHIP_FAMILY_M2, CHIP_VARIANT_PRO,   16, 200},
-    {"M2",       CHIP_FAMILY_M2, CHIP_VARIANT_BASE,  16, 100},
+    // M4 family (Oct 2024) - Ultra projected, others verified
+    {"M4 Ultra", CHIP_FAMILY_M4, CHIP_VARIANT_ULTRA, 32, 800},   // Projected
+    {"M4 Max",   CHIP_FAMILY_M4, CHIP_VARIANT_MAX,   16, 546},   // Verified
+    {"M4 Pro",   CHIP_FAMILY_M4, CHIP_VARIANT_PRO,   16, 273},   // Verified
+    {"M4",       CHIP_FAMILY_M4, CHIP_VARIANT_BASE,  16, 120},   // Verified
 
-    // M3 family
+    // M3 family (Oct 2023)
     {"M3 Ultra", CHIP_FAMILY_M3, CHIP_VARIANT_ULTRA, 32, 800},
     {"M3 Max",   CHIP_FAMILY_M3, CHIP_VARIANT_MAX,   16, 400},
     {"M3 Pro",   CHIP_FAMILY_M3, CHIP_VARIANT_PRO,   16, 200},
     {"M3",       CHIP_FAMILY_M3, CHIP_VARIANT_BASE,  16, 100},
 
-    // M4 family
-    {"M4 Ultra", CHIP_FAMILY_M4, CHIP_VARIANT_ULTRA, 32, 800},
-    {"M4 Max",   CHIP_FAMILY_M4, CHIP_VARIANT_MAX,   16, 400},
-    {"M4 Pro",   CHIP_FAMILY_M4, CHIP_VARIANT_PRO,   16, 200},
-    {"M4",       CHIP_FAMILY_M4, CHIP_VARIANT_BASE,  16, 100},
+    // M2 family (Jun 2022)
+    {"M2 Ultra", CHIP_FAMILY_M2, CHIP_VARIANT_ULTRA, 32, 800},
+    {"M2 Max",   CHIP_FAMILY_M2, CHIP_VARIANT_MAX,   16, 400},
+    {"M2 Pro",   CHIP_FAMILY_M2, CHIP_VARIANT_PRO,   16, 200},
+    {"M2",       CHIP_FAMILY_M2, CHIP_VARIANT_BASE,  16, 100},
+
+    // M1 family (Nov 2020)
+    {"M1 Ultra", CHIP_FAMILY_M1, CHIP_VARIANT_ULTRA, 32, 800},
+    {"M1 Max",   CHIP_FAMILY_M1, CHIP_VARIANT_MAX,   16, 400},
+    {"M1 Pro",   CHIP_FAMILY_M1, CHIP_VARIANT_PRO,   16, 200},
+    {"M1",       CHIP_FAMILY_M1, CHIP_VARIANT_BASE,  16, 68},
 
     {NULL, CHIP_FAMILY_UNKNOWN, CHIP_VARIANT_BASE, 0, 0}
 };
@@ -239,12 +246,28 @@ int convergio_detect_hardware(void) {
                     break;
             }
 
-            // Refine based on family
-            if (g_hardware.family == CHIP_FAMILY_M3 && g_hardware.variant == CHIP_VARIANT_MAX) {
-                g_hardware.gpu_cores = 40;  // M3 Max specific
-            }
-            if (g_hardware.family == CHIP_FAMILY_M3 && g_hardware.variant == CHIP_VARIANT_BASE) {
-                g_hardware.gpu_cores = 10;
+            // Refine based on family - use actual specs where known
+            if (g_hardware.family == CHIP_FAMILY_M5) {
+                // M5 (Oct 2025) - Base verified, Pro/Max/Ultra expected 2026
+                switch (g_hardware.variant) {
+                    case CHIP_VARIANT_ULTRA: g_hardware.gpu_cores = 80; break;  // Projected (2026)
+                    case CHIP_VARIANT_MAX:   g_hardware.gpu_cores = 50; break;  // Projected (2026)
+                    case CHIP_VARIANT_PRO:   g_hardware.gpu_cores = 22; break;  // Projected (2026)
+                    default:                 g_hardware.gpu_cores = 10; break;  // Verified
+                }
+            } else if (g_hardware.family == CHIP_FAMILY_M4) {
+                // M4 (Oct 2024) - M4 Ultra projected, others verified
+                switch (g_hardware.variant) {
+                    case CHIP_VARIANT_ULTRA: g_hardware.gpu_cores = 80; break;  // Projected
+                    case CHIP_VARIANT_MAX:   g_hardware.gpu_cores = 40; break;  // Verified
+                    case CHIP_VARIANT_PRO:   g_hardware.gpu_cores = 20; break;  // Verified
+                    default:                 g_hardware.gpu_cores = 10; break;  // Verified
+                }
+            } else if (g_hardware.family == CHIP_FAMILY_M3) {
+                switch (g_hardware.variant) {
+                    case CHIP_VARIANT_MAX:   g_hardware.gpu_cores = 40; break;
+                    default:                 g_hardware.gpu_cores = 10; break;
+                }
             }
         } else {
             g_hardware.gpu_cores = 8;  // Conservative default
@@ -313,6 +336,7 @@ const char* convergio_chip_family_name(ChipFamily family) {
         case CHIP_FAMILY_M2: return "Apple M2";
         case CHIP_FAMILY_M3: return "Apple M3";
         case CHIP_FAMILY_M4: return "Apple M4";
+        case CHIP_FAMILY_M5: return "Apple M5";
         default: return "Unknown";
     }
 }

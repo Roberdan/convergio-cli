@@ -35,6 +35,8 @@ extern int nous_scheduler_init(void);
 extern void nous_scheduler_shutdown(void);
 extern void nous_scheduler_print_metrics(void);
 
+// Session functions are declared in nous/orchestrator.h
+
 // ============================================================================
 // COMMAND TABLE
 // ============================================================================
@@ -44,6 +46,9 @@ int cmd_project(int argc, char** argv);
 
 // Forward declaration for setup wizard
 int cmd_setup(int argc, char** argv);
+
+// Forward declaration for recall command
+int cmd_recall(int argc, char** argv);
 
 static const ReplCommand COMMANDS[] = {
     {"help",        "Show available commands",           cmd_help},
@@ -68,6 +73,7 @@ static const ReplCommand COMMANDS[] = {
     {"telemetry",   "Manage telemetry settings",         cmd_telemetry},
     {"tools",       "Manage development tools",          cmd_tools},
     {"news",        "Show release notes",                cmd_news},
+    {"recall",      "Show/manage past session summaries", cmd_recall},
     {"quit",        "Exit Convergio",                    cmd_quit},
     {"exit",        "Exit Convergio",                    cmd_quit},
     {NULL, NULL, NULL}
@@ -267,6 +273,19 @@ static const CommandHelp DETAILED_HELP[] = {
         "news           # Show latest release notes\n"
         "news 3.0.4     # Show notes for v3.0.4\n"
         "news v3.0.3    # Also works with 'v' prefix"
+    },
+    {
+        "recall",
+        "recall [clear|delete <id>]",
+        "Display/manage past session summaries",
+        "Shows summaries generated when you exit Convergio.\n"
+        "Without arguments, lists recent session summaries.\n"
+        "Subcommands:\n"
+        "  clear           Delete all stored summaries (asks for confirmation)\n"
+        "  delete <id>     Delete a specific session and its summary\n",
+        "recall                   # List recent session summaries\n"
+        "recall clear             # Delete all summaries\n"
+        "recall delete <id>       # Delete one session"
     },
     {
         "stream",
@@ -558,9 +577,106 @@ int cmd_help(int argc, char** argv) {
     return 0;
 }
 
+// Progress callback for session compaction
+static void quit_progress_callback(int percent, const char* msg) {
+    // Simple progress bar: [████████░░] 80% Saving...
+    int filled = percent / 10;
+    int empty = 10 - filled;
+
+    printf("\r\033[K[");  // Clear line and start bar
+    for (int i = 0; i < filled; i++) printf("\033[32m█\033[0m");
+    for (int i = 0; i < empty; i++) printf("\033[90m░\033[0m");
+    printf("] %d%% %s", percent, msg ? msg : "");
+    fflush(stdout);
+
+    if (percent >= 100) {
+        printf("\n");
+    }
+}
+
 int cmd_quit(int argc, char** argv) {
     (void)argc; (void)argv;
+
+    // Compact current session before exit
+    printf("\n");
+    orchestrator_compact_session(quit_progress_callback);
+
     g_running = 0;
+    return 0;
+}
+
+int cmd_recall(int argc, char** argv) {
+    // Handle subcommands: recall, recall clear, recall delete <id>
+    if (argc >= 2 && strcmp(argv[1], "clear") == 0) {
+        // Clear all summaries
+        printf("\n\033[33mAre you sure you want to clear all session summaries?\033[0m\n");
+        printf("Type 'yes' to confirm: ");
+        fflush(stdout);
+
+        char confirm[10] = {0};
+        if (fgets(confirm, sizeof(confirm), stdin) && strncmp(confirm, "yes", 3) == 0) {
+            if (persistence_clear_all_summaries() == 0) {
+                printf("\033[32mAll session summaries cleared.\033[0m\n\n");
+            } else {
+                printf("\033[31mFailed to clear summaries.\033[0m\n\n");
+            }
+        } else {
+            printf("Cancelled.\n\n");
+        }
+        return 0;
+    }
+
+    if (argc >= 3 && strcmp(argv[1], "delete") == 0) {
+        // Delete specific session
+        const char* session_id = argv[2];
+        if (persistence_delete_session(session_id) == 0) {
+            printf("\033[32mSession %s deleted.\033[0m\n\n", session_id);
+        } else {
+            printf("\033[31mFailed to delete session %s.\033[0m\n\n", session_id);
+        }
+        return 0;
+    }
+
+    // Default: show all session summaries
+    SessionSummaryList* list = persistence_get_session_summaries();
+    if (!list || list->count == 0) {
+        printf("\n\033[90mNo past sessions found.\033[0m\n\n");
+        if (list) persistence_free_session_summaries(list);
+        return 0;
+    }
+
+    printf("\n\033[1m=== Past Session Summaries ===\033[0m\n\n");
+
+    for (size_t i = 0; i < list->count; i++) {
+        SessionSummary* s = &list->items[i];
+
+        // Header with date
+        printf("\033[36m[%zu] %s\033[0m", i + 1, s->started_at ? s->started_at : "Unknown date");
+        printf(" \033[90m(%d messages)\033[0m\n", s->message_count);
+
+        // Summary or placeholder
+        if (s->summary && strlen(s->summary) > 0) {
+            // Print summary with indentation, truncate if too long
+            printf("    ");
+            size_t len = strlen(s->summary);
+            if (len > 200) {
+                printf("%.200s...\n", s->summary);
+            } else {
+                printf("%s\n", s->summary);
+            }
+        } else {
+            printf("    \033[90m(no summary - session not yet compacted)\033[0m\n");
+        }
+
+        // Session ID for delete command
+        printf("    \033[90mID: %s\033[0m\n\n", s->session_id ? s->session_id : "?");
+    }
+
+    printf("\033[90mCommands:\033[0m\n");
+    printf("  recall clear           - Clear all summaries\n");
+    printf("  recall delete <id>     - Delete specific session\n\n");
+
+    persistence_free_session_summaries(list);
     return 0;
 }
 
