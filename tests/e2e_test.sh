@@ -422,6 +422,43 @@ rm -rf ~/.convergio/projects/testproject-e2e* 2>/dev/null
 rm -rf ~/.convergio/projects/marketing-test* 2>/dev/null
 
 # =============================================================================
+# SECTION 9: Provider Configuration & Setup Wizard
+# =============================================================================
+echo ""
+echo -e "${BLUE}=== Section 9: Provider & Setup Wizard ===${NC}"
+
+# Test setup command help
+run_test "setup help" "setup" "CONVERGIO SETUP WIZARD"
+
+# Test setup shows providers
+run_test "setup shows anthropic" "setup" "Anthropic"
+
+# Test setup shows openrouter
+run_test "setup shows openrouter" "setup" "OpenRouter"
+
+# Test setup shows ollama
+run_test "setup shows ollama" "setup" "Ollama"
+
+# Test setup wizard can exit
+echo -n "  Testing: setup wizard exit... "
+output=$(echo -e "setup\n5\nquit" | timeout $TIMEOUT_SEC $CONVERGIO -q 2>&1) || true
+if echo "$output" | grep -qi "setup\|wizard\|configure"; then
+    echo -e "${GREEN}PASS${NC}"
+    ((PASSED++))
+else
+    echo -e "${RED}FAIL${NC}"
+    echo "    Setup wizard didn't work"
+    ((FAILED++))
+fi
+
+# Test provider models available
+run_test "models include deepseek" "models" "DeepSeek"
+run_test "models include llama local" "models" "Local"
+
+# Test cost command shows new provider pricing
+run_test "cost shows providers" "cost" "provider"
+
+# =============================================================================
 # SUMMARY
 # =============================================================================
 echo ""

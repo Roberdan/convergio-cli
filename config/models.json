@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "version": "2025.12.3",
-  "last_updated": "2025-12-12T18:30:00Z",
+  "version": "2025.12.4",
+  "last_updated": "2025-12-13T10:00:00Z",
   "update_url": "https://raw.githubusercontent.com/Roberdan/convergio-cli/main/config/models.json",
   "providers": {
     "anthropic": {
@@ -283,6 +283,176 @@
           "released": "2025-01-30",
           "deprecated": false,
           "best_for": ["fast responses", "cost-effective", "agentic tasks"]
+        }
+      }
+    },
+    "openrouter": {
+      "name": "OpenRouter",
+      "api_key_env": "OPENROUTER_API_KEY",
+      "base_url": "https://openrouter.ai/api/v1",
+      "docs_url": "https://openrouter.ai/docs",
+      "pricing_url": "https://openrouter.ai/docs#models",
+      "notes": "OpenRouter provides access to 300+ models via unified API. Model IDs include provider prefix.",
+      "models": {
+        "deepseek/deepseek-r1": {
+          "display_name": "DeepSeek R1",
+          "api_id": "deepseek/deepseek-r1",
+          "input_cost": 0.55,
+          "output_cost": 2.19,
+          "context_window": 64000,
+          "max_output": 8192,
+          "supports_tools": true,
+          "supports_vision": false,
+          "supports_streaming": true,
+          "tier": "cheap",
+          "released": "2025-01-20",
+          "deprecated": false,
+          "best_for": ["reasoning", "coding", "math", "budget-friendly"]
+        },
+        "mistralai/mistral-large-2411": {
+          "display_name": "Mistral Large",
+          "api_id": "mistralai/mistral-large-2411",
+          "input_cost": 2.0,
+          "output_cost": 6.0,
+          "context_window": 128000,
+          "max_output": 32768,
+          "supports_tools": true,
+          "supports_vision": false,
+          "supports_streaming": true,
+          "tier": "mid",
+          "released": "2024-11-15",
+          "deprecated": false,
+          "best_for": ["multilingual", "european", "GDPR compliant"]
+        },
+        "meta-llama/llama-3.3-70b-instruct": {
+          "display_name": "Llama 3.3 70B",
+          "api_id": "meta-llama/llama-3.3-70b-instruct",
+          "input_cost": 0.40,
+          "output_cost": 0.40,
+          "context_window": 131072,
+          "max_output": 16384,
+          "supports_tools": true,
+          "supports_vision": false,
+          "supports_streaming": true,
+          "tier": "cheap",
+          "released": "2024-12-06",
+          "deprecated": false,
+          "best_for": ["open-source", "general purpose", "cost-effective"]
+        },
+        "qwen/qwen-2.5-72b-instruct": {
+          "display_name": "Qwen 2.5 72B",
+          "api_id": "qwen/qwen-2.5-72b-instruct",
+          "input_cost": 0.35,
+          "output_cost": 0.40,
+          "context_window": 131072,
+          "max_output": 16384,
+          "supports_tools": true,
+          "supports_vision": false,
+          "supports_streaming": true,
+          "tier": "cheap",
+          "released": "2024-09-19",
+          "deprecated": false,
+          "best_for": ["multilingual", "chinese", "coding", "math"]
+        },
+        "google/gemini-flash-1.5": {
+          "display_name": "Gemini Flash 1.5 (via OR)",
+          "api_id": "google/gemini-flash-1.5",
+          "input_cost": 0.075,
+          "output_cost": 0.30,
+          "context_window": 1000000,
+          "max_output": 8192,
+          "supports_tools": true,
+          "supports_vision": true,
+          "supports_streaming": true,
+          "tier": "cheap",
+          "released": "2024-05-14",
+          "deprecated": false,
+          "best_for": ["ultra-cheap", "fast", "vision", "high volume"]
+        }
+      }
+    },
+    "ollama": {
+      "name": "Ollama (Local)",
+      "api_key_env": null,
+      "base_url": "http://localhost:11434",
+      "docs_url": "https://ollama.ai/docs",
+      "pricing_url": null,
+      "notes": "Ollama runs models locally. No API costs. Requires Ollama installed and running.",
+      "models": {
+        "llama3.2": {
+          "display_name": "Llama 3.2 (Local)",
+          "api_id": "llama3.2",
+          "input_cost": 0.0,
+          "output_cost": 0.0,
+          "context_window": 131072,
+          "max_output": 8192,
+          "supports_tools": false,
+          "supports_vision": false,
+          "supports_streaming": true,
+          "tier": "cheap",
+          "released": "2024-09-25",
+          "deprecated": false,
+          "best_for": ["offline", "privacy", "no-cost", "testing"]
+        },
+        "mistral": {
+          "display_name": "Mistral 7B (Local)",
+          "api_id": "mistral",
+          "input_cost": 0.0,
+          "output_cost": 0.0,
+          "context_window": 32768,
+          "max_output": 4096,
+          "supports_tools": false,
+          "supports_vision": false,
+          "supports_streaming": true,
+          "tier": "cheap",
+          "released": "2023-09-27",
+          "deprecated": false,
+          "best_for": ["lightweight", "fast local", "european"]
+        },
+        "codellama": {
+          "display_name": "Code Llama (Local)",
+          "api_id": "codellama",
+          "input_cost": 0.0,
+          "output_cost": 0.0,
+          "context_window": 16384,
+          "max_output": 4096,
+          "supports_tools": false,
+          "supports_vision": false,
+          "supports_streaming": true,
+          "tier": "cheap",
+          "released": "2023-08-24",
+          "deprecated": false,
+          "best_for": ["coding", "offline", "no-cost"]
+        },
+        "deepseek-coder-v2": {
+          "display_name": "DeepSeek Coder V2 (Local)",
+          "api_id": "deepseek-coder-v2",
+          "input_cost": 0.0,
+          "output_cost": 0.0,
+          "context_window": 128000,
+          "max_output": 8192,
+          "supports_tools": false,
+          "supports_vision": false,
+          "supports_streaming": true,
+          "tier": "cheap",
+          "released": "2024-06-17",
+          "deprecated": false,
+          "best_for": ["coding", "large context", "local"]
+        },
+        "phi3": {
+          "display_name": "Phi-3 (Local)",
+          "api_id": "phi3",
+          "input_cost": 0.0,
+          "output_cost": 0.0,
+          "context_window": 128000,
+          "max_output": 4096,
+          "supports_tools": false,
+          "supports_vision": false,
+          "supports_streaming": true,
+          "tier": "cheap",
+          "released": "2024-04-23",
+          "deprecated": false,
+          "best_for": ["small", "fast", "efficient", "reasoning"]
         }
       }
     }

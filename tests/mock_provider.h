@@ -229,6 +229,56 @@ MockProvider* mock_provider_realistic(void);
 MockProvider* mock_provider_rate_limited(int rpm);
 
 // ============================================================================
+// PROVIDER-SPECIFIC MOCKS
+// ============================================================================
+
+// --- Anthropic ---
+MockProvider* mock_anthropic_create(void);
+MockProvider* mock_anthropic_opus(void);
+MockProvider* mock_anthropic_sonnet(void);
+MockProvider* mock_anthropic_rate_limited(void);
+MockProvider* mock_anthropic_auth_error(void);
+
+// --- OpenAI ---
+MockProvider* mock_openai_create(void);
+MockProvider* mock_openai_gpt4o(void);
+MockProvider* mock_openai_gpt4o_mini(void);
+MockProvider* mock_openai_o1(void);
+MockProvider* mock_openai_rate_limited(void);
+MockProvider* mock_openai_auth_error(void);
+MockProvider* mock_openai_quota_exceeded(void);
+
+// --- Gemini ---
+MockProvider* mock_gemini_create(void);
+MockProvider* mock_gemini_pro(void);
+MockProvider* mock_gemini_flash(void);
+MockProvider* mock_gemini_rate_limited(void);
+MockProvider* mock_gemini_auth_error(void);
+
+// --- OpenRouter ---
+MockProvider* mock_openrouter_create(void);
+MockProvider* mock_openrouter_deepseek_r1(void);
+MockProvider* mock_openrouter_llama33(void);
+MockProvider* mock_openrouter_mistral_large(void);
+MockProvider* mock_openrouter_qwen(void);
+MockProvider* mock_openrouter_rate_limited(void);
+MockProvider* mock_openrouter_auth_error(void);
+MockProvider* mock_openrouter_model_not_found(void);
+MockProvider* mock_openrouter_no_credits(void);
+
+// --- Ollama (Local) ---
+MockProvider* mock_ollama_create(void);
+MockProvider* mock_ollama_llama32(void);
+MockProvider* mock_ollama_mistral(void);
+MockProvider* mock_ollama_codellama(void);
+MockProvider* mock_ollama_deepseek_coder(void);
+MockProvider* mock_ollama_phi3(void);
+MockProvider* mock_ollama_not_running(void);
+MockProvider* mock_ollama_model_not_found(void);
+MockProvider* mock_ollama_out_of_memory(void);
+MockProvider* mock_ollama_slow_cpu(void);
+
+// ============================================================================
 // RESPONSE TEMPLATES
 // ============================================================================
 

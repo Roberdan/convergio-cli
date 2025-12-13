@@ -282,6 +282,208 @@ static ModelConfig g_gemini_models[] = {
 };
 static size_t g_gemini_model_count = sizeof(g_gemini_models) / sizeof(g_gemini_models[0]);
 
+// OpenRouter Models (access to 300+ models via OpenAI-compatible API)
+static ModelConfig g_openrouter_models[] = {
+    {
+        .id = "deepseek/deepseek-r1",
+        .display_name = "DeepSeek R1",
+        .provider = PROVIDER_OPENROUTER,
+        .input_cost_per_mtok = 0.55,
+        .output_cost_per_mtok = 2.19,
+        .thinking_cost_per_mtok = 0.0,
+        .context_window = 64000,
+        .max_output = 8192,
+        .supports_tools = true,
+        .supports_vision = false,
+        .supports_streaming = true,
+        .tier = COST_TIER_CHEAP,
+        .released = "2025-01-01",
+        .deprecated = false
+    },
+    {
+        .id = "deepseek/deepseek-chat",
+        .display_name = "DeepSeek V3",
+        .provider = PROVIDER_OPENROUTER,
+        .input_cost_per_mtok = 0.14,
+        .output_cost_per_mtok = 0.28,
+        .thinking_cost_per_mtok = 0.0,
+        .context_window = 64000,
+        .max_output = 8192,
+        .supports_tools = true,
+        .supports_vision = false,
+        .supports_streaming = true,
+        .tier = COST_TIER_CHEAP,
+        .released = "2024-12-01",
+        .deprecated = false
+    },
+    {
+        .id = "mistralai/mistral-large-2411",
+        .display_name = "Mistral Large",
+        .provider = PROVIDER_OPENROUTER,
+        .input_cost_per_mtok = 2.0,
+        .output_cost_per_mtok = 6.0,
+        .thinking_cost_per_mtok = 0.0,
+        .context_window = 128000,
+        .max_output = 8192,
+        .supports_tools = true,
+        .supports_vision = false,
+        .supports_streaming = true,
+        .tier = COST_TIER_MID,
+        .released = "2024-11-01",
+        .deprecated = false
+    },
+    {
+        .id = "meta-llama/llama-3.3-70b-instruct",
+        .display_name = "Llama 3.3 70B",
+        .provider = PROVIDER_OPENROUTER,
+        .input_cost_per_mtok = 0.40,
+        .output_cost_per_mtok = 0.40,
+        .thinking_cost_per_mtok = 0.0,
+        .context_window = 131072,
+        .max_output = 8192,
+        .supports_tools = true,
+        .supports_vision = false,
+        .supports_streaming = true,
+        .tier = COST_TIER_CHEAP,
+        .released = "2024-12-01",
+        .deprecated = false
+    },
+    {
+        .id = "qwen/qwen-2.5-72b-instruct",
+        .display_name = "Qwen 2.5 72B",
+        .provider = PROVIDER_OPENROUTER,
+        .input_cost_per_mtok = 0.35,
+        .output_cost_per_mtok = 0.40,
+        .thinking_cost_per_mtok = 0.0,
+        .context_window = 131072,
+        .max_output = 8192,
+        .supports_tools = true,
+        .supports_vision = false,
+        .supports_streaming = true,
+        .tier = COST_TIER_CHEAP,
+        .released = "2024-09-01",
+        .deprecated = false
+    },
+    {
+        .id = "google/gemini-2.0-flash-exp:free",
+        .display_name = "Gemini 2.0 Flash (Free)",
+        .provider = PROVIDER_OPENROUTER,
+        .input_cost_per_mtok = 0.0,
+        .output_cost_per_mtok = 0.0,
+        .thinking_cost_per_mtok = 0.0,
+        .context_window = 1000000,
+        .max_output = 8192,
+        .supports_tools = true,
+        .supports_vision = true,
+        .supports_streaming = true,
+        .tier = COST_TIER_CHEAP,
+        .released = "2024-12-01",
+        .deprecated = false
+    }
+};
+static size_t g_openrouter_model_count = sizeof(g_openrouter_models) / sizeof(g_openrouter_models[0]);
+
+// Ollama Models (local models with zero API costs)
+static ModelConfig g_ollama_models[] = {
+    {
+        .id = "llama3.2",
+        .display_name = "Llama 3.2 (Local)",
+        .provider = PROVIDER_OLLAMA,
+        .input_cost_per_mtok = 0.0,
+        .output_cost_per_mtok = 0.0,
+        .thinking_cost_per_mtok = 0.0,
+        .context_window = 131072,
+        .max_output = 8192,
+        .supports_tools = false,
+        .supports_vision = false,
+        .supports_streaming = true,
+        .tier = COST_TIER_CHEAP,
+        .released = "2024-09-01",
+        .deprecated = false
+    },
+    {
+        .id = "llama3.2:1b",
+        .display_name = "Llama 3.2 1B (Local)",
+        .provider = PROVIDER_OLLAMA,
+        .input_cost_per_mtok = 0.0,
+        .output_cost_per_mtok = 0.0,
+        .thinking_cost_per_mtok = 0.0,
+        .context_window = 131072,
+        .max_output = 8192,
+        .supports_tools = false,
+        .supports_vision = false,
+        .supports_streaming = true,
+        .tier = COST_TIER_CHEAP,
+        .released = "2024-09-01",
+        .deprecated = false
+    },
+    {
+        .id = "mistral",
+        .display_name = "Mistral 7B (Local)",
+        .provider = PROVIDER_OLLAMA,
+        .input_cost_per_mtok = 0.0,
+        .output_cost_per_mtok = 0.0,
+        .thinking_cost_per_mtok = 0.0,
+        .context_window = 32768,
+        .max_output = 8192,
+        .supports_tools = false,
+        .supports_vision = false,
+        .supports_streaming = true,
+        .tier = COST_TIER_CHEAP,
+        .released = "2024-01-01",
+        .deprecated = false
+    },
+    {
+        .id = "codellama",
+        .display_name = "Code Llama (Local)",
+        .provider = PROVIDER_OLLAMA,
+        .input_cost_per_mtok = 0.0,
+        .output_cost_per_mtok = 0.0,
+        .thinking_cost_per_mtok = 0.0,
+        .context_window = 16384,
+        .max_output = 8192,
+        .supports_tools = false,
+        .supports_vision = false,
+        .supports_streaming = true,
+        .tier = COST_TIER_CHEAP,
+        .released = "2024-01-01",
+        .deprecated = false
+    },
+    {
+        .id = "deepseek-coder-v2",
+        .display_name = "DeepSeek Coder V2 (Local)",
+        .provider = PROVIDER_OLLAMA,
+        .input_cost_per_mtok = 0.0,
+        .output_cost_per_mtok = 0.0,
+        .thinking_cost_per_mtok = 0.0,
+        .context_window = 128000,
+        .max_output = 8192,
+        .supports_tools = false,
+        .supports_vision = false,
+        .supports_streaming = true,
+        .tier = COST_TIER_CHEAP,
+        .released = "2024-06-01",
+        .deprecated = false
+    },
+    {
+        .id = "qwen2.5-coder",
+        .display_name = "Qwen 2.5 Coder (Local)",
+        .provider = PROVIDER_OLLAMA,
+        .input_cost_per_mtok = 0.0,
+        .output_cost_per_mtok = 0.0,
+        .thinking_cost_per_mtok = 0.0,
+        .context_window = 131072,
+        .max_output = 8192,
+        .supports_tools = false,
+        .supports_vision = false,
+        .supports_streaming = true,
+        .tier = COST_TIER_CHEAP,
+        .released = "2024-09-01",
+        .deprecated = false
+    }
+};
+static size_t g_ollama_model_count = sizeof(g_ollama_models) / sizeof(g_ollama_models[0]);
+
 // ============================================================================
 // PROVIDER NAME MAPPING
 // ============================================================================
@@ -290,6 +492,7 @@ static const char* g_provider_names[] = {
     [PROVIDER_ANTHROPIC] = "anthropic",
     [PROVIDER_OPENAI] = "openai",
     [PROVIDER_GEMINI] = "gemini",
+    [PROVIDER_OPENROUTER] = "openrouter",
     [PROVIDER_OLLAMA] = "ollama"
 };
 
@@ -298,6 +501,7 @@ static const char* g_provider_display_names[] = {
     [PROVIDER_ANTHROPIC] = "Anthropic",
     [PROVIDER_OPENAI] = "OpenAI",
     [PROVIDER_GEMINI] = "Google Gemini",
+    [PROVIDER_OPENROUTER] = "OpenRouter",
     [PROVIDER_OLLAMA] = "Ollama (Local)"
 };
 
@@ -305,6 +509,7 @@ static const char* g_provider_api_key_envs[] = {
     [PROVIDER_ANTHROPIC] = "ANTHROPIC_API_KEY",
     [PROVIDER_OPENAI] = "OPENAI_API_KEY",
     [PROVIDER_GEMINI] = "GEMINI_API_KEY",
+    [PROVIDER_OPENROUTER] = "OPENROUTER_API_KEY",
     [PROVIDER_OLLAMA] = NULL  // No API key needed for local
 };
 
@@ -336,6 +541,7 @@ static const char* g_error_messages[] = {
 extern Provider* anthropic_provider_create(void);
 extern Provider* openai_provider_create(void);
 extern Provider* gemini_provider_create(void);
+extern Provider* openrouter_provider_create(void);
 extern Provider* ollama_provider_create(void);
 
 ProviderError provider_registry_init(void) {
@@ -351,20 +557,35 @@ ProviderError provider_registry_init(void) {
     // Create provider instances (they don't need to be fully initialized yet)
     // Full initialization happens when the provider is first used and has valid API key
 
-    // Anthropic provider is always created (currently supported)
+    // Anthropic provider
     g_providers[PROVIDER_ANTHROPIC] = anthropic_provider_create();
     if (g_providers[PROVIDER_ANTHROPIC]) {
         LOG_DEBUG(LOG_CAT_SYSTEM, "Anthropic provider created");
     }
 
-    // OpenAI provider (stub for now)
-    // g_providers[PROVIDER_OPENAI] = openai_provider_create();
+    // OpenAI provider
+    g_providers[PROVIDER_OPENAI] = openai_provider_create();
+    if (g_providers[PROVIDER_OPENAI]) {
+        LOG_DEBUG(LOG_CAT_SYSTEM, "OpenAI provider created");
+    }
 
-    // Gemini provider (stub for now)
-    // g_providers[PROVIDER_GEMINI] = gemini_provider_create();
+    // Gemini provider
+    g_providers[PROVIDER_GEMINI] = gemini_provider_create();
+    if (g_providers[PROVIDER_GEMINI]) {
+        LOG_DEBUG(LOG_CAT_SYSTEM, "Gemini provider created");
+    }
 
-    // Ollama provider (stub for now)
-    // g_providers[PROVIDER_OLLAMA] = ollama_provider_create();
+    // OpenRouter provider (access to 300+ models)
+    g_providers[PROVIDER_OPENROUTER] = openrouter_provider_create();
+    if (g_providers[PROVIDER_OPENROUTER]) {
+        LOG_DEBUG(LOG_CAT_SYSTEM, "OpenRouter provider created");
+    }
+
+    // Ollama provider (local models)
+    g_providers[PROVIDER_OLLAMA] = ollama_provider_create();
+    if (g_providers[PROVIDER_OLLAMA]) {
+        LOG_DEBUG(LOG_CAT_SYSTEM, "Ollama provider created");
+    }
 
     g_registry_initialized = true;
     pthread_mutex_unlock(&g_registry_mutex);
@@ -492,6 +713,20 @@ const ModelConfig* model_get_config(const char* model_id) {
         if (result) return result;
     }
 
+    if (hint == PROVIDER_OPENROUTER || hint == PROVIDER_COUNT) {
+        // For OpenRouter, search with full model_id (includes provider prefix like "deepseek/deepseek-r1")
+        result = find_model_in_array(model_id, g_openrouter_models, g_openrouter_model_count);
+        if (result) return result;
+        // Also try with actual_id in case user stripped the openrouter/ prefix
+        result = find_model_in_array(actual_id, g_openrouter_models, g_openrouter_model_count);
+        if (result) return result;
+    }
+
+    if (hint == PROVIDER_OLLAMA || hint == PROVIDER_COUNT) {
+        result = find_model_in_array(actual_id, g_ollama_models, g_ollama_model_count);
+        if (result) return result;
+    }
+
     return NULL;
 }
 
@@ -506,6 +741,12 @@ const ModelConfig* model_get_by_provider(ProviderType type, size_t* out_count) {
         case PROVIDER_GEMINI:
             if (out_count) *out_count = g_gemini_model_count;
             return g_gemini_models;
+        case PROVIDER_OPENROUTER:
+            if (out_count) *out_count = g_openrouter_model_count;
+            return g_openrouter_models;
+        case PROVIDER_OLLAMA:
+            if (out_count) *out_count = g_ollama_model_count;
+            return g_ollama_models;
         default:
             if (out_count) *out_count = 0;
             return NULL;

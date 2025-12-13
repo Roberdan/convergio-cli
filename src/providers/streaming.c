@@ -206,6 +206,71 @@ static char* parse_sse_line(const char* line, ProviderType provider) {
             break;
         }
 
+        case PROVIDER_OPENROUTER: {
+            // OpenRouter uses OpenAI-compatible format
+            // {"choices":[{"delta":{"content":"..."}}]}
+            const char* content_marker = "\"content\":\"";
+            const char* content_start = strstr(data, content_marker);
+            if (content_start) {
+                content_start += strlen(content_marker);
+                const char* content_end = strchr(content_start, '"');
+                while (content_end && content_end > content_start && *(content_end - 1) == '\\') {
+                    content_end = strchr(content_end + 1, '"');
+                }
+                if (content_end) {
+                    size_t len = content_end - content_start;
+                    content = malloc(len + 1);
+                    if (content) {
+                        memcpy(content, content_start, len);
+                        content[len] = '\0';
+                    }
+                }
+            }
+            break;
+        }
+
+        case PROVIDER_OLLAMA: {
+            // Ollama NDJSON: {"message":{"content":"..."}} or {"response":"..."}
+            // Try message.content first (chat endpoint)
+            const char* content_marker = "\"content\":\"";
+            const char* content_start = strstr(data, content_marker);
+            if (content_start) {
+                content_start += strlen(content_marker);
+                const char* content_end = strchr(content_start, '"');
+                while (content_end && content_end > content_start && *(content_end - 1) == '\\') {
+                    content_end = strchr(content_end + 1, '"');
+                }
+                if (content_end) {
+                    size_t len = content_end - content_start;
+                    content = malloc(len + 1);
+                    if (content) {
+                        memcpy(content, content_start, len);
+                        content[len] = '\0';
+                    }
+                }
+            } else {
+                // Try response field (generate endpoint)
+                const char* resp_marker = "\"response\":\"";
+                const char* resp_start = strstr(data, resp_marker);
+                if (resp_start) {
+                    resp_start += strlen(resp_marker);
+                    const char* resp_end = strchr(resp_start, '"');
+                    while (resp_end && resp_end > resp_start && *(resp_end - 1) == '\\') {
+                        resp_end = strchr(resp_end + 1, '"');
+                    }
+                    if (resp_end) {
+                        size_t len = resp_end - resp_start;
+                        content = malloc(len + 1);
+                        if (content) {
+                            memcpy(content, resp_start, len);
+                            content[len] = '\0';
+                        }
+                    }
+                }
+            }
+            break;
+        }
+
         default:
             break;
     }
@@ -399,6 +464,16 @@ int stream_execute(StreamContext* ctx, const char* url, const char* body,
             break;
         case PROVIDER_GEMINI:
             // Gemini uses query param, not header
+            break;
+        case PROVIDER_OPENROUTER:
+            // OpenRouter requires Bearer auth + HTTP-Referer header
+            snprintf(auth_header, sizeof(auth_header), "Authorization: Bearer %s", api_key);
+            headers = curl_slist_append(headers, auth_header);
+            headers = curl_slist_append(headers, "HTTP-Referer: https://convergio.dev");
+            headers = curl_slist_append(headers, "X-Title: ConvergioCLI");
+            break;
+        case PROVIDER_OLLAMA:
+            // Ollama is local - no auth needed
             break;
         default:
             break;

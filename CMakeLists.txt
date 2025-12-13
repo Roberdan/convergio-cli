@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.20)
 
 project(CONVERGIO
-    VERSION 3.0.13
+    VERSION 4.0.0
     DESCRIPTION "Convergio Kernel - A semantic kernel for human-AI symbiosis"
     LANGUAGES C OBJC
 )
@@ -70,6 +70,10 @@ include_directories(
 set(NOUS_SOURCES
     src/core/fabric.c
     src/core/main.c
+    src/core/signals.c
+    src/core/repl.c
+    src/core/commands/commands.c
+    src/core/commands/setup_wizard.c
     src/core/ansi_md.c
     src/core/stream_md.c
     src/core/theme.c
@@ -79,6 +83,7 @@ set(NOUS_SOURCES
     src/intent/parser.c
     src/intent/interpreter.c
     src/agents/agent.c
+    src/agents/agent_config.c
     src/agents/embedded_agents.c
     src/spaces/space.c
     src/runtime/scheduler.c
@@ -87,27 +92,45 @@ set(NOUS_SOURCES
     src/orchestrator/registry.c
     src/orchestrator/msgbus.c
     src/orchestrator/orchestrator.c
+    src/orchestrator/delegation.c
+    src/orchestrator/planning.c
+    src/orchestrator/convergence.c
     src/memory/persistence.c
     src/tools/tools.c
-    # Multi-provider support (Phase 2)
+    # Multi-provider support
     src/providers/provider.c
     src/providers/anthropic.c
     src/providers/openai.c
     src/providers/gemini.c
+    src/providers/openrouter.c
+    src/providers/ollama.c
     src/providers/retry.c
     src/providers/streaming.c
     src/providers/tools.c
     src/providers/tokens.c
     src/router/model_router.c
     src/router/cost_optimizer.c
-    # Agent configuration
-    src/agents/agent_config.c
-    # Synchronization (Phase 3)
+    # Synchronization
     src/sync/file_lock.c
-    # UI enhancements (Phase 4)
+    # UI
     src/ui/hyperlink.c
     src/ui/statusbar.c
     src/ui/terminal.c
+    # Compare
+    src/compare/compare.c
+    src/compare/parallel.c
+    src/compare/render.c
+    src/compare/diff.c
+    # Telemetry
+    src/telemetry/telemetry.c
+    src/telemetry/consent.c
+    src/telemetry/export.c
+    # Agentic
+    src/agentic/tool_detector.c
+    src/agentic/tool_installer.c
+    src/agentic/approval.c
+    # Projects
+    src/projects/projects.c
 )
 
 # Objective-C sources
@@ -255,6 +278,8 @@ add_executable(test_multi_provider
     tests/mocks/mock_anthropic.c
     tests/mocks/mock_openai.c
     tests/mocks/mock_gemini.c
+    tests/mocks/mock_openrouter.c
+    tests/mocks/mock_ollama.c
 )
 
 target_include_directories(test_multi_provider PRIVATE
@@ -267,6 +292,25 @@ target_link_libraries(test_multi_provider
 )
 
 add_test(NAME multi_provider_test COMMAND test_multi_provider)
+
+# Provider-specific mock tests (OpenRouter, Ollama)
+add_executable(test_new_providers
+    tests/test_providers.c
+    tests/mock_provider.c
+    tests/mocks/mock_openrouter.c
+    tests/mocks/mock_ollama.c
+)
+
+target_include_directories(test_new_providers PRIVATE
+    ${CMAKE_SOURCE_DIR}/include
+    ${CMAKE_SOURCE_DIR}/tests
+)
+
+target_link_libraries(test_new_providers
+    ${FOUNDATION_FRAMEWORK}
+)
+
+add_test(NAME new_provider_test COMMAND test_new_providers)
 
 # Print configuration
 message(STATUS "")

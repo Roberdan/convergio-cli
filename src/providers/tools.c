@@ -419,10 +419,15 @@ char* tools_to_json(ProviderType provider) {
                 tool_json = tool_to_anthropic_json(tool);
                 break;
             case PROVIDER_OPENAI:
+            case PROVIDER_OPENROUTER:  // OpenRouter uses OpenAI-compatible format
                 tool_json = tool_to_openai_json(tool);
                 break;
             case PROVIDER_GEMINI:
                 tool_json = tool_to_gemini_json(tool);
+                break;
+            case PROVIDER_OLLAMA:
+                // Ollama doesn't support native tool calling
+                tool_json = NULL;
                 break;
             default:
                 tool_json = tool_to_anthropic_json(tool);
