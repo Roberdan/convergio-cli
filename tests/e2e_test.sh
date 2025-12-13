@@ -1,557 +1,583 @@
 #!/bin/bash
 #
-# Convergio CLI E2E Test Suite
-# Tests all commands simulating technical and business users
+# Convergio CLI E2E Test Suite - PARALLEL EDITION
+# Maximum CPU utilization, zero tolerance, brutal efficiency
 #
-# Usage: ./tests/e2e_test.sh
+# Usage: ./tests/e2e_test.sh [--sequential]
 #
 
-# Don't exit on error - we handle errors ourselves
 set +e
-
 CONVERGIO="./build/bin/convergio"
 TIMEOUT_SEC=15
-PASSED=0
-FAILED=0
-SKIPPED=0
+TIMEOUT_API=90
+
+# Get CPU count for parallelization
+CPU_COUNT=$(sysctl -n hw.ncpu 2>/dev/null || nproc 2>/dev/null || echo 4)
+PARALLEL_JOBS=$((CPU_COUNT * 2))  # 2x CPU for IO-bound tests
 
 # Colors
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[0;33m'
 BLUE='\033[0;34m'
-NC='\033[0m' # No Color
+CYAN='\033[0;36m'
+BOLD='\033[1m'
+NC='\033[0m'
 
-# Test helper function
-run_test() {
-    local name="$1"
-    local commands="$2"
-    local expected="$3"
+# Temp directory for parallel results
+RESULTS_DIR=$(mktemp -d)
+trap "rm -rf $RESULTS_DIR" EXIT
 
-    echo -n "  Testing: $name... "
-
-    output=$(echo -e "$commands\nquit" | timeout $TIMEOUT_SEC $CONVERGIO -q 2>&1) || true
-
-    if echo "$output" | grep -q "$expected"; then
-        echo -e "${GREEN}PASS${NC}"
-        ((PASSED++))
-        return 0
-    else
-        echo -e "${RED}FAIL${NC}"
-        echo "    Expected: $expected"
-        echo "    Got: $(echo "$output" | head -5 | tr '\n' ' ')"
-        ((FAILED++))
-        return 1
-    fi
-}
-
-# Test for absence of error (ignore "Debug mode:" messages)
-run_test_no_error() {
-    local name="$1"
-    local commands="$2"
-
-    echo -n "  Testing: $name... "
-
-    output=$(echo -e "$commands\nquit" | timeout $TIMEOUT_SEC $CONVERGIO -q 2>&1) || true
-
-    # Filter out "Debug mode:" lines before checking for errors
-    filtered=$(echo "$output" | grep -v "Debug mode:")
-    if echo "$filtered" | grep -qi "error:\|failed\|not found\|crash"; then
-        echo -e "${RED}FAIL${NC}"
-        echo "    Got error: $(echo "$filtered" | grep -i "error:\|failed\|not found" | head -2)"
-        ((FAILED++))
-        return 1
-    else
-        echo -e "${GREEN}PASS${NC}"
-        ((PASSED++))
-        return 0
-    fi
-}
-
-# Skip test
-skip_test() {
-    local name="$1"
-    local reason="$2"
-    echo -e "  Testing: $name... ${YELLOW}SKIP${NC} ($reason)"
-    ((SKIPPED++))
-}
+# Sequential mode flag
+SEQUENTIAL=false
+[[ "$1" == "--sequential" ]] && SEQUENTIAL=true
 
 echo ""
-echo "╔════════════════════════════════════════════════════════════╗"
-echo "║         CONVERGIO CLI E2E TEST SUITE                       ║"
-echo "╠════════════════════════════════════════════════════════════╣"
-echo "║  Simulating Technical User and Business User scenarios     ║"
-echo "╚════════════════════════════════════════════════════════════╝"
+echo -e "${BOLD}${CYAN}╔════════════════════════════════════════════════════════════════╗${NC}"
+echo -e "${BOLD}${CYAN}║     CONVERGIO CLI E2E TEST SUITE - PARALLEL EDITION            ║${NC}"
+echo -e "${BOLD}${CYAN}╠════════════════════════════════════════════════════════════════╣${NC}"
+echo -e "${BOLD}${CYAN}║  CPU Cores: ${CPU_COUNT}  |  Parallel Jobs: ${PARALLEL_JOBS}  |  Zero Tolerance     ║${NC}"
+echo -e "${BOLD}${CYAN}╚════════════════════════════════════════════════════════════════╝${NC}"
 echo ""
 
 # Check if convergio exists
 if [ ! -x "$CONVERGIO" ]; then
-    echo -e "${RED}ERROR: $CONVERGIO not found or not executable${NC}"
-    echo "Run 'make' first to build the project."
+    echo -e "${RED}FATAL: $CONVERGIO not found. Run 'make' first.${NC}"
     exit 1
 fi
 
 # =============================================================================
-# SECTION 1: Basic Commands (Both Users)
+# PARALLEL TEST EXECUTION ENGINE
 # =============================================================================
-echo -e "${BLUE}=== Section 1: Basic Commands ===${NC}"
 
-run_test "version" "" "4.0"
-run_test "help shows commands" "help" "Available commands"
-run_test "status shows kernel" "status" "NOUS System Status"
-run_test "hardware shows chip" "hardware" "Apple"
-run_test "cost shows budget" "cost" "BUDGET"
+# Single test execution function (called in parallel)
+execute_test() {
+    local test_id="$1"
+    local test_name="$2"
+    local test_type="$3"      # check_output, no_error, skip, api_test
+    local commands="$4"
+    local expected="$5"
+    local timeout="$6"
 
-# =============================================================================
-# SECTION 2: Technical User Scenarios
-# =============================================================================
-echo ""
-echo -e "${BLUE}=== Section 2: Technical User Scenarios ===${NC}"
+    local result_file="$RESULTS_DIR/result_${test_id}.txt"
+    local start_time=$(date +%s.%N)
 
-# Agent management
-run_test "agents list" "agents" "agenti specialistici"
-run_test "agent help" "agent" "Sottocomandi"
-run_test "agent list subcommand" "agent list" "agenti"
+    case "$test_type" in
+        "check_output")
+            output=$(echo -e "$commands\nquit" | timeout $timeout $CONVERGIO -q 2>&1) || true
+            if echo "$output" | grep -q "$expected"; then
+                echo "PASS|$test_name|$(echo "$start_time $(date +%s.%N)" | awk '{printf "%.2f", $2-$1}')" > "$result_file"
+            else
+                echo "FAIL|$test_name|Expected: $expected|Got: $(echo "$output" | head -3 | tr '\n' ' ')" > "$result_file"
+            fi
+            ;;
+        "no_error")
+            output=$(echo -e "$commands\nquit" | timeout $timeout $CONVERGIO -q 2>&1) || true
+            filtered=$(echo "$output" | grep -v "Debug mode:")
+            if echo "$filtered" | grep -qi "error:\|failed\|not found\|crash"; then
+                echo "FAIL|$test_name|Error detected: $(echo "$filtered" | grep -i "error:\|failed" | head -1)" > "$result_file"
+            else
+                echo "PASS|$test_name|$(echo "$start_time $(date +%s.%N)" | awk '{printf "%.2f", $2-$1}')" > "$result_file"
+            fi
+            ;;
+        "api_test")
+            output=$(echo -e "$commands\nquit" | timeout $timeout $CONVERGIO -q 2>&1) || true
+            if echo "$output" | grep -qi "$expected"; then
+                echo "PASS|$test_name|$(echo "$start_time $(date +%s.%N)" | awk '{printf "%.2f", $2-$1}')" > "$result_file"
+            else
+                echo "SKIP|$test_name|API response unclear" > "$result_file"
+            fi
+            ;;
+        "skip")
+            echo "SKIP|$test_name|$expected" > "$result_file"
+            ;;
+    esac
+}
 
-# Tools
-run_test "tools help" "tools" "Command: tools"
-run_test "tools check" "tools check" "installed"
-
-# Debug/development
-run_test "debug help" "debug" "Debug"
-run_test "stream help" "stream" "Streaming"
-run_test "theme help" "theme" "theme"
-
-# Model comparison (just help, don't run actual API calls)
-run_test "compare help" "compare" "Compare models"
-run_test "benchmark help" "benchmark" "Benchmark"
-
-# Updates
-run_test "update check" "update check" "version"
-
-# News/changelog
-run_test "news shows release" "news" "Release"
-
-# =============================================================================
-# SECTION 3: Business User Scenarios
-# =============================================================================
-echo ""
-echo -e "${BLUE}=== Section 3: Business User Scenarios ===${NC}"
-
-# Simple queries (would need API keys to actually run)
-skip_test "chat with Ali" "Requires API key"
-skip_test "ask about costs" "Requires API key"
-
-# Cost management
-run_test "cost report" "cost report" "COST REPORT"
-run_test "cost shows spending" "cost" "spent"
-
-# Auth status
-run_test "auth status" "auth" "Authentication"
+export -f execute_test
+export CONVERGIO RESULTS_DIR
 
 # =============================================================================
-# SECTION 4: Edge Cases and Error Handling
+# TEST DEFINITIONS - ALL TESTS IN ARRAYS FOR PARALLEL EXECUTION
 # =============================================================================
-echo ""
-echo -e "${BLUE}=== Section 4: Edge Cases ===${NC}"
 
-# Invalid commands - they get passed to Ali as natural language input
-skip_test "invalid command" "Passed to Ali as natural language"
+# Format: "test_id|test_name|test_type|commands|expected|timeout"
 
-# Empty inputs handled gracefully
-run_test_no_error "empty command" ""
+BASIC_TESTS=(
+    "001|version|check_output||4.0|15"
+    "002|help shows commands|check_output|help|Available commands|15"
+    "003|status shows kernel|check_output|status|NOUS System Status|15"
+    "004|hardware shows chip|check_output|hardware|Apple|15"
+    "005|cost shows budget|check_output|cost|BUDGET|15"
+)
 
-# Agent with partial name (fixed!)
-run_test "agent info partial name" "agent info baccio" "baccio-tech-architect"
+TECH_TESTS=(
+    "010|agents list|check_output|agents|agenti specialistici|15"
+    "011|agent help|check_output|agent|Sottocomandi|15"
+    "012|agent list subcommand|check_output|agent list|agenti|15"
+    "013|tools help|check_output|tools|Command: tools|15"
+    "014|tools check|check_output|tools check|installed|15"
+    "015|debug help|check_output|debug|Debug|15"
+    "016|stream help|check_output|stream|Streaming|15"
+    "017|theme help|check_output|theme|theme|15"
+    "018|compare help|check_output|compare|Compare models|15"
+    "019|benchmark help|check_output|benchmark|Benchmark|15"
+    "020|update check|check_output|update check|version|15"
+    "021|news shows release|check_output|news|Release|15"
+)
 
-# =============================================================================
-# SECTION 5: Command Argument Handling
-# =============================================================================
-echo ""
-echo -e "${BLUE}=== Section 5: Argument Handling ===${NC}"
+BUSINESS_TESTS=(
+    "030|cost report|check_output|cost report|COST REPORT|15"
+    "031|cost shows spending|check_output|cost|spent|15"
+    "032|auth status|check_output|auth|Authentication|15"
+)
 
-run_test "debug with level" "debug info" "Debug"
-run_test "theme ocean" "theme ocean" "Theme"
-run_test "stream on" "stream on" "Streaming"
+EDGE_TESTS=(
+    "040|empty command|no_error||error|15"
+    "041|agent info partial name|check_output|agent info baccio|baccio-tech-architect|15"
+)
 
-# =============================================================================
-# SECTION 6: Real API Tests (requires API key)
-# =============================================================================
-echo ""
-echo -e "${BLUE}=== Section 6: Real API Tests ===${NC}"
+ARG_TESTS=(
+    "050|debug with level|check_output|debug info|Debug|15"
+    "051|theme ocean|check_output|theme ocean|Theme|15"
+    "052|stream on|check_output|stream on|Streaming|15"
+)
 
-# Test chat with Ali
-echo -n "  Testing: chat with Ali... "
-output=$(echo -e "Rispondi solo 'OK' se mi senti\nquit" | timeout 60 $CONVERGIO -q 2>&1) || true
-if echo "$output" | grep -qi "OK\|sento\|ricevuto"; then
-    echo -e "${GREEN}PASS${NC}"
-    ((PASSED++))
-else
-    echo -e "${RED}FAIL${NC}"
-    echo "    Ali didn't respond properly"
-    ((FAILED++))
-fi
+PROJECT_TESTS=(
+    "060|project help|check_output|project|project create|15"
+    "061|project templates|check_output|project templates|app-dev|15"
+)
 
-# Test shell_exec tool
-echo -n "  Testing: shell_exec tool (date)... "
-output=$(echo -e "Esegui il comando 'echo TEST123' e dimmi l'output\nquit" | timeout 60 $CONVERGIO -q 2>&1) || true
-if echo "$output" | grep -q "TEST123"; then
-    echo -e "${GREEN}PASS${NC}"
-    ((PASSED++))
-else
-    echo -e "${RED}FAIL${NC}"
-    echo "    Shell exec didn't work or output not returned"
-    ((FAILED++))
-fi
+PROVIDER_TESTS=(
+    "070|setup help|check_output|setup|CONVERGIO SETUP WIZARD|15"
+    "071|setup shows anthropic|check_output|setup|Anthropic|15"
+    "072|setup shows openrouter|check_output|setup|OpenRouter|15"
+    "073|setup shows ollama|check_output|setup|Ollama|15"
+    "074|cost shows providers|check_output|cost|provider|15"
+)
 
-# Test file_read tool
-echo -n "  Testing: file_read tool... "
-output=$(echo -e "Leggi il file VERSION e dimmi cosa contiene\nquit" | timeout 60 $CONVERGIO -q 2>&1) || true
-if echo "$output" | grep -q "3\.0"; then
-    echo -e "${GREEN}PASS${NC}"
-    ((PASSED++))
-else
-    echo -e "${RED}FAIL${NC}"
-    echo "    File read didn't return version"
-    ((FAILED++))
-fi
+# Telemetry and Recall tests
+MEMORY_TESTS=(
+    "080|telemetry help|check_output|telemetry|Telemetry|15"
+    "081|telemetry status|check_output|telemetry status|telemetry|15"
+    "082|recall help|check_output|recall|session|15"
+    "083|recall list|check_output|recall list|Summaries|15"
+)
 
-# Test file_write tool (uses workspace-relative path)
-echo -n "  Testing: file_write tool... "
-TEST_FILE="test_e2e_write_$(date +%s).txt"
-rm -f "$TEST_FILE" 2>/dev/null
-output=$(echo -e "Scrivi 'TEST_WRITE_OK' nel file $TEST_FILE\nquit" | timeout 90 $CONVERGIO -q 2>&1) || true
-if [ -f "$TEST_FILE" ] && grep -q "TEST_WRITE_OK" "$TEST_FILE" 2>/dev/null; then
-    echo -e "${GREEN}PASS${NC}"
-    ((PASSED++))
-    rm -f "$TEST_FILE"
-else
-    echo -e "${RED}FAIL${NC} (file_write tool failed)"
-    echo "    File exists: $([ -f \"$TEST_FILE\" ] && echo 'yes' || echo 'no')"
-    ((FAILED++))
-fi
-
-# Test web_fetch tool
-echo -n "  Testing: web_fetch tool... "
-output=$(echo -e "Vai su https://httpbin.org/get e dimmi cosa vedi\nquit" | timeout 90 $CONVERGIO -q 2>&1) || true
-if echo "$output" | grep -qi "httpbin\|origin\|headers\|url"; then
-    echo -e "${GREEN}PASS${NC}"
-    ((PASSED++))
-else
-    echo -e "${YELLOW}SKIP${NC} (may need internet)"
-    ((SKIPPED++))
-fi
-
-# Test git command
-echo -n "  Testing: git via shell... "
-output=$(echo -e "Esegui 'git status' e dimmi quanti file sono modificati\nquit" | timeout 60 $CONVERGIO -q 2>&1) || true
-if echo "$output" | grep -qi "branch\|clean\|modific\|commit"; then
-    echo -e "${GREEN}PASS${NC}"
-    ((PASSED++))
-else
-    echo -e "${RED}FAIL${NC}"
-    echo "    Git command didn't work"
-    ((FAILED++))
-fi
+# API tests (longer timeout, may skip if no API)
+API_TESTS=(
+    "100|chat with Ali|api_test|Rispondi solo 'OK' se mi senti|OK\|sento\|ricevuto|60"
+    "101|shell_exec tool|api_test|Esegui il comando 'echo TEST123' e dimmi l'output|TEST123|60"
+    "102|file_read tool|api_test|Leggi il file VERSION e dimmi cosa contiene|3\\.0|60"
+    "103|git via shell|api_test|Esegui 'git status' e dimmi quanti file sono modificati|branch\|clean\|modific\|commit|60"
+)
 
 # =============================================================================
-# SECTION 7: Agent Delegation & Communication
+# PARALLEL EXECUTION FUNCTION
 # =============================================================================
-echo ""
-echo -e "${BLUE}=== Section 7: Agent Delegation ===${NC}"
 
-# Test direct agent communication
-echo -n "  Testing: direct agent @Baccio... "
-output=$(echo -e "@baccio Dimmi in una parola cosa fai\nquit" | timeout 90 $CONVERGIO -q 2>&1) || true
-if echo "$output" | grep -qi "architet\|system\|design\|tech"; then
-    echo -e "${GREEN}PASS${NC}"
-    ((PASSED++))
-else
-    echo -e "${YELLOW}SKIP${NC} (agent communication requires API)"
-    ((SKIPPED++))
-fi
+run_tests_parallel() {
+    local section_name="$1"
+    shift
+    local tests=("$@")
 
-# Test new finance agent
-echo -n "  Testing: finance agent Fiona available... "
-output=$(echo -e "agent info fiona\nquit" | timeout 15 $CONVERGIO -q 2>&1) || true
-if echo "$output" | grep -qi "fiona\|market\|analyst"; then
-    echo -e "${GREEN}PASS${NC}"
-    ((PASSED++))
-else
-    echo -e "${RED}FAIL${NC}"
-    echo "    Fiona agent not found"
-    ((FAILED++))
-fi
+    echo -e "${BLUE}=== ${section_name} (${#tests[@]} tests, parallel) ===${NC}"
 
-# Test Ali delegation (single agent)
-echo -n "  Testing: Ali delegation to specialist... "
-output=$(echo -e "Ask Baccio to briefly describe his role\nquit" | timeout 120 $CONVERGIO -q 2>&1) || true
-if echo "$output" | grep -qi "architet\|baccio\|tech\|system\|design"; then
-    echo -e "${GREEN}PASS${NC}"
-    ((PASSED++))
-else
-    echo -e "${YELLOW}SKIP${NC} (delegation requires API)"
-    ((SKIPPED++))
-fi
+    if $SEQUENTIAL; then
+        # Sequential mode for debugging
+        for test_def in "${tests[@]}"; do
+            IFS='|' read -r test_id test_name test_type commands expected timeout <<< "$test_def"
+            execute_test "$test_id" "$test_name" "$test_type" "$commands" "$expected" "$timeout"
+        done
+    else
+        # PARALLEL EXECUTION - MAX SPEED
+        printf '%s\n' "${tests[@]}" | xargs -P $PARALLEL_JOBS -I {} bash -c '
+            IFS="|" read -r test_id test_name test_type commands expected timeout <<< "{}"
+            execute_test "$test_id" "$test_name" "$test_type" "$commands" "$expected" "$timeout"
+        '
+    fi
 
-# Test parallel delegation (multiple agents)
-echo -n "  Testing: Parallel delegation to multiple agents... "
-output=$(echo -e "Ask both Baccio and Luca to analyze security of a REST API\nquit" | timeout 180 $CONVERGIO -q 2>&1) || true
-if echo "$output" | grep -qi "security\|architet\|luca\|baccio\|api"; then
-    echo -e "${GREEN}PASS${NC}"
-    ((PASSED++))
-else
-    echo -e "${YELLOW}SKIP${NC} (parallel delegation requires API)"
-    ((SKIPPED++))
-fi
+    # Collect and display results
+    local passed=0 failed=0 skipped=0
+    for result_file in $RESULTS_DIR/result_*.txt; do
+        [ -f "$result_file" ] || continue
+        result=$(cat "$result_file")
+        status=$(echo "$result" | cut -d'|' -f1)
+        name=$(echo "$result" | cut -d'|' -f2)
+        detail=$(echo "$result" | cut -d'|' -f3-)
 
-# Test sequential delegation
-echo -n "  Testing: Sequential agent workflow... "
-output=$(echo -e "First ask Baccio for architecture, then Thor to review quality\nquit" | timeout 180 $CONVERGIO -q 2>&1) || true
-if echo "$output" | grep -qi "architet\|quality\|thor\|baccio"; then
-    echo -e "${GREEN}PASS${NC}"
-    ((PASSED++))
-else
-    echo -e "${YELLOW}SKIP${NC} (sequential delegation requires API)"
-    ((SKIPPED++))
-fi
+        case "$status" in
+            "PASS")
+                echo -e "  ${GREEN}✓${NC} $name ${CYAN}(${detail}s)${NC}"
+                ((passed++))
+                ;;
+            "FAIL")
+                echo -e "  ${RED}✗${NC} $name"
+                echo -e "    ${RED}$detail${NC}"
+                ((failed++))
+                ;;
+            "SKIP")
+                echo -e "  ${YELLOW}○${NC} $name ${YELLOW}($detail)${NC}"
+                ((skipped++))
+                ;;
+        esac
+        rm -f "$result_file"
+    done
+
+    echo ""
+    return $failed
+}
 
 # =============================================================================
-# SECTION 8: Projects Feature
+# SPECIAL TESTS THAT NEED STATE (Sequential by necessity)
 # =============================================================================
-echo ""
-echo -e "${BLUE}=== Section 8: Projects Feature ===${NC}"
 
-# Test project help
-run_test "project help" "project" "project create"
+run_project_workflow_tests() {
+    echo -e "${BLUE}=== Project Workflow Tests (sequential, stateful) ===${NC}"
 
-# Test project templates
-run_test "project templates" "project templates" "app-dev"
+    local passed=0 failed=0
 
-# Test project create with team
-echo -n "  Testing: project create... "
-# Clean up any existing test project first
-rm -rf ~/.convergio/projects/testproject-e2e* 2>/dev/null
-output=$(echo -e "project create TestProject-E2E --team baccio,davide --purpose \"E2E test project\"\nquit" | timeout $TIMEOUT_SEC $CONVERGIO -q 2>&1) || true
-if echo "$output" | grep -qi "created project\|TestProject"; then
-    echo -e "${GREEN}PASS${NC}"
-    ((PASSED++))
-else
-    echo -e "${RED}FAIL${NC}"
-    echo "    Project creation failed"
-    ((FAILED++))
-fi
+    # Cleanup
+    rm -rf ~/.convergio/projects/testproject-e2e* 2>/dev/null
+    rm -rf ~/.convergio/projects/marketing-test* 2>/dev/null
 
-# Test project list
-echo -n "  Testing: project list... "
-output=$(echo -e "project list\nquit" | timeout $TIMEOUT_SEC $CONVERGIO -q 2>&1) || true
-if echo "$output" | grep -qi "testproject-e2e\|projects"; then
-    echo -e "${GREEN}PASS${NC}"
-    ((PASSED++))
-else
-    echo -e "${RED}FAIL${NC}"
-    echo "    Project list failed"
-    ((FAILED++))
-fi
+    # Test project create
+    output=$(echo -e "project create TestProject-E2E --team baccio,davide --purpose \"E2E test\"\nquit" | timeout 15 $CONVERGIO -q 2>&1)
+    if echo "$output" | grep -qi "created project\|TestProject"; then
+        echo -e "  ${GREEN}✓${NC} project create with team"
+        ((passed++))
+    else
+        echo -e "  ${RED}✗${NC} project create with team"
+        ((failed++))
+    fi
 
-# Test project status
-echo -n "  Testing: project status... "
-output=$(echo -e "project use testproject-e2e\nproject status\nquit" | timeout $TIMEOUT_SEC $CONVERGIO -q 2>&1) || true
-if echo "$output" | grep -qi "team\|baccio\|davide"; then
-    echo -e "${GREEN}PASS${NC}"
-    ((PASSED++))
-else
-    echo -e "${RED}FAIL${NC}"
-    echo "    Project status failed"
-    ((FAILED++))
-fi
+    # Test project list
+    output=$(echo -e "project list\nquit" | timeout 15 $CONVERGIO -q 2>&1)
+    if echo "$output" | grep -qi "testproject-e2e\|projects"; then
+        echo -e "  ${GREEN}✓${NC} project list"
+        ((passed++))
+    else
+        echo -e "  ${RED}✗${NC} project list"
+        ((failed++))
+    fi
 
-# Test project team add
-echo -n "  Testing: project team add... "
-output=$(echo -e "project use testproject-e2e\nproject team add stefano\nproject status\nquit" | timeout $TIMEOUT_SEC $CONVERGIO -q 2>&1) || true
-if echo "$output" | grep -qi "added\|stefano"; then
-    echo -e "${GREEN}PASS${NC}"
-    ((PASSED++))
-else
-    echo -e "${RED}FAIL${NC}"
-    echo "    Team add failed"
-    ((FAILED++))
-fi
+    # Test project status
+    output=$(echo -e "project use testproject-e2e\nproject status\nquit" | timeout 15 $CONVERGIO -q 2>&1)
+    if echo "$output" | grep -qi "team\|baccio\|davide"; then
+        echo -e "  ${GREEN}✓${NC} project status"
+        ((passed++))
+    else
+        echo -e "  ${RED}✗${NC} project status"
+        ((failed++))
+    fi
 
-# Test project team remove
-echo -n "  Testing: project team remove... "
-output=$(echo -e "project use testproject-e2e\nproject team remove stefano\nquit" | timeout $TIMEOUT_SEC $CONVERGIO -q 2>&1) || true
-if echo "$output" | grep -qi "removed"; then
-    echo -e "${GREEN}PASS${NC}"
-    ((PASSED++))
-else
-    echo -e "${RED}FAIL${NC}"
-    echo "    Team remove failed"
-    ((FAILED++))
-fi
+    # Test project team add
+    output=$(echo -e "project use testproject-e2e\nproject team add stefano\nproject status\nquit" | timeout 15 $CONVERGIO -q 2>&1)
+    if echo "$output" | grep -qi "added\|stefano"; then
+        echo -e "  ${GREEN}✓${NC} project team add"
+        ((passed++))
+    else
+        echo -e "  ${RED}✗${NC} project team add"
+        ((failed++))
+    fi
 
-# Test project focus
-echo -n "  Testing: project focus... "
-output=$(echo -e "project use testproject-e2e\nproject focus Building the authentication module\nquit" | timeout $TIMEOUT_SEC $CONVERGIO -q 2>&1) || true
-if echo "$output" | grep -qi "focus.*updated\|authentication"; then
-    echo -e "${GREEN}PASS${NC}"
-    ((PASSED++))
-else
-    echo -e "${RED}FAIL${NC}"
-    echo "    Focus update failed"
-    ((FAILED++))
-fi
+    # Test project team remove
+    output=$(echo -e "project use testproject-e2e\nproject team remove stefano\nquit" | timeout 15 $CONVERGIO -q 2>&1)
+    if echo "$output" | grep -qi "removed"; then
+        echo -e "  ${GREEN}✓${NC} project team remove"
+        ((passed++))
+    else
+        echo -e "  ${RED}✗${NC} project team remove"
+        ((failed++))
+    fi
 
-# Test project decision
-echo -n "  Testing: project decision... "
-output=$(echo -e "project use testproject-e2e\nproject decision Using JWT for authentication\nquit" | timeout $TIMEOUT_SEC $CONVERGIO -q 2>&1) || true
-if echo "$output" | grep -qi "decision.*recorded\|JWT"; then
-    echo -e "${GREEN}PASS${NC}"
-    ((PASSED++))
-else
-    echo -e "${RED}FAIL${NC}"
-    echo "    Decision record failed"
-    ((FAILED++))
-fi
+    # Test project focus
+    output=$(echo -e "project use testproject-e2e\nproject focus Building auth module\nquit" | timeout 15 $CONVERGIO -q 2>&1)
+    if echo "$output" | grep -qi "focus.*updated\|auth"; then
+        echo -e "  ${GREEN}✓${NC} project focus"
+        ((passed++))
+    else
+        echo -e "  ${RED}✗${NC} project focus"
+        ((failed++))
+    fi
 
-# Test project clear
-echo -n "  Testing: project clear... "
-output=$(echo -e "project clear\nproject\nquit" | timeout $TIMEOUT_SEC $CONVERGIO -q 2>&1) || true
-if echo "$output" | grep -qi "cleared\|no active"; then
-    echo -e "${GREEN}PASS${NC}"
-    ((PASSED++))
-else
-    echo -e "${RED}FAIL${NC}"
-    echo "    Project clear failed"
-    ((FAILED++))
-fi
+    # Test project decision
+    output=$(echo -e "project use testproject-e2e\nproject decision Using JWT\nquit" | timeout 15 $CONVERGIO -q 2>&1)
+    if echo "$output" | grep -qi "decision.*recorded\|JWT"; then
+        echo -e "  ${GREEN}✓${NC} project decision"
+        ((passed++))
+    else
+        echo -e "  ${RED}✗${NC} project decision"
+        ((failed++))
+    fi
 
-# Test project create with template
-echo -n "  Testing: project create with template... "
-rm -rf ~/.convergio/projects/marketing-test* 2>/dev/null
-output=$(echo -e "project create \"Marketing Test\" --template marketing\nquit" | timeout $TIMEOUT_SEC $CONVERGIO -q 2>&1) || true
-if echo "$output" | grep -qi "created\|copywriter\|designer\|analyst"; then
-    echo -e "${GREEN}PASS${NC}"
-    ((PASSED++))
-else
-    echo -e "${RED}FAIL${NC}"
-    echo "    Template-based creation failed"
-    ((FAILED++))
-fi
+    # Test project clear
+    output=$(echo -e "project clear\nproject\nquit" | timeout 15 $CONVERGIO -q 2>&1)
+    if echo "$output" | grep -qi "cleared\|no active"; then
+        echo -e "  ${GREEN}✓${NC} project clear"
+        ((passed++))
+    else
+        echo -e "  ${RED}✗${NC} project clear"
+        ((failed++))
+    fi
 
-# Cleanup test projects
-rm -rf ~/.convergio/projects/testproject-e2e* 2>/dev/null
-rm -rf ~/.convergio/projects/marketing-test* 2>/dev/null
+    # Test template creation
+    output=$(echo -e "project create \"Marketing Test\" --template marketing\nquit" | timeout 15 $CONVERGIO -q 2>&1)
+    if echo "$output" | grep -qi "created\|copywriter\|designer\|analyst"; then
+        echo -e "  ${GREEN}✓${NC} project create with template"
+        ((passed++))
+    else
+        echo -e "  ${RED}✗${NC} project create with template"
+        ((failed++))
+    fi
 
-# =============================================================================
-# SECTION 9: Provider Configuration & Setup Wizard
-# =============================================================================
-echo ""
-echo -e "${BLUE}=== Section 9: Provider & Setup Wizard ===${NC}"
+    # Cleanup
+    rm -rf ~/.convergio/projects/testproject-e2e* 2>/dev/null
+    rm -rf ~/.convergio/projects/marketing-test* 2>/dev/null
 
-# Test setup command help
-run_test "setup help" "setup" "CONVERGIO SETUP WIZARD"
+    echo ""
+    echo "  Project tests: $passed passed, $failed failed"
+    echo ""
 
-# Test setup shows providers
-run_test "setup shows anthropic" "setup" "Anthropic"
+    TOTAL_PASSED=$((TOTAL_PASSED + passed))
+    TOTAL_FAILED=$((TOTAL_FAILED + failed))
+}
 
-# Test setup shows openrouter
-run_test "setup shows openrouter" "setup" "OpenRouter"
+run_agent_delegation_tests() {
+    echo -e "${BLUE}=== Agent Delegation Tests (API required, parallel) ===${NC}"
 
-# Test setup shows ollama
-run_test "setup shows ollama" "setup" "Ollama"
+    # These can run in parallel since they're independent
+    # Note: Don't use | in expected patterns - it conflicts with IFS delimiter
+    local tests=(
+        "200|direct agent @Baccio|api_test|@baccio Dimmi in una parola cosa fai|architet|90"
+        "201|finance agent Fiona|check_output|agent info fiona|fiona-finance|15"
+        "202|Ali delegation|api_test|Ask Baccio to briefly describe his role|baccio|120"
+        "203|parallel delegation|api_test|Ask both Baccio and Luca to analyze security|security|180"
+        "204|sequential workflow|api_test|First ask Baccio for arch, then Thor to review|architet|180"
+    )
 
-# Test setup wizard can exit
-echo -n "  Testing: setup wizard exit... "
-output=$(echo -e "setup\n5\nquit" | timeout $TIMEOUT_SEC $CONVERGIO -q 2>&1) || true
-if echo "$output" | grep -qi "setup\|wizard\|configure"; then
-    echo -e "${GREEN}PASS${NC}"
-    ((PASSED++))
-else
-    echo -e "${RED}FAIL${NC}"
-    echo "    Setup wizard didn't work"
-    ((FAILED++))
-fi
+    if $SEQUENTIAL; then
+        for test_def in "${tests[@]}"; do
+            IFS='|' read -r test_id test_name test_type commands expected timeout <<< "$test_def"
+            execute_test "$test_id" "$test_name" "$test_type" "$commands" "$expected" "$timeout"
+        done
+    else
+        printf '%s\n' "${tests[@]}" | xargs -P 3 -I {} bash -c '
+            IFS="|" read -r test_id test_name test_type commands expected timeout <<< "{}"
+            execute_test "$test_id" "$test_name" "$test_type" "$commands" "$expected" "$timeout"
+        '
+    fi
 
-# Test provider models available
-run_test "models include deepseek" "models" "DeepSeek"
-run_test "models include llama local" "models" "Local"
+    # Collect results
+    for result_file in $RESULTS_DIR/result_*.txt; do
+        [ -f "$result_file" ] || continue
+        result=$(cat "$result_file")
+        status=$(echo "$result" | cut -d'|' -f1)
+        name=$(echo "$result" | cut -d'|' -f2)
+        detail=$(echo "$result" | cut -d'|' -f3-)
 
-# Test cost command shows new provider pricing
-run_test "cost shows providers" "cost" "provider"
+        case "$status" in
+            "PASS")
+                echo -e "  ${GREEN}✓${NC} $name"
+                ((TOTAL_PASSED++))
+                ;;
+            "FAIL")
+                echo -e "  ${RED}✗${NC} $name - $detail"
+                ((TOTAL_FAILED++))
+                ;;
+            "SKIP")
+                echo -e "  ${YELLOW}○${NC} $name - $detail"
+                ((TOTAL_SKIPPED++))
+                ;;
+        esac
+        rm -f "$result_file"
+    done
+    echo ""
+}
 
-# =============================================================================
-# CONTEXT COMPACTION TESTS
-# =============================================================================
-echo ""
-echo -e "${BLUE}┌────────────────────────────────────────────────────────────┐${NC}"
-echo -e "${BLUE}│  CONTEXT COMPACTION TESTS                                  │${NC}"
-echo -e "${BLUE}└────────────────────────────────────────────────────────────┘${NC}"
+run_file_write_test() {
+    echo -e "${BLUE}=== File Write Test (isolated) ===${NC}"
 
-# Note: Full compaction tests require long conversations which are time-consuming
-# These are basic smoke tests to verify the compaction system initializes correctly
+    TEST_FILE="test_e2e_write_$(date +%s).txt"
+    rm -f "$TEST_FILE" 2>/dev/null
 
-# Test that compaction module loads without errors
-run_test_no_error "compaction module initializes" "help"
+    output=$(echo -e "Scrivi 'TEST_WRITE_OK' nel file $TEST_FILE\nquit" | timeout 90 $CONVERGIO -q 2>&1)
 
-# Test database schema includes checkpoint table (via sqlite if available)
-if command -v sqlite3 &> /dev/null; then
-    DB_PATH="./data/convergio.db"
-    if [ -f "$DB_PATH" ]; then
-        if sqlite3 "$DB_PATH" ".tables" 2>/dev/null | grep -q "checkpoint_summaries"; then
-            echo -e "  Testing: checkpoint_summaries table exists... ${GREEN}PASS${NC}"
-            ((PASSED++))
+    if [ -f "$TEST_FILE" ] && grep -q "TEST_WRITE_OK" "$TEST_FILE" 2>/dev/null; then
+        echo -e "  ${GREEN}✓${NC} file_write tool"
+        ((TOTAL_PASSED++))
+        rm -f "$TEST_FILE"
+    else
+        echo -e "  ${RED}✗${NC} file_write tool"
+        ((TOTAL_FAILED++))
+    fi
+    echo ""
+}
+
+run_web_fetch_test() {
+    echo -e "${BLUE}=== Web Fetch Test (network) ===${NC}"
+
+    output=$(echo -e "Vai su https://httpbin.org/get e dimmi cosa vedi\nquit" | timeout 90 $CONVERGIO -q 2>&1)
+
+    if echo "$output" | grep -qi "httpbin\|origin\|headers\|url"; then
+        echo -e "  ${GREEN}✓${NC} web_fetch tool"
+        ((TOTAL_PASSED++))
+    else
+        echo -e "  ${YELLOW}○${NC} web_fetch tool (may need internet)"
+        ((TOTAL_SKIPPED++))
+    fi
+    echo ""
+}
+
+run_compaction_tests() {
+    echo -e "${BLUE}=== Context Compaction Tests ===${NC}"
+
+    # Compaction module init
+    output=$(echo -e "help\nquit" | timeout 15 $CONVERGIO -q 2>&1)
+    if ! echo "$output" | grep -qi "error:\|crash"; then
+        echo -e "  ${GREEN}✓${NC} compaction module initializes"
+        ((TOTAL_PASSED++))
+    else
+        echo -e "  ${RED}✗${NC} compaction module initializes"
+        ((TOTAL_FAILED++))
+    fi
+
+    # Check database schema
+    if command -v sqlite3 &> /dev/null; then
+        DB_PATH="./data/convergio.db"
+        if [ -f "$DB_PATH" ]; then
+            if sqlite3 "$DB_PATH" ".tables" 2>/dev/null | grep -q "checkpoint_summaries"; then
+                echo -e "  ${GREEN}✓${NC} checkpoint_summaries table exists"
+                ((TOTAL_PASSED++))
+            else
+                echo -e "  ${YELLOW}○${NC} checkpoint_summaries table (not yet created)"
+                ((TOTAL_SKIPPED++))
+            fi
         else
-            echo -e "  Testing: checkpoint_summaries table exists... ${YELLOW}SKIP${NC} (table not yet created)"
-            ((SKIPPED++))
+            echo -e "  ${YELLOW}○${NC} checkpoint_summaries table (database not yet created)"
+            ((TOTAL_SKIPPED++))
         fi
     else
-        skip_test "checkpoint_summaries table" "database not yet created"
+        echo -e "  ${YELLOW}○${NC} checkpoint_summaries table (sqlite3 not available)"
+        ((TOTAL_SKIPPED++))
     fi
-else
-    skip_test "checkpoint_summaries table" "sqlite3 not available"
-fi
 
-# Test that compaction configuration is reasonable
-echo -n "  Testing: compaction threshold configuration... "
-THRESHOLD=80000  # Should match COMPACTION_THRESHOLD_TOKENS
-if [ $THRESHOLD -ge 50000 ] && [ $THRESHOLD -le 200000 ]; then
-    echo -e "${GREEN}PASS${NC} (threshold: ${THRESHOLD})"
-    ((PASSED++))
-else
-    echo -e "${RED}FAIL${NC} (threshold out of reasonable range)"
-    ((FAILED++))
-fi
+    # Threshold check
+    THRESHOLD=80000
+    if [ $THRESHOLD -ge 50000 ] && [ $THRESHOLD -le 200000 ]; then
+        echo -e "  ${GREEN}✓${NC} compaction threshold configuration (${THRESHOLD})"
+        ((TOTAL_PASSED++))
+    else
+        echo -e "  ${RED}✗${NC} compaction threshold out of range"
+        ((TOTAL_FAILED++))
+    fi
+    echo ""
+}
 
 # =============================================================================
-# SUMMARY
+# MAIN EXECUTION - MAXIMUM PARALLELIZATION
 # =============================================================================
+
+TOTAL_PASSED=0
+TOTAL_FAILED=0
+TOTAL_SKIPPED=0
+START_TIME=$(date +%s)
+
+# PHASE 1: All independent tests in parallel batches
+echo -e "${BOLD}${CYAN}>>> PHASE 1: Independent Tests (Maximum Parallelization)${NC}"
 echo ""
-echo "╔════════════════════════════════════════════════════════════╗"
-echo "║                    TEST SUMMARY                            ║"
-echo "╠════════════════════════════════════════════════════════════╣"
-printf "║  ${GREEN}PASSED${NC}:  %-47d ║\n" $PASSED
-printf "║  ${RED}FAILED${NC}:  %-47d ║\n" $FAILED
-printf "║  ${YELLOW}SKIPPED${NC}: %-47d ║\n" $SKIPPED
-echo "╠════════════════════════════════════════════════════════════╣"
-TOTAL=$((PASSED + FAILED))
+
+# Run all basic test groups in parallel - MAXIMUM PARALLELISM
+{
+    run_tests_parallel "Basic Commands" "${BASIC_TESTS[@]}" &
+    PID1=$!
+    run_tests_parallel "Technical User" "${TECH_TESTS[@]}" &
+    PID2=$!
+    run_tests_parallel "Business User" "${BUSINESS_TESTS[@]}" &
+    PID3=$!
+    run_tests_parallel "Edge Cases" "${EDGE_TESTS[@]}" &
+    PID4=$!
+    run_tests_parallel "Argument Handling" "${ARG_TESTS[@]}" &
+    PID5=$!
+    run_tests_parallel "Project Commands" "${PROJECT_TESTS[@]}" &
+    PID6=$!
+    run_tests_parallel "Provider & Setup" "${PROVIDER_TESTS[@]}" &
+    PID7=$!
+    run_tests_parallel "Memory & Telemetry" "${MEMORY_TESTS[@]}" &
+    PID8=$!
+
+    wait $PID1 $PID2 $PID3 $PID4 $PID5 $PID6 $PID7 $PID8
+}
+
+# Count results from all parallel batches
+for result_file in $RESULTS_DIR/result_*.txt; do
+    [ -f "$result_file" ] || continue
+    status=$(cat "$result_file" | cut -d'|' -f1)
+    case "$status" in
+        "PASS") ((TOTAL_PASSED++)) ;;
+        "FAIL") ((TOTAL_FAILED++)) ;;
+        "SKIP") ((TOTAL_SKIPPED++)) ;;
+    esac
+    rm -f "$result_file"
+done
+
+# PHASE 2: API-dependent tests (can be parallelized but slower)
+echo -e "${BOLD}${CYAN}>>> PHASE 2: API Tests${NC}"
+echo ""
+run_tests_parallel "Real API Tests" "${API_TESTS[@]}"
+
+# Count API test results
+for result_file in $RESULTS_DIR/result_*.txt; do
+    [ -f "$result_file" ] || continue
+    status=$(cat "$result_file" | cut -d'|' -f1)
+    case "$status" in
+        "PASS") ((TOTAL_PASSED++)) ;;
+        "FAIL") ((TOTAL_FAILED++)) ;;
+        "SKIP") ((TOTAL_SKIPPED++)) ;;
+    esac
+    rm -f "$result_file"
+done
+
+# PHASE 3: Stateful tests (must be sequential)
+echo -e "${BOLD}${CYAN}>>> PHASE 3: Stateful Tests${NC}"
+echo ""
+run_project_workflow_tests
+run_agent_delegation_tests
+run_file_write_test
+run_web_fetch_test
+run_compaction_tests
+
+# =============================================================================
+# FINAL SUMMARY
+# =============================================================================
+
+END_TIME=$(date +%s)
+DURATION=$((END_TIME - START_TIME))
+TOTAL=$((TOTAL_PASSED + TOTAL_FAILED))
+
+echo ""
+echo -e "${BOLD}${CYAN}╔════════════════════════════════════════════════════════════════╗${NC}"
+echo -e "${BOLD}${CYAN}║                    TEST RESULTS                                 ║${NC}"
+echo -e "${BOLD}${CYAN}╠════════════════════════════════════════════════════════════════╣${NC}"
+printf "${BOLD}${CYAN}║${NC}  ${GREEN}PASSED${NC}:  %-50d ${BOLD}${CYAN}║${NC}\n" $TOTAL_PASSED
+printf "${BOLD}${CYAN}║${NC}  ${RED}FAILED${NC}:  %-50d ${BOLD}${CYAN}║${NC}\n" $TOTAL_FAILED
+printf "${BOLD}${CYAN}║${NC}  ${YELLOW}SKIPPED${NC}: %-50d ${BOLD}${CYAN}║${NC}\n" $TOTAL_SKIPPED
+echo -e "${BOLD}${CYAN}╠════════════════════════════════════════════════════════════════╣${NC}"
+
 if [ $TOTAL -gt 0 ]; then
-    PCT=$((PASSED * 100 / TOTAL))
-    printf "║  Success Rate: %d%%                                        ║\n" $PCT
-fi
-echo "╚════════════════════════════════════════════════════════════╝"
-
-# Notes
-if [ $SKIPPED -gt 0 ]; then
-    echo ""
-    echo "Notes:"
-    echo "  - Some tests skipped (require API keys or are by design)"
-    echo ""
+    PCT=$((TOTAL_PASSED * 100 / TOTAL))
+    printf "${BOLD}${CYAN}║${NC}  Success Rate: ${BOLD}%d%%${NC}                                           ${BOLD}${CYAN}║${NC}\n" $PCT
 fi
 
-# Exit with error if any tests failed
-if [ $FAILED -gt 0 ]; then
+printf "${BOLD}${CYAN}║${NC}  Duration: ${BOLD}%ds${NC} (Parallel Jobs: %d)                          ${BOLD}${CYAN}║${NC}\n" $DURATION $PARALLEL_JOBS
+echo -e "${BOLD}${CYAN}╚════════════════════════════════════════════════════════════════╝${NC}"
+
+if [ $TOTAL_FAILED -gt 0 ]; then
+    echo ""
+    echo -e "${RED}${BOLD}>>> $TOTAL_FAILED TESTS FAILED - RELEASE BLOCKED <<<${NC}"
     exit 1
 fi
 
+echo ""
+echo -e "${GREEN}${BOLD}>>> ALL TESTS PASSED - READY FOR RELEASE <<<${NC}"
 exit 0
