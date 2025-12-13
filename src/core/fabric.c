@@ -5,11 +5,15 @@
  */
 
 #include "nous/nous.h"
+#include "nous/semantic_persistence.h"
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
 #include <stdatomic.h>
 #include <arm_neon.h>
+
+// Flag to prevent recursive persistence calls during graph loading
+static _Atomic bool g_loading_from_persistence = false;
 
 // ============================================================================
 // INTERNAL STRUCTURES
@@ -180,6 +184,15 @@ int nous_init(void) {
         DISPATCH_QUEUE_SERIAL, QOS_CLASS_USER_INITIATED, 0);
     g_fabric->gpu_queue = dispatch_queue_create("nous.gpu", gpu_attr);
 
+    // Load persisted graph on startup
+    atomic_store(&g_loading_from_persistence, true);
+    int loaded = sem_persist_load_graph(NOUS_MAX_LOADED_NODES);
+    atomic_store(&g_loading_from_persistence, false);
+
+    if (loaded > 0) {
+        // Silently loaded nodes from persistence
+    }
+
     return 0;
 }
 
@@ -222,6 +235,102 @@ bool nous_is_ready(void) {
 // NODE OPERATIONS
 // ============================================================================
 
+/**
+ * Internal function to create a node with optional id_override.
+ * Used by persistence layer to restore nodes with their original IDs.
+ * Also accepts optional embedding, importance, and context/creator IDs.
+ */
+SemanticID nous_create_node_internal(
+    SemanticType type,
+    const char* essence,
+    SemanticID id_override,
+    const float* embedding,
+    size_t embedding_dim,
+    SemanticID creator_id,
+    SemanticID context_id,
+    float importance
+) {
+    if (!nous_is_ready() || !essence) return SEMANTIC_ID_NULL;
+
+    // Use provided ID or generate new one
+    SemanticID id = (id_override != SEMANTIC_ID_NULL) ? id_override : generate_semantic_id(type);
+    uint32_t shard_idx = semantic_hash(id);
+    FabricShard* shard = &g_fabric->shards[shard_idx];
+
+    // Check if node already exists (when loading from persistence)
+    if (id_override != SEMANTIC_ID_NULL) {
+        os_unfair_lock_lock(&shard->lock);
+        for (size_t i = 0; i < shard->count; i++) {
+            if (shard->nodes[i]->id == id) {
+                os_unfair_lock_unlock(&shard->lock);
+                return id;  // Already loaded
+            }
+        }
+        os_unfair_lock_unlock(&shard->lock);
+    }
+
+    // Allocate node (cache-line aligned)
+    NousSemanticNode* node = aligned_alloc(NOUS_CACHE_LINE,
+                                           sizeof(NousSemanticNode));
+    if (!node) return SEMANTIC_ID_NULL;
+
+    memset(node, 0, sizeof(NousSemanticNode));
+    node->id = id;
+    node->type = type;
+    node->lock = OS_UNFAIR_LOCK_INIT;
+    node->ref_count = 1;
+    node->importance = importance;
+    node->creator_id = creator_id;
+    node->context_id = context_id;
+
+    // Copy essence
+    node->essence_len = strlen(essence);
+    node->essence = malloc(node->essence_len + 1);
+    if (!node->essence) {
+        free(node);
+        return SEMANTIC_ID_NULL;
+    }
+    memcpy(node->essence, essence, node->essence_len + 1);
+
+    // Copy embedding if provided
+    if (embedding && embedding_dim > 0 && embedding_dim <= NOUS_EMBEDDING_DIM) {
+        for (size_t i = 0; i < embedding_dim; i++) {
+            node->embedding.values[i] = (__fp16)embedding[i];
+        }
+    }
+
+    // Initialize timestamps
+    struct timespec ts;
+    clock_gettime(CLOCK_REALTIME, &ts);
+    node->created_at = (uint64_t)ts.tv_sec * 1000000000ULL + ts.tv_nsec;
+    node->last_accessed = node->created_at;
+
+    // Insert into shard with lock
+    os_unfair_lock_lock(&shard->lock);
+
+    // Grow if needed
+    if (shard->count >= shard->capacity) {
+        size_t new_cap = shard->capacity * 2;
+        NousSemanticNode** new_nodes = realloc(shard->nodes,
+                                               new_cap * sizeof(NousSemanticNode*));
+        if (!new_nodes) {
+            os_unfair_lock_unlock(&shard->lock);
+            free(node->essence);
+            free(node);
+            return SEMANTIC_ID_NULL;
+        }
+        shard->nodes = new_nodes;
+        shard->capacity = new_cap;
+    }
+
+    shard->nodes[shard->count++] = node;
+    os_unfair_lock_unlock(&shard->lock);
+
+    atomic_fetch_add(&g_fabric->total_nodes, 1);
+
+    return id;
+}
+
 SemanticID nous_create_node(SemanticType type, const char* essence) {
     if (!nous_is_ready() || !essence) return SEMANTIC_ID_NULL;
 
@@ -239,6 +348,7 @@ SemanticID nous_create_node(SemanticType type, const char* essence) {
     node->type = type;
     node->lock = OS_UNFAIR_LOCK_INIT;
     node->ref_count = 1;
+    node->importance = 0.5f;  // Default importance
 
     // Copy essence
     node->essence_len = strlen(essence);
@@ -277,6 +387,16 @@ SemanticID nous_create_node(SemanticType type, const char* essence) {
     os_unfair_lock_unlock(&shard->lock);
 
     atomic_fetch_add(&g_fabric->total_nodes, 1);
+
+    // Persist to SQLite (write-through) if not loading from persistence
+    if (!atomic_load(&g_loading_from_persistence)) {
+        sem_persist_save_node(
+            id, type, essence,
+            NULL, 0,  // No embedding yet
+            SEMANTIC_ID_NULL, SEMANTIC_ID_NULL,  // No creator/context
+            0.5f  // Default importance
+        );
+    }
 
     return id;
 }
@@ -336,10 +456,15 @@ int nous_connect(SemanticID from, SemanticID to, float strength) {
     for (size_t i = 0; i < node->relation_count; i++) {
         if (node->relations[i] == to) {
             // Update strength (exponential moving average)
-            node->relation_strengths[i] =
-                0.7f * node->relation_strengths[i] + 0.3f * strength;
+            float new_strength = 0.7f * node->relation_strengths[i] + 0.3f * strength;
+            node->relation_strengths[i] = new_strength;
             os_unfair_lock_unlock(&node->lock);
             nous_release_node(node);
+
+            // Update persistence if not loading from persistence
+            if (!atomic_load(&g_loading_from_persistence)) {
+                sem_persist_update_relation(from, to, new_strength);
+            }
             return 0;
         }
     }
@@ -370,6 +495,11 @@ int nous_connect(SemanticID from, SemanticID to, float strength) {
     nous_release_node(node);
 
     atomic_fetch_add(&g_fabric->total_relations, 1);
+
+    // Persist new relation if not loading from persistence
+    if (!atomic_load(&g_loading_from_persistence)) {
+        sem_persist_save_relation(from, to, strength, "related");
+    }
 
     return 0;
 }
@@ -458,4 +588,13 @@ size_t nous_find_similar(const NousEmbedding* query,
     atomic_fetch_add(&g_fabric->queries_processed, 1);
 
     return atomic_load(&ctx.result_count);
+}
+
+// ============================================================================
+// STATISTICS
+// ============================================================================
+
+size_t nous_get_node_count(void) {
+    if (!nous_is_ready()) return 0;
+    return atomic_load(&g_fabric->total_nodes);
 }

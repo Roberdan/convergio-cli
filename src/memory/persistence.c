@@ -21,9 +21,9 @@
 #include <errno.h>
 #include "nous/debug_mutex.h"
 
-// Database handle
-static sqlite3* g_db = NULL;
-CONVERGIO_MUTEX_DECLARE(g_db_mutex);
+// Database handle (shared with semantic_persistence.c)
+sqlite3* g_db = NULL;
+pthread_mutex_t g_db_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 // Get DB path from config, fallback to default
 static const char* get_db_path(void) {
@@ -147,7 +147,7 @@ static const char* SCHEMA_SQL =
     "  api_calls INTEGER DEFAULT 0"
     ");"
 
-    // Semantic memories (for future RAG)
+    // Semantic memories (legacy - will be migrated to semantic_nodes)
     "CREATE TABLE IF NOT EXISTS memories ("
     "  id INTEGER PRIMARY KEY AUTOINCREMENT,"
     "  content TEXT NOT NULL,"
@@ -159,11 +159,46 @@ static const char* SCHEMA_SQL =
     "  created_at DATETIME DEFAULT CURRENT_TIMESTAMP"
     ");"
 
+    // Semantic graph nodes
+    "CREATE TABLE IF NOT EXISTS semantic_nodes ("
+    "  id INTEGER PRIMARY KEY,"
+    "  type INTEGER NOT NULL,"
+    "  essence TEXT NOT NULL,"
+    "  embedding BLOB,"
+    "  creator_id INTEGER DEFAULT 0,"
+    "  context_id INTEGER DEFAULT 0,"
+    "  importance REAL DEFAULT 0.5,"
+    "  access_count INTEGER DEFAULT 0,"
+    "  created_at INTEGER NOT NULL,"
+    "  last_accessed INTEGER,"
+    "  metadata_json TEXT"
+    ");"
+
+    // Semantic graph relations (weighted edges)
+    "CREATE TABLE IF NOT EXISTS semantic_relations ("
+    "  from_id INTEGER NOT NULL,"
+    "  to_id INTEGER NOT NULL,"
+    "  strength REAL DEFAULT 0.5,"
+    "  relation_type TEXT DEFAULT 'related',"
+    "  created_at INTEGER NOT NULL,"
+    "  updated_at INTEGER,"
+    "  PRIMARY KEY (from_id, to_id),"
+    "  FOREIGN KEY (from_id) REFERENCES semantic_nodes(id) ON DELETE CASCADE,"
+    "  FOREIGN KEY (to_id) REFERENCES semantic_nodes(id) ON DELETE CASCADE"
+    ");"
+
     // Indexes for performance
     "CREATE INDEX IF NOT EXISTS idx_messages_session ON messages(session_id);"
     "CREATE INDEX IF NOT EXISTS idx_messages_created ON messages(created_at);"
     "CREATE INDEX IF NOT EXISTS idx_agent_usage_agent ON agent_usage(agent_name);"
-    "CREATE INDEX IF NOT EXISTS idx_memories_importance ON memories(importance DESC);";
+    "CREATE INDEX IF NOT EXISTS idx_memories_importance ON memories(importance DESC);"
+    "CREATE INDEX IF NOT EXISTS idx_nodes_type ON semantic_nodes(type);"
+    "CREATE INDEX IF NOT EXISTS idx_nodes_importance ON semantic_nodes(importance DESC);"
+    "CREATE INDEX IF NOT EXISTS idx_nodes_created ON semantic_nodes(created_at DESC);"
+    "CREATE INDEX IF NOT EXISTS idx_nodes_context ON semantic_nodes(context_id);"
+    "CREATE INDEX IF NOT EXISTS idx_relations_from ON semantic_relations(from_id);"
+    "CREATE INDEX IF NOT EXISTS idx_relations_to ON semantic_relations(to_id);"
+    "CREATE INDEX IF NOT EXISTS idx_relations_type ON semantic_relations(relation_type);";
 
 // ============================================================================
 // INITIALIZATION
