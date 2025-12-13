@@ -73,7 +73,7 @@ void stream_md_destroy(StreamMd* sm) {
 // Flush pending buffer as-is (when token doesn't match expected pattern)
 static void flush_pending(StreamMd* sm) {
     if (sm->pending_len > 0) {
-        fwrite(sm->pending, 1, sm->pending_len, stdout);
+        fwrite(sm->pending, 1, (size_t)sm->pending_len, stdout);
         sm->pending_len = 0;
     }
 }

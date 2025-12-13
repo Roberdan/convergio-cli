@@ -47,7 +47,7 @@ static void update_rhythm(NousSpace* space) {
 
     struct timespec ts;
     clock_gettime(CLOCK_REALTIME, &ts);
-    uint64_t now_ns = (uint64_t)ts.tv_sec * 1000000000ULL + ts.tv_nsec;
+    uint64_t now_ns = (uint64_t)ts.tv_sec * 1000000000ULL + (uint64_t)ts.tv_nsec;
 
     // Calculate time since last interaction
     uint64_t idle_ns = now_ns - space->last_activity;
@@ -119,7 +119,7 @@ NousSpace* nous_create_space(const char* name, const char* purpose) {
     // Initialize rhythm
     struct timespec ts;
     clock_gettime(CLOCK_REALTIME, &ts);
-    space->last_activity = (uint64_t)ts.tv_sec * 1000000000ULL + ts.tv_nsec;
+    space->last_activity = (uint64_t)ts.tv_sec * 1000000000ULL + (uint64_t)ts.tv_nsec;
     space->urgency_level = 0.5f;  // Default: medium urgency
 
     // Defaults
@@ -212,7 +212,7 @@ int nous_join_space(SemanticID entity, SemanticID space_id) {
     // Update activity
     struct timespec ts;
     clock_gettime(CLOCK_REALTIME, &ts);
-    space->last_activity = (uint64_t)ts.tv_sec * 1000000000ULL + ts.tv_nsec;
+    space->last_activity = (uint64_t)ts.tv_sec * 1000000000ULL + (uint64_t)ts.tv_nsec;
 
     return 0;
 }
@@ -299,7 +299,7 @@ int nous_space_broadcast(SemanticID space_id, SemanticID sender, const char* mes
     // Update rhythm (activity = higher urgency)
     struct timespec ts;
     clock_gettime(CLOCK_REALTIME, &ts);
-    space->last_activity = (uint64_t)ts.tv_sec * 1000000000ULL + ts.tv_nsec;
+    space->last_activity = (uint64_t)ts.tv_sec * 1000000000ULL + (uint64_t)ts.tv_nsec;
     space->urgency_level = fminf(space->urgency_level + 0.1f, 1.0f);
 
     return 0;
@@ -460,7 +460,7 @@ bool nous_space_is_active(NousSpace* space) {
 
     struct timespec ts;
     clock_gettime(CLOCK_REALTIME, &ts);
-    uint64_t now_ns = (uint64_t)ts.tv_sec * 1000000000ULL + ts.tv_nsec;
+    uint64_t now_ns = (uint64_t)ts.tv_sec * 1000000000ULL + (uint64_t)ts.tv_nsec;
 
     // Active if last activity was within 5 minutes
     uint64_t idle_ns = now_ns - space->last_activity;

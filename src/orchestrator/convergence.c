@@ -28,7 +28,7 @@ char* orchestrator_converge(ExecutionPlan* plan) {
     char* combined = malloc(buf_size);
     if (!combined) return NULL;
 
-    size_t offset = snprintf(combined, buf_size,
+    size_t offset = (size_t)snprintf(combined, buf_size,
         "Synthesize the following results into a unified response:\n\nGoal: %s\n\n",
         plan->goal);
 
@@ -43,7 +43,7 @@ char* orchestrator_converge(ExecutionPlan* plan) {
                 }
             }
 
-            offset += snprintf(combined + offset, buf_size - offset,
+            offset += (size_t)snprintf(combined + offset, buf_size - offset,
                 "## %s's Analysis\n%s\n\n",
                 agent ? agent->name : "Agent",
                 task->result);

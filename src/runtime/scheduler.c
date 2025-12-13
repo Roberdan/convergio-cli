@@ -204,8 +204,8 @@ void nous_schedule(void (*fn)(void*), void* ctx, TaskPriority priority) {
         fn(ctx);
 
         clock_gettime(CLOCK_MONOTONIC, &end);
-        uint64_t elapsed = (end.tv_sec - start.tv_sec) * 1000000000ULL +
-                          (end.tv_nsec - start.tv_nsec);
+        uint64_t elapsed = (uint64_t)(end.tv_sec - start.tv_sec) * 1000000000ULL +
+                          (uint64_t)(end.tv_nsec - start.tv_nsec);
 
         atomic_fetch_add(&pool->total_time_ns, elapsed);
         atomic_fetch_sub(&pool->pending_tasks, 1);

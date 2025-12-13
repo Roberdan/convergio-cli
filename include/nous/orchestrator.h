@@ -93,7 +93,8 @@ typedef struct Message {
 // ============================================================================
 
 // Message object pool for reduced malloc overhead
-#define MESSAGE_POOL_SIZE 128
+// Increased from 128 to 256 to reduce fallback to malloc() in high-concurrency scenarios
+#define MESSAGE_POOL_SIZE 256
 
 typedef struct {
     Message messages[MESSAGE_POOL_SIZE];

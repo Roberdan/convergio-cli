@@ -375,9 +375,9 @@ Message* message_create_convergence(SemanticID sender, const char* content,
     if (source_messages && source_count > 0) {
         char* metadata = malloc(1024);
         if (metadata) {
-            int offset = snprintf(metadata, 1024, "{\"sources\":[");
+            size_t offset = (size_t)snprintf(metadata, 1024, "{\"sources\":[");
             for (size_t i = 0; i < source_count && offset < 900; i++) {
-                offset += snprintf(metadata + offset, 1024 - offset,
+                offset += (size_t)snprintf(metadata + offset, 1024 - offset,
                     "%s%llu", i > 0 ? "," : "", (unsigned long long)source_messages[i]->id);
             }
             snprintf(metadata + offset, 1024 - offset, "]}");
@@ -527,7 +527,7 @@ char* msgbus_provider_stats_json(void) {
     }
 
     const char* provider_names[] = {"anthropic", "openai", "gemini", "ollama"};
-    int offset = snprintf(json, 2048, "{\"providers\":{");
+    size_t offset = (size_t)snprintf(json, 2048, "{\"providers\":{");
 
     for (int i = 0; i < 4; i++) {
         ProviderMessageStats* stats = &g_provider_stats[i];
@@ -535,7 +535,7 @@ char* msgbus_provider_stats_json(void) {
             ? (double)stats->total_latency_ms / stats->messages_received
             : 0.0;
 
-        offset += snprintf(json + offset, 2048 - offset,
+        offset += (size_t)snprintf(json + offset, 2048 - offset,
             "%s\"%s\":{\"sent\":%llu,\"received\":%llu,\"avg_latency_ms\":%.2f,"
             "\"cache_hits\":%llu,\"errors\":%llu}",
             i > 0 ? "," : "",

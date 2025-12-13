@@ -635,14 +635,20 @@ convergio-cli/
 ### Building from Source
 
 ```bash
-# Clean build
+# Clean build (uses parallel compilation automatically)
 make clean && make
 
 # Build with debug symbols
 make DEBUG=1
 
-# Run tests
+# Run all tests
 make test
+
+# Run specific tests
+make fuzz_test      # Security fuzzing tests
+make unit_test      # Unit tests
+make compaction_test # Context compaction tests
+make compare_test   # Model comparison tests
 ```
 
 ### Debug Logging
@@ -656,6 +662,20 @@ Enable debug logging to see what's happening under the hood:
 # Or at runtime
 convergio> debug trace
 ```
+
+## Known Issues & Limitations
+
+### Code Organization
+- Some source files exceed the recommended 250-line limit (e.g., `embedded_agents.c` is auto-generated)
+- Large files like `commands.c` (2312 lines) and `tools.c` (2153 lines) may benefit from refactoring
+
+### Features
+- Pre-trained embedding weights for semantic search are not yet included (infrastructure ready)
+- Some TODO comments remain in the codebase (see `AUDIT_REPORT.md` for details)
+
+### Platform
+- macOS only (Apple Silicon optimized)
+- Requires Xcode Command Line Tools for building from source
 
 ## Roadmap
 

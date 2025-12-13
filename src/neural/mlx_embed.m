@@ -187,10 +187,10 @@ static MLXTokens* simple_tokenize(const char* text) {
 
         // Convert word to token ID (hash-based for simplicity)
         if (p > word_start) {
-            size_t word_len = p - word_start;
+            size_t word_len = (size_t)(p - word_start);
             uint32_t hash = 5381;
             for (size_t i = 0; i < word_len; i++) {
-                unsigned char c = word_start[i];
+                unsigned char c = (unsigned char)word_start[i];
                 // Lowercase
                 if (c >= 'A' && c <= 'Z') c += 32;
                 hash = ((hash << 5) + hash) + c;
@@ -369,6 +369,8 @@ int mlx_embed_init(const char* model_path) {
     // Load or initialize weights
     if (model_path) {
         // TODO(#2): Load pre-trained weights from file
+        // Status: Infrastructure ready, needs model weights file
+        // Blocked: Waiting for model weights distribution license
         // For now, use random initialization
     }
     init_random_weights(g_model);
@@ -563,7 +565,7 @@ static float* forward_cpu(const MLXTokens* tokens) {
     for (size_t s = 0; s < seq_len; s++) {
         int32_t token_id = tokens->ids[s];
         for (size_t d = 0; d < dim; d++) {
-            hidden[s * dim + d] = g_model->token_embeddings[token_id * dim + d]
+            hidden[s * dim + d] = g_model->token_embeddings[(size_t)token_id * dim + d]
                                 + g_model->position_embeddings[s * dim + d];
         }
     }
