@@ -616,15 +616,20 @@ int persistence_save_memory(const char* content, const char* category, float imp
     return (rc == SQLITE_DONE) ? (int)new_id : -1;
 }
 
-// Search memories by importance
+// Search memories by importance (from BOTH old memories table AND new semantic_nodes)
 char** persistence_get_important_memories(size_t limit, size_t* out_count) {
     if (!g_db || !out_count) return NULL;
 
     CONVERGIO_MUTEX_LOCK(&g_db_mutex);
 
+    // Query BOTH tables and merge results, prioritizing by importance
+    // Use UNION to combine results from old memories table and new semantic_nodes
     const char* sql =
-        "SELECT content FROM memories "
-        "ORDER BY importance DESC, access_count DESC LIMIT ?";
+        "SELECT content, importance FROM ("
+        "  SELECT content, importance FROM memories "
+        "  UNION ALL "
+        "  SELECT essence AS content, importance FROM semantic_nodes WHERE type = 9 "
+        ") ORDER BY importance DESC LIMIT ?";
 
     sqlite3_stmt* stmt;
     int rc = sqlite3_prepare_v2(g_db, sql, -1, &stmt, NULL);
@@ -672,39 +677,56 @@ static int compare_matches(const void* a, const void* b) {
 char** persistence_search_memories(const char* query, size_t max_results,
                                     float min_similarity, size_t* out_count) {
     if (!g_db || !query || !out_count) return NULL;
+    (void)min_similarity;  // Not used for keyword search
 
-    // Generate query embedding
-    // Simple keyword search (MLX embeddings unreliable without pre-trained weights)
     CONVERGIO_MUTEX_LOCK(&g_db_mutex);
 
-    // Use LIKE search for keywords
-    char search_sql[512];
-    snprintf(search_sql, sizeof(search_sql),
-        "SELECT content FROM memories WHERE content LIKE '%%%s%%' "
-        "ORDER BY importance DESC LIMIT %zu", query, max_results);
+    // Search BOTH old memories table AND new semantic_nodes using keyword search
+    // Use parameterized query to prevent SQL injection
+    const char* sql =
+        "SELECT content, importance FROM ("
+        "  SELECT content, importance FROM memories WHERE content LIKE ?1 "
+        "  UNION ALL "
+        "  SELECT essence AS content, importance FROM semantic_nodes "
+        "    WHERE type = 9 AND essence LIKE ?1 "
+        ") ORDER BY importance DESC LIMIT ?2";
 
-    sqlite3_stmt* keyword_stmt;
-    int kw_rc = sqlite3_prepare_v2(g_db, search_sql, -1, &keyword_stmt, NULL);
-    if (kw_rc == SQLITE_OK) {
-        char** results = malloc(sizeof(char*) * max_results);
-        size_t count = 0;
-
-        while (sqlite3_step(keyword_stmt) == SQLITE_ROW && count < max_results) {
-            const char* text = (const char*)sqlite3_column_text(keyword_stmt, 0);
-            if (text) results[count++] = strdup(text);
-        }
-        sqlite3_finalize(keyword_stmt);
+    sqlite3_stmt* stmt;
+    int rc = sqlite3_prepare_v2(g_db, sql, -1, &stmt, NULL);
+    if (rc != SQLITE_OK) {
         CONVERGIO_MUTEX_UNLOCK(&g_db_mutex);
-
-        if (count > 0) {
-            *out_count = count;
-            return results;
-        }
-        free(results);
-    } else {
-        CONVERGIO_MUTEX_UNLOCK(&g_db_mutex);
+        return persistence_get_important_memories(max_results, out_count);
     }
 
+    // Build search pattern
+    char pattern[512];
+    snprintf(pattern, sizeof(pattern), "%%%s%%", query);
+
+    sqlite3_bind_text(stmt, 1, pattern, -1, SQLITE_TRANSIENT);
+    sqlite3_bind_int(stmt, 2, (int)max_results);
+
+    char** results = malloc(sizeof(char*) * max_results);
+    if (!results) {
+        sqlite3_finalize(stmt);
+        CONVERGIO_MUTEX_UNLOCK(&g_db_mutex);
+        return NULL;
+    }
+
+    size_t count = 0;
+    while (sqlite3_step(stmt) == SQLITE_ROW && count < max_results) {
+        const char* text = (const char*)sqlite3_column_text(stmt, 0);
+        if (text) results[count++] = strdup(text);
+    }
+
+    sqlite3_finalize(stmt);
+    CONVERGIO_MUTEX_UNLOCK(&g_db_mutex);
+
+    if (count > 0) {
+        *out_count = count;
+        return results;
+    }
+
+    free(results);
     // Fallback to returning all important memories
     return persistence_get_important_memories(max_results, out_count);
 }
