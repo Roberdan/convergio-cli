@@ -61,8 +61,8 @@ FRAMEWORKS = -framework Metal \
              -framework Security \
              -framework AppKit
 
-# Libraries
-LIBS = -lreadline -lcurl -lsqlite3 -L/opt/homebrew/opt/cjson/lib -lcjson
+# Libraries (cJSON linked statically to avoid dylib signature issues)
+LIBS = -lreadline -lcurl -lsqlite3 /opt/homebrew/opt/cjson/lib/libcjson.a
 
 # Directories
 SRC_DIR = src

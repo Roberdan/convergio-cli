@@ -7,9 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [4.0.1] - 2025-12-13
+## [4.0.2] - 2025-12-13
 
 ### Fixed
+- Link cJSON statically to avoid dylib code signature issues on user machines
 - CI workflow now installs cJSON dependency before build
 - Cleaned up startup banner layout
 
