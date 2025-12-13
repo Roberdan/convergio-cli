@@ -21,6 +21,7 @@ CFLAGS = $(ARCH_FLAGS) \
          -ffast-math \
          -fvectorize \
          -I./include \
+         -I/opt/homebrew/opt/cjson/include \
          -DCONVERGIO_VERSION=\"$(VERSION)\"
 
 OBJCFLAGS = $(CFLAGS) -fobjc-arc
@@ -61,7 +62,7 @@ FRAMEWORKS = -framework Metal \
              -framework AppKit
 
 # Libraries
-LIBS = -lreadline -lcurl -lsqlite3
+LIBS = -lreadline -lcurl -lsqlite3 -L/opt/homebrew/opt/cjson/lib -lcjson
 
 # Directories
 SRC_DIR = src
@@ -101,6 +102,7 @@ C_SOURCES = $(SRC_DIR)/core/fabric.c \
             $(SRC_DIR)/context/compaction.c \
             $(SRC_DIR)/tools/tools.c \
             $(SRC_DIR)/providers/provider.c \
+            $(SRC_DIR)/providers/model_loader.c \
             $(SRC_DIR)/providers/anthropic.c \
             $(SRC_DIR)/providers/openai.c \
             $(SRC_DIR)/providers/gemini.c \

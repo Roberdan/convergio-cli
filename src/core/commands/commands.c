@@ -16,6 +16,7 @@
 #include "nous/telemetry.h"
 #include "nous/agentic.h"
 #include "nous/projects.h"
+#include "nous/model_loader.h"
 #include "../../auth/oauth.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -1613,31 +1614,31 @@ int cmd_theme(int argc, char** argv) {
 // MODEL COMPARISON COMMANDS
 // ============================================================================
 
-// Default cheap models for comparison (one per provider)
-static const char* DEFAULT_COMPARE_MODELS[] = {
-    "claude-haiku-4.5",   // Anthropic - cheapest
-    "gpt-4o-mini",         // OpenAI - cheapest
-    "gemini-2.0-flash",   // Google - cheapest
-};
-static const size_t DEFAULT_COMPARE_MODEL_COUNT = 3;
-
 int cmd_compare(int argc, char** argv) {
+    // Get defaults from JSON config (or fallback)
+    size_t default_count = 0;
+    const char** default_models = models_get_compare_defaults(&default_count);
+
     if (argc < 2) {
         printf("\n\033[1mCommand: compare\033[0m - Compare models side-by-side\n\n");
         printf("\033[1mUsage:\033[0m\n");
-        printf("  compare <prompt>                    # Uses default models (cheapest)\n");
+        printf("  compare <prompt>                    # Uses default models\n");
         printf("  compare <prompt> <model1> <model2>  # Custom models\n\n");
-        printf("\033[1mDefault models:\033[0m (cheapest from each provider)\n");
-        printf("  - claude-haiku-4.5 (Anthropic)\n");
-        printf("  - gpt-4o-mini (OpenAI)\n");
-        printf("  - gemini-2.0-flash (Google)\n\n");
-        printf("\033[1mExample:\033[0m\n");
+        printf("\033[1mDefault models:\033[0m (most powerful from each provider)\n");
+        for (size_t i = 0; i < default_count; i++) {
+            printf("  - %s\n", default_models[i]);
+        }
+        printf("\n\033[1mExample:\033[0m\n");
         printf("  compare \"Explain quantum computing\"\n");
         printf("  compare \"Write a poem\" claude-opus-4 gpt-5\n\n");
         printf("\033[1mOptions:\033[0m\n");
         printf("  --no-diff      Skip diff generation\n");
         printf("  --json         Output as JSON\n");
         printf("  --sequential   Run sequentially instead of parallel\n\n");
+        if (models_loaded_from_json()) {
+            printf("\033[2mConfig: %s (v%s)\033[0m\n\n",
+                   models_get_loaded_path(), models_get_version());
+        }
         return 0;
     }
 
@@ -1667,11 +1668,15 @@ int cmd_compare(int argc, char** argv) {
     bool using_defaults = false;
 
     if (model_count == 0) {
-        // Use default cheap models
-        models_to_use = DEFAULT_COMPARE_MODELS;
-        model_count = DEFAULT_COMPARE_MODEL_COUNT;
+        // Use default models from JSON config
+        models_to_use = default_models;
+        model_count = default_count;
         using_defaults = true;
-        printf("\033[36mUsing default models: haiku, gpt-4o-mini, gemini-2.0-flash\033[0m\n\n");
+        printf("\033[36mUsing default models:");
+        for (size_t i = 0; i < default_count; i++) {
+            printf(" %s%s", default_models[i], i < default_count - 1 ? "," : "");
+        }
+        printf("\033[0m\n\n");
     } else if (model_count == 1) {
         printf("Error: Need at least 2 models to compare (or none for defaults).\n");
         return -1;
@@ -1707,15 +1712,21 @@ int cmd_compare(int argc, char** argv) {
 }
 
 int cmd_benchmark(int argc, char** argv) {
+    // Get defaults from JSON config
+    const char* default_model = models_get_benchmark_default();
+    size_t default_iterations = models_get_benchmark_iterations();
+
     if (argc < 2) {
         printf("\n\033[1mCommand: benchmark\033[0m - Benchmark a model's performance\n\n");
         printf("\033[1mUsage:\033[0m\n");
-        printf("  benchmark <prompt>                    # Uses claude-haiku-4.5, 3 iterations\n");
-        printf("  benchmark <prompt> <model>            # Custom model, 3 iterations\n");
+        printf("  benchmark <prompt>                    # Uses %s, %zu iterations\n",
+               default_model, default_iterations);
+        printf("  benchmark <prompt> <model>            # Custom model, %zu iterations\n",
+               default_iterations);
         printf("  benchmark <prompt> <model> <N>        # Custom model, N iterations\n\n");
         printf("\033[1mDefaults:\033[0m\n");
-        printf("  Model: claude-haiku-4.5 (cheapest)\n");
-        printf("  Iterations: 3\n\n");
+        printf("  Model: %s\n", default_model);
+        printf("  Iterations: %zu\n\n", default_iterations);
         printf("\033[1mExample:\033[0m\n");
         printf("  benchmark \"Write a haiku\"\n");
         printf("  benchmark \"Explain AI\" gpt-4o-mini 5\n\n");
@@ -1723,8 +1734,8 @@ int cmd_benchmark(int argc, char** argv) {
     }
 
     const char* prompt = argv[1];
-    const char* model = "claude-haiku-4.5";  // Default to cheapest
-    size_t iterations = 3;
+    const char* model = default_model;
+    size_t iterations = default_iterations;
 
     if (argc >= 3) {
         model = argv[2];
