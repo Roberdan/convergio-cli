@@ -135,23 +135,29 @@ bool g_streaming_enabled = false;  // Default OFF to enable tool support
 
 // Print a single UTF-8 character with color
 static void print_colored_char(const char* ch, int len, int col, int total_cols) {
-    // Gradient: cyan (#51) -> blue (#39) -> purple (#135) -> pink (#168)
-    // Map column position to color
+    // Gradient: dark blue -> cyan -> teal -> orange
+    // Creates a warm-to-cool transition matching Convergio brand
     float t = (float)col / (float)total_cols;
 
     int color;
-    if (t < 0.20f) {
-        color = 43;  // Teal (Convergio logo start)
+    if (t < 0.15f) {
+        color = 17;  // Dark navy blue (deep)
+    } else if (t < 0.25f) {
+        color = 24;  // Dark blue
     } else if (t < 0.35f) {
-        color = 44;  // Turquoise
-    } else if (t < 0.50f) {
-        color = 80;  // Medium cyan
+        color = 31;  // Medium dark blue
+    } else if (t < 0.45f) {
+        color = 38;  // Teal-blue
+    } else if (t < 0.55f) {
+        color = 44;  // Cyan
     } else if (t < 0.65f) {
-        color = 99;  // Slate blue
-    } else if (t < 0.80f) {
-        color = 135; // Medium purple
+        color = 43;  // Teal
+    } else if (t < 0.75f) {
+        color = 172; // Dark orange
+    } else if (t < 0.85f) {
+        color = 208; // Bright orange
     } else {
-        color = 170; // Magenta (Convergio logo end)
+        color = 214; // Gold/orange (end)
     }
 
     printf("\033[1m\033[38;5;%dm%.*s\033[0m", color, len, ch);
