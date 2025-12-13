@@ -1804,12 +1804,20 @@ int cmd_project(int argc, char** argv) {
                 ConvergioProject* p = projects[i];
                 bool is_current = current && strcmp(current->slug, p->slug) == 0;
 
-                printf("  %s \033[1m%-20s\033[0m %zu agents",
+                printf("  %s \033[1m%-20s\033[0m ",
                        is_current ? "\033[32m●\033[0m" : " ",
-                       p->name, p->team_count);
+                       p->name);
+
+                // Show team members
+                printf("\033[36m");
+                for (size_t j = 0; j < p->team_count; j++) {
+                    printf("%s%s", p->team[j].agent_name,
+                           j < p->team_count - 1 ? ", " : "");
+                }
+                printf("\033[0m");
 
                 if (p->template_name) {
-                    printf(" [%s]", p->template_name);
+                    printf(" \033[2m[%s]\033[0m", p->template_name);
                 }
                 printf("\n");
             }

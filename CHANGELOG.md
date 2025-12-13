@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.0.13] - 2025-12-13
+
+### Added
+
+- **Project-aware agent filtering**: `agents` command now shows only project team members when a project is active
+- **Project team tool for AI**: New `project_team` tool allows Ali and agents to add/remove team members programmatically
+- **Project-aware prompt**: Prompt now shows project name as "Convergio [ProjectName] >" when in project context
+- **Non-team agent blocking**: Warning when trying to @mention agents outside the current project team, with option to add them
+
+### Changed
+
+- Agent delegation filtering improved to respect project team boundaries
+
 ## [3.0.12] - 2025-12-13
 
 ### Added

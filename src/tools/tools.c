@@ -6,6 +6,7 @@
 
 #include "nous/tools.h"
 #include "nous/config.h"
+#include "nous/projects.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -268,6 +269,18 @@ static const char* TOOLS_JSON =
 "        \"category\": {\"type\": \"string\", \"description\": \"Category folder (e.g. 'projects', 'people', 'processes')\"}\n"
 "      },\n"
 "      \"required\": [\"title\", \"content\"]\n"
+"    }\n"
+"  },\n"
+"  {\n"
+"    \"name\": \"project_team\",\n"
+"    \"description\": \"Manage the current project's team. Add or remove agents from the project team.\",\n"
+"    \"input_schema\": {\n"
+"      \"type\": \"object\",\n"
+"      \"properties\": {\n"
+"        \"action\": {\"type\": \"string\", \"enum\": [\"add\", \"remove\", \"list\"], \"description\": \"Action to perform\"},\n"
+"        \"agent_name\": {\"type\": \"string\", \"description\": \"Name of the agent to add/remove (e.g. 'baccio', 'stefano')\"}\n"
+"      },\n"
+"      \"required\": [\"action\"]\n"
 "    }\n"
 "  }\n"
 "]\n";
@@ -1804,6 +1817,74 @@ ToolResult* tool_knowledge_add(const char* title, const char* content, const cha
 }
 
 // ============================================================================
+// PROJECT TEAM MANAGEMENT TOOL
+// ============================================================================
+
+ToolResult* tool_project_team(const char* action, const char* agent_name) {
+    clock_t start = clock();
+
+    ConvergioProject* proj = project_current();
+    if (!proj) {
+        return result_error("No active project. Use 'project use <name>' first.");
+    }
+
+    if (!action) {
+        return result_error("Action is required: add, remove, or list");
+    }
+
+    char msg[1024];
+
+    if (strcmp(action, "list") == 0) {
+        // List current team members
+        size_t offset = snprintf(msg, sizeof(msg),
+            "Project '%s' team (%zu members):\n", proj->name, proj->team_count);
+        for (size_t i = 0; i < proj->team_count && offset < sizeof(msg) - 64; i++) {
+            offset += snprintf(msg + offset, sizeof(msg) - offset,
+                "- %s%s%s\n",
+                proj->team[i].agent_name,
+                proj->team[i].role ? " (" : "",
+                proj->team[i].role ? proj->team[i].role : "");
+            if (proj->team[i].role) offset += snprintf(msg + offset, sizeof(msg) - offset, ")");
+        }
+        ToolResult* r = result_success(msg);
+        r->execution_time = (double)(clock() - start) / CLOCKS_PER_SEC;
+        return r;
+    }
+
+    if (!agent_name || !agent_name[0]) {
+        return result_error("Agent name is required for add/remove actions");
+    }
+
+    if (strcmp(action, "add") == 0) {
+        if (project_has_agent(agent_name)) {
+            snprintf(msg, sizeof(msg), "Agent '%s' is already in project '%s'",
+                     agent_name, proj->name);
+        } else if (project_team_add(proj, agent_name, NULL)) {
+            snprintf(msg, sizeof(msg), "Added '%s' to project '%s' team. Team now has %zu members.",
+                     agent_name, proj->name, proj->team_count);
+        } else {
+            return result_error("Failed to add agent to project");
+        }
+    } else if (strcmp(action, "remove") == 0) {
+        if (!project_has_agent(agent_name)) {
+            snprintf(msg, sizeof(msg), "Agent '%s' is not in project '%s'",
+                     agent_name, proj->name);
+        } else if (project_team_remove(proj, agent_name)) {
+            snprintf(msg, sizeof(msg), "Removed '%s' from project '%s' team. Team now has %zu members.",
+                     agent_name, proj->name, proj->team_count);
+        } else {
+            return result_error("Failed to remove agent from project");
+        }
+    } else {
+        return result_error("Invalid action. Use: add, remove, or list");
+    }
+
+    ToolResult* r = result_success(msg);
+    r->execution_time = (double)(clock() - start) / CLOCKS_PER_SEC;
+    return r;
+}
+
+// ============================================================================
 // TOOL CALL PARSING
 // ============================================================================
 
@@ -1923,6 +2004,8 @@ LocalToolCall* tools_parse_call(const char* tool_name, const char* arguments_jso
         call->type = TOOL_KNOWLEDGE_SEARCH;
     } else if (strcmp(tool_name, "knowledge_add") == 0) {
         call->type = TOOL_KNOWLEDGE_ADD;
+    } else if (strcmp(tool_name, "project_team") == 0) {
+        call->type = TOOL_PROJECT_TEAM;
     } else {
         tools_free_call(call);
         return NULL;
@@ -2052,6 +2135,15 @@ ToolResult* tools_execute(const LocalToolCall* call) {
             free(title);
             free(content);
             free(category);
+            return r;
+        }
+
+        case TOOL_PROJECT_TEAM: {
+            char* action = json_get_string(args, "action");
+            char* agent_name = json_get_string(args, "agent_name");
+            ToolResult* r = tool_project_team(action, agent_name);
+            free(action);
+            free(agent_name);
             return r;
         }
 

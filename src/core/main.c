@@ -521,9 +521,19 @@ int main(int argc, char** argv) {
         const Theme* t = theme_get();
         // Set blinking block cursor
         printf("\033[1 q");
-        snprintf(prompt, sizeof(prompt),
-            "\001%s\002Convergio\001\033[0m\002 \001%s\002❯\001\033[0m\002 \001%s\002",
-            t->prompt_name, t->prompt_arrow, t->user_input);
+
+        // Check for active project
+        ConvergioProject* current_proj = project_current();
+        if (current_proj) {
+            // Show project name in prompt: Convergio [ProjectName] ❯
+            snprintf(prompt, sizeof(prompt),
+                "\001%s\002Convergio\001\033[0m\002 \001\033[1;36m\002[%s]\001\033[0m\002 \001%s\002❯\001\033[0m\002 \001%s\002",
+                t->prompt_name, current_proj->name, t->prompt_arrow, t->user_input);
+        } else {
+            snprintf(prompt, sizeof(prompt),
+                "\001%s\002Convergio\001\033[0m\002 \001%s\002❯\001\033[0m\002 \001%s\002",
+                t->prompt_name, t->prompt_arrow, t->user_input);
+        }
 
         line = readline(prompt);
 
