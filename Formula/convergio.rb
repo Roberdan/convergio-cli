@@ -7,7 +7,7 @@ class Convergio < Formula
   on_macos do
     on_arm do
       url "https://github.com/Roberdan/convergio-cli/releases/download/v3.0.11/convergio-3.0.11-darwin-arm64.tar.gz"
-      sha256 "907cc2511d2995de7e3c916239e40faff0036752607dd5e2202a9a38c4abb9e9"
+      sha256 "f028602b2c2f0a9bb65a97f77359fd4bcd75ee20d6e89e178d744295995f32c4"
     end
   end
 
