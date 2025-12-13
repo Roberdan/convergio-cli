@@ -2357,12 +2357,15 @@ int cmd_forget(int argc, char** argv) {
         return -1;
     }
 
-    // Delete it
+    // Delete from persistence
     int rc = sem_persist_delete_node(id);
     if (rc != 0) {
         printf("\033[31mError: Failed to delete memory.\033[0m\n");
         return -1;
     }
+
+    // Also delete from in-memory fabric (if loaded)
+    nous_delete_node(id);
 
     printf("\033[32m✓ Forgotten memory 0x%llx\033[0m\n", (unsigned long long)id);
     return 0;

@@ -325,6 +325,7 @@ bool nous_is_ready(void);
 SemanticID nous_create_node(SemanticType type, const char* essence);
 NousSemanticNode* nous_get_node(SemanticID id);
 void nous_release_node(NousSemanticNode* node);
+int nous_delete_node(SemanticID id);
 int nous_connect(SemanticID from, SemanticID to, float strength);
 size_t nous_get_node_count(void);
 
