@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.0.10] - 2025-12-13
+
+### Added
+
+- **Agent editing from CLI (Issue #20)**: New `agent edit <name>` command opens agent definition in your editor
+- **Agent reload command**: New `agent reload` command regenerates embedded agents after editing
+
+### Removed
+
+- **Status bar footer**: Disabled status bar that was causing terminal display issues
+
+## [3.0.9] - 2025-12-12
+
+### Fixed
+
+- **Terminal scrolling**: Removed scroll region that was breaking terminal scrollback
+
 ## [3.0.7] - 2025-12-12
 
 ### Fixed
@@ -496,7 +513,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-[Unreleased]: https://github.com/Roberdan/convergio-cli/compare/v3.0.7...HEAD
+[Unreleased]: https://github.com/Roberdan/convergio-cli/compare/v3.0.10...HEAD
+[3.0.10]: https://github.com/Roberdan/convergio-cli/compare/v3.0.9...v3.0.10
+[3.0.9]: https://github.com/Roberdan/convergio-cli/compare/v3.0.7...v3.0.9
 [3.0.7]: https://github.com/Roberdan/convergio-cli/compare/v3.0.6...v3.0.7
 [3.0.6]: https://github.com/Roberdan/convergio-cli/compare/v3.0.5...v3.0.6
 [3.0.5]: https://github.com/Roberdan/convergio-cli/compare/v3.0.4...v3.0.5

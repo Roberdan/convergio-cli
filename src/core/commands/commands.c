@@ -20,6 +20,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <limits.h>
+#include <dirent.h>
+#include <unistd.h>
 
 // ============================================================================
 // EXTERNAL DECLARATIONS
@@ -690,6 +692,98 @@ int cmd_agent(int argc, char** argv) {
         }
 
         printf("\n  \033[2mUsa @%s <messaggio> per comunicare con questo agente\033[0m\n\n", agent->name);
+        return 0;
+    }
+
+    // agent edit <name>
+    if (strcmp(argv[1], "edit") == 0) {
+        if (argc < 3) {
+            printf("Usage: agent edit <agent_name>\n");
+            printf("Example: agent edit amy\n");
+            return -1;
+        }
+
+        const char* agent_name = argv[2];
+
+        // Build path to agent definition file
+        char path[PATH_MAX];
+        bool found = false;
+
+        // First try exact match
+        snprintf(path, sizeof(path), "src/agents/definitions/%s.md", agent_name);
+        if (access(path, F_OK) == 0) {
+            found = true;
+        }
+
+        // Try to find by prefix (e.g., "amy" -> "amy-cfo.md")
+        if (!found) {
+            DIR* dir = opendir("src/agents/definitions");
+            if (dir) {
+                struct dirent* entry;
+                size_t name_len = strlen(agent_name);
+                while ((entry = readdir(dir)) != NULL) {
+                    if (strncasecmp(entry->d_name, agent_name, name_len) == 0 &&
+                        (entry->d_name[name_len] == '-' || entry->d_name[name_len] == '.')) {
+                        snprintf(path, sizeof(path), "src/agents/definitions/%s", entry->d_name);
+                        found = true;
+                        break;
+                    }
+                }
+                closedir(dir);
+            }
+        }
+
+        if (!found) {
+            printf("\033[31mAgent '%s' not found.\033[0m\n", agent_name);
+            printf("Use 'agent list' to see available agents.\n");
+            return -1;
+        }
+
+        // Get editor from environment
+        const char* editor = getenv("EDITOR");
+        if (!editor) editor = getenv("VISUAL");
+
+        char cmd[PATH_MAX + 64];
+
+        if (editor) {
+            // Use $EDITOR
+            snprintf(cmd, sizeof(cmd), "%s \"%s\"", editor, path);
+        } else {
+            // macOS: use 'open' command
+            snprintf(cmd, sizeof(cmd), "open \"%s\"", path);
+        }
+
+        printf("\033[36mOpening %s...\033[0m\n", path);
+        int result = system(cmd);
+
+        if (result != 0) {
+            printf("\033[31mFailed to open editor.\033[0m\n");
+            return -1;
+        }
+
+        printf("\n\033[33mAfter editing, run 'agent reload' to apply changes.\033[0m\n");
+        return 0;
+    }
+
+    // agent reload
+    if (strcmp(argv[1], "reload") == 0) {
+        printf("\033[36mReloading agent definitions...\033[0m\n");
+
+        // Re-run the embed script if available
+        if (access("scripts/embed_agents.sh", X_OK) == 0) {
+            printf("  Running embed_agents.sh...\n");
+            int result = system("./scripts/embed_agents.sh");
+            if (result != 0) {
+                printf("\033[31mFailed to regenerate embedded agents.\033[0m\n");
+                printf("You may need to rebuild: make clean && make\n");
+                return -1;
+            }
+            printf("\033[32m✓ Agents regenerated.\033[0m\n");
+            printf("\n\033[33mNote: Rebuild required to apply changes: make\033[0m\n");
+        } else {
+            printf("\033[33mNo embed script found. Manual rebuild required.\033[0m\n");
+            printf("Run: make clean && make\n");
+        }
         return 0;
     }
 
