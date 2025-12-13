@@ -19,6 +19,7 @@
 
 // Embedded agents
 #include "nous/embedded_agents.h"
+#include "nous/projects.h"
 
 // ============================================================================
 // ANTI-HALLUCINATION CONSTITUTION (MANDATORY FOR ALL AGENTS)
@@ -1213,11 +1214,21 @@ char* agent_registry_status(void) {
 
     size_t offset = 0;
 
-    // Header
-    offset += snprintf(status + offset, buf_size - offset,
-        "\033[1mI Miei Agenti Disponibili\033[0m\n\n"
-        "Ho a disposizione \033[1;36m%zu agenti specialistici\033[0m organizzati per area:\n\n",
-        orch->agent_count);
+    // Check for active project filtering
+    ConvergioProject* proj = project_current();
+
+    // Header (different if project active)
+    if (proj) {
+        offset += snprintf(status + offset, buf_size - offset,
+            "\033[1mAgenti Progetto: %s\033[0m\n\n"
+            "Team di \033[1;36m%zu agenti\033[0m per questo progetto:\n\n",
+            proj->name, proj->team_count);
+    } else {
+        offset += snprintf(status + offset, buf_size - offset,
+            "\033[1mI Miei Agenti Disponibili\033[0m\n\n"
+            "Ho a disposizione \033[1;36m%zu agenti specialistici\033[0m organizzati per area:\n\n",
+            orch->agent_count);
+    }
 
     // Categories with emojis
     const char* cat_names[] = {
@@ -1234,10 +1245,14 @@ char* agent_registry_status(void) {
     };
 
     for (int cat = 0; cat < 10; cat++) {
-        // Count agents in this category
+        // Count agents in this category (with project filtering)
         int count = 0;
         for (size_t i = 0; i < orch->agent_count; i++) {
-            if (get_agent_category(orch->agents[i]) == cat) count++;
+            ManagedAgent* a = orch->agents[i];
+            if (get_agent_category(a) == cat) {
+                // Apply project filter if active
+                if (!proj || project_has_agent(a->name)) count++;
+            }
         }
         if (count == 0) continue;
 
@@ -1245,10 +1260,13 @@ char* agent_registry_status(void) {
         offset += snprintf(status + offset, buf_size - offset,
             "\033[1m%s\033[0m\n", cat_names[cat]);
 
-        // Agents in this category
+        // Agents in this category (with project filtering)
         for (size_t i = 0; i < orch->agent_count && offset < buf_size - 512; i++) {
             ManagedAgent* agent = orch->agents[i];
             if (get_agent_category(agent) != cat) continue;
+
+            // Apply project filter if active
+            if (proj && !project_has_agent(agent->name)) continue;
 
             // Extract short name (capitalize first letter)
             char short_name[32];
