@@ -16,14 +16,9 @@
 extern sqlite3* g_db;
 extern pthread_mutex_t g_db_mutex;
 
-// Platform-specific mutex macros
-#ifdef __APPLE__
+// Thread synchronization macros (platform-agnostic)
 #define CONVERGIO_MUTEX_LOCK(m) pthread_mutex_lock(m)
 #define CONVERGIO_MUTEX_UNLOCK(m) pthread_mutex_unlock(m)
-#else
-#define CONVERGIO_MUTEX_LOCK(m) pthread_mutex_lock(m)
-#define CONVERGIO_MUTEX_UNLOCK(m) pthread_mutex_unlock(m)
-#endif
 
 // External fabric functions (declared in nous.h)
 // nous_create_node_internal, nous_get_node, nous_release_node, nous_connect
@@ -373,6 +368,19 @@ SemanticRelation* sem_persist_load_relations(SemanticID node_id, size_t* out_cou
         relations[i].strength = (float)sqlite3_column_double(stmt, 1);
         const char* type = (const char*)sqlite3_column_text(stmt, 2);
         relations[i].relation_type = type ? strdup(type) : strdup("related");
+
+        // Check for strdup failure (memory exhaustion)
+        if (!relations[i].relation_type) {
+            // Clean up previously allocated strings
+            for (size_t j = 0; j < i; j++) {
+                free(relations[j].relation_type);
+            }
+            free(relations);
+            sqlite3_finalize(stmt);
+            CONVERGIO_MUTEX_UNLOCK(&g_db_mutex);
+            *out_count = 0;
+            return NULL;
+        }
         i++;
     }
 
@@ -641,18 +649,33 @@ SemanticID* sem_persist_load_important(size_t limit, float min_importance, size_
     return ids;
 }
 
+// Helper to escape SQL LIKE wildcards: %, _, and backslash
+static void escape_like_pattern(const char* src, char* dest, size_t dest_size) {
+    size_t j = 0;
+    for (size_t i = 0; src[i] != '\0' && j + 1 < dest_size; ++i) {
+        if (src[i] == '%' || src[i] == '_' || src[i] == '\\') {
+            if (j + 2 >= dest_size) break;
+            dest[j++] = '\\';
+        }
+        dest[j++] = src[i];
+    }
+    dest[j] = '\0';
+}
+
 SemanticID* sem_persist_search_essence(const char* query, size_t limit, size_t* out_count) {
     if (!g_db || !query || !out_count) return NULL;
     *out_count = 0;
 
     CONVERGIO_MUTEX_LOCK(&g_db_mutex);
 
-    // Use LIKE for keyword search
+    // Escape LIKE wildcards to prevent SQL injection via wildcard abuse
+    char escaped_query[256];
+    escape_like_pattern(query, escaped_query, sizeof(escaped_query));
     char search_pattern[512];
-    snprintf(search_pattern, sizeof(search_pattern), "%%%s%%", query);
+    snprintf(search_pattern, sizeof(search_pattern), "%%%s%%", escaped_query);
 
     const char* sql =
-        "SELECT id FROM semantic_nodes WHERE essence LIKE ? "
+        "SELECT id FROM semantic_nodes WHERE essence LIKE ? ESCAPE '\\' "
         "ORDER BY importance DESC LIMIT ?";
 
     sqlite3_stmt* stmt;
