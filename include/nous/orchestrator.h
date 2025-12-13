@@ -325,6 +325,7 @@ int64_t persistence_get_cutoff_message_id(const char* session_id, int keep_recen
 int persistence_get_message_id_range(const char* session_id, int64_t* out_first, int64_t* out_last);
 char* persistence_load_messages_range(const char* session_id, int64_t from_id, int64_t to_id, size_t* out_count);
 int persistence_get_session_message_count(const char* session_id);
+char* persistence_load_latest_checkpoint(const char* session_id);
 
 // ============================================================================
 // MESSAGE BUS API
