@@ -2473,8 +2473,13 @@ int cmd_remember(int argc, char** argv) {
         return -1;
     }
 
-    // Set high importance for explicitly remembered items
+    // Set high importance for explicitly remembered items (both DB and in-memory)
     sem_persist_update_importance(id, 0.9f);
+    NousSemanticNode* node = nous_get_node(id);
+    if (node) {
+        node->importance = 0.9f;
+        nous_release_node(node);
+    }
 
     printf("\033[32m✓ Remembered:\033[0m \"%s\"\n", content);
     printf("\033[90mMemory ID: 0x%llx\033[0m\n", (unsigned long long)id);
@@ -2586,17 +2591,25 @@ int cmd_forget(int argc, char** argv) {
         return -1;
     }
 
-    // Parse hex ID
-    SemanticID id = 0;
-    if (strncmp(argv[1], "0x", 2) == 0 || strncmp(argv[1], "0X", 2) == 0) {
-        id = strtoull(argv[1] + 2, NULL, 16);
-    } else {
-        id = strtoull(argv[1], NULL, 16);
+    // Parse hex ID with proper error checking
+    char* endptr = NULL;
+    const char* num_str = argv[1];
+    if (strncmp(num_str, "0x", 2) == 0 || strncmp(num_str, "0X", 2) == 0) {
+        num_str += 2;
     }
 
-    if (id == 0) {
-        printf("\033[31mError: Invalid memory ID.\033[0m\n");
+    errno = 0;
+    SemanticID id = strtoull(num_str, &endptr, 16);
+
+    // Check for parsing errors: no digits parsed, or trailing garbage
+    if (endptr == num_str || *endptr != '\0' || errno == ERANGE) {
+        printf("\033[31mError: Invalid memory ID format. Use hex format like 0x1234.\033[0m\n");
         return -1;
+    }
+
+    // Note: id == 0 is technically valid but very unlikely to be a real ID
+    if (id == 0) {
+        printf("\033[33mWarning: ID 0 is unusual. Proceeding anyway.\033[0m\n");
     }
 
     // Check if it exists

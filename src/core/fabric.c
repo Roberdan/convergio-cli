@@ -475,6 +475,15 @@ int nous_delete_node(SemanticID id) {
         if (shard->nodes[i]->id == id) {
             NousSemanticNode* node = shard->nodes[i];
 
+            // Check ref_count - don't delete if other threads are using it
+            os_unfair_lock_lock(&node->lock);
+            if (node->ref_count > 1) {
+                os_unfair_lock_unlock(&node->lock);
+                os_unfair_lock_unlock(&shard->lock);
+                return -2;  // Node still in use
+            }
+            os_unfair_lock_unlock(&node->lock);
+
             // Free node resources
             free(node->essence);
             free(node->relations);
