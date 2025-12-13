@@ -15,6 +15,7 @@
 #include "nous/convergence.h"
 #include "nous/updater.h"
 #include "nous/nous.h"
+#include "nous/projects.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -51,6 +52,20 @@ extern char* agent_get_working_status(void);
 
 // Session management
 static char* g_current_session_id = NULL;
+
+// Helper to save conversation to both persistence and project history
+static void save_conversation(const char* role, const char* content, const char* agent_name) {
+    // Save to regular persistence
+    if (g_current_session_id) {
+        persistence_save_conversation(g_current_session_id, role, content, (int)strlen(content) / 4);
+    }
+
+    // Also save to project history if project is active
+    ConvergioProject* proj = project_current();
+    if (proj) {
+        project_append_history(proj, role, content, agent_name);
+    }
+}
 
 // Claude API (from neural/claude.c)
 extern int nous_claude_init(void);
@@ -149,7 +164,15 @@ static void parse_agent_frontmatter(const char* content, char* name, size_t name
     }
 }
 
+// Check if agent is in current project team (returns true if no project active)
+static bool agent_in_project_team(const char* agent_name) {
+    ConvergioProject* proj = project_current();
+    if (!proj) return true;  // No project = all agents available
+    return project_has_agent(agent_name);
+}
+
 // Load all agent definitions and build a list for the system prompt
+// Filters by current project team if a project is active
 static char* load_agent_list(void) {
     size_t agent_count = 0;
     const EmbeddedAgent* agents = get_all_embedded_agents(&agent_count);
@@ -158,11 +181,23 @@ static char* load_agent_list(void) {
         return strdup("No agents found.");
     }
 
+    // Check if we have an active project
+    ConvergioProject* current_project = project_current();
+    bool filtering = (current_project != NULL);
+
     size_t capacity = 8192;
     char* list = malloc(capacity);
     list[0] = '\0';
     size_t len = 0;
 
+    // If filtering by project, add a header
+    if (filtering) {
+        len += snprintf(list + len, capacity - len,
+            "**Project Team: %s** (%zu members)\n\n",
+            current_project->name, current_project->team_count);
+    }
+
+    int included_count = 0;
     for (size_t i = 0; i < agent_count; i++) {
         const EmbeddedAgent* agent = &agents[i];
 
@@ -182,6 +217,12 @@ static char* load_agent_list(void) {
             short_name[sizeof(short_name) - 1] = '\0';
             char* dash = strchr(short_name, '-');
             if (dash) *dash = '\0';
+
+            // Filter by project team if active
+            if (filtering && !agent_in_project_team(short_name)) {
+                continue;  // Skip agents not in project team
+            }
+
             // Capitalize first letter
             if (short_name[0] >= 'a' && short_name[0] <= 'z') {
                 short_name[0] -= 32;
@@ -203,7 +244,19 @@ static char* load_agent_list(void) {
 
             len += snprintf(list + len, capacity - len,
                 "- **%s**: %s\n", short_name, description);
+            included_count++;
         }
+    }
+
+    // Add note if filtering limited agents
+    if (filtering && included_count < (int)agent_count / 2) {
+        size_t needed = len + 128;
+        if (needed > capacity) {
+            capacity = needed * 2;
+            list = realloc(list, capacity);
+        }
+        len += snprintf(list + len, capacity - len,
+            "\n_Note: Other agents available via `project clear`_\n");
     }
 
     return list;
@@ -269,14 +322,25 @@ static const char* ALI_SYSTEM_PROMPT_TEMPLATE =
     "Use multiple agents when you need diverse perspectives or comprehensive analysis.\n\n"
     "### Available Agents:\n"
     "%s\n"
+    "## CRITICAL: MANDATORY TOOL USAGE\n"
+    "**When the user asks you to perform an action, you MUST use the appropriate tool:**\n"
+    "- Create/write/modify files → MUST call `file_write`\n"
+    "- Read file contents → MUST call `file_read`\n"
+    "- Execute shell commands → MUST call `shell_exec`\n"
+    "- Fetch web content → MUST call `web_fetch`\n"
+    "- Check files/directories → MUST call `file_list`\n\n"
+    "**VIOLATIONS ARE UNACCEPTABLE:**\n"
+    "- NEVER say 'I created the file' without calling `file_write`\n"
+    "- NEVER report file contents without calling `file_read`\n"
+    "- NEVER claim a command was executed without calling `shell_exec`\n"
+    "- If a tool fails, report the ACTUAL error - do not claim success\n\n"
     "## Response Guidelines\n"
     "1. Be concise but comprehensive\n"
     "2. Use memory tools proactively to store and retrieve relevant context\n"
     "3. Reference past conversations naturally when relevant\n"
-    "4. Use tools when the task requires file access, command execution, or web fetching\n"
-    "5. Delegate to specialists for deep analysis\n"
-    "6. Always synthesize insights into actionable recommendations\n"
-    "7. Be honest about limitations and uncertainties\n\n"
+    "4. Delegate to specialists for deep analysis\n"
+    "5. Always synthesize insights into actionable recommendations\n"
+    "6. Be honest about limitations and uncertainties\n\n"
     "## Output Format\n"
     "IMPORTANT: Never show technical details of tool calls in your response.\n"
     "Do NOT output XML, function_calls, invoke tags, or raw tool results.\n"
@@ -634,6 +698,36 @@ static char* build_context_prompt(const char* user_input) {
     context[0] = '\0';
     size_t len = 0;
 
+    // 0. Add project context if active
+    ConvergioProject* proj = project_current();
+    if (proj) {
+        len += snprintf(context + len, capacity - len,
+            "## Active Project: %s\n", proj->name);
+        if (proj->purpose) {
+            len += snprintf(context + len, capacity - len,
+                "**Purpose**: %s\n", proj->purpose);
+        }
+        if (proj->current_focus) {
+            len += snprintf(context + len, capacity - len,
+                "**Current Focus**: %s\n", proj->current_focus);
+        }
+        len += snprintf(context + len, capacity - len, "**Team**: ");
+        for (size_t i = 0; i < proj->team_count; i++) {
+            len += snprintf(context + len, capacity - len, "%s%s",
+                proj->team[i].agent_name,
+                i < proj->team_count - 1 ? ", " : "");
+        }
+        len += snprintf(context + len, capacity - len, "\n");
+        if (proj->decision_count > 0) {
+            len += snprintf(context + len, capacity - len, "**Key Decisions**:\n");
+            for (size_t i = 0; i < proj->decision_count && i < 5; i++) {
+                len += snprintf(context + len, capacity - len, "- %s\n", proj->key_decisions[i]);
+            }
+        }
+        len += snprintf(context + len, capacity - len,
+            "\n**Note**: Only delegate to team members listed above.\n\n");
+    }
+
     // 1. Load important memories
     size_t mem_count = 0;
     char** memories = persistence_get_important_memories(5, &mem_count);
@@ -693,10 +787,8 @@ char* orchestrator_process(const char* user_input) {
         return strdup("Budget exceeded. Use 'cost set <amount>' to increase budget.");
     }
 
-    // Save user message to persistence
-    if (g_current_session_id) {
-        persistence_save_conversation(g_current_session_id, "user", user_input, (int)strlen(user_input) / 4);
-    }
+    // Save user message to persistence and project history
+    save_conversation("user", user_input, NULL);
 
     // Create user message
     Message* user_msg = message_create(MSG_TYPE_USER_INPUT, 0, g_orchestrator->ali->id, user_input);
@@ -888,10 +980,9 @@ char* orchestrator_process(const char* user_input) {
         return strdup("Error: Delegation failed");
     }
 
-    // Save assistant response to persistence
-    if (g_current_session_id && final_response) {
-        persistence_save_conversation(g_current_session_id, "assistant", final_response,
-                                       (int)strlen(final_response) / 4);
+    // Save assistant response to persistence and project history
+    if (final_response) {
+        save_conversation("assistant", final_response, "Ali");
     }
 
     // Create response message
@@ -923,10 +1014,8 @@ char* orchestrator_process_stream(const char* user_input, OrchestratorStreamCall
         return strdup(err);
     }
 
-    // Save user message to persistence
-    if (g_current_session_id) {
-        persistence_save_conversation(g_current_session_id, "user", user_input, (int)strlen(user_input) / 4);
-    }
+    // Save user message to persistence and project history
+    save_conversation("user", user_input, NULL);
 
     // Create user message
     Message* user_msg = message_create(MSG_TYPE_USER_INPUT, 0, g_orchestrator->ali->id, user_input);
@@ -937,9 +1026,9 @@ char* orchestrator_process_stream(const char* user_input, OrchestratorStreamCall
     // Build conversation with context
     char* conversation = build_context_prompt(user_input);
     if (!conversation) {
-        const char* err = "Error: Memory allocation failed";
-        if (callback) callback(err, user_data);
-        return strdup(err);
+        const char* err2 = "Error: Memory allocation failed";
+        if (callback) callback(err2, user_data);
+        return strdup(err2);
     }
 
     // Call Claude with streaming - no tools in streaming mode
@@ -959,11 +1048,8 @@ char* orchestrator_process_stream(const char* user_input, OrchestratorStreamCall
         cost_record_usage(input_tokens, output_tokens);
         cost_record_agent_usage(g_orchestrator->ali, input_tokens, output_tokens);
 
-        // Save response to persistence
-        if (g_current_session_id) {
-            persistence_save_conversation(g_current_session_id, "assistant", response,
-                                           (int)strlen(response) / 4);
-        }
+        // Save response to persistence and project history
+        save_conversation("assistant", response, "Ali");
 
         // Create response message
         Message* response_msg = message_create(MSG_TYPE_AGENT_RESPONSE,
@@ -986,17 +1072,26 @@ char* orchestrator_process_stream(const char* user_input, OrchestratorStreamCall
 
 // Tools instructions to append to agent system prompts
 static const char* AGENT_TOOLS_INSTRUCTIONS =
-    "\n\n## Tools Available\n"
-    "You have access to these tools - USE THEM when needed:\n"
+    "\n\n## CRITICAL: MANDATORY TOOL USAGE\n"
+    "**When asked to perform an action, you MUST use the appropriate tool:**\n"
+    "- Create/write/modify files → MUST call `file_write`\n"
+    "- Read file contents → MUST call `file_read`\n"
+    "- Execute shell commands → MUST call `shell_exec`\n"
+    "- Fetch web content → MUST call `web_fetch`\n"
+    "- Check files/directories → MUST call `file_list`\n\n"
+    "**VIOLATIONS ARE UNACCEPTABLE:**\n"
+    "- NEVER say 'I created the file' without calling `file_write`\n"
+    "- NEVER report file contents without calling `file_read`\n"
+    "- NEVER claim a command was executed without calling `shell_exec`\n"
+    "- If a tool fails, report the ACTUAL error - do not claim success\n\n"
+    "## Tools Available\n"
     "- **file_read**: Read file contents from the filesystem\n"
-    "- **file_write**: Write content to files (create or modify) - USE THIS to make changes\n"
+    "- **file_write**: Write content to files (create or modify)\n"
     "- **file_list**: List directory contents\n"
     "- **shell_exec**: Execute shell commands\n"
     "- **web_fetch**: Fetch content from URLs (for research)\n"
     "- **memory_store**: Store information in semantic memory\n"
-    "- **memory_search**: Search stored memories\n\n"
-    "IMPORTANT: When asked to modify files, DO IT directly using file_write. "
-    "Do not say you cannot write files - you CAN and SHOULD use the tools.\n";
+    "- **memory_search**: Search stored memories\n";
 
 // Chat directly with a specific agent, with full tool support
 char* orchestrator_agent_chat(ManagedAgent* agent, const char* user_message) {

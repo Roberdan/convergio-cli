@@ -1073,6 +1073,7 @@ After creating GitHub Release:
 - [ ] CHANGELOG.md updated with all changes
 - [ ] Build completes with zero warnings: `make clean && make 2>&1 | grep -i warning`
 - [ ] ALL TESTS PASS: `make test` (fuzz + unit tests)
+- [ ] E2E TESTS PASS: `./tests/e2e_test.sh` (real API tests) ⚠️ BLOCKING
 - [ ] Debug build works: `make debug`
 - [ ] Static analysis clean: check clang-tidy output
 - [ ] Hardware detection works: `./build/bin/convergio --version`
@@ -1263,6 +1264,13 @@ make test 2>&1 | tee test.log
 # Verify all tests passed
 grep -E "All tests|passed|PASSED" test.log
 grep -E "FAILED|failed|Error" test.log && echo "TESTS FAILED!" && exit 1
+
+# MANDATORY: Run E2E test suite (tests real API calls and all commands)
+./tests/e2e_test.sh 2>&1 | tee e2e-test.log
+
+# E2E tests must pass (check for failures)
+grep -E "FAILED|fail|Error" e2e-test.log && echo "E2E TESTS FAILED!" && exit 1
+echo "✅ E2E tests passed"
 ```
 
 #### 12. Static Analysis with clang-tidy
@@ -1365,6 +1373,7 @@ Commit: {COMMIT_SHA}
 ### Automated Tests (MANDATORY)
 - [ ] Fuzz tests pass: {PASS/FAIL}
 - [ ] Unit tests pass: {PASS/FAIL}
+- [ ] E2E tests pass: {PASS/FAIL} ⚠️ BLOCKING
 - [ ] All {N} tests passed: {PASS/FAIL}
 
 ### Static Analysis
