@@ -294,10 +294,10 @@ void statusbar_render(void) {
            COLOR_PROFILE, g_status.profile_name, ANSI_RESET);
 
     // Calculate left side length (approximate)
-    int left_len = 4 + strlen(g_status.username) + 3 +
-                   strlen(g_status.cwd_basename) + 3 +
-                   strlen(g_status.active_model) + 3 +
-                   strlen(g_status.profile_name) + 4;
+    int left_len = 4 + (int)strlen(g_status.username) + 3 +
+                   (int)strlen(g_status.cwd_basename) + 3 +
+                   (int)strlen(g_status.active_model) + 3 +
+                   (int)strlen(g_status.profile_name) + 4;
 
     // Right side: tokens count
     char token_str[32];
@@ -305,7 +305,7 @@ void statusbar_render(void) {
 
     char right_str[64];
     snprintf(right_str, sizeof(right_str), "%s tokens", token_str);
-    int right_len = strlen(right_str);
+    int right_len = (int)strlen(right_str);
 
     // Padding
     int padding = width - left_len - right_len - 2;
@@ -350,7 +350,7 @@ void statusbar_render(void) {
     // Calculate remaining space
     int left2_len = 3 + 18 + (g_status.bypass_permissions ? 22 : 0) +
                     (g_status.session_cost > 0.001 ? 12 : 0);
-    int right2_len = strlen(right2_str);
+    int right2_len = (int)strlen(right2_str);
     int padding2 = width - left2_len - right2_len - 4;
 
     if (padding2 > 0) {

@@ -242,7 +242,7 @@ FileLock* filelock_acquire_timed(const char* filepath, FileLockType type,
 
             if (errno != EWOULDBLOCK) break;
 
-            usleep(sleep_ms * 1000);
+            usleep((useconds_t)(sleep_ms * 1000));
             elapsed += sleep_ms;
             sleep_ms = (sleep_ms < 100) ? sleep_ms * 2 : 100;  // Max 100ms
         }
@@ -326,7 +326,7 @@ FileLockError filelock_upgrade(FileLock* lock, int timeout_ms) {
             if (result == 0) break;
             if (errno != EWOULDBLOCK) break;
 
-            usleep(sleep_ms * 1000);
+            usleep((useconds_t)(sleep_ms * 1000));
             elapsed += sleep_ms;
             sleep_ms = (sleep_ms < 100) ? sleep_ms * 2 : 100;
         }
@@ -631,7 +631,7 @@ char* filelock_status(void) {
         return NULL;
     }
 
-    int offset = snprintf(status, buf_size,
+    size_t offset = (size_t)snprintf(status, buf_size,
         "File Lock Manager Status\n"
         "========================\n"
         "Active locks: %zu\n"
@@ -648,10 +648,10 @@ char* filelock_status(void) {
 
     const char* type_names[] = {"READ", "WRITE", "EXCLUSIVE"};
 
-    for (size_t i = 0; i < g_manager.lock_count && offset < (int)buf_size - 200; i++) {
+    for (size_t i = 0; i < g_manager.lock_count && offset < buf_size - 200; i++) {
         FileLock* lock = g_manager.locks[i];
         if (lock && lock->is_valid) {
-            offset += snprintf(status + offset, buf_size - offset,
+            offset += (size_t)snprintf(status + offset, buf_size - offset,
                 "  [%s] %s (owner: %llu)\n",
                 type_names[lock->type],
                 lock->filepath,

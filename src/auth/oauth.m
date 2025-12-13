@@ -404,7 +404,7 @@ static char* wait_for_oauth_code(int server_fd) {
         while (*code_end && *code_end != '&' && *code_end != ' ' && *code_end != '\r') {
             code_end++;
         }
-        size_t code_len = code_end - code_start;
+        size_t code_len = (size_t)(code_end - code_start);
         // Limit code length for security
         if (code_len > 0 && code_len < 512) {
             code = malloc(code_len + 1);
@@ -423,7 +423,7 @@ static char* wait_for_oauth_code(int server_fd) {
         while (*state_end && *state_end != '&' && *state_end != ' ' && *state_end != '\r') {
             state_end++;
         }
-        size_t state_len = state_end - state_start;
+        size_t state_len = (size_t)(state_end - state_start);
         if (state_len == 32 && g_oauth_state && strlen(g_oauth_state) == 32) {
             state = malloc(state_len + 1);
             if (state) {
@@ -525,7 +525,7 @@ static char* json_extract_string(const char* json, const char* key) {
         end++;
     }
 
-    size_t len = end - found;
+    size_t len = (size_t)(end - found);
     char* result = malloc(len + 1);
     if (!result) return NULL;
     strncpy(result, found, len);

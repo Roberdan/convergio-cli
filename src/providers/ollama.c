@@ -129,12 +129,12 @@ static char* json_escape(const char* str) {
                         int written = snprintf(out, 7, "\\u%04x", *p);
                         if (written > 0) out += written;
                     } else {
-                        *out++ = *p;
+                        *out++ = (char)*p;
                     }
             }
             p++;
         } else {
-            *out++ = *p++;
+            *out++ = (char)*p++;
         }
     }
     *out = '\0';
@@ -176,7 +176,7 @@ static char* extract_ollama_response(const char* json) {
 
     if (*end != '"') return NULL;
 
-    size_t len = end - start;
+    size_t len = (size_t)(end - start);
     char* result = malloc(len + 1);
     if (!result) return NULL;
 
@@ -237,7 +237,7 @@ static char* extract_ollama_chat_content(const char* json) {
 
     if (*end != '"') return NULL;
 
-    size_t len = end - start;
+    size_t len = (size_t)(end - start);
     char* result = malloc(len + 1);
     if (!result) return NULL;
 
@@ -612,7 +612,7 @@ static size_t ollama_stream_write_callback(void* contents, size_t size, size_t n
 
     // Keep remaining incomplete line
     if (line_start != ctx->accumulated) {
-        size_t remaining = ctx->accumulated_size - (line_start - ctx->accumulated);
+        size_t remaining = ctx->accumulated_size - (size_t)(line_start - ctx->accumulated);
         memmove(ctx->accumulated, line_start, remaining);
         ctx->accumulated_size = remaining;
         ctx->accumulated[remaining] = '\0';

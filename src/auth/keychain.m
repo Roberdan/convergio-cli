@@ -45,8 +45,8 @@ int convergio_keychain_store(const char* service, const char* account, const cha
             (__bridge id)kSecAttrService: serviceStr,
             (__bridge id)kSecAttrAccount: accountStr,
             (__bridge id)kSecValueData: passwordData,
-            (__bridge id)kSecAttrAccessible: (__bridge id)kSecAttrAccessibleWhenUnlocked,
-            // Sync to iCloud Keychain is disabled for API keys
+            (__bridge id)kSecAttrAccessible: (__bridge id)kSecAttrAccessibleWhenUnlockedThisDeviceOnly,
+            // Sync to iCloud Keychain is disabled for API keys (security: keys stay on this device only)
             (__bridge id)kSecAttrSynchronizable: @NO
         };
 

@@ -12,6 +12,7 @@
 
 #include "nous/provider.h"
 #include "nous/nous.h"
+#include "nous/debug_mutex.h"
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
@@ -138,17 +139,17 @@ static void load_default_configs(void) {
 // ============================================================================
 
 int router_init(void) {
-    pthread_mutex_lock(&g_router.mutex);
+    CONVERGIO_MUTEX_LOCK(&g_router.mutex);
 
     if (g_router.initialized) {
-        pthread_mutex_unlock(&g_router.mutex);
+        CONVERGIO_MUTEX_UNLOCK(&g_router.mutex);
         return 0;
     }
 
     // Initialize provider registry first
     ProviderError err = provider_registry_init();
     if (err != PROVIDER_OK) {
-        pthread_mutex_unlock(&g_router.mutex);
+        CONVERGIO_MUTEX_UNLOCK(&g_router.mutex);
         return -1;
     }
 
@@ -164,7 +165,7 @@ int router_init(void) {
 
     g_router.initialized = true;
 
-    pthread_mutex_unlock(&g_router.mutex);
+    CONVERGIO_MUTEX_UNLOCK(&g_router.mutex);
 
     LOG_INFO(LOG_CAT_SYSTEM, "Model router initialized with %zu agent configs",
              g_router.config_count);
@@ -172,10 +173,10 @@ int router_init(void) {
 }
 
 void router_shutdown(void) {
-    pthread_mutex_lock(&g_router.mutex);
+    CONVERGIO_MUTEX_LOCK(&g_router.mutex);
 
     if (!g_router.initialized) {
-        pthread_mutex_unlock(&g_router.mutex);
+        CONVERGIO_MUTEX_UNLOCK(&g_router.mutex);
         return;
     }
 
@@ -192,7 +193,7 @@ void router_shutdown(void) {
 
     g_router.initialized = false;
 
-    pthread_mutex_unlock(&g_router.mutex);
+    CONVERGIO_MUTEX_UNLOCK(&g_router.mutex);
 
     LOG_INFO(LOG_CAT_SYSTEM, "Model router shutdown. Total requests: %zu, Fallbacks: %zu",
              g_router.total_requests, g_router.fallback_requests);
@@ -220,19 +221,19 @@ int router_set_agent_model(const char* agent_name, const char* primary_model,
         return -1;
     }
 
-    pthread_mutex_lock(&g_router.mutex);
+    CONVERGIO_MUTEX_LOCK(&g_router.mutex);
 
     AgentModelConfig* cfg = find_agent_config(agent_name);
     if (!cfg) {
         // Create new config
         if (g_router.config_count >= MAX_AGENT_CONFIGS) {
-            pthread_mutex_unlock(&g_router.mutex);
+            CONVERGIO_MUTEX_UNLOCK(&g_router.mutex);
             return -1;
         }
         cfg = &g_router.configs[g_router.config_count];
         cfg->agent_name = strdup(agent_name);
         if (!cfg->agent_name) {
-            pthread_mutex_unlock(&g_router.mutex);
+            CONVERGIO_MUTEX_UNLOCK(&g_router.mutex);
             return -1;  // OOM
         }
         cfg->primary_model = NULL;
@@ -250,7 +251,7 @@ int router_set_agent_model(const char* agent_name, const char* primary_model,
     if (!new_primary || (fallback_model && !new_fallback)) {
         free(new_primary);
         free(new_fallback);
-        pthread_mutex_unlock(&g_router.mutex);
+        CONVERGIO_MUTEX_UNLOCK(&g_router.mutex);
         return -1;
     }
 
@@ -259,7 +260,7 @@ int router_set_agent_model(const char* agent_name, const char* primary_model,
     cfg->primary_model = new_primary;
     cfg->fallback_model = new_fallback;
 
-    pthread_mutex_unlock(&g_router.mutex);
+    CONVERGIO_MUTEX_UNLOCK(&g_router.mutex);
 
     LOG_INFO(LOG_CAT_AGENT, "Agent %s model config updated: primary=%s, fallback=%s",
              agent_name, primary_model, fallback_model ? fallback_model : "(none)");
@@ -280,22 +281,22 @@ const char* router_get_agent_model(const char* agent_name) {
 // ============================================================================
 
 void router_set_budget(double daily, double session) {
-    pthread_mutex_lock(&g_router.mutex);
+    CONVERGIO_MUTEX_LOCK(&g_router.mutex);
     g_router.daily_budget = daily;
     g_router.session_budget = session;
-    pthread_mutex_unlock(&g_router.mutex);
+    CONVERGIO_MUTEX_UNLOCK(&g_router.mutex);
 
     LOG_INFO(LOG_CAT_COST, "Budget set: daily=$%.2f, session=$%.2f", daily, session);
 }
 
 void router_reset_session_budget(void) {
-    pthread_mutex_lock(&g_router.mutex);
+    CONVERGIO_MUTEX_LOCK(&g_router.mutex);
     g_router.session_spent = 0.0;
-    pthread_mutex_unlock(&g_router.mutex);
+    CONVERGIO_MUTEX_UNLOCK(&g_router.mutex);
 }
 
 double router_get_remaining_budget(void) {
-    pthread_mutex_lock(&g_router.mutex);
+    CONVERGIO_MUTEX_LOCK(&g_router.mutex);
 
     // Check if daily budget needs reset
     time_t now = time(NULL);
@@ -308,12 +309,12 @@ double router_get_remaining_budget(void) {
     double session_remaining = g_router.session_budget - g_router.session_spent;
     double remaining = (daily_remaining < session_remaining) ? daily_remaining : session_remaining;
 
-    pthread_mutex_unlock(&g_router.mutex);
+    CONVERGIO_MUTEX_UNLOCK(&g_router.mutex);
     return remaining;
 }
 
 void router_record_cost(double cost) {
-    pthread_mutex_lock(&g_router.mutex);
+    CONVERGIO_MUTEX_LOCK(&g_router.mutex);
     g_router.daily_spent += cost;
     g_router.session_spent += cost;
 
@@ -330,7 +331,7 @@ void router_record_cost(double cost) {
                  session_pct * 100, g_router.session_spent, g_router.session_budget);
     }
 
-    pthread_mutex_unlock(&g_router.mutex);
+    CONVERGIO_MUTEX_UNLOCK(&g_router.mutex);
 }
 
 // ============================================================================
@@ -375,7 +376,7 @@ ModelSelection router_select_model_for_agent(const char* agent_name,
         .is_fallback = false
     };
 
-    pthread_mutex_lock(&g_router.mutex);
+    CONVERGIO_MUTEX_LOCK(&g_router.mutex);
     g_router.total_requests++;
 
     AgentModelConfig* cfg = find_agent_config(agent_name);
@@ -395,7 +396,7 @@ ModelSelection router_select_model_for_agent(const char* agent_name,
                     g_router.downgrade_requests++;
                     LOG_INFO(LOG_CAT_COST, "Agent %s downgraded from %s to %s (budget: $%.2f)",
                              agent_name, cfg->primary_model, cheaper, remaining_budget);
-                    pthread_mutex_unlock(&g_router.mutex);
+                    CONVERGIO_MUTEX_UNLOCK(&g_router.mutex);
                     return selection;
                 }
             }
@@ -403,7 +404,7 @@ ModelSelection router_select_model_for_agent(const char* agent_name,
             selection.model_id = cfg->primary_model;
             selection.provider = model ? model->provider : PROVIDER_ANTHROPIC;
             selection.reason = SELECT_REASON_PRIMARY;
-            pthread_mutex_unlock(&g_router.mutex);
+            CONVERGIO_MUTEX_UNLOCK(&g_router.mutex);
             return selection;
         }
     }
@@ -419,7 +420,7 @@ ModelSelection router_select_model_for_agent(const char* agent_name,
             g_router.fallback_requests++;
             LOG_WARN(LOG_CAT_AGENT, "Agent %s using fallback model %s",
                      agent_name, cfg->fallback_model);
-            pthread_mutex_unlock(&g_router.mutex);
+            CONVERGIO_MUTEX_UNLOCK(&g_router.mutex);
             return selection;
         }
     }
@@ -440,7 +441,7 @@ ModelSelection router_select_model_for_agent(const char* agent_name,
     }
 
     selection.reason = SELECT_REASON_DEFAULT;
-    pthread_mutex_unlock(&g_router.mutex);
+    CONVERGIO_MUTEX_UNLOCK(&g_router.mutex);
     return selection;
 }
 
@@ -550,11 +551,11 @@ void router_list_models(void) {
  */
 void router_get_stats(size_t* total, size_t* fallbacks, size_t* downgrades,
                       double* daily_spent, double* session_spent) {
-    pthread_mutex_lock(&g_router.mutex);
+    CONVERGIO_MUTEX_LOCK(&g_router.mutex);
     if (total) *total = g_router.total_requests;
     if (fallbacks) *fallbacks = g_router.fallback_requests;
     if (downgrades) *downgrades = g_router.downgrade_requests;
     if (daily_spent) *daily_spent = g_router.daily_spent;
     if (session_spent) *session_spent = g_router.session_spent;
-    pthread_mutex_unlock(&g_router.mutex);
+    CONVERGIO_MUTEX_UNLOCK(&g_router.mutex);
 }

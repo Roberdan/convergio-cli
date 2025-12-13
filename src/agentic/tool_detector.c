@@ -47,9 +47,9 @@ bool tool_exists(const char* tool_name) {
 
     // Use 'command -v' which is POSIX-compliant and works on all shells
     char cmd[512];
-    int written = snprintf(cmd, sizeof(cmd), "command -v %s >/dev/null 2>&1", tool_name);
+    int ret = snprintf(cmd, sizeof(cmd), "command -v %s >/dev/null 2>&1", tool_name);
 
-    if (written < 0 || (size_t)written >= sizeof(cmd)) {
+    if (ret < 0 || (size_t)ret >= sizeof(cmd)) {
         return false;  // Tool name too long
     }
 

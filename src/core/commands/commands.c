@@ -17,6 +17,7 @@
 #include "nous/agentic.h"
 #include "nous/projects.h"
 #include "nous/semantic_persistence.h"
+#include "nous/model_loader.h"
 #include "../../auth/oauth.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -35,6 +36,8 @@ extern void nous_gpu_print_stats(void);
 extern int nous_scheduler_init(void);
 extern void nous_scheduler_shutdown(void);
 extern void nous_scheduler_print_metrics(void);
+
+// Session functions are declared in nous/orchestrator.h
 
 // ============================================================================
 // COMMAND TABLE
@@ -71,8 +74,8 @@ static const ReplCommand COMMANDS[] = {
     {"hardware",    "Show hardware information",         cmd_hardware},
     {"stream",      "Toggle streaming mode (on/off)",    cmd_stream},
     {"theme",       "Interactive theme selector (or /theme <name>)", cmd_theme},
-    {"compare",     "Compare models side-by-side",       cmd_compare},
-    {"benchmark",   "Benchmark a model's performance",   cmd_benchmark},
+    {"compare",     "Compare responses from 2-3 models", cmd_compare},
+    {"benchmark",   "Test ONE model's speed (N runs)",   cmd_benchmark},
     {"telemetry",   "Manage telemetry settings",         cmd_telemetry},
     {"tools",       "Manage development tools",          cmd_tools},
     {"news",        "Show release notes",                cmd_news},
@@ -281,6 +284,21 @@ static const CommandHelp DETAILED_HELP[] = {
         "news           # Show latest release notes\n"
         "news 3.0.4     # Show notes for v3.0.4\n"
         "news v3.0.3    # Also works with 'v' prefix"
+    },
+    {
+        "recall",
+        "recall [load <n>|delete <n>|clear]",
+        "View and reload past session contexts",
+        "Shows summaries of past sessions with what was discussed.\n"
+        "Sessions are saved when you exit with 'quit'.\n"
+        "Subcommands:\n"
+        "  load <n>        Load context from session N into current conversation\n"
+        "  delete <n>      Delete session N and its summary\n"
+        "  clear           Delete all stored summaries (asks for confirmation)\n",
+        "recall           # List past sessions with summaries\n"
+        "recall load 1    # Load context from session 1\n"
+        "recall delete 2  # Delete session 2\n"
+        "recall clear     # Delete all sessions"
     },
     {
         "stream",
@@ -617,8 +635,8 @@ int cmd_help(int argc, char** argv) {
 
     // 4. POWER FEATURES
     printf("\033[1;33m⚡ POWER FEATURES\033[0m\n");
-    printf("   \033[36mcompare \"prompt\"\033[0m           Compare Claude vs GPT vs Gemini side-by-side\n");
-    printf("   \033[36mbenchmark \"prompt\" <model>\033[0m Measure model speed & consistency\n");
+    printf("   \033[36mcompare \"prompt\"\033[0m           Compare responses from 2-3 different models\n");
+    printf("   \033[36mbenchmark \"prompt\" <model>\033[0m Test ONE model's speed & cost (N runs)\n");
     printf("   \033[36msetup\033[0m                      Configure providers & models per agent\n\n");
 
     // 5. CUSTOMIZATION
@@ -633,6 +651,7 @@ int cmd_help(int argc, char** argv) {
     printf("   \033[36mstatus\033[0m             System health & active agents\n");
     printf("   \033[36mhardware\033[0m           Show Apple Silicon optimization info\n");
     printf("   \033[36mtools\033[0m              Manage agentic tools (file, web, code)\n");
+    printf("   \033[36mrecall\033[0m             View past sessions, \033[36mrecall load <n>\033[0m to reload\n");
     printf("   \033[36mdebug <level>\033[0m      Set debug level (off/error/warn/info/debug/trace)\n");
     printf("   \033[36mnews\033[0m               What's new in this version\n\n");
 
@@ -642,9 +661,190 @@ int cmd_help(int argc, char** argv) {
     return 0;
 }
 
+// Progress callback for session compaction
+static void quit_progress_callback(int percent, const char* msg) {
+    // Simple progress bar: [████████░░] 80% Saving...
+    int filled = percent / 10;
+    int empty = 10 - filled;
+
+    printf("\r\033[K[");  // Clear line and start bar
+    for (int i = 0; i < filled; i++) printf("\033[32m█\033[0m");
+    for (int i = 0; i < empty; i++) printf("\033[90m░\033[0m");
+    printf("] %d%% %s", percent, msg ? msg : "");
+    fflush(stdout);
+
+    if (percent >= 100) {
+        printf("\n");
+    }
+}
+
 int cmd_quit(int argc, char** argv) {
     (void)argc; (void)argv;
+
+    // Compact current session before exit
+    printf("\n");
+    orchestrator_compact_session(quit_progress_callback);
+
     g_running = 0;
+    return 0;
+}
+
+// Static storage for session ID mapping (for recall load/delete by number)
+static char* g_recall_session_ids[50] = {0};
+static size_t g_recall_session_count = 0;
+
+static void recall_clear_cache(void) {
+    for (size_t i = 0; i < g_recall_session_count; i++) {
+        free(g_recall_session_ids[i]);
+        g_recall_session_ids[i] = NULL;
+    }
+    g_recall_session_count = 0;
+}
+
+static const char* recall_get_session_id(int index) {
+    if (index < 1 || (size_t)index > g_recall_session_count) return NULL;
+    return g_recall_session_ids[index - 1];
+}
+
+int cmd_recall(int argc, char** argv) {
+    // Handle subcommand: recall clear
+    if (argc >= 2 && strcmp(argv[1], "clear") == 0) {
+        printf("\n\033[33mAre you sure you want to clear all session summaries?\033[0m\n");
+        printf("Type 'yes' to confirm: ");
+        fflush(stdout);
+
+        char confirm[10] = {0};
+        if (fgets(confirm, sizeof(confirm), stdin) && strncmp(confirm, "yes", 3) == 0) {
+            if (persistence_clear_all_summaries() == 0) {
+                recall_clear_cache();
+                printf("\033[32mAll session summaries cleared.\033[0m\n\n");
+            } else {
+                printf("\033[31mFailed to clear summaries.\033[0m\n\n");
+            }
+        } else {
+            printf("Cancelled.\n\n");
+        }
+        return 0;
+    }
+
+    // Handle subcommand: recall delete <num>
+    if (argc >= 3 && strcmp(argv[1], "delete") == 0) {
+        int index = atoi(argv[2]);
+        const char* session_id = recall_get_session_id(index);
+        if (!session_id) {
+            // Maybe they passed the full UUID
+            session_id = argv[2];
+        }
+        if (persistence_delete_session(session_id) == 0) {
+            printf("\033[32mSession deleted.\033[0m\n\n");
+            recall_clear_cache();  // Invalidate cache
+        } else {
+            printf("\033[31mFailed to delete session. Run 'recall' first to see valid numbers.\033[0m\n\n");
+        }
+        return 0;
+    }
+
+    // Handle subcommand: recall load <num>
+    if (argc >= 3 && strcmp(argv[1], "load") == 0) {
+        int index = atoi(argv[2]);
+        const char* session_id = recall_get_session_id(index);
+        if (!session_id) {
+            printf("\n\033[31mInvalid session number. Run 'recall' first to see available sessions.\033[0m\n\n");
+            return -1;
+        }
+
+        // Load the checkpoint/summary for this session
+        char* checkpoint = persistence_load_latest_checkpoint(session_id);
+        if (checkpoint && strlen(checkpoint) > 0) {
+            printf("\n\033[1;36m=== Loaded Context from Session %d ===\033[0m\n\n", index);
+            printf("%s\n", checkpoint);
+            printf("\n\033[32m✓ Context loaded. Ali now has this context for your conversation.\033[0m\n\n");
+
+            // Inject into orchestrator context
+            Orchestrator* orch = orchestrator_get();
+            if (orch) {
+                free(orch->user_preferences);
+                size_t len = strlen(checkpoint) + 100;
+                orch->user_preferences = malloc(len);
+                if (orch->user_preferences) {
+                    snprintf(orch->user_preferences, len,
+                        "Previous session context:\n%s", checkpoint);
+                }
+            }
+            free(checkpoint);
+        } else {
+            printf("\n\033[33mNo detailed context found for this session.\033[0m\n");
+            printf("The session may not have been compacted on exit.\n\n");
+            free(checkpoint);
+        }
+        return 0;
+    }
+
+    // Default: show all session summaries
+    SessionSummaryList* list = persistence_get_session_summaries();
+    if (!list || list->count == 0) {
+        printf("\n\033[90mNo past sessions found.\033[0m\n");
+        printf("\033[90mSessions are saved when you type 'quit'.\033[0m\n\n");
+        if (list) persistence_free_session_summaries(list);
+        return 0;
+    }
+
+    // Cache session IDs for load/delete by number
+    recall_clear_cache();
+    for (size_t i = 0; i < list->count && i < 50; i++) {
+        if (list->items[i].session_id) {
+            g_recall_session_ids[i] = strdup(list->items[i].session_id);
+            g_recall_session_count++;
+        }
+    }
+
+    printf("\n\033[1m📚 Past Sessions\033[0m\n");
+    printf("\033[90m────────────────────────────────────────────────────────\033[0m\n\n");
+
+    for (size_t i = 0; i < list->count; i++) {
+        SessionSummary* s = &list->items[i];
+
+        // Header: [num] date (messages)
+        printf("\033[1;36m[%zu]\033[0m \033[33m%s\033[0m", i + 1, s->started_at ? s->started_at : "Unknown");
+        printf(" \033[90m(%d msgs)\033[0m\n", s->message_count);
+
+        // Summary - the important part!
+        if (s->summary && strlen(s->summary) > 0) {
+            printf("    \033[37m");
+            // Word wrap at ~70 chars with proper indentation
+            const char* p = s->summary;
+            int col = 0;
+            size_t max_len = 300;  // Show more of the summary
+            size_t printed = 0;
+            while (*p && printed < max_len) {
+                if (*p == '\n') {
+                    printf("\n    ");
+                    col = 0;
+                } else {
+                    putchar(*p);
+                    col++;
+                    if (col > 65 && *p == ' ') {
+                        printf("\n    ");
+                        col = 0;
+                    }
+                }
+                p++;
+                printed++;
+            }
+            if (printed >= max_len && *p) printf("...");
+            printf("\033[0m\n");
+        } else {
+            printf("    \033[90m(no summary - quit with 'quit' to save)\033[0m\n");
+        }
+        printf("\n");
+    }
+
+    printf("\033[90m────────────────────────────────────────────────────────\033[0m\n");
+    printf("\033[36mrecall load <n>\033[0m   Load context into current session\n");
+    printf("\033[36mrecall delete <n>\033[0m Delete a session\n");
+    printf("\033[36mrecall clear\033[0m      Delete all sessions\n\n");
+
+    persistence_free_session_summaries(list);
     return 0;
 }
 
@@ -662,7 +862,7 @@ int cmd_status(int argc, char** argv) {
         printf("\nCurrent Space: %s\n", space->name);
         printf("  Purpose: %s\n", space->purpose);
         printf("  Participants: %zu\n", nous_space_participant_count(space));
-        printf("  Urgency: %.2f\n", nous_space_urgency(space));
+        printf("  Urgency: %.2f\n", (double)nous_space_urgency(space));
         printf("  Active: %s\n", nous_space_is_active(space) ? "Yes" : "No");
     } else {
         printf("\nNo active space.\n");
@@ -970,9 +1170,9 @@ int cmd_agent(int argc, char** argv) {
         }
 
         printf("Created agent \"%s\"\n", agent->name);
-        printf("  Patience: %.2f\n", agent->patience);
-        printf("  Creativity: %.2f\n", agent->creativity);
-        printf("  Assertiveness: %.2f\n", agent->assertiveness);
+        printf("  Patience: %.2f\n", (double)agent->patience);
+        printf("  Creativity: %.2f\n", (double)agent->creativity);
+        printf("  Assertiveness: %.2f\n", (double)agent->assertiveness);
 
         NousAgent* assistant = (NousAgent*)g_assistant;
         if (!assistant) {
@@ -1047,8 +1247,8 @@ int cmd_think(int argc, char** argv) {
 
     printf("Intent parsed:\n");
     printf("  Kind: %d\n", intent->kind);
-    printf("  Confidence: %.2f\n", intent->confidence);
-    printf("  Urgency: %.2f\n", intent->urgency);
+    printf("  Confidence: %.2f\n", (double)intent->confidence);
+    printf("  Urgency: %.2f\n", (double)intent->urgency);
 
     if (intent->question_count > 0) {
         printf("\nClarification needed:\n");
@@ -1151,7 +1351,7 @@ int cmd_space(int argc, char** argv) {
 
     NousSpace* space = (NousSpace*)g_current_space;
     if (strcmp(argv[1], "urgency") == 0 && space) {
-        printf("Current urgency: %.2f\n", nous_space_urgency(space));
+        printf("Current urgency: %.2f\n", (double)nous_space_urgency(space));
         return 0;
     }
 
@@ -1494,31 +1694,31 @@ int cmd_theme(int argc, char** argv) {
 // MODEL COMPARISON COMMANDS
 // ============================================================================
 
-// Default cheap models for comparison (one per provider)
-static const char* DEFAULT_COMPARE_MODELS[] = {
-    "claude-haiku-4.5",   // Anthropic - cheapest
-    "gpt-4o-mini",         // OpenAI - cheapest
-    "gemini-1.5-flash",     // Google - cheapest
-};
-static const size_t DEFAULT_COMPARE_MODEL_COUNT = 3;
-
 int cmd_compare(int argc, char** argv) {
+    // Get defaults from JSON config (or fallback)
+    size_t default_count = 0;
+    const char** default_models = models_get_compare_defaults(&default_count);
+
     if (argc < 2) {
         printf("\n\033[1mCommand: compare\033[0m - Compare models side-by-side\n\n");
         printf("\033[1mUsage:\033[0m\n");
-        printf("  compare <prompt>                    # Uses default models (cheapest)\n");
+        printf("  compare <prompt>                    # Uses default models\n");
         printf("  compare <prompt> <model1> <model2>  # Custom models\n\n");
-        printf("\033[1mDefault models:\033[0m (cheapest from each provider)\n");
-        printf("  - claude-haiku-4.5 (Anthropic)\n");
-        printf("  - gpt-4o-mini (OpenAI)\n");
-        printf("  - gemini-1.5-flash (Google)\n\n");
-        printf("\033[1mExample:\033[0m\n");
+        printf("\033[1mDefault models:\033[0m (most powerful from each provider)\n");
+        for (size_t i = 0; i < default_count; i++) {
+            printf("  - %s\n", default_models[i]);
+        }
+        printf("\n\033[1mExample:\033[0m\n");
         printf("  compare \"Explain quantum computing\"\n");
         printf("  compare \"Write a poem\" claude-opus-4 gpt-5\n\n");
         printf("\033[1mOptions:\033[0m\n");
         printf("  --no-diff      Skip diff generation\n");
         printf("  --json         Output as JSON\n");
         printf("  --sequential   Run sequentially instead of parallel\n\n");
+        if (models_loaded_from_json()) {
+            printf("\033[2mConfig: %s (v%s)\033[0m\n\n",
+                   models_get_loaded_path(), models_get_version());
+        }
         return 0;
     }
 
@@ -1548,11 +1748,15 @@ int cmd_compare(int argc, char** argv) {
     bool using_defaults = false;
 
     if (model_count == 0) {
-        // Use default cheap models
-        models_to_use = DEFAULT_COMPARE_MODELS;
-        model_count = DEFAULT_COMPARE_MODEL_COUNT;
+        // Use default models from JSON config
+        models_to_use = default_models;
+        model_count = default_count;
         using_defaults = true;
-        printf("\033[36mUsing default models: haiku, gpt-4o-mini, gemini-flash\033[0m\n\n");
+        printf("\033[36mUsing default models:");
+        for (size_t i = 0; i < default_count; i++) {
+            printf(" %s%s", default_models[i], i < default_count - 1 ? "," : "");
+        }
+        printf("\033[0m\n\n");
     } else if (model_count == 1) {
         printf("Error: Need at least 2 models to compare (or none for defaults).\n");
         return -1;
@@ -1588,15 +1792,21 @@ int cmd_compare(int argc, char** argv) {
 }
 
 int cmd_benchmark(int argc, char** argv) {
+    // Get defaults from JSON config
+    const char* default_model = models_get_benchmark_default();
+    size_t default_iterations = models_get_benchmark_iterations();
+
     if (argc < 2) {
         printf("\n\033[1mCommand: benchmark\033[0m - Benchmark a model's performance\n\n");
         printf("\033[1mUsage:\033[0m\n");
-        printf("  benchmark <prompt>                    # Uses claude-haiku-4.5, 3 iterations\n");
-        printf("  benchmark <prompt> <model>            # Custom model, 3 iterations\n");
+        printf("  benchmark <prompt>                    # Uses %s, %zu iterations\n",
+               default_model, default_iterations);
+        printf("  benchmark <prompt> <model>            # Custom model, %zu iterations\n",
+               default_iterations);
         printf("  benchmark <prompt> <model> <N>        # Custom model, N iterations\n\n");
         printf("\033[1mDefaults:\033[0m\n");
-        printf("  Model: claude-haiku-4.5 (cheapest)\n");
-        printf("  Iterations: 3\n\n");
+        printf("  Model: %s\n", default_model);
+        printf("  Iterations: %zu\n\n", default_iterations);
         printf("\033[1mExample:\033[0m\n");
         printf("  benchmark \"Write a haiku\"\n");
         printf("  benchmark \"Explain AI\" gpt-4o-mini 5\n\n");
@@ -1604,8 +1814,8 @@ int cmd_benchmark(int argc, char** argv) {
     }
 
     const char* prompt = argv[1];
-    const char* model = "claude-haiku-4.5";  // Default to cheapest
-    size_t iterations = 3;
+    const char* model = default_model;
+    size_t iterations = default_iterations;
 
     if (argc >= 3) {
         model = argv[2];

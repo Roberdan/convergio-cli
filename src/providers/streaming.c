@@ -151,7 +151,7 @@ static char* parse_sse_line(const char* line, ProviderType provider) {
                     text_end = strchr(text_end + 1, '"');
                 }
                 if (text_end) {
-                    size_t len = text_end - text_start;
+                    size_t len = (size_t)(text_end - text_start);
                     content = malloc(len + 1);
                     if (content) {
                         memcpy(content, text_start, len);
@@ -173,7 +173,7 @@ static char* parse_sse_line(const char* line, ProviderType provider) {
                     content_end = strchr(content_end + 1, '"');
                 }
                 if (content_end) {
-                    size_t len = content_end - content_start;
+                    size_t len = (size_t)(content_end - content_start);
                     content = malloc(len + 1);
                     if (content) {
                         memcpy(content, content_start, len);
@@ -195,7 +195,7 @@ static char* parse_sse_line(const char* line, ProviderType provider) {
                     text_end = strchr(text_end + 1, '"');
                 }
                 if (text_end) {
-                    size_t len = text_end - text_start;
+                    size_t len = (size_t)(text_end - text_start);
                     content = malloc(len + 1);
                     if (content) {
                         memcpy(content, text_start, len);
@@ -218,7 +218,7 @@ static char* parse_sse_line(const char* line, ProviderType provider) {
                     content_end = strchr(content_end + 1, '"');
                 }
                 if (content_end) {
-                    size_t len = content_end - content_start;
+                    size_t len = (size_t)(content_end - content_start);
                     content = malloc(len + 1);
                     if (content) {
                         memcpy(content, content_start, len);
@@ -241,7 +241,7 @@ static char* parse_sse_line(const char* line, ProviderType provider) {
                     content_end = strchr(content_end + 1, '"');
                 }
                 if (content_end) {
-                    size_t len = content_end - content_start;
+                    size_t len = (size_t)(content_end - content_start);
                     content = malloc(len + 1);
                     if (content) {
                         memcpy(content, content_start, len);
@@ -259,7 +259,7 @@ static char* parse_sse_line(const char* line, ProviderType provider) {
                         resp_end = strchr(resp_end + 1, '"');
                     }
                     if (resp_end) {
-                        size_t len = resp_end - resp_start;
+                        size_t len = (size_t)(resp_end - resp_start);
                         content = malloc(len + 1);
                         if (content) {
                             memcpy(content, resp_start, len);
@@ -343,7 +343,7 @@ static size_t stream_write_callback(char* ptr, size_t size, size_t nmemb,
 
     // Move remaining data to start of buffer
     if (line_start > ctx->buffer) {
-        size_t remaining = ctx->buffer + ctx->buffer_used - line_start;
+        size_t remaining = (size_t)(ctx->buffer + ctx->buffer_used - line_start);
         memmove(ctx->buffer, line_start, remaining);
         ctx->buffer_used = remaining;
         ctx->buffer[remaining] = '\0';

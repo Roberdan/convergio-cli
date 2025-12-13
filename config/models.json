@@ -13,7 +13,7 @@
       "models": {
         "claude-opus-4.5": {
           "display_name": "Claude Opus 4.5",
-          "api_id": "claude-opus-4-5-20251124",
+          "api_id": "claude-opus-4-5-20251101",
           "input_cost": 15.0,
           "output_cost": 75.0,
           "context_window": 200000,
@@ -493,6 +493,15 @@
       "fallback": "gemini/gemini-2.0-flash",
       "reason": "Fast and cheap for routing decisions"
     }
+  },
+  "compare_defaults": {
+    "description": "Default models for /compare command (most powerful from each provider)",
+    "models": ["claude-opus-4.5", "gpt-5.2"],
+    "rationale": "Most capable models from Anthropic and OpenAI as of December 2025"
+  },
+  "benchmark_defaults": {
+    "model": "claude-haiku-4.5",
+    "iterations": 3
   },
   "cost_tiers": {
     "premium": {

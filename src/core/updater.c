@@ -117,7 +117,7 @@ static const char* find_json_string(const char* json, const char* key, char* val
     const char* end = strchr(pos, '"');
     if (!end) return NULL;
 
-    size_t len = end - pos;
+    size_t len = (size_t)(end - pos);
     if (len >= value_size) len = value_size - 1;
 
     strncpy(value, pos, len);

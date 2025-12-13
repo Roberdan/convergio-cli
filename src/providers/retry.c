@@ -338,7 +338,7 @@ char* retry_execute(ProviderType provider, RetryableFunc func, void* ctx,
         }
 
         // Sleep before retry
-        usleep(delay_ms * 1000);
+        usleep((useconds_t)(delay_ms * 1000));
 
         if (attempt == 0) {
             stats->retried_requests++;

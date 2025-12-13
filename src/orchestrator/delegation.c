@@ -67,7 +67,7 @@ DelegationList* parse_all_delegations(const char* response) {
             break;
         }
 
-        size_t name_len = end - pos;
+        size_t name_len = (size_t)(end - pos);
         req->agent_name = malloc(name_len + 1);
         if (req->agent_name) {
             strncpy(req->agent_name, pos, name_len);
@@ -89,7 +89,7 @@ DelegationList* parse_all_delegations(const char* response) {
         }
 
         if (reason_end > pos) {
-            size_t reason_len = reason_end - pos;
+            size_t reason_len = (size_t)(reason_end - pos);
             req->reason = malloc(reason_len + 1);
             if (req->reason) {
                 strncpy(req->reason, pos, reason_len);
@@ -236,20 +236,20 @@ char* execute_delegations(DelegationList* delegations, const char* user_input,
         return NULL;
     }
 
-    size_t offset = snprintf(convergence_prompt, convergence_size,
+    size_t offset = (size_t)snprintf(convergence_prompt, convergence_size,
         "You delegated to %zu specialist agents. Here are their responses:\n\n",
         delegations->count);
 
     for (size_t i = 0; i < delegations->count; i++) {
         if (tasks[i].completed && tasks[i].response) {
-            offset += snprintf(convergence_prompt + offset, convergence_size - offset,
+            offset += (size_t)snprintf(convergence_prompt + offset, convergence_size - offset,
                 "## %s's Response\n%s\n\n",
                 tasks[i].agent ? tasks[i].agent->name : "Agent",
                 tasks[i].response);
         }
     }
 
-    offset += snprintf(convergence_prompt + offset, convergence_size - offset,
+    offset += (size_t)snprintf(convergence_prompt + offset, convergence_size - offset,
         "---\n\nOriginal user request: %s\n\n"
         "Please synthesize all these specialist perspectives into a unified, comprehensive response for the user. "
         "Integrate insights from each agent, highlight agreements and different viewpoints, "

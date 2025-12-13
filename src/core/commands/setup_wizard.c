@@ -258,7 +258,7 @@ static void configure_api_key(ProviderType type) {
             struct termios old_term, new_term;
             tcgetattr(STDIN_FILENO, &old_term);
             new_term = old_term;
-            new_term.c_lflag &= ~ECHO;
+            new_term.c_lflag &= (tcflag_t)~ECHO;
             tcsetattr(STDIN_FILENO, TCSANOW, &new_term);
 
             if (fgets(key, sizeof(key), stdin)) {
@@ -444,13 +444,13 @@ static void menu_view_config(void) {
     // Show model counts per provider
     for (int p = 0; p < PROVIDER_COUNT; p++) {
         size_t count = 0;
-        (void)model_get_by_provider(p, &count);
+        (void)model_get_by_provider((ProviderType)p, &count);
         if (count > 0) {
-            const char* pname = provider_name(p);
+            const char* pname = provider_name((ProviderType)p);
             printf("  %-16s %zu models available\n", pname, count);
 
             // Show cheapest model
-            const ModelConfig* cheapest = model_get_cheapest(p);
+            const ModelConfig* cheapest = model_get_cheapest((ProviderType)p);
             if (cheapest) {
                 printf("                   └─ Cheapest: %s ($%.2f/$%.2f per MTok)\n",
                        cheapest->display_name,

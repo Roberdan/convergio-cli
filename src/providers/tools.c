@@ -234,7 +234,7 @@ char* tool_to_anthropic_json(Tool* tool) {
     char* json = malloc(size);
     if (!json) return NULL;
 
-    int offset = snprintf(json, size,
+    size_t offset = (size_t)snprintf(json, size,
         "{\"name\":\"%s\",\"description\":\"%s\",\"input_schema\":{\"type\":\"object\",\"properties\":{",
         tool->name, tool->description);
 
@@ -243,16 +243,16 @@ char* tool_to_anthropic_json(Tool* tool) {
     bool first = true;
     while (param) {
         if (!first) {
-            offset += snprintf(json + offset, size - offset, ",");
+            offset += (size_t)snprintf(json + offset, size - offset, ",");
         }
-        offset += snprintf(json + offset, size - offset,
+        offset += (size_t)snprintf(json + offset, size - offset,
             "\"%s\":{\"type\":\"%s\",\"description\":\"%s\"}",
             param->name, param_type_string(param->type), param->description);
         first = false;
         param = param->next;
     }
 
-    offset += snprintf(json + offset, size - offset, "},\"required\":[");
+    offset += (size_t)snprintf(json + offset, size - offset, "},\"required\":[");
 
     // Add required parameters
     param = tool->parameters;
@@ -260,9 +260,9 @@ char* tool_to_anthropic_json(Tool* tool) {
     while (param) {
         if (param->required) {
             if (!first) {
-                offset += snprintf(json + offset, size - offset, ",");
+                offset += (size_t)snprintf(json + offset, size - offset, ",");
             }
-            offset += snprintf(json + offset, size - offset, "\"%s\"", param->name);
+            offset += (size_t)snprintf(json + offset, size - offset, "\"%s\"", param->name);
             first = false;
         }
         param = param->next;
@@ -289,7 +289,7 @@ char* tool_to_openai_json(Tool* tool) {
     char* json = malloc(size);
     if (!json) return NULL;
 
-    int offset = snprintf(json, size,
+    size_t offset = (size_t)snprintf(json, size,
         "{\"type\":\"function\",\"function\":{\"name\":\"%s\",\"description\":\"%s\","
         "\"parameters\":{\"type\":\"object\",\"properties\":{",
         tool->name, tool->description);
@@ -298,25 +298,25 @@ char* tool_to_openai_json(Tool* tool) {
     bool first = true;
     while (param) {
         if (!first) {
-            offset += snprintf(json + offset, size - offset, ",");
+            offset += (size_t)snprintf(json + offset, size - offset, ",");
         }
-        offset += snprintf(json + offset, size - offset,
+        offset += (size_t)snprintf(json + offset, size - offset,
             "\"%s\":{\"type\":\"%s\",\"description\":\"%s\"}",
             param->name, param_type_string(param->type), param->description);
         first = false;
         param = param->next;
     }
 
-    offset += snprintf(json + offset, size - offset, "},\"required\":[");
+    offset += (size_t)snprintf(json + offset, size - offset, "},\"required\":[");
 
     param = tool->parameters;
     first = true;
     while (param) {
         if (param->required) {
             if (!first) {
-                offset += snprintf(json + offset, size - offset, ",");
+                offset += (size_t)snprintf(json + offset, size - offset, ",");
             }
-            offset += snprintf(json + offset, size - offset, "\"%s\"", param->name);
+            offset += (size_t)snprintf(json + offset, size - offset, "\"%s\"", param->name);
             first = false;
         }
         param = param->next;
@@ -344,7 +344,7 @@ char* tool_to_gemini_json(Tool* tool) {
     if (!json) return NULL;
 
     // Gemini uses a slightly different format
-    int offset = snprintf(json, size,
+    size_t offset = (size_t)snprintf(json, size,
         "{\"name\":\"%s\",\"description\":\"%s\",\"parameters\":{\"type\":\"OBJECT\",\"properties\":{",
         tool->name, tool->description);
 
@@ -352,7 +352,7 @@ char* tool_to_gemini_json(Tool* tool) {
     bool first = true;
     while (param) {
         if (!first) {
-            offset += snprintf(json + offset, size - offset, ",");
+            offset += (size_t)snprintf(json + offset, size - offset, ",");
         }
 
         // Gemini uses uppercase type names
@@ -367,23 +367,23 @@ char* tool_to_gemini_json(Tool* tool) {
             default:                 type_str = "STRING";
         }
 
-        offset += snprintf(json + offset, size - offset,
+        offset += (size_t)snprintf(json + offset, size - offset,
             "\"%s\":{\"type\":\"%s\",\"description\":\"%s\"}",
             param->name, type_str, param->description);
         first = false;
         param = param->next;
     }
 
-    offset += snprintf(json + offset, size - offset, "},\"required\":[");
+    offset += (size_t)snprintf(json + offset, size - offset, "},\"required\":[");
 
     param = tool->parameters;
     first = true;
     while (param) {
         if (param->required) {
             if (!first) {
-                offset += snprintf(json + offset, size - offset, ",");
+                offset += (size_t)snprintf(json + offset, size - offset, ",");
             }
-            offset += snprintf(json + offset, size - offset, "\"%s\"", param->name);
+            offset += (size_t)snprintf(json + offset, size - offset, "\"%s\"", param->name);
             first = false;
         }
         param = param->next;
@@ -408,7 +408,7 @@ char* tools_to_json(ProviderType provider) {
     char* json = malloc(size);
     if (!json) return NULL;
 
-    int offset = snprintf(json, size, "[");
+    size_t offset = (size_t)snprintf(json, size, "[");
 
     Tool* tool = g_tools;
     bool first = true;
@@ -435,9 +435,9 @@ char* tools_to_json(ProviderType provider) {
 
         if (tool_json) {
             if (!first) {
-                offset += snprintf(json + offset, size - offset, ",");
+                offset += (size_t)snprintf(json + offset, size - offset, ",");
             }
-            offset += snprintf(json + offset, size - offset, "%s", tool_json);
+            offset += (size_t)snprintf(json + offset, size - offset, "%s", tool_json);
             free(tool_json);
             first = false;
         }
@@ -496,7 +496,7 @@ ToolCall* parse_anthropic_tool_calls(const char* response, size_t* count) {
             name_start += 8;
             const char* name_end = strchr(name_start, '"');
             if (name_end) {
-                calls[i].tool_name = strndup(name_start, name_end - name_start);
+                calls[i].tool_name = strndup(name_start, (size_t)(name_end - name_start));
             }
         }
 
@@ -506,7 +506,7 @@ ToolCall* parse_anthropic_tool_calls(const char* response, size_t* count) {
             id_start += 6;
             const char* id_end = strchr(id_start, '"');
             if (id_end) {
-                calls[i].tool_id = strndup(id_start, id_end - id_start);
+                calls[i].tool_id = strndup(id_start, (size_t)(id_end - id_start));
             }
         }
 
@@ -528,7 +528,7 @@ ToolCall* parse_anthropic_tool_calls(const char* response, size_t* count) {
                 }
                 input_end++;
             }
-            calls[i].arguments_json = strndup(input_start, input_end - input_start);
+            calls[i].arguments_json = strndup(input_start, (size_t)(input_end - input_start));
         }
 
         ptr++;
@@ -563,7 +563,7 @@ static char* tool_read_file(const char* args_json, void* ctx) {
     const char* path_end = strchr(path_start, '"');
     if (!path_end) return strdup("{\"error\":\"Invalid path parameter\"}");
 
-    char* path = strndup(path_start, path_end - path_start);
+    char* path = strndup(path_start, (size_t)(path_end - path_start));
 
     FILE* f = fopen(path, "r");
     if (!f) {
@@ -583,14 +583,14 @@ static char* tool_read_file(const char* args_json, void* ctx) {
         return strdup("{\"error\":\"File too large\"}");
     }
 
-    char* content = malloc(size + 1);
-    fread(content, 1, size, f);
+    char* content = malloc((size_t)size + 1);
+    fread(content, 1, (size_t)size, f);
     content[size] = '\0';
     fclose(f);
     free(path);
 
     // Escape for JSON
-    size_t json_size = size * 2 + 64;
+    size_t json_size = (size_t)size * 2 + 64;
     char* result = malloc(json_size);
     snprintf(result, json_size, "{\"content\":\"%s\"}", content);  // Should escape properly
     free(content);
@@ -645,7 +645,7 @@ ToolCall* parse_openai_tool_calls(const char* response, size_t* count) {
             name_start += 8;
             const char* name_end = strchr(name_start, '"');
             if (name_end) {
-                calls[i].tool_name = strndup(name_start, name_end - name_start);
+                calls[i].tool_name = strndup(name_start, (size_t)(name_end - name_start));
             }
         }
 
@@ -655,7 +655,7 @@ ToolCall* parse_openai_tool_calls(const char* response, size_t* count) {
             id_start += 6;
             const char* id_end = strchr(id_start, '"');
             if (id_end) {
-                calls[i].tool_id = strndup(id_start, id_end - id_start);
+                calls[i].tool_id = strndup(id_start, (size_t)(id_end - id_start));
             }
         }
 
@@ -669,7 +669,7 @@ ToolCall* parse_openai_tool_calls(const char* response, size_t* count) {
                 args_end++;
             }
             // Unescape the JSON string
-            size_t len = args_end - args_start;
+            size_t len = (size_t)(args_end - args_start);
             char* escaped = strndup(args_start, len);
             // Simple unescape - real implementation would be more robust
             calls[i].arguments_json = escaped;
@@ -720,7 +720,7 @@ ToolCall* parse_gemini_tool_calls(const char* response, size_t* count) {
             name_start += 8;
             const char* name_end = strchr(name_start, '"');
             if (name_end) {
-                calls[i].tool_name = strndup(name_start, name_end - name_start);
+                calls[i].tool_name = strndup(name_start, (size_t)(name_end - name_start));
             }
         }
 
@@ -747,7 +747,7 @@ ToolCall* parse_gemini_tool_calls(const char* response, size_t* count) {
                 }
                 args_end++;
             }
-            calls[i].arguments_json = strndup(args_start, args_end - args_start);
+            calls[i].arguments_json = strndup(args_start, (size_t)(args_end - args_start));
         }
 
         ptr++;
@@ -770,13 +770,13 @@ char* build_anthropic_tools_json(ToolDefinition* tools, size_t count) {
     char* json = malloc(size);
     if (!json) return NULL;
 
-    int offset = snprintf(json, size, "[");
+    size_t offset = (size_t)snprintf(json, size, "[");
 
     for (size_t i = 0; i < count; i++) {
         if (i > 0) {
-            offset += snprintf(json + offset, size - offset, ",");
+            offset += (size_t)snprintf(json + offset, size - offset, ",");
         }
-        offset += snprintf(json + offset, size - offset,
+        offset += (size_t)snprintf(json + offset, size - offset,
             "{\"name\":\"%s\",\"description\":\"%s\",\"input_schema\":%s}",
             tools[i].name, tools[i].description,
             tools[i].parameters_json ? tools[i].parameters_json : "{\"type\":\"object\",\"properties\":{}}");
@@ -796,13 +796,13 @@ char* build_openai_tools_json(ToolDefinition* tools, size_t count) {
     char* json = malloc(size);
     if (!json) return NULL;
 
-    int offset = snprintf(json, size, "[");
+    size_t offset = (size_t)snprintf(json, size, "[");
 
     for (size_t i = 0; i < count; i++) {
         if (i > 0) {
-            offset += snprintf(json + offset, size - offset, ",");
+            offset += (size_t)snprintf(json + offset, size - offset, ",");
         }
-        offset += snprintf(json + offset, size - offset,
+        offset += (size_t)snprintf(json + offset, size - offset,
             "{\"type\":\"function\",\"function\":{\"name\":\"%s\",\"description\":\"%s\",\"parameters\":%s}}",
             tools[i].name, tools[i].description,
             tools[i].parameters_json ? tools[i].parameters_json : "{\"type\":\"object\",\"properties\":{}}");
@@ -823,13 +823,13 @@ char* build_gemini_tools_json(ToolDefinition* tools, size_t count) {
     if (!json) return NULL;
 
     // Gemini wraps tools in functionDeclarations
-    int offset = snprintf(json, size, "[{\"functionDeclarations\":[");
+    size_t offset = (size_t)snprintf(json, size, "[{\"functionDeclarations\":[");
 
     for (size_t i = 0; i < count; i++) {
         if (i > 0) {
-            offset += snprintf(json + offset, size - offset, ",");
+            offset += (size_t)snprintf(json + offset, size - offset, ",");
         }
-        offset += snprintf(json + offset, size - offset,
+        offset += (size_t)snprintf(json + offset, size - offset,
             "{\"name\":\"%s\",\"description\":\"%s\",\"parameters\":%s}",
             tools[i].name, tools[i].description,
             tools[i].parameters_json ? tools[i].parameters_json : "{\"type\":\"OBJECT\",\"properties\":{}}");

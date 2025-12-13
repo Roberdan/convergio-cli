@@ -20,6 +20,15 @@
 
 // External persistence functions
 extern char* persistence_load_conversation_context(const char* session_id, size_t max_messages);
+extern int persistence_get_message_id_range(const char* session_id, int64_t* out_first, int64_t* out_last);
+extern char* persistence_load_messages_range(const char* session_id, int64_t from_id, int64_t to_id, size_t* out_count);
+extern char* persistence_load_latest_checkpoint(const char* session_id);
+extern int persistence_get_checkpoint_count(const char* session_id);
+extern int persistence_save_checkpoint(const char* session_id, int checkpoint_num, int64_t from_msg_id,
+                                       int64_t to_msg_id, int messages_compressed, const char* summary,
+                                       const char* key_facts, size_t original_tokens, size_t compressed_tokens,
+                                       double cost);
+extern int64_t persistence_get_cutoff_message_id(const char* session_id, int keep_recent);
 
 // ============================================================================
 // INTERNAL STATE
@@ -125,7 +134,11 @@ CompactionResult* compaction_summarize(
         size_t prompt_len = strlen(SUMMARIZATION_PROMPT) + strlen(messages_text) + 100;
         char* full_prompt = malloc(prompt_len);
         if (full_prompt) {
+            // Suppress format-nonliteral warning - SUMMARIZATION_PROMPT is a trusted constant
+            #pragma clang diagnostic push
+            #pragma clang diagnostic ignored "-Wformat-nonliteral"
             snprintf(full_prompt, prompt_len, SUMMARIZATION_PROMPT, messages_text);
+            #pragma clang diagnostic pop
 
             // Call cheap model for summarization
             summary = provider->chat(
@@ -147,13 +160,23 @@ CompactionResult* compaction_summarize(
         // Create truncated summary (first 2000 chars + last 2000 chars)
         size_t msg_len = strlen(messages_text);
         if (msg_len > 4000) {
-            summary = malloc(4100);
+            #define TRUNCATE_MARKER "\n\n[... conversation truncated ...]\n\n"
+            #define TRUNCATE_MARKER_LEN 38  // sizeof(TRUNCATE_MARKER) - 1
+            #define TRUNCATE_CHUNK 2000
+
+            size_t summary_len = TRUNCATE_CHUNK + TRUNCATE_MARKER_LEN + TRUNCATE_CHUNK;
+            summary = malloc(summary_len + 1);
             if (summary) {
-                strncpy(summary, messages_text, 2000);
-                summary[2000] = '\0';
-                strcat(summary, "\n\n[... conversation truncated ...]\n\n");
-                strcat(summary, messages_text + msg_len - 2000);
+                memcpy(summary, messages_text, TRUNCATE_CHUNK);
+                memcpy(summary + TRUNCATE_CHUNK, TRUNCATE_MARKER, TRUNCATE_MARKER_LEN);
+                memcpy(summary + TRUNCATE_CHUNK + TRUNCATE_MARKER_LEN,
+                       messages_text + msg_len - TRUNCATE_CHUNK, TRUNCATE_CHUNK);
+                summary[summary_len] = '\0';
             }
+
+            #undef TRUNCATE_MARKER
+            #undef TRUNCATE_MARKER_LEN
+            #undef TRUNCATE_CHUNK
         } else {
             summary = strdup(messages_text);
         }
@@ -268,9 +291,10 @@ char* compaction_build_context(
         return full_conv;  // Can't get range, return as-is
     }
 
-    // Calculate cutoff: summarize all but the last KEEP_RECENT messages
-    int64_t cutoff_msg_id = last_msg_id - COMPACTION_KEEP_RECENT_MSGS;
-    if (cutoff_msg_id <= first_msg_id) {
+    // Calculate cutoff: get the actual message ID that is KEEP_RECENT messages from the end
+    // This properly handles non-consecutive message IDs
+    int64_t cutoff_msg_id = persistence_get_cutoff_message_id(session_id, COMPACTION_KEEP_RECENT_MSGS);
+    if (cutoff_msg_id < 0 || cutoff_msg_id <= first_msg_id) {
         return full_conv;  // Not enough messages to compact
     }
 
@@ -326,13 +350,19 @@ char* compaction_build_context(
 
     size_t len = 0;
     if (checkpoint_summary) {
-        len += snprintf(context + len, ctx_size - len,
+        int written = snprintf(context + len, ctx_size - len,
             "## Previous Context (Summarized)\n%s\n\n", checkpoint_summary);
+        if (written > 0) {
+            len += (size_t)written;
+        }
     }
 
     if (recent) {
-        len += snprintf(context + len, ctx_size - len,
+        int written = snprintf(context + len, ctx_size - len,
             "## Recent Conversation\n%s\n", recent);
+        if (written > 0) {
+            len += (size_t)written;
+        }
         free(recent);
     }
 
