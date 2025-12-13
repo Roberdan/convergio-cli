@@ -374,6 +374,31 @@ const char* tools_get_workspace(void) {
     return workspace;
 }
 
+// Resolve a path - if relative, prepend workspace; if absolute, return as-is
+// Caller must free the returned string
+static char* tools_resolve_path(const char* path) {
+    if (!path) return NULL;
+
+    // If absolute path, return a copy
+    if (path[0] == '/') {
+        return strdup(path);
+    }
+
+    // Relative path - prepend workspace
+    const char* workspace = tools_get_workspace();
+    if (!workspace) {
+        // No workspace set, return copy of original
+        return strdup(path);
+    }
+
+    size_t len = strlen(workspace) + 1 + strlen(path) + 1;
+    char* resolved = malloc(len);
+    if (!resolved) return NULL;
+
+    snprintf(resolved, len, "%s/%s", workspace, path);
+    return resolved;
+}
+
 void tools_set_blocked_commands(const char** patterns, size_t count) {
     CONVERGIO_MUTEX_LOCK(&g_config_mutex);
 
@@ -707,9 +732,19 @@ static int safe_open_write(const char* path, bool append) {
 ToolResult* tool_file_read(const char* path, int start_line, int end_line) {
     clock_t start = clock();
 
-    if (!tools_is_path_safe(path)) {
+    // Resolve relative paths to workspace
+    char* resolved_path = tools_resolve_path(path);
+    if (!resolved_path) {
+        return result_error("Failed to resolve path");
+    }
+
+    if (!tools_is_path_safe(resolved_path)) {
+        free(resolved_path);
         return result_error("Path not allowed for security reasons");
     }
+
+    // Use resolved path from here on
+    path = resolved_path;
 
     // Use safe open to prevent TOCTOU attacks
     int fd = safe_open_read(path);
@@ -720,6 +755,7 @@ ToolResult* tool_file_read(const char* path, int start_line, int end_line) {
         } else {
             snprintf(err, sizeof(err), "Cannot open file: %s", strerror(errno));
         }
+        free(resolved_path);
         return result_error(err);
     }
 
@@ -728,6 +764,7 @@ ToolResult* tool_file_read(const char* path, int start_line, int end_line) {
         close(fd);
         char err[256];
         snprintf(err, sizeof(err), "Cannot open file: %s", strerror(errno));
+        free(resolved_path);
         return result_error(err);
     }
 
@@ -753,6 +790,7 @@ ToolResult* tool_file_read(const char* path, int start_line, int end_line) {
             char* new_content = realloc(content, new_capacity);
             if (!new_content) {
                 free(content);
+                free(resolved_path);
                 fclose(f);
                 return result_error("Out of memory");
             }
@@ -770,6 +808,7 @@ ToolResult* tool_file_read(const char* path, int start_line, int end_line) {
     r->bytes_read = len;
     r->execution_time = (double)(clock() - start) / CLOCKS_PER_SEC;
     free(content);
+    free(resolved_path);
 
     return r;
 }
@@ -777,9 +816,19 @@ ToolResult* tool_file_read(const char* path, int start_line, int end_line) {
 ToolResult* tool_file_write(const char* path, const char* content, const char* mode) {
     clock_t start = clock();
 
-    if (!tools_is_path_safe(path)) {
+    // Resolve relative paths to workspace
+    char* resolved_path = tools_resolve_path(path);
+    if (!resolved_path) {
+        return result_error("Failed to resolve path");
+    }
+
+    if (!tools_is_path_safe(resolved_path)) {
+        free(resolved_path);
         return result_error("Path not allowed for security reasons");
     }
+
+    // Use resolved path from here on
+    path = resolved_path;
 
     bool append = (mode && strcmp(mode, "append") == 0);
 
@@ -792,6 +841,7 @@ ToolResult* tool_file_write(const char* path, const char* content, const char* m
         } else {
             snprintf(err, sizeof(err), "Cannot open file for writing: %s", strerror(errno));
         }
+        free(resolved_path);
         return result_error(err);
     }
 
@@ -800,6 +850,7 @@ ToolResult* tool_file_write(const char* path, const char* content, const char* m
         close(fd);
         char err[256];
         snprintf(err, sizeof(err), "Cannot open file for writing: %s", strerror(errno));
+        free(resolved_path);
         return result_error(err);
     }
 
@@ -813,6 +864,7 @@ ToolResult* tool_file_write(const char* path, const char* content, const char* m
     r->bytes_read = written;
     r->execution_time = (double)(clock() - start) / CLOCKS_PER_SEC;
 
+    free(resolved_path);
     return r;
 }
 
@@ -875,9 +927,19 @@ static void list_dir_recursive(const char* base_path, const char* pattern,
 ToolResult* tool_file_list(const char* path, bool recursive, const char* pattern) {
     clock_t start = clock();
 
-    if (!tools_is_path_safe(path)) {
+    // Resolve relative paths to workspace
+    char* resolved_path = tools_resolve_path(path);
+    if (!resolved_path) {
+        return result_error("Failed to resolve path");
+    }
+
+    if (!tools_is_path_safe(resolved_path)) {
+        free(resolved_path);
         return result_error("Path not allowed for security reasons");
     }
+
+    // Use resolved path from here on
+    path = resolved_path;
 
     size_t capacity = 4096;
     size_t len = 0;
@@ -890,6 +952,7 @@ ToolResult* tool_file_list(const char* path, bool recursive, const char* pattern
         DIR* dir = opendir(path);
         if (!dir) {
             free(output);
+            free(resolved_path);
             char err[256];
             snprintf(err, sizeof(err), "Cannot open directory: %s", strerror(errno));
             return result_error(err);
@@ -923,6 +986,7 @@ ToolResult* tool_file_list(const char* path, bool recursive, const char* pattern
                 char* new_output = realloc(output, capacity);
                 if (!new_output) {
                     free(output);
+                    free(resolved_path);
                     closedir(dir);
                     return result_error("Out of memory");
                 }
@@ -938,6 +1002,7 @@ ToolResult* tool_file_list(const char* path, bool recursive, const char* pattern
     ToolResult* r = result_success(output);
     r->execution_time = (double)(clock() - start) / CLOCKS_PER_SEC;
     free(output);
+    free(resolved_path);
 
     return r;
 }

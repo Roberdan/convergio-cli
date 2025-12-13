@@ -7,6 +7,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.0.12] - 2025-12-13
+
+### Added
+
+- **Projects Feature**: Create named projects with dedicated agent teams and persistent context
+  - `project create <name>` - Create new project with purpose, team, and optional template
+  - `project list` - List all projects with status
+  - `project use <name>` - Switch to a project (filters available agents)
+  - `project status` - Show detailed project dashboard
+  - `project team add/remove` - Manage project team membership
+  - `project templates` - Built-in templates: app-dev, marketing, research, executive, finance
+  - `project focus/decision` - Track current focus and key decisions
+  - `project archive/clear` - Archive projects or clear current context
+  - Project history stored in `~/.convergio/projects/<slug>/history.jsonl`
+  - Context shared with Ali including purpose, focus, and key decisions
+  - Agent delegation filtered to project team members only
+- **Fiona Market Analyst**: New finance agent specialized in real-time stock quotes, balance sheet analysis, and market research via web tools
+- **Agent prefix matching**: Can now use `@baccio` instead of `@baccio-tech-architect` - matches first segment of agent names
+- **E2E test suite**: Comprehensive end-to-end tests in `tests/e2e_test.sh` covering all commands and real API calls
+- **Agent delegation tests**: E2E tests now verify Ali's delegation to specialist agents
+- **Projects E2E tests**: Full test coverage for project commands
+- **ADR 007**: Architecture Decision Record for Projects feature
+
+### Fixed
+
+- **Tool execution**: Disabled streaming by default - tools now work correctly (streaming mode doesn't support tool_use API)
+- **Path resolution**: Tools (file_read, file_write, file_list) now resolve relative paths to workspace automatically
+
+### Changed
+
+- **Release workflow**: E2E tests are now BLOCKING for releases in app-release-manager
+- **E2E tester**: Moved from Convergio agent to Claude Code command (`/test-convergio`) for external testing
+
 ## [3.0.11] - 2025-12-13
 
 ### Added

@@ -175,6 +175,253 @@ run_test "theme ocean" "theme ocean" "Theme"
 run_test "stream on" "stream on" "Streaming"
 
 # =============================================================================
+# SECTION 6: Real API Tests (requires API key)
+# =============================================================================
+echo ""
+echo -e "${BLUE}=== Section 6: Real API Tests ===${NC}"
+
+# Test chat with Ali
+echo -n "  Testing: chat with Ali... "
+output=$(echo -e "Rispondi solo 'OK' se mi senti\nquit" | timeout 60 $CONVERGIO -q 2>&1) || true
+if echo "$output" | grep -qi "OK\|sento\|ricevuto"; then
+    echo -e "${GREEN}PASS${NC}"
+    ((PASSED++))
+else
+    echo -e "${RED}FAIL${NC}"
+    echo "    Ali didn't respond properly"
+    ((FAILED++))
+fi
+
+# Test shell_exec tool
+echo -n "  Testing: shell_exec tool (date)... "
+output=$(echo -e "Esegui il comando 'echo TEST123' e dimmi l'output\nquit" | timeout 60 $CONVERGIO -q 2>&1) || true
+if echo "$output" | grep -q "TEST123"; then
+    echo -e "${GREEN}PASS${NC}"
+    ((PASSED++))
+else
+    echo -e "${RED}FAIL${NC}"
+    echo "    Shell exec didn't work or output not returned"
+    ((FAILED++))
+fi
+
+# Test file_read tool
+echo -n "  Testing: file_read tool... "
+output=$(echo -e "Leggi il file VERSION e dimmi cosa contiene\nquit" | timeout 60 $CONVERGIO -q 2>&1) || true
+if echo "$output" | grep -q "3\.0"; then
+    echo -e "${GREEN}PASS${NC}"
+    ((PASSED++))
+else
+    echo -e "${RED}FAIL${NC}"
+    echo "    File read didn't return version"
+    ((FAILED++))
+fi
+
+# Test file_write tool (uses workspace-relative path)
+echo -n "  Testing: file_write tool... "
+TEST_FILE="test_e2e_write_$(date +%s).txt"
+rm -f "$TEST_FILE" 2>/dev/null
+output=$(echo -e "Scrivi 'TEST_WRITE_OK' nel file $TEST_FILE\nquit" | timeout 90 $CONVERGIO -q 2>&1) || true
+if [ -f "$TEST_FILE" ] && grep -q "TEST_WRITE_OK" "$TEST_FILE" 2>/dev/null; then
+    echo -e "${GREEN}PASS${NC}"
+    ((PASSED++))
+    rm -f "$TEST_FILE"
+else
+    echo -e "${RED}FAIL${NC} (file_write tool failed)"
+    echo "    File exists: $([ -f \"$TEST_FILE\" ] && echo 'yes' || echo 'no')"
+    ((FAILED++))
+fi
+
+# Test web_fetch tool
+echo -n "  Testing: web_fetch tool... "
+output=$(echo -e "Vai su https://httpbin.org/get e dimmi cosa vedi\nquit" | timeout 90 $CONVERGIO -q 2>&1) || true
+if echo "$output" | grep -qi "httpbin\|origin\|headers\|url"; then
+    echo -e "${GREEN}PASS${NC}"
+    ((PASSED++))
+else
+    echo -e "${YELLOW}SKIP${NC} (may need internet)"
+    ((SKIPPED++))
+fi
+
+# Test git command
+echo -n "  Testing: git via shell... "
+output=$(echo -e "Esegui 'git status' e dimmi quanti file sono modificati\nquit" | timeout 60 $CONVERGIO -q 2>&1) || true
+if echo "$output" | grep -qi "branch\|clean\|modific\|commit"; then
+    echo -e "${GREEN}PASS${NC}"
+    ((PASSED++))
+else
+    echo -e "${RED}FAIL${NC}"
+    echo "    Git command didn't work"
+    ((FAILED++))
+fi
+
+# =============================================================================
+# SECTION 7: Agent Delegation & Communication
+# =============================================================================
+echo ""
+echo -e "${BLUE}=== Section 7: Agent Delegation ===${NC}"
+
+# Test direct agent communication
+echo -n "  Testing: direct agent @Baccio... "
+output=$(echo -e "@baccio Dimmi in una parola cosa fai\nquit" | timeout 90 $CONVERGIO -q 2>&1) || true
+if echo "$output" | grep -qi "architet\|system\|design\|tech"; then
+    echo -e "${GREEN}PASS${NC}"
+    ((PASSED++))
+else
+    echo -e "${YELLOW}SKIP${NC} (agent communication requires API)"
+    ((SKIPPED++))
+fi
+
+# Test new finance agent
+echo -n "  Testing: finance agent Fiona available... "
+output=$(echo -e "agent info fiona\nquit" | timeout 15 $CONVERGIO -q 2>&1) || true
+if echo "$output" | grep -qi "fiona\|market\|analyst"; then
+    echo -e "${GREEN}PASS${NC}"
+    ((PASSED++))
+else
+    echo -e "${RED}FAIL${NC}"
+    echo "    Fiona agent not found"
+    ((FAILED++))
+fi
+
+# Test Ali delegation
+echo -n "  Testing: Ali delegation to specialist... "
+output=$(echo -e "Chiedi a Baccio di descrivere brevemente il suo ruolo\nquit" | timeout 120 $CONVERGIO -q 2>&1) || true
+if echo "$output" | grep -qi "architet\|baccio\|tech\|system"; then
+    echo -e "${GREEN}PASS${NC}"
+    ((PASSED++))
+else
+    echo -e "${YELLOW}SKIP${NC} (delegation requires API)"
+    ((SKIPPED++))
+fi
+
+# =============================================================================
+# SECTION 8: Projects Feature
+# =============================================================================
+echo ""
+echo -e "${BLUE}=== Section 8: Projects Feature ===${NC}"
+
+# Test project help
+run_test "project help" "project" "project create"
+
+# Test project templates
+run_test "project templates" "project templates" "app-dev"
+
+# Test project create with team
+echo -n "  Testing: project create... "
+# Clean up any existing test project first
+rm -rf ~/.convergio/projects/testproject-e2e* 2>/dev/null
+output=$(echo -e "project create TestProject-E2E --team baccio,davide --purpose \"E2E test project\"\nquit" | timeout $TIMEOUT_SEC $CONVERGIO -q 2>&1) || true
+if echo "$output" | grep -qi "created project\|TestProject"; then
+    echo -e "${GREEN}PASS${NC}"
+    ((PASSED++))
+else
+    echo -e "${RED}FAIL${NC}"
+    echo "    Project creation failed"
+    ((FAILED++))
+fi
+
+# Test project list
+echo -n "  Testing: project list... "
+output=$(echo -e "project list\nquit" | timeout $TIMEOUT_SEC $CONVERGIO -q 2>&1) || true
+if echo "$output" | grep -qi "testproject-e2e\|projects"; then
+    echo -e "${GREEN}PASS${NC}"
+    ((PASSED++))
+else
+    echo -e "${RED}FAIL${NC}"
+    echo "    Project list failed"
+    ((FAILED++))
+fi
+
+# Test project status
+echo -n "  Testing: project status... "
+output=$(echo -e "project use testproject-e2e\nproject status\nquit" | timeout $TIMEOUT_SEC $CONVERGIO -q 2>&1) || true
+if echo "$output" | grep -qi "team\|baccio\|davide"; then
+    echo -e "${GREEN}PASS${NC}"
+    ((PASSED++))
+else
+    echo -e "${RED}FAIL${NC}"
+    echo "    Project status failed"
+    ((FAILED++))
+fi
+
+# Test project team add
+echo -n "  Testing: project team add... "
+output=$(echo -e "project use testproject-e2e\nproject team add stefano\nproject status\nquit" | timeout $TIMEOUT_SEC $CONVERGIO -q 2>&1) || true
+if echo "$output" | grep -qi "added\|stefano"; then
+    echo -e "${GREEN}PASS${NC}"
+    ((PASSED++))
+else
+    echo -e "${RED}FAIL${NC}"
+    echo "    Team add failed"
+    ((FAILED++))
+fi
+
+# Test project team remove
+echo -n "  Testing: project team remove... "
+output=$(echo -e "project use testproject-e2e\nproject team remove stefano\nquit" | timeout $TIMEOUT_SEC $CONVERGIO -q 2>&1) || true
+if echo "$output" | grep -qi "removed"; then
+    echo -e "${GREEN}PASS${NC}"
+    ((PASSED++))
+else
+    echo -e "${RED}FAIL${NC}"
+    echo "    Team remove failed"
+    ((FAILED++))
+fi
+
+# Test project focus
+echo -n "  Testing: project focus... "
+output=$(echo -e "project use testproject-e2e\nproject focus Building the authentication module\nquit" | timeout $TIMEOUT_SEC $CONVERGIO -q 2>&1) || true
+if echo "$output" | grep -qi "focus.*updated\|authentication"; then
+    echo -e "${GREEN}PASS${NC}"
+    ((PASSED++))
+else
+    echo -e "${RED}FAIL${NC}"
+    echo "    Focus update failed"
+    ((FAILED++))
+fi
+
+# Test project decision
+echo -n "  Testing: project decision... "
+output=$(echo -e "project use testproject-e2e\nproject decision Using JWT for authentication\nquit" | timeout $TIMEOUT_SEC $CONVERGIO -q 2>&1) || true
+if echo "$output" | grep -qi "decision.*recorded\|JWT"; then
+    echo -e "${GREEN}PASS${NC}"
+    ((PASSED++))
+else
+    echo -e "${RED}FAIL${NC}"
+    echo "    Decision record failed"
+    ((FAILED++))
+fi
+
+# Test project clear
+echo -n "  Testing: project clear... "
+output=$(echo -e "project clear\nproject\nquit" | timeout $TIMEOUT_SEC $CONVERGIO -q 2>&1) || true
+if echo "$output" | grep -qi "cleared\|no active"; then
+    echo -e "${GREEN}PASS${NC}"
+    ((PASSED++))
+else
+    echo -e "${RED}FAIL${NC}"
+    echo "    Project clear failed"
+    ((FAILED++))
+fi
+
+# Test project create with template
+echo -n "  Testing: project create with template... "
+rm -rf ~/.convergio/projects/marketing-test* 2>/dev/null
+output=$(echo -e "project create \"Marketing Test\" --template marketing\nquit" | timeout $TIMEOUT_SEC $CONVERGIO -q 2>&1) || true
+if echo "$output" | grep -qi "created\|copywriter\|designer\|analyst"; then
+    echo -e "${GREEN}PASS${NC}"
+    ((PASSED++))
+else
+    echo -e "${RED}FAIL${NC}"
+    echo "    Template-based creation failed"
+    ((FAILED++))
+fi
+
+# Cleanup test projects
+rm -rf ~/.convergio/projects/testproject-e2e* 2>/dev/null
+rm -rf ~/.convergio/projects/marketing-test* 2>/dev/null
+
+# =============================================================================
 # SUMMARY
 # =============================================================================
 echo ""

@@ -520,14 +520,39 @@ int repl_parse_and_execute(char* line) {
         }
     }
 
-    // Tokenize for command parsing
+    // Tokenize for command parsing (with quote handling)
     char* argv[64];
     int argc = 0;
 
-    char* token = strtok(line, " \t");
-    while (token && argc < 64) {
-        argv[argc++] = token;
-        token = strtok(NULL, " \t");
+    char* p = line;
+    while (*p && argc < 64) {
+        // Skip leading whitespace
+        while (*p == ' ' || *p == '\t') p++;
+        if (!*p) break;
+
+        char* start;
+        if (*p == '"') {
+            // Quoted string - find closing quote
+            p++;  // Skip opening quote
+            start = p;
+            while (*p && *p != '"') p++;
+            if (*p == '"') {
+                *p = '\0';  // Replace closing quote with null
+                p++;
+            }
+        } else {
+            // Unquoted token - find next whitespace
+            start = p;
+            while (*p && *p != ' ' && *p != '\t') p++;
+            if (*p) {
+                *p = '\0';
+                p++;
+            }
+        }
+
+        if (*start) {
+            argv[argc++] = start;
+        }
     }
 
     if (argc == 0) return 0;
