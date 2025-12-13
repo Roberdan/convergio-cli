@@ -218,13 +218,9 @@ static void print_banner(void) {
     print_gradient_line("   ███░      ╚██████╗╚██████╔╝██║ ╚████║ ╚████╔╝ ███████╗██║  ██║╚██████╔╝██║╚██████╔╝");
     print_gradient_line(" ███░         ╚═════╝ ╚═════╝ ╚═╝  ╚═══╝  ╚═══╝  ╚══════╝╚═╝  ╚═╝ ╚═════╝ ╚═╝ ╚═════╝ ");
     printf("\n");
-    print_gradient_line("        Your team, with human purpose and AI momentum.");
+    print_gradient_line("          Your team, with human purpose and AI momentum.");
     printf("\n");
-    printf("  %sv%s - Optimized for Apple Silicon%s\n", dim, convergio_get_version(), rst);
-    printf("  %sDeveloped by Roberdan@FightTheStroke.org%s\n", dim, rst);
-    printf("\n");
-    printf("  %s⚠ Disclaimer: Provided as-is, no warranty. AI may produce errors.%s\n", dim, rst);
-    printf("  Type %s'help'%s for commands, or express your intent naturally.\n", c3, rst);
+    printf("  %sv%s%s  •  %s/help%s for commands\n", dim, convergio_get_version(), rst, c3, rst);
     printf("\n");
 }
 
@@ -290,7 +286,7 @@ int main(int argc, char** argv) {
     }
 
     // Initialize subsystems (compact output)
-    printf("Initializing...");
+    printf("  Loading...");
     fflush(stdout);
 
     // Initialize configuration first
@@ -371,9 +367,8 @@ int main(int argc, char** argv) {
             }
         }
     } else {
-        char* auth_status = auth_get_status_string();
-        printf("  ✓ Authentication: %s\n", auth_status ? auth_status : "configured");
-        free(auth_status);
+        // Auth already configured, no message needed
+        (void)0;
     }
 
     // Show multi-provider status (all providers are required for full functionality)
@@ -464,16 +459,15 @@ int main(int argc, char** argv) {
     }
 
     // Compact status line
-    printf(" ready!\n");
-    printf("  %s | %d+%d cores | GPU %d | $%.2f budget",
+    printf(" \033[32m✓\033[0m  \033[2m%s • %dP+%dE • GPU %d • $%.2f",
            g_hardware.chip_name,
            g_hardware.p_cores, g_hardware.e_cores,
            g_hardware.gpu_cores,
            DEFAULT_BUDGET_USD);
     if (current_proj) {
-        printf(" | Project: %s", current_proj->name);
+        printf(" • %s", current_proj->name);
     }
-    printf("\n\n");
+    printf("\033[0m\n\n");
 
     // Create fallback assistant (only used if orchestrator fails)
     g_assistant = nous_create_agent("Aria", "creative and collaborative assistant");
