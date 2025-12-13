@@ -99,6 +99,7 @@ C_SOURCES = $(SRC_DIR)/core/fabric.c \
             $(SRC_DIR)/orchestrator/convergence.c \
             $(SRC_DIR)/memory/persistence.c \
             $(SRC_DIR)/memory/semantic_persistence.c \
+            $(SRC_DIR)/context/compaction.c \
             $(SRC_DIR)/tools/tools.c \
             $(SRC_DIR)/providers/provider.c \
             $(SRC_DIR)/providers/anthropic.c \
@@ -184,6 +185,7 @@ dirs:
 	@mkdir -p $(OBJ_DIR)/neural
 	@mkdir -p $(OBJ_DIR)/orchestrator
 	@mkdir -p $(OBJ_DIR)/memory
+	@mkdir -p $(OBJ_DIR)/context
 	@mkdir -p $(OBJ_DIR)/tools
 	@mkdir -p $(OBJ_DIR)/auth
 	@mkdir -p $(OBJ_DIR)/ui
@@ -329,13 +331,27 @@ $(UNIT_TEST): $(UNIT_SOURCES) $(UNIT_OBJECTS)
 	@echo "Compiling unit tests..."
 	@$(CC) $(CFLAGS) $(LDFLAGS) -o $(UNIT_TEST) $(UNIT_SOURCES) $(UNIT_OBJECTS) $(FRAMEWORKS) $(LIBS)
 
+# Compaction test target - tests context compaction module
+COMPACTION_TEST = $(BIN_DIR)/compaction_test
+COMPACTION_SOURCES = tests/test_compaction.c
+# Only need compaction.o and its minimal dependencies for this test
+COMPACTION_OBJECTS = $(OBJ_DIR)/context/compaction.o
+
+compaction_test: dirs $(OBJ_DIR)/context/compaction.o $(COMPACTION_TEST)
+	@echo "Running compaction tests..."
+	@$(COMPACTION_TEST)
+
+$(COMPACTION_TEST): $(COMPACTION_SOURCES) $(COMPACTION_OBJECTS)
+	@echo "Compiling compaction tests..."
+	@$(CC) $(CFLAGS) $(LDFLAGS) -o $(COMPACTION_TEST) $(COMPACTION_SOURCES) $(COMPACTION_OBJECTS) $(FRAMEWORKS) $(LIBS)
+
 # Check help documentation coverage
 check-docs:
 	@echo "Checking help documentation coverage..."
 	@./scripts/check_help_docs.sh
 
 # Run all tests
-test: fuzz_test unit_test check-docs
+test: fuzz_test unit_test compaction_test check-docs
 	@echo "All tests completed!"
 
 # Help
