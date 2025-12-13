@@ -185,11 +185,32 @@ void repl_print_separator(void) {
     printf("\n" ANSI_DIM "────────────────────────────────────────────────────────────────" ANSI_RESET "\n\n");
 }
 
+// Dynamic spinner verbs - changes every few seconds for visual interest
+static const char* SPINNER_VERBS[] = {
+    "Thinking",
+    "Pondering",
+    "Analyzing",
+    "Reasoning",
+    "Synthesizing",
+    "Processing",
+    "Contemplating",
+    "Evaluating",
+    "Considering",
+    "Reflecting",
+    "Deliberating",
+    "Exploring",
+};
+#define SPINNER_VERB_COUNT 12
+
 // Spinner thread function - polls for ESC key to cancel
 static void* spinner_func(void* arg) {
     (void)arg;
+
+    // Animated spinner frames (braille dots pattern)
     const char* frames[] = {"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"};
     int frame = 0;
+    int verb_index = 0;
+    int ticks = 0;
 
     // Save terminal settings and enable raw mode for ESC detection
     struct termios raw;
@@ -212,9 +233,18 @@ static void* spinner_func(void* arg) {
             }
         }
 
-        printf(ANSI_CURSOR_START ANSI_DIM "%s thinking... " ANSI_RESET "(ESC to cancel)  ", frames[frame]);
+        // Change verb every ~3 seconds (37 ticks * 80ms = ~3s)
+        if (ticks > 0 && ticks % 37 == 0) {
+            verb_index = (verb_index + 1) % SPINNER_VERB_COUNT;
+        }
+
+        // Colored spinner with dynamic verb (using standard ANSI colors for compatibility)
+        printf(ANSI_CURSOR_START ANSI_CYAN "%s" ANSI_RESET " " ANSI_DIM "%s..." ANSI_RESET "  (ESC to cancel)  ",
+               frames[frame], SPINNER_VERBS[verb_index]);
         fflush(stdout);
+
         frame = (frame + 1) % 10;
+        ticks++;
         usleep(80000);  // 80ms
     }
 
