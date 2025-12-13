@@ -272,6 +272,10 @@ void orchestrator_set_user(const char* name, const char* preferences);
 // Status
 char* orchestrator_status(void);
 
+// Session management
+const char* orchestrator_get_session_id(void);
+int orchestrator_compact_session(void (*progress_callback)(int percent, const char* msg));
+
 // ============================================================================
 // PERSISTENCE API
 // ============================================================================
@@ -298,6 +302,29 @@ char** persistence_get_important_memories(size_t limit, size_t* out_count);
 
 char* persistence_create_session(const char* user_name);
 int persistence_end_session(const char* session_id, double total_cost, int total_messages);
+
+// Session summaries for /recall command
+typedef struct {
+    char* session_id;
+    char* started_at;
+    char* summary;
+    int message_count;
+} SessionSummary;
+
+typedef struct {
+    SessionSummary* items;
+    size_t count;
+    size_t capacity;
+} SessionSummaryList;
+
+SessionSummaryList* persistence_get_session_summaries(void);
+void persistence_free_session_summaries(SessionSummaryList* list);
+int persistence_delete_session(const char* session_id);
+int persistence_clear_all_summaries(void);
+int64_t persistence_get_cutoff_message_id(const char* session_id, int keep_recent);
+int persistence_get_message_id_range(const char* session_id, int64_t* out_first, int64_t* out_last);
+char* persistence_load_messages_range(const char* session_id, int64_t from_id, int64_t to_id, size_t* out_count);
+int persistence_get_session_message_count(const char* session_id);
 
 // ============================================================================
 // MESSAGE BUS API

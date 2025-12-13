@@ -1258,3 +1258,212 @@ int persistence_get_message_id_range(
 
     return result;
 }
+
+// Get the actual count of messages in a session
+int persistence_get_session_message_count(const char* session_id) {
+    if (!g_db || !session_id) return 0;
+
+    CONVERGIO_MUTEX_LOCK(&g_db_mutex);
+
+    const char* sql = "SELECT COUNT(*) FROM messages WHERE session_id = ?";
+
+    sqlite3_stmt* stmt;
+    int rc = sqlite3_prepare_v2(g_db, sql, -1, &stmt, NULL);
+    if (rc != SQLITE_OK) {
+        CONVERGIO_MUTEX_UNLOCK(&g_db_mutex);
+        return 0;
+    }
+
+    sqlite3_bind_text(stmt, 1, session_id, -1, SQLITE_STATIC);
+
+    int count = 0;
+    if (sqlite3_step(stmt) == SQLITE_ROW) {
+        count = sqlite3_column_int(stmt, 0);
+    }
+
+    sqlite3_finalize(stmt);
+    CONVERGIO_MUTEX_UNLOCK(&g_db_mutex);
+
+    return count;
+}
+
+// Get the message ID that is N messages from the end (for compaction cutoff)
+// Returns -1 on error, or the ID of the Nth message from the end
+int64_t persistence_get_cutoff_message_id(const char* session_id, int keep_recent) {
+    if (!g_db || !session_id || keep_recent < 1) return -1;
+
+    CONVERGIO_MUTEX_LOCK(&g_db_mutex);
+
+    // Get the ID of the message that is keep_recent positions from the end
+    // Using OFFSET to skip the last keep_recent messages
+    const char* sql =
+        "SELECT id FROM messages WHERE session_id = ? "
+        "ORDER BY created_at DESC, id DESC "
+        "LIMIT 1 OFFSET ?";
+
+    sqlite3_stmt* stmt;
+    int rc = sqlite3_prepare_v2(g_db, sql, -1, &stmt, NULL);
+    if (rc != SQLITE_OK) {
+        CONVERGIO_MUTEX_UNLOCK(&g_db_mutex);
+        return -1;
+    }
+
+    sqlite3_bind_text(stmt, 1, session_id, -1, SQLITE_STATIC);
+    sqlite3_bind_int(stmt, 2, keep_recent);
+
+    int64_t cutoff_id = -1;
+    if (sqlite3_step(stmt) == SQLITE_ROW) {
+        cutoff_id = sqlite3_column_int64(stmt, 0);
+    }
+
+    sqlite3_finalize(stmt);
+    CONVERGIO_MUTEX_UNLOCK(&g_db_mutex);
+
+    return cutoff_id;
+}
+
+// ============================================================================
+// SESSION SUMMARIES FOR /recall COMMAND
+// ============================================================================
+
+// Note: SessionSummary and SessionSummaryList are defined in orchestrator.h
+
+// Get all sessions with their summaries (for /recall)
+SessionSummaryList* persistence_get_session_summaries(void) {
+    if (!g_db) return NULL;
+
+    CONVERGIO_MUTEX_LOCK(&g_db_mutex);
+
+    SessionSummaryList* list = calloc(1, sizeof(SessionSummaryList));
+    if (!list) {
+        CONVERGIO_MUTEX_UNLOCK(&g_db_mutex);
+        return NULL;
+    }
+
+    list->capacity = 32;
+    list->items = calloc(list->capacity, sizeof(SessionSummary));
+    if (!list->items) {
+        free(list);
+        CONVERGIO_MUTEX_UNLOCK(&g_db_mutex);
+        return NULL;
+    }
+
+    // Get sessions with their summaries, ordered by most recent first
+    const char* sql =
+        "SELECT s.id, s.started_at, s.total_messages, c.summary_content "
+        "FROM sessions s "
+        "LEFT JOIN checkpoint_summaries c "
+        "  ON s.id = c.session_id "
+        " AND c.checkpoint_num = (" 
+        "   SELECT MAX(checkpoint_num) FROM checkpoint_summaries WHERE session_id = s.id" 
+        " ) "
+        "ORDER BY s.started_at DESC";
+
+    sqlite3_stmt* stmt;
+    int rc = sqlite3_prepare_v2(g_db, sql, -1, &stmt, NULL);
+    if (rc != SQLITE_OK) {
+        free(list->items);
+        free(list);
+        CONVERGIO_MUTEX_UNLOCK(&g_db_mutex);
+        return NULL;
+    }
+
+    while (sqlite3_step(stmt) == SQLITE_ROW) {
+        if (list->count >= list->capacity) {
+            size_t new_capacity = list->capacity * 2;
+            SessionSummary* new_items = realloc(list->items, new_capacity * sizeof(SessionSummary));
+            if (!new_items) {
+                break;
+            }
+            list->items = new_items;
+            list->capacity = new_capacity;
+        }
+
+        SessionSummary* item = &list->items[list->count];
+        const char* id = (const char*)sqlite3_column_text(stmt, 0);
+        const char* started = (const char*)sqlite3_column_text(stmt, 1);
+        int msg_count = sqlite3_column_int(stmt, 2);
+        const char* summary = (const char*)sqlite3_column_text(stmt, 3);
+
+        item->session_id = id ? strdup(id) : NULL;
+        item->started_at = started ? strdup(started) : NULL;
+        item->message_count = msg_count;
+        item->summary = summary ? strdup(summary) : NULL;
+
+        list->count++;
+    }
+
+    sqlite3_finalize(stmt);
+    CONVERGIO_MUTEX_UNLOCK(&g_db_mutex);
+
+    return list;
+}
+
+// Free session summary list
+void persistence_free_session_summaries(SessionSummaryList* list) {
+    if (!list) return;
+    for (size_t i = 0; i < list->count; i++) {
+        free(list->items[i].session_id);
+        free(list->items[i].started_at);
+        free(list->items[i].summary);
+    }
+    free(list->items);
+    free(list);
+}
+
+// Delete a specific session and its summary
+int persistence_delete_session(const char* session_id) {
+    if (!g_db || !session_id) return -1;
+
+    CONVERGIO_MUTEX_LOCK(&g_db_mutex);
+
+    // Delete from checkpoint_summaries first (foreign key constraint)
+    const char* sql1 = "DELETE FROM checkpoint_summaries WHERE session_id = ?";
+    sqlite3_stmt* stmt;
+    int rc = sqlite3_prepare_v2(g_db, sql1, -1, &stmt, NULL);
+    if (rc == SQLITE_OK) {
+        sqlite3_bind_text(stmt, 1, session_id, -1, SQLITE_STATIC);
+        sqlite3_step(stmt);
+        sqlite3_finalize(stmt);
+    }
+
+    // Delete messages
+    const char* sql2 = "DELETE FROM messages WHERE session_id = ?";
+    rc = sqlite3_prepare_v2(g_db, sql2, -1, &stmt, NULL);
+    if (rc == SQLITE_OK) {
+        sqlite3_bind_text(stmt, 1, session_id, -1, SQLITE_STATIC);
+        sqlite3_step(stmt);
+        sqlite3_finalize(stmt);
+    }
+
+    // Delete session
+    const char* sql3 = "DELETE FROM sessions WHERE id = ?";
+    rc = sqlite3_prepare_v2(g_db, sql3, -1, &stmt, NULL);
+    if (rc == SQLITE_OK) {
+        sqlite3_bind_text(stmt, 1, session_id, -1, SQLITE_STATIC);
+        rc = sqlite3_step(stmt);
+        sqlite3_finalize(stmt);
+    }
+
+    CONVERGIO_MUTEX_UNLOCK(&g_db_mutex);
+
+    return (rc == SQLITE_DONE) ? 0 : -1;
+}
+
+// Clear all session summaries (but keep sessions and messages)
+int persistence_clear_all_summaries(void) {
+    if (!g_db) return -1;
+
+    CONVERGIO_MUTEX_LOCK(&g_db_mutex);
+
+    char* err_msg = NULL;
+    int rc = sqlite3_exec(g_db, "DELETE FROM checkpoint_summaries", NULL, NULL, &err_msg);
+
+    if (err_msg) {
+        sqlite3_free(err_msg);
+    }
+
+    CONVERGIO_MUTEX_UNLOCK(&g_db_mutex);
+
+    return (rc == SQLITE_OK) ? 0 : -1;
+}
