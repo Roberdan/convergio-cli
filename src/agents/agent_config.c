@@ -58,9 +58,9 @@ static AgentConfig g_default_configs[] = {
         .agent_name = "ali",
         .description = "Chief of Staff - orchestrates all agents",
         .role = AGENT_ROLE_ORCHESTRATOR,
-        .primary = {PROVIDER_ANTHROPIC, "claude-opus-4.5"},
-        .fallback = {PROVIDER_ANTHROPIC, "claude-sonnet-4.5"},
-        .economy = {PROVIDER_OPENAI, "gpt-5"},
+        .primary = {PROVIDER_ANTHROPIC, "claude-opus-4"},
+        .fallback = {PROVIDER_ANTHROPIC, "claude-sonnet-4"},
+        .economy = {PROVIDER_OPENAI, "gpt-4o"},
         .max_tokens = 8192,
         .temperature = 0.7,
         .streaming_enabled = true,
@@ -73,9 +73,9 @@ static AgentConfig g_default_configs[] = {
         .agent_name = "marco",
         .description = "Expert coder - code generation and review",
         .role = AGENT_ROLE_CODER,
-        .primary = {PROVIDER_ANTHROPIC, "claude-sonnet-4.5"},
-        .fallback = {PROVIDER_OPENAI, "gpt-5.2-thinking"},
-        .economy = {PROVIDER_GEMINI, "gemini-3-pro"},
+        .primary = {PROVIDER_ANTHROPIC, "claude-sonnet-4"},
+        .fallback = {PROVIDER_OPENAI, "o1"},
+        .economy = {PROVIDER_GEMINI, "gemini-1.5-pro"},
         .max_tokens = 16384,
         .temperature = 0.3,
         .streaming_enabled = true,
@@ -88,8 +88,8 @@ static AgentConfig g_default_configs[] = {
         .agent_name = "sara",
         .description = "Content writer - documentation and copywriting",
         .role = AGENT_ROLE_WRITER,
-        .primary = {PROVIDER_ANTHROPIC, "claude-sonnet-4.5"},
-        .fallback = {PROVIDER_GEMINI, "gemini-3-pro"},
+        .primary = {PROVIDER_ANTHROPIC, "claude-sonnet-4"},
+        .fallback = {PROVIDER_GEMINI, "gemini-1.5-pro"},
         .economy = {PROVIDER_OPENAI, "gpt-4o"},
         .max_tokens = 8192,
         .temperature = 0.8,
@@ -103,9 +103,9 @@ static AgentConfig g_default_configs[] = {
         .agent_name = "leo",
         .description = "Deep analyst - research and analysis",
         .role = AGENT_ROLE_ANALYST,
-        .primary = {PROVIDER_OPENAI, "gpt-5.2-pro"},
-        .fallback = {PROVIDER_ANTHROPIC, "claude-sonnet-4.5"},
-        .economy = {PROVIDER_GEMINI, "gemini-3-pro"},
+        .primary = {PROVIDER_OPENAI, "gpt-4o"},
+        .fallback = {PROVIDER_ANTHROPIC, "claude-sonnet-4"},
+        .economy = {PROVIDER_GEMINI, "gemini-1.5-pro"},
         .max_tokens = 16384,
         .temperature = 0.5,
         .streaming_enabled = true,
@@ -119,8 +119,8 @@ static AgentConfig g_default_configs[] = {
         .description = "Critic - review and validation",
         .role = AGENT_ROLE_CRITIC,
         .primary = {PROVIDER_ANTHROPIC, "claude-haiku-4.5"},
-        .fallback = {PROVIDER_OPENAI, "gpt-5-nano"},
-        .economy = {PROVIDER_GEMINI, "gemini-3-flash"},
+        .fallback = {PROVIDER_OPENAI, "gpt-4o-mini"},
+        .economy = {PROVIDER_GEMINI, "gemini-1.5-flash"},
         .max_tokens = 4096,
         .temperature = 0.3,
         .streaming_enabled = false,
@@ -133,9 +133,9 @@ static AgentConfig g_default_configs[] = {
         .agent_name = "router",
         .description = "Task router - fast classification",
         .role = AGENT_ROLE_EXECUTOR,
-        .primary = {PROVIDER_OPENAI, "gpt-5-nano"},
-        .fallback = {PROVIDER_GEMINI, "gemini-3-flash"},
-        .economy = {PROVIDER_GEMINI, "gemini-3-flash"},
+        .primary = {PROVIDER_OPENAI, "gpt-4o-mini"},
+        .fallback = {PROVIDER_GEMINI, "gemini-1.5-flash"},
+        .economy = {PROVIDER_GEMINI, "gemini-1.5-flash"},
         .max_tokens = 1024,
         .temperature = 0.1,
         .streaming_enabled = false,
@@ -231,7 +231,7 @@ AgentConfig* agent_config_get(const char* agent_name) {
 
 const char* agent_config_get_model(const char* agent_name, double remaining_budget) {
     AgentConfig* config = agent_config_get(agent_name);
-    if (!config) return "claude-sonnet-4.5";  // Ultimate fallback
+    if (!config) return "claude-sonnet-4";  // Ultimate fallback
 
     // Budget-based selection
     if (remaining_budget < 0.1) {
@@ -313,11 +313,11 @@ int agent_config_set_max_tokens(const char* agent_name, int max_tokens) {
  *   "role": "coder",
  *   "model": {
  *     "provider": "anthropic",
- *     "model_id": "claude-sonnet-4.5"
+ *     "model_id": "claude-sonnet-4"
  *   },
  *   "fallback": {
  *     "provider": "openai",
- *     "model_id": "gpt-5.2-thinking"
+ *     "model_id": "o1"
  *   },
  *   "settings": {
  *     "max_tokens": 16384,

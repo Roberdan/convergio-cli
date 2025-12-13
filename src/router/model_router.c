@@ -31,8 +31,8 @@
 
 typedef struct {
     char* agent_name;               // e.g., "ali", "marco", "thor"
-    char* primary_model;            // e.g., "anthropic/claude-opus-4.5"
-    char* fallback_model;           // e.g., "openai/gpt-5.2-thinking"
+    char* primary_model;            // e.g., "anthropic/claude-opus-4"
+    char* fallback_model;           // e.g., "openai/gpt-4o"
     CostTier cost_tier;             // Cost tier preference
     bool auto_downgrade;            // Auto-downgrade on budget limits
     char* reason;                   // Reason for model selection
@@ -91,17 +91,17 @@ static void load_default_configs(void) {
         CostTier tier;
         const char* reason;
     } defaults[] = {
-        {"ali", "anthropic/claude-opus-4.5", "openai/gpt-5.2-pro", COST_TIER_PREMIUM,
+        {"ali", "anthropic/claude-opus-4", "openai/gpt-4o", COST_TIER_PREMIUM,
          "Chief of Staff needs best reasoning for delegation"},
-        {"baccio", "anthropic/claude-opus-4.5", "openai/gpt-5.2-pro", COST_TIER_PREMIUM,
+        {"baccio", "anthropic/claude-opus-4", "openai/gpt-4o", COST_TIER_PREMIUM,
          "Architecture requires deep reasoning and planning"},
-        {"marco", "anthropic/claude-sonnet-4.5", "openai/gpt-5-codex", COST_TIER_MID,
-         "Sonnet 4.5 for coding, GPT-5-Codex as specialized fallback"},
-        {"luca", "openai/o3", "anthropic/claude-opus-4.5", COST_TIER_PREMIUM,
-         "o3 excels at deep reasoning for security analysis"},
-        {"thor", "openai/gpt-5.2-instant", "gemini/gemini-2.0-flash", COST_TIER_CHEAP,
+        {"marco", "anthropic/claude-sonnet-4", "openai/gpt-4o", COST_TIER_MID,
+         "Sonnet 4 for coding, GPT-4o as fallback"},
+        {"luca", "openai/o1", "anthropic/claude-opus-4", COST_TIER_PREMIUM,
+         "o1 excels at deep reasoning for security analysis"},
+        {"thor", "openai/gpt-4o-mini", "gemini/gemini-1.5-flash", COST_TIER_CHEAP,
          "Fast, cheap for quick reviews"},
-        {"router", "openai/gpt-5.2-instant", "gemini/gemini-2.0-flash", COST_TIER_CHEAP,
+        {"router", "openai/gpt-4o-mini", "gemini/gemini-1.5-flash", COST_TIER_CHEAP,
          "Fastest for routing decisions"},
         {NULL, NULL, NULL, COST_TIER_MID, NULL}
     };
@@ -272,7 +272,7 @@ const char* router_get_agent_model(const char* agent_name) {
         return cfg->primary_model;
     }
     // Default model if agent not configured
-    return "anthropic/claude-sonnet-4.5";
+    return "anthropic/claude-sonnet-4";
 }
 
 // ============================================================================
@@ -425,7 +425,7 @@ ModelSelection router_select_model_for_agent(const char* agent_name,
     }
 
     // 3. Use system default
-    const char* default_model = "anthropic/claude-sonnet-4.5";
+    const char* default_model = "anthropic/claude-sonnet-4";
     if (provider_is_available(PROVIDER_ANTHROPIC)) {
         selection.model_id = default_model;
         selection.provider = PROVIDER_ANTHROPIC;
@@ -433,7 +433,7 @@ ModelSelection router_select_model_for_agent(const char* agent_name,
         selection.model_id = "openai/gpt-4o";
         selection.provider = PROVIDER_OPENAI;
     } else if (provider_is_available(PROVIDER_GEMINI)) {
-        selection.model_id = "gemini/gemini-3-flash";
+        selection.model_id = "gemini/gemini-1.5-flash";
         selection.provider = PROVIDER_GEMINI;
     } else {
         LOG_ERROR(LOG_CAT_API, "No providers available!");

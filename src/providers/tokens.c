@@ -223,10 +223,10 @@ double tokens_calculate_cost(uint64_t input_tokens, uint64_t output_tokens,
         output_cost_per_m = 5.0;
     }
     // OpenAI models
-    else if (strstr(model, "gpt-5.2-pro")) {
+    else if (strstr(model, "gpt-4o")) {
         input_cost_per_m = 5.0;
         output_cost_per_m = 20.0;
-    } else if (strstr(model, "gpt-5") || strstr(model, "gpt-4o")) {
+    } else if (strstr(model, "gpt-4o") || strstr(model, "gpt-4o")) {
         input_cost_per_m = 1.25;
         output_cost_per_m = 10.0;
     } else if (strstr(model, "nano")) {
@@ -271,24 +271,24 @@ typedef struct {
 
 static const ModelLimits g_model_limits[] = {
     // Anthropic
-    {"claude-opus-4.5", 200000, 32000},
-    {"claude-sonnet-4.5", 1000000, 64000},
+    {"claude-opus-4", 200000, 32000},
+    {"claude-sonnet-4", 1000000, 64000},
     {"claude-sonnet-4", 200000, 32000},
     {"claude-haiku-4.5", 200000, 32000},
 
     // OpenAI
-    {"gpt-5.2-pro", 400000, 32000},
-    {"gpt-5.2-thinking", 400000, 32000},
-    {"gpt-5", 256000, 32000},
+    {"gpt-4o", 400000, 32000},
+    {"o1", 400000, 32000},
+    {"gpt-4o", 256000, 32000},
     {"gpt-4o", 128000, 16000},
     {"o3", 128000, 32000},
     {"o4-mini", 128000, 32000},
-    {"gpt-5-nano", 128000, 16000},
+    {"gpt-4o-mini", 128000, 16000},
 
     // Gemini
-    {"gemini-3-ultra", 2000000, 65536},
-    {"gemini-3-pro", 2000000, 65536},
-    {"gemini-3-flash", 1000000, 65536},
+    {"gemini-1.5-pro", 2000000, 65536},
+    {"gemini-1.5-pro", 2000000, 65536},
+    {"gemini-1.5-flash", 1000000, 65536},
 
     {NULL, 0, 0}  // Sentinel
 };

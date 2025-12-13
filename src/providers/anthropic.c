@@ -308,9 +308,9 @@ static const char* get_model_api_id(const char* model) {
     if (!model) return "claude-sonnet-4-20250514";
 
     // Map friendly names to API IDs
-    if (strcmp(model, "claude-opus-4.5") == 0) {
+    if (strcmp(model, "claude-opus-4") == 0) {
         return "claude-opus-4-5-20251201";
-    } else if (strcmp(model, "claude-sonnet-4.5") == 0) {
+    } else if (strcmp(model, "claude-sonnet-4") == 0) {
         return "claude-sonnet-4-5-20251201";
     } else if (strcmp(model, "claude-sonnet-4") == 0) {
         return "claude-sonnet-4-20250514";

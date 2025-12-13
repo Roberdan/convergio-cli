@@ -1365,8 +1365,8 @@ int cmd_theme(int argc, char** argv) {
 // Default cheap models for comparison (one per provider)
 static const char* DEFAULT_COMPARE_MODELS[] = {
     "claude-haiku-4.5",   // Anthropic - cheapest
-    "gpt-5-nano",         // OpenAI - cheapest
-    "gemini-3-flash",     // Google - cheapest
+    "gpt-4o-mini",         // OpenAI - cheapest
+    "gemini-1.5-flash",     // Google - cheapest
 };
 static const size_t DEFAULT_COMPARE_MODEL_COUNT = 3;
 
@@ -1378,8 +1378,8 @@ int cmd_compare(int argc, char** argv) {
         printf("  compare <prompt> <model1> <model2>  # Custom models\n\n");
         printf("\033[1mDefault models:\033[0m (cheapest from each provider)\n");
         printf("  - claude-haiku-4.5 (Anthropic)\n");
-        printf("  - gpt-5-nano (OpenAI)\n");
-        printf("  - gemini-3-flash (Google)\n\n");
+        printf("  - gpt-4o-mini (OpenAI)\n");
+        printf("  - gemini-1.5-flash (Google)\n\n");
         printf("\033[1mExample:\033[0m\n");
         printf("  compare \"Explain quantum computing\"\n");
         printf("  compare \"Write a poem\" claude-opus-4 gpt-5\n\n");
@@ -1420,7 +1420,7 @@ int cmd_compare(int argc, char** argv) {
         models_to_use = DEFAULT_COMPARE_MODELS;
         model_count = DEFAULT_COMPARE_MODEL_COUNT;
         using_defaults = true;
-        printf("\033[36mUsing default models: haiku, gpt-5-nano, gemini-flash\033[0m\n\n");
+        printf("\033[36mUsing default models: haiku, gpt-4o-mini, gemini-flash\033[0m\n\n");
     } else if (model_count == 1) {
         printf("Error: Need at least 2 models to compare (or none for defaults).\n");
         return -1;
@@ -1467,7 +1467,7 @@ int cmd_benchmark(int argc, char** argv) {
         printf("  Iterations: 3\n\n");
         printf("\033[1mExample:\033[0m\n");
         printf("  benchmark \"Write a haiku\"\n");
-        printf("  benchmark \"Explain AI\" gpt-5-nano 5\n\n");
+        printf("  benchmark \"Explain AI\" gpt-4o-mini 5\n\n");
         return 0;
     }
 

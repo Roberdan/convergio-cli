@@ -29,7 +29,7 @@ void telemetry_show_consent_prompt(void) {
     printf("  • User control (view/export/delete at any time)\n");
     printf("\n");
     printf("WHAT WE COLLECT:\n");
-    printf("  ✓ Provider/model usage (e.g., \"anthropic/claude-sonnet-4.5\")\n");
+    printf("  ✓ Provider/model usage (e.g., \"anthropic/claude-sonnet-4\")\n");
     printf("  ✓ Aggregated token consumption per session\n");
     printf("  ✓ Average API latency\n");
     printf("  ✓ Error/fallback rates (not error content)\n");
