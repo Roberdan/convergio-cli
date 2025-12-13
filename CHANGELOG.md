@@ -7,6 +7,59 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.0.0] - 2025-12-13
+
+### Added - Multi-Provider Expansion
+
+**OpenRouter Provider**
+- Access to 300+ models via unified OpenAI-compatible API
+- `src/providers/openrouter.c` - Full OpenRouter adapter (~780 lines)
+- Models: DeepSeek R1, Mistral Large, Llama 3.3 70B, Qwen 2.5 72B, Gemini via OR
+- HTTP-Referer and X-Title headers for OpenRouter compliance
+- Environment variable: `OPENROUTER_API_KEY`
+
+**Ollama Local Provider**
+- Run models locally with zero API costs
+- `src/providers/ollama.c` - Full Ollama adapter (~580 lines)
+- Models: Llama 3.2, Mistral 7B, Code Llama, DeepSeek Coder V2, Phi-3
+- Graceful handling when Ollama service not running
+- Environment variable: `OLLAMA_HOST` (default: localhost:11434)
+
+**Setup Wizard**
+- `src/core/commands/setup_wizard.c` - Interactive configuration wizard
+- New `/setup` command for guided provider configuration
+- API key configuration with step-by-step guidance (Keychain, env vars, or session)
+- Quick setup profiles:
+  - **Cost-Optimized** (default): Cheapest models everywhere
+  - **Balanced**: Mix of quality and cost
+  - **Performance**: Best models everywhere
+  - **Local-First**: Ollama-first with cloud fallback
+- View current configuration dashboard
+- Provider status with API key validation
+
+**Test Coverage**
+- `tests/mocks/mock_openrouter.c` - OpenRouter mock with DeepSeek, Llama, Mistral variants
+- `tests/mocks/mock_ollama.c` - Ollama mock with local model simulations
+- E2E tests for setup wizard (Section 9)
+- Unit tests for OpenRouter and Ollama mock providers
+
+### Changed
+
+- Provider count increased from 4 to 5 (added PROVIDER_OPENROUTER, PROVIDER_OLLAMA)
+- `config/models.json` updated with OpenRouter and Ollama model catalogs
+- `provider.c` updated with new provider registrations and model arrays
+- `tools.c` updated with OpenRouter tool calling (OpenAI format) and Ollama (no tools)
+- `streaming.c` updated with OpenRouter SSE and Ollama NDJSON parsing
+- Mock provider header consolidated with all provider-specific mock declarations
+
+### Technical
+
+- OpenRouter uses OpenAI-compatible format but requires `HTTP-Referer: https://convergio.dev` header
+- Ollama uses different JSON format for chat/streaming - separate parser implementation
+- Ollama does NOT support native tool calling (`supports_tools = false`)
+- All Ollama models have `$0.00` cost (local inference)
+- Setup wizard defaults to cost optimization per user preference
+
 ## [3.0.13] - 2025-12-13
 
 ### Added
@@ -565,7 +618,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-[Unreleased]: https://github.com/Roberdan/convergio-cli/compare/v3.0.10...HEAD
+[Unreleased]: https://github.com/Roberdan/convergio-cli/compare/v4.0.0...HEAD
+[4.0.0]: https://github.com/Roberdan/convergio-cli/compare/v3.0.13...v4.0.0
+[3.0.13]: https://github.com/Roberdan/convergio-cli/compare/v3.0.12...v3.0.13
+[3.0.12]: https://github.com/Roberdan/convergio-cli/compare/v3.0.11...v3.0.12
+[3.0.11]: https://github.com/Roberdan/convergio-cli/compare/v3.0.10...v3.0.11
 [3.0.10]: https://github.com/Roberdan/convergio-cli/compare/v3.0.9...v3.0.10
 [3.0.9]: https://github.com/Roberdan/convergio-cli/compare/v3.0.7...v3.0.9
 [3.0.7]: https://github.com/Roberdan/convergio-cli/compare/v3.0.6...v3.0.7

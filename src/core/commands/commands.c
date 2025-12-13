@@ -42,12 +42,16 @@ extern void nous_scheduler_print_metrics(void);
 // Forward declaration for project command
 int cmd_project(int argc, char** argv);
 
+// Forward declaration for setup wizard
+int cmd_setup(int argc, char** argv);
+
 static const ReplCommand COMMANDS[] = {
     {"help",        "Show available commands",           cmd_help},
     {"create",      "Create a semantic node",            cmd_create},
     {"agent",       "Manage agents",                     cmd_agent},
     {"agents",      "List all available agents",         cmd_agents},
     {"project",     "Manage projects with dedicated teams", cmd_project},
+    {"setup",       "Configure providers and agent models", cmd_setup},
     {"space",       "Manage collaborative spaces",       cmd_space},
     {"status",      "Show system status",                cmd_status},
     {"cost",        "Show/set cost and budget",          cmd_cost},
@@ -404,6 +408,26 @@ static const CommandHelp DETAILED_HELP[] = {
         "project use MyApp\n"
         "project team add tester\n"
         "project status"
+    },
+    {
+        "setup",
+        "setup",
+        "Configure providers and agent models",
+        "Interactive setup wizard for configuring AI providers:\n"
+        "  - Anthropic (Claude Opus, Sonnet, Haiku)\n"
+        "  - OpenAI (GPT-5, GPT-4o, o3, o4-mini)\n"
+        "  - Google Gemini (Pro, Ultra, Flash)\n"
+        "  - OpenRouter (300+ models via unified API)\n"
+        "  - Ollama (local models - free, private)\n\n"
+        "Quick Setup Profiles:\n"
+        "  - Cost-Optimized: Cheapest models (~$0.50/day)\n"
+        "  - Balanced: Quality/cost mix (~$2-5/day)\n"
+        "  - Performance: Best models (~$10-20/day)\n"
+        "  - Local-First: Ollama with cloud fallback (free)\n\n"
+        "API keys can be stored in environment variables or session.",
+        "setup           # Start interactive wizard\n"
+        "setup           # Configure API keys\n"
+        "setup           # Choose optimization profile"
     },
     {
         "quit",

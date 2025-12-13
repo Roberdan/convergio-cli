@@ -43,6 +43,14 @@ else
 endif
 
 # Frameworks
+# Note: This project is macOS-only (Apple Silicon optimized)
+# Framework usage:
+#   - Metal/MetalKit/MPS: GPU acceleration for embeddings
+#   - Accelerate: SIMD operations for vector similarity
+#   - Foundation/CoreFoundation: System APIs
+#   - Security: Keychain API for secure API key storage
+#   - AppKit: Required for clipboard access (paste images) and OAuth browser launch
+#             These features degrade gracefully if not available in headless mode
 FRAMEWORKS = -framework Metal \
              -framework MetalKit \
              -framework MetalPerformanceShaders \
@@ -67,6 +75,7 @@ C_SOURCES = $(SRC_DIR)/core/fabric.c \
             $(SRC_DIR)/core/signals.c \
             $(SRC_DIR)/core/repl.c \
             $(SRC_DIR)/core/commands/commands.c \
+            $(SRC_DIR)/core/commands/setup_wizard.c \
             $(SRC_DIR)/core/ansi_md.c \
             $(SRC_DIR)/core/stream_md.c \
             $(SRC_DIR)/core/theme.c \
@@ -94,6 +103,8 @@ C_SOURCES = $(SRC_DIR)/core/fabric.c \
             $(SRC_DIR)/providers/anthropic.c \
             $(SRC_DIR)/providers/openai.c \
             $(SRC_DIR)/providers/gemini.c \
+            $(SRC_DIR)/providers/openrouter.c \
+            $(SRC_DIR)/providers/ollama.c \
             $(SRC_DIR)/providers/retry.c \
             $(SRC_DIR)/providers/streaming.c \
             $(SRC_DIR)/providers/tokens.c \

@@ -328,6 +328,186 @@ void test_cost_optimizer_cache(void) {
 }
 
 // ============================================================================
+// OPENROUTER PROVIDER TESTS
+// ============================================================================
+
+void test_mock_openrouter_create(void) {
+    TEST_BEGIN("mock openrouter creation");
+
+    MockProvider* mock = mock_openrouter_create();
+    ASSERT_NOT_NULL(mock, "Failed to create OpenRouter mock");
+    ASSERT_STR_EQ(mock->base.api_key_env, "OPENROUTER_API_KEY", "Wrong API key env");
+    ASSERT_TRUE(strstr(mock->base.base_url, "openrouter") != NULL, "Wrong base URL");
+
+    mock_provider_destroy(mock);
+    TEST_PASS();
+}
+
+void test_mock_openrouter_deepseek(void) {
+    TEST_BEGIN("mock openrouter deepseek r1");
+
+    MockProvider* mock = mock_openrouter_deepseek_r1();
+    ASSERT_NOT_NULL(mock, "Failed to create DeepSeek R1 mock");
+
+    Provider* provider = mock_provider_as_provider(mock);
+    provider->init(provider);
+
+    char* response = provider->chat(provider, "deepseek/deepseek-r1", "sys", "Hello", NULL);
+    ASSERT_NOT_NULL(response, "Should get response");
+    ASSERT_TRUE(strstr(response, "DeepSeek") != NULL || strstr(response, "think") != NULL,
+                "Should mention DeepSeek or reasoning");
+
+    free(response);
+    mock_provider_destroy(mock);
+    TEST_PASS();
+}
+
+void test_mock_openrouter_llama(void) {
+    TEST_BEGIN("mock openrouter llama 3.3");
+
+    MockProvider* mock = mock_openrouter_llama33();
+    ASSERT_NOT_NULL(mock, "Failed to create Llama mock");
+
+    Provider* provider = mock_provider_as_provider(mock);
+    provider->init(provider);
+
+    char* response = provider->chat(provider, "meta-llama/llama-3.3-70b", "sys", "Hello", NULL);
+    ASSERT_NOT_NULL(response, "Should get response");
+
+    free(response);
+    mock_provider_destroy(mock);
+    TEST_PASS();
+}
+
+void test_mock_openrouter_tools(void) {
+    TEST_BEGIN("mock openrouter tool support");
+
+    MockProvider* mock = mock_openrouter_create();
+    ASSERT_TRUE(mock->config.support_tools, "OpenRouter should support tools");
+
+    mock_provider_destroy(mock);
+    TEST_PASS();
+}
+
+void test_mock_openrouter_errors(void) {
+    TEST_BEGIN("mock openrouter error simulation");
+
+    // Test rate limit
+    MockProvider* mock = mock_openrouter_rate_limited();
+    Provider* provider = mock_provider_as_provider(mock);
+    provider->init(provider);
+    char* response = provider->chat(provider, "model", "sys", "user", NULL);
+    ASSERT_NULL(response, "Should return null on rate limit");
+    mock_provider_destroy(mock);
+
+    // Test auth error
+    mock = mock_openrouter_auth_error();
+    provider = mock_provider_as_provider(mock);
+    provider->init(provider);
+    response = provider->chat(provider, "model", "sys", "user", NULL);
+    ASSERT_NULL(response, "Should return null on auth error");
+    mock_provider_destroy(mock);
+
+    TEST_PASS();
+}
+
+// ============================================================================
+// OLLAMA PROVIDER TESTS
+// ============================================================================
+
+void test_mock_ollama_create(void) {
+    TEST_BEGIN("mock ollama creation");
+
+    MockProvider* mock = mock_ollama_create();
+    ASSERT_NOT_NULL(mock, "Failed to create Ollama mock");
+    ASSERT_NULL(mock->base.api_key_env, "Ollama should not need API key");
+    ASSERT_TRUE(strstr(mock->base.base_url, "localhost") != NULL, "Should be localhost");
+
+    mock_provider_destroy(mock);
+    TEST_PASS();
+}
+
+void test_mock_ollama_llama32(void) {
+    TEST_BEGIN("mock ollama llama 3.2");
+
+    MockProvider* mock = mock_ollama_llama32();
+    ASSERT_NOT_NULL(mock, "Failed to create Llama 3.2 mock");
+
+    Provider* provider = mock_provider_as_provider(mock);
+    provider->init(provider);
+
+    char* response = provider->chat(provider, "llama3.2", "sys", "Hello", NULL);
+    ASSERT_NOT_NULL(response, "Should get response");
+    ASSERT_TRUE(strstr(response, "Local") != NULL || strstr(response, "Llama") != NULL,
+                "Should mention local or Llama");
+
+    free(response);
+    mock_provider_destroy(mock);
+    TEST_PASS();
+}
+
+void test_mock_ollama_codellama(void) {
+    TEST_BEGIN("mock ollama codellama");
+
+    MockProvider* mock = mock_ollama_codellama();
+    ASSERT_NOT_NULL(mock, "Failed to create Code Llama mock");
+
+    Provider* provider = mock_provider_as_provider(mock);
+    provider->init(provider);
+
+    char* response = provider->chat(provider, "codellama", "sys", "Write hello world", NULL);
+    ASSERT_NOT_NULL(response, "Should get response");
+    ASSERT_TRUE(strstr(response, "Code") != NULL || strstr(response, "python") != NULL,
+                "Should mention code");
+
+    free(response);
+    mock_provider_destroy(mock);
+    TEST_PASS();
+}
+
+void test_mock_ollama_no_tools(void) {
+    TEST_BEGIN("mock ollama no tool support");
+
+    MockProvider* mock = mock_ollama_create();
+    ASSERT_FALSE(mock->config.support_tools, "Ollama should NOT support tools");
+
+    mock_provider_destroy(mock);
+    TEST_PASS();
+}
+
+void test_mock_ollama_errors(void) {
+    TEST_BEGIN("mock ollama error simulation");
+
+    // Test not running
+    MockProvider* mock = mock_ollama_not_running();
+    Provider* provider = mock_provider_as_provider(mock);
+    provider->init(provider);
+    char* response = provider->chat(provider, "model", "sys", "user", NULL);
+    ASSERT_NULL(response, "Should return null when Ollama not running");
+    mock_provider_destroy(mock);
+
+    // Test model not found
+    mock = mock_ollama_model_not_found();
+    provider = mock_provider_as_provider(mock);
+    provider->init(provider);
+    response = provider->chat(provider, "model", "sys", "user", NULL);
+    ASSERT_NULL(response, "Should return null when model not found");
+    mock_provider_destroy(mock);
+
+    TEST_PASS();
+}
+
+void test_mock_ollama_slow_cpu(void) {
+    TEST_BEGIN("mock ollama slow cpu simulation");
+
+    MockProvider* mock = mock_ollama_slow_cpu();
+    ASSERT_TRUE(mock->config.response_delay_ms > 1000, "Should have high latency on CPU");
+
+    mock_provider_destroy(mock);
+    TEST_PASS();
+}
+
+// ============================================================================
 // ERROR HANDLING TESTS
 // ============================================================================
 
@@ -443,6 +623,21 @@ void run_all_tests(void) {
     test_cost_optimizer_init();
     test_cost_optimizer_model_downgrade();
     test_cost_optimizer_cache();
+
+    printf("\n\033[1mOpenRouter Provider Tests:\033[0m\n");
+    test_mock_openrouter_create();
+    test_mock_openrouter_deepseek();
+    test_mock_openrouter_llama();
+    test_mock_openrouter_tools();
+    test_mock_openrouter_errors();
+
+    printf("\n\033[1mOllama Provider Tests:\033[0m\n");
+    test_mock_ollama_create();
+    test_mock_ollama_llama32();
+    test_mock_ollama_codellama();
+    test_mock_ollama_no_tools();
+    test_mock_ollama_errors();
+    test_mock_ollama_slow_cpu();
 
     printf("\n\033[1mError Handling Tests:\033[0m\n");
     test_error_handling_null_params();
