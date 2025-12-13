@@ -12,6 +12,7 @@
 #include "nous/stream_md.h"
 #include "nous/theme.h"
 #include "nous/clipboard.h"
+#include "nous/projects.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -33,6 +34,9 @@
 #define ANSI_RESET         "\033[0m"
 #define ANSI_CYAN          "\033[36m"
 #define ANSI_BOLD          "\033[1m"
+#define ANSI_GREEN         "\033[32m"
+#define ANSI_RED           "\033[31m"
+#define ANSI_YELLOW        "\033[33m"
 
 // ============================================================================
 // SPINNER STATE
@@ -447,6 +451,31 @@ int repl_direct_agent_communication(const char* agent_name, const char* message)
     if (!agent->system_prompt) {
         printf(ANSI_DIM "Agent '%s' has no system prompt configured." ANSI_RESET "\n", agent_name);
         return 0;
+    }
+
+    // Check if agent is in current project team
+    ConvergioProject* proj = project_current();
+    if (proj && !project_has_agent(agent_name)) {
+        printf("\n" ANSI_YELLOW "⚠ Agent '%s' is not in project '%s' team." ANSI_RESET "\n", agent_name, proj->name);
+        printf(ANSI_DIM "Current team: ");
+        for (size_t i = 0; i < proj->team_count; i++) {
+            printf("%s%s", proj->team[i].agent_name, i < proj->team_count - 1 ? ", " : "");
+        }
+        printf(ANSI_RESET "\n\n");
+        printf("Would you like to add '%s' to the team? [y/N] ", agent_name);
+
+        char response[16];
+        if (fgets(response, sizeof(response), stdin) && (response[0] == 'y' || response[0] == 'Y')) {
+            if (project_team_add(proj, agent_name, NULL)) {
+                printf(ANSI_GREEN "✓ Added '%s' to project team." ANSI_RESET "\n\n", agent_name);
+            } else {
+                printf(ANSI_RED "✗ Failed to add agent to team." ANSI_RESET "\n");
+                return 0;
+            }
+        } else {
+            printf(ANSI_DIM "Use 'project team add %s' to add manually, or 'project clear' to exit project mode." ANSI_RESET "\n", agent_name);
+            return 0;
+        }
     }
 
     // Print separator
