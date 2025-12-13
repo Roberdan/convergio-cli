@@ -276,16 +276,18 @@ static const CommandHelp DETAILED_HELP[] = {
     },
     {
         "recall",
-        "recall [clear|delete <id>]",
-        "Display/manage past session summaries",
-        "Shows summaries generated when you exit Convergio.\n"
-        "Without arguments, lists recent session summaries.\n"
+        "recall [load <n>|delete <n>|clear]",
+        "View and reload past session contexts",
+        "Shows summaries of past sessions with what was discussed.\n"
+        "Sessions are saved when you exit with 'quit'.\n"
         "Subcommands:\n"
-        "  clear           Delete all stored summaries (asks for confirmation)\n"
-        "  delete <id>     Delete a specific session and its summary\n",
-        "recall                   # List recent session summaries\n"
-        "recall clear             # Delete all summaries\n"
-        "recall delete <id>       # Delete one session"
+        "  load <n>        Load context from session N into current conversation\n"
+        "  delete <n>      Delete session N and its summary\n"
+        "  clear           Delete all stored summaries (asks for confirmation)\n",
+        "recall           # List past sessions with summaries\n"
+        "recall load 1    # Load context from session 1\n"
+        "recall delete 2  # Delete session 2\n"
+        "recall clear     # Delete all sessions"
     },
     {
         "stream",
@@ -568,6 +570,7 @@ int cmd_help(int argc, char** argv) {
     printf("   \033[36mstatus\033[0m             System health & active agents\n");
     printf("   \033[36mhardware\033[0m           Show Apple Silicon optimization info\n");
     printf("   \033[36mtools\033[0m              Manage agentic tools (file, web, code)\n");
+    printf("   \033[36mrecall\033[0m             View past sessions, \033[36mrecall load <n>\033[0m to reload\n");
     printf("   \033[36mdebug <level>\033[0m      Set debug level (off/error/warn/info/debug/trace)\n");
     printf("   \033[36mnews\033[0m               What's new in this version\n\n");
 
@@ -605,10 +608,26 @@ int cmd_quit(int argc, char** argv) {
     return 0;
 }
 
+// Static storage for session ID mapping (for recall load/delete by number)
+static char* g_recall_session_ids[50] = {0};
+static size_t g_recall_session_count = 0;
+
+static void recall_clear_cache(void) {
+    for (size_t i = 0; i < g_recall_session_count; i++) {
+        free(g_recall_session_ids[i]);
+        g_recall_session_ids[i] = NULL;
+    }
+    g_recall_session_count = 0;
+}
+
+static const char* recall_get_session_id(int index) {
+    if (index < 1 || (size_t)index > g_recall_session_count) return NULL;
+    return g_recall_session_ids[index - 1];
+}
+
 int cmd_recall(int argc, char** argv) {
-    // Handle subcommands: recall, recall clear, recall delete <id>
+    // Handle subcommand: recall clear
     if (argc >= 2 && strcmp(argv[1], "clear") == 0) {
-        // Clear all summaries
         printf("\n\033[33mAre you sure you want to clear all session summaries?\033[0m\n");
         printf("Type 'yes' to confirm: ");
         fflush(stdout);
@@ -616,6 +635,7 @@ int cmd_recall(int argc, char** argv) {
         char confirm[10] = {0};
         if (fgets(confirm, sizeof(confirm), stdin) && strncmp(confirm, "yes", 3) == 0) {
             if (persistence_clear_all_summaries() == 0) {
+                recall_clear_cache();
                 printf("\033[32mAll session summaries cleared.\033[0m\n\n");
             } else {
                 printf("\033[31mFailed to clear summaries.\033[0m\n\n");
@@ -626,13 +646,55 @@ int cmd_recall(int argc, char** argv) {
         return 0;
     }
 
+    // Handle subcommand: recall delete <num>
     if (argc >= 3 && strcmp(argv[1], "delete") == 0) {
-        // Delete specific session
-        const char* session_id = argv[2];
+        int index = atoi(argv[2]);
+        const char* session_id = recall_get_session_id(index);
+        if (!session_id) {
+            // Maybe they passed the full UUID
+            session_id = argv[2];
+        }
         if (persistence_delete_session(session_id) == 0) {
-            printf("\033[32mSession %s deleted.\033[0m\n\n", session_id);
+            printf("\033[32mSession deleted.\033[0m\n\n");
+            recall_clear_cache();  // Invalidate cache
         } else {
-            printf("\033[31mFailed to delete session %s.\033[0m\n\n", session_id);
+            printf("\033[31mFailed to delete session. Run 'recall' first to see valid numbers.\033[0m\n\n");
+        }
+        return 0;
+    }
+
+    // Handle subcommand: recall load <num>
+    if (argc >= 3 && strcmp(argv[1], "load") == 0) {
+        int index = atoi(argv[2]);
+        const char* session_id = recall_get_session_id(index);
+        if (!session_id) {
+            printf("\n\033[31mInvalid session number. Run 'recall' first to see available sessions.\033[0m\n\n");
+            return -1;
+        }
+
+        // Load the checkpoint/summary for this session
+        char* checkpoint = persistence_load_latest_checkpoint(session_id);
+        if (checkpoint && strlen(checkpoint) > 0) {
+            printf("\n\033[1;36m=== Loaded Context from Session %d ===\033[0m\n\n", index);
+            printf("%s\n", checkpoint);
+            printf("\n\033[32m✓ Context loaded. Ali now has this context for your conversation.\033[0m\n\n");
+
+            // Inject into orchestrator context
+            Orchestrator* orch = orchestrator_get();
+            if (orch) {
+                free(orch->user_preferences);
+                size_t len = strlen(checkpoint) + 100;
+                orch->user_preferences = malloc(len);
+                if (orch->user_preferences) {
+                    snprintf(orch->user_preferences, len,
+                        "Previous session context:\n%s", checkpoint);
+                }
+            }
+            free(checkpoint);
+        } else {
+            printf("\n\033[33mNo detailed context found for this session.\033[0m\n");
+            printf("The session may not have been compacted on exit.\n\n");
+            free(checkpoint);
         }
         return 0;
     }
@@ -640,41 +702,66 @@ int cmd_recall(int argc, char** argv) {
     // Default: show all session summaries
     SessionSummaryList* list = persistence_get_session_summaries();
     if (!list || list->count == 0) {
-        printf("\n\033[90mNo past sessions found.\033[0m\n\n");
+        printf("\n\033[90mNo past sessions found.\033[0m\n");
+        printf("\033[90mSessions are saved when you type 'quit'.\033[0m\n\n");
         if (list) persistence_free_session_summaries(list);
         return 0;
     }
 
-    printf("\n\033[1m=== Past Session Summaries ===\033[0m\n\n");
+    // Cache session IDs for load/delete by number
+    recall_clear_cache();
+    for (size_t i = 0; i < list->count && i < 50; i++) {
+        if (list->items[i].session_id) {
+            g_recall_session_ids[i] = strdup(list->items[i].session_id);
+            g_recall_session_count++;
+        }
+    }
+
+    printf("\n\033[1m📚 Past Sessions\033[0m\n");
+    printf("\033[90m────────────────────────────────────────────────────────\033[0m\n\n");
 
     for (size_t i = 0; i < list->count; i++) {
         SessionSummary* s = &list->items[i];
 
-        // Header with date
-        printf("\033[36m[%zu] %s\033[0m", i + 1, s->started_at ? s->started_at : "Unknown date");
-        printf(" \033[90m(%d messages)\033[0m\n", s->message_count);
+        // Header: [num] date (messages)
+        printf("\033[1;36m[%zu]\033[0m \033[33m%s\033[0m", i + 1, s->started_at ? s->started_at : "Unknown");
+        printf(" \033[90m(%d msgs)\033[0m\n", s->message_count);
 
-        // Summary or placeholder
+        // Summary - the important part!
         if (s->summary && strlen(s->summary) > 0) {
-            // Print summary with indentation, truncate if too long
-            printf("    ");
-            size_t len = strlen(s->summary);
-            if (len > 200) {
-                printf("%.200s...\n", s->summary);
-            } else {
-                printf("%s\n", s->summary);
+            printf("    \033[37m");
+            // Word wrap at ~70 chars with proper indentation
+            const char* p = s->summary;
+            int col = 0;
+            size_t max_len = 300;  // Show more of the summary
+            size_t printed = 0;
+            while (*p && printed < max_len) {
+                if (*p == '\n') {
+                    printf("\n    ");
+                    col = 0;
+                } else {
+                    putchar(*p);
+                    col++;
+                    if (col > 65 && *p == ' ') {
+                        printf("\n    ");
+                        col = 0;
+                    }
+                }
+                p++;
+                printed++;
             }
+            if (printed >= max_len && *p) printf("...");
+            printf("\033[0m\n");
         } else {
-            printf("    \033[90m(no summary - session not yet compacted)\033[0m\n");
+            printf("    \033[90m(no summary - quit with 'quit' to save)\033[0m\n");
         }
-
-        // Session ID for delete command
-        printf("    \033[90mID: %s\033[0m\n\n", s->session_id ? s->session_id : "?");
+        printf("\n");
     }
 
-    printf("\033[90mCommands:\033[0m\n");
-    printf("  recall clear           - Clear all summaries\n");
-    printf("  recall delete <id>     - Delete specific session\n\n");
+    printf("\033[90m────────────────────────────────────────────────────────\033[0m\n");
+    printf("\033[36mrecall load <n>\033[0m   Load context into current session\n");
+    printf("\033[36mrecall delete <n>\033[0m Delete a session\n");
+    printf("\033[36mrecall clear\033[0m      Delete all sessions\n\n");
 
     persistence_free_session_summaries(list);
     return 0;
