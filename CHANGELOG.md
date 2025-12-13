@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.0.11] - 2025-12-13
+
+### Added
+
+- **Anti-Hallucination Protocol**: New protocol in Ali agent and CommonValuesAndPrinciples.md that forces agents to use tools before making factual claims about files, git status, code state, or any verifiable information. Prevents fabricated data in agent responses.
+
 ## [3.0.10] - 2025-12-13
 
 ### Added
