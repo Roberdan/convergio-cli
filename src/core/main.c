@@ -235,13 +235,13 @@ static void print_banner(void) {
     printf("\n");
     print_brain_logo();
     printf("\n");
-    // Large > arrow like Gemini, integrated with CONVERGIO text
-    print_gradient_line("  █╗      ██████╗ ██████╗ ███╗   ██╗██╗   ██╗███████╗██████╗  ██████╗ ██╗ ██████╗ ");
-    print_gradient_line("  ██╗    ██╔════╝██╔═══██╗████╗  ██║██║   ██║██╔════╝██╔══██╗██╔════╝ ██║██╔═══██╗");
-    print_gradient_line("  ███╗   ██║     ██║   ██║██╔██╗ ██║██║   ██║█████╗  ██████╔╝██║  ███╗██║██║   ██║");
-    print_gradient_line("  ██╔╝   ██║     ██║   ██║██║╚██╗██║╚██╗ ██╔╝██╔══╝  ██╔══██╗██║   ██║██║██║   ██║");
-    print_gradient_line("  █╔╝    ╚██████╗╚██████╔╝██║ ╚████║ ╚████╔╝ ███████╗██║  ██║╚██████╔╝██║╚██████╔╝");
-    print_gradient_line("  ╚╝      ╚═════╝ ╚═════╝ ╚═╝  ╚═══╝  ╚═══╝  ╚══════╝╚═╝  ╚═╝ ╚═════╝ ╚═╝ ╚═════╝ ");
+    // Gemini-style > arrow with CONVERGIO text
+    print_gradient_line("    ▄▀     ██████╗ ██████╗ ███╗   ██╗██╗   ██╗███████╗██████╗  ██████╗ ██╗ ██████╗ ");
+    print_gradient_line("   ▄▀     ██╔════╝██╔═══██╗████╗  ██║██║   ██║██╔════╝██╔══██╗██╔════╝ ██║██╔═══██╗");
+    print_gradient_line("  ▄▀      ██║     ██║   ██║██╔██╗ ██║██║   ██║█████╗  ██████╔╝██║  ███╗██║██║   ██║");
+    print_gradient_line("  ▀▄      ██║     ██║   ██║██║╚██╗██║╚██╗ ██╔╝██╔══╝  ██╔══██╗██║   ██║██║██║   ██║");
+    print_gradient_line("   ▀▄     ╚██████╗╚██████╔╝██║ ╚████║ ╚████╔╝ ███████╗██║  ██║╚██████╔╝██║╚██████╔╝");
+    print_gradient_line("    ▀▄     ╚═════╝ ╚═════╝ ╚═╝  ╚═══╝  ╚═══╝  ╚══════╝╚═╝  ╚═╝ ╚═════╝ ╚═╝ ╚═════╝ ");
     printf("\n");
     print_gradient_line("        Your team, with human purpose and AI momentum.");
     printf("\n");
