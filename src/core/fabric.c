@@ -426,6 +426,29 @@ NousSemanticNode* nous_get_node(SemanticID id) {
     }
 
     os_unfair_lock_unlock(&shard->lock);
+
+    // Node not in memory - try loading from persistence (on-demand)
+    // Skip if we're already loading from persistence to prevent infinite recursion
+    if (!atomic_load(&g_loading_from_persistence)) {
+        atomic_store(&g_loading_from_persistence, true);
+        int loaded = sem_persist_load_node(id);
+        atomic_store(&g_loading_from_persistence, false);
+
+        if (loaded == 0) {
+            // Node was loaded, try to get it again
+            os_unfair_lock_lock(&shard->lock);
+            for (size_t i = 0; i < shard->count; i++) {
+                if (shard->nodes[i]->id == id) {
+                    NousSemanticNode* node = shard->nodes[i];
+                    node->ref_count++;
+                    os_unfair_lock_unlock(&shard->lock);
+                    return node;
+                }
+            }
+            os_unfair_lock_unlock(&shard->lock);
+        }
+    }
+
     return NULL;
 }
 
@@ -438,6 +461,41 @@ void nous_release_node(NousSemanticNode* node) {
 
     // Note: actual deletion is handled by garbage collection on E-cores
     (void)new_count;
+}
+
+int nous_delete_node(SemanticID id) {
+    if (!nous_is_ready() || id == SEMANTIC_ID_NULL) return -1;
+
+    uint32_t shard_idx = semantic_hash(id);
+    FabricShard* shard = &g_fabric->shards[shard_idx];
+
+    os_unfair_lock_lock(&shard->lock);
+
+    for (size_t i = 0; i < shard->count; i++) {
+        if (shard->nodes[i]->id == id) {
+            NousSemanticNode* node = shard->nodes[i];
+
+            // Free node resources
+            free(node->essence);
+            free(node->relations);
+            free(node->relation_strengths);
+            free(node);
+
+            // Shift remaining nodes down
+            for (size_t j = i; j < shard->count - 1; j++) {
+                shard->nodes[j] = shard->nodes[j + 1];
+            }
+            shard->count--;
+
+            os_unfair_lock_unlock(&shard->lock);
+
+            atomic_fetch_sub(&g_fabric->total_nodes, 1);
+            return 0;
+        }
+    }
+
+    os_unfair_lock_unlock(&shard->lock);
+    return -1;  // Not found in memory (might only be in DB)
 }
 
 // ============================================================================
