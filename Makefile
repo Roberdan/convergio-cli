@@ -98,6 +98,7 @@ C_SOURCES = $(SRC_DIR)/core/fabric.c \
             $(SRC_DIR)/orchestrator/planning.c \
             $(SRC_DIR)/orchestrator/convergence.c \
             $(SRC_DIR)/memory/persistence.c \
+            $(SRC_DIR)/memory/semantic_persistence.c \
             $(SRC_DIR)/tools/tools.c \
             $(SRC_DIR)/providers/provider.c \
             $(SRC_DIR)/providers/anthropic.c \

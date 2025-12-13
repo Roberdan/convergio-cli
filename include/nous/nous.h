@@ -150,8 +150,11 @@ typedef struct NousSemanticNode {
     size_t relation_capacity;
 
     // Provenance
-    SemanticID creator;               // Agent or human who created this
-    SemanticID context;               // Space where it exists
+    SemanticID creator_id;            // Agent or human who created this
+    SemanticID context_id;            // Space/project where it exists
+
+    // Importance for persistence priority
+    float importance;                  // [0,1] - higher = more important to keep in memory
 
     // Memory management
     uint32_t ref_count;
@@ -170,6 +173,7 @@ typedef struct NousSemanticNode {
  */
 #define NOUS_FABRIC_SHARDS        64    // Power of 2 for fast modulo
 #define NOUS_SHARD_INITIAL_CAP    4096  // Initial nodes per shard
+#define NOUS_MAX_LOADED_NODES     10000 // Max nodes to load from persistence at startup
 
 typedef struct {
     NousSemanticNode** nodes;
@@ -322,6 +326,19 @@ SemanticID nous_create_node(SemanticType type, const char* essence);
 NousSemanticNode* nous_get_node(SemanticID id);
 void nous_release_node(NousSemanticNode* node);
 int nous_connect(SemanticID from, SemanticID to, float strength);
+size_t nous_get_node_count(void);
+
+// Internal function for persistence layer (restores nodes with original IDs)
+SemanticID nous_create_node_internal(
+    SemanticType type,
+    const char* essence,
+    SemanticID id_override,
+    const float* embedding,
+    size_t embedding_dim,
+    SemanticID creator_id,
+    SemanticID context_id,
+    float importance
+);
 
 // Similarity search (GPU-accelerated)
 typedef struct {
