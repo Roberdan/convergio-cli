@@ -50,6 +50,89 @@ Convergio CLI is a **multi-agent orchestration system** built in pure C/Objectiv
 - **Audit trail** - Full logging of which model handled what task
 - **Native performance** - Pure C, no runtime dependencies, Apple Silicon optimized
 
+## Why Not Just Use Claude Code or Warp?
+
+As of December 2025, tools like **Claude Code** and **Warp Terminal** offer excellent AI-assisted development. Here's why Convergio is different:
+
+### The Team Collaboration Model
+
+Convergio's core differentiator is **true multi-agent team orchestration**:
+
+```
+USER INPUT
+    │
+    ▼
+┌─────────────────────────────────────────────┐
+│         ALI (Chief of Staff)                │
+│   Analyzes → Decides who to delegate        │
+└─────────────────────────────────────────────┘
+    │
+    │ GCD dispatch_group_async (parallel)
+    ▼
+┌────────┬────────┬────────┬────────┐
+│ Marco  │ Baccio │ Luca   │ Sara   │  ← PARALLEL
+│ (Code) │ (Arch) │ (Sec)  │(Write) │
+└───┬────┴───┬────┴───┬────┴───┬────┘
+    │        │        │        │
+    └────────┴────────┴────────┘
+                 │
+                 ▼
+┌─────────────────────────────────────────────┐
+│           MESSAGE BUS                        │
+│  • Inter-agent routing                      │
+│  • Conversation history                     │
+│  • Event callbacks                          │
+└─────────────────────────────────────────────┘
+                 │
+                 ▼
+┌─────────────────────────────────────────────┐
+│     CONVERGENCE (Ali synthesizes)           │
+│  Integrates all perspectives into           │
+│  a unified, comprehensive response          │
+└─────────────────────────────────────────────┘
+```
+
+### Feature Comparison
+
+| Feature | Convergio | Claude Code | Warp |
+|---------|-----------|-------------|------|
+| **Multi-Provider** | ✅ Native (Claude, GPT, Gemini) | ❌ Claude only | ✅ Native |
+| **Team Orchestration** | ✅ Ali + 49 specialists | ⚠️ Isolated subagents | ⚠️ Single agent |
+| **Inter-Agent Communication** | ✅ Message Bus | ❌ None | ❌ None |
+| **Parallel Execution** | ✅ GCD native | ⚠️ Max ~10, batched | ❌ Sequential |
+| **Convergence/Synthesis** | ✅ Automatic | ❌ Manual | ❌ N/A |
+| **Per-Agent Model Mapping** | ✅ Marco→GPT, Luca→o3 | ❌ Same for all | ❌ N/A |
+| **Cost Management** | ✅ Granular, budget caps, auto-downgrade | ❌ None | ⚠️ Credits only |
+| **Agent State Tracking** | ✅ THINKING, IDLE, COLLABORATING | ❌ None | ❌ None |
+| **Open Source** | ✅ Full | ❌ Closed | ⚠️ Partial |
+| **Apple Silicon Optimized** | ✅ NEON, Metal, GCD | ❌ Node.js | ❌ Rust/generic |
+
+### What's Missing in Claude Code
+
+- **Single provider lock-in** - Only Claude models, no GPT or Gemini
+- **No cost management** - No budget caps, no tracking, no auto-downgrade
+- **Isolated subagents** - Subagents don't communicate with each other
+- **No convergence** - You must manually synthesize multiple agent outputs
+- **No model routing** - Can't assign different models to different tasks
+
+### What's Missing in Warp
+
+- **Single agent model** - Agent Mode is one agent with tools, not a team
+- **No inter-agent communication** - No message bus
+- **Limited cost control** - Credits system, no granular per-agent tracking
+- **Closed source core** - Limited customization of routing logic
+
+### When to Use What
+
+| Use Case | Best Tool |
+|----------|-----------|
+| Quick Claude interactions | Claude Code |
+| Modern terminal with AI | Warp |
+| **Multi-model orchestration** | **Convergio** |
+| **Team-based task delegation** | **Convergio** |
+| **Cost-controlled sessions** | **Convergio** |
+| **Parallel specialist agents** | **Convergio** |
+
 ## Supported Providers & Models
 
 | Provider | Models (examples) | Best For | Pricing (indicative) |

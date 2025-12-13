@@ -680,6 +680,7 @@ char* nous_claude_chat_with_tools(const char* system_prompt, const char* user_me
             "\"max_tokens\": 4096,"
             "\"system\": \"%s\","
             "\"tools\": %s,"
+            "\"tool_choice\": {\"type\": \"auto\"},"
             "\"messages\": [{\"role\": \"user\", \"content\": \"%s\"}]"
             "}",
             CLAUDE_MODEL, escaped_system, tools_json, escaped_user);

@@ -7,6 +7,7 @@
 #include "nous/delegation.h"
 #include "nous/orchestrator.h"
 #include "nous/nous.h"
+#include "nous/projects.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -150,6 +151,16 @@ char* execute_delegations(DelegationList* delegations, const char* user_input,
     // Spawn all agent tasks in parallel
     for (size_t i = 0; i < delegations->count; i++) {
         DelegationRequest* req = delegations->requests[i];
+
+        // Check if agent is in current project team
+        if (!project_has_agent(req->agent_name)) {
+            ConvergioProject* proj = project_current();
+            LOG_WARN(LOG_CAT_AGENT, "Agent '%s' not in project team '%s', skipping",
+                     req->agent_name, proj ? proj->name : "none");
+            tasks[i].agent = NULL;
+            tasks[i].completed = true;  // Mark as done (skipped)
+            continue;
+        }
 
         // Find or spawn the requested agent
         ManagedAgent* specialist = agent_find_by_name(req->agent_name);

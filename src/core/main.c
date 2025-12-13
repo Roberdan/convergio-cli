@@ -18,6 +18,7 @@
 #include "nous/commands.h"
 #include "nous/repl.h"
 #include "nous/signals.h"
+#include "nous/projects.h"
 #include "../auth/oauth.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -123,7 +124,7 @@ const char* nous_log_level_name(LogLevel level) {
 volatile sig_atomic_t g_running = 1;
 void* g_current_space = NULL;
 void* g_assistant = NULL;
-bool g_streaming_enabled = true;
+bool g_streaming_enabled = false;  // Default OFF to enable tool support
 
 // ============================================================================
 // BANNER DISPLAY
@@ -465,6 +466,16 @@ int main(int argc, char** argv) {
     tools_init_workspace(workspace);
     printf("  ✓ Workspace: %s\n", workspace);
 
+    // Initialize projects
+    if (projects_init()) {
+        ConvergioProject* current = project_current();
+        if (current) {
+            printf("  ✓ Project: %s (%zu agents)\n", current->name, current->team_count);
+        } else {
+            printf("  ✓ Projects: ready (no active project)\n");
+        }
+    }
+
     printf("\nConvergio is ready.\n");
     printf("Talk to Ali - your Chief of Staff will coordinate specialist agents.\n\n");
 
@@ -542,6 +553,9 @@ int main(int argc, char** argv) {
         printf("%s", final_report);
         free(final_report);
     }
+
+    // Shutdown projects
+    projects_shutdown();
 
     // Shutdown agent configs and orchestrator
     extern void agent_config_shutdown(void);
