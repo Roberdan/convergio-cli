@@ -204,32 +204,11 @@ static void print_gradient_line(const char* line) {
     printf("\n");
 }
 
-// Print simple multicolor brain
-static void print_brain_logo(void) {
-    const char* r  = "\033[38;5;196m";  // Red
-    const char* o  = "\033[38;5;208m";  // Orange
-    const char* y  = "\033[38;5;220m";  // Yellow
-    const char* g  = "\033[38;5;48m";   // Green/teal
-    const char* c  = "\033[38;5;51m";   // Cyan
-    const char* b  = "\033[38;5;33m";   // Blue
-    const char* rs = "\033[0m";
-
-    // Simple brain silhouette with rainbow colors
-    printf("                        %s▄▄%s▄▄%s▄▄%s\n", o, y, b, rs);
-    printf("                      %s▄%s███%s██%s█%s▄%s\n", r, o, y, g, b, rs);
-    printf("                     %s█%s████%s██%s██%s█%s\n", r, o, y, g, c, rs);
-    printf("                     %s█%s████%s██%s██%s█%s\n", r, o, y, g, b, rs);
-    printf("                      %s▀%s███%s██%s█%s▀%s\n", o, y, g, c, b, rs);
-    printf("                        %s▀▀%s▀▀%s▀▀%s\n", y, g, b, rs);
-}
-
 static void print_banner(void) {
     const char* rst = "\033[0m";
     const char* dim = "\033[2m";
     const char* c3 = "\033[38;5;75m";
 
-    printf("\n");
-    print_brain_logo();
     printf("\n");
     // Gemini-style > arrow with CONVERGIO text
     print_gradient_line("  ▀▄      ██████╗ ██████╗ ███╗   ██╗██╗   ██╗███████╗██████╗  ██████╗ ██╗ ██████╗ ");
