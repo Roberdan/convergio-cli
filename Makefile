@@ -184,6 +184,7 @@ dirs:
 	@mkdir -p $(OBJ_DIR)/neural
 	@mkdir -p $(OBJ_DIR)/orchestrator
 	@mkdir -p $(OBJ_DIR)/memory
+	@mkdir -p $(OBJ_DIR)/context
 	@mkdir -p $(OBJ_DIR)/tools
 	@mkdir -p $(OBJ_DIR)/auth
 	@mkdir -p $(OBJ_DIR)/ui
