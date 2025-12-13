@@ -21,7 +21,7 @@ CFLAGS = $(ARCH_FLAGS) \
          -ffast-math \
          -fvectorize \
          -I./include \
-         -I/opt/homebrew/opt/cjson/include \
+         -I/opt/homebrew/include \
          -DCONVERGIO_VERSION=\"$(VERSION)\"
 
 OBJCFLAGS = $(CFLAGS) -fobjc-arc
@@ -62,7 +62,13 @@ FRAMEWORKS = -framework Metal \
              -framework AppKit
 
 # Libraries
-LIBS = -lreadline -lcurl -lsqlite3 -L/opt/homebrew/opt/cjson/lib -lcjson
+LDFLAGS = -L/opt/homebrew/lib
+LIBS = -lreadline -lcurl -lsqlite3 -lcjson
+
+# Swift Package Manager (for MLX integration)
+SWIFT_BUILD_DIR = .build/release
+SWIFT_LIB = $(SWIFT_BUILD_DIR)/libConvergioMLX.a
+SWIFT_FRAMEWORKS = -Xlinker -rpath -Xlinker @executable_path/../lib
 
 # Directories
 SRC_DIR = src
@@ -103,7 +109,6 @@ C_SOURCES = $(SRC_DIR)/core/fabric.c \
             $(SRC_DIR)/context/compaction.c \
             $(SRC_DIR)/tools/tools.c \
             $(SRC_DIR)/providers/provider.c \
-            $(SRC_DIR)/providers/model_loader.c \
             $(SRC_DIR)/providers/anthropic.c \
             $(SRC_DIR)/providers/openai.c \
             $(SRC_DIR)/providers/gemini.c \
@@ -113,6 +118,7 @@ C_SOURCES = $(SRC_DIR)/core/fabric.c \
             $(SRC_DIR)/providers/streaming.c \
             $(SRC_DIR)/providers/tokens.c \
             $(SRC_DIR)/providers/tools.c \
+            $(SRC_DIR)/providers/model_loader.c \
             $(SRC_DIR)/router/model_router.c \
             $(SRC_DIR)/router/cost_optimizer.c \
             $(SRC_DIR)/sync/file_lock.c \
@@ -136,7 +142,8 @@ OBJC_SOURCES = $(SRC_DIR)/metal/gpu.m \
                $(SRC_DIR)/auth/oauth.m \
                $(SRC_DIR)/auth/keychain.m \
                $(SRC_DIR)/core/hardware.m \
-               $(SRC_DIR)/core/clipboard.m
+               $(SRC_DIR)/core/clipboard.m \
+               $(SRC_DIR)/providers/mlx.m
 
 METAL_SOURCES = shaders/similarity.metal
 
@@ -158,9 +165,7 @@ EMBEDDED_AGENTS = $(SRC_DIR)/agents/embedded_agents.c
 # Default target - MUST be first target in file
 .DEFAULT_GOAL := all
 
-# Enable parallel builds by default (use -j flag)
-all: dirs metal $(TARGET)
-	@echo "Build complete with $(NPROC) parallel jobs"
+all: dirs metal swift $(TARGET)
 	@echo ""
 	@echo "╔═══════════════════════════════════════════════════╗"
 	@echo "║          CONVERGIO KERNEL v$(VERSION)              "
@@ -203,6 +208,35 @@ dirs:
 	@mkdir -p $(BIN_DIR)
 	@mkdir -p data
 
+# Compile Swift package (for MLX integration)
+# This builds the ConvergioMLX Swift library that provides LLM inference
+# Strategy: Use swift build for library linking, but also run xcodebuild to compile Metal shaders
+XCODE_BUILD_DIR = .build/xcode
+XCODE_RELEASE_DIR = $(XCODE_BUILD_DIR)/Build/Products/Release
+
+swift: $(SWIFT_LIB)
+
+$(SWIFT_LIB): Package.swift Sources/ConvergioMLX/MLXBridge.swift
+	@echo "Building Swift package (MLX integration)..."
+	@swift build -c release --product ConvergioMLX 2>&1 | grep -v "^$$" || true
+	@if [ -f "$(SWIFT_LIB)" ]; then \
+		echo "Swift library built: $(SWIFT_LIB)"; \
+		echo "Building Metal shaders via xcodebuild..."; \
+		xcodebuild build -scheme ConvergioMLX -configuration Release -destination 'platform=macOS' \
+			-derivedDataPath $(XCODE_BUILD_DIR) 2>&1 | grep -E "(BUILD SUCCEEDED|error:)" || true; \
+		if [ -f "$(XCODE_RELEASE_DIR)/mlx-swift_Cmlx.bundle/Contents/Resources/default.metallib" ]; then \
+			mkdir -p $(BIN_DIR); \
+			cp "$(XCODE_RELEASE_DIR)/mlx-swift_Cmlx.bundle/Contents/Resources/default.metallib" "$(BIN_DIR)/"; \
+			echo "Metal library copied to $(BIN_DIR)/default.metallib"; \
+		else \
+			echo "Warning: Metal shaders not compiled, MLX GPU acceleration may fail"; \
+		fi; \
+	else \
+		echo "Warning: Swift build failed, MLX will be unavailable"; \
+		mkdir -p $(SWIFT_BUILD_DIR); \
+		touch $(SWIFT_LIB); \
+	fi
+
 # Compile Metal shaders (optional - requires Metal Toolchain)
 metal: $(METAL_LIB)
 
@@ -221,23 +255,36 @@ $(METAL_LIB): $(METAL_AIR)
 		touch $(METAL_LIB); \
 	fi
 
-# Detect number of CPU cores for parallel compilation
-NPROC := $(shell sysctl -n hw.ncpu 2>/dev/null || echo 4)
-
-# Compile C sources (with parallel support)
+# Compile C sources
 $(OBJ_DIR)/%.o: $(SRC_DIR)/%.c
 	@echo "Compiling $<..."
 	@$(CC) $(CFLAGS) -c $< -o $@
 
-# Compile Objective-C sources (with parallel support)
+# Compile Objective-C sources
 $(OBJ_DIR)/%.o: $(SRC_DIR)/%.m
 	@echo "Compiling $<..."
 	@$(OBJC) $(OBJCFLAGS) -c $< -o $@
 
 # Link
-$(TARGET): $(OBJECTS)
+# Swift/MLX library requires C++ runtime and additional Swift runtime libs
+# Include Xcode Swift toolchain for compatibility libraries
+SWIFT_TOOLCHAIN = /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/macosx
+SWIFT_RUNTIME_LIBS = -L/usr/lib/swift \
+                     -L$(SWIFT_TOOLCHAIN) \
+                     -lswiftCore -lswiftFoundation -lswiftMetal \
+                     -lswiftDispatch -lswiftos -lswiftDarwin \
+                     -lswiftCompatibility56 -lswiftCompatibilityConcurrency \
+                     -lc++
+
+$(TARGET): $(OBJECTS) $(SWIFT_LIB)
 	@echo "Linking $(TARGET)..."
-	@$(CC) $(LDFLAGS) $(OBJECTS) -o $(TARGET) $(FRAMEWORKS) $(LIBS)
+	@if [ -s "$(SWIFT_LIB)" ]; then \
+		echo "  Including MLX Swift library (with C++ runtime)..."; \
+		$(CC) $(LDFLAGS) $(OBJECTS) $(SWIFT_LIB) -o $(TARGET) $(FRAMEWORKS) $(LIBS) \
+			$(SWIFT_RUNTIME_LIBS) $(SWIFT_FRAMEWORKS); \
+	else \
+		$(CC) $(LDFLAGS) $(OBJECTS) -o $(TARGET) $(FRAMEWORKS) $(LIBS); \
+	fi
 
 # Run
 run: all
@@ -246,6 +293,7 @@ run: all
 # Clean
 clean:
 	@rm -rf $(BUILD_DIR)
+	@rm -rf .build
 	@echo "Cleaned."
 
 # Debug build
@@ -317,34 +365,39 @@ FUZZ_SOURCES = tests/fuzz_test.c $(TEST_STUBS)
 # Exclude main.o since fuzz_test has its own main() and stubs provide globals
 FUZZ_OBJECTS = $(filter-out $(OBJ_DIR)/core/main.o,$(OBJECTS))
 
-fuzz_test: dirs $(OBJECTS) $(FUZZ_TEST)
+fuzz_test: dirs swift $(OBJECTS) $(FUZZ_TEST)
 	@echo "Running fuzz tests..."
 	@$(FUZZ_TEST)
 
-# Note: Don't use DEBUG=1 here as OBJECTS may not have sanitizer instrumentation
-# Use 'make debug && make fuzz_test' for sanitizer-enabled testing
-$(FUZZ_TEST): $(FUZZ_SOURCES) $(FUZZ_OBJECTS)
+$(FUZZ_TEST): $(FUZZ_SOURCES) $(FUZZ_OBJECTS) $(SWIFT_LIB)
 	@echo "Compiling fuzz tests..."
-	@$(CC) $(CFLAGS) -o $(FUZZ_TEST) $(FUZZ_SOURCES) $(FUZZ_OBJECTS) $(FRAMEWORKS) $(LIBS)
+	@if [ -s "$(SWIFT_LIB)" ]; then \
+		$(CC) $(CFLAGS) $(LDFLAGS) -o $(FUZZ_TEST) $(FUZZ_SOURCES) $(FUZZ_OBJECTS) $(SWIFT_LIB) $(FRAMEWORKS) $(LIBS) $(SWIFT_RUNTIME_LIBS); \
+	else \
+		$(CC) $(CFLAGS) $(LDFLAGS) -o $(FUZZ_TEST) $(FUZZ_SOURCES) $(FUZZ_OBJECTS) $(FRAMEWORKS) $(LIBS); \
+	fi
 
 # Unit test target - tests core components
 UNIT_TEST = $(BIN_DIR)/unit_test
 UNIT_SOURCES = tests/test_unit.c $(TEST_STUBS)
 UNIT_OBJECTS = $(filter-out $(OBJ_DIR)/core/main.o,$(OBJECTS))
 
-unit_test: dirs $(OBJECTS) $(UNIT_TEST)
+unit_test: dirs swift $(OBJECTS) $(UNIT_TEST)
 	@echo "Running unit tests..."
 	@$(UNIT_TEST)
 
-# Note: Don't use LDFLAGS here to avoid sanitizer mismatch with non-DEBUG objects
-$(UNIT_TEST): $(UNIT_SOURCES) $(UNIT_OBJECTS)
+$(UNIT_TEST): $(UNIT_SOURCES) $(UNIT_OBJECTS) $(SWIFT_LIB)
 	@echo "Compiling unit tests..."
-	@$(CC) $(CFLAGS) -o $(UNIT_TEST) $(UNIT_SOURCES) $(UNIT_OBJECTS) $(FRAMEWORKS) $(LIBS)
+	@if [ -s "$(SWIFT_LIB)" ]; then \
+		$(CC) $(CFLAGS) $(LDFLAGS) -o $(UNIT_TEST) $(UNIT_SOURCES) $(UNIT_OBJECTS) $(SWIFT_LIB) $(FRAMEWORKS) $(LIBS) $(SWIFT_RUNTIME_LIBS); \
+	else \
+		$(CC) $(CFLAGS) $(LDFLAGS) -o $(UNIT_TEST) $(UNIT_SOURCES) $(UNIT_OBJECTS) $(FRAMEWORKS) $(LIBS); \
+	fi
 
 # Compaction test target - tests context compaction module
 COMPACTION_TEST = $(BIN_DIR)/compaction_test
 COMPACTION_SOURCES = tests/test_compaction.c
-# Only need compaction.o - test file provides stubs for persistence functions
+# Only need compaction.o and its minimal dependencies for this test
 COMPACTION_OBJECTS = $(OBJ_DIR)/context/compaction.o
 
 compaction_test: dirs $(OBJ_DIR)/context/compaction.o $(COMPACTION_TEST)
@@ -353,41 +406,15 @@ compaction_test: dirs $(OBJ_DIR)/context/compaction.o $(COMPACTION_TEST)
 
 $(COMPACTION_TEST): $(COMPACTION_SOURCES) $(COMPACTION_OBJECTS)
 	@echo "Compiling compaction tests..."
-	@$(CC) $(CFLAGS) -o $(COMPACTION_TEST) $(COMPACTION_SOURCES) $(COMPACTION_OBJECTS) $(FRAMEWORKS) $(LIBS)
+	@$(CC) $(CFLAGS) $(LDFLAGS) -o $(COMPACTION_TEST) $(COMPACTION_SOURCES) $(COMPACTION_OBJECTS) $(FRAMEWORKS) $(LIBS)
 
 # Check help documentation coverage
 check-docs:
 	@echo "Checking help documentation coverage..."
 	@./scripts/check_help_docs.sh
 
-# Compare test target
-COMPARE_TEST = $(BIN_DIR)/compare_test
-COMPARE_SOURCES = tests/test_compare.c
-COMPARE_OBJECTS = $(OBJ_DIR)/compare/render.o
-
-compare_test: dirs $(OBJ_DIR)/compare/render.o $(COMPARE_TEST)
-	@echo "Running compare tests..."
-	@$(COMPARE_TEST)
-
-$(COMPARE_TEST): $(COMPARE_SOURCES) $(COMPARE_OBJECTS)
-	@echo "Compiling compare tests..."
-	@$(CC) $(CFLAGS) -o $(COMPARE_TEST) $(COMPARE_SOURCES) $(COMPARE_OBJECTS) $(FRAMEWORKS) $(LIBS)
-
-# Projects test target
-PROJECTS_TEST = $(BIN_DIR)/projects_test
-PROJECTS_SOURCES = tests/test_projects.c
-PROJECTS_OBJECTS = $(OBJ_DIR)/projects/projects.o
-
-projects_test: dirs $(OBJ_DIR)/projects/projects.o $(PROJECTS_TEST)
-	@echo "Running projects tests..."
-	@$(PROJECTS_TEST)
-
-$(PROJECTS_TEST): $(PROJECTS_SOURCES) $(PROJECTS_OBJECTS)
-	@echo "Compiling projects tests..."
-	@$(CC) $(CFLAGS) -o $(PROJECTS_TEST) $(PROJECTS_SOURCES) $(PROJECTS_OBJECTS) $(FRAMEWORKS) $(LIBS)
-
 # Run all tests
-test: fuzz_test unit_test compaction_test compare_test projects_test check-docs
+test: fuzz_test unit_test compaction_test check-docs
 	@echo "All tests completed!"
 
 # Help

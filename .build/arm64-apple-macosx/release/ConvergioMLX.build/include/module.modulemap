@@ -1,3 +1,0 @@
-module ConvergioMLX {
-    header "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/ConvergioMLX.build/include/ConvergioMLX-Swift.h"
-}

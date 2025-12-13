@@ -22,6 +22,7 @@ A semantic kernel for human-AI symbiosis, built natively for Apple Silicon.
 
 ## What's New in v4.0
 
+- **MLX Local Provider**: Run AI models 100% offline on Apple Silicon via MLX-Swift - no Python, no external dependencies
 - **OpenRouter Provider**: Access 300+ models (DeepSeek R1, Mistral, Llama 3.3, Qwen) via unified API
 - **Ollama Provider**: Run models locally with zero API costs - perfect for offline work and privacy
 - **Setup Wizard**: Interactive `/setup` command to configure providers, API keys, and per-agent models
@@ -29,6 +30,40 @@ A semantic kernel for human-AI symbiosis, built natively for Apple Silicon.
 - **Fiona Agent**: New specialized agent for project management tasks
 - **Updated Model IDs**: Latest Anthropic (claude-opus-4.5, sonnet-4.5, haiku-4.5) and Gemini (3.0 Pro, 2.0 Flash, Deep Think)
 - **Improved CI/CD**: Unit tests, E2E tests, and enhanced build validation
+
+### MLX Local Models (New in v4.0)
+
+Run AI models **100% offline** on your Mac without any cloud APIs, internet, or external dependencies. MLX integration is built using Apple's MLX-Swift framework for native Apple Silicon performance.
+
+**Quick Start:**
+```bash
+# Via Setup Wizard (Recommended)
+convergio
+> /setup
+# Select "Local Models" -> Download a model
+
+# Or via CLI flags
+convergio --local --model llama-3.2-3b
+```
+
+**Available Local Models:**
+| Model | Size | RAM | Best For |
+|-------|------|-----|----------|
+| Llama 3.2 1B | 1.5GB | 8GB | Fast, basic tasks |
+| Llama 3.2 3B | 3.1GB | 8GB | Balanced (recommended) |
+| DeepSeek R1 1.5B | 1.2GB | 8GB | Fast reasoning |
+| DeepSeek R1 7B | 4.5GB | 16GB | Strong reasoning |
+| DeepSeek R1 14B | 8.5GB | 24GB | Best reasoning |
+| Qwen 2.5 Coder 7B | 4.5GB | 16GB | Code generation |
+| Mistral 7B Q4 | 4.5GB | 16GB | Multilingual |
+| Llama 3.1 8B Q4 | 5GB | 16GB | Best quality |
+
+**Benefits:**
+- **Privacy**: Data never leaves your Mac
+- **Offline**: No internet required
+- **Free**: Zero API costs
+- **Fast**: No network latency
+- **Optimized**: Metal GPU + Neural Engine acceleration
 
 ### Previous Highlights (v3.0)
 
@@ -153,11 +188,14 @@ USER INPUT
 
 ## Supported Providers & Models
 
-| Provider | Models (examples) | Best For | Pricing (indicative) |
-|----------|--------------------|----------|---------------------|
+| Provider | Models (examples) | Best For | Pricing |
+|----------|--------------------|----------|---------|
 | **Anthropic** | Claude Opus 4, Claude Sonnet 4 | Complex reasoning, coding, agents | Varies by plan |
 | **OpenAI** | GPT-4o, o1, GPT-4o-mini | Coding, reasoning, multimodal | See provider docs |
 | **Google** | Gemini 1.5 Pro, Gemini 1.5 Flash | Long context, cost-effective | See provider docs |
+| **OpenRouter** | DeepSeek R1, Llama 3.3, Mistral | 300+ models, competitive pricing | See openrouter.ai |
+| **Ollama** | Llama, Mistral, CodeLlama | Local inference, privacy | Free (local) |
+| **MLX** | Llama 3.2, DeepSeek R1 Distill, Qwen 2.5 | 100% offline, Apple Silicon native | Free (local) |
 
 ## Quick Start
 

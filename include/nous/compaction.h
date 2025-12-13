@@ -19,11 +19,17 @@
 // CONFIGURATION
 // ============================================================================
 
-#define COMPACTION_THRESHOLD_TOKENS   80000   // Trigger compaction above this
+// Default thresholds (for cloud models with large context)
+#define COMPACTION_THRESHOLD_TOKENS   80000   // Default trigger compaction above this
 #define COMPACTION_KEEP_RECENT_MSGS   10      // Keep last N messages uncompacted
 #define COMPACTION_MODEL              "claude-haiku-4.5"
 #define COMPACTION_MAX_SUMMARY_TOKENS 500     // Max tokens in summary
 #define COMPACTION_MAX_CHECKPOINTS    5       // Max checkpoints per session
+
+// Dynamic threshold ratios (for models with different context windows)
+#define COMPACTION_THRESHOLD_RATIO    0.6     // Trigger at 60% of context window
+#define COMPACTION_MIN_THRESHOLD      2000    // Minimum threshold (for tiny models)
+#define COMPACTION_MAX_THRESHOLD      200000  // Maximum threshold (for huge models)
 
 // ============================================================================
 // COMPACTION RESULT
@@ -48,6 +54,27 @@ typedef struct {
  * @return 0 on success, -1 on error
  */
 int compaction_init(void);
+
+/**
+ * Set dynamic compaction threshold based on model context window
+ * Automatically calculates optimal threshold for the active model.
+ * For MLX local models with smaller contexts, this adjusts accordingly.
+ *
+ * @param model_context_window The context window size of the active model in tokens
+ * @return The calculated threshold that will be used
+ */
+size_t compaction_set_dynamic_threshold(size_t model_context_window);
+
+/**
+ * Get current compaction threshold
+ * @return Current threshold in tokens
+ */
+size_t compaction_get_threshold(void);
+
+/**
+ * Reset to default threshold (for cloud models with large context)
+ */
+void compaction_reset_threshold(void);
 
 /**
  * Shutdown and cleanup compaction resources

@@ -1,3 +1,0 @@
-module MLXEmbedders {
-    header "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLXEmbedders.build/include/MLXEmbedders-Swift.h"
-}
