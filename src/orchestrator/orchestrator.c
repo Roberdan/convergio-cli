@@ -133,7 +133,7 @@ static void parse_agent_frontmatter(const char* content, char* name, size_t name
         // Find end of line
         const char* eol = strchr(ptr, '\n');
         if (!eol) eol = ptr + strlen(ptr);
-        size_t line_len = eol - ptr;
+        size_t line_len = (size_t)(eol - ptr);
 
         // Check for frontmatter delimiter
         if (line_len >= 3 && strncmp(ptr, "---", 3) == 0) {
@@ -147,14 +147,14 @@ static void parse_agent_frontmatter(const char* content, char* name, size_t name
             if (strncmp(ptr, "name:", 5) == 0) {
                 const char* val = ptr + 5;
                 while (*val == ' ') val++;
-                size_t val_len = eol - val;
+                size_t val_len = (size_t)(eol - val);
                 if (val_len >= name_size) val_len = name_size - 1;
                 strncpy(name, val, val_len);
                 name[val_len] = '\0';
             } else if (strncmp(ptr, "description:", 12) == 0) {
                 const char* val = ptr + 12;
                 while (*val == ' ') val++;
-                size_t val_len = eol - val;
+                size_t val_len = (size_t)(eol - val);
                 if (val_len >= desc_size) val_len = desc_size - 1;
                 strncpy(description, val, val_len);
                 description[val_len] = '\0';
@@ -193,7 +193,7 @@ static char* load_agent_list(void) {
 
     // If filtering by project, add a header
     if (filtering) {
-        len += snprintf(list + len, capacity - len,
+        len += (size_t)snprintf(list + len, capacity - len,
             "**Project Team: %s** (%zu members)\n\n",
             current_project->name, current_project->team_count);
     }
@@ -243,7 +243,7 @@ static char* load_agent_list(void) {
                 list = realloc(list, capacity);
             }
 
-            len += snprintf(list + len, capacity - len,
+            len += (size_t)snprintf(list + len, capacity - len,
                 "- **%s**: %s\n", short_name, description);
             included_count++;
         }
@@ -256,7 +256,7 @@ static char* load_agent_list(void) {
             capacity = needed * 2;
             list = realloc(list, capacity);
         }
-        len += snprintf(list + len, capacity - len,
+        len += (size_t)snprintf(list + len, capacity - len,
             "\n_Note: Other agents available via `project clear`_\n");
     }
 
@@ -429,8 +429,10 @@ int orchestrator_init(double budget_limit_usd) {
             // Get version
             const char* version = convergio_get_version();
 
-            // Count agents (will be set properly after all agents are loaded)
-            int agent_count = 48;  // Approximate count
+            // Count agents dynamically from embedded agents
+            size_t embedded_count = 0;
+            get_all_embedded_agents(&embedded_count);
+            int agent_count = (int)(embedded_count - 1);  // -1 for CommonValuesAndPrinciples
 
             // CRITICAL: Include the anti-hallucination constitution in Ali's prompt
             size_t constitution_len = strlen(ALI_CONSTITUTION);
@@ -444,7 +446,7 @@ int orchestrator_init(double budget_limit_usd) {
             } else {
                 // Prepend constitution, then add the role-specific prompt
                 memcpy(full_prompt, ALI_CONSTITUTION, constitution_len);
-                snprintf(full_prompt + constitution_len, prompt_size - constitution_len, ALI_SYSTEM_PROMPT_TEMPLATE, date_str, version, agent_count, workspace, agent_list);
+                (void)snprintf(full_prompt + constitution_len, prompt_size - constitution_len, ALI_SYSTEM_PROMPT_TEMPLATE, date_str, version, agent_count, workspace, agent_list);
                 g_orchestrator->ali->system_prompt = full_prompt;
                 free(agent_list);
 
@@ -600,7 +602,7 @@ static char* parse_tool_name_from_block(const char* block) {
     const char* end = pos;
     while (*end && *end != '"' && *end != ',' && *end != '}') end++;
 
-    size_t len = end - pos;
+    size_t len = (size_t)(end - pos);
     char* name = malloc(len + 1);
     strncpy(name, pos, len);
     name[len] = '\0';
@@ -633,7 +635,7 @@ static char* parse_tool_input_from_block(const char* block) {
         pos++;
     }
 
-    size_t len = pos - start;
+    size_t len = (size_t)(pos - start);
     char* input = malloc(len + 1);
     strncpy(input, start, len);
     input[len] = '\0';
@@ -656,7 +658,7 @@ static char* parse_tool_id_from_block(const char* block) {
     const char* end = pos;
     while (*end && *end != '"' && *end != ',' && *end != '}') end++;
 
-    size_t len = end - pos;
+    size_t len = (size_t)(end - pos);
     char* id = malloc(len + 1);
     strncpy(id, pos, len);
     id[len] = '\0';
@@ -708,30 +710,30 @@ static char* build_context_prompt(const char* user_input) {
     // 0. Add project context if active
     ConvergioProject* proj = project_current();
     if (proj) {
-        len += snprintf(context + len, capacity - len,
+        len += (size_t)snprintf(context + len, capacity - len,
             "## Active Project: %s\n", proj->name);
         if (proj->purpose) {
-            len += snprintf(context + len, capacity - len,
+            len += (size_t)snprintf(context + len, capacity - len,
                 "**Purpose**: %s\n", proj->purpose);
         }
         if (proj->current_focus) {
-            len += snprintf(context + len, capacity - len,
+            len += (size_t)snprintf(context + len, capacity - len,
                 "**Current Focus**: %s\n", proj->current_focus);
         }
-        len += snprintf(context + len, capacity - len, "**Team**: ");
+        len += (size_t)snprintf(context + len, capacity - len, "**Team**: ");
         for (size_t i = 0; i < proj->team_count; i++) {
-            len += snprintf(context + len, capacity - len, "%s%s",
+            len += (size_t)snprintf(context + len, capacity - len, "%s%s",
                 proj->team[i].agent_name,
                 i < proj->team_count - 1 ? ", " : "");
         }
-        len += snprintf(context + len, capacity - len, "\n");
+        len += (size_t)snprintf(context + len, capacity - len, "\n");
         if (proj->decision_count > 0) {
-            len += snprintf(context + len, capacity - len, "**Key Decisions**:\n");
+            len += (size_t)snprintf(context + len, capacity - len, "**Key Decisions**:\n");
             for (size_t i = 0; i < proj->decision_count && i < 5; i++) {
-                len += snprintf(context + len, capacity - len, "- %s\n", proj->key_decisions[i]);
+                len += (size_t)snprintf(context + len, capacity - len, "- %s\n", proj->key_decisions[i]);
             }
         }
-        len += snprintf(context + len, capacity - len,
+        len += (size_t)snprintf(context + len, capacity - len,
             "\n**Note**: Only delegate to team members listed above.\n\n");
     }
 
@@ -739,32 +741,32 @@ static char* build_context_prompt(const char* user_input) {
     size_t mem_count = 0;
     char** memories = persistence_get_important_memories(5, &mem_count);
     if (memories && mem_count > 0) {
-        len += snprintf(context + len, capacity - len,
+        len += (size_t)snprintf(context + len, capacity - len,
             "## Important Memories\n");
         for (size_t i = 0; i < mem_count; i++) {
             if (memories[i]) {
-                len += snprintf(context + len, capacity - len, "- %s\n", memories[i]);
+                len += (size_t)snprintf(context + len, capacity - len, "- %s\n", memories[i]);
                 free(memories[i]);
             }
         }
         free(memories);
-        len += snprintf(context + len, capacity - len, "\n");
+        len += (size_t)snprintf(context + len, capacity - len, "\n");
     }
 
     // 2. Search for relevant memories based on user input
     size_t rel_count = 0;
     char** relevant = persistence_search_memories(user_input, 3, 0.3f, &rel_count);
     if (relevant && rel_count > 0) {
-        len += snprintf(context + len, capacity - len,
+        len += (size_t)snprintf(context + len, capacity - len,
             "## Relevant Context\n");
         for (size_t i = 0; i < rel_count; i++) {
             if (relevant[i]) {
-                len += snprintf(context + len, capacity - len, "- %s\n", relevant[i]);
+                len += (size_t)snprintf(context + len, capacity - len, "- %s\n", relevant[i]);
                 free(relevant[i]);
             }
         }
         free(relevant);
-        len += snprintf(context + len, capacity - len, "\n");
+        len += (size_t)snprintf(context + len, capacity - len, "\n");
     }
 
     // 3. Load only recent conversation from current session (not full history)
@@ -773,14 +775,14 @@ static char* build_context_prompt(const char* user_input) {
         // Only load last 10 messages for immediate context
         char* conv_history = persistence_load_conversation_context(g_current_session_id, 10);
         if (conv_history && strlen(conv_history) > 0) {
-            len += snprintf(context + len, capacity - len,
+            len += (size_t)snprintf(context + len, capacity - len,
                 "## Recent Conversation\n%s\n", conv_history);
             free(conv_history);
         }
     }
 
     // 4. Add current user input
-    len += snprintf(context + len, capacity - len,
+    len += (size_t)snprintf(context + len, capacity - len,
         "## Current Request\n%s", user_input);
 
     return context;
@@ -877,7 +879,7 @@ char* orchestrator_process(const char* user_input) {
                     }
 
                     // Extract the block
-                    size_t block_len = block_end - block_start;
+                    size_t block_len = (size_t)(block_end - block_start);
                     char* block = malloc(block_len + 1);
                     strncpy(block, block_start, block_len);
                     block[block_len] = '\0';
@@ -931,7 +933,7 @@ char* orchestrator_process(const char* user_input) {
 
                 // Append tool results and ask for final response using snprintf
                 size_t conv_len = strlen(conversation);
-                size_t append_len = snprintf(conversation + conv_len, conv_capacity - conv_len,
+                size_t append_len = (size_t)snprintf(conversation + conv_len, conv_capacity - conv_len,
                     "\n\n[Tool Results]%s\n\nBased on these tool results, provide your response to the user.",
                     tool_results);
                 (void)append_len;  // Suppress unused warning
@@ -1189,7 +1191,7 @@ char* orchestrator_agent_chat(ManagedAgent* agent, const char* user_message) {
                         block_end++;
                     }
 
-                    size_t block_len = block_end - block_start;
+                    size_t block_len = (size_t)(block_end - block_start);
                     char* block = malloc(block_len + 1);
                     strncpy(block, block_start, block_len);
                     block[block_len] = '\0';
@@ -1201,7 +1203,7 @@ char* orchestrator_agent_chat(ManagedAgent* agent, const char* user_message) {
                         char* tool_result = execute_tool_call(tool_name, tool_input);
 
                         char result_entry[8192];
-                        snprintf(result_entry, sizeof(result_entry),
+                        (void)snprintf(result_entry, sizeof(result_entry),
                             "\n\n[Tool: %s]\nResult: %s",
                             tool_name, tool_result);
 
