@@ -206,20 +206,25 @@ static void print_gradient_line(const char* line) {
 
 // Print brain logo matching Convergio.io - left geometric warm, right circuit blue
 static void print_brain_logo(void) {
+    const char* r  = "\033[38;5;196m";  // Red
     const char* o1 = "\033[38;5;202m";  // Deep orange
     const char* o2 = "\033[38;5;208m";  // Orange
-    const char* o3 = "\033[38;5;220m";  // Yellow
-    const char* b1 = "\033[38;5;24m";   // Dark blue
+    const char* y1 = "\033[38;5;220m";  // Yellow
+    const char* y2 = "\033[38;5;226m";  // Light yellow
+    const char* g  = "\033[38;5;48m";   // Cyan/teal
+    const char* b1 = "\033[38;5;25m";   // Dark blue
     const char* b2 = "\033[38;5;33m";   // Blue
-    const char* wh = "\033[37;1m";      // Bright white (circuits)
-    const char* rst = "\033[0m";
+    const char* w  = "\033[97;1m";      // Bright white
+    const char* rs = "\033[0m";
 
-    // Simplified brain: geometric triangles left, circuit right
-    printf("                       %s▄▄▄%s▄▄▄%s\n", o1, b1, rst);
-    printf("                     %s▄%s█%s▀%s▄%s█%s─●%s▄%s\n", o1, o1, o2, o3, b1, wh, b2, rst);
-    printf("                    %s█%s▀%s▄%s▀%s█%s●─●%s█%s\n", o1, o2, o3, o3, b1, wh, b2, rst);
-    printf("                    %s▀%s█%s▄%s▀%s█%s─●%s█%s\n", o2, o3, o3, b1, b1, wh, b2, rst);
-    printf("                      %s▀▀%s▀▀▀%s\n", o2, b2, rst);
+    // Brain with geometric left (warm) and circuit right (blue)
+    printf("                       %s▄▄▄▄%s▄▄▄▄%s\n", o1, b1, rs);
+    printf("                     %s▄%s█%s▀▀%s▄▄%s█%s══%s●%s▄%s\n", r, o1, o1, o2, b1, w, w, b2, rs);
+    printf("                    %s█%s▀%s▄%s██%s▀%s█%s●%s══%s●%s█%s\n", r, o1, o2, o2, y1, b1, w, w, w, b2, rs);
+    printf("                   %s█%s▀%s▄▄%s██%s▀%s█%s│%s●%s══%s█%s\n", r, o1, o2, y1, y2, b1, w, w, w, b2, rs);
+    printf("                   %s▀%s█%s▄▄%s██%s▄%s█%s●%s══%s●%s█%s\n", o1, o2, y1, y2, g, b1, w, w, w, b2, rs);
+    printf("                    %s▀%s██%s▄▄%s▀%s█%s══%s●%s▀%s\n", o2, y1, y2, g, b1, w, w, b2, rs);
+    printf("                      %s▀▀%s▀▀%s▀▀▀▀%s\n", y1, g, b2, rs);
 }
 
 static void print_banner(void) {
