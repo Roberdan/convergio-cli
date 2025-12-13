@@ -476,16 +476,9 @@ int main(int argc, char** argv) {
         nous_agent_add_skill(g_assistant, "creatività");
     }
 
-    // Initialize status bar
-    if (statusbar_init() == 0) {
-        statusbar_set_cwd(workspace);
-        statusbar_set_model("Sonnet 4.5");
-        Orchestrator* orch = orchestrator_get();
-        if (orch) {
-            statusbar_set_agent_count((int)orch->agent_count);
-        }
-        statusbar_set_visible(true);
-    }
+    // Status bar disabled - was causing terminal issues
+    // If needed in future, call statusbar_init() and statusbar_set_visible(true)
+    (void)statusbar_init;  // Suppress unused warning
 
     // REPL with cost in prompt
     char prompt[256];
@@ -541,7 +534,6 @@ int main(int argc, char** argv) {
     }
 
     // Cleanup
-    statusbar_shutdown();
     printf("\nShutting down Convergio...\n");
 
     // Show final cost report
