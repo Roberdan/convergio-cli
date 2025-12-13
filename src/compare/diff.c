@@ -39,7 +39,7 @@ static LineArray split_lines(const char* text) {
 
     for (const char* p = text; *p; p++) {
         if (*p == '\n') {
-            size_t len = p - start;
+            size_t len = (size_t)(p - start);
             arr.lines[idx] = malloc(len + 1);
             if (arr.lines[idx]) {
                 memcpy(arr.lines[idx], start, len);
@@ -197,21 +197,21 @@ char* generate_response_diff(const char* response1, const char* response2,
     }
 
     size_t pos = 0;
-    pos += snprintf(output + pos, output_size - pos, "--- %s\n", label1 ? label1 : "Response 1");
-    pos += snprintf(output + pos, output_size - pos, "+++ %s\n", label2 ? label2 : "Response 2");
+    pos += (size_t)snprintf(output + pos, output_size - pos, "--- %s\n", label1 ? label1 : "Response 1");
+    pos += (size_t)snprintf(output + pos, output_size - pos, "+++ %s\n", label2 ? label2 : "Response 2");
 
     for (size_t i = 0; i < diff_count && pos < output_size - 100; i++) {
         switch (diffs[i].type) {
             case DIFF_SAME:
-                pos += snprintf(output + pos, output_size - pos, "  %s\n",
+                pos += (size_t)snprintf(output + pos, output_size - pos, "  %s\n",
                                diffs[i].text ? diffs[i].text : "");
                 break;
             case DIFF_DELETE:
-                pos += snprintf(output + pos, output_size - pos, "- %s\n",
+                pos += (size_t)snprintf(output + pos, output_size - pos, "- %s\n",
                                diffs[i].text ? diffs[i].text : "");
                 break;
             case DIFF_ADD:
-                pos += snprintf(output + pos, output_size - pos, "+ %s\n",
+                pos += (size_t)snprintf(output + pos, output_size - pos, "+ %s\n",
                                diffs[i].text ? diffs[i].text : "");
                 break;
             case DIFF_CHANGE:

@@ -249,6 +249,9 @@ struct Provider {
  */
 ProviderError provider_registry_init(void);
 
+// Map HTTP status code to ProviderError (for consistent error handling)
+ProviderError provider_map_http_error(long http_code);
+
 /**
  * Shutdown all providers and free resources
  */

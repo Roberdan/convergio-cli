@@ -141,7 +141,7 @@ static unsigned int hash_string(const char* str) {
     unsigned int hash = 5381;
     int c;
     while ((c = *str++)) {
-        hash = ((hash << 5) + hash) + c;
+        hash = ((hash << 5) + hash) + (unsigned int)c;
     }
     return hash % CACHE_HASH_SIZE;
 }

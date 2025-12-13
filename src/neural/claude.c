@@ -149,9 +149,9 @@ static char* json_escape(const char* str) {
                 default:
                     if (*p < 32) {
                         int written = snprintf(out, (size_t)(out_end - out), "\\u%04x", *p);
-                        if (written > 0) out += written;
+                        if (written > 0) out += (size_t)written;
                     } else {
-                        *out++ = *p;
+                        *out++ = (char)*p;
                     }
             }
             p++;
@@ -162,7 +162,7 @@ static char* json_escape(const char* str) {
             if (seq_len == 0) {
                 // Invalid UTF-8 start byte - replace with replacement char
                 int written = snprintf(out, (size_t)(out_end - out), "\\uFFFD");
-                if (written > 0) out += written;
+                if (written > 0) out += (size_t)written;
                 p++;
                 continue;
             }
@@ -178,7 +178,7 @@ static char* json_escape(const char* str) {
             if (!valid) {
                 // Incomplete or invalid sequence - replace with replacement char
                 int written = snprintf(out, (size_t)(out_end - out), "\\uFFFD");
-                if (written > 0) out += written;
+                if (written > 0) out += (size_t)written;
                 p++;
                 continue;
             }
@@ -187,20 +187,20 @@ static char* json_escape(const char* str) {
             int32_t cp = utf8_decode(p, seq_len);
 
             // Check for surrogates (invalid in UTF-8) or overlong encodings
-            if (cp < 0 || is_surrogate(cp) ||
+            if (cp < 0 || is_surrogate((uint32_t)cp) ||
                 (seq_len == 2 && cp < 0x80) ||
                 (seq_len == 3 && cp < 0x800) ||
                 (seq_len == 4 && cp < 0x10000)) {
                 // Invalid - replace with replacement char
                 int written = snprintf(out, (size_t)(out_end - out), "\\uFFFD");
-                if (written > 0) out += written;
+                if (written > 0) out += (size_t)written;
                 p++;
                 continue;
             }
 
             // Valid UTF-8 - copy as-is
             for (int i = 0; i < seq_len; i++) {
-                *out++ = p[i];
+                *out++ = (char)p[i];
             }
             p += seq_len;
         }
@@ -251,7 +251,7 @@ static char* extract_response_text(const char* json) {
 
     if (*end != '"') return NULL;  // No closing quote found
 
-    size_t len = end - start;
+    size_t len = (size_t)(end - start);
     char* result = malloc(len + 1);
     if (!result) return NULL;
 
@@ -567,7 +567,7 @@ static char* extract_tool_calls(const char* json) {
 
     if (depth != 0) return NULL;
 
-    size_t len = arr_end - arr_start;
+    size_t len = (size_t)(arr_end - arr_start);
     char* result = malloc(len + 1);
     if (!result) return NULL;
     strncpy(result, arr_start, len);
@@ -595,7 +595,7 @@ static char* extract_tool_name(const char* tool_json) {
     const char* end = strchr(found, '"');
     if (!end) return NULL;
 
-    size_t len = end - found;
+    size_t len = (size_t)(end - found);
     char* name = malloc(len + 1);
     if (!name) return NULL;
     strncpy(name, found, len);
@@ -631,7 +631,7 @@ static char* extract_tool_input(const char* tool_json) {
 
     if (depth != 0) return NULL;
 
-    size_t len = end - found;
+    size_t len = (size_t)(end - found);
     char* input = malloc(len + 1);
     if (!input) return NULL;
     strncpy(input, found, len);
@@ -817,7 +817,7 @@ static size_t stream_write_callback(void* contents, size_t size, size_t nmemb, v
                     }
 
                     if (*text_end == '"') {
-                        size_t text_len = text_end - text_start;
+                        size_t text_len = (size_t)(text_end - text_start);
 
                         // Unescape the text
                         char* chunk = malloc(text_len + 1);
@@ -1088,7 +1088,7 @@ char* nous_claude_chat_conversation(Conversation* conv, const char* user_message
             first ? "" : ",", msg->role, escaped_content);
 
         if (written > 0 && (size_t)written < messages_capacity - offset) {
-            offset += written;
+            offset += (size_t)written;
         }
 
         free(escaped_content);
@@ -1206,9 +1206,9 @@ char* nous_agent_think_with_claude(NousAgent* agent, const char* input) {
         "Rispondi in modo conciso (max 2-3 frasi) a meno che non ti venga chiesto di approfondire.",
         agent->name,
         agent->essence,
-        agent->patience * 100,
-        agent->creativity * 100,
-        agent->assertiveness * 100);
+        (double)(agent->patience * 100),
+        (double)(agent->creativity * 100),
+        (double)(agent->assertiveness * 100));
 
     return nous_claude_chat(system_prompt, input);
 }
@@ -1219,6 +1219,8 @@ char* nous_agent_think_with_claude(NousAgent* agent, const char* input) {
 
 int nous_generate_embedding(const char* text, NousEmbedding* out) {
     // TODO(#3): Use a proper embedding model (voyage-ai, openai embeddings, etc.)
+    // Status: Currently using simple character-based estimation
+    // Future: Integrate with embedding API providers for accurate token counting
     // For now, generate a deterministic pseudo-embedding from text hash
 
     if (!text || !out) return -1;
@@ -1228,7 +1230,7 @@ int nous_generate_embedding(const char* text, NousEmbedding* out) {
 
     unsigned long hash = 5381;
     for (const char* p = text; *p; p++) {
-        hash = ((hash << 5) + hash) + *p;
+        hash = ((hash << 5) + hash) + (unsigned char)*p;
     }
 
     for (int i = 0; i < NOUS_EMBEDDING_DIM; i++) {

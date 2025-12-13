@@ -171,9 +171,9 @@ void telemetry_view(void) {
 
                 // Extract and format
                 char key[64], value[256];
-                if (sscanf(line, " \"%[^\"]\" : \"%[^\"]\"", key, value) == 2) {
+                if (sscanf(line, " \"%63[^\"]\" : \"%255[^\"]\"", key, value) == 2) {
                     printf("  %s: %s\n", key, value);
-                } else if (sscanf(line, " \"%[^\"]\" : %[^,}]", key, value) == 2) {
+                } else if (sscanf(line, " \"%63[^\"]\" : %255[^,}]", key, value) == 2) {
                     // Handle timestamp conversion
                     if (strcmp(key, "timestamp") == 0) {
                         time_t t = atol(value);

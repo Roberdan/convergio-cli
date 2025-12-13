@@ -136,7 +136,7 @@ static const char* find_substring(const char* haystack, size_t hay_len,
     if (needle_len > hay_len) return NULL;
 
     // Use NEON for first-character scan
-    uint8x16_t first_char = vdupq_n_u8(needle[0]);
+    uint8x16_t first_char = vdupq_n_u8((uint8_t)needle[0]);
 
     for (size_t i = 0; i <= hay_len - needle_len; ) {
         // Scan for first character using SIMD
@@ -153,7 +153,7 @@ static const char* find_substring(const char* haystack, size_t hay_len,
             }
 
             // Check matches
-            for (int j = 0; j < 16 && i + j <= hay_len - needle_len; j++) {
+            for (size_t j = 0; j < 16 && i + j <= hay_len - needle_len; j++) {
                 if (haystack[i + j] == needle[0]) {
                     if (memcmp(&haystack[i + j], needle, needle_len) == 0) {
                         return &haystack[i + j];

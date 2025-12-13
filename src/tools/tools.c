@@ -1106,7 +1106,14 @@ ToolResult* tool_shell_exec(const char* command, const char* working_dir, int ti
     }
 
     int status = pclose(pipe);
-    int exit_code = WEXITSTATUS(status);
+    int exit_code = -1;
+    if (status != -1) {
+        if (WIFEXITED(status)) {
+            exit_code = WEXITSTATUS(status);
+        } else if (WIFSIGNALED(status)) {
+            exit_code = 128 + WTERMSIG(status);
+        }
+    }
 
     fchdir(old_cwd_fd);
     close(old_cwd_fd);
@@ -1284,7 +1291,7 @@ ToolResult* tool_memory_store(const char* content, const char* category, float i
     ToolResult* r;
     if (result == 0) {
         char msg[256];
-        snprintf(msg, sizeof(msg), "Stored memory with importance %.2f", importance);
+        snprintf(msg, sizeof(msg), "Stored memory with importance %.2f", (double)importance);
         r = result_success(msg);
     } else {
         r = result_error("Failed to store memory");
@@ -1335,7 +1342,7 @@ ToolResult* tool_memory_search(const char* query, size_t max_results, float min_
             output = new_output;
             capacity = new_capacity;
         }
-        out_len += snprintf(output + out_len, capacity - out_len, "[%zu] %s\n\n", i + 1, memories[i]);
+        out_len += (size_t)snprintf(output + out_len, capacity - out_len, "[%zu] %s\n\n", i + 1, memories[i]);
         free(memories[i]);
     }
     free(memories);
@@ -1531,7 +1538,7 @@ ToolResult* tool_note_read(const char* title, const char* search) {
                 char* newline = strchr(content, '\n');
                 if (newline) *newline = '\0';
 
-                len += snprintf(output + len, capacity - len,
+                len += (size_t)snprintf(output + len, capacity - len,
                     "- **%s**: %s\n", entry->d_name, first_line);
             }
 
@@ -1624,7 +1631,7 @@ ToolResult* tool_note_list(const char* tag_filter) {
             capacity = new_capacity;
         }
 
-        len += snprintf(output + len, capacity - len,
+        len += (size_t)snprintf(output + len, capacity - len,
             "- **%s** [%s] - %s\n",
             title[0] ? title : entry->d_name,
             tags[0] ? tags : "no tags",
@@ -1731,7 +1738,7 @@ ToolResult* tool_knowledge_search(const char* query, size_t max_results) {
                 capacity = new_capacity;
             }
 
-            len += snprintf(output + len, capacity - len,
+            len += (size_t)snprintf(output + len, capacity - len,
                 "### %s\n%s\n\n---\n\n",
                 filepath + strlen(get_knowledge_dir()) + 1,  // Remove prefix
                 content);
@@ -1836,15 +1843,15 @@ ToolResult* tool_project_team(const char* action, const char* agent_name) {
 
     if (strcmp(action, "list") == 0) {
         // List current team members
-        size_t offset = snprintf(msg, sizeof(msg),
+        size_t offset = (size_t)snprintf(msg, sizeof(msg),
             "Project '%s' team (%zu members):\n", proj->name, proj->team_count);
         for (size_t i = 0; i < proj->team_count && offset < sizeof(msg) - 64; i++) {
-            offset += snprintf(msg + offset, sizeof(msg) - offset,
+            offset += (size_t)snprintf(msg + offset, sizeof(msg) - offset,
                 "- %s%s%s\n",
                 proj->team[i].agent_name,
                 proj->team[i].role ? " (" : "",
                 proj->team[i].role ? proj->team[i].role : "");
-            if (proj->team[i].role) offset += snprintf(msg + offset, sizeof(msg) - offset, ")");
+            if (proj->team[i].role) offset += (size_t)snprintf(msg + offset, sizeof(msg) - offset, ")");
         }
         ToolResult* r = result_success(msg);
         r->execution_time = (double)(clock() - start) / CLOCKS_PER_SEC;
@@ -1911,7 +1918,7 @@ static char* json_get_string(const char* json, const char* key) {
         char* end = strchr(pos, '"');
         if (!end) return NULL;
 
-        size_t len = end - pos;
+        size_t len = (size_t)(end - pos);
         char* value = malloc(len + 1);
         strncpy(value, pos, len);
         value[len] = '\0';
@@ -2087,7 +2094,7 @@ ToolResult* tools_execute(const LocalToolCall* call) {
             char* query = json_get_string(args, "query");
             int max_results = json_get_int(args, "max_results", 5);
             float min_sim = (float)json_get_double(args, "min_similarity", 0.5);
-            ToolResult* r = tool_memory_search(query, max_results, min_sim);
+            ToolResult* r = tool_memory_search(query, (size_t)max_results, min_sim);
             free(query);
             return r;
         }
@@ -2122,7 +2129,7 @@ ToolResult* tools_execute(const LocalToolCall* call) {
         case TOOL_KNOWLEDGE_SEARCH: {
             char* query = json_get_string(args, "query");
             int max_results = json_get_int(args, "max_results", 5);
-            ToolResult* r = tool_knowledge_search(query, max_results);
+            ToolResult* r = tool_knowledge_search(query, (size_t)max_results);
             free(query);
             return r;
         }

@@ -24,16 +24,35 @@ static void print_separator(size_t width) {
 static const char* truncate_string(const char* str, size_t max_len, char* buffer, size_t buf_size) {
     if (!str) return "(null)";
 
+    if (!buffer || buf_size == 0) {
+        return str;
+    }
+
+    // Need at least space for "..." and a null terminator.
+    if (buf_size < 4) {
+        return str;
+    }
+
     size_t len = strlen(str);
     if (len <= max_len) {
         return str;
     }
 
     // Truncate and add ellipsis
-    size_t copy_len = (max_len - 3 < buf_size - 4) ? max_len - 3 : buf_size - 4;
-    strncpy(buffer, str, copy_len);
-    buffer[copy_len] = '\0';
-    strcat(buffer, "...");
+    if (max_len <= 3) {
+        size_t copy_len = buf_size - 1;
+        memcpy(buffer, str, copy_len);
+        buffer[copy_len] = '\0';
+        return buffer;
+    }
+
+    size_t copy_len = max_len - 3;
+    if (copy_len > buf_size - 4) {
+        copy_len = buf_size - 4;
+    }
+
+    memcpy(buffer, str, copy_len);
+    memcpy(buffer + copy_len, "...", 4);
     return buffer;
 }
 
@@ -142,7 +161,7 @@ void render_metrics_chart(const CompareResult* results, size_t count) {
                 printf("  %-22s ", model_name);
 
                 int bar_width = (int)((results[i].time_ms / max_time) * 40);
-                for (int j = 0; j < bar_width; j++) {
+                for (size_t j = 0; j < (size_t)bar_width; j++) {
                     printf("█");
                 }
                 printf(" %.1f ms\n", results[i].time_ms);
@@ -161,7 +180,7 @@ void render_metrics_chart(const CompareResult* results, size_t count) {
                 printf("  %-22s ", model_name);
 
                 int bar_width = (int)((results[i].cost / max_cost) * 40);
-                for (int j = 0; j < bar_width; j++) {
+                for (size_t j = 0; j < (size_t)bar_width; j++) {
                     printf("█");
                 }
                 printf(" $%.4f\n", results[i].cost);
@@ -199,42 +218,42 @@ char* render_comparison_json(const CompareResult* results, size_t count) {
     if (!json) return NULL;
 
     size_t pos = 0;
-    pos += snprintf(json + pos, size - pos, "{\n  \"results\": [\n");
+    pos += (size_t)snprintf(json + pos, size - pos, "{\n  \"results\": [\n");
 
     for (size_t i = 0; i < count; i++) {
         const CompareResult* res = &results[i];
 
-        pos += snprintf(json + pos, size - pos, "    {\n");
-        pos += snprintf(json + pos, size - pos, "      \"model\": \"%s\",\n", res->model_id ? res->model_id : "");
-        pos += snprintf(json + pos, size - pos, "      \"success\": %s,\n", res->success ? "true" : "false");
+        pos += (size_t)snprintf(json + pos, size - pos, "    {\n");
+        pos += (size_t)snprintf(json + pos, size - pos, "      \"model\": \"%s\",\n", res->model_id ? res->model_id : "");
+        pos += (size_t)snprintf(json + pos, size - pos, "      \"success\": %s,\n", res->success ? "true" : "false");
 
         if (res->success) {
-            pos += snprintf(json + pos, size - pos, "      \"time_ms\": %.2f,\n", res->time_ms);
-            pos += snprintf(json + pos, size - pos, "      \"tokens_in\": %zu,\n", res->tokens_in);
-            pos += snprintf(json + pos, size - pos, "      \"tokens_out\": %zu,\n", res->tokens_out);
-            pos += snprintf(json + pos, size - pos, "      \"cost\": %.4f,\n", res->cost);
+            pos += (size_t)snprintf(json + pos, size - pos, "      \"time_ms\": %.2f,\n", res->time_ms);
+            pos += (size_t)snprintf(json + pos, size - pos, "      \"tokens_in\": %zu,\n", res->tokens_in);
+            pos += (size_t)snprintf(json + pos, size - pos, "      \"tokens_out\": %zu,\n", res->tokens_out);
+            pos += (size_t)snprintf(json + pos, size - pos, "      \"cost\": %.4f,\n", res->cost);
 
             if (res->response) {
                 char escaped[4096];
                 json_escape_string(res->response, escaped, sizeof(escaped));
-                pos += snprintf(json + pos, size - pos, "      \"response\": \"%s\"\n", escaped);
+                pos += (size_t)snprintf(json + pos, size - pos, "      \"response\": \"%s\"\n", escaped);
             } else {
-                pos += snprintf(json + pos, size - pos, "      \"response\": null\n");
+                pos += (size_t)snprintf(json + pos, size - pos, "      \"response\": null\n");
             }
         } else {
             if (res->error) {
                 char escaped[512];
                 json_escape_string(res->error, escaped, sizeof(escaped));
-                pos += snprintf(json + pos, size - pos, "      \"error\": \"%s\"\n", escaped);
+                pos += (size_t)snprintf(json + pos, size - pos, "      \"error\": \"%s\"\n", escaped);
             } else {
-                pos += snprintf(json + pos, size - pos, "      \"error\": \"Unknown error\"\n");
+                pos += (size_t)snprintf(json + pos, size - pos, "      \"error\": \"Unknown error\"\n");
             }
         }
 
-        pos += snprintf(json + pos, size - pos, "    }%s\n", (i < count - 1) ? "," : "");
+        pos += (size_t)snprintf(json + pos, size - pos, "    }%s\n", (i < count - 1) ? "," : "");
     }
 
-    pos += snprintf(json + pos, size - pos, "  ]\n}\n");
+    pos += (size_t)snprintf(json + pos, size - pos, "  ]\n}\n");
 
     return json;
 }

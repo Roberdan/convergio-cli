@@ -216,7 +216,7 @@ static void* spinner_func(void* arg) {
     struct termios raw;
     tcgetattr(STDIN_FILENO, &g_orig_termios);
     raw = g_orig_termios;
-    raw.c_lflag &= ~(ICANON | ECHO);  // Disable canonical mode and echo
+    raw.c_lflag &= (tcflag_t)~(ICANON | ECHO);  // Disable canonical mode and echo
     raw.c_cc[VMIN] = 0;   // Non-blocking read
     raw.c_cc[VTIME] = 0;  // No timeout
     tcsetattr(STDIN_FILENO, TCSANOW, &raw);
@@ -585,7 +585,7 @@ int repl_parse_and_execute(char* line) {
 
         const char* space = strchr(line, ' ');
         if (space) {
-            size_t name_len = space - line - 1;  // -1 to skip @
+            size_t name_len = (size_t)(space - line - 1);  // -1 to skip @
             if (name_len > 0 && name_len < sizeof(agent_name)) {
                 strncpy(agent_name, line + 1, name_len);
                 agent_name[name_len] = '\0';
