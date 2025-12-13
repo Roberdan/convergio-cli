@@ -32,6 +32,7 @@ typedef enum {
     TOOL_NOTE_LIST,       // List notes
     TOOL_KNOWLEDGE_SEARCH,// Search knowledge base
     TOOL_KNOWLEDGE_ADD,   // Add to knowledge base
+    TOOL_PROJECT_TEAM,    // Manage project team
     TOOL_AGENT_DELEGATE,  // Delegate to another agent
 } ToolType;
 
