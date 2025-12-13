@@ -47,7 +47,6 @@ int cmd_setup(int argc, char** argv);
 
 static const ReplCommand COMMANDS[] = {
     {"help",        "Show available commands",           cmd_help},
-    {"create",      "Create a semantic node",            cmd_create},
     {"agent",       "Manage agents",                     cmd_agent},
     {"agents",      "List all available agents",         cmd_agents},
     {"project",     "Manage projects with dedicated teams", cmd_project},
@@ -64,7 +63,6 @@ static const ReplCommand COMMANDS[] = {
     {"hardware",    "Show hardware information",         cmd_hardware},
     {"stream",      "Toggle streaming mode (on/off)",    cmd_stream},
     {"theme",       "Interactive theme selector (or /theme <name>)", cmd_theme},
-    {"think",       "Process an intent",                 cmd_think},
     {"compare",     "Compare models side-by-side",       cmd_compare},
     {"benchmark",   "Benchmark a model's performance",   cmd_benchmark},
     {"telemetry",   "Manage telemetry settings",         cmd_telemetry},
@@ -537,8 +535,7 @@ int cmd_help(int argc, char** argv) {
     printf("\033[1;33m⚡ POWER FEATURES\033[0m\n");
     printf("   \033[36mcompare \"prompt\"\033[0m           Compare Claude vs GPT vs Gemini side-by-side\n");
     printf("   \033[36mbenchmark \"prompt\" <model>\033[0m Measure model speed & consistency\n");
-    printf("   \033[36msetup\033[0m                      Configure providers & models per agent\n");
-    printf("   \033[36mthink \"intent\"\033[0m             Parse & process natural language intent\n\n");
+    printf("   \033[36msetup\033[0m                      Configure providers & models per agent\n\n");
 
     // 4. CUSTOMIZATION
     printf("\033[1;33m🎨 CUSTOMIZATION\033[0m\n");
