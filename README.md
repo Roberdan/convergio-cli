@@ -249,52 +249,223 @@ Ali can interact with the real world using these tools:
 
 ## Architecture
 
+### System Overview
+
+```mermaid
+flowchart TB
+    subgraph UI["🖥️ User Interface Layer"]
+        REPL["REPL Commands"]
+        StatusBar["Status Bar<br/>(tokens, costs, model)"]
+        Terminal["Terminal UI<br/>(ANSI, Hyperlinks)"]
+    end
+
+    subgraph ORCH["🎯 Orchestrator Layer"]
+        Ali["Ali<br/>(Chief of Staff)"]
+        Planning["Task Planning"]
+        CostCtrl["Cost Control"]
+        MsgBus["Message Bus"]
+        Conv["Convergence"]
+    end
+
+    subgraph ROUTER["🧠 Intelligent Routing Layer"]
+        ModelRouter["Model Router"]
+        CostOpt["Cost Optimizer"]
+        BudgetCheck["Budget Check"]
+        Failover["Provider Failover"]
+    end
+
+    subgraph PROVIDERS["☁️ Multi-Provider Layer"]
+        direction LR
+        Anthropic["Anthropic<br/>Claude Opus 4.5<br/>Claude Sonnet 4.5"]
+        OpenAI["OpenAI<br/>GPT-5.2 Pro<br/>o3, GPT-4o"]
+        Gemini["Google Gemini<br/>Gemini 3.0 Pro<br/>Gemini 2.0 Flash"]
+    end
+
+    subgraph AGENTS["👥 Agent Execution Layer"]
+        AgentPool["Agent Pool<br/>(49 specialists)"]
+        GCD["GCD Parallelization"]
+        AgentState["Agent State<br/>Management"]
+    end
+
+    subgraph TOOLS["🔧 Tool Execution Layer"]
+        FileTools["File Tools<br/>(read/write/list)"]
+        ShellExec["Shell Exec"]
+        WebFetch["Web Fetch"]
+        MemoryRAG["Memory & RAG"]
+        KnowledgeBase["Knowledge Base"]
+    end
+
+    subgraph FABRIC["🧬 Semantic Fabric Layer"]
+        SemanticGraph["Semantic Node Graph<br/>(64-shard, lock-free)"]
+        NEON["NEON SIMD Search"]
+        SQLite["SQLite Persistence"]
+    end
+
+    subgraph SILICON["⚡ Apple Silicon Layer"]
+        Metal["Metal GPU"]
+        Accelerate["Accelerate Framework"]
+        GCDQueues["GCD Dispatch Queues"]
+        Keychain["macOS Keychain"]
+    end
+
+    UI --> ORCH
+    ORCH --> ROUTER
+    ROUTER --> PROVIDERS
+    PROVIDERS --> ORCH
+    ORCH --> AGENTS
+    AGENTS --> TOOLS
+    TOOLS --> FABRIC
+    FABRIC --> SILICON
+
+    Ali --> Planning
+    Ali --> CostCtrl
+    Ali --> MsgBus
+    MsgBus --> Conv
+
+    ModelRouter --> BudgetCheck
+    ModelRouter --> CostOpt
+    CostOpt --> Failover
+
+    AgentPool --> GCD
+    GCD --> AgentState
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                         USER INPUT                               │
-└─────────────────────────────────────────────────────────────────┘
-                               │
-                               ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                    INTELLIGENT MODEL ROUTER                      │
-│  ┌───────────────┐  ┌───────────────┐  ┌───────────────┐       │
-│  │ Budget Check  │  │ Task Classify │  │ Provider Avail│       │
-│  └───────────────┘  └───────────────┘  └───────────────┘       │
-└─────────────────────────────────────────────────────────────────┘
-                               │
-          ┌────────────────────┼────────────────────┐
-          ▼                    ▼                    ▼
-┌──────────────────┐  ┌──────────────────┐  ┌──────────────────┐
-│   ANTHROPIC      │  │    OPENAI        │  │    GEMINI        │
-│  Claude Opus 4.5 │  │   GPT-5.2 Pro    │  │  Gemini 3.0 Pro  │
-│  Claude Sonnet4.5│  │   GPT-5.2/o3     │  │  Gemini DeepThink│
-│                  │  │   GPT-5.2 Instant│  │  Gemini 2.0 Flash│
-└──────────────────┘  └──────────────────┘  └──────────────────┘
-          │                    │                    │
-          └────────────────────┼────────────────────┘
-                               │
-                               ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                    ALI - Chief of Staff                          │
-│  ┌───────────────┐  ┌───────────────┐  ┌───────────────┐       │
-│  │ Cost Control  │  │ Task Planner  │  │ Memory/RAG    │       │
-│  └───────────────┘  └───────────────┘  └───────────────┘       │
-│                                                                  │
-│  ┌───────────────────────────────────────────────────────────┐  │
-│  │              PARALLEL DELEGATION (GCD)                     │  │
-│  │     [Agent 1] ──┐                                          │  │
-│  │     [Agent 2] ──┼──→ CONVERGENCE ──→ Unified Response     │  │
-│  │     [Agent N] ──┘                                          │  │
-│  └───────────────────────────────────────────────────────────┘  │
-└─────────────────────────────────────────────────────────────────┘
-          │                    │                    │
-          ▼                    ▼                    ▼
-┌──────────────────┐  ┌──────────────────┐  ┌──────────────────┐
-│  Agent Pool      │  │  Message Bus     │  │  SQLite DB       │
-│  (49 agents)     │  │  (inter-agent)   │  │  (persistence)   │
-│  Model per agent │  │  Priority queues │  │  Cost tracking   │
-└──────────────────┘  └──────────────────┘  └──────────────────┘
+
+### Request Flow
+
+```mermaid
+sequenceDiagram
+    participant U as User
+    participant R as REPL
+    participant A as Ali (Orchestrator)
+    participant MR as Model Router
+    participant P as Provider (Claude/GPT/Gemini)
+    participant AG as Specialist Agents
+    participant T as Tools
+    participant DB as SQLite
+
+    U->>R: Input query
+    R->>A: Parse & route
+    A->>MR: Check budget & select model
+    MR->>MR: Budget check
+    MR->>P: Select optimal provider
+    P-->>A: Provider ready
+
+    alt Simple Task
+        A->>P: Direct API call
+        P-->>A: Response
+    else Complex Task
+        A->>AG: Delegate to specialists
+        par Parallel Execution
+            AG->>P: Agent 1 query
+            AG->>P: Agent 2 query
+            AG->>P: Agent N query
+        end
+        AG->>T: Tool calls (file/shell/web)
+        T-->>AG: Tool results
+        AG-->>A: Agent responses
+        A->>A: Convergence
+    end
+
+    A->>DB: Persist conversation & costs
+    A-->>R: Formatted response
+    R-->>U: Display with status bar
 ```
+
+### Budget-Aware Model Selection
+
+```mermaid
+flowchart LR
+    Budget["Current Budget"] --> Check{Budget Level?}
+
+    Check -->|"> $3.00"| Premium["Premium Models<br/>Claude Opus 4.5<br/>GPT-5.2 Pro"]
+    Check -->|"> $1.00"| Balanced["Balanced Models<br/>Claude Sonnet 4.5<br/>GPT-5.2"]
+    Check -->|"> $0.10"| Fast["Fast/Cheap Models<br/>GPT-5.2 Instant<br/>Gemini 2.0 Flash"]
+    Check -->|"< $0.10"| Pause["⚠️ Session Paused<br/>Confirmation Required"]
+
+    Premium --> Execute["Execute Query"]
+    Balanced --> Execute
+    Fast --> Execute
+    Pause --> Confirm{"User Confirms?"}
+    Confirm -->|Yes| AddBudget["Add Budget"]
+    Confirm -->|No| End["End Session"]
+    AddBudget --> Check
+```
+
+### Component Relationships
+
+```mermaid
+graph TB
+    subgraph Core["Core Components"]
+        Main["main.c<br/>Entry Point"]
+        Fabric["fabric.c<br/>Semantic Graph"]
+        Config["config.c<br/>Configuration"]
+        REPL["repl.c<br/>Interactive Shell"]
+    end
+
+    subgraph Orchestration["Orchestration"]
+        Orch["orchestrator.c<br/>Ali Coordinator"]
+        Registry["registry.c<br/>Agent Registry"]
+        Cost["cost.c<br/>Cost Tracking"]
+        Delegation["delegation.c<br/>Task Delegation"]
+        Convergence["convergence.c<br/>Result Merging"]
+    end
+
+    subgraph Providers["Provider Adapters"]
+        ProviderC["provider.c<br/>Abstract Interface"]
+        AnthropicC["anthropic.c<br/>Claude API"]
+        OpenAIC["openai.c<br/>GPT API"]
+        GeminiC["gemini.c<br/>Gemini API"]
+        Streaming["streaming.c<br/>SSE Processing"]
+        Retry["retry.c<br/>Resilience"]
+    end
+
+    subgraph AgentSystem["Agent System"]
+        Agent["agent.c<br/>Base Agent"]
+        Embedded["embedded_agents.c<br/>49 Specialists"]
+        AgentConfig["agent_config.c<br/>Model Mapping"]
+    end
+
+    subgraph Storage["Storage & Memory"]
+        Persistence["persistence.c<br/>SQLite Backend"]
+        Tools["tools.c<br/>Tool Execution"]
+    end
+
+    Main --> Fabric
+    Main --> Config
+    Main --> REPL
+    REPL --> Orch
+    Orch --> Registry
+    Orch --> Cost
+    Orch --> Delegation
+    Delegation --> Convergence
+    Registry --> Agent
+    Agent --> Embedded
+    Agent --> AgentConfig
+    Orch --> ProviderC
+    ProviderC --> AnthropicC
+    ProviderC --> OpenAIC
+    ProviderC --> GeminiC
+    AnthropicC --> Streaming
+    OpenAIC --> Streaming
+    GeminiC --> Streaming
+    Streaming --> Retry
+    Agent --> Tools
+    Tools --> Persistence
+    Cost --> Persistence
+```
+
+### Data Flow Summary
+
+| Layer | Components | Responsibility |
+|-------|------------|----------------|
+| **UI** | REPL, Status Bar, Terminal | User interaction, display |
+| **Orchestrator** | Ali, Planning, Cost Control | Task coordination, resource management |
+| **Router** | Model Router, Cost Optimizer | Intelligent model selection, failover |
+| **Providers** | Anthropic, OpenAI, Gemini adapters | API communication, streaming |
+| **Agents** | 49 specialists + Agent Pool | Specialized task execution |
+| **Tools** | File, Shell, Web, Memory | External interactions |
+| **Fabric** | Semantic Graph, NEON SIMD | Vector search, embeddings |
+| **Silicon** | Metal GPU, GCD, Keychain | Hardware acceleration, security |
 
 ## How is this different from Claude CLI?
 
