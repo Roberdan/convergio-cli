@@ -61,9 +61,8 @@ FRAMEWORKS = -framework Metal \
              -framework Security \
              -framework AppKit
 
-# Libraries
-LDFLAGS = -L/opt/homebrew/lib
-LIBS = -lreadline -lcurl -lsqlite3 -lcjson
+# Libraries (cJSON linked statically to avoid dylib signature issues)
+LIBS = -lreadline -lcurl -lsqlite3 /opt/homebrew/opt/cjson/lib/libcjson.a
 
 # Swift Package Manager (for MLX integration)
 SWIFT_BUILD_DIR = .build/release
