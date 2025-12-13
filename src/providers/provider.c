@@ -514,6 +514,36 @@ static const char* g_provider_api_key_envs[] = {
 };
 
 // ============================================================================
+// HTTP ERROR CODE MAPPING
+// ============================================================================
+
+/**
+ * Map HTTP status code to ProviderError
+ * This provides consistent error handling across all providers
+ */
+ProviderError provider_map_http_error(long http_code) {
+    if (http_code == 200) {
+        return PROVIDER_OK;
+    } else if (http_code == 401) {
+        return PROVIDER_ERR_AUTH;
+    } else if (http_code == 403) {
+        return PROVIDER_ERR_AUTH;  // Forbidden usually means auth issue
+    } else if (http_code == 404) {
+        return PROVIDER_ERR_MODEL_NOT_FOUND;
+    } else if (http_code == 413) {
+        return PROVIDER_ERR_CONTEXT_LENGTH;  // Payload too large
+    } else if (http_code == 429) {
+        return PROVIDER_ERR_RATE_LIMIT;
+    } else if (http_code == 500) {
+        return PROVIDER_ERR_OVERLOADED;
+    } else if (http_code == 502 || http_code == 503 || http_code == 504) {
+        return PROVIDER_ERR_OVERLOADED;  // Bad gateway, service unavailable, gateway timeout
+    } else {
+        return PROVIDER_ERR_UNKNOWN;
+    }
+}
+
+// ============================================================================
 // ERROR MESSAGES
 // ============================================================================
 
@@ -685,11 +715,11 @@ const ModelConfig* model_get_config(const char* model_id) {
     // Determine provider from prefix if present
     ProviderType hint = PROVIDER_COUNT;  // Invalid, search all
     if (slash) {
-        size_t prefix_len = slash - model_id;
+        size_t prefix_len = (size_t)(slash - model_id);
         for (int i = 0; i < PROVIDER_COUNT; i++) {
             if (strncmp(model_id, g_provider_names[i], prefix_len) == 0 &&
                 strlen(g_provider_names[i]) == prefix_len) {
-                hint = i;
+                hint = (ProviderType)i;
                 break;
             }
         }

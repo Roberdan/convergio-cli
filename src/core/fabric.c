@@ -41,7 +41,7 @@ static SemanticID generate_semantic_id(SemanticType type) {
     // - timestamp occupies bits 24-63
     // - type occupies bits 16-23 (see SEMANTIC_TYPE_MASK/SHIFT)
     // - counter occupies bits 0-15
-    uint64_t time_part = ((uint64_t)ts.tv_sec * 1000000000ULL + ts.tv_nsec) & 0xFFFFFFFFFFULL;
+    uint64_t time_part = ((uint64_t)ts.tv_sec * 1000000000ULL + (uint64_t)ts.tv_nsec) & 0xFFFFFFFFFFULL;
     uint64_t type_part = ((uint64_t)type & 0xFF) << 16;
     uint64_t count_part = (atomic_fetch_add(&counter, 1) & 0xFFFF);
 
@@ -252,7 +252,7 @@ SemanticID nous_create_node(SemanticType type, const char* essence) {
     // Initialize timestamps
     struct timespec ts;
     clock_gettime(CLOCK_REALTIME, &ts);
-    node->created_at = (uint64_t)ts.tv_sec * 1000000000ULL + ts.tv_nsec;
+    node->created_at = (uint64_t)ts.tv_sec * 1000000000ULL + (uint64_t)ts.tv_nsec;
     node->last_accessed = node->created_at;
 
     // Insert into shard with lock
@@ -297,7 +297,7 @@ NousSemanticNode* nous_get_node(SemanticID id) {
             // Update access time (non-blocking on P-cores)
             struct timespec ts;
             clock_gettime(CLOCK_REALTIME, &ts);
-            node->last_accessed = (uint64_t)ts.tv_sec * 1000000000ULL + ts.tv_nsec;
+            node->last_accessed = (uint64_t)ts.tv_sec * 1000000000ULL + (uint64_t)ts.tv_nsec;
             node->access_count++;
 
             os_unfair_lock_unlock(&shard->lock);

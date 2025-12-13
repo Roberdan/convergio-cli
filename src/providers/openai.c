@@ -122,14 +122,14 @@ static char* json_escape(const char* str) {
                 default:
                     if (*p < 32) {
                         int written = snprintf(out, 7, "\\u%04x", *p);
-                        if (written > 0) out += written;
+                        if (written > 0) out += (size_t)written;
                     } else {
-                        *out++ = *p;
+                        *out++ = (char)*p;
                     }
             }
             p++;
         } else {
-            *out++ = *p++;
+            *out++ = (char)*p++;
         }
     }
     *out = '\0';
@@ -171,7 +171,7 @@ static char* extract_response_content(const char* json) {
 
     if (*end != '"') return NULL;
 
-    size_t len = end - start;
+    size_t len = (size_t)(end - start);
     char* result = malloc(len + 1);
     if (!result) return NULL;
 
@@ -403,9 +403,9 @@ static char* openai_chat(Provider* self, const char* model, const char* system,
         data->last_error.code = PROVIDER_ERR_NETWORK;
         data->last_error.message = strdup(curl_easy_strerror(res));
     } else if (http_code != 200) {
-        data->last_error.code = PROVIDER_ERR_UNKNOWN;
+        data->last_error.code = provider_map_http_error(http_code);
         data->last_error.message = strdup(response.data ? response.data : "Unknown error");
-        LOG_WARN(LOG_CAT_API, "OpenAI API error: HTTP %ld", http_code);
+        LOG_WARN(LOG_CAT_API, "OpenAI API error: HTTP %ld -> %d", http_code, data->last_error.code);
     } else {
         result = extract_response_content(response.data);
         if (!result) {

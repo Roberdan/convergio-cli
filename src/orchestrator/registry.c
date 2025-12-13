@@ -98,7 +98,7 @@ AgentHashTable* agent_hash_create(void) {
 
 void agent_hash_destroy(AgentHashTable* ht) {
     if (!ht) return;
-    for (int i = 0; i < AGENT_HASH_SIZE; i++) {
+    for (size_t i = 0; i < AGENT_HASH_SIZE; i++) {
         AgentHashEntry* entry = ht->buckets[i];
         while (entry) {
             AgentHashEntry* next = entry->next;
@@ -194,7 +194,7 @@ MessagePool* message_pool_create(void) {
 void message_pool_destroy(MessagePool* pool) {
     if (!pool) return;
     // Free any strings in used messages
-    for (int i = 0; i < MESSAGE_POOL_SIZE; i++) {
+    for (size_t i = 0; i < MESSAGE_POOL_SIZE; i++) {
         if (pool->in_use[i]) {
             free(pool->messages[i].content);
             free(pool->messages[i].metadata_json);
@@ -207,7 +207,7 @@ Message* message_pool_alloc(MessagePool* pool) {
     if (!pool) return NULL;
 
     // Find free slot starting from next_free
-    for (int i = 0; i < MESSAGE_POOL_SIZE; i++) {
+    for (size_t i = 0; i < MESSAGE_POOL_SIZE; i++) {
         size_t idx = (pool->next_free + i) % MESSAGE_POOL_SIZE;
         if (!pool->in_use[idx]) {
             pool->in_use[idx] = 1;
@@ -416,7 +416,7 @@ ManagedAgent* agent_spawn(AgentRole role, const char* name, const char* context)
 
     // Find default prompt for this agent
     const char* system_prompt = NULL;
-    for (int i = 0; CORE_AGENTS[i].name != NULL; i++) {
+    for (size_t i = 0; CORE_AGENTS[i].name != NULL; i++) {
         if (strcasecmp(CORE_AGENTS[i].name, name) == 0) {
             system_prompt = CORE_AGENTS[i].default_prompt;
             role = CORE_AGENTS[i].role;
@@ -866,9 +866,9 @@ size_t agent_select_for_task(const char* task_description, ManagedAgent** out_ag
     size_t count = 0;
 
     // Find matching agents
-    for (int i = 0; TASK_MAPPINGS[i].keyword != NULL && count < max_count; i++) {
+    for (size_t i = 0; TASK_MAPPINGS[i].keyword != NULL && count < max_count; i++) {
         if (strstr(lower, TASK_MAPPINGS[i].keyword)) {
-            for (int j = 0; TASK_MAPPINGS[i].agents[j] != NULL && count < max_count; j++) {
+            for (size_t j = 0; TASK_MAPPINGS[i].agents[j] != NULL && count < max_count; j++) {
                 ManagedAgent* agent = agent_find_by_name(TASK_MAPPINGS[i].agents[j]);
                 if (!agent) {
                     // Spawn if not exists
@@ -1040,9 +1040,9 @@ char* agent_get_working_status(void) {
     }
 
     if (working_count == 0) {
-        offset = snprintf(status, buf_size, "\033[2mNo agents currently working\033[0m\n");
+        offset = (size_t)snprintf(status, buf_size, "\033[2mNo agents currently working\033[0m\n");
     } else {
-        offset = snprintf(status, buf_size,
+        offset = (size_t)snprintf(status, buf_size,
             "\033[1m🔄 Active Agents (%zu working)\033[0m\n",
             working_count);
 
@@ -1078,17 +1078,17 @@ char* agent_get_working_status(void) {
             time_t now = time(NULL);
             int duration = agent->work_started_at > 0 ? (int)(now - agent->work_started_at) : 0;
 
-            offset += snprintf(status + offset, buf_size - offset,
+            offset += (size_t)snprintf(status + offset, buf_size - offset,
                 "  %s %s%s\033[0m", state_icon, state_color, agent->name);
 
             if (agent->current_task) {
-                offset += snprintf(status + offset, buf_size - offset,
+                offset += (size_t)snprintf(status + offset, buf_size - offset,
                     " - %.40s%s", agent->current_task,
                     strlen(agent->current_task) > 40 ? "..." : "");
             }
 
             if (duration > 0) {
-                offset += snprintf(status + offset, buf_size - offset,
+                offset += (size_t)snprintf(status + offset, buf_size - offset,
                     " \033[2m(%ds)\033[0m", duration);
             }
 
@@ -1097,14 +1097,14 @@ char* agent_get_working_status(void) {
                 // Find partner name
                 for (size_t j = 0; j < orch->agent_count; j++) {
                     if (orch->agents[j]->id == agent->collaborating_with) {
-                        offset += snprintf(status + offset, buf_size - offset,
+                        offset += (size_t)snprintf(status + offset, buf_size - offset,
                             " ↔ %s", orch->agents[j]->name);
                         break;
                     }
                 }
             }
 
-            offset += snprintf(status + offset, buf_size - offset, "\n");
+            offset += (size_t)snprintf(status + offset, buf_size - offset, "\n");
         }
     }
 
@@ -1219,12 +1219,12 @@ char* agent_registry_status(void) {
 
     // Header (different if project active)
     if (proj) {
-        offset += snprintf(status + offset, buf_size - offset,
+        offset += (size_t)snprintf(status + offset, buf_size - offset,
             "\033[1mAgenti Progetto: %s\033[0m\n\n"
             "Team di \033[1;36m%zu agenti\033[0m per questo progetto:\n\n",
             proj->name, proj->team_count);
     } else {
-        offset += snprintf(status + offset, buf_size - offset,
+        offset += (size_t)snprintf(status + offset, buf_size - offset,
             "\033[1mI Miei Agenti Disponibili\033[0m\n\n"
             "Ho a disposizione \033[1;36m%zu agenti specialistici\033[0m organizzati per area:\n\n",
             orch->agent_count);
@@ -1244,12 +1244,12 @@ char* agent_registry_status(void) {
         "🔧 Altri Specialisti"
     };
 
-    for (int cat = 0; cat < 10; cat++) {
+    for (size_t cat = 0; cat < 10; cat++) {
         // Count agents in this category (with project filtering)
-        int count = 0;
+        size_t count = 0;
         for (size_t i = 0; i < orch->agent_count; i++) {
             ManagedAgent* a = orch->agents[i];
-            if (get_agent_category(a) == cat) {
+            if (get_agent_category(a) == (int)cat) {
                 // Apply project filter if active
                 if (!proj || project_has_agent(a->name)) count++;
             }
@@ -1257,13 +1257,13 @@ char* agent_registry_status(void) {
         if (count == 0) continue;
 
         // Category header
-        offset += snprintf(status + offset, buf_size - offset,
+        offset += (size_t)snprintf(status + offset, buf_size - offset,
             "\033[1m%s\033[0m\n", cat_names[cat]);
 
         // Agents in this category (with project filtering)
         for (size_t i = 0; i < orch->agent_count && offset < buf_size - 512; i++) {
             ManagedAgent* agent = orch->agents[i];
-            if (get_agent_category(agent) != cat) continue;
+            if (get_agent_category(agent) != (int)cat) continue;
 
             // Apply project filter if active
             if (proj && !project_has_agent(agent->name)) continue;
@@ -1300,14 +1300,14 @@ char* agent_registry_status(void) {
                 }
             }
 
-            offset += snprintf(status + offset, buf_size - offset,
+            offset += (size_t)snprintf(status + offset, buf_size - offset,
                 "  • \033[36m%-12s\033[0m \033[2m- %s\033[0m\n",
                 short_name, desc[0] ? desc : "-");
         }
-        offset += snprintf(status + offset, buf_size - offset, "\n");
+        offset += (size_t)snprintf(status + offset, buf_size - offset, "\n");
     }
 
-    offset += snprintf(status + offset, buf_size - offset,
+    offset += (size_t)snprintf(status + offset, buf_size - offset,
         "\033[2mUsa:\033[0m \033[36m@nome messaggio\033[0m  \033[2m(es. @baccio rivedi questo codice)\033[0m\n");
 
     CONVERGIO_MUTEX_UNLOCK(&g_registry_mutex);

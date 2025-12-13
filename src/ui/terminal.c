@@ -225,13 +225,13 @@ int terminal_enable_raw_mode(void) {
     struct termios raw = g_terminal.original_termios;
 
     // Disable echo and canonical mode
-    raw.c_lflag &= ~(ECHO | ICANON | ISIG | IEXTEN);
+    raw.c_lflag &= (tcflag_t)~(ECHO | ICANON | ISIG | IEXTEN);
 
     // Disable flow control
-    raw.c_iflag &= ~(IXON | ICRNL | BRKINT | INPCK | ISTRIP);
+    raw.c_iflag &= (tcflag_t)~(IXON | ICRNL | BRKINT | INPCK | ISTRIP);
 
     // Disable output processing
-    raw.c_oflag &= ~(OPOST);
+    raw.c_oflag &= (tcflag_t)~(OPOST);
 
     // Set character size to 8 bits
     raw.c_cflag |= CS8;
@@ -451,7 +451,7 @@ typedef enum {
 // Read a single keypress (may return special keys)
 int terminal_read_key(void) {
     char c;
-    int nread = read(STDIN_FILENO, &c, 1);
+    ssize_t nread = read(STDIN_FILENO, &c, 1);
     if (nread <= 0) return -1;
 
     // Handle escape sequences

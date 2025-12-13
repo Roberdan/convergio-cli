@@ -539,7 +539,7 @@ int main(int argc, char** argv) {
                                         i > 0 ? ", " : "", short_name);
                 if (written > 0 && (size_t)written < agents_remaining) {
                     agents_ptr += written;
-                    agents_remaining -= written;
+                    agents_remaining -= (size_t)written;
                 }
             }
             if (working_count > 3) {

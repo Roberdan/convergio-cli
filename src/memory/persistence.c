@@ -25,6 +25,16 @@
 static sqlite3* g_db = NULL;
 CONVERGIO_MUTEX_DECLARE(g_db_mutex);
 
+// Prepared statement cache for frequently used queries (performance optimization)
+#define STMT_CACHE_SIZE 8
+typedef struct {
+    const char* sql;
+    sqlite3_stmt* stmt;
+    bool in_use;
+} StmtCacheEntry;
+
+static StmtCacheEntry g_stmt_cache[STMT_CACHE_SIZE] = {0};
+
 // Get DB path from config, fallback to default
 static const char* get_db_path(void) {
     const char* path = convergio_config_get("db_path");
@@ -180,8 +190,10 @@ static const char* SCHEMA_SQL =
     // Indexes for performance
     "CREATE INDEX IF NOT EXISTS idx_messages_session ON messages(session_id);"
     "CREATE INDEX IF NOT EXISTS idx_messages_created ON messages(created_at);"
+    "CREATE INDEX IF NOT EXISTS idx_messages_parent ON messages(parent_id);"
     "CREATE INDEX IF NOT EXISTS idx_agent_usage_agent ON agent_usage(agent_name);"
     "CREATE INDEX IF NOT EXISTS idx_memories_importance ON memories(importance DESC);"
+    "CREATE INDEX IF NOT EXISTS idx_memories_category ON memories(category);"
     "CREATE INDEX IF NOT EXISTS idx_checkpoint_session ON checkpoint_summaries(session_id);";
 
 // ============================================================================
@@ -231,6 +243,68 @@ int persistence_init(const char* db_path) {
     return 0;
 }
 
+// ============================================================================
+// PREPARED STATEMENT CACHE (Performance Optimization)
+// ============================================================================
+
+/**
+ * Get a prepared statement from cache or create a new one
+ * Caches frequently used queries to avoid re-parsing SQL
+ */
+static sqlite3_stmt* get_cached_stmt(const char* sql) {
+    if (!sql || !g_db) return NULL;
+
+    // Try to find in cache
+    for (int i = 0; i < STMT_CACHE_SIZE; i++) {
+        if (g_stmt_cache[i].sql == sql && g_stmt_cache[i].stmt) {
+            // Reset statement for reuse
+            sqlite3_reset(g_stmt_cache[i].stmt);
+            g_stmt_cache[i].in_use = true;
+            return g_stmt_cache[i].stmt;
+        }
+    }
+
+    // Not in cache, find empty slot or least recently used
+    int empty_slot = -1;
+    for (int i = 0; i < STMT_CACHE_SIZE; i++) {
+        if (!g_stmt_cache[i].stmt) {
+            empty_slot = i;
+            break;
+        }
+    }
+
+    // If cache full, reuse first slot (simple LRU)
+    int slot = (empty_slot >= 0) ? empty_slot : 0;
+    if (g_stmt_cache[slot].stmt) {
+        sqlite3_finalize(g_stmt_cache[slot].stmt);
+    }
+
+    // Prepare new statement
+    sqlite3_stmt* stmt = NULL;
+    if (sqlite3_prepare_v2(g_db, sql, -1, &stmt, NULL) == SQLITE_OK) {
+        g_stmt_cache[slot].sql = sql;
+        g_stmt_cache[slot].stmt = stmt;
+        g_stmt_cache[slot].in_use = true;
+        return stmt;
+    }
+
+    return NULL;
+}
+
+/**
+ * Release a cached statement (mark as available for reuse)
+ */
+static void release_cached_stmt(sqlite3_stmt* stmt) {
+    if (!stmt) return;
+    for (int i = 0; i < STMT_CACHE_SIZE; i++) {
+        if (g_stmt_cache[i].stmt == stmt) {
+            g_stmt_cache[i].in_use = false;
+            sqlite3_reset(stmt);
+            break;
+        }
+    }
+}
+
 void persistence_shutdown(void) {
     CONVERGIO_MUTEX_LOCK(&g_db_mutex);
 
@@ -256,36 +330,54 @@ int persistence_save_message(const char* session_id, Message* msg) {
         "input_tokens, output_tokens, cost_usd, parent_id) "
         "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
 
-    sqlite3_stmt* stmt;
-    int rc = sqlite3_prepare_v2(g_db, sql, -1, &stmt, NULL);
-    if (rc != SQLITE_OK) {
-        CONVERGIO_MUTEX_UNLOCK(&g_db_mutex);
-        return -1;
+    // Use cached statement for frequently called queries (performance optimization)
+    sqlite3_stmt* stmt = get_cached_stmt(sql);
+    if (!stmt) {
+        // Fallback to direct prepare if cache miss
+        int rc = sqlite3_prepare_v2(g_db, sql, -1, &stmt, NULL);
+        if (rc != SQLITE_OK) {
+            CONVERGIO_MUTEX_UNLOCK(&g_db_mutex);
+            return -1;
+        }
     }
 
-    sqlite3_bind_text(stmt, 1, session_id, -1, SQLITE_STATIC);
-    sqlite3_bind_int(stmt, 2, msg->type);
-    sqlite3_bind_int64(stmt, 3, msg->sender);
-    sqlite3_bind_text(stmt, 4, msg->content, -1, SQLITE_STATIC);
+    sqlite3_bind_text(stmt, 1, session_id, -1, SQLITE_TRANSIENT);
+    sqlite3_bind_int(stmt, 2, (int)msg->type);
+    sqlite3_bind_int64(stmt, 3, (sqlite3_int64)msg->sender);
+    sqlite3_bind_text(stmt, 4, msg->content, -1, SQLITE_TRANSIENT);
     // Guard against NULL metadata_json (would crash strlen in sqlite3_bind_text)
     if (msg->metadata_json) {
-        sqlite3_bind_text(stmt, 5, msg->metadata_json, -1, SQLITE_STATIC);
+        sqlite3_bind_text(stmt, 5, msg->metadata_json, -1, SQLITE_TRANSIENT);
     } else {
         sqlite3_bind_null(stmt, 5);
     }
-    sqlite3_bind_int64(stmt, 6, msg->tokens_used.input_tokens);
-    sqlite3_bind_int64(stmt, 7, msg->tokens_used.output_tokens);
+    sqlite3_bind_int64(stmt, 6, (sqlite3_int64)msg->tokens_used.input_tokens);
+    sqlite3_bind_int64(stmt, 7, (sqlite3_int64)msg->tokens_used.output_tokens);
     sqlite3_bind_double(stmt, 8, msg->tokens_used.estimated_cost);
-    sqlite3_bind_int64(stmt, 9, msg->parent_id);
+    sqlite3_bind_int64(stmt, 9, (sqlite3_int64)msg->parent_id);
 
-    rc = sqlite3_step(stmt);
+    int rc = sqlite3_step(stmt);
     int64_t new_id = sqlite3_last_insert_rowid(g_db);
-    sqlite3_finalize(stmt);
+
+    // Release cached statement instead of finalizing (allows reuse)
+    bool was_cached = false;
+    for (int i = 0; i < STMT_CACHE_SIZE; i++) {
+        if (g_stmt_cache[i].stmt == stmt) {
+            was_cached = true;
+            break;
+        }
+    }
+
+    if (was_cached) {
+        release_cached_stmt(stmt);
+    } else {
+        sqlite3_finalize(stmt);
+    }
 
     CONVERGIO_MUTEX_UNLOCK(&g_db_mutex);
 
     if (rc == SQLITE_DONE) {
-        msg->id = new_id;
+        msg->id = (uint64_t)new_id;
         return 0;
     }
     return -1;
@@ -310,7 +402,7 @@ Message** persistence_load_recent_messages(const char* session_id, size_t limit,
         return NULL;
     }
 
-    sqlite3_bind_text(stmt, 1, session_id, -1, SQLITE_STATIC);
+    sqlite3_bind_text(stmt, 1, session_id, -1, SQLITE_TRANSIENT);
     sqlite3_bind_int(stmt, 2, (int)limit);
 
     // Count results first
@@ -326,9 +418,9 @@ Message** persistence_load_recent_messages(const char* session_id, size_t limit,
         Message* msg = calloc(1, sizeof(Message));
         if (!msg) break;
 
-        msg->id = sqlite3_column_int64(stmt, 0);
-        msg->type = sqlite3_column_int(stmt, 1);
-        msg->sender = sqlite3_column_int64(stmt, 2);
+        msg->id = (uint64_t)sqlite3_column_int64(stmt, 0);
+        msg->type = (MessageType)sqlite3_column_int(stmt, 1);
+        msg->sender = (SemanticID)sqlite3_column_int64(stmt, 2);
 
         const char* content = (const char*)sqlite3_column_text(stmt, 3);
         msg->content = content ? strdup(content) : NULL;
@@ -336,10 +428,10 @@ Message** persistence_load_recent_messages(const char* session_id, size_t limit,
         const char* metadata = (const char*)sqlite3_column_text(stmt, 4);
         msg->metadata_json = metadata ? strdup(metadata) : NULL;
 
-        msg->tokens_used.input_tokens = sqlite3_column_int64(stmt, 5);
-        msg->tokens_used.output_tokens = sqlite3_column_int64(stmt, 6);
+        msg->tokens_used.input_tokens = (size_t)sqlite3_column_int64(stmt, 5);
+        msg->tokens_used.output_tokens = (size_t)sqlite3_column_int64(stmt, 6);
         msg->tokens_used.estimated_cost = sqlite3_column_double(stmt, 7);
-        msg->parent_id = sqlite3_column_int64(stmt, 8);
+        msg->parent_id = (uint64_t)sqlite3_column_int64(stmt, 8);
 
         messages[count++] = msg;
     }
@@ -372,12 +464,12 @@ int persistence_save_agent(const char* name, AgentRole role, const char* system_
         return -1;
     }
 
-    sqlite3_bind_text(stmt, 1, name, -1, SQLITE_STATIC);
-    sqlite3_bind_int(stmt, 2, role);
-    sqlite3_bind_text(stmt, 3, system_prompt, -1, SQLITE_STATIC);
-    sqlite3_bind_text(stmt, 4, context, -1, SQLITE_STATIC);
-    sqlite3_bind_text(stmt, 5, color, -1, SQLITE_STATIC);
-    sqlite3_bind_text(stmt, 6, tools_json, -1, SQLITE_STATIC);
+    sqlite3_bind_text(stmt, 1, name, -1, SQLITE_TRANSIENT);
+    sqlite3_bind_int(stmt, 2, (int)role);
+    sqlite3_bind_text(stmt, 3, system_prompt, -1, SQLITE_TRANSIENT);
+    sqlite3_bind_text(stmt, 4, context, -1, SQLITE_TRANSIENT);
+    sqlite3_bind_text(stmt, 5, color, -1, SQLITE_TRANSIENT);
+    sqlite3_bind_text(stmt, 6, tools_json, -1, SQLITE_TRANSIENT);
 
     rc = sqlite3_step(stmt);
     sqlite3_finalize(stmt);
@@ -436,8 +528,8 @@ int persistence_set_pref(const char* key, const char* value) {
         return -1;
     }
 
-    sqlite3_bind_text(stmt, 1, key, -1, SQLITE_STATIC);
-    sqlite3_bind_text(stmt, 2, value, -1, SQLITE_STATIC);
+    sqlite3_bind_text(stmt, 1, key, -1, SQLITE_TRANSIENT);
+    sqlite3_bind_text(stmt, 2, value, -1, SQLITE_TRANSIENT);
 
     rc = sqlite3_step(stmt);
     sqlite3_finalize(stmt);
@@ -501,14 +593,14 @@ int persistence_save_cost_daily(const char* date, uint64_t input_tokens,
         return -1;
     }
 
-    sqlite3_bind_text(stmt, 1, date, -1, SQLITE_STATIC);
+    sqlite3_bind_text(stmt, 1, date, -1, SQLITE_TRANSIENT);
     // Clamp uint64_t to int64_t max to prevent overflow (extremely unlikely in practice)
     int64_t safe_input = (input_tokens > INT64_MAX) ? INT64_MAX : (int64_t)input_tokens;
     int64_t safe_output = (output_tokens > INT64_MAX) ? INT64_MAX : (int64_t)output_tokens;
     sqlite3_bind_int64(stmt, 2, safe_input);
     sqlite3_bind_int64(stmt, 3, safe_output);
     sqlite3_bind_double(stmt, 4, cost);
-    sqlite3_bind_int(stmt, 5, calls);
+    sqlite3_bind_int(stmt, 5, (int)calls);
 
     rc = sqlite3_step(stmt);
     sqlite3_finalize(stmt);
@@ -587,7 +679,7 @@ int persistence_save_memory(const char* content, const char* category, float imp
         sqlite3_bind_null(stmt, 3);
     }
 
-    sqlite3_bind_double(stmt, 4, importance);
+    sqlite3_bind_double(stmt, 4, (double)importance);
 
     rc = sqlite3_step(stmt);
     int64_t new_id = sqlite3_last_insert_rowid(g_db);
@@ -781,7 +873,7 @@ static char** persistence_search_memories_semantic(const char* query, size_t max
     for (size_t i = 0; i < result_count; i++) {
         sqlite3_stmt* update_stmt;
         if (sqlite3_prepare_v2(g_db, update_sql, -1, &update_stmt, NULL) == SQLITE_OK) {
-            sqlite3_bind_text(update_stmt, 1, results[i], -1, SQLITE_STATIC);
+            sqlite3_bind_text(update_stmt, 1, results[i], -1, SQLITE_TRANSIENT);
             sqlite3_step(update_stmt);
             sqlite3_finalize(update_stmt);
         }
@@ -815,8 +907,8 @@ char* persistence_create_session(const char* user_name) {
         return NULL;
     }
 
-    sqlite3_bind_text(stmt, 1, session_id, -1, SQLITE_STATIC);
-    sqlite3_bind_text(stmt, 2, user_name, -1, SQLITE_STATIC);
+    sqlite3_bind_text(stmt, 1, session_id, -1, SQLITE_TRANSIENT);
+    sqlite3_bind_text(stmt, 2, user_name, -1, SQLITE_TRANSIENT);
 
     rc = sqlite3_step(stmt);
     sqlite3_finalize(stmt);
@@ -878,10 +970,10 @@ int persistence_save_conversation(const char* session_id, const char* role,
 
     int msg_type = (strcmp(role, "user") == 0) ? 1 : 2;  // 1=user, 2=assistant
 
-    sqlite3_bind_text(stmt, 1, session_id, -1, SQLITE_STATIC);
+    sqlite3_bind_text(stmt, 1, session_id, -1, SQLITE_TRANSIENT);
     sqlite3_bind_int(stmt, 2, msg_type);
-    sqlite3_bind_text(stmt, 3, role, -1, SQLITE_STATIC);
-    sqlite3_bind_text(stmt, 4, content, -1, SQLITE_STATIC);
+    sqlite3_bind_text(stmt, 3, role, -1, SQLITE_TRANSIENT);
+    sqlite3_bind_text(stmt, 4, content, -1, SQLITE_TRANSIENT);
     sqlite3_bind_int(stmt, 5, tokens);
 
     rc = sqlite3_step(stmt);
@@ -911,7 +1003,7 @@ char* persistence_load_conversation_context(const char* session_id, size_t max_m
         return NULL;
     }
 
-    sqlite3_bind_text(stmt, 1, session_id, -1, SQLITE_STATIC);
+    sqlite3_bind_text(stmt, 1, session_id, -1, SQLITE_TRANSIENT);
     sqlite3_bind_int(stmt, 2, (int)max_messages);
 
     // Build conversation string
@@ -933,7 +1025,10 @@ char* persistence_load_conversation_context(const char* session_id, size_t max_m
             context = realloc(context, capacity);
         }
 
-        len += snprintf(context + len, capacity - len, "[%s]: %s\n\n", role, content);
+        int written = snprintf(context + len, capacity - len, "[%s]: %s\n\n", role, content);
+        if (written > 0) {
+            len += (size_t)written;
+        }
     }
 
     sqlite3_finalize(stmt);
@@ -989,8 +1084,11 @@ char* persistence_load_recent_context(size_t max_messages) {
                 capacity *= 2;
                 context = realloc(context, capacity);
             }
-            len += snprintf(context + len, capacity - len,
+            int written = snprintf(context + len, capacity - len,
                 "\n--- Session %s ---\n", day ? day : "unknown");
+            if (written > 0) {
+                len += (size_t)written;
+            }
             strncpy(last_session, session, sizeof(last_session) - 1);
         }
 
@@ -1000,7 +1098,10 @@ char* persistence_load_recent_context(size_t max_messages) {
             context = realloc(context, capacity);
         }
 
-        len += snprintf(context + len, capacity - len, "[%s]: %s\n\n", role, content);
+        int written = snprintf(context + len, capacity - len, "[%s]: %s\n\n", role, content);
+        if (written > 0) {
+            len += (size_t)written;
+        }
     }
 
     sqlite3_finalize(stmt);
@@ -1080,14 +1181,14 @@ int persistence_save_checkpoint(
         ? (double)original_tokens / compressed_tokens
         : 1.0;
 
-    sqlite3_bind_text(stmt, 1, session_id, -1, SQLITE_STATIC);
+    sqlite3_bind_text(stmt, 1, session_id, -1, SQLITE_TRANSIENT);
     sqlite3_bind_int(stmt, 2, checkpoint_num);
     sqlite3_bind_int64(stmt, 3, from_msg_id);
     sqlite3_bind_int64(stmt, 4, to_msg_id);
     sqlite3_bind_int(stmt, 5, messages_compressed);
-    sqlite3_bind_text(stmt, 6, summary, -1, SQLITE_STATIC);
+    sqlite3_bind_text(stmt, 6, summary, -1, SQLITE_TRANSIENT);
     if (key_facts) {
-        sqlite3_bind_text(stmt, 7, key_facts, -1, SQLITE_STATIC);
+        sqlite3_bind_text(stmt, 7, key_facts, -1, SQLITE_TRANSIENT);
     } else {
         sqlite3_bind_null(stmt, 7);
     }
@@ -1120,7 +1221,7 @@ char* persistence_load_latest_checkpoint(const char* session_id) {
         return NULL;
     }
 
-    sqlite3_bind_text(stmt, 1, session_id, -1, SQLITE_STATIC);
+    sqlite3_bind_text(stmt, 1, session_id, -1, SQLITE_TRANSIENT);
 
     char* summary = NULL;
     if (sqlite3_step(stmt) == SQLITE_ROW) {
@@ -1149,7 +1250,7 @@ int persistence_get_checkpoint_count(const char* session_id) {
         return 0;
     }
 
-    sqlite3_bind_text(stmt, 1, session_id, -1, SQLITE_STATIC);
+    sqlite3_bind_text(stmt, 1, session_id, -1, SQLITE_TRANSIENT);
 
     int count = 0;
     if (sqlite3_step(stmt) == SQLITE_ROW) {
@@ -1184,7 +1285,7 @@ char* persistence_load_messages_range(
         return NULL;
     }
 
-    sqlite3_bind_text(stmt, 1, session_id, -1, SQLITE_STATIC);
+    sqlite3_bind_text(stmt, 1, session_id, -1, SQLITE_TRANSIENT);
     sqlite3_bind_int64(stmt, 2, from_id);
     sqlite3_bind_int64(stmt, 3, to_id);
 
@@ -1212,7 +1313,10 @@ char* persistence_load_messages_range(
             if (!result) break;
         }
 
-        len += snprintf(result + len, capacity - len, "[%s]: %s\n\n", role, content);
+        int written = snprintf(result + len, capacity - len, "[%s]: %s\n\n", role, content);
+        if (written > 0) {
+            len += (size_t)written;
+        }
         count++;
     }
 
@@ -1242,7 +1346,7 @@ int persistence_get_message_id_range(
         return -1;
     }
 
-    sqlite3_bind_text(stmt, 1, session_id, -1, SQLITE_STATIC);
+    sqlite3_bind_text(stmt, 1, session_id, -1, SQLITE_TRANSIENT);
 
     int result = -1;
     if (sqlite3_step(stmt) == SQLITE_ROW) {
@@ -1274,7 +1378,7 @@ int persistence_get_session_message_count(const char* session_id) {
         return 0;
     }
 
-    sqlite3_bind_text(stmt, 1, session_id, -1, SQLITE_STATIC);
+    sqlite3_bind_text(stmt, 1, session_id, -1, SQLITE_TRANSIENT);
 
     int count = 0;
     if (sqlite3_step(stmt) == SQLITE_ROW) {
@@ -1308,7 +1412,7 @@ int64_t persistence_get_cutoff_message_id(const char* session_id, int keep_recen
         return -1;
     }
 
-    sqlite3_bind_text(stmt, 1, session_id, -1, SQLITE_STATIC);
+    sqlite3_bind_text(stmt, 1, session_id, -1, SQLITE_TRANSIENT);
     sqlite3_bind_int(stmt, 2, keep_recent);
 
     int64_t cutoff_id = -1;
@@ -1422,7 +1526,7 @@ int persistence_delete_session(const char* session_id) {
     sqlite3_stmt* stmt;
     int rc = sqlite3_prepare_v2(g_db, sql1, -1, &stmt, NULL);
     if (rc == SQLITE_OK) {
-        sqlite3_bind_text(stmt, 1, session_id, -1, SQLITE_STATIC);
+        sqlite3_bind_text(stmt, 1, session_id, -1, SQLITE_TRANSIENT);
         sqlite3_step(stmt);
         sqlite3_finalize(stmt);
     }
@@ -1431,7 +1535,7 @@ int persistence_delete_session(const char* session_id) {
     const char* sql2 = "DELETE FROM messages WHERE session_id = ?";
     rc = sqlite3_prepare_v2(g_db, sql2, -1, &stmt, NULL);
     if (rc == SQLITE_OK) {
-        sqlite3_bind_text(stmt, 1, session_id, -1, SQLITE_STATIC);
+        sqlite3_bind_text(stmt, 1, session_id, -1, SQLITE_TRANSIENT);
         sqlite3_step(stmt);
         sqlite3_finalize(stmt);
     }
@@ -1440,7 +1544,7 @@ int persistence_delete_session(const char* session_id) {
     const char* sql3 = "DELETE FROM sessions WHERE id = ?";
     rc = sqlite3_prepare_v2(g_db, sql3, -1, &stmt, NULL);
     if (rc == SQLITE_OK) {
-        sqlite3_bind_text(stmt, 1, session_id, -1, SQLITE_STATIC);
+        sqlite3_bind_text(stmt, 1, session_id, -1, SQLITE_TRANSIENT);
         rc = sqlite3_step(stmt);
         sqlite3_finalize(stmt);
     }

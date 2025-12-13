@@ -157,7 +157,7 @@ static char* json_escape(const char* str) {
                         int written = snprintf(out, 7, "\\u%04x", *p);
                         if (written > 0) out += written;
                     } else {
-                        *out++ = *p;
+                        *out++ = (char)*p;
                     }
             }
             p++;
@@ -185,7 +185,7 @@ static char* json_escape(const char* str) {
             }
 
             int32_t cp = utf8_decode(p, seq_len);
-            if (cp < 0 || is_surrogate(cp) ||
+            if (cp < 0 || is_surrogate((uint32_t)cp) ||
                 (seq_len == 2 && cp < 0x80) ||
                 (seq_len == 3 && cp < 0x800) ||
                 (seq_len == 4 && cp < 0x10000)) {
@@ -196,7 +196,7 @@ static char* json_escape(const char* str) {
             }
 
             for (int i = 0; i < seq_len; i++) {
-                *out++ = p[i];
+                *out++ = (char)p[i];
             }
             p += seq_len;
         }
@@ -241,7 +241,7 @@ static char* extract_response_text(const char* json) {
 
     if (*end != '"') return NULL;
 
-    size_t len = end - start;
+    size_t len = (size_t)(end - start);
     char* result = malloc(len + 1);
     if (!result) return NULL;
 
@@ -363,7 +363,7 @@ static void parse_api_error(const char* response, AnthropicProviderData* data) {
             type_found++;
             const char* end = strchr(type_found, '"');
             if (end) {
-                size_t len = end - type_found;
+                size_t len = (size_t)(end - type_found);
                 data->last_error.provider_code = malloc(len + 1);
                 if (data->last_error.provider_code) {
                     strncpy(data->last_error.provider_code, type_found, len);
@@ -398,7 +398,7 @@ static void parse_api_error(const char* response, AnthropicProviderData* data) {
             msg_found++;
             const char* end = strchr(msg_found, '"');
             if (end) {
-                size_t len = end - msg_found;
+                size_t len = (size_t)(end - msg_found);
                 data->last_error.message = malloc(len + 1);
                 if (data->last_error.message) {
                     strncpy(data->last_error.message, msg_found, len);

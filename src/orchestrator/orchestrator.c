@@ -446,7 +446,10 @@ int orchestrator_init(double budget_limit_usd) {
             } else {
                 // Prepend constitution, then add the role-specific prompt
                 memcpy(full_prompt, ALI_CONSTITUTION, constitution_len);
-                (void)snprintf(full_prompt + constitution_len, prompt_size - constitution_len, ALI_SYSTEM_PROMPT_TEMPLATE, date_str, version, agent_count, workspace, agent_list);
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wformat-nonliteral"
+                snprintf(full_prompt + constitution_len, prompt_size - constitution_len, ALI_SYSTEM_PROMPT_TEMPLATE, date_str, version, agent_count, workspace, agent_list);
+#pragma clang diagnostic pop
                 g_orchestrator->ali->system_prompt = full_prompt;
                 free(agent_list);
 

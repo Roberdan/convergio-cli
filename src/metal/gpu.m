@@ -187,6 +187,13 @@ void nous_gpu_shutdown(void) {
 // EMBEDDING MANAGEMENT (Unified Memory)
 // ============================================================================
 
+/**
+ * Add an embedding to the GPU buffer for similarity search
+ * Uses unified memory architecture for zero-copy access
+ * 
+ * @param embedding The embedding to add (must have valid data and dimension)
+ * @return Index of the added embedding, or SIZE_MAX on error
+ */
 size_t nous_gpu_add_embedding(const NousEmbedding* embedding) {
     if (!g_gpu || !embedding) return SIZE_MAX;
 
@@ -231,6 +238,16 @@ size_t nous_gpu_add_embedding(const NousEmbedding* embedding) {
 // BATCH SIMILARITY (GPU-Accelerated)
 // ============================================================================
 
+/**
+ * Compute cosine similarity between a query embedding and multiple candidate embeddings
+ * Uses Metal GPU compute shaders for parallel processing
+ * 
+ * @param query The query embedding to compare against
+ * @param candidates Array of candidate embeddings
+ * @param count Number of candidates
+ * @param out_scores Output array for similarity scores (must be pre-allocated with size >= count)
+ * @return 0 on success, -1 on error
+ */
 void nous_metal_batch_similarity(const NousEmbedding* query,
                                  const NousEmbedding* candidates,
                                  size_t count,
@@ -295,6 +312,14 @@ typedef struct {
     size_t edgeCount;
 } GraphCSR;
 
+/**
+ * Propagate activations through a graph using GPU compute shaders
+ * Implements graph neural network forward pass with decay factor
+ * 
+ * @param graph Graph in CSR (Compressed Sparse Row) format
+ * @param activations Input activations array (size: graph->nodeCount)
+ * @param decay Decay factor for activation propagation (0.0-1.0)
+ */
 void nous_gpu_propagate(GraphCSR* graph, float* activations, float decay) {
     if (!g_gpu || !graph || !activations) return;
 
@@ -355,6 +380,17 @@ void nous_gpu_propagate(GraphCSR* graph, float* activations, float decay) {
 // MPS MATRIX OPERATIONS (for large-scale embedding ops)
 // ============================================================================
 
+/**
+ * Matrix multiplication for embedding operations using Metal Performance Shaders
+ * Optimized for large-scale embedding similarity computations
+ * 
+ * @param A First matrix (embeddings x dimensions)
+ * @param B Second matrix (dimensions x candidates)
+ * @param C Output matrix (embeddings x candidates), must be pre-allocated
+ * @param m Number of rows in A
+ * @param n Number of columns in B
+ * @param k Number of columns in A (must equal rows in B)
+ */
 void nous_gpu_embedding_matmul(const _Float16* A, const _Float16* B,
                                 float* C,
                                 size_t M, size_t K, size_t N) {

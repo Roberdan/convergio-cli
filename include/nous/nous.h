@@ -70,7 +70,7 @@ typedef enum {
 extern LogLevel g_log_level;
 
 // Logging functions
-void nous_log(LogLevel level, LogCategory cat, const char* fmt, ...);
+void nous_log(LogLevel level, LogCategory cat, const char* fmt, ...) __attribute__((format(printf, 3, 4)));
 void nous_log_set_level(LogLevel level);
 LogLevel nous_log_get_level(void);
 const char* nous_log_level_name(LogLevel level);

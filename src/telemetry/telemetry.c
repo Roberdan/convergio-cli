@@ -379,7 +379,7 @@ static int load_config(void) {
     char line[1024];
     while (fgets(line, sizeof(line), f)) {
         char key[256], value[512];
-        if (sscanf(line, " \"%[^\"]\" : \"%[^\"]\"", key, value) == 2) {
+        if (sscanf(line, " \"%255[^\"]\" : \"%511[^\"]\"", key, value) == 2) {
             if (strcmp(key, "enabled") == 0) {
                 g_telemetry_config.enabled = (strcmp(value, "true") == 0);
             } else if (strcmp(key, "anonymous_id") == 0) {
@@ -395,7 +395,7 @@ static int load_config(void) {
                          sizeof(g_telemetry_config.os_type),
                          "%s", value);
             }
-        } else if (sscanf(line, " \"%[^\"]\" : %[^,}]", key, value) == 2) {
+        } else if (sscanf(line, " \"%255[^\"]\" : %511[^,}]", key, value) == 2) {
             if (strcmp(key, "enabled") == 0) {
                 g_telemetry_config.enabled = (strncmp(value, "true", 4) == 0);
             }
