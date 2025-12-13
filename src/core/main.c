@@ -285,13 +285,13 @@ int main(int argc, char** argv) {
         printf("  \033[33m⚡ Debug mode: %s\033[0m\n\n", nous_log_level_name(g_log_level));
     }
 
-    // Initialize subsystems (compact output)
-    printf("  Loading...");
-    fflush(stdout);
+    // Initialize subsystems silently (only show errors)
+    bool init_errors = false;
 
     // Initialize configuration first
     if (convergio_config_init() != 0) {
-        fprintf(stderr, " ✗ config");
+        fprintf(stderr, "  \033[31m✗ Config initialization failed\033[0m\n");
+        init_errors = true;
     }
 
     // Initialize theme system
@@ -299,7 +299,8 @@ int main(int argc, char** argv) {
 
     // Detect hardware
     if (convergio_detect_hardware() != 0) {
-        fprintf(stderr, " ✗ hw");
+        fprintf(stderr, "  \033[31m✗ Hardware detection failed\033[0m\n");
+        init_errors = true;
     }
 
     // Initialize authentication
@@ -419,19 +420,18 @@ int main(int argc, char** argv) {
     }
 
     if (nous_init() != 0) {
-        fprintf(stderr, " ✗ fabric");
+        fprintf(stderr, "  \033[31m✗ Fabric initialization failed\033[0m\n");
         return 1;
     }
 
     if (nous_scheduler_init() != 0) {
-        fprintf(stderr, " ✗ scheduler");
+        fprintf(stderr, "  \033[31m✗ Scheduler initialization failed\033[0m\n");
         nous_shutdown();
         return 1;
     }
 
-    if (nous_gpu_init() != 0) {
-        // GPU optional, continue without it
-    }
+    // GPU optional, no error message needed
+    nous_gpu_init();
 
     // Initialize agent configurations from config files
     extern int agent_config_init(void);
@@ -446,28 +446,18 @@ int main(int argc, char** argv) {
 
     // Initialize Orchestrator with Ali
     if (orchestrator_init(DEFAULT_BUDGET_USD) != 0) {
-        fprintf(stderr, " ✗ orchestrator");
+        fprintf(stderr, "  \033[31m✗ Orchestrator initialization failed\033[0m\n");
+        init_errors = true;
     }
 
     // Initialize workspace sandbox
     tools_init_workspace(workspace);
 
     // Initialize projects
-    ConvergioProject* current_proj = NULL;
-    if (projects_init()) {
-        current_proj = project_current();
-    }
+    projects_init();
 
-    // Compact status line
-    printf(" \033[32m✓\033[0m  \033[2m%s • %dP+%dE • GPU %d • $%.2f",
-           g_hardware.chip_name,
-           g_hardware.p_cores, g_hardware.e_cores,
-           g_hardware.gpu_cores,
-           DEFAULT_BUDGET_USD);
-    if (current_proj) {
-        printf(" • %s", current_proj->name);
-    }
-    printf("\033[0m\n\n");
+    // Only show status if there were errors during initialization
+    (void)init_errors;  // Suppress unused warning - errors already printed
 
     // Create fallback assistant (only used if orchestrator fails)
     g_assistant = nous_create_agent("Aria", "creative and collaborative assistant");
@@ -512,45 +502,63 @@ int main(int argc, char** argv) {
         // Set blinking block cursor
         printf("\033[1 q");
 
-        // Check for current agent and active project
+        // Check for current agent, active agents, and project
         ManagedAgent* current_agent = repl_get_current_agent();
         ConvergioProject* current_proj = project_current();
 
-        // Format: Convergio [Project] @Agent > or Convergio @Agent > or Convergio >
-        if (current_agent && current_proj) {
-            // Extract short name (first part before hyphen)
+        // Get working/active agents
+        ManagedAgent* working_agents[8] = {0};
+        size_t working_count = agent_get_working(working_agents, 8);
+
+        // Build agents string: (Ali) or (Ali, Jenny) or (Ali, Jenny, Baccio, ...)
+        char agents_str[128] = "";
+        char* agents_ptr = agents_str;
+        size_t agents_remaining = sizeof(agents_str);
+
+        if (current_agent) {
+            // Talking to specific agent - show that agent
             char short_name[32];
             strncpy(short_name, current_agent->name, sizeof(short_name) - 1);
+            short_name[sizeof(short_name) - 1] = '\0';
             char* hyphen = strchr(short_name, '-');
             if (hyphen) *hyphen = '\0';
-            // Capitalize first letter
-            if (short_name[0] >= 'a' && short_name[0] <= 'z') {
-                short_name[0] -= 32;
+            if (short_name[0] >= 'a' && short_name[0] <= 'z') short_name[0] -= 32;
+            snprintf(agents_ptr, agents_remaining, "%s", short_name);
+        } else if (working_count > 0) {
+            // Multiple agents working - show up to 3, then ...
+            size_t show_count = working_count > 3 ? 3 : working_count;
+            for (size_t i = 0; i < show_count; i++) {
+                char short_name[32];
+                strncpy(short_name, working_agents[i]->name, sizeof(short_name) - 1);
+                short_name[sizeof(short_name) - 1] = '\0';
+                char* hyphen = strchr(short_name, '-');
+                if (hyphen) *hyphen = '\0';
+                if (short_name[0] >= 'a' && short_name[0] <= 'z') short_name[0] -= 32;
+
+                int written = snprintf(agents_ptr, agents_remaining, "%s%s",
+                                        i > 0 ? ", " : "", short_name);
+                if (written > 0 && (size_t)written < agents_remaining) {
+                    agents_ptr += written;
+                    agents_remaining -= written;
+                }
             }
-            snprintf(prompt, sizeof(prompt),
-                "\001%s\002Convergio\001\033[0m\002 \001\033[1;36m\002[%s]\001\033[0m\002 \001\033[1;33m\002@%s\001\033[0m\002 \001%s\002>\001\033[0m\002 \001%s\002",
-                t->prompt_name, current_proj->name, short_name, t->prompt_arrow, t->user_input);
-        } else if (current_agent) {
-            // Extract short name
-            char short_name[32];
-            strncpy(short_name, current_agent->name, sizeof(short_name) - 1);
-            char* hyphen = strchr(short_name, '-');
-            if (hyphen) *hyphen = '\0';
-            if (short_name[0] >= 'a' && short_name[0] <= 'z') {
-                short_name[0] -= 32;
+            if (working_count > 3) {
+                snprintf(agents_ptr, agents_remaining, ", ...");
             }
+        } else {
+            // Default: Ali
+            snprintf(agents_ptr, agents_remaining, "Ali");
+        }
+
+        // Build prompt: Convergio (Agents) [Project] >
+        if (current_proj) {
             snprintf(prompt, sizeof(prompt),
-                "\001%s\002Convergio\001\033[0m\002 \001\033[1;33m\002@%s\001\033[0m\002 \001%s\002>\001\033[0m\002 \001%s\002",
-                t->prompt_name, short_name, t->prompt_arrow, t->user_input);
-        } else if (current_proj) {
-            // Show project name in prompt: Convergio [ProjectName] >
-            snprintf(prompt, sizeof(prompt),
-                "\001%s\002Convergio\001\033[0m\002 \001\033[1;36m\002[%s]\001\033[0m\002 \001%s\002>\001\033[0m\002 \001%s\002",
-                t->prompt_name, current_proj->name, t->prompt_arrow, t->user_input);
+                "\001%s\002Convergio\001\033[0m\002 \001\033[1;33m\002(%s)\001\033[0m\002 \001\033[1;36m\002[%s]\001\033[0m\002 \001%s\002>\001\033[0m\002 \001%s\002",
+                t->prompt_name, agents_str, current_proj->name, t->prompt_arrow, t->user_input);
         } else {
             snprintf(prompt, sizeof(prompt),
-                "\001%s\002Convergio\001\033[0m\002 \001%s\002>\001\033[0m\002 \001%s\002",
-                t->prompt_name, t->prompt_arrow, t->user_input);
+                "\001%s\002Convergio\001\033[0m\002 \001\033[1;33m\002(%s)\001\033[0m\002 \001%s\002>\001\033[0m\002 \001%s\002",
+                t->prompt_name, agents_str, t->prompt_arrow, t->user_input);
         }
 
         line = readline(prompt);
