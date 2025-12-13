@@ -12,9 +12,74 @@
 
 # Convergio CLI
 
-> **Multi-Model AI Orchestration for Apple Silicon** - The first CLI that lets you mix Claude, GPT, and Gemini models with intelligent routing, cost optimization, and per-agent model selection.
+> **Your Virtual AI Executive Team** — A complete C-suite of 49 specialized AI agents, orchestrated by Ali, your Chief of Staff. One command, one interface, unlimited expertise.
 
-A semantic kernel for human-AI symbiosis, built natively for Apple Silicon.
+## The Pitch
+
+**Imagine having an entire consulting firm at your fingertips.** Not just one AI assistant — a full team of specialists who work together, debate ideas, and deliver integrated solutions.
+
+**Ali is your Chief of Staff** — your single point of contact who coordinates:
+
+| Agent | Role | Specialty |
+|-------|------|-----------|
+| **Domik** | McKinsey Partner | Strategic decisions with ISE prioritization |
+| **Amy** | CFO | Financial analysis and ROI modeling |
+| **Baccio** | Tech Architect | System design and scalable architecture |
+| **Luca** | Security Expert | Cybersecurity and penetration testing |
+| **Marco** | DevOps Engineer | CI/CD, Infrastructure as Code |
+| **Sara** | UX Designer | User-centered design excellence |
+| **Omri** | Data Scientist | ML, predictive modeling, analytics |
+| **Sofia** | Marketing Strategist | Growth hacking and brand strategy |
+| ... | **+41 more specialists** | Legal, HR, Creative, PM, and more |
+
+**Ask Ali anything.** Behind the scenes, the right experts are automatically engaged, they collaborate in parallel, and Ali synthesizes their insights into a single, actionable response.
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                         YOU                                     │
+│              "Launch a global SaaS platform"                    │
+└─────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                    ALI (Chief of Staff)                         │
+│         Analyzes → Delegates → Coordinates → Synthesizes        │
+└─────────────────────────────────────────────────────────────────┘
+                              │
+        ┌─────────────────────┼─────────────────────┐
+        ▼                     ▼                     ▼
+   ┌─────────┐          ┌─────────┐          ┌─────────┐
+   │  Domik  │          │  Baccio │          │   Amy   │   ← PARALLEL
+   │Strategy │          │  Tech   │          │ Finance │
+   └─────────┘          └─────────┘          └─────────┘
+        │                     │                     │
+        └─────────────────────┴─────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                    CONVERGENCE                                   │
+│    Integrated strategy + architecture + financial plan          │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+**This is not a chatbot. This is a virtual consulting team that works in parallel, communicates internally, and converges toward unified solutions.**
+
+### Why a Team, Not Just an Agent?
+
+| Single AI Agent | Convergio's Virtual Team |
+|-----------------|--------------------------|
+| One perspective | 49 specialized perspectives |
+| Sequential thinking | Parallel collaboration |
+| Generic responses | Domain-expert insights |
+| No internal debate | Agents challenge each other |
+| Manual synthesis | Automatic convergence |
+| One model fits all | Best model per agent (Claude for strategy, GPT for code, Gemini for documents) |
+
+**The result?** Solutions that are more comprehensive, more nuanced, and delivered faster than any single AI could achieve.
+
+---
+
+Built natively for Apple Silicon in pure C/Objective-C.
 
 **Developed by [Roberto D'Angelo](mailto:Roberdan@FightTheStroke.org) @ [FightTheStroke.org](https://fightthestroke.org)**
 
@@ -103,22 +168,20 @@ Ali now has **persistent semantic memory** - a knowledge graph that survives res
 - **Budget-Aware Downgrading**: Automatically switch to cheaper models when budget runs low
 - **Provider Failover**: Automatic fallback when one provider is unavailable
 
-## Overview
+## Technical Capabilities
 
-Convergio CLI is a **multi-agent orchestration system** built in pure C/Objective-C, designed as the foundation for intelligent human-AI collaboration. Unlike typical CLI wrappers around LLM APIs, Convergio implements a complete agent architecture with:
+Under the hood, Convergio provides enterprise-grade orchestration features:
 
-- **Ali** - A Chief of Staff agent that serves as your single point of contact
-- **49 specialist agents** that can be spawned on-demand for specific tasks
-- **Multi-provider support** - Mix Claude, GPT, and Gemini models seamlessly
-- **Intelligent model routing** - Best model for each task, budget-aware
-- **Parallel multi-agent orchestration** - Ali can delegate to multiple agents simultaneously
-- **Real-time agent status tracking** - See which agents are working and on what
-- **Inter-agent communication** - Agents can communicate and collaborate during execution
-- **Tool execution** - Ali can read/write files, execute shell commands, fetch web content
-- **Notes & Knowledge base** - Persistent markdown notes and searchable knowledge storage
-- **Cost control** with granular budget tracking and per-agent attribution
-- **Conversation memory** - Persistent memory across sessions with context loading
-- **Local embeddings** via pure Metal/C transformer (infrastructure ready, needs weights)
+| Feature | Description |
+|---------|-------------|
+| **Parallel Orchestration** | GCD-based parallel agent execution on Apple Silicon |
+| **Inter-Agent Communication** | Message bus for real-time agent collaboration |
+| **Intelligent Routing** | Automatic model selection based on task + budget |
+| **Provider Failover** | Automatic fallback when providers are unavailable |
+| **Cost Control** | Per-agent budget tracking with auto-downgrade |
+| **Tool Execution** | File I/O, shell commands, web fetch, memory/RAG |
+| **Conversation Memory** | Persistent sessions with context preservation |
+| **Agent State Tracking** | Real-time visibility: THINKING, IDLE, COLLABORATING |
 
 ## Why Convergio?
 
