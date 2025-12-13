@@ -677,6 +677,14 @@ MIT License - see [LICENSE](LICENSE) for details.
 
 ---
 
-*Convergio CLI v3.0.13 - Multi-Model AI Orchestration for Apple Silicon*
+*Convergio CLI v4.0.0 - Multi-Model AI Orchestration for Apple Silicon*
 
 *Developed by Roberto D'Angelo with AI assistance*
+
+---
+
+<p align="center">
+  <b>Built with ❤️ for Mario by the Convergio Team</b>
+  <br><br>
+  <i>Making AI work for humans, not the other way around.</i>
+</p>
