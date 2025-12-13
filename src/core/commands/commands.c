@@ -1330,13 +1330,27 @@ int cmd_theme(int argc, char** argv) {
 // MODEL COMPARISON COMMANDS
 // ============================================================================
 
+// Default cheap models for comparison (one per provider)
+static const char* DEFAULT_COMPARE_MODELS[] = {
+    "claude-haiku-4.5",   // Anthropic - cheapest
+    "gpt-5-nano",         // OpenAI - cheapest
+    "gemini-3-flash",     // Google - cheapest
+};
+static const size_t DEFAULT_COMPARE_MODEL_COUNT = 3;
+
 int cmd_compare(int argc, char** argv) {
-    if (argc < 3) {
+    if (argc < 2) {
         printf("\n\033[1mCommand: compare\033[0m - Compare models side-by-side\n\n");
         printf("\033[1mUsage:\033[0m\n");
-        printf("  compare <prompt> <model1> <model2> [model3...]\n\n");
+        printf("  compare <prompt>                    # Uses default models (cheapest)\n");
+        printf("  compare <prompt> <model1> <model2>  # Custom models\n\n");
+        printf("\033[1mDefault models:\033[0m (cheapest from each provider)\n");
+        printf("  - claude-haiku-4.5 (Anthropic)\n");
+        printf("  - gpt-5-nano (OpenAI)\n");
+        printf("  - gemini-3-flash (Google)\n\n");
         printf("\033[1mExample:\033[0m\n");
-        printf("  compare \"Explain quantum computing\" claude-opus-4 gpt-4 gemini-pro\n\n");
+        printf("  compare \"Explain quantum computing\"\n");
+        printf("  compare \"Write a poem\" claude-opus-4 gpt-5\n\n");
         printf("\033[1mOptions:\033[0m\n");
         printf("  --no-diff      Skip diff generation\n");
         printf("  --json         Output as JSON\n");
@@ -1347,11 +1361,9 @@ int cmd_compare(int argc, char** argv) {
     // Parse prompt
     const char* prompt = argv[1];
 
-    // Count models
-    size_t model_count = 0;
-
     // Count models and check for options
     CompareOptions opts = compare_options_default();
+    size_t model_count = 0;
 
     for (int i = 2; i < argc; i++) {
         if (strcmp(argv[i], "--no-diff") == 0) {
@@ -1361,60 +1373,79 @@ int cmd_compare(int argc, char** argv) {
         } else if (strcmp(argv[i], "--sequential") == 0) {
             opts.mode = COMPARE_MODE_SEQUENTIAL;
         } else if (argv[i][0] == '-') {
-            // Unknown flag - warn and skip
             printf("Warning: Unknown option '%s' ignored.\n", argv[i]);
         } else {
             model_count++;
         }
     }
 
-    if (model_count < 2) {
-        printf("Error: At least 2 models required for comparison.\n");
-        printf("Use 'compare' without arguments for help.\n");
-        return -1;
-    }
+    // Use default models if none specified
+    const char** models_to_use;
+    bool using_defaults = false;
 
-    // Filter out options from models list
-    const char** clean_models = malloc(sizeof(char*) * model_count);
-    if (!clean_models) {
-        printf("Error: Memory allocation failed.\n");
+    if (model_count == 0) {
+        // Use default cheap models
+        models_to_use = DEFAULT_COMPARE_MODELS;
+        model_count = DEFAULT_COMPARE_MODEL_COUNT;
+        using_defaults = true;
+        printf("\033[36mUsing default models: haiku, gpt-5-nano, gemini-flash\033[0m\n\n");
+    } else if (model_count == 1) {
+        printf("Error: Need at least 2 models to compare (or none for defaults).\n");
         return -1;
-    }
+    } else {
+        // Filter out options from models list
+        models_to_use = malloc(sizeof(char*) * model_count);
+        if (!models_to_use) {
+            printf("Error: Memory allocation failed.\n");
+            return -1;
+        }
 
-    size_t idx = 0;
-    for (int i = 2; i < argc; i++) {
-        if (argv[i][0] != '-') {
-            clean_models[idx++] = argv[i];
+        size_t idx = 0;
+        for (int i = 2; i < argc; i++) {
+            if (argv[i][0] != '-') {
+                models_to_use[idx++] = argv[i];
+            }
         }
     }
 
     // Run comparison
     CompareResult* results = NULL;
-    int ret = compare_models(prompt, NULL, clean_models, model_count, &opts, &results);
+    int ret = compare_models(prompt, NULL, models_to_use, model_count, &opts, &results);
 
     // Cleanup
     if (results) {
         compare_results_free(results, model_count);
     }
-    free(clean_models);
+    if (!using_defaults) {
+        free((void*)models_to_use);
+    }
 
     return ret;
 }
 
 int cmd_benchmark(int argc, char** argv) {
-    if (argc < 3) {
+    if (argc < 2) {
         printf("\n\033[1mCommand: benchmark\033[0m - Benchmark a model's performance\n\n");
         printf("\033[1mUsage:\033[0m\n");
-        printf("  benchmark <prompt> <model> [iterations]\n\n");
+        printf("  benchmark <prompt>                    # Uses claude-haiku-4.5, 3 iterations\n");
+        printf("  benchmark <prompt> <model>            # Custom model, 3 iterations\n");
+        printf("  benchmark <prompt> <model> <N>        # Custom model, N iterations\n\n");
+        printf("\033[1mDefaults:\033[0m\n");
+        printf("  Model: claude-haiku-4.5 (cheapest)\n");
+        printf("  Iterations: 3\n\n");
         printf("\033[1mExample:\033[0m\n");
-        printf("  benchmark \"Write a haiku\" claude-opus-4 5\n\n");
-        printf("\033[1mDefault iterations:\033[0m 3\n\n");
+        printf("  benchmark \"Write a haiku\"\n");
+        printf("  benchmark \"Explain AI\" gpt-5-nano 5\n\n");
         return 0;
     }
 
     const char* prompt = argv[1];
-    const char* model = argv[2];
+    const char* model = "claude-haiku-4.5";  // Default to cheapest
     size_t iterations = 3;
+
+    if (argc >= 3) {
+        model = argv[2];
+    }
 
     if (argc >= 4) {
         iterations = (size_t)atoi(argv[3]);
