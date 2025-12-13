@@ -679,20 +679,20 @@ int cmd_agents(int argc, char** argv) {
 
 int cmd_agent(int argc, char** argv) {
     if (argc < 2) {
-        printf("\n\033[1mComando: agent\033[0m - Gestione agenti\n\n");
-        printf("\033[1mSottocomandi:\033[0m\n");
-        printf("  \033[36mlist\033[0m                    Lista tutti gli agenti disponibili\n");
-        printf("  \033[36minfo <nome>\033[0m             Mostra dettagli agente (modello, ruolo, etc.)\n");
-        printf("  \033[36medit <nome>\033[0m             Apri l'agente nell'editor per modificarlo\n");
-        printf("  \033[36mreload\033[0m                  Ricarica tutti gli agenti dopo modifiche\n");
-        printf("  \033[36mcreate <nome> <desc>\033[0m    Crea un nuovo agente dinamico\n");
-        printf("  \033[36mskill <skill_name>\033[0m      Aggiungi skill all'assistente\n");
-        printf("\n\033[1mEsempi:\033[0m\n");
-        printf("  agent list              # Mostra tutti gli agenti\n");
-        printf("  agent info baccio       # Dettagli su Baccio\n");
-        printf("  agent edit amy          # Modifica Amy nel tuo editor\n");
-        printf("  agent reload            # Ricarica dopo modifiche\n");
-        printf("  agent create helper \"Un assistente generico\"\n");
+        printf("\n\033[1mCommand: agent\033[0m - Agent management\n\n");
+        printf("\033[1mSubcommands:\033[0m\n");
+        printf("  \033[36mlist\033[0m                    List all available agents\n");
+        printf("  \033[36minfo <name>\033[0m             Show agent details (model, role, etc.)\n");
+        printf("  \033[36medit <name>\033[0m             Open agent in editor to modify\n");
+        printf("  \033[36mreload\033[0m                  Reload all agents after changes\n");
+        printf("  \033[36mcreate <name> <desc>\033[0m    Create a new dynamic agent\n");
+        printf("  \033[36mskill <skill_name>\033[0m      Add skill to assistant\n");
+        printf("\n\033[1mExamples:\033[0m\n");
+        printf("  agent list              # Show all agents\n");
+        printf("  agent info baccio       # Details about Baccio\n");
+        printf("  agent edit amy          # Edit Amy in your editor\n");
+        printf("  agent reload            # Reload after changes\n");
+        printf("  agent create helper \"A generic assistant\"\n");
         printf("\n");
         return 0;
     }
@@ -710,44 +710,44 @@ int cmd_agent(int argc, char** argv) {
     // agent info <name>
     if (strcmp(argv[1], "info") == 0) {
         if (argc < 3) {
-            printf("Usage: agent info <nome_agente>\n");
-            printf("Esempio: agent info baccio\n");
+            printf("Usage: agent info <agent_name>\n");
+            printf("Example: agent info baccio\n");
             return -1;
         }
 
         ManagedAgent* agent = agent_find_by_name(argv[2]);
         if (!agent) {
-            printf("Agente '%s' non trovato.\n", argv[2]);
-            printf("Usa 'agent list' per vedere gli agenti disponibili.\n");
+            printf("Agent '%s' not found.\n", argv[2]);
+            printf("Use 'agent list' to see available agents.\n");
             return -1;
         }
 
-        printf("\n\033[1m📋 Informazioni Agente: %s\033[0m\n\n", agent->name);
-        printf("  \033[36mNome:\033[0m        %s\n", agent->name);
-        printf("  \033[36mDescrizione:\033[0m %s\n", agent->description ? agent->description : "-");
+        printf("\n\033[1m📋 Agent Info: %s\033[0m\n\n", agent->name);
+        printf("  \033[36mName:\033[0m        %s\n", agent->name);
+        printf("  \033[36mDescription:\033[0m %s\n", agent->description ? agent->description : "-");
 
         const char* role_names[] = {
             "Orchestrator", "Analyst", "Coder", "Writer", "Critic", "Planner", "Executor", "Memory"
         };
-        printf("  \033[36mRuolo:\033[0m       %s\n", role_names[agent->role]);
+        printf("  \033[36mRole:\033[0m        %s\n", role_names[agent->role]);
 
         // Model is determined by role for now
         const char* model = "claude-sonnet-4-20250514";  // Default
         if (agent->role == AGENT_ROLE_ORCHESTRATOR) {
             model = "claude-opus-4-20250514";
         }
-        printf("  \033[36mModello:\033[0m     %s\n", model);
+        printf("  \033[36mModel:\033[0m       %s\n", model);
 
-        printf("  \033[36mAttivo:\033[0m      %s\n", agent->is_active ? "Sì" : "No");
+        printf("  \033[36mActive:\033[0m      %s\n", agent->is_active ? "Yes" : "No");
 
         const char* state_names[] = {"Idle", "Thinking", "Executing", "Reviewing", "Waiting"};
-        printf("  \033[36mStato:\033[0m       %s\n", state_names[agent->work_state]);
+        printf("  \033[36mState:\033[0m       %s\n", state_names[agent->work_state]);
 
         if (agent->current_task) {
             printf("  \033[36mTask:\033[0m        %s\n", agent->current_task);
         }
 
-        printf("\n  \033[2mUsa @%s <messaggio> per comunicare con questo agente\033[0m\n\n", agent->name);
+        printf("\n  \033[2mUse @%s <message> to communicate with this agent\033[0m\n\n", agent->name);
         return 0;
     }
 
@@ -846,8 +846,8 @@ int cmd_agent(int argc, char** argv) {
     // agent create <name> <essence>
     if (strcmp(argv[1], "create") == 0) {
         if (argc < 4) {
-            printf("Usage: agent create <nome> <descrizione>\n");
-            printf("Esempio: agent create helper \"Un assistente per task generici\"\n");
+            printf("Usage: agent create <name> <description>\n");
+            printf("Example: agent create helper \"A generic task assistant\"\n");
             return -1;
         }
 
@@ -866,11 +866,11 @@ int cmd_agent(int argc, char** argv) {
 
         NousAgent* agent = nous_create_agent(argv[2], essence);
         if (!agent) {
-            printf("Errore: impossibile creare l'agente.\n");
+            printf("Error: unable to create agent.\n");
             return -1;
         }
 
-        printf("✅ Creato agente \"%s\"\n", agent->name);
+        printf("Created agent \"%s\"\n", agent->name);
         printf("  Patience: %.2f\n", agent->patience);
         printf("  Creativity: %.2f\n", agent->creativity);
         printf("  Assertiveness: %.2f\n", agent->assertiveness);
@@ -878,7 +878,7 @@ int cmd_agent(int argc, char** argv) {
         NousAgent* assistant = (NousAgent*)g_assistant;
         if (!assistant) {
             g_assistant = agent;
-            printf("Impostato come assistente principale.\n");
+            printf("Set as primary assistant.\n");
         }
 
         return 0;
@@ -887,24 +887,24 @@ int cmd_agent(int argc, char** argv) {
     // agent skill <skill_name>
     if (strcmp(argv[1], "skill") == 0) {
         if (argc < 3) {
-            printf("Usage: agent skill <nome_skill>\n");
+            printf("Usage: agent skill <skill_name>\n");
             return -1;
         }
         NousAgent* assistant = (NousAgent*)g_assistant;
         if (!assistant) {
-            printf("Errore: nessun assistente attivo.\n");
-            printf("Crea prima un agente con: agent create <nome> <descrizione>\n");
+            printf("Error: no active assistant.\n");
+            printf("Create an agent first with: agent create <name> <description>\n");
             return -1;
         }
 
         if (nous_agent_add_skill(assistant, argv[2]) == 0) {
-            printf("✅ Aggiunta skill \"%s\" a %s\n", argv[2], assistant->name);
+            printf("Added skill \"%s\" to %s\n", argv[2], assistant->name);
         }
         return 0;
     }
 
-    printf("Sottocomando sconosciuto: %s\n", argv[1]);
-    printf("Usa 'agent' senza argomenti per vedere l'help.\n");
+    printf("Unknown subcommand: %s\n", argv[1]);
+    printf("Use 'agent' without arguments to see help.\n");
     return -1;
 }
 

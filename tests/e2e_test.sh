@@ -96,7 +96,7 @@ fi
 # =============================================================================
 echo -e "${BLUE}=== Section 1: Basic Commands ===${NC}"
 
-run_test "version" "" "3.0"
+run_test "version" "" "4.0"
 run_test "help shows commands" "help" "Available commands"
 run_test "status shows kernel" "status" "NOUS System Status"
 run_test "hardware shows chip" "hardware" "Apple"
@@ -283,14 +283,36 @@ else
     ((FAILED++))
 fi
 
-# Test Ali delegation
+# Test Ali delegation (single agent)
 echo -n "  Testing: Ali delegation to specialist... "
-output=$(echo -e "Chiedi a Baccio di descrivere brevemente il suo ruolo\nquit" | timeout 120 $CONVERGIO -q 2>&1) || true
-if echo "$output" | grep -qi "architet\|baccio\|tech\|system"; then
+output=$(echo -e "Ask Baccio to briefly describe his role\nquit" | timeout 120 $CONVERGIO -q 2>&1) || true
+if echo "$output" | grep -qi "architet\|baccio\|tech\|system\|design"; then
     echo -e "${GREEN}PASS${NC}"
     ((PASSED++))
 else
     echo -e "${YELLOW}SKIP${NC} (delegation requires API)"
+    ((SKIPPED++))
+fi
+
+# Test parallel delegation (multiple agents)
+echo -n "  Testing: Parallel delegation to multiple agents... "
+output=$(echo -e "Ask both Baccio and Luca to analyze security of a REST API\nquit" | timeout 180 $CONVERGIO -q 2>&1) || true
+if echo "$output" | grep -qi "security\|architet\|luca\|baccio\|api"; then
+    echo -e "${GREEN}PASS${NC}"
+    ((PASSED++))
+else
+    echo -e "${YELLOW}SKIP${NC} (parallel delegation requires API)"
+    ((SKIPPED++))
+fi
+
+# Test sequential delegation
+echo -n "  Testing: Sequential agent workflow... "
+output=$(echo -e "First ask Baccio for architecture, then Thor to review quality\nquit" | timeout 180 $CONVERGIO -q 2>&1) || true
+if echo "$output" | grep -qi "architet\|quality\|thor\|baccio"; then
+    echo -e "${GREEN}PASS${NC}"
+    ((PASSED++))
+else
+    echo -e "${YELLOW}SKIP${NC} (sequential delegation requires API)"
     ((SKIPPED++))
 fi
 

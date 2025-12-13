@@ -45,11 +45,11 @@ typedef struct {
 } PersonalityArchetype;
 
 static const PersonalityArchetype ARCHETYPES[] = {
-    {"assistente", 0.8f, 0.5f, 0.3f},     // Patient, balanced, humble
-    {"creativo", 0.5f, 0.9f, 0.6f},       // Impatient, very creative, moderately assertive
-    {"analista", 0.9f, 0.3f, 0.7f},       // Very patient, methodical, confident
-    {"mentore", 0.95f, 0.6f, 0.5f},       // Extremely patient, creative, balanced
-    {"esecutore", 0.4f, 0.2f, 0.9f},      // Quick, focused, very assertive
+    {"assistant", 0.8f, 0.5f, 0.3f},      // Patient, balanced, humble
+    {"creative", 0.5f, 0.9f, 0.6f},       // Impatient, very creative, moderately assertive
+    {"analyst", 0.9f, 0.3f, 0.7f},        // Very patient, methodical, confident
+    {"mentor", 0.95f, 0.6f, 0.5f},        // Extremely patient, creative, balanced
+    {"executor", 0.4f, 0.2f, 0.9f},       // Quick, focused, very assertive
     {NULL, 0.5f, 0.5f, 0.5f}
 };
 

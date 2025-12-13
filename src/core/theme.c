@@ -164,6 +164,94 @@ static const Theme THEMES[THEME_COUNT] = {
         .separator     = DIM,
         .cost          = WHITE,
     },
+
+    // THEME_LIGHT - Light mode for bright environments
+    {
+        .name = "Light",
+
+        .prompt_name   = BOLD COLOR256(24),      // Dark blue
+        .prompt_arrow  = COLOR256(24),           // Dark blue arrow
+        .user_input    = BLACK,                  // Black for user text
+
+        .agent_name    = BOLD COLOR256(24),
+        .agent_text    = BLACK,
+
+        .md_header1    = BOLD COLOR256(24),      // Dark blue
+        .md_header2    = BOLD COLOR256(30),      // Teal
+        .md_header3    = BOLD COLOR256(238),     // Dark gray
+        .md_bold       = BOLD BLACK,
+        .md_italic     = ITAL BLACK,
+        .md_code       = COLOR256(22),           // Dark green
+        .md_link       = ULINE COLOR256(24),     // Dark blue
+        .md_bullet     = COLOR256(238),
+
+        .success       = COLOR256(22),           // Dark green
+        .warning       = COLOR256(130),          // Brown/orange
+        .error         = COLOR256(124),          // Dark red
+        .info          = COLOR256(240),          // Gray
+
+        .separator     = COLOR256(250),          // Light gray
+        .cost          = COLOR256(24),
+    },
+
+    // THEME_DARK - Dark mode optimized for OLED
+    {
+        .name = "Dark",
+
+        .prompt_name   = BOLD COLOR256(141),     // Soft purple
+        .prompt_arrow  = COLOR256(141),          // Purple arrow
+        .user_input    = COLOR256(252),          // Soft white
+
+        .agent_name    = BOLD COLOR256(141),
+        .agent_text    = COLOR256(250),          // Light gray
+
+        .md_header1    = BOLD COLOR256(213),     // Pink
+        .md_header2    = BOLD COLOR256(141),     // Purple
+        .md_header3    = BOLD COLOR256(183),     // Light purple
+        .md_bold       = BOLD,
+        .md_italic     = ITAL,
+        .md_code       = COLOR256(114),          // Soft green
+        .md_link       = ULINE COLOR256(117),    // Light cyan
+        .md_bullet     = COLOR256(141),
+
+        .success       = COLOR256(114),          // Soft green
+        .warning       = COLOR256(221),          // Soft yellow
+        .error         = COLOR256(210),          // Soft red
+        .info          = COLOR256(244),          // Gray
+
+        .separator     = COLOR256(238),          // Dark gray
+        .cost          = COLOR256(141),
+    },
+
+    // THEME_COLORBLIND - Accessible for all color vision types
+    // Uses blue/orange palette (safe for protanopia, deuteranopia, tritanopia)
+    {
+        .name = "Colorblind",
+
+        .prompt_name   = BOLD COLOR256(33),      // Blue
+        .prompt_arrow  = COLOR256(33),           // Blue arrow
+        .user_input    = BRIGHT_WHITE,           // White for user text
+
+        .agent_name    = BOLD COLOR256(33),      // Blue
+        .agent_text    = RST,
+
+        .md_header1    = BOLD COLOR256(33),      // Blue
+        .md_header2    = BOLD COLOR256(208),     // Orange
+        .md_header3    = BOLD WHITE,
+        .md_bold       = BOLD,
+        .md_italic     = ITAL,
+        .md_code       = COLOR256(244),          // Gray for code
+        .md_link       = ULINE COLOR256(33),     // Blue links
+        .md_bullet     = COLOR256(208),          // Orange bullets
+
+        .success       = COLOR256(33),           // Blue for success (not green)
+        .warning       = COLOR256(208),          // Orange for warning
+        .error         = BOLD COLOR256(208),     // Bold orange for error
+        .info          = DIM,
+
+        .separator     = COLOR256(244),          // Gray
+        .cost          = COLOR256(33),           // Blue
+    },
 };
 
 // Current theme
@@ -237,7 +325,7 @@ void theme_list(void) {
                RST);
 
         // Show preview
-        printf(" │ %sPrompt%s %s❯%s %suser input%s │ %sAgent%s\n",
+        printf(" │ %sPrompt%s %s>%s %suser input%s │ %sAgent%s\n",
                t->prompt_name, RST,
                t->prompt_arrow, RST,
                t->user_input, RST,
