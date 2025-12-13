@@ -410,11 +410,13 @@ ThemeId theme_select_interactive(void) {
     ThemeId original = g_current_theme;
     bool running = true;
 
-    // Hide cursor
-    printf("\033[?25l");
+    // Switch to alternate screen buffer (like vim/less)
+    // This preserves the main terminal content
+    printf("\033[?1049h");  // Enter alternate screen
+    printf("\033[?25l");    // Hide cursor
 
     while (running) {
-        // Clear screen and move to top
+        // Clear alternate screen and move to top
         printf("\033[2J\033[H");
 
         printf("\n  \033[1mSelect Theme\033[0m  (↑/↓ navigate, Enter confirm, ESC cancel)\n\n");
@@ -476,11 +478,9 @@ ThemeId theme_select_interactive(void) {
         }
     }
 
-    // Show cursor
-    printf("\033[?25h");
-
-    // Clear and show result
-    printf("\033[2J\033[H");
+    // Show cursor and exit alternate screen buffer
+    printf("\033[?25h");    // Show cursor
+    printf("\033[?1049l");  // Exit alternate screen (restores original content)
 
     return selected;
 }
