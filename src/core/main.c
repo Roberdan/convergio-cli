@@ -204,20 +204,22 @@ static void print_gradient_line(const char* line) {
     printf("\n");
 }
 
-// Print brain mascot with two-tone colors (orange left, blue right)
-static void print_brain_mascot(void) {
-    const char* orange = "\033[38;5;208m";
-    const char* blue = "\033[38;5;33m";
+// Print brain logo matching Convergio.io - left geometric warm, right circuit blue
+static void print_brain_logo(void) {
+    const char* o1 = "\033[38;5;202m";  // Deep orange
+    const char* o2 = "\033[38;5;208m";  // Orange
+    const char* o3 = "\033[38;5;220m";  // Yellow
+    const char* b1 = "\033[38;5;24m";   // Dark blue
+    const char* b2 = "\033[38;5;33m";   // Blue
+    const char* wh = "\033[37;1m";      // Bright white (circuits)
     const char* rst = "\033[0m";
 
-    // Simple pixelated brain mascot (like Claude's ghost)
-    printf("                    %s▄▄▄%s▄▄▄%s\n", orange, blue, rst);
-    printf("                  %s▄█░░░%s█▓▓█▄%s\n", orange, blue, rst);
-    printf("                  %s█░░░░%s█▓▓▓█%s\n", orange, blue, rst);
-    printf("                  %s█░ ● %s█ ● █%s\n", orange, blue, rst);
-    printf("                  %s█░░░░%s█▓▓▓█%s\n", orange, blue, rst);
-    printf("                   %s▀█░░%s█▓█▀%s\n", orange, blue, rst);
-    printf("                    %s▀▀ %s▀▀%s\n", orange, blue, rst);
+    // Simplified brain: geometric triangles left, circuit right
+    printf("                       %s▄▄▄%s▄▄▄%s\n", o1, b1, rst);
+    printf("                     %s▄%s█%s▀%s▄%s█%s─●%s▄%s\n", o1, o1, o2, o3, b1, wh, b2, rst);
+    printf("                    %s█%s▀%s▄%s▀%s█%s●─●%s█%s\n", o1, o2, o3, o3, b1, wh, b2, rst);
+    printf("                    %s▀%s█%s▄%s▀%s█%s─●%s█%s\n", o2, o3, o3, b1, b1, wh, b2, rst);
+    printf("                      %s▀▀%s▀▀▀%s\n", o2, b2, rst);
 }
 
 static void print_banner(void) {
@@ -226,16 +228,17 @@ static void print_banner(void) {
     const char* c3 = "\033[38;5;75m";
 
     printf("\n");
-    print_brain_mascot();
+    print_brain_logo();
     printf("\n");
-    print_gradient_line("  ▶ ██████╗ ██████╗ ███╗   ██╗██╗   ██╗███████╗██████╗  ██████╗ ██╗ ██████╗ ");
-    print_gradient_line("    ██╔════╝██╔═══██╗████╗  ██║██║   ██║██╔════╝██╔══██╗██╔════╝ ██║██╔═══██╗");
-    print_gradient_line("    ██║     ██║   ██║██╔██╗ ██║██║   ██║█████╗  ██████╔╝██║  ███╗██║██║   ██║");
-    print_gradient_line("    ██║     ██║   ██║██║╚██╗██║╚██╗ ██╔╝██╔══╝  ██╔══██╗██║   ██║██║██║   ██║");
-    print_gradient_line("    ╚██████╗╚██████╔╝██║ ╚████║ ╚████╔╝ ███████╗██║  ██║╚██████╔╝██║╚██████╔╝");
-    print_gradient_line("     ╚═════╝ ╚═════╝ ╚═╝  ╚═══╝  ╚═══╝  ╚══════╝╚═╝  ╚═╝ ╚═════╝ ╚═╝ ╚═════╝ ");
+    // Large > arrow like Gemini, integrated with CONVERGIO text
+    print_gradient_line("  █╗      ██████╗ ██████╗ ███╗   ██╗██╗   ██╗███████╗██████╗  ██████╗ ██╗ ██████╗ ");
+    print_gradient_line("  ██╗    ██╔════╝██╔═══██╗████╗  ██║██║   ██║██╔════╝██╔══██╗██╔════╝ ██║██╔═══██╗");
+    print_gradient_line("  ███╗   ██║     ██║   ██║██╔██╗ ██║██║   ██║█████╗  ██████╔╝██║  ███╗██║██║   ██║");
+    print_gradient_line("  ██╔╝   ██║     ██║   ██║██║╚██╗██║╚██╗ ██╔╝██╔══╝  ██╔══██╗██║   ██║██║██║   ██║");
+    print_gradient_line("  █╔╝    ╚██████╗╚██████╔╝██║ ╚████║ ╚████╔╝ ███████╗██║  ██║╚██████╔╝██║╚██████╔╝");
+    print_gradient_line("  ╚╝      ╚═════╝ ╚═════╝ ╚═╝  ╚═══╝  ╚═══╝  ╚══════╝╚═╝  ╚═╝ ╚═════╝ ╚═╝ ╚═════╝ ");
     printf("\n");
-    print_gradient_line("             Human purpose. AI momentum.");
+    print_gradient_line("        Your team, with human purpose and AI momentum.");
     printf("\n");
     printf("  %sv%s - Optimized for Apple Silicon%s\n", dim, convergio_get_version(), rst);
     printf("  %sDeveloped by Roberdan@FightTheStroke.org%s\n", dim, rst);
