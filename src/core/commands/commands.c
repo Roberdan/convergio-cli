@@ -510,42 +510,53 @@ int cmd_help(int argc, char** argv) {
         return -1;
     }
 
-    // Show general help
-    printf("\n\033[1mCONVERGIO KERNEL\033[0m - Multi-Agent Orchestration\n");
-    printf("═══════════════════════════════════════════════\n\n");
-    printf("\033[36mAvailable commands:\033[0m\n\n");
+    // Show general help - redesigned to showcase features
+    printf("\n");
+    printf("\033[1;36m╭──────────────────────────────────────────────────────────────────╮\033[0m\n");
+    printf("\033[1;36m│\033[0m  \033[1mCONVERGIO\033[0m - Your AI Team with Human Purpose                    \033[1;36m│\033[0m\n");
+    printf("\033[1;36m╰──────────────────────────────────────────────────────────────────╯\033[0m\n\n");
 
-    for (const ReplCommand* cmd = COMMANDS; cmd->name != NULL; cmd++) {
-        printf("  \033[33m%-12s\033[0m %s\n", cmd->name, cmd->description);
-    }
+    // 1. YOUR AI TEAM - The most important feature
+    printf("\033[1;33m🤖 YOUR AI TEAM\033[0m  \033[2m(49 specialized agents ready to help)\033[0m\n");
+    printf("   \033[36m@ali\033[0m               Chief of Staff - orchestrates everything\n");
+    printf("   \033[36m@baccio\033[0m            Software Architect\n");
+    printf("   \033[36m@marco\033[0m             Senior Developer\n");
+    printf("   \033[36m@jenny\033[0m             Accessibility Expert\n");
+    printf("   \033[36m@<name> message\033[0m    Talk directly to any agent\n");
+    printf("   \033[36magents\033[0m             See all 49 agents with their specialties\n");
+    printf("   \033[2m   Tip: Just type @ali to return to Ali from any agent\033[0m\n\n");
 
-    printf("\n\033[36mCost management:\033[0m\n");
-    printf("  \033[33mcost\033[0m              Show current spending\n");
-    printf("  \033[33mcost report\033[0m       Detailed cost report\n");
-    printf("  \033[33mcost set <USD>\033[0m    Set budget limit\n");
-    printf("  \033[33mcost reset\033[0m        Reset session spending\n");
+    // 2. PROJECTS - Team-based work
+    printf("\033[1;33m📁 PROJECTS\033[0m  \033[2m(dedicated agent teams per project)\033[0m\n");
+    printf("   \033[36mproject new <name>\033[0m         Create project with dedicated team\n");
+    printf("   \033[36mproject team add <agent>\033[0m   Add agent to project team\n");
+    printf("   \033[36mproject switch <name>\033[0m      Switch between projects\n");
+    printf("   \033[36mproject\033[0m                    Show current project & team\n\n");
 
-    printf("\n\033[36mWorkspace/Sandbox:\033[0m\n");
-    printf("  \033[33mallowed-dirs\033[0m      Show allowed directories\n");
-    printf("  \033[33mallow-dir <path>\033[0m  Add directory to sandbox\n");
+    // 3. POWER FEATURES
+    printf("\033[1;33m⚡ POWER FEATURES\033[0m\n");
+    printf("   \033[36mcompare \"prompt\"\033[0m           Compare Claude vs GPT vs Gemini side-by-side\n");
+    printf("   \033[36mbenchmark \"prompt\" <model>\033[0m Measure model speed & consistency\n");
+    printf("   \033[36msetup\033[0m                      Configure providers & models per agent\n");
+    printf("   \033[36mthink \"intent\"\033[0m             Parse & process natural language intent\n\n");
 
-    printf("\n\033[36mAuthentication:\033[0m\n");
-    printf("  \033[33mauth\033[0m              Show authentication status\n");
-    printf("  \033[33mlogout\033[0m            Logout and clear credentials\n");
+    // 4. CUSTOMIZATION
+    printf("\033[1;33m🎨 CUSTOMIZATION\033[0m\n");
+    printf("   \033[36mtheme\033[0m              Interactive theme selector with preview\n");
+    printf("   \033[36magent edit <name>\033[0m  Customize any agent's personality & model\n");
+    printf("   \033[36magent create\033[0m       Create your own custom agent\n\n");
 
-    printf("\n\033[36mModel Comparison:\033[0m\n");
-    printf("  \033[33mcompare\033[0m           Compare multiple models side-by-side\n");
-    printf("  \033[33mbenchmark\033[0m         Benchmark a model's performance\n");
+    // 5. SYSTEM
+    printf("\033[1;33m⚙️  SYSTEM\033[0m\n");
+    printf("   \033[36mcost\033[0m / \033[36mcost report\033[0m   Track spending across all providers\n");
+    printf("   \033[36mstatus\033[0m             System health & active agents\n");
+    printf("   \033[36mhardware\033[0m           Show Apple Silicon optimization info\n");
+    printf("   \033[36mtools\033[0m              Manage agentic tools (file, web, code)\n");
+    printf("   \033[36mdebug <level>\033[0m      Set debug level (off/error/warn/info/debug/trace)\n");
+    printf("   \033[36mnews\033[0m               What's new in this version\n\n");
 
-    printf("\n\033[36mTalking to Agents:\033[0m\n");
-    printf("  \033[33m@ali\033[0m              Talk to Ali (Chief of Staff) - default\n");
-    printf("  \033[33m@jenny\033[0m            Talk to Jenny (or any agent name)\n");
-    printf("  \033[33m@marco hello\033[0m      Send message directly to Marco\n");
-    printf("  \033[33magents\033[0m            List all available agents\n");
-    printf("\n  \033[2mUse @ali to return to Ali from any other agent.\033[0m\n");
-    printf("  \033[2mThe prompt shows which agent(s) you're talking to.\033[0m\n");
-
-    printf("\n\033[2mType 'help <command>' for detailed help on a specific command.\033[0m\n");
+    printf("\033[2m───────────────────────────────────────────────────────────────────\033[0m\n");
+    printf("\033[2mType \033[0mhelp <command>\033[2m for details  •  Or just talk to Ali!\033[0m\n\n");
 
     return 0;
 }
