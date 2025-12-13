@@ -28,7 +28,8 @@ typedef enum {
     PROVIDER_GEMINI      = 2,
     PROVIDER_OPENROUTER  = 3,
     PROVIDER_OLLAMA      = 4,
-    PROVIDER_COUNT       = 5
+    PROVIDER_MLX         = 5,   // Local MLX inference (Apple Silicon native)
+    PROVIDER_COUNT       = 6
 } ProviderType;
 
 // Cost tier for model selection
@@ -520,6 +521,14 @@ Provider* openrouter_provider_create(void);
  * @return Provider instance (caller must free via shutdown)
  */
 Provider* ollama_provider_create(void);
+
+/**
+ * Create MLX provider instance
+ * MLX runs local models natively on Apple Silicon (Metal + Neural Engine)
+ * No external dependencies - 100% offline capable
+ * @return Provider instance (caller must free via shutdown)
+ */
+Provider* mlx_provider_create(void);
 
 /**
  * Get API key environment variable name for a provider

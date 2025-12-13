@@ -80,6 +80,37 @@ static RouterState g_router = {
 };
 
 // ============================================================================
+// LOCAL MLX MODE
+// ============================================================================
+
+static bool g_local_mlx_mode = false;
+static char g_local_mlx_model[128] = "mlx/deepseek-r1-1.5b";  // Default local model
+
+void router_set_local_mode(bool enabled, const char* model_id) {
+    g_local_mlx_mode = enabled;
+    if (model_id && model_id[0]) {
+        // If model doesn't have mlx/ prefix, add it
+        if (strncmp(model_id, "mlx/", 4) != 0) {
+            snprintf(g_local_mlx_model, sizeof(g_local_mlx_model), "mlx/%s", model_id);
+        } else {
+            strncpy(g_local_mlx_model, model_id, sizeof(g_local_mlx_model) - 1);
+            g_local_mlx_model[sizeof(g_local_mlx_model) - 1] = '\0';
+        }
+    }
+    if (enabled) {
+        LOG_INFO(LOG_CAT_SYSTEM, "Local MLX mode enabled with model: %s", g_local_mlx_model);
+    }
+}
+
+bool router_is_local_mode(void) {
+    return g_local_mlx_mode;
+}
+
+const char* router_get_local_model(void) {
+    return g_local_mlx_model;
+}
+
+// ============================================================================
 // DEFAULT AGENT MODEL CONFIGURATIONS (from models.json)
 // ============================================================================
 
@@ -268,6 +299,11 @@ int router_set_agent_model(const char* agent_name, const char* primary_model,
 }
 
 const char* router_get_agent_model(const char* agent_name) {
+    // If local MLX mode is enabled, always return the local model
+    if (g_local_mlx_mode) {
+        return g_local_mlx_model;
+    }
+
     AgentModelConfig* cfg = find_agent_config(agent_name);
     if (cfg) {
         return cfg->primary_model;

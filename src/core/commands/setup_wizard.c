@@ -11,6 +11,7 @@
  */
 
 #include "nous/provider.h"
+#include "nous/mlx.h"
 #include "nous/nous.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -121,7 +122,8 @@ static ProviderStatus g_provider_status[] = {
     {PROVIDER_OPENAI, "OpenAI", "OPENAI_API_KEY", false, "sk-", "https://platform.openai.com/api-keys"},
     {PROVIDER_GEMINI, "Google Gemini", "GEMINI_API_KEY", false, "AIza", "https://aistudio.google.com/apikey"},
     {PROVIDER_OPENROUTER, "OpenRouter", "OPENROUTER_API_KEY", false, "sk-or-", "https://openrouter.ai/keys"},
-    {PROVIDER_OLLAMA, "Ollama (Local)", NULL, false, NULL, "https://ollama.ai"}
+    {PROVIDER_OLLAMA, "Ollama (Local)", NULL, false, NULL, "https://ollama.ai"},
+    {PROVIDER_MLX, "MLX (Local)", NULL, false, NULL, "https://github.com/ml-explore/mlx"}
 };
 static const size_t g_provider_count = sizeof(g_provider_status) / sizeof(g_provider_status[0]);
 
@@ -130,6 +132,10 @@ static void refresh_provider_status(void) {
         if (g_provider_status[i].type == PROVIDER_OLLAMA) {
             // Check if Ollama is running
             Provider* p = provider_get(PROVIDER_OLLAMA);
+            g_provider_status[i].available = (p && p->validate_key && p->validate_key(p));
+        } else if (g_provider_status[i].type == PROVIDER_MLX) {
+            // Check if MLX is available (Apple Silicon)
+            Provider* p = provider_get(PROVIDER_MLX);
             g_provider_status[i].available = (p && p->validate_key && p->validate_key(p));
         } else if (g_provider_status[i].env_var) {
             const char* key = getenv(g_provider_status[i].env_var);
@@ -201,6 +207,25 @@ static void show_api_key_help(ProviderType type) {
             printf("  • Complete privacy - data stays on your machine\n");
             printf("  • Works offline\n");
             printf("  • Great for development and testing\n");
+            break;
+
+        case PROVIDER_MLX:
+            print_info("MLX runs natively on Apple Silicon - no API key needed!");
+            printf("\n  MLX is Apple's native ML framework for M1/M2/M3/M4/M5 chips.\n");
+            printf("  Models run directly on your Mac's Neural Engine and GPU.\n");
+            printf("\n  \033[1;32mBenefits of MLX:\033[0m\n");
+            printf("  • 100%% FREE - no API costs ever\n");
+            printf("  • Complete privacy - data never leaves your Mac\n");
+            printf("  • Works 100%% offline - no internet required\n");
+            printf("  • Optimized for Apple Silicon - fast inference\n");
+            printf("  • Pre-quantized 4-bit models - efficient memory use\n");
+            printf("\n  \033[1;36mAvailable models:\033[0m\n");
+            printf("  • Llama 3.2 (1B, 3B) - General purpose\n");
+            printf("  • DeepSeek R1 Distill (1.5B, 7B, 14B) - Reasoning/Coding\n");
+            printf("  • Qwen 2.5 Coder 7B - Code generation\n");
+            printf("  • Phi-3 Mini - Fast, efficient\n");
+            printf("  • Mistral 7B - Multilingual\n");
+            printf("\n  Use '\033[1;33m/setup → Local Models\033[0m' to download models.\n");
             break;
 
         default:
@@ -465,6 +490,174 @@ static void menu_view_config(void) {
 }
 
 // ============================================================================
+// LOCAL MODELS MENU (MLX)
+// ============================================================================
+
+// Forward declaration
+extern const MLXModelInfo* mlx_get_available_models(size_t* out_count);
+extern bool mlx_model_is_ready(const char* model_id);
+extern bool mlx_is_available(void);
+extern const char* mlx_recommend_model(size_t available_ram_gb);
+
+// Swift bridge functions for model management
+extern char* mlx_bridge_download_model(const char* model_id, void (*progress_callback)(int32_t));
+extern bool mlx_bridge_model_exists(const char* model_id);
+extern int64_t mlx_bridge_model_size(const char* model_id);
+extern bool mlx_bridge_delete_model(const char* model_id);
+extern char* mlx_bridge_list_models(void);
+
+// Progress callback for download
+static void download_progress_callback(int32_t percent) {
+    printf("\r  Downloading: %d%%  ", percent);
+    fflush(stdout);
+}
+
+static void download_mlx_model(const char* model_id, const char* huggingface_id, const char* display_name, size_t size_mb) {
+    printf("\n  Downloading %s (~%zu MB)...\n", display_name, size_mb);
+    printf("  Model: %s\n", huggingface_id);
+    printf("  This downloads from HuggingFace using MLX-Swift.\n\n");
+
+    // Check if already downloaded
+    if (mlx_bridge_model_exists(huggingface_id)) {
+        print_info("Model already downloaded");
+        int64_t size = mlx_bridge_model_size(huggingface_id);
+        printf("  Size on disk: %.1f GB\n", (double)size / (1024.0 * 1024.0 * 1024.0));
+        return;
+    }
+
+    printf("  Starting download (this may take several minutes)...\n\n");
+
+    // Use Swift bridge to download
+    char* error = mlx_bridge_download_model(huggingface_id, download_progress_callback);
+
+    printf("\n");
+
+    if (error == NULL) {
+        print_success("Download complete!");
+        int64_t size = mlx_bridge_model_size(huggingface_id);
+        printf("  Size on disk: %.1f GB\n", (double)size / (1024.0 * 1024.0 * 1024.0));
+    } else {
+        print_error("Download failed");
+        printf("  Error: %s\n", error);
+        printf("\n  Troubleshooting:\n");
+        printf("  1. Check your internet connection\n");
+        printf("  2. Some models require HuggingFace login:\n");
+        printf("     export HF_TOKEN=your_token_here\n");
+        printf("  3. Try again - download may have timed out\n");
+        free(error);
+    }
+}
+
+static void delete_mlx_model(const char* huggingface_id, const char* display_name) {
+    printf("\n  Are you sure you want to delete %s?\n", display_name);
+
+    // Show current size
+    int64_t size = mlx_bridge_model_size(huggingface_id);
+    if (size > 0) {
+        printf("  This will free %.1f GB of disk space.\n", (double)size / (1024.0 * 1024.0 * 1024.0));
+    }
+
+    if (!get_yes_no("Delete model?")) {
+        print_info("Cancelled");
+        return;
+    }
+
+    if (mlx_bridge_delete_model(huggingface_id)) {
+        print_success("Model deleted");
+    } else {
+        print_error("Failed to delete model");
+        printf("  The model may not exist or there was a permission error.\n");
+    }
+}
+
+static void menu_local_models(void) {
+    if (!mlx_is_available()) {
+        clear_screen();
+        print_header("LOCAL MODELS (MLX)");
+        printf("\n");
+        print_error("MLX requires Apple Silicon (M1/M2/M3/M4/M5)");
+        printf("\n  Your Mac does not have Apple Silicon or MLX support.\n");
+        printf("  Consider using Ollama for local model inference instead.\n");
+        print_footer();
+        wait_for_enter();
+        return;
+    }
+
+    while (true) {
+        clear_screen();
+        print_header("LOCAL MODELS (MLX - Apple Silicon Native)");
+
+        printf("\n  MLX runs models directly on your Mac's Neural Engine.\n");
+        printf("  100%% offline, 100%% free, 100%% private.\n\n");
+
+        // Get available models
+        size_t model_count = 0;
+        const MLXModelInfo* models = mlx_get_available_models(&model_count);
+
+        printf("  \033[1;37m#   Model                    Size      RAM    Status\033[0m\n");
+        printf("  ─────────────────────────────────────────────────────────────\n");
+
+        for (size_t i = 0; i < model_count; i++) {
+            bool ready = mlx_bridge_model_exists(models[i].huggingface_id);
+            const char* status = ready ?
+                "\033[1;32m✓ Ready\033[0m" : "\033[1;33m○ Not downloaded\033[0m";
+
+            printf("  %zu)  %-22s %4zuMB   %2zuGB   %s\n",
+                   i + 1,
+                   models[i].display_name,
+                   models[i].size_mb,
+                   models[i].min_ram_gb,
+                   status);
+        }
+
+        printf("\n  \033[1;37mActions:\033[0m\n");
+        printf("  D) Download a model\n");
+        printf("  R) Remove a model\n");
+        printf("  0) Go back\n");
+
+        print_footer();
+
+        char input[16];
+        printf("\n  \033[1;33mChoice:\033[0m ");
+        fflush(stdout);
+        if (!fgets(input, sizeof(input), stdin)) return;
+        input[strcspn(input, "\n")] = 0;
+
+        if (input[0] == '0' || input[0] == '\0') {
+            return;
+        }
+
+        if (input[0] == 'D' || input[0] == 'd') {
+            printf("\n  Enter model number to download: ");
+            fflush(stdout);
+            if (!fgets(input, sizeof(input), stdin)) continue;
+            int idx = atoi(input) - 1;
+            if (idx >= 0 && (size_t)idx < model_count) {
+                if (mlx_bridge_model_exists(models[idx].huggingface_id)) {
+                    print_info("Model already downloaded");
+                } else {
+                    download_mlx_model(models[idx].id, models[idx].huggingface_id, models[idx].display_name, models[idx].size_mb);
+                }
+                wait_for_enter();
+            }
+        } else if (input[0] == 'R' || input[0] == 'r') {
+            printf("\n  Enter model number to remove: ");
+            fflush(stdout);
+            if (!fgets(input, sizeof(input), stdin)) continue;
+            int idx = atoi(input) - 1;
+            if (idx >= 0 && (size_t)idx < model_count) {
+                if (!mlx_bridge_model_exists(models[idx].huggingface_id)) {
+                    print_info("Model not downloaded");
+                } else {
+                    delete_mlx_model(models[idx].huggingface_id, models[idx].display_name);
+                }
+                wait_for_enter();
+            }
+        }
+    }
+}
+
+// ============================================================================
 // MAIN WIZARD
 // ============================================================================
 
@@ -490,19 +683,21 @@ int cmd_setup(int argc, char** argv) {
 
         printf("  What would you like to configure?\n\n");
         printf("    1) API Keys         - Configure provider credentials\n");
-        printf("    2) Quick Setup      - Choose optimization profile (cost/performance)\n");
-        printf("    3) View Config      - Show current configuration\n");
-        printf("    4) Exit\n");
+        printf("    2) Local Models     - Download/manage MLX models (Apple Silicon)\n");
+        printf("    3) Quick Setup      - Choose optimization profile (cost/performance)\n");
+        printf("    4) View Config      - Show current configuration\n");
+        printf("    5) Exit\n");
 
         print_footer();
 
-        int choice = get_choice(1, 4);
+        int choice = get_choice(1, 5);
 
         switch (choice) {
             case 1: menu_api_keys(); break;
-            case 2: menu_quick_setup(); break;
-            case 3: menu_view_config(); break;
-            case 4: return 0;
+            case 2: menu_local_models(); break;
+            case 3: menu_quick_setup(); break;
+            case 4: menu_view_config(); break;
+            case 5: return 0;
             default: break;
         }
     }

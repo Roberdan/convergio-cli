@@ -35,6 +35,7 @@ extern int64_t persistence_get_cutoff_message_id(const char* session_id, int kee
 // ============================================================================
 
 static bool g_compaction_initialized = false;
+static size_t g_dynamic_threshold = COMPACTION_THRESHOLD_TOKENS;  // Dynamic threshold
 
 // Summarization prompt template
 static const char* SUMMARIZATION_PROMPT =
@@ -74,6 +75,49 @@ int compaction_init(void) {
 
 void compaction_shutdown(void) {
     g_compaction_initialized = false;
+    g_dynamic_threshold = COMPACTION_THRESHOLD_TOKENS;  // Reset to default
+}
+
+// ============================================================================
+// DYNAMIC THRESHOLD MANAGEMENT
+// ============================================================================
+
+size_t compaction_set_dynamic_threshold(size_t model_context_window) {
+    if (model_context_window == 0) {
+        // No valid context window, use default
+        g_dynamic_threshold = COMPACTION_THRESHOLD_TOKENS;
+        return g_dynamic_threshold;
+    }
+
+    // Calculate threshold as percentage of context window
+    size_t calculated = (size_t)(model_context_window * COMPACTION_THRESHOLD_RATIO);
+
+    // Clamp to min/max bounds
+    if (calculated < COMPACTION_MIN_THRESHOLD) {
+        calculated = COMPACTION_MIN_THRESHOLD;
+    }
+    if (calculated > COMPACTION_MAX_THRESHOLD) {
+        calculated = COMPACTION_MAX_THRESHOLD;
+    }
+
+    g_dynamic_threshold = calculated;
+
+    LOG_INFO(LOG_CAT_MEMORY, "Dynamic compaction threshold set to %zu tokens "
+             "(model context: %zu, ratio: %.0f%%)",
+             g_dynamic_threshold, model_context_window,
+             COMPACTION_THRESHOLD_RATIO * 100);
+
+    return g_dynamic_threshold;
+}
+
+size_t compaction_get_threshold(void) {
+    return g_dynamic_threshold;
+}
+
+void compaction_reset_threshold(void) {
+    g_dynamic_threshold = COMPACTION_THRESHOLD_TOKENS;
+    LOG_DEBUG(LOG_CAT_MEMORY, "Compaction threshold reset to default: %zu tokens",
+              g_dynamic_threshold);
 }
 
 // ============================================================================
@@ -91,10 +135,10 @@ bool compaction_needed(const char* session_id, size_t current_tokens) {
         return false;
     }
 
-    // Check threshold
-    if (current_tokens > COMPACTION_THRESHOLD_TOKENS) {
-        LOG_INFO(LOG_CAT_MEMORY, "Context size %zu exceeds threshold %d, compaction needed",
-                 current_tokens, COMPACTION_THRESHOLD_TOKENS);
+    // Check threshold (uses dynamic threshold which may be adjusted for MLX models)
+    if (current_tokens > g_dynamic_threshold) {
+        LOG_INFO(LOG_CAT_MEMORY, "Context size %zu exceeds threshold %zu, compaction needed",
+                 current_tokens, g_dynamic_threshold);
         return true;
     }
 
