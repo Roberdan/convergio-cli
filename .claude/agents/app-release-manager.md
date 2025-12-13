@@ -247,12 +247,15 @@ EF-10 NFRs + EF-11 DevEx + EF-12 Feedback
 
 #### Group E: AI Model Freshness (spawn together - FOR AI APPS)
 ```
-EF-13 ML/AI + EF-14 Model Freshness
+EF-13 ML/AI + EF-14 Model Freshness + EF-15 Apple Silicon Freshness
 - WebSearch for latest Anthropic models
 - WebSearch for latest OpenAI models
 - WebSearch for latest Google Gemini models
+- WebSearch for latest Apple Silicon specs (M4/M5)
 - Compare with models in codebase
+- Compare hardware.m with official Apple specs
 - Flag outdated/deprecated models
+- Flag outdated hardware specs
 ```
 
 ### Complete Parallel Execution Example
@@ -640,6 +643,72 @@ rg -i "feedback|report.*bug|issue" CONTRIBUTING.md README.md 2>/dev/null | head 
 
 **CRITICAL: Before every release, verify all AI models are current.**
 
+### EF-15: Apple Silicon Hardware Freshness (MANDATORY)
+
+**CRITICAL: Before every release, verify Apple Silicon specs are current.**
+
+#### Apple Silicon Freshness Check Process
+
+```bash
+# Use WebSearch to verify current Apple Silicon specs
+# Agent should search: "Apple M5 M4 specifications December 2025"
+```
+
+#### Required Checks
+
+1. **Check hardware.h for latest chip families**
+   - Verify M1, M2, M3, M4, M5 are all defined
+   - Check if new chip family announced (M6?)
+
+2. **Check hardware.m for accurate bandwidth specs**
+   - Search: "M4 Pro memory bandwidth GB/s 2025"
+   - Search: "M5 specifications neural engine 2025"
+   - Verify bandwidth values match official Apple specs
+
+3. **Check GPU core estimates**
+   - Search: "M4 Max GPU cores count"
+   - Search: "M5 GPU specifications"
+   - Update estimates in hardware.m
+
+#### Verification Script
+
+```bash
+echo "=== Apple Silicon Hardware Specs Check ==="
+
+# Check what chip families are defined
+echo "Chip families in hardware.h:"
+rg "CHIP_FAMILY_M[0-9]" include/nous/hardware.h
+
+# Check bandwidth values in hardware.m
+echo "Bandwidth values in hardware.m:"
+rg "bandwidth.*=" src/core/hardware.m | head -10
+
+# Check GPU core estimates
+echo "GPU core estimates:"
+rg "gpu_cores.*=" src/core/hardware.m | head -20
+
+# Flag if M5 is missing
+if ! grep -q "CHIP_FAMILY_M5" include/nous/hardware.h; then
+  echo "❌ M5 chip family NOT defined - needs update!"
+else
+  echo "✅ M5 chip family defined"
+fi
+```
+
+#### Update Procedure
+
+If outdated specs are found:
+
+1. **Research** - Use WebSearch to find current Apple Silicon specs
+2. **Update hardware.h** - Add new chip families to enum
+3. **Update hardware.m** - Update CHIP_PROFILES array with accurate:
+   - Bandwidth values (GB/s)
+   - Neural Engine core counts
+   - GPU core estimates
+4. **Update convergio_chip_family_name()** - Add new chip names
+5. **Test** - Verify `convergio version` shows correct detection
+6. **Changelog** - Document hardware updates
+
 #### Model Freshness Check Process
 
 ```bash
@@ -953,6 +1022,7 @@ Date: {DATE}
 ✅/❌ EF-12 Engineering Feedback: {status}
 ✅/⬜ EF-13 ML/AI (if applicable): {status or N/A}
 ✅/❌ EF-14 AI Model Freshness: {status}
+✅/❌ EF-15 Apple Silicon Freshness: {status}
 
 ### Quality Gates Status
 ✅/❌ Code Quality: {status}

@@ -2,48 +2,71 @@
 
 ## Overview
 
-Context Compaction is an automatic optimization feature that compresses long conversation histories when they exceed a configurable token threshold. This reduces API costs while preserving semantic meaning through LLM-based summarization.
+Context Compaction automatically summarizes conversation sessions when you exit Convergio. This provides:
+- **Fast responses**: No loading of full history on every message
+- **Clean sessions**: Each session starts fresh with only semantic memories
+- **Full history access**: Use `/recall` to view past session summaries when needed
 
 ## How It Works
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                    build_context_prompt()                        │
+│                    NEW SESSION FLOW                              │
 │                                                                  │
-│  1. Project Context                                              │
-│  2. Important Memories                                           │
-│  3. Relevant Memories              ┌──────────────────────┐     │
-│  4. Conversation History ─────────►│ TOKEN CHECK: > 80K?  │     │
-│  5. User Input                     └──────────┬───────────┘     │
-│                                               │                  │
-│                              YES ◄────────────┴─────────► NO     │
-│                               │                          │       │
-│                    ┌──────────▼──────────┐              │       │
-│                    │ compaction_summarize │              │       │
-│                    │  - LLM summarization │              │       │
-│                    │  - Save checkpoint   │              │       │
-│                    └──────────┬──────────┘              │       │
-│                               │                          │       │
-│                    ┌──────────▼──────────────────────────▼──┐   │
-│                    │         FINAL CONTEXT                   │   │
-│                    │  [Checkpoint Summary] + [Recent 10 msg] │   │
-│                    └─────────────────────────────────────────┘   │
+│  Session Start:                                                  │
+│    - Load semantic memories (important facts, relevant context)  │
+│    - NO full history loading                                     │
+│                                                                  │
+│  During Session:                                                 │
+│    - Only last 10 messages kept in context                       │
+│    - Fast, lightweight responses                                 │
+│                                                                  │
+│  On Quit:                                                        │
+│    [████████░░] 80% Generating summary...                        │
+│    - LLM summarizes the full session                             │
+│    - Summary saved to database                                   │
+│    - Available via /recall command                               │
 └─────────────────────────────────────────────────────────────────┘
 ```
+
+## Commands
+
+### `/recall`
+View summaries of all past sessions:
+
+```
+=== Past Session Summaries ===
+
+[1] 2025-12-13 14:30:00 (42 messages)
+    Discussed implementing user authentication with OAuth2.
+    Decided to use JWT tokens. Fixed bug in login flow.
+    ID: session_1765616604_6807
+
+[2] 2025-12-12 09:15:00 (28 messages)
+    Code review of the payment module. Added error handling...
+    ID: session_1765540212_6807
+
+Commands:
+  recall clear           - Clear all summaries
+  recall delete <id>     - Delete specific session
+```
+
+### `/recall clear`
+Delete all session summaries (with confirmation).
+
+### `/recall delete <session_id>`
+Delete a specific session and its summary.
 
 ## Configuration
 
 | Parameter | Default | Description |
 |-----------|---------|-------------|
-| `COMPACTION_THRESHOLD_TOKENS` | 80,000 | Trigger compaction when context exceeds this |
-| `COMPACTION_KEEP_RECENT_MSGS` | 10 | Number of recent messages to keep uncompacted |
 | `COMPACTION_MODEL` | `claude-haiku-4.5` | Model used for summarization (economical) |
 | `COMPACTION_MAX_SUMMARY_TOKENS` | 500 | Maximum tokens in generated summary |
-| `COMPACTION_MAX_CHECKPOINTS` | 5 | Maximum checkpoints per session |
 
 ## Database Schema
 
-Checkpoints are stored in the `checkpoint_summaries` table:
+Session summaries are stored in the `checkpoint_summaries` table:
 
 ```sql
 CREATE TABLE checkpoint_summaries (
@@ -64,90 +87,55 @@ CREATE TABLE checkpoint_summaries (
 );
 ```
 
-## Multi-Agent Safety
+## Session Flow
 
-Context compaction is designed to work safely with the multi-agent architecture:
+### During Normal Use
 
-```
-Timeline di una request:
-─────────────────────────────────────────────────────────────
-T0: User Input arrives
-T1: build_context_prompt() → CHECK 80K tokens
-T2: IF > 80K: compaction_summarize() → save checkpoint
-T3: Build final context (checkpoint + recent 10 msgs)
-T4: Ali processes with compacted context
-T5: Ali delegates to Marco, Sara, Leo
-    └─ Each agent receives strdup(context) ← SAME SNAPSHOT
-T6: Agents work in parallel (context is immutable)
-T7: Ali synthesizes responses
-─────────────────────────────────────────────────────────────
+1. **Session Start**: Fresh context with only semantic memories
+2. **Each Message**: Only last 10 messages included in context
+3. **Response**: Fast, no history loading overhead
 
-GUARANTEE: Compaction happens ONLY at T2, NEVER during T5-T6.
-           All agents see exactly the same context.
-```
+### On Exit (`quit`)
 
-**Why it's safe:**
-- Each agent receives a COPY (`strdup()`) not a reference
-- Context is built ONCE before delegation
-- No agent can modify other agents' context
-- Persistence layer is thread-safe (mutex protected)
+1. Progress bar shown: `[████░░░░░░] 30% Generating summary...`
+2. Full session loaded from database
+3. LLM generates concise summary
+4. Summary saved to `checkpoint_summaries`
+5. Exit completes
+
+### When You Need History
+
+Use `/recall` to view past summaries. The summaries are read-only context - they help you remember what was discussed but don't automatically inject into new sessions.
 
 ## API Reference
 
 ### Core Functions
 
 ```c
-// Initialize compaction system (call after persistence_init)
-int compaction_init(void);
+// Compact current session (called on quit)
+int orchestrator_compact_session(void (*progress_callback)(int, const char*));
 
-// Shutdown compaction
-void compaction_shutdown(void);
+// Get all session summaries (for /recall)
+SessionSummaryList* persistence_get_session_summaries(void);
 
-// Check if compaction is needed
-bool compaction_needed(const char* session_id, size_t current_tokens);
+// Delete specific session
+int persistence_delete_session(const char* session_id);
 
-// Perform summarization
-CompactionResult* compaction_summarize(
-    const char* session_id,
-    int64_t from_msg_id,
-    int64_t to_msg_id,
-    const char* messages_text
-);
-
-// Build context with automatic compaction
-char* compaction_build_context(
-    const char* session_id,
-    const char* user_input,
-    bool* out_was_compacted
-);
-
-// Get latest checkpoint for session
-char* compaction_get_checkpoint(const char* session_id);
-```
-
-### CompactionResult Structure
-
-```c
-typedef struct {
-    char* summary;              // Compressed summary text
-    size_t original_tokens;     // Tokens in original messages
-    size_t compressed_tokens;   // Tokens in summary
-    double compression_ratio;   // original / compressed
-    double cost_usd;            // Cost of summarization call
-    int checkpoint_num;         // Checkpoint sequence number
-} CompactionResult;
+// Clear all summaries
+int persistence_clear_all_summaries(void);
 ```
 
 ## Cost Analysis
 
-| Scenario | Original Tokens | After Compaction | Cost Savings |
-|----------|-----------------|------------------|--------------|
-| 100 messages (~80K tokens) | 80,000 | ~15,000 | ~80% |
-| 200 messages (~160K tokens) | 160,000 | ~20,000 | ~87% |
+| Action | Cost |
+|--------|------|
+| Summarization per session | ~$0.001 (using Haiku) |
+| Per-message overhead | $0 (no compaction during session) |
 
-**Summarization Cost:**
-- Using `claude-haiku-4.5`: ~$0.001 per compaction
-- Net savings far exceed summarization cost for long conversations
+**Benefits:**
+- Responses are faster (no 100-message loading)
+- API costs reduced (smaller context per request)
+- Clean separation between sessions
 
 ## Fallback Behavior
 
@@ -161,44 +149,33 @@ If LLM summarization fails (API error, rate limit), the system falls back to:
 | File | Purpose |
 |------|---------|
 | `include/nous/compaction.h` | Public API header |
-| `src/context/compaction.c` | Implementation |
-| `src/memory/persistence.c` | Checkpoint storage functions |
-| `src/orchestrator/orchestrator.c` | Integration point |
-| `tests/test_compaction.c` | Unit tests |
-
-## Usage Example
-
-Context compaction is automatic and transparent. When a conversation exceeds the threshold:
-
-1. The system detects the threshold breach
-2. Summarizes older messages using Haiku
-3. Saves the checkpoint to the database
-4. Builds context as: `[Summary] + [Recent 10 messages]`
-5. Logs the compaction event for monitoring
-
-No user action is required - it "just works."
+| `src/context/compaction.c` | Summarization implementation |
+| `src/memory/persistence.c` | Session storage functions |
+| `src/orchestrator/orchestrator.c` | `orchestrator_compact_session()` |
+| `src/core/commands/commands.c` | `cmd_recall()` implementation |
 
 ## Monitoring
 
-Check compaction activity via SQLite:
+Check session summaries via SQLite:
 
 ```sql
--- View all checkpoints
-SELECT session_id, checkpoint_num, compression_ratio, summary_cost_usd
+-- View all summaries
+SELECT session_id, created_at, compression_ratio, summary_cost_usd
 FROM checkpoint_summaries
 ORDER BY created_at DESC;
 
--- Total savings by session
-SELECT session_id,
-       SUM(original_tokens - compressed_tokens) as tokens_saved,
-       SUM(summary_cost_usd) as total_cost
-FROM checkpoint_summaries
-GROUP BY session_id;
+-- Total cost of summarizations
+SELECT SUM(summary_cost_usd) as total_cost
+FROM checkpoint_summaries;
 ```
 
-## Future Enhancements
+## Migration from v3
 
-1. **Key Facts Extraction**: Automatically extract and store important facts in structured JSON
-2. **Hierarchical Summaries**: Create summaries of summaries for very long sessions
-3. **Configurable Prompts**: Allow custom summarization prompts per use case
-4. **Memory Integration**: Feed summaries back into semantic memory for RAG
+The old behavior (loading 100 messages on every request) has been removed. The new flow:
+
+| Old (v3) | New (v4) |
+|----------|----------|
+| Load 100 messages every request | Load only last 10 messages |
+| Compaction triggered during request | Compaction only on quit |
+| Automatic context injection | Manual recall via `/recall` |
+| Slow responses with long history | Fast responses always |
