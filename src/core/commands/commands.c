@@ -63,7 +63,7 @@ static const ReplCommand COMMANDS[] = {
     {"update",      "Check for and install updates",     cmd_update},
     {"hardware",    "Show hardware information",         cmd_hardware},
     {"stream",      "Toggle streaming mode (on/off)",    cmd_stream},
-    {"theme",       "Change color theme (ocean/forest/sunset/mono)", cmd_theme},
+    {"theme",       "Interactive theme selector (or /theme <name>)", cmd_theme},
     {"think",       "Process an intent",                 cmd_think},
     {"compare",     "Compare models side-by-side",       cmd_compare},
     {"benchmark",   "Benchmark a model's performance",   cmd_benchmark},
@@ -1377,7 +1377,16 @@ int cmd_theme(int argc, char** argv) {
             theme_list();
         }
     } else {
-        theme_list();
+        // Interactive theme selector with arrow keys and preview
+        ThemeId selected = theme_select_interactive();
+        if (selected != theme_get_current_id()) {
+            theme_set(selected);
+            theme_save();
+            const Theme* t = theme_get();
+            printf("Theme changed to: %s%s%s\n", t->prompt_name, t->name, theme_reset());
+        } else {
+            printf("Theme unchanged: %s\n", theme_get_name(selected));
+        }
     }
     return 0;
 }

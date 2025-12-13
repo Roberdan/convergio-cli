@@ -85,6 +85,10 @@ void theme_save(void);
 // Helper: Get ANSI reset code
 const char* theme_reset(void);
 
+// Interactive theme selector (arrow keys + preview)
+// Returns the selected theme ID
+ThemeId theme_select_interactive(void);
+
 // Helper: Apply color and return the escape sequence
 // Usage: printf("%sText%s", theme_color(t->success), theme_reset());
 #define theme_color(c) (c)

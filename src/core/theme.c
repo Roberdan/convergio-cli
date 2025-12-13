@@ -224,33 +224,35 @@ static const Theme THEMES[THEME_COUNT] = {
     },
 
     // THEME_COLORBLIND - Accessible for all color vision types
-    // Uses blue/orange palette (safe for protanopia, deuteranopia, tritanopia)
+    // Uses blue/orange/white palette with high contrast differences
+    // Designed for protanopia, deuteranopia, and tritanopia
+    // Key: Uses luminance differences, not just hue changes
     {
         .name = "Colorblind",
 
-        .prompt_name   = BOLD COLOR256(33),      // Blue
+        .prompt_name   = BOLD COLOR256(33),      // Bright blue
         .prompt_arrow  = COLOR256(33),           // Blue arrow
         .user_input    = BRIGHT_WHITE,           // White for user text
 
         .agent_name    = BOLD COLOR256(33),      // Blue
         .agent_text    = RST,
 
-        .md_header1    = BOLD COLOR256(33),      // Blue
-        .md_header2    = BOLD COLOR256(208),     // Orange
+        .md_header1    = BOLD COLOR256(33),      // Blue (high contrast)
+        .md_header2    = BOLD COLOR256(214),     // Yellow-orange (bright)
         .md_header3    = BOLD WHITE,
         .md_bold       = BOLD,
         .md_italic     = ITAL,
-        .md_code       = COLOR256(244),          // Gray for code
-        .md_link       = ULINE COLOR256(33),     // Blue links
-        .md_bullet     = COLOR256(208),          // Orange bullets
+        .md_code       = COLOR256(252),          // Light gray (high contrast)
+        .md_link       = ULINE BOLD COLOR256(75), // Bright sky blue
+        .md_bullet     = COLOR256(214),          // Yellow-orange
 
-        .success       = COLOR256(33),           // Blue for success (not green)
-        .warning       = COLOR256(208),          // Orange for warning
-        .error         = BOLD COLOR256(208),     // Bold orange for error
+        .success       = BOLD COLOR256(75),      // Bright sky blue + symbols ✓
+        .warning       = COLOR256(214),          // Yellow-orange + symbols ⚠
+        .error         = BOLD BRIGHT_WHITE,      // Bold bright white + symbols ✗
         .info          = DIM,
 
         .separator     = COLOR256(244),          // Gray
-        .cost          = COLOR256(33),           // Blue
+        .cost          = COLOR256(75),           // Sky blue
     },
 };
 
@@ -343,4 +345,142 @@ void theme_save(void) {
 
 const char* theme_reset(void) {
     return RST;
+}
+
+// ============================================================================
+// INTERACTIVE THEME SELECTOR
+// ============================================================================
+
+#include <termios.h>
+#include <unistd.h>
+#include <sys/ioctl.h>
+
+// Get a single keypress without waiting for Enter
+static int get_key(void) {
+    struct termios oldt, newt;
+    int ch;
+    tcgetattr(STDIN_FILENO, &oldt);
+    newt = oldt;
+    newt.c_lflag &= ~(ICANON | ECHO);
+    tcsetattr(STDIN_FILENO, TCSANOW, &newt);
+    ch = getchar();
+    // Handle escape sequences (arrow keys)
+    if (ch == 27) {
+        int next = getchar();
+        if (next == '[') {
+            int arrow = getchar();
+            tcsetattr(STDIN_FILENO, TCSANOW, &oldt);
+            switch (arrow) {
+                case 'A': return -1;  // Up
+                case 'B': return -2;  // Down
+                case 'C': return -3;  // Right
+                case 'D': return -4;  // Left
+            }
+        }
+        tcsetattr(STDIN_FILENO, TCSANOW, &oldt);
+        return 27;  // ESC
+    }
+    tcsetattr(STDIN_FILENO, TCSANOW, &oldt);
+    return ch;
+}
+
+// Print a theme preview
+static void print_theme_preview(const Theme* t) {
+    printf("\n");
+    printf("  %s┌─ Preview ───────────────────────────────────────┐%s\n", t->separator, RST);
+    printf("  %s│%s                                                  %s│%s\n", t->separator, RST, t->separator, RST);
+    printf("  %s│%s  %sConvergio%s %s>%s %suser input here%s              %s│%s\n",
+           t->separator, RST, t->prompt_name, RST, t->prompt_arrow, RST, t->user_input, RST, t->separator, RST);
+    printf("  %s│%s                                                  %s│%s\n", t->separator, RST, t->separator, RST);
+    printf("  %s│%s  %sAli:%s Hello! I'm your assistant.              %s│%s\n",
+           t->separator, RST, t->agent_name, t->agent_text, t->separator, RST);
+    printf("  %s│%s                                                  %s│%s\n", t->separator, RST, t->separator, RST);
+    printf("  %s│%s  %s# Header%s  %s**bold**%s  %s`code`%s              %s│%s\n",
+           t->separator, RST, t->md_header1, RST, t->md_bold, RST, t->md_code, RST, t->separator, RST);
+    printf("  %s│%s                                                  %s│%s\n", t->separator, RST, t->separator, RST);
+    printf("  %s│%s  %s✓ Success%s  %s⚠ Warning%s  %s✗ Error%s          %s│%s\n",
+           t->separator, RST, t->success, RST, t->warning, RST, t->error, RST, t->separator, RST);
+    printf("  %s│%s                                                  %s│%s\n", t->separator, RST, t->separator, RST);
+    printf("  %s└──────────────────────────────────────────────────┘%s\n", t->separator, RST);
+}
+
+// Interactive theme selector with arrow keys
+ThemeId theme_select_interactive(void) {
+    ThemeId selected = g_current_theme;
+    ThemeId original = g_current_theme;
+    bool running = true;
+
+    // Hide cursor
+    printf("\033[?25l");
+
+    while (running) {
+        // Clear screen and move to top
+        printf("\033[2J\033[H");
+
+        printf("\n  \033[1mSelect Theme\033[0m  (↑/↓ navigate, Enter confirm, ESC cancel)\n\n");
+
+        // Show theme list
+        for (int i = 0; i < THEME_COUNT; i++) {
+            const Theme* t = &THEMES[i];
+            bool is_selected = ((ThemeId)i == selected);
+            bool is_current = ((ThemeId)i == original);
+
+            if (is_selected) {
+                printf("  \033[7m");  // Inverted colors
+            }
+
+            printf("  %s%s%-12s%s",
+                   is_selected ? "" : "  ",
+                   is_selected ? "\033[1m" : "",
+                   t->name,
+                   RST);
+
+            if (is_current && !is_selected) {
+                printf(" \033[2m(current)\033[0m");
+            }
+            if (is_selected) {
+                printf("\033[0m");
+            }
+            printf("\n");
+        }
+
+        // Show preview for selected theme
+        print_theme_preview(&THEMES[selected]);
+
+        printf("\n  \033[2mPress ↑/↓ to navigate, Enter to select, ESC to cancel\033[0m\n");
+
+        // Get key
+        int key = get_key();
+        switch (key) {
+            case -1:  // Up
+                if (selected > 0) selected--;
+                else selected = THEME_COUNT - 1;
+                break;
+            case -2:  // Down
+                if (selected < THEME_COUNT - 1) selected++;
+                else selected = 0;
+                break;
+            case '\n':  // Enter
+            case '\r':
+                running = false;
+                break;
+            case 27:   // ESC
+                selected = original;  // Restore original
+                running = false;
+                break;
+            case 'q':
+            case 'Q':
+                selected = original;
+                running = false;
+                break;
+        }
+    }
+
+    // Show cursor
+    printf("\033[?25h");
+
+    // Clear and show result
+    printf("\033[2J\033[H");
+
+    return selected;
 }
