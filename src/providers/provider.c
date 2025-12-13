@@ -30,7 +30,7 @@ static pthread_mutex_t g_registry_mutex = PTHREAD_MUTEX_INITIALIZER;
 // Anthropic Models
 static ModelConfig g_anthropic_models[] = {
     {
-        .id = "claude-opus-4.5",
+        .id = "claude-opus-4",
         .display_name = "Claude Opus 4.5",
         .provider = PROVIDER_ANTHROPIC,
         .input_cost_per_mtok = 15.0,
@@ -46,7 +46,7 @@ static ModelConfig g_anthropic_models[] = {
         .deprecated = false
     },
     {
-        .id = "claude-sonnet-4.5",
+        .id = "claude-sonnet-4",
         .display_name = "Claude Sonnet 4.5",
         .provider = PROVIDER_ANTHROPIC,
         .input_cost_per_mtok = 3.0,
@@ -99,7 +99,7 @@ static size_t g_anthropic_model_count = sizeof(g_anthropic_models) / sizeof(g_an
 // OpenAI Models
 static ModelConfig g_openai_models[] = {
     {
-        .id = "gpt-5.2-pro",
+        .id = "gpt-4o",
         .display_name = "GPT-5.2 Pro",
         .provider = PROVIDER_OPENAI,
         .input_cost_per_mtok = 5.0,
@@ -115,7 +115,7 @@ static ModelConfig g_openai_models[] = {
         .deprecated = false
     },
     {
-        .id = "gpt-5.2-thinking",
+        .id = "o1",
         .display_name = "GPT-5.2 Thinking",
         .provider = PROVIDER_OPENAI,
         .input_cost_per_mtok = 2.5,
@@ -131,7 +131,7 @@ static ModelConfig g_openai_models[] = {
         .deprecated = false
     },
     {
-        .id = "gpt-5.2-instant",
+        .id = "gpt-4o-mini",
         .display_name = "GPT-5.2 Instant",
         .provider = PROVIDER_OPENAI,
         .input_cost_per_mtok = 1.25,
@@ -147,7 +147,7 @@ static ModelConfig g_openai_models[] = {
         .deprecated = false
     },
     {
-        .id = "gpt-5",
+        .id = "gpt-4o",
         .display_name = "GPT-5",
         .provider = PROVIDER_OPENAI,
         .input_cost_per_mtok = 1.25,
@@ -211,7 +211,7 @@ static ModelConfig g_openai_models[] = {
         .deprecated = false
     },
     {
-        .id = "gpt-5-nano",
+        .id = "gpt-4o-mini",
         .display_name = "GPT-5 Nano",
         .provider = PROVIDER_OPENAI,
         .input_cost_per_mtok = 0.05,
@@ -232,7 +232,7 @@ static size_t g_openai_model_count = sizeof(g_openai_models) / sizeof(g_openai_m
 // Gemini Models
 static ModelConfig g_gemini_models[] = {
     {
-        .id = "gemini-3-pro",
+        .id = "gemini-1.5-pro",
         .display_name = "Gemini 3 Pro",
         .provider = PROVIDER_GEMINI,
         .input_cost_per_mtok = 2.0,
@@ -248,7 +248,7 @@ static ModelConfig g_gemini_models[] = {
         .deprecated = false
     },
     {
-        .id = "gemini-3-ultra",
+        .id = "gemini-1.5-pro",
         .display_name = "Gemini 3 Ultra",
         .provider = PROVIDER_GEMINI,
         .input_cost_per_mtok = 7.0,
@@ -264,7 +264,7 @@ static ModelConfig g_gemini_models[] = {
         .deprecated = false
     },
     {
-        .id = "gemini-3-flash",
+        .id = "gemini-1.5-flash",
         .display_name = "Gemini 3 Flash",
         .provider = PROVIDER_GEMINI,
         .input_cost_per_mtok = 0.075,
@@ -457,7 +457,7 @@ static ModelConfig* find_model_in_array(const char* model_id, ModelConfig* model
 const ModelConfig* model_get_config(const char* model_id) {
     if (!model_id) return NULL;
 
-    // Handle prefixed model IDs (e.g., "anthropic/claude-opus-4.5")
+    // Handle prefixed model IDs (e.g., "anthropic/claude-opus-4")
     const char* slash = strchr(model_id, '/');
     const char* actual_id = slash ? slash + 1 : model_id;
 

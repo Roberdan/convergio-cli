@@ -513,10 +513,10 @@ const char* cost_get_optimal_model(const char* preferred_model,
 
     // Find cheaper alternative
     const char* alternatives[] = {
-        "anthropic/claude-haiku-4.5",
-        "gemini/gemini-3-flash",
-        "openai/gpt-5-nano",
-        "openai/o4-mini"
+        "anthropic/claude-haiku-3.5",
+        "gemini/gemini-1.5-flash",
+        "openai/gpt-4o-mini",
+        "openai/o1-mini"
     };
 
     for (int i = 0; i < 4; i++) {

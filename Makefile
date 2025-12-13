@@ -234,15 +234,32 @@ debug:
 # Install
 install: all
 	@echo "Installing to /usr/local/bin..."
-	@sudo cp $(TARGET) /usr/local/bin/
-	@sudo mkdir -p /usr/local/lib/convergio
-	@if [ -s $(METAL_LIB) ]; then sudo cp $(METAL_LIB) /usr/local/lib/convergio/; fi
+	@if [ ! -d /usr/local/bin ]; then \
+		echo "Error: /usr/local/bin does not exist. Please create it first."; \
+		exit 1; \
+	fi
+	@if [ -w /usr/local/bin ]; then \
+		cp $(TARGET) /usr/local/bin/; \
+		mkdir -p /usr/local/lib/convergio; \
+		if [ -s $(METAL_LIB) ]; then cp $(METAL_LIB) /usr/local/lib/convergio/; fi; \
+	else \
+		echo "Requires elevated permissions..."; \
+		sudo cp $(TARGET) /usr/local/bin/; \
+		sudo mkdir -p /usr/local/lib/convergio; \
+		if [ -s $(METAL_LIB) ]; then sudo cp $(METAL_LIB) /usr/local/lib/convergio/; fi; \
+	fi
 	@echo "Installed."
 
 # Uninstall
 uninstall:
-	@sudo rm -f /usr/local/bin/convergio
-	@sudo rm -rf /usr/local/lib/convergio
+	@echo "Uninstalling from /usr/local/bin..."
+	@if [ -w /usr/local/bin/convergio ] 2>/dev/null; then \
+		rm -f /usr/local/bin/convergio; \
+		rm -rf /usr/local/lib/convergio; \
+	else \
+		sudo rm -f /usr/local/bin/convergio; \
+		sudo rm -rf /usr/local/lib/convergio; \
+	fi
 	@echo "Uninstalled."
 
 # Show hardware info

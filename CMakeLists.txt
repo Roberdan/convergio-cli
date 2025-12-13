@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.20)
 
 project(CONVERGIO
-    VERSION 0.1.0
+    VERSION 3.0.13
     DESCRIPTION "Convergio Kernel - A semantic kernel for human-AI symbiosis"
     LANGUAGES C OBJC
 )
@@ -11,17 +11,19 @@ if(NOT APPLE)
     message(FATAL_ERROR "Convergio Kernel is designed for Apple Silicon Macs only")
 endif()
 
-# M3 Max optimizations
+# Apple Silicon optimizations (M1/M2/M3/M4 compatible)
 set(CMAKE_C_STANDARD 17)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 set(CMAKE_OBJC_STANDARD 17)
 
-# Architecture-specific flags for M3 Max
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -march=armv8.6-a+fp16+dotprod+crypto")
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -mtune=apple-m3")
+# Architecture-specific flags for Apple Silicon (generic for M1-M4 compatibility)
+# Using armv8.4-a which is the baseline for all Apple Silicon chips
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -march=armv8.4-a+fp16+dotprod+crypto")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -mtune=apple-m1")
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -ffast-math")
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fvectorize")
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -flto")
+# Note: LTO disabled due to function pointer issues with some toolchains
+# set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -flto")
 
 # Release optimizations
 set(CMAKE_C_FLAGS_RELEASE "-O3 -DNDEBUG")

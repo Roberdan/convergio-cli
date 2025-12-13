@@ -1304,6 +1304,121 @@ rg "CONVERGIO_MUTEX_LOCK|CONVERGIO_MUTEX_UNLOCK" --type c -c
 rg "pthread_mutex_lock|pthread_mutex_unlock" --type c src/ | grep -v debug_mutex.h
 ```
 
+#### 15. Codebase Consistency Checks (Learned from Code Reviews)
+
+**These checks catch issues found by external code review tools like Codex:**
+
+```bash
+# A. Version Consistency Check
+echo "=== Version Consistency ==="
+VERSION=$(cat VERSION 2>/dev/null || echo "NOT_FOUND")
+CMAKE_VERSION=$(grep -oE "VERSION [0-9]+\.[0-9]+\.[0-9]+" CMakeLists.txt 2>/dev/null | grep -oE "[0-9]+\.[0-9]+\.[0-9]+" || echo "N/A")
+CHANGELOG_VERSION=$(grep -oE "^\#\# \[[0-9]+\.[0-9]+\.[0-9]+\]" CHANGELOG.md | head -1 | grep -oE "[0-9]+\.[0-9]+\.[0-9]+" || echo "N/A")
+README_VERSION=$(grep -oE "v[0-9]+\.[0-9]+\.[0-9]+" README.md | tail -1 | grep -oE "[0-9]+\.[0-9]+\.[0-9]+" || echo "N/A")
+
+echo "VERSION file: $VERSION"
+echo "CMakeLists.txt: $CMAKE_VERSION"
+echo "CHANGELOG.md: $CHANGELOG_VERSION"
+echo "README.md: $README_VERSION"
+
+if [ "$VERSION" != "$CMAKE_VERSION" ] && [ "$CMAKE_VERSION" != "N/A" ]; then
+  echo "❌ VERSION mismatch: VERSION=$VERSION, CMake=$CMAKE_VERSION"
+else
+  echo "✅ Versions consistent"
+fi
+
+# B. Architecture Portability Check (M1/M2/M3/M4 compatibility)
+echo "=== Architecture Portability ==="
+if grep -q "mtune=apple-m3" CMakeLists.txt; then
+  echo "❌ CMake uses M3-specific tuning (-mtune=apple-m3) - breaks M1/M2/M4"
+elif grep -q "mtune=apple-m1" CMakeLists.txt; then
+  echo "✅ CMake uses M1 baseline (compatible with all Apple Silicon)"
+else
+  echo "⚠️ Check CMake architecture flags manually"
+fi
+
+if grep -q "march=armv8.6-a" CMakeLists.txt; then
+  echo "❌ CMake uses armv8.6-a (M3-specific) - use armv8.4-a for M1 compatibility"
+elif grep -q "march=armv8.4-a" CMakeLists.txt; then
+  echo "✅ CMake uses armv8.4-a (M1-M4 compatible)"
+fi
+
+# C. Model Name Accuracy Check (no hallucinated/fake models)
+echo "=== Model Name Accuracy ==="
+FAKE_MODELS=$(rg -i "gpt-5|gemini-3|gemini-2|o3|gpt-.*codex" --type c src/ 2>/dev/null | grep -v "^Binary" | head -10)
+if [ -n "$FAKE_MODELS" ]; then
+  echo "❌ Potential hallucinated model names found:"
+  echo "$FAKE_MODELS"
+  echo "Use real model names: gpt-4o, gpt-4o-mini, o1, o1-mini, gemini-1.5-pro, gemini-1.5-flash"
+else
+  echo "✅ No obvious hallucinated model names"
+fi
+
+# D. Makefile vs CMake Drift Check
+echo "=== Build System Consistency ==="
+MAKE_SOURCES=$(grep -E "^\s+\$\(SRC_DIR\)/.*\.c" Makefile | wc -l)
+CMAKE_SOURCES=$(grep -E "src/.*\.c" CMakeLists.txt | grep -v "#" | wc -l)
+echo "Makefile source files: $MAKE_SOURCES"
+echo "CMake source files: $CMAKE_SOURCES"
+if [ "$MAKE_SOURCES" -ne "$CMAKE_SOURCES" ]; then
+  echo "⚠️ Source file count differs between Makefile and CMake"
+fi
+
+# E. Install Permission Check
+echo "=== Install Safety ==="
+if grep -q "if \[ -w /usr/local/bin \]" Makefile; then
+  echo "✅ Install target checks write permissions before using sudo"
+else
+  echo "⚠️ Install target may use sudo unnecessarily"
+fi
+
+# F. README Accuracy Check
+echo "=== README Content Accuracy ==="
+if grep -qE "As of (January|February|March|April|May|June|July|August|September|October|November|December) 20[0-9][0-9]" README.md; then
+  echo "⚠️ README contains date references that may become stale"
+fi
+if grep -qi "claude-opus-4.5\|claude-sonnet-4.5" README.md; then
+  echo "❌ README references non-existent Claude 4.5 models"
+fi
+if grep -qi "gpt-5\|gemini-3" README.md; then
+  echo "❌ README references non-existent GPT-5 or Gemini 3 models"
+fi
+
+# G. Data Directory Privacy Audit
+echo "=== Data Privacy Check ==="
+if grep -q "data/" .gitignore; then
+  echo "✅ data/ directory is gitignored"
+else
+  echo "❌ data/ directory NOT in .gitignore - sensitive data may be committed"
+fi
+if grep -q ".env" .gitignore; then
+  echo "✅ .env files are gitignored"
+else
+  echo "❌ .env NOT in .gitignore - API keys may be committed"
+fi
+
+# H. Telemetry Consent Check
+echo "=== Telemetry Privacy ==="
+if grep -qi "OPT-IN ONLY" src/telemetry/consent.c 2>/dev/null; then
+  echo "✅ Telemetry is opt-in only"
+else
+  echo "⚠️ Verify telemetry is opt-in (not enabled by default)"
+fi
+```
+
+**Add to Quality Gate Summary:**
+```
+### Codebase Consistency (Codex Review Items)
+- [ ] Version files aligned (VERSION, CMakeLists.txt, CHANGELOG, README): {PASS/FAIL}
+- [ ] Architecture flags portable (M1-M4 compatible): {PASS/FAIL}
+- [ ] No hallucinated/fake model names: {PASS/FAIL}
+- [ ] Makefile/CMake source lists in sync: {PASS/WARN/FAIL}
+- [ ] Install target checks permissions: {PASS/FAIL}
+- [ ] README content accurate (no stale dates, real models): {PASS/FAIL}
+- [ ] Data directories properly gitignored: {PASS/FAIL}
+- [ ] Telemetry opt-in only: {PASS/FAIL}
+```
+
 ### Quality Gate Summary Template
 
 After running all checks, generate this report:

@@ -23,11 +23,12 @@
 // ============================================================================
 
 typedef enum {
-    PROVIDER_ANTHROPIC = 0,
-    PROVIDER_OPENAI    = 1,
-    PROVIDER_GEMINI    = 2,
-    PROVIDER_OLLAMA    = 3,
-    PROVIDER_COUNT     = 4
+    PROVIDER_ANTHROPIC   = 0,
+    PROVIDER_OPENAI      = 1,
+    PROVIDER_GEMINI      = 2,
+    PROVIDER_OPENROUTER  = 3,
+    PROVIDER_OLLAMA      = 4,
+    PROVIDER_COUNT       = 5
 } ProviderType;
 
 // Cost tier for model selection
@@ -498,5 +499,37 @@ const char* stream_get_response(StreamContext* ctx);
  * @return Unescaped string (caller must free) or NULL on error
  */
 char* stream_unescape_json(const char* input);
+
+// ============================================================================
+// PROVIDER FACTORY FUNCTIONS
+// ============================================================================
+
+/**
+ * Create OpenRouter provider instance
+ * OpenRouter provides access to 300+ models via OpenAI-compatible API
+ * @return Provider instance (caller must free via shutdown)
+ */
+Provider* openrouter_provider_create(void);
+
+/**
+ * Create Ollama provider instance
+ * Ollama runs local models with zero API costs
+ * @return Provider instance (caller must free via shutdown)
+ */
+Provider* ollama_provider_create(void);
+
+/**
+ * Get API key environment variable name for a provider
+ * @param type Provider type
+ * @return Environment variable name or NULL for local providers
+ */
+const char* provider_get_api_key_env(ProviderType type);
+
+/**
+ * Get human-readable name for a provider
+ * @param type Provider type
+ * @return Provider display name
+ */
+const char* provider_get_name(ProviderType type);
 
 #endif // CONVERGIO_PROVIDER_H

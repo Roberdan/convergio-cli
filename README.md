@@ -52,7 +52,7 @@ Convergio CLI is a **multi-agent orchestration system** built in pure C/Objectiv
 
 ## Why Not Just Use Claude Code or Warp?
 
-As of December 2025, tools like **Claude Code** and **Warp Terminal** offer excellent AI-assisted development. Here's why Convergio is different:
+Tools like **Claude Code** and **Warp Terminal** offer excellent AI-assisted development. Here's why Convergio is different:
 
 ### The Team Collaboration Model
 
@@ -101,7 +101,7 @@ USER INPUT
 | **Inter-Agent Communication** | ✅ Message Bus | ❌ None | ❌ None |
 | **Parallel Execution** | ✅ GCD native | ⚠️ Max ~10, batched | ❌ Sequential |
 | **Convergence/Synthesis** | ✅ Automatic | ❌ Manual | ❌ N/A |
-| **Per-Agent Model Mapping** | ✅ Marco→GPT, Luca→o3 | ❌ Same for all | ❌ N/A |
+| **Per-Agent Model Mapping** | ✅ Marco→GPT, Luca→o1 | ❌ Same for all | ❌ N/A |
 | **Cost Management** | ✅ Granular, budget caps, auto-downgrade | ❌ None | ⚠️ Credits only |
 | **Agent State Tracking** | ✅ THINKING, IDLE, COLLABORATING | ❌ None | ❌ None |
 | **Open Source** | ✅ Full | ❌ Closed | ⚠️ Partial |
@@ -137,9 +137,9 @@ USER INPUT
 
 | Provider | Models (examples) | Best For | Pricing (indicative) |
 |----------|--------------------|----------|---------------------|
-| **Anthropic** | Claude Opus 4.5, Sonnet 4.5 | Complex reasoning, coding, agents | Varies by plan |
-| **OpenAI** | GPT-4o, o3 | Coding, reasoning, multimodal | See provider docs |
-| **Google** | Gemini 3 Pro, 3 Flash | Long context, cost-effective | See provider docs |
+| **Anthropic** | Claude Opus 4, Claude Sonnet 4 | Complex reasoning, coding, agents | Varies by plan |
+| **OpenAI** | GPT-4o, o1, GPT-4o-mini | Coding, reasoning, multimodal | See provider docs |
+| **Google** | Gemini 1.5 Pro, Gemini 1.5 Flash | Long context, cost-effective | See provider docs |
 
 ## Quick Start
 
@@ -214,9 +214,9 @@ convergio --provider gemini "Analyze this document"
 
 ### Specify a Model
 ```bash
-convergio --model claude-opus-4.5 "Complex reasoning task"
+convergio --model claude-opus-4 "Complex reasoning task"
 convergio --model gpt-4o "Analyze this code"
-convergio --model gemini-3-pro "Summarize these documents"
+convergio --model gemini-1.5-pro "Summarize these documents"
 ```
 
 ### Budget-Limited Session
@@ -230,7 +230,7 @@ convergio
 > Hello Ali, can you help me with a coding task?
 Ali: Of course! What would you like to work on?
 > cost
-Session: $0.0032 spent | $4.9968 remaining (using Claude Sonnet 4.5)
+Session: $0.0032 spent | $4.9968 remaining (using Claude Sonnet 4)
 ```
 
 ## Command Line Options
@@ -286,13 +286,13 @@ Different agents can use different models optimized for their tasks:
 
 | Agent | Default Model | Fallback | Use Case |
 |-------|--------------|----------|----------|
-| **Ali** (Chief of Staff) | Claude Opus 4.5 | GPT-5.2 Pro | Coordination, synthesis |
-| **Marco** (Coder) | Claude Sonnet 4.5 | GPT-5-Codex | Code generation |
-| **Baccio** (Architect) | Claude Opus 4.5 | GPT-5.2 Pro | System design |
-| **Luca** (Security) | o3 | Claude Opus 4.5 | Security analysis |
-| **Nina** (Analyst) | Gemini 3.0 Pro | GPT-5.2 | Data analysis (2M context) |
-| **Thor** (Reviewer) | GPT-5.2 Instant | Gemini 2.0 Flash | Fast reviews |
-| **Router** | GPT-5.2 Instant | Gemini 2.0 Flash | Fast routing decisions |
+| **Ali** (Chief of Staff) | Claude Opus 4 | GPT-4o | Coordination, synthesis |
+| **Marco** (Coder) | Claude Sonnet 4 | GPT-4o | Code generation |
+| **Baccio** (Architect) | Claude Opus 4 | GPT-4o | System design |
+| **Luca** (Security) | o1 | Claude Opus 4 | Security analysis |
+| **Nina** (Analyst) | Gemini 1.5 Pro | GPT-4o | Data analysis (2M context) |
+| **Thor** (Reviewer) | GPT-4o-mini | Gemini 1.5 Flash | Fast reviews |
+| **Router** | GPT-4o-mini | Gemini 1.5 Flash | Fast routing decisions |
 
 ## Cost Optimization
 
@@ -305,9 +305,9 @@ Convergio automatically optimizes costs:
 
 Example budget progression:
 ```
-Budget > $3.00 → Claude Opus 4.5 / GPT-5.2 Pro (full capability)
-Budget > $1.00 → Claude Sonnet 4.5 / GPT-5.2 (balanced)
-Budget > $0.10 → GPT-5.2 Instant / Gemini 2.0 Flash (fast, cheap)
+Budget > $3.00 → Claude Opus 4 / GPT-4o (full capability)
+Budget > $1.00 → Claude Sonnet 4 / GPT-4o (balanced)
+Budget > $0.10 → GPT-4o-mini / Gemini 1.5 Flash (fast, cheap)
 Budget < $0.10 → Session paused (user confirmation required)
 ```
 
@@ -359,9 +359,9 @@ flowchart TB
 
     subgraph PROVIDERS["☁️ Multi-Provider Layer"]
         direction LR
-        Anthropic["Anthropic<br/>Claude Opus 4.5<br/>Claude Sonnet 4.5"]
-        OpenAI["OpenAI<br/>GPT-5.2 Pro<br/>o3, GPT-4o"]
-        Gemini["Google Gemini<br/>Gemini 3.0 Pro<br/>Gemini 2.0 Flash"]
+        Anthropic["Anthropic<br/>Claude Opus 4<br/>Claude Sonnet 4"]
+        OpenAI["OpenAI<br/>GPT-4o<br/>o1, GPT-4o-mini"]
+        Gemini["Google Gemini<br/>Gemini 1.5 Pro<br/>Gemini 1.5 Flash"]
     end
 
     subgraph AGENTS["👥 Agent Execution Layer"]
@@ -460,9 +460,9 @@ sequenceDiagram
 flowchart LR
     Budget["Current Budget"] --> Check{Budget Level?}
 
-    Check -->|"> $3.00"| Premium["Premium Models<br/>Claude Opus 4.5<br/>GPT-5.2 Pro"]
-    Check -->|"> $1.00"| Balanced["Balanced Models<br/>Claude Sonnet 4.5<br/>GPT-5.2"]
-    Check -->|"> $0.10"| Fast["Fast/Cheap Models<br/>GPT-5.2 Instant<br/>Gemini 2.0 Flash"]
+    Check -->|"> $3.00"| Premium["Premium Models<br/>Claude Opus 4<br/>GPT-4o"]
+    Check -->|"> $1.00"| Balanced["Balanced Models<br/>Claude Sonnet 4<br/>GPT-4o"]
+    Check -->|"> $0.10"| Fast["Fast/Cheap Models<br/>GPT-4o-mini<br/>Gemini 1.5 Flash"]
     Check -->|"< $0.10"| Pause["⚠️ Session Paused<br/>Confirmation Required"]
 
     Premium --> Execute["Execute Query"]
@@ -677,6 +677,6 @@ MIT License - see [LICENSE](LICENSE) for details.
 
 ---
 
-*Convergio CLI v3.0 - Multi-Model AI Orchestration for Apple Silicon*
+*Convergio CLI v3.0.13 - Multi-Model AI Orchestration for Apple Silicon*
 
 *Developed by Roberto D'Angelo with AI assistance*
