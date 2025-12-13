@@ -8,6 +8,7 @@
  */
 
 #include "nous/provider.h"
+#include "nous/model_loader.h"
 #include "nous/nous.h"
 #include <stdlib.h>
 #include <string.h>
@@ -122,18 +123,43 @@ static char* json_escape(const char* str) {
                 default:
                     if (*p < 32) {
                         int written = snprintf(out, 7, "\\u%04x", *p);
-                        if (written > 0) out += written;
+                        if (written > 0) out += (size_t)written;
                     } else {
-                        *out++ = *p;
+                        *out++ = (char)*p;
                     }
             }
             p++;
         } else {
-            *out++ = *p++;
+            *out++ = (char)*p++;
         }
     }
     *out = '\0';
     return escaped;
+}
+
+// Get model API ID from model name (uses JSON config as source of truth)
+static const char* get_model_api_id(const char* model) {
+    if (!model) return "gpt-5.2";
+
+    // FIRST: Check JSON config for api_id
+    const JsonModelConfig* json = models_get_json_model(model);
+    if (json && json->api_id) {
+        return json->api_id;
+    }
+
+    // FALLBACK: Return model as-is (it might already be an API ID)
+    return model;
+}
+
+// Check if model is GPT-5.x series (requires max_completion_tokens instead of max_tokens)
+static bool is_gpt5_model(const char* model) {
+    if (!model) return false;
+    return strstr(model, "gpt-5") != NULL || strstr(model, "o3") != NULL || strstr(model, "o4") != NULL;
+}
+
+// Get the correct token limit parameter name for the model
+static const char* get_token_param_name(const char* model) {
+    return is_gpt5_model(model) ? "max_completion_tokens" : "max_tokens";
 }
 
 // Extract content from OpenAI response
@@ -171,7 +197,7 @@ static char* extract_response_content(const char* json) {
 
     if (*end != '"') return NULL;
 
-    size_t len = end - start;
+    size_t len = (size_t)(end - start);
     char* result = malloc(len + 1);
     if (!result) return NULL;
 
@@ -328,7 +354,7 @@ static char* openai_chat(Provider* self, const char* model, const char* system,
         return NULL;
     }
 
-    const char* api_model = model ? model : "gpt-4o";
+    const char* api_model = get_model_api_id(model);
 
     size_t json_size = strlen(escaped_system) + strlen(escaped_user) + 1024;
     char* json_body = malloc(json_size);
@@ -342,13 +368,13 @@ static char* openai_chat(Provider* self, const char* model, const char* system,
     snprintf(json_body, json_size,
         "{"
         "\"model\": \"%s\","
-        "\"max_tokens\": %d,"
+        "\"%s\": %d,"
         "\"messages\": ["
         "{\"role\": \"system\", \"content\": \"%s\"},"
         "{\"role\": \"user\", \"content\": \"%s\"}"
         "]"
         "}",
-        api_model, DEFAULT_MAX_TOKENS, escaped_system, escaped_user);
+        api_model, get_token_param_name(api_model), DEFAULT_MAX_TOKENS, escaped_system, escaped_user);
 
     free(escaped_system);
     free(escaped_user);
@@ -403,9 +429,9 @@ static char* openai_chat(Provider* self, const char* model, const char* system,
         data->last_error.code = PROVIDER_ERR_NETWORK;
         data->last_error.message = strdup(curl_easy_strerror(res));
     } else if (http_code != 200) {
-        data->last_error.code = PROVIDER_ERR_UNKNOWN;
+        data->last_error.code = provider_map_http_error(http_code);
         data->last_error.message = strdup(response.data ? response.data : "Unknown error");
-        LOG_WARN(LOG_CAT_API, "OpenAI API error: HTTP %ld", http_code);
+        LOG_WARN(LOG_CAT_API, "OpenAI API error: HTTP %ld -> %d", http_code, data->last_error.code);
     } else {
         result = extract_response_content(response.data);
         if (!result) {
@@ -483,7 +509,7 @@ static char* openai_chat_with_tools(Provider* self, const char* model, const cha
         return NULL;
     }
 
-    const char* api_model = model ? model : "gpt-4o";
+    const char* api_model = get_model_api_id(model);
 
     size_t json_size = strlen(escaped_system) + strlen(escaped_user) + strlen(tools_json) + 2048;
     char* json_body = malloc(json_size);
@@ -498,14 +524,14 @@ static char* openai_chat_with_tools(Provider* self, const char* model, const cha
     snprintf(json_body, json_size,
         "{"
         "\"model\": \"%s\","
-        "\"max_tokens\": %d,"
+        "\"%s\": %d,"
         "\"tools\": %s,"
         "\"messages\": ["
         "{\"role\": \"system\", \"content\": \"%s\"},"
         "{\"role\": \"user\", \"content\": \"%s\"}"
         "]"
         "}",
-        api_model, DEFAULT_MAX_TOKENS, tools_json, escaped_system, escaped_user);
+        api_model, get_token_param_name(api_model), DEFAULT_MAX_TOKENS, tools_json, escaped_system, escaped_user);
 
     free(escaped_system);
     free(escaped_user);
@@ -657,7 +683,7 @@ static ProviderError openai_stream_chat(Provider* self, const char* model, const
         return PROVIDER_ERR_INVALID_REQUEST;
     }
 
-    const char* api_model = model ? model : "gpt-4o";
+    const char* api_model = get_model_api_id(model);
 
     size_t json_size = strlen(escaped_system) + strlen(escaped_user) + 1024;
     char* json_body = malloc(json_size);
@@ -670,14 +696,14 @@ static ProviderError openai_stream_chat(Provider* self, const char* model, const
     snprintf(json_body, json_size,
         "{"
         "\"model\": \"%s\","
-        "\"max_tokens\": %d,"
+        "\"%s\": %d,"
         "\"stream\": true,"
         "\"messages\": ["
         "{\"role\": \"system\", \"content\": \"%s\"},"
         "{\"role\": \"user\", \"content\": \"%s\"}"
         "]"
         "}",
-        api_model, DEFAULT_MAX_TOKENS, escaped_system, escaped_user);
+        api_model, get_token_param_name(api_model), DEFAULT_MAX_TOKENS, escaped_system, escaped_user);
 
     free(escaped_system);
     free(escaped_user);

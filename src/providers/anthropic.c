@@ -8,6 +8,7 @@
  */
 
 #include "nous/provider.h"
+#include "nous/model_loader.h"
 #include "nous/nous.h"
 #include "../auth/oauth.h"
 #include <stdlib.h>
@@ -157,7 +158,7 @@ static char* json_escape(const char* str) {
                         int written = snprintf(out, 7, "\\u%04x", *p);
                         if (written > 0) out += written;
                     } else {
-                        *out++ = *p;
+                        *out++ = (char)*p;
                     }
             }
             p++;
@@ -185,7 +186,7 @@ static char* json_escape(const char* str) {
             }
 
             int32_t cp = utf8_decode(p, seq_len);
-            if (cp < 0 || is_surrogate(cp) ||
+            if (cp < 0 || is_surrogate((uint32_t)cp) ||
                 (seq_len == 2 && cp < 0x80) ||
                 (seq_len == 3 && cp < 0x800) ||
                 (seq_len == 4 && cp < 0x10000)) {
@@ -196,7 +197,7 @@ static char* json_escape(const char* str) {
             }
 
             for (int i = 0; i < seq_len; i++) {
-                *out++ = p[i];
+                *out++ = (char)p[i];
             }
             p += seq_len;
         }
@@ -241,7 +242,7 @@ static char* extract_response_text(const char* json) {
 
     if (*end != '"') return NULL;
 
-    size_t len = end - start;
+    size_t len = (size_t)(end - start);
     char* result = malloc(len + 1);
     if (!result) return NULL;
 
@@ -304,17 +305,24 @@ static void extract_token_usage(const char* json, TokenUsage* usage) {
 }
 
 // Get model API ID from model name
-// Model dates based on Anthropic official releases (Dec 2025)
+// Uses api_id from JSON config (single source of truth)
+// Falls back to hardcoded only if JSON not available
 static const char* get_model_api_id(const char* model) {
     if (!model) return "claude-sonnet-4-5-20250929";
 
-    // Map friendly names to API IDs (using official release dates)
-    if (strcmp(model, "claude-opus-4.5") == 0 || strcmp(model, "claude-opus-4") == 0) {
-        return "claude-opus-4-5-20251124";  // Nov 24, 2025
-    } else if (strcmp(model, "claude-sonnet-4.5") == 0 || strcmp(model, "claude-sonnet-4") == 0) {
-        return "claude-sonnet-4-5-20250929";  // Sep 29, 2025 - flagship coding model
-    } else if (strcmp(model, "claude-haiku-4.5") == 0 || strcmp(model, "claude-haiku-4") == 0) {
-        return "claude-haiku-4-5-20251015";  // Oct 15, 2025
+    // FIRST: Check JSON config for api_id
+    const JsonModelConfig* json = models_get_json_model(model);
+    if (json && json->api_id) {
+        return json->api_id;
+    }
+
+    // FALLBACK: Hardcoded mappings (for when JSON not available)
+    if (strcmp(model, "claude-opus-4.5") == 0) {
+        return "claude-opus-4-5-20251101";
+    } else if (strcmp(model, "claude-sonnet-4.5") == 0) {
+        return "claude-sonnet-4-5-20250929";
+    } else if (strcmp(model, "claude-haiku-4.5") == 0) {
+        return "claude-haiku-4-5-20251001";
     }
 
     // If already an API ID, return as-is
@@ -363,7 +371,7 @@ static void parse_api_error(const char* response, AnthropicProviderData* data) {
             type_found++;
             const char* end = strchr(type_found, '"');
             if (end) {
-                size_t len = end - type_found;
+                size_t len = (size_t)(end - type_found);
                 data->last_error.provider_code = malloc(len + 1);
                 if (data->last_error.provider_code) {
                     strncpy(data->last_error.provider_code, type_found, len);
@@ -398,7 +406,7 @@ static void parse_api_error(const char* response, AnthropicProviderData* data) {
             msg_found++;
             const char* end = strchr(msg_found, '"');
             if (end) {
-                size_t len = end - msg_found;
+                size_t len = (size_t)(end - msg_found);
                 data->last_error.message = malloc(len + 1);
                 if (data->last_error.message) {
                     strncpy(data->last_error.message, msg_found, len);

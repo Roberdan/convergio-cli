@@ -15,6 +15,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Install dependencies
+        run: brew install cjson
+
       - name: Build (Release)
         run: |
           make clean
@@ -64,6 +67,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Install dependencies
+        run: brew install cjson
+
       - name: Build with sanitizers
         run: |
           make clean
@@ -87,6 +93,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Install dependencies
+        run: brew install cjson
+
       - name: Build and run unit tests
         run: |
           make clean
@@ -109,6 +118,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Install dependencies
+        run: brew install cjson
+
       - name: Build fuzz tests
         run: |
           make clean
@@ -130,6 +142,9 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: brew install cjson
 
       - name: Build
         run: make clean && make

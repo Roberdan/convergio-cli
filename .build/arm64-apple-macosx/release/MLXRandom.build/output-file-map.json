@@ -1,0 +1,13 @@
+{
+  "": {
+    "dependencies": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLXRandom.build/MLXRandom.d",
+    "object": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLXRandom.build/MLXRandom.o",
+    "swift-dependencies": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLXRandom.build/master.swiftdeps"
+  },
+  "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/checkouts/mlx-swift/Source/MLXRandom/Random.swift": {
+    "object": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLXRandom.build/Random.swift.o",
+    "swiftmodule": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLXRandom.build/Random~partial.swiftmodule",
+    "swift-dependencies": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLXRandom.build/Random.swiftdeps",
+    "diagnostics": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLXRandom.build/Random.dia"
+  }
+}

@@ -1,0 +1,199 @@
+{
+  "": {
+    "dependencies": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLXLMCommon.build/MLXLMCommon.d",
+    "object": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLXLMCommon.build/MLXLMCommon.o",
+    "swift-dependencies": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLXLMCommon.build/master.swiftdeps"
+  },
+  "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/checkouts/mlx-swift-lm/Libraries/MLXLMCommon/Adapters/LoRA/DoRA+Layers.swift": {
+    "object": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLXLMCommon.build/DoRA+Layers.swift.o",
+    "swiftmodule": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLXLMCommon.build/DoRA+Layers~partial.swiftmodule",
+    "swift-dependencies": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLXLMCommon.build/DoRA+Layers.swiftdeps",
+    "diagnostics": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLXLMCommon.build/DoRA+Layers.dia"
+  },
+  "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/checkouts/mlx-swift-lm/Libraries/MLXLMCommon/Adapters/LoRA/LoRA+Layers.swift": {
+    "object": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLXLMCommon.build/LoRA+Layers.swift.o",
+    "swiftmodule": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLXLMCommon.build/LoRA+Layers~partial.swiftmodule",
+    "swift-dependencies": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLXLMCommon.build/LoRA+Layers.swiftdeps",
+    "diagnostics": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLXLMCommon.build/LoRA+Layers.dia"
+  },
+  "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/checkouts/mlx-swift-lm/Libraries/MLXLMCommon/Adapters/LoRA/LoRAContainer.swift": {
+    "object": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLXLMCommon.build/LoRAContainer.swift.o",
+    "swiftmodule": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLXLMCommon.build/LoRAContainer~partial.swiftmodule",
+    "swift-dependencies": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLXLMCommon.build/LoRAContainer.swiftdeps",
+    "diagnostics": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLXLMCommon.build/LoRAContainer.dia"
+  },
+  "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/checkouts/mlx-swift-lm/Libraries/MLXLMCommon/Adapters/LoRA/LoRAModel.swift": {
+    "object": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLXLMCommon.build/LoRAModel.swift.o",
+    "swiftmodule": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLXLMCommon.build/LoRAModel~partial.swiftmodule",
+    "swift-dependencies": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLXLMCommon.build/LoRAModel.swiftdeps",
+    "diagnostics": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLXLMCommon.build/LoRAModel.dia"
+  },
+  "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/checkouts/mlx-swift-lm/Libraries/MLXLMCommon/Adapters/ModelAdapter.swift": {
+    "object": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLXLMCommon.build/ModelAdapter.swift.o",
+    "swiftmodule": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLXLMCommon.build/ModelAdapter~partial.swiftmodule",
+    "swift-dependencies": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLXLMCommon.build/ModelAdapter.swiftdeps",
+    "diagnostics": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLXLMCommon.build/ModelAdapter.dia"
+  },
+  "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/checkouts/mlx-swift-lm/Libraries/MLXLMCommon/Adapters/ModelAdapterFactory.swift": {
+    "object": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLXLMCommon.build/ModelAdapterFactory.swift.o",
+    "swiftmodule": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLXLMCommon.build/ModelAdapterFactory~partial.swiftmodule",
+    "swift-dependencies": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLXLMCommon.build/ModelAdapterFactory.swiftdeps",
+    "diagnostics": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLXLMCommon.build/ModelAdapterFactory.dia"
+  },
+  "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/checkouts/mlx-swift-lm/Libraries/MLXLMCommon/Adapters/ModelAdapterTypeRegistry.swift": {
+    "object": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLXLMCommon.build/ModelAdapterTypeRegistry.swift.o",
+    "swiftmodule": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLXLMCommon.build/ModelAdapterTypeRegistry~partial.swiftmodule",
+    "swift-dependencies": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLXLMCommon.build/ModelAdapterTypeRegistry.swiftdeps",
+    "diagnostics": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLXLMCommon.build/ModelAdapterTypeRegistry.dia"
+  },
+  "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/checkouts/mlx-swift-lm/Libraries/MLXLMCommon/AttentionUtils.swift": {
+    "object": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLXLMCommon.build/AttentionUtils.swift.o",
+    "swiftmodule": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLXLMCommon.build/AttentionUtils~partial.swiftmodule",
+    "swift-dependencies": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLXLMCommon.build/AttentionUtils.swiftdeps",
+    "diagnostics": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLXLMCommon.build/AttentionUtils.dia"
+  },
+  "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/checkouts/mlx-swift-lm/Libraries/MLXLMCommon/BaseConfiguration.swift": {
+    "object": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLXLMCommon.build/BaseConfiguration.swift.o",
+    "swiftmodule": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLXLMCommon.build/BaseConfiguration~partial.swiftmodule",
+    "swift-dependencies": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLXLMCommon.build/BaseConfiguration.swiftdeps",
+    "diagnostics": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLXLMCommon.build/BaseConfiguration.dia"
+  },
+  "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/checkouts/mlx-swift-lm/Libraries/MLXLMCommon/Chat.swift": {
+    "object": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLXLMCommon.build/Chat.swift.o",
+    "swiftmodule": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLXLMCommon.build/Chat~partial.swiftmodule",
+    "swift-dependencies": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLXLMCommon.build/Chat.swiftdeps",
+    "diagnostics": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLXLMCommon.build/Chat.dia"
+  },
+  "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/checkouts/mlx-swift-lm/Libraries/MLXLMCommon/Evaluate.swift": {
+    "object": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLXLMCommon.build/Evaluate.swift.o",
+    "swiftmodule": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLXLMCommon.build/Evaluate~partial.swiftmodule",
+    "swift-dependencies": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLXLMCommon.build/Evaluate.swiftdeps",
+    "diagnostics": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLXLMCommon.build/Evaluate.dia"
+  },
+  "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/checkouts/mlx-swift-lm/Libraries/MLXLMCommon/Extensions/Encodable+toolResult.swift": {
+    "object": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLXLMCommon.build/Encodable+toolResult.swift.o",
+    "swiftmodule": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLXLMCommon.build/Encodable+toolResult~partial.swiftmodule",
+    "swift-dependencies": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLXLMCommon.build/Encodable+toolResult.swiftdeps",
+    "diagnostics": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLXLMCommon.build/Encodable+toolResult.dia"
+  },
+  "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/checkouts/mlx-swift-lm/Libraries/MLXLMCommon/KVCache.swift": {
+    "object": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLXLMCommon.build/KVCache.swift.o",
+    "swiftmodule": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLXLMCommon.build/KVCache~partial.swiftmodule",
+    "swift-dependencies": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLXLMCommon.build/KVCache.swiftdeps",
+    "diagnostics": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLXLMCommon.build/KVCache.dia"
+  },
+  "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/checkouts/mlx-swift-lm/Libraries/MLXLMCommon/LanguageModel.swift": {
+    "object": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLXLMCommon.build/LanguageModel.swift.o",
+    "swiftmodule": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLXLMCommon.build/LanguageModel~partial.swiftmodule",
+    "swift-dependencies": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLXLMCommon.build/LanguageModel.swiftdeps",
+    "diagnostics": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLXLMCommon.build/LanguageModel.dia"
+  },
+  "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/checkouts/mlx-swift-lm/Libraries/MLXLMCommon/Load.swift": {
+    "object": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLXLMCommon.build/Load.swift.o",
+    "swiftmodule": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLXLMCommon.build/Load~partial.swiftmodule",
+    "swift-dependencies": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLXLMCommon.build/Load.swiftdeps",
+    "diagnostics": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLXLMCommon.build/Load.dia"
+  },
+  "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/checkouts/mlx-swift-lm/Libraries/MLXLMCommon/ModelConfiguration.swift": {
+    "object": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLXLMCommon.build/ModelConfiguration.swift.o",
+    "swiftmodule": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLXLMCommon.build/ModelConfiguration~partial.swiftmodule",
+    "swift-dependencies": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLXLMCommon.build/ModelConfiguration.swiftdeps",
+    "diagnostics": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLXLMCommon.build/ModelConfiguration.dia"
+  },
+  "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/checkouts/mlx-swift-lm/Libraries/MLXLMCommon/ModelContainer.swift": {
+    "object": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLXLMCommon.build/ModelContainer.swift.o",
+    "swiftmodule": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLXLMCommon.build/ModelContainer~partial.swiftmodule",
+    "swift-dependencies": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLXLMCommon.build/ModelContainer.swiftdeps",
+    "diagnostics": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLXLMCommon.build/ModelContainer.dia"
+  },
+  "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/checkouts/mlx-swift-lm/Libraries/MLXLMCommon/ModelFactory.swift": {
+    "object": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLXLMCommon.build/ModelFactory.swift.o",
+    "swiftmodule": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLXLMCommon.build/ModelFactory~partial.swiftmodule",
+    "swift-dependencies": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLXLMCommon.build/ModelFactory.swiftdeps",
+    "diagnostics": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLXLMCommon.build/ModelFactory.dia"
+  },
+  "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/checkouts/mlx-swift-lm/Libraries/MLXLMCommon/Models/Gemma.swift": {
+    "object": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLXLMCommon.build/Gemma.swift.o",
+    "swiftmodule": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLXLMCommon.build/Gemma~partial.swiftmodule",
+    "swift-dependencies": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLXLMCommon.build/Gemma.swiftdeps",
+    "diagnostics": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLXLMCommon.build/Gemma.dia"
+  },
+  "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/checkouts/mlx-swift-lm/Libraries/MLXLMCommon/Module+Extensions.swift": {
+    "object": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLXLMCommon.build/Module+Extensions.swift.o",
+    "swiftmodule": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLXLMCommon.build/Module+Extensions~partial.swiftmodule",
+    "swift-dependencies": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLXLMCommon.build/Module+Extensions.swiftdeps",
+    "diagnostics": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLXLMCommon.build/Module+Extensions.dia"
+  },
+  "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/checkouts/mlx-swift-lm/Libraries/MLXLMCommon/Registries/AbstractModelRegistry.swift": {
+    "object": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLXLMCommon.build/AbstractModelRegistry.swift.o",
+    "swiftmodule": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLXLMCommon.build/AbstractModelRegistry~partial.swiftmodule",
+    "swift-dependencies": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLXLMCommon.build/AbstractModelRegistry.swiftdeps",
+    "diagnostics": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLXLMCommon.build/AbstractModelRegistry.dia"
+  },
+  "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/checkouts/mlx-swift-lm/Libraries/MLXLMCommon/Registries/ModelTypeRegistry.swift": {
+    "object": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLXLMCommon.build/ModelTypeRegistry.swift.o",
+    "swiftmodule": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLXLMCommon.build/ModelTypeRegistry~partial.swiftmodule",
+    "swift-dependencies": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLXLMCommon.build/ModelTypeRegistry.swiftdeps",
+    "diagnostics": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLXLMCommon.build/ModelTypeRegistry.dia"
+  },
+  "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/checkouts/mlx-swift-lm/Libraries/MLXLMCommon/Registries/ProcessorTypeRegistry.swift": {
+    "object": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLXLMCommon.build/ProcessorTypeRegistry.swift.o",
+    "swiftmodule": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLXLMCommon.build/ProcessorTypeRegistry~partial.swiftmodule",
+    "swift-dependencies": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLXLMCommon.build/ProcessorTypeRegistry.swiftdeps",
+    "diagnostics": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLXLMCommon.build/ProcessorTypeRegistry.dia"
+  },
+  "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/checkouts/mlx-swift-lm/Libraries/MLXLMCommon/Streamlined.swift": {
+    "object": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLXLMCommon.build/Streamlined.swift.o",
+    "swiftmodule": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLXLMCommon.build/Streamlined~partial.swiftmodule",
+    "swift-dependencies": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLXLMCommon.build/Streamlined.swiftdeps",
+    "diagnostics": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLXLMCommon.build/Streamlined.dia"
+  },
+  "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/checkouts/mlx-swift-lm/Libraries/MLXLMCommon/StringOrNumber.swift": {
+    "object": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLXLMCommon.build/StringOrNumber.swift.o",
+    "swiftmodule": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLXLMCommon.build/StringOrNumber~partial.swiftmodule",
+    "swift-dependencies": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLXLMCommon.build/StringOrNumber.swiftdeps",
+    "diagnostics": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLXLMCommon.build/StringOrNumber.dia"
+  },
+  "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/checkouts/mlx-swift-lm/Libraries/MLXLMCommon/Tokenizer.swift": {
+    "object": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLXLMCommon.build/Tokenizer.swift.o",
+    "swiftmodule": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLXLMCommon.build/Tokenizer~partial.swiftmodule",
+    "swift-dependencies": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLXLMCommon.build/Tokenizer.swiftdeps",
+    "diagnostics": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLXLMCommon.build/Tokenizer.dia"
+  },
+  "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/checkouts/mlx-swift-lm/Libraries/MLXLMCommon/Tool/Tool.swift": {
+    "object": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLXLMCommon.build/Tool.swift.o",
+    "swiftmodule": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLXLMCommon.build/Tool~partial.swiftmodule",
+    "swift-dependencies": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLXLMCommon.build/Tool.swiftdeps",
+    "diagnostics": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLXLMCommon.build/Tool.dia"
+  },
+  "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/checkouts/mlx-swift-lm/Libraries/MLXLMCommon/Tool/ToolCall.swift": {
+    "object": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLXLMCommon.build/ToolCall.swift.o",
+    "swiftmodule": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLXLMCommon.build/ToolCall~partial.swiftmodule",
+    "swift-dependencies": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLXLMCommon.build/ToolCall.swiftdeps",
+    "diagnostics": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLXLMCommon.build/ToolCall.dia"
+  },
+  "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/checkouts/mlx-swift-lm/Libraries/MLXLMCommon/Tool/ToolCallProcessor.swift": {
+    "object": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLXLMCommon.build/ToolCallProcessor.swift.o",
+    "swiftmodule": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLXLMCommon.build/ToolCallProcessor~partial.swiftmodule",
+    "swift-dependencies": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLXLMCommon.build/ToolCallProcessor.swiftdeps",
+    "diagnostics": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLXLMCommon.build/ToolCallProcessor.dia"
+  },
+  "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/checkouts/mlx-swift-lm/Libraries/MLXLMCommon/Tool/ToolParameter.swift": {
+    "object": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLXLMCommon.build/ToolParameter.swift.o",
+    "swiftmodule": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLXLMCommon.build/ToolParameter~partial.swiftmodule",
+    "swift-dependencies": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLXLMCommon.build/ToolParameter.swiftdeps",
+    "diagnostics": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLXLMCommon.build/ToolParameter.dia"
+  },
+  "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/checkouts/mlx-swift-lm/Libraries/MLXLMCommon/Tool/Value.swift": {
+    "object": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLXLMCommon.build/Value.swift.o",
+    "swiftmodule": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLXLMCommon.build/Value~partial.swiftmodule",
+    "swift-dependencies": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLXLMCommon.build/Value.swiftdeps",
+    "diagnostics": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLXLMCommon.build/Value.dia"
+  },
+  "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/checkouts/mlx-swift-lm/Libraries/MLXLMCommon/UserInput.swift": {
+    "object": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLXLMCommon.build/UserInput.swift.o",
+    "swiftmodule": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLXLMCommon.build/UserInput~partial.swiftmodule",
+    "swift-dependencies": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLXLMCommon.build/UserInput.swiftdeps",
+    "diagnostics": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLXLMCommon.build/UserInput.dia"
+  }
+}

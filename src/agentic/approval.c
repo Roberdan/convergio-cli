@@ -185,7 +185,7 @@ bool request_user_approval(ApprovalRequest* req) {
     }
 
     // Parse input
-    char c = tolower(input[0]);
+    char c = (char)tolower(input[0]);
 
     switch (c) {
         case 'y':

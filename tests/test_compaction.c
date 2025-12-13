@@ -117,6 +117,15 @@ char* persistence_load_conversation_context(const char* session_id, size_t max_m
     return strdup("");
 }
 
+int64_t persistence_get_cutoff_message_id(const char* session_id, int keep_recent) {
+    (void)session_id; (void)keep_recent;
+    // Return a cutoff that leaves 'keep_recent' messages at the end
+    if (g_mock_last_msg_id - g_mock_first_msg_id < keep_recent) {
+        return -1;  // Not enough messages
+    }
+    return g_mock_last_msg_id - keep_recent;
+}
+
 // Mock provider functions
 static bool g_provider_available = true;
 static char* g_mock_llm_response = NULL;

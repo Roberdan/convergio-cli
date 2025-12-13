@@ -183,7 +183,7 @@ static void tokenize(const char* input, TokenStream* out) {
             const char* start = p;
             while (*p && *p != quote) p++;
 
-            tok.len = p - start;
+            tok.len = (size_t)(p - start);
             tok.text = malloc(tok.len + 1);
             memcpy(tok.text, start, tok.len);
             tok.text[tok.len] = '\0';
@@ -209,7 +209,7 @@ static void tokenize(const char* input, TokenStream* out) {
         const char* start = p;
         while (*p && !isspace(*p) && !strchr(":,()[]{}\"'", *p)) p++;
 
-        tok.len = p - start;
+        tok.len = (size_t)(p - start);
         tok.text = malloc(tok.len + 1);
         memcpy(tok.text, start, tok.len);
         tok.text[tok.len] = '\0';
@@ -256,7 +256,7 @@ static PatternType detect_pattern(const char* line) {
     for (const SemanticPattern* pat = PATTERNS; pat->trigger; pat++) {
         char* found = strstr(lower, pat->trigger);
         if (found) {
-            size_t pos = found - lower;
+            size_t pos = (size_t)(found - lower);
             if (pos < best_pos) {
                 best_pos = pos;
                 result = pat->type;
@@ -396,7 +396,7 @@ static int execute_connect(TokenStream* ts) {
 
     char msg[256];
     snprintf(msg, sizeof(msg), "Collegato \"%s\" con \"%s\" (forza: %.0f%%)",
-             from, to, strength * 100);
+             from, to, (double)(strength * 100));
     output(msg);
 
     return 0;
@@ -430,7 +430,18 @@ static int execute_find(TokenStream* ts) {
     snprintf(msg, sizeof(msg), "Cerco: \"%s\"...", query);
     output(msg);
 
-    // TODO(#1): Implement actual semantic search
+    // LIMITATION: Semantic search not yet implemented
+    // Current behavior: Placeholder implementation with keyword matching
+    //
+    // Blocking factors:
+    // - MLX embedding model weights not yet available in distribution
+    // - Requires integration with src/neural/mlx_embed.m embeddings
+    // - Need to establish proper vector similarity search backend
+    //
+    // Planned approach:
+    // 1. Generate embeddings for input query using MLX embeddings
+    // 2. Query vector database for semantically similar nodes
+    // 3. Return ranked results by cosine similarity
 
     output("(Ricerca semantica non ancora implementata)");
     return 0;

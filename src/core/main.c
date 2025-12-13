@@ -210,15 +210,15 @@ static void print_banner(void) {
     const char* c3 = "\033[38;5;75m";
 
     printf("\n");
-    // Block-style > arrow with CONVERGIO text
-    print_gradient_line(" ███           ██████╗ ██████╗ ███╗   ██╗██╗   ██╗███████╗██████╗  ██████╗ ██╗ ██████╗ ");
-    print_gradient_line("  ░░███       ██╔════╝██╔═══██╗████╗  ██║██║   ██║██╔════╝██╔══██╗██╔════╝ ██║██╔═══██╗");
-    print_gradient_line("    ░░███     ██║     ██║   ██║██╔██╗ ██║██║   ██║█████╗  ██████╔╝██║  ███╗██║██║   ██║");
-    print_gradient_line("     ███░     ██║     ██║   ██║██║╚██╗██║╚██╗ ██╔╝██╔══╝  ██╔══██╗██║   ██║██║██║   ██║");
-    print_gradient_line("   ███░      ╚██████╗╚██████╔╝██║ ╚████║ ╚████╔╝ ███████╗██║  ██║╚██████╔╝██║╚██████╔╝");
-    print_gradient_line(" ███░         ╚═════╝ ╚═════╝ ╚═╝  ╚═══╝  ╚═══╝  ╚══════╝╚═╝  ╚═╝ ╚═════╝ ╚═╝ ╚═════╝ ");
+    // Pixel-art style logo with gradient cyan → purple → pink
+    print_gradient_line("  ██████╗ ██████╗ ███╗   ██╗██╗   ██╗███████╗██████╗  ██████╗ ██╗ ██████╗ ");
+    print_gradient_line(" ██╔════╝██╔═══██╗████╗  ██║██║   ██║██╔════╝██╔══██╗██╔════╝ ██║██╔═══██╗");
+    print_gradient_line(" ██║     ██║   ██║██╔██╗ ██║██║   ██║█████╗  ██████╔╝██║  ███╗██║██║   ██║");
+    print_gradient_line(" ██║     ██║   ██║██║╚██╗██║╚██╗ ██╔╝██╔══╝  ██╔══██╗██║   ██║██║██║   ██║");
+    print_gradient_line(" ╚██████╗╚██████╔╝██║ ╚████║ ╚████╔╝ ███████╗██║  ██║╚██████╔╝██║╚██████╔╝");
+    print_gradient_line("  ╚═════╝ ╚═════╝ ╚═╝  ╚═══╝  ╚═══╝  ╚══════╝╚═╝  ╚═╝ ╚═════╝ ╚═╝ ╚═════╝ ");
     printf("\n");
-    print_gradient_line("          Your team, with human purpose and AI momentum.");
+    print_gradient_line("         Your team, with human purpose and AI momentum.");
     printf("\n");
     printf("  %sv%s%s  •  %s/help%s for commands\n", dim, convergio_get_version(), rst, c3, rst);
     printf("\n");
@@ -252,7 +252,9 @@ int main(int argc, char** argv) {
             printf("Usage: convergio [OPTIONS] [COMMAND]\n\n");
             printf("Commands:\n");
             printf("  setup                   Configure API key and settings\n");
-            printf("  update [check|install]  Check for or install updates\n\n");
+            printf("  update [check|install]  Check for or install updates\n");
+            printf("  compare \"<prompt>\"      Compare responses from multiple AI models\n");
+            printf("  benchmark [model]       Benchmark a model's response time\n\n");
             printf("Options:\n");
             printf("  -w, --workspace <path>  Set workspace directory (default: current dir)\n");
             printf("  -d, --debug             Enable debug logging\n");
@@ -272,6 +274,26 @@ int main(int argc, char** argv) {
                 return convergio_cmd_update_install();
             }
             return convergio_cmd_update_check();
+        } else if (strcmp(argv[i], "compare") == 0) {
+            // CLI compare mode
+            // Initialize minimal systems needed for compare
+            convergio_config_init();
+            auth_init();
+            // Pass remaining args to compare command
+            // cmd_compare expects (argc, argv) where argv[0] is "compare"
+            // If no prompt provided, it shows help
+            int cmd_argc = argc - i;
+            char** cmd_argv = &argv[i];
+            return cmd_compare(cmd_argc, cmd_argv);
+        } else if (strcmp(argv[i], "benchmark") == 0) {
+            // CLI benchmark mode
+            // Initialize minimal systems
+            convergio_config_init();
+            auth_init();
+            // Pass remaining args to benchmark command
+            int cmd_argc = argc - i;
+            char** cmd_argv = &argv[i];
+            return cmd_benchmark(cmd_argc, cmd_argv);
         }
     }
 
@@ -539,7 +561,7 @@ int main(int argc, char** argv) {
                                         i > 0 ? ", " : "", short_name);
                 if (written > 0 && (size_t)written < agents_remaining) {
                     agents_ptr += written;
-                    agents_remaining -= written;
+                    agents_remaining -= (size_t)written;
                 }
             }
             if (working_count > 3) {

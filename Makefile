@@ -21,6 +21,7 @@ CFLAGS = $(ARCH_FLAGS) \
          -ffast-math \
          -fvectorize \
          -I./include \
+         -I/opt/homebrew/opt/cjson/include \
          -DCONVERGIO_VERSION=\"$(VERSION)\"
 
 OBJCFLAGS = $(CFLAGS) -fobjc-arc
@@ -61,7 +62,7 @@ FRAMEWORKS = -framework Metal \
              -framework AppKit
 
 # Libraries
-LIBS = -lreadline -lcurl -lsqlite3
+LIBS = -lreadline -lcurl -lsqlite3 -L/opt/homebrew/opt/cjson/lib -lcjson
 
 # Directories
 SRC_DIR = src
@@ -102,6 +103,7 @@ C_SOURCES = $(SRC_DIR)/core/fabric.c \
             $(SRC_DIR)/context/compaction.c \
             $(SRC_DIR)/tools/tools.c \
             $(SRC_DIR)/providers/provider.c \
+            $(SRC_DIR)/providers/model_loader.c \
             $(SRC_DIR)/providers/anthropic.c \
             $(SRC_DIR)/providers/openai.c \
             $(SRC_DIR)/providers/gemini.c \
@@ -156,7 +158,9 @@ EMBEDDED_AGENTS = $(SRC_DIR)/agents/embedded_agents.c
 # Default target - MUST be first target in file
 .DEFAULT_GOAL := all
 
+# Enable parallel builds by default (use -j flag)
 all: dirs metal $(TARGET)
+	@echo "Build complete with $(NPROC) parallel jobs"
 	@echo ""
 	@echo "╔═══════════════════════════════════════════════════╗"
 	@echo "║          CONVERGIO KERNEL v$(VERSION)              "
@@ -217,12 +221,15 @@ $(METAL_LIB): $(METAL_AIR)
 		touch $(METAL_LIB); \
 	fi
 
-# Compile C sources
+# Detect number of CPU cores for parallel compilation
+NPROC := $(shell sysctl -n hw.ncpu 2>/dev/null || echo 4)
+
+# Compile C sources (with parallel support)
 $(OBJ_DIR)/%.o: $(SRC_DIR)/%.c
 	@echo "Compiling $<..."
 	@$(CC) $(CFLAGS) -c $< -o $@
 
-# Compile Objective-C sources
+# Compile Objective-C sources (with parallel support)
 $(OBJ_DIR)/%.o: $(SRC_DIR)/%.m
 	@echo "Compiling $<..."
 	@$(OBJC) $(OBJCFLAGS) -c $< -o $@
@@ -314,9 +321,11 @@ fuzz_test: dirs $(OBJECTS) $(FUZZ_TEST)
 	@echo "Running fuzz tests..."
 	@$(FUZZ_TEST)
 
+# Note: Don't use DEBUG=1 here as OBJECTS may not have sanitizer instrumentation
+# Use 'make debug && make fuzz_test' for sanitizer-enabled testing
 $(FUZZ_TEST): $(FUZZ_SOURCES) $(FUZZ_OBJECTS)
 	@echo "Compiling fuzz tests..."
-	@$(CC) $(CFLAGS) $(LDFLAGS) -o $(FUZZ_TEST) $(FUZZ_SOURCES) $(FUZZ_OBJECTS) $(FRAMEWORKS) $(LIBS)
+	@$(CC) $(CFLAGS) -o $(FUZZ_TEST) $(FUZZ_SOURCES) $(FUZZ_OBJECTS) $(FRAMEWORKS) $(LIBS)
 
 # Unit test target - tests core components
 UNIT_TEST = $(BIN_DIR)/unit_test
@@ -327,14 +336,15 @@ unit_test: dirs $(OBJECTS) $(UNIT_TEST)
 	@echo "Running unit tests..."
 	@$(UNIT_TEST)
 
+# Note: Don't use LDFLAGS here to avoid sanitizer mismatch with non-DEBUG objects
 $(UNIT_TEST): $(UNIT_SOURCES) $(UNIT_OBJECTS)
 	@echo "Compiling unit tests..."
-	@$(CC) $(CFLAGS) $(LDFLAGS) -o $(UNIT_TEST) $(UNIT_SOURCES) $(UNIT_OBJECTS) $(FRAMEWORKS) $(LIBS)
+	@$(CC) $(CFLAGS) -o $(UNIT_TEST) $(UNIT_SOURCES) $(UNIT_OBJECTS) $(FRAMEWORKS) $(LIBS)
 
 # Compaction test target - tests context compaction module
 COMPACTION_TEST = $(BIN_DIR)/compaction_test
 COMPACTION_SOURCES = tests/test_compaction.c
-# Only need compaction.o and its minimal dependencies for this test
+# Only need compaction.o - test file provides stubs for persistence functions
 COMPACTION_OBJECTS = $(OBJ_DIR)/context/compaction.o
 
 compaction_test: dirs $(OBJ_DIR)/context/compaction.o $(COMPACTION_TEST)
@@ -343,15 +353,41 @@ compaction_test: dirs $(OBJ_DIR)/context/compaction.o $(COMPACTION_TEST)
 
 $(COMPACTION_TEST): $(COMPACTION_SOURCES) $(COMPACTION_OBJECTS)
 	@echo "Compiling compaction tests..."
-	@$(CC) $(CFLAGS) $(LDFLAGS) -o $(COMPACTION_TEST) $(COMPACTION_SOURCES) $(COMPACTION_OBJECTS) $(FRAMEWORKS) $(LIBS)
+	@$(CC) $(CFLAGS) -o $(COMPACTION_TEST) $(COMPACTION_SOURCES) $(COMPACTION_OBJECTS) $(FRAMEWORKS) $(LIBS)
 
 # Check help documentation coverage
 check-docs:
 	@echo "Checking help documentation coverage..."
 	@./scripts/check_help_docs.sh
 
+# Compare test target
+COMPARE_TEST = $(BIN_DIR)/compare_test
+COMPARE_SOURCES = tests/test_compare.c
+COMPARE_OBJECTS = $(OBJ_DIR)/compare/render.o
+
+compare_test: dirs $(OBJ_DIR)/compare/render.o $(COMPARE_TEST)
+	@echo "Running compare tests..."
+	@$(COMPARE_TEST)
+
+$(COMPARE_TEST): $(COMPARE_SOURCES) $(COMPARE_OBJECTS)
+	@echo "Compiling compare tests..."
+	@$(CC) $(CFLAGS) -o $(COMPARE_TEST) $(COMPARE_SOURCES) $(COMPARE_OBJECTS) $(FRAMEWORKS) $(LIBS)
+
+# Projects test target
+PROJECTS_TEST = $(BIN_DIR)/projects_test
+PROJECTS_SOURCES = tests/test_projects.c
+PROJECTS_OBJECTS = $(OBJ_DIR)/projects/projects.o
+
+projects_test: dirs $(OBJ_DIR)/projects/projects.o $(PROJECTS_TEST)
+	@echo "Running projects tests..."
+	@$(PROJECTS_TEST)
+
+$(PROJECTS_TEST): $(PROJECTS_SOURCES) $(PROJECTS_OBJECTS)
+	@echo "Compiling projects tests..."
+	@$(CC) $(CFLAGS) -o $(PROJECTS_TEST) $(PROJECTS_SOURCES) $(PROJECTS_OBJECTS) $(FRAMEWORKS) $(LIBS)
+
 # Run all tests
-test: fuzz_test unit_test compaction_test check-docs
+test: fuzz_test unit_test compaction_test compare_test projects_test check-docs
 	@echo "All tests completed!"
 
 # Help

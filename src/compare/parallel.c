@@ -51,11 +51,24 @@ static void* execute_model_request(void* arg) {
         return NULL;
     }
 
-    // Get provider
+    // Get provider and initialize if needed
     Provider* provider = provider_get(model_cfg->provider);
-    if (!provider || !provider->initialized) {
+    if (!provider) {
         res->error = strdup("Provider not available");
-        LOG_WARN(LOG_CAT_SYSTEM, "Provider not available for model: %s", ctx->model_id);
+        LOG_WARN(LOG_CAT_SYSTEM, "Provider not found for model: %s", ctx->model_id);
+        return NULL;
+    }
+    if (!provider->initialized && provider->init) {
+        ProviderError err = provider->init(provider);
+        if (err != PROVIDER_OK) {
+            res->error = strdup("Provider initialization failed");
+            LOG_WARN(LOG_CAT_SYSTEM, "Failed to init provider for model: %s", ctx->model_id);
+            return NULL;
+        }
+    }
+    if (!provider->initialized) {
+        res->error = strdup("Provider not initialized");
+        LOG_WARN(LOG_CAT_SYSTEM, "Provider not initialized for model: %s", ctx->model_id);
         return NULL;
     }
 

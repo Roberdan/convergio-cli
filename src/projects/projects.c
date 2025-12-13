@@ -133,13 +133,13 @@ static char* read_file(const char* path) {
     long size = ftell(f);
     fseek(f, 0, SEEK_SET);
 
-    char* content = malloc(size + 1);
+    char* content = malloc((size_t)size + 1);
     if (!content) {
         fclose(f);
         return NULL;
     }
 
-    size_t read = fread(content, 1, size, f);
+    size_t read = fread(content, 1, (size_t)size, f);
     content[read] = '\0';
     fclose(f);
 
@@ -206,7 +206,7 @@ static char* json_get_string(const char* json, const char* key) {
         else end++;
     }
 
-    size_t len = end - start;
+    size_t len = (size_t)(end - start);
     char* value = malloc(len + 1);
     if (!value) return NULL;
     strncpy(value, start, len);
@@ -231,7 +231,7 @@ char* project_name_to_slug(const char* name) {
 
     for (const char* p = name; *p; p++) {
         if (isalnum(*p)) {
-            *out++ = tolower(*p);
+            *out++ = (char)tolower(*p);
             last_was_dash = false;
         } else if (!last_was_dash) {
             *out++ = '-';
@@ -290,11 +290,14 @@ bool projects_init(void) {
             if (file_exists(project_file)) {
                 ConvergioProject* proj = project_load(entry->d_name);
                 if (proj) {
-                    g_project_manager->all_projects = realloc(
+                    ConvergioProject** new_all_projects = realloc(
                         g_project_manager->all_projects,
                         (g_project_manager->project_count + 1) * sizeof(ConvergioProject*)
                     );
-                    if (g_project_manager->all_projects) {
+                    if (!new_all_projects) {
+                        project_free(proj);
+                    } else {
+                        g_project_manager->all_projects = new_all_projects;
                         g_project_manager->all_projects[g_project_manager->project_count++] = proj;
                     }
                 }
@@ -401,6 +404,10 @@ ConvergioProject* project_create(const char* name, const char* purpose,
     if (team_names && strlen(team_names) > 0) {
         // Parse comma-separated team names
         char* team_copy = strdup(team_names);
+        if (!team_copy) {
+            project_free(proj);
+            return NULL;
+        }
         char* token = strtok(team_copy, ",");
         while (token && proj->team_count < MAX_TEAM_SIZE) {
             // Trim whitespace
@@ -409,12 +416,17 @@ ConvergioProject* project_create(const char* name, const char* purpose,
             while (end > token && *end == ' ') *end-- = '\0';
 
             if (strlen(token) > 0) {
-                proj->team = realloc(proj->team, (proj->team_count + 1) * sizeof(ProjectTeamMember));
-                if (proj->team) {
-                    proj->team[proj->team_count].agent_name = strdup(token);
-                    proj->team[proj->team_count].role = NULL;
-                    proj->team_count++;
+                ProjectTeamMember* new_team = realloc(
+                    proj->team,
+                    (proj->team_count + 1) * sizeof(ProjectTeamMember)
+                );
+                if (!new_team) {
+                    break;
                 }
+                proj->team = new_team;
+                proj->team[proj->team_count].agent_name = strdup(token);
+                proj->team[proj->team_count].role = NULL;
+                proj->team_count++;
             }
             token = strtok(NULL, ",");
         }
@@ -424,12 +436,17 @@ ConvergioProject* project_create(const char* name, const char* purpose,
         const ProjectTemplate* tmpl = project_get_template(template_name);
         if (tmpl) {
             for (size_t i = 0; i < tmpl->team_count && tmpl->default_team[i]; i++) {
-                proj->team = realloc(proj->team, (proj->team_count + 1) * sizeof(ProjectTeamMember));
-                if (proj->team) {
-                    proj->team[proj->team_count].agent_name = strdup(tmpl->default_team[i]);
-                    proj->team[proj->team_count].role = NULL;
-                    proj->team_count++;
+                ProjectTeamMember* new_team = realloc(
+                    proj->team,
+                    (proj->team_count + 1) * sizeof(ProjectTeamMember)
+                );
+                if (!new_team) {
+                    break;
                 }
+                proj->team = new_team;
+                proj->team[proj->team_count].agent_name = strdup(tmpl->default_team[i]);
+                proj->team[proj->team_count].role = NULL;
+                proj->team_count++;
             }
         }
     }
@@ -441,13 +458,16 @@ ConvergioProject* project_create(const char* name, const char* purpose,
     }
 
     // Add to manager
-    g_project_manager->all_projects = realloc(
+    ConvergioProject** new_all_projects = realloc(
         g_project_manager->all_projects,
         (g_project_manager->project_count + 1) * sizeof(ConvergioProject*)
     );
-    if (g_project_manager->all_projects) {
-        g_project_manager->all_projects[g_project_manager->project_count++] = proj;
+    if (!new_all_projects) {
+        project_free(proj);
+        return NULL;
     }
+    g_project_manager->all_projects = new_all_projects;
+    g_project_manager->all_projects[g_project_manager->project_count++] = proj;
 
     return proj;
 }
@@ -459,36 +479,85 @@ ConvergioProject* project_create(const char* name, const char* purpose,
 bool project_save(ConvergioProject* project) {
     if (!project || !project->storage_path) return false;
 
-    // Build YAML content
-    size_t yaml_size = 4096;
+    const char* name = project->name ? project->name : "";
+    const char* slug = project->slug ? project->slug : "";
+    const char* purpose = project->purpose ? project->purpose : "";
+    const char* template_name = project->template_name ? project->template_name : NULL;
+
+    // Build YAML content (allocate sufficient space to avoid truncation/UB)
+    size_t yaml_size = 0;
+    yaml_size += 128;
+    yaml_size += strlen(name) + strlen(slug) + strlen(purpose);
+    if (template_name) {
+        yaml_size += strlen(template_name) + 32;
+    }
+    yaml_size += 64;
+    for (size_t i = 0; i < project->team_count; i++) {
+        const char* agent_name = project->team[i].agent_name ? project->team[i].agent_name : "";
+        yaml_size += strlen(agent_name) + 32;
+        if (project->team[i].role) {
+            yaml_size += strlen(project->team[i].role) + 32;
+        }
+    }
+
     char* yaml = malloc(yaml_size);
     if (!yaml) return false;
 
-    char* p = yaml;
-    p += snprintf(p, yaml_size - (p - yaml),
+    size_t off = 0;
+    int written = snprintf(
+        yaml + off,
+        yaml_size - off,
         "version: 1\n"
         "name: \"%s\"\n"
         "slug: \"%s\"\n"
         "purpose: \"%s\"\n",
-        project->name, project->slug, project->purpose ? project->purpose : "");
+        name, slug, purpose
+    );
+    if (written < 0 || (size_t)written >= yaml_size - off) {
+        free(yaml);
+        return false;
+    }
+    off += (size_t)written;
 
-    if (project->template_name) {
-        p += snprintf(p, yaml_size - (p - yaml),
-            "template: \"%s\"\n", project->template_name);
+    if (template_name) {
+        written = snprintf(yaml + off, yaml_size - off, "template: \"%s\"\n", template_name);
+        if (written < 0 || (size_t)written >= yaml_size - off) {
+            free(yaml);
+            return false;
+        }
+        off += (size_t)written;
     }
 
-    p += snprintf(p, yaml_size - (p - yaml),
+    written = snprintf(
+        yaml + off,
+        yaml_size - off,
         "created: %ld\n"
         "last_active: %ld\n"
         "team:\n",
-        (long)project->created, (long)project->last_active);
+        (long)project->created, (long)project->last_active
+    );
+    if (written < 0 || (size_t)written >= yaml_size - off) {
+        free(yaml);
+        return false;
+    }
+    off += (size_t)written;
 
     for (size_t i = 0; i < project->team_count; i++) {
-        p += snprintf(p, yaml_size - (p - yaml),
-            "  - name: \"%s\"\n", project->team[i].agent_name);
+        const char* agent_name = project->team[i].agent_name ? project->team[i].agent_name : "";
+        written = snprintf(yaml + off, yaml_size - off, "  - name: \"%s\"\n", agent_name);
+        if (written < 0 || (size_t)written >= yaml_size - off) {
+            free(yaml);
+            return false;
+        }
+        off += (size_t)written;
+
         if (project->team[i].role) {
-            p += snprintf(p, yaml_size - (p - yaml),
-                "    role: \"%s\"\n", project->team[i].role);
+            written = snprintf(yaml + off, yaml_size - off, "    role: \"%s\"\n", project->team[i].role);
+            if (written < 0 || (size_t)written >= yaml_size - off) {
+                free(yaml);
+                return false;
+            }
+            off += (size_t)written;
         }
     }
 
@@ -588,8 +657,15 @@ ConvergioProject* project_load(const char* slug) {
                     *end = '\0';
                     current_agent = strdup(val);
 
-                    proj->team = realloc(proj->team, (proj->team_count + 1) * sizeof(ProjectTeamMember));
-                    if (proj->team) {
+                    ProjectTeamMember* new_team = realloc(
+                        proj->team,
+                        (proj->team_count + 1) * sizeof(ProjectTeamMember)
+                    );
+                    if (!new_team) {
+                        free(current_agent);
+                        current_agent = NULL;
+                    } else {
+                        proj->team = new_team;
                         proj->team[proj->team_count].agent_name = current_agent;
                         proj->team[proj->team_count].role = NULL;
                         proj->team_count++;
@@ -796,8 +872,12 @@ bool project_team_add(ConvergioProject* project, const char* agent_name, const c
         }
     }
 
-    project->team = realloc(project->team, (project->team_count + 1) * sizeof(ProjectTeamMember));
-    if (!project->team) return false;
+    ProjectTeamMember* new_team = realloc(
+        project->team,
+        (project->team_count + 1) * sizeof(ProjectTeamMember)
+    );
+    if (!new_team) return false;
+    project->team = new_team;
 
     project->team[project->team_count].agent_name = strdup(agent_name);
     project->team[project->team_count].role = role ? strdup(role) : NULL;
@@ -867,9 +947,12 @@ bool project_update_context(ConvergioProject* project, const char* summary,
 bool project_add_decision(ConvergioProject* project, const char* decision) {
     if (!project || !decision || project->decision_count >= MAX_DECISIONS) return false;
 
-    project->key_decisions = realloc(project->key_decisions,
-                                      (project->decision_count + 1) * sizeof(char*));
-    if (!project->key_decisions) return false;
+    char** new_decisions = realloc(
+        project->key_decisions,
+        (project->decision_count + 1) * sizeof(char*)
+    );
+    if (!new_decisions) return false;
+    project->key_decisions = new_decisions;
 
     project->key_decisions[project->decision_count++] = strdup(decision);
 
@@ -908,15 +991,20 @@ bool project_load_context(ConvergioProject* project) {
                     quote_end++;
                 }
 
-                size_t len = quote_end - quote_start;
+                size_t len = (size_t)(quote_end - quote_start);
                 if (len > 0 && project->decision_count < MAX_DECISIONS) {
-                    project->key_decisions = realloc(project->key_decisions,
-                                                      (project->decision_count + 1) * sizeof(char*));
-                    if (project->key_decisions) {
+                    char** new_decisions = realloc(
+                        project->key_decisions,
+                        (project->decision_count + 1) * sizeof(char*)
+                    );
+                    if (new_decisions) {
+                        project->key_decisions = new_decisions;
                         project->key_decisions[project->decision_count] = malloc(len + 1);
-                        strncpy(project->key_decisions[project->decision_count], quote_start, len);
-                        project->key_decisions[project->decision_count][len] = '\0';
-                        project->decision_count++;
+                        if (project->key_decisions[project->decision_count]) {
+                            strncpy(project->key_decisions[project->decision_count], quote_start, len);
+                            project->key_decisions[project->decision_count][len] = '\0';
+                            project->decision_count++;
+                        }
                     }
                 }
                 p = quote_end + 1;
@@ -939,24 +1027,24 @@ bool project_save_context(ConvergioProject* project) {
     char* p = json;
     char* escaped;
 
-    p += snprintf(p, json_size - (p - json), "{\n");
+    p += snprintf(p, json_size - (size_t)(p - json), "{\n");
 
     escaped = json_escape_str(project->context_summary);
-    p += snprintf(p, json_size - (p - json), "  \"summary\": \"%s\",\n", escaped ? escaped : "");
+    p += snprintf(p, json_size - (size_t)(p - json), "  \"summary\": \"%s\",\n", escaped ? escaped : "");
     free(escaped);
 
     escaped = json_escape_str(project->current_focus);
-    p += snprintf(p, json_size - (p - json), "  \"current_focus\": \"%s\",\n", escaped ? escaped : "");
+    p += snprintf(p, json_size - (size_t)(p - json), "  \"current_focus\": \"%s\",\n", escaped ? escaped : "");
     free(escaped);
 
-    p += snprintf(p, json_size - (p - json), "  \"key_decisions\": [\n");
+    p += snprintf(p, json_size - (size_t)(p - json), "  \"key_decisions\": [\n");
     for (size_t i = 0; i < project->decision_count; i++) {
         escaped = json_escape_str(project->key_decisions[i]);
-        p += snprintf(p, json_size - (p - json), "    \"%s\"%s\n",
+        p += snprintf(p, json_size - (size_t)(p - json), "    \"%s\"%s\n",
                       escaped ? escaped : "", i < project->decision_count - 1 ? "," : "");
         free(escaped);
     }
-    p += snprintf(p, json_size - (p - json), "  ]\n}\n");
+    p += snprintf(p, json_size - (size_t)(p - json), "  ]\n}\n");
 
     char context_file[1024];
     snprintf(context_file, sizeof(context_file), "%s/%s", project->storage_path, CONTEXT_FILE);

@@ -1,7 +1,11 @@
 cmake_minimum_required(VERSION 3.20)
 
+# Read version from VERSION file (same as Makefile)
+file(READ "${CMAKE_SOURCE_DIR}/VERSION" VERSION_FILE)
+string(STRIP "${VERSION_FILE}" PROJECT_VERSION)
+
 project(CONVERGIO
-    VERSION 4.0.0
+    VERSION ${PROJECT_VERSION}
     DESCRIPTION "Convergio Kernel - A semantic kernel for human-AI symbiosis"
     LANGUAGES C OBJC
 )
@@ -311,6 +315,39 @@ target_link_libraries(test_new_providers
 )
 
 add_test(NAME new_provider_test COMMAND test_new_providers)
+
+# Compare module tests
+add_executable(test_compare
+    tests/test_compare.c
+    src/compare/render.c
+)
+
+target_include_directories(test_compare PRIVATE
+    ${CMAKE_SOURCE_DIR}/include
+)
+
+target_link_libraries(test_compare
+    ${FOUNDATION_FRAMEWORK}
+)
+
+add_test(NAME compare_test COMMAND test_compare)
+
+# Projects module tests
+add_executable(test_projects
+    tests/test_projects.c
+    src/projects/projects.c
+)
+
+target_include_directories(test_projects PRIVATE
+    ${CMAKE_SOURCE_DIR}/include
+    ${CMAKE_SOURCE_DIR}/src
+)
+
+target_link_libraries(test_projects
+    ${FOUNDATION_FRAMEWORK}
+)
+
+add_test(NAME projects_test COMMAND test_projects)
 
 # Print configuration
 message(STATUS "")

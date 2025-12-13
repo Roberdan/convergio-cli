@@ -80,11 +80,24 @@ static int sequential_execute(const char* prompt, const char* system,
             continue;
         }
 
-        // Get provider
+        // Get provider and initialize if needed
         Provider* provider = provider_get(model_cfg->provider);
-        if (!provider || !provider->initialized) {
+        if (!provider) {
             res->error = strdup("Provider not available");
-            LOG_WARN(LOG_CAT_SYSTEM, "Provider not available for model: %s", models[i]);
+            LOG_WARN(LOG_CAT_SYSTEM, "Provider not found for model: %s", models[i]);
+            continue;
+        }
+        if (!provider->initialized && provider->init) {
+            ProviderError err = provider->init(provider);
+            if (err != PROVIDER_OK) {
+                res->error = strdup("Provider initialization failed");
+                LOG_WARN(LOG_CAT_SYSTEM, "Failed to init provider for model: %s", models[i]);
+                continue;
+            }
+        }
+        if (!provider->initialized) {
+            res->error = strdup("Provider not initialized");
+            LOG_WARN(LOG_CAT_SYSTEM, "Provider not initialized for model: %s", models[i]);
             continue;
         }
 
@@ -134,6 +147,13 @@ int compare_models(const char* prompt, const char* system,
                    CompareResult** results) {
     if (!prompt || !models || model_count == 0 || !results) {
         LOG_ERROR(LOG_CAT_SYSTEM, "Invalid arguments to compare_models");
+        return -1;
+    }
+
+    // Ensure provider registry is initialized
+    ProviderError reg_err = provider_registry_init();
+    if (reg_err != PROVIDER_OK) {
+        LOG_ERROR(LOG_CAT_SYSTEM, "Failed to initialize provider registry");
         return -1;
     }
 
@@ -194,6 +214,13 @@ int benchmark_model(const char* prompt, const char* system,
         return -1;
     }
 
+    // Ensure provider registry is initialized
+    ProviderError reg_err = provider_registry_init();
+    if (reg_err != PROVIDER_OK) {
+        LOG_ERROR(LOG_CAT_SYSTEM, "Failed to initialize provider registry");
+        return -1;
+    }
+
     // Initialize result
     memset(result, 0, sizeof(CompareResult));
     result->model_id = strdup(model);
@@ -205,10 +232,21 @@ int benchmark_model(const char* prompt, const char* system,
         return -1;
     }
 
-    // Get provider
+    // Get provider and initialize if needed
     Provider* provider = provider_get(model_cfg->provider);
-    if (!provider || !provider->initialized) {
+    if (!provider) {
         result->error = strdup("Provider not available");
+        return -1;
+    }
+    if (!provider->initialized && provider->init) {
+        ProviderError err = provider->init(provider);
+        if (err != PROVIDER_OK) {
+            result->error = strdup("Provider initialization failed");
+            return -1;
+        }
+    }
+    if (!provider->initialized) {
+        result->error = strdup("Provider not initialized");
         return -1;
     }
 

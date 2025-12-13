@@ -185,17 +185,38 @@ void repl_print_separator(void) {
     printf("\n" ANSI_DIM "────────────────────────────────────────────────────────────────" ANSI_RESET "\n\n");
 }
 
+// Dynamic spinner verbs - changes every few seconds for visual interest
+static const char* SPINNER_VERBS[] = {
+    "Thinking",
+    "Pondering",
+    "Analyzing",
+    "Reasoning",
+    "Synthesizing",
+    "Processing",
+    "Contemplating",
+    "Evaluating",
+    "Considering",
+    "Reflecting",
+    "Deliberating",
+    "Exploring",
+};
+#define SPINNER_VERB_COUNT 12
+
 // Spinner thread function - polls for ESC key to cancel
 static void* spinner_func(void* arg) {
     (void)arg;
+
+    // Animated spinner frames (braille dots pattern)
     const char* frames[] = {"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"};
     int frame = 0;
+    int verb_index = 0;
+    int ticks = 0;
 
     // Save terminal settings and enable raw mode for ESC detection
     struct termios raw;
     tcgetattr(STDIN_FILENO, &g_orig_termios);
     raw = g_orig_termios;
-    raw.c_lflag &= ~(ICANON | ECHO);  // Disable canonical mode and echo
+    raw.c_lflag &= (tcflag_t)~(ICANON | ECHO);  // Disable canonical mode and echo
     raw.c_cc[VMIN] = 0;   // Non-blocking read
     raw.c_cc[VTIME] = 0;  // No timeout
     tcsetattr(STDIN_FILENO, TCSANOW, &raw);
@@ -212,9 +233,18 @@ static void* spinner_func(void* arg) {
             }
         }
 
-        printf(ANSI_CURSOR_START ANSI_DIM "%s thinking... " ANSI_RESET "(ESC to cancel)  ", frames[frame]);
+        // Change verb every ~3 seconds (37 ticks * 80ms = ~3s)
+        if (ticks > 0 && ticks % 37 == 0) {
+            verb_index = (verb_index + 1) % SPINNER_VERB_COUNT;
+        }
+
+        // Colored spinner with dynamic verb (using standard ANSI colors for compatibility)
+        printf(ANSI_CURSOR_START ANSI_CYAN "%s" ANSI_RESET " " ANSI_DIM "%s..." ANSI_RESET "  (ESC to cancel)  ",
+               frames[frame], SPINNER_VERBS[verb_index]);
         fflush(stdout);
+
         frame = (frame + 1) % 10;
+        ticks++;
         usleep(80000);  // 80ms
     }
 
@@ -555,7 +585,7 @@ int repl_parse_and_execute(char* line) {
 
         const char* space = strchr(line, ' ');
         if (space) {
-            size_t name_len = space - line - 1;  // -1 to skip @
+            size_t name_len = (size_t)(space - line - 1);  // -1 to skip @
             if (name_len > 0 && name_len < sizeof(agent_name)) {
                 strncpy(agent_name, line + 1, name_len);
                 agent_name[name_len] = '\0';

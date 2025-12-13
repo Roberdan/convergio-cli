@@ -1,0 +1,205 @@
+{
+  "": {
+    "dependencies": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLX.build/MLX.d",
+    "object": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLX.build/MLX.o",
+    "swift-dependencies": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLX.build/master.swiftdeps"
+  },
+  "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/checkouts/mlx-swift/Source/MLX/ArrayAt.swift": {
+    "object": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLX.build/ArrayAt.swift.o",
+    "swiftmodule": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLX.build/ArrayAt~partial.swiftmodule",
+    "swift-dependencies": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLX.build/ArrayAt.swiftdeps",
+    "diagnostics": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLX.build/ArrayAt.dia"
+  },
+  "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/checkouts/mlx-swift/Source/MLX/Cmlx+Util.swift": {
+    "object": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLX.build/Cmlx+Util.swift.o",
+    "swiftmodule": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLX.build/Cmlx+Util~partial.swiftmodule",
+    "swift-dependencies": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLX.build/Cmlx+Util.swiftdeps",
+    "diagnostics": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLX.build/Cmlx+Util.dia"
+  },
+  "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/checkouts/mlx-swift/Source/MLX/DType.swift": {
+    "object": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLX.build/DType.swift.o",
+    "swiftmodule": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLX.build/DType~partial.swiftmodule",
+    "swift-dependencies": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLX.build/DType.swiftdeps",
+    "diagnostics": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLX.build/DType.dia"
+  },
+  "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/checkouts/mlx-swift/Source/MLX/Device.swift": {
+    "object": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLX.build/Device.swift.o",
+    "swiftmodule": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLX.build/Device~partial.swiftmodule",
+    "swift-dependencies": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLX.build/Device.swiftdeps",
+    "diagnostics": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLX.build/Device.dia"
+  },
+  "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/checkouts/mlx-swift/Source/MLX/ErrorHandler.swift": {
+    "object": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLX.build/ErrorHandler.swift.o",
+    "swiftmodule": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLX.build/ErrorHandler~partial.swiftmodule",
+    "swift-dependencies": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLX.build/ErrorHandler.swiftdeps",
+    "diagnostics": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLX.build/ErrorHandler.dia"
+  },
+  "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/checkouts/mlx-swift/Source/MLX/Export.swift": {
+    "object": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLX.build/Export.swift.o",
+    "swiftmodule": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLX.build/Export~partial.swiftmodule",
+    "swift-dependencies": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLX.build/Export.swiftdeps",
+    "diagnostics": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLX.build/Export.dia"
+  },
+  "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/checkouts/mlx-swift/Source/MLX/FFT.swift": {
+    "object": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLX.build/FFT.swift.o",
+    "swiftmodule": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLX.build/FFT~partial.swiftmodule",
+    "swift-dependencies": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLX.build/FFT.swiftdeps",
+    "diagnostics": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLX.build/FFT.dia"
+  },
+  "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/checkouts/mlx-swift/Source/MLX/Factory.swift": {
+    "object": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLX.build/Factory.swift.o",
+    "swiftmodule": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLX.build/Factory~partial.swiftmodule",
+    "swift-dependencies": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLX.build/Factory.swiftdeps",
+    "diagnostics": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLX.build/Factory.dia"
+  },
+  "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/checkouts/mlx-swift/Source/MLX/Foundation+Util.swift": {
+    "object": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLX.build/Foundation+Util.swift.o",
+    "swiftmodule": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLX.build/Foundation+Util~partial.swiftmodule",
+    "swift-dependencies": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLX.build/Foundation+Util.swiftdeps",
+    "diagnostics": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLX.build/Foundation+Util.dia"
+  },
+  "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/checkouts/mlx-swift/Source/MLX/GPU.swift": {
+    "object": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLX.build/GPU.swift.o",
+    "swiftmodule": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLX.build/GPU~partial.swiftmodule",
+    "swift-dependencies": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLX.build/GPU.swiftdeps",
+    "diagnostics": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLX.build/GPU.dia"
+  },
+  "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/checkouts/mlx-swift/Source/MLX/IO.swift": {
+    "object": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLX.build/IO.swift.o",
+    "swiftmodule": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLX.build/IO~partial.swiftmodule",
+    "swift-dependencies": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLX.build/IO.swiftdeps",
+    "diagnostics": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLX.build/IO.dia"
+  },
+  "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/checkouts/mlx-swift/Source/MLX/Linalg.swift": {
+    "object": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLX.build/Linalg.swift.o",
+    "swiftmodule": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLX.build/Linalg~partial.swiftmodule",
+    "swift-dependencies": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLX.build/Linalg.swiftdeps",
+    "diagnostics": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLX.build/Linalg.dia"
+  },
+  "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/checkouts/mlx-swift/Source/MLX/MLXArray+Bytes.swift": {
+    "object": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLX.build/MLXArray+Bytes.swift.o",
+    "swiftmodule": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLX.build/MLXArray+Bytes~partial.swiftmodule",
+    "swift-dependencies": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLX.build/MLXArray+Bytes.swiftdeps",
+    "diagnostics": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLX.build/MLXArray+Bytes.dia"
+  },
+  "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/checkouts/mlx-swift/Source/MLX/MLXArray+Indexing.swift": {
+    "object": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLX.build/MLXArray+Indexing.swift.o",
+    "swiftmodule": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLX.build/MLXArray+Indexing~partial.swiftmodule",
+    "swift-dependencies": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLX.build/MLXArray+Indexing.swiftdeps",
+    "diagnostics": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLX.build/MLXArray+Indexing.dia"
+  },
+  "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/checkouts/mlx-swift/Source/MLX/MLXArray+Init.swift": {
+    "object": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLX.build/MLXArray+Init.swift.o",
+    "swiftmodule": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLX.build/MLXArray+Init~partial.swiftmodule",
+    "swift-dependencies": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLX.build/MLXArray+Init.swiftdeps",
+    "diagnostics": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLX.build/MLXArray+Init.dia"
+  },
+  "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/checkouts/mlx-swift/Source/MLX/MLXArray+Ops.swift": {
+    "object": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLX.build/MLXArray+Ops.swift.o",
+    "swiftmodule": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLX.build/MLXArray+Ops~partial.swiftmodule",
+    "swift-dependencies": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLX.build/MLXArray+Ops.swiftdeps",
+    "diagnostics": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLX.build/MLXArray+Ops.dia"
+  },
+  "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/checkouts/mlx-swift/Source/MLX/MLXArray.swift": {
+    "object": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLX.build/MLXArray.swift.o",
+    "swiftmodule": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLX.build/MLXArray~partial.swiftmodule",
+    "swift-dependencies": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLX.build/MLXArray.swiftdeps",
+    "diagnostics": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLX.build/MLXArray.dia"
+  },
+  "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/checkouts/mlx-swift/Source/MLX/MLXFast.swift": {
+    "object": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLX.build/MLXFast.swift.o",
+    "swiftmodule": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLX.build/MLXFast~partial.swiftmodule",
+    "swift-dependencies": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLX.build/MLXFast.swiftdeps",
+    "diagnostics": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLX.build/MLXFast.dia"
+  },
+  "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/checkouts/mlx-swift/Source/MLX/MLXFastKernel.swift": {
+    "object": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLX.build/MLXFastKernel.swift.o",
+    "swiftmodule": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLX.build/MLXFastKernel~partial.swiftmodule",
+    "swift-dependencies": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLX.build/MLXFastKernel.swiftdeps",
+    "diagnostics": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLX.build/MLXFastKernel.dia"
+  },
+  "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/checkouts/mlx-swift/Source/MLX/Nested.swift": {
+    "object": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLX.build/Nested.swift.o",
+    "swiftmodule": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLX.build/Nested~partial.swiftmodule",
+    "swift-dependencies": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLX.build/Nested.swiftdeps",
+    "diagnostics": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLX.build/Nested.dia"
+  },
+  "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/checkouts/mlx-swift/Source/MLX/Ops+Array.swift": {
+    "object": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLX.build/Ops+Array.swift.o",
+    "swiftmodule": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLX.build/Ops+Array~partial.swiftmodule",
+    "swift-dependencies": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLX.build/Ops+Array.swiftdeps",
+    "diagnostics": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLX.build/Ops+Array.dia"
+  },
+  "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/checkouts/mlx-swift/Source/MLX/Ops.swift": {
+    "object": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLX.build/Ops.swift.o",
+    "swiftmodule": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLX.build/Ops~partial.swiftmodule",
+    "swift-dependencies": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLX.build/Ops.swiftdeps",
+    "diagnostics": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLX.build/Ops.dia"
+  },
+  "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/checkouts/mlx-swift/Source/MLX/ParameterTypes.swift": {
+    "object": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLX.build/ParameterTypes.swift.o",
+    "swiftmodule": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLX.build/ParameterTypes~partial.swiftmodule",
+    "swift-dependencies": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLX.build/ParameterTypes.swiftdeps",
+    "diagnostics": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLX.build/ParameterTypes.dia"
+  },
+  "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/checkouts/mlx-swift/Source/MLX/Protocols.swift": {
+    "object": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLX.build/Protocols.swift.o",
+    "swiftmodule": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLX.build/Protocols~partial.swiftmodule",
+    "swift-dependencies": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLX.build/Protocols.swiftdeps",
+    "diagnostics": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLX.build/Protocols.dia"
+  },
+  "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/checkouts/mlx-swift/Source/MLX/Random.swift": {
+    "object": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLX.build/Random.swift.o",
+    "swiftmodule": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLX.build/Random~partial.swiftmodule",
+    "swift-dependencies": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLX.build/Random.swiftdeps",
+    "diagnostics": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLX.build/Random.dia"
+  },
+  "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/checkouts/mlx-swift/Source/MLX/State.swift": {
+    "object": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLX.build/State.swift.o",
+    "swiftmodule": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLX.build/State~partial.swiftmodule",
+    "swift-dependencies": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLX.build/State.swiftdeps",
+    "diagnostics": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLX.build/State.dia"
+  },
+  "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/checkouts/mlx-swift/Source/MLX/Stream.swift": {
+    "object": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLX.build/Stream.swift.o",
+    "swiftmodule": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLX.build/Stream~partial.swiftmodule",
+    "swift-dependencies": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLX.build/Stream.swiftdeps",
+    "diagnostics": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLX.build/Stream.dia"
+  },
+  "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/checkouts/mlx-swift/Source/MLX/Transforms+Compile.swift": {
+    "object": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLX.build/Transforms+Compile.swift.o",
+    "swiftmodule": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLX.build/Transforms+Compile~partial.swiftmodule",
+    "swift-dependencies": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLX.build/Transforms+Compile.swiftdeps",
+    "diagnostics": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLX.build/Transforms+Compile.dia"
+  },
+  "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/checkouts/mlx-swift/Source/MLX/Transforms+Eval.swift": {
+    "object": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLX.build/Transforms+Eval.swift.o",
+    "swiftmodule": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLX.build/Transforms+Eval~partial.swiftmodule",
+    "swift-dependencies": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLX.build/Transforms+Eval.swiftdeps",
+    "diagnostics": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLX.build/Transforms+Eval.dia"
+  },
+  "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/checkouts/mlx-swift/Source/MLX/Transforms+Grad.swift": {
+    "object": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLX.build/Transforms+Grad.swift.o",
+    "swiftmodule": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLX.build/Transforms+Grad~partial.swiftmodule",
+    "swift-dependencies": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLX.build/Transforms+Grad.swiftdeps",
+    "diagnostics": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLX.build/Transforms+Grad.dia"
+  },
+  "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/checkouts/mlx-swift/Source/MLX/Transforms+Internal.swift": {
+    "object": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLX.build/Transforms+Internal.swift.o",
+    "swiftmodule": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLX.build/Transforms+Internal~partial.swiftmodule",
+    "swift-dependencies": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLX.build/Transforms+Internal.swiftdeps",
+    "diagnostics": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLX.build/Transforms+Internal.dia"
+  },
+  "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/checkouts/mlx-swift/Source/MLX/Transforms+Vmap.swift": {
+    "object": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLX.build/Transforms+Vmap.swift.o",
+    "swiftmodule": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLX.build/Transforms+Vmap~partial.swiftmodule",
+    "swift-dependencies": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLX.build/Transforms+Vmap.swiftdeps",
+    "diagnostics": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLX.build/Transforms+Vmap.dia"
+  },
+  "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/checkouts/mlx-swift/Source/MLX/Transforms.swift": {
+    "object": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLX.build/Transforms.swift.o",
+    "swiftmodule": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLX.build/Transforms~partial.swiftmodule",
+    "swift-dependencies": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLX.build/Transforms.swiftdeps",
+    "diagnostics": "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLX.build/Transforms.dia"
+  }
+}
