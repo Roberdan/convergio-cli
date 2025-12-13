@@ -572,15 +572,21 @@ int main(int argc, char** argv) {
             snprintf(agents_ptr, agents_remaining, "Ali");
         }
 
-        // Build prompt: Convergio (Agents) [Project] > (all bold)
+        // Build prompt: Convergio (Agents) [Project] > (ALL BOLD, theme colors)
+        // \001 and \002 wrap non-printing chars for readline cursor positioning
         if (current_proj) {
             snprintf(prompt, sizeof(prompt),
-                "\001\033[1m%s\002Convergio\001\033[0m\002 \001\033[1;33m\002(%s)\001\033[0m\002 \001\033[1;36m\002[%s]\001\033[0m\002 \001\033[1m%s\002>\001\033[0m\002 \001%s\002",
-                t->prompt_name, agents_str, current_proj->name, t->prompt_arrow, t->user_input);
+                "\001\033[1m%s\002Convergio\001\033[0m\002 "
+                "\001\033[1m%s\002(%s)\001\033[0m\002 "
+                "\001\033[1m%s\002[%s]\001\033[0m\002 "
+                "\001\033[1m%s\002>\001\033[0m\002 ",
+                t->prompt_name, t->prompt_name, agents_str, t->prompt_name, current_proj->name, t->prompt_arrow);
         } else {
             snprintf(prompt, sizeof(prompt),
-                "\001\033[1m%s\002Convergio\001\033[0m\002 \001\033[1;33m\002(%s)\001\033[0m\002 \001\033[1m%s\002>\001\033[0m\002 \001%s\002",
-                t->prompt_name, agents_str, t->prompt_arrow, t->user_input);
+                "\001\033[1m%s\002Convergio\001\033[0m\002 "
+                "\001\033[1m%s\002(%s)\001\033[0m\002 "
+                "\001\033[1m%s\002>\001\033[0m\002 ",
+                t->prompt_name, t->prompt_name, agents_str, t->prompt_arrow);
         }
 
         line = readline(prompt);

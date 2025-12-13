@@ -310,54 +310,72 @@ char* cost_get_report(void) {
         snprintf(budget_line, sizeof(budget_line), "No limit set");
     }
 
-    // Build report with properly aligned borders
+    // Build report with properly aligned borders (52 chars inner width)
     size_t offset = 0;
     offset += (size_t)snprintf(report + offset, 2048 - offset,
         "\n\033[1m╔════════════════════════════════════════════════════╗\033[0m\n"
-        "\033[1m║               COST REPORT                          ║\033[0m\n"
+        "\033[1m║\033[0m                  COST REPORT                     \033[1m║\033[0m\n"
         "\033[1m╠════════════════════════════════════════════════════╣\033[0m\n");
 
-    // Session section
-    offset += (size_t)snprintf(report + offset, 2048 - offset,
-        "\033[36m║ SESSION\033[0m (%d min)\n"
-        "║   Input tokens:  %'12llu  ($%.4f)\n"
-        "║   Output tokens: %'12llu  ($%.4f)\n"
-        "║   \033[1mTotal cost:      $%.4f\033[0m\n",
-        session_minutes,
+    // Session section - calculate padding for right border alignment
+    char session_header[64];
+    snprintf(session_header, sizeof(session_header), " SESSION (%d min)", session_minutes);
+
+    char input_line[64], output_line[64], total_line[64];
+    snprintf(input_line, sizeof(input_line), "   Input tokens:  %'12llu  ($%.4f)",
         (unsigned long long)orch->cost.session_usage.input_tokens,
-        (orch->cost.session_usage.input_tokens / 1000000.0) * CLAUDE_SONNET_INPUT_COST,
+        (orch->cost.session_usage.input_tokens / 1000000.0) * CLAUDE_SONNET_INPUT_COST);
+    snprintf(output_line, sizeof(output_line), "   Output tokens: %'12llu  ($%.4f)",
         (unsigned long long)orch->cost.session_usage.output_tokens,
-        (orch->cost.session_usage.output_tokens / 1000000.0) * CLAUDE_SONNET_OUTPUT_COST,
+        (orch->cost.session_usage.output_tokens / 1000000.0) * CLAUDE_SONNET_OUTPUT_COST);
+    snprintf(total_line, sizeof(total_line), "   Total cost:      $%.4f",
         orch->cost.session_usage.estimated_cost);
+
+    offset += (size_t)snprintf(report + offset, 2048 - offset,
+        "\033[36m║%s\033[0m%*s\033[1m║\033[0m\n"
+        "║%-51s\033[1m║\033[0m\n"
+        "║%-51s\033[1m║\033[0m\n"
+        "║ \033[1m%-50s\033[0m\033[1m║\033[0m\n",
+        session_header, (int)(51 - strlen(session_header)), "",
+        input_line, output_line, total_line);
 
     offset += (size_t)snprintf(report + offset, 2048 - offset,
         "\033[1m╠════════════════════════════════════════════════════╣\033[0m\n");
 
     // All-time section
-    offset += (size_t)snprintf(report + offset, 2048 - offset,
-        "\033[36m║ ALL-TIME\033[0m\n"
-        "║   Input tokens:  %'12llu  ($%.4f)\n"
-        "║   Output tokens: %'12llu  ($%.4f)\n"
-        "║   \033[1mTotal cost:      $%.4f\033[0m\n",
+    char at_input_line[64], at_output_line[64], at_total_line[64];
+    snprintf(at_input_line, sizeof(at_input_line), "   Input tokens:  %'12llu  ($%.4f)",
         (unsigned long long)orch->cost.total_usage.input_tokens,
-        (orch->cost.total_usage.input_tokens / 1000000.0) * CLAUDE_SONNET_INPUT_COST,
+        (orch->cost.total_usage.input_tokens / 1000000.0) * CLAUDE_SONNET_INPUT_COST);
+    snprintf(at_output_line, sizeof(at_output_line), "   Output tokens: %'12llu  ($%.4f)",
         (unsigned long long)orch->cost.total_usage.output_tokens,
-        (orch->cost.total_usage.output_tokens / 1000000.0) * CLAUDE_SONNET_OUTPUT_COST,
+        (orch->cost.total_usage.output_tokens / 1000000.0) * CLAUDE_SONNET_OUTPUT_COST);
+    snprintf(at_total_line, sizeof(at_total_line), "   Total cost:      $%.4f",
         orch->cost.total_usage.estimated_cost);
+
+    offset += (size_t)snprintf(report + offset, 2048 - offset,
+        "\033[36m║ ALL-TIME\033[0m                                         \033[1m║\033[0m\n"
+        "║%-51s\033[1m║\033[0m\n"
+        "║%-51s\033[1m║\033[0m\n"
+        "║ \033[1m%-50s\033[0m\033[1m║\033[0m\n",
+        at_input_line, at_output_line, at_total_line);
 
     offset += (size_t)snprintf(report + offset, 2048 - offset,
         "\033[1m╠════════════════════════════════════════════════════╣\033[0m\n");
 
-    // Budget section
+    // Budget section - fixed width with right border
+    char budget_display[64];
+    snprintf(budget_display, sizeof(budget_display), " BUDGET: %s", budget_line);
+
     if (orch->cost.budget_exceeded) {
         offset += (size_t)snprintf(report + offset, 2048 - offset,
-            "\033[31m║ BUDGET: %s\033[0m\n", budget_line);
+            "\033[31m║%-51s\033[0m\033[1m║\033[0m\n", budget_display);
     } else if (orch->cost.budget_limit_usd > 0) {
         offset += (size_t)snprintf(report + offset, 2048 - offset,
-            "\033[32m║ BUDGET: %s\033[0m\n", budget_line);
+            "\033[32m║%-51s\033[0m\033[1m║\033[0m\n", budget_display);
     } else {
         offset += (size_t)snprintf(report + offset, 2048 - offset,
-            "║ BUDGET: %s\n", budget_line);
+            "║%-51s\033[1m║\033[0m\n", budget_display);
     }
 
     offset += (size_t)snprintf(report + offset, 2048 - offset,
