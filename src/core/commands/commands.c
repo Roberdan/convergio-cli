@@ -68,8 +68,8 @@ static const ReplCommand COMMANDS[] = {
     {"hardware",    "Show hardware information",         cmd_hardware},
     {"stream",      "Toggle streaming mode (on/off)",    cmd_stream},
     {"theme",       "Interactive theme selector (or /theme <name>)", cmd_theme},
-    {"compare",     "Compare models side-by-side",       cmd_compare},
-    {"benchmark",   "Benchmark a model's performance",   cmd_benchmark},
+    {"compare",     "Compare responses from 2-3 models", cmd_compare},
+    {"benchmark",   "Test ONE model's speed (N runs)",   cmd_benchmark},
     {"telemetry",   "Manage telemetry settings",         cmd_telemetry},
     {"tools",       "Manage development tools",          cmd_tools},
     {"news",        "Show release notes",                cmd_news},
@@ -554,8 +554,8 @@ int cmd_help(int argc, char** argv) {
 
     // 3. POWER FEATURES
     printf("\033[1;33m⚡ POWER FEATURES\033[0m\n");
-    printf("   \033[36mcompare \"prompt\"\033[0m           Compare Claude vs GPT vs Gemini side-by-side\n");
-    printf("   \033[36mbenchmark \"prompt\" <model>\033[0m Measure model speed & consistency\n");
+    printf("   \033[36mcompare \"prompt\"\033[0m           Compare responses from 2-3 different models\n");
+    printf("   \033[36mbenchmark \"prompt\" <model>\033[0m Test ONE model's speed & cost (N runs)\n");
     printf("   \033[36msetup\033[0m                      Configure providers & models per agent\n\n");
 
     // 4. CUSTOMIZATION
@@ -1617,7 +1617,7 @@ int cmd_theme(int argc, char** argv) {
 static const char* DEFAULT_COMPARE_MODELS[] = {
     "claude-haiku-4.5",   // Anthropic - cheapest
     "gpt-4o-mini",         // OpenAI - cheapest
-    "gemini-1.5-flash",     // Google - cheapest
+    "gemini-2.0-flash",   // Google - cheapest
 };
 static const size_t DEFAULT_COMPARE_MODEL_COUNT = 3;
 
@@ -1630,7 +1630,7 @@ int cmd_compare(int argc, char** argv) {
         printf("\033[1mDefault models:\033[0m (cheapest from each provider)\n");
         printf("  - claude-haiku-4.5 (Anthropic)\n");
         printf("  - gpt-4o-mini (OpenAI)\n");
-        printf("  - gemini-1.5-flash (Google)\n\n");
+        printf("  - gemini-2.0-flash (Google)\n\n");
         printf("\033[1mExample:\033[0m\n");
         printf("  compare \"Explain quantum computing\"\n");
         printf("  compare \"Write a poem\" claude-opus-4 gpt-5\n\n");
@@ -1671,7 +1671,7 @@ int cmd_compare(int argc, char** argv) {
         models_to_use = DEFAULT_COMPARE_MODELS;
         model_count = DEFAULT_COMPARE_MODEL_COUNT;
         using_defaults = true;
-        printf("\033[36mUsing default models: haiku, gpt-4o-mini, gemini-flash\033[0m\n\n");
+        printf("\033[36mUsing default models: haiku, gpt-4o-mini, gemini-2.0-flash\033[0m\n\n");
     } else if (model_count == 1) {
         printf("Error: Need at least 2 models to compare (or none for defaults).\n");
         return -1;

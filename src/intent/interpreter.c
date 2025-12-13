@@ -430,9 +430,18 @@ static int execute_find(TokenStream* ts) {
     snprintf(msg, sizeof(msg), "Cerco: \"%s\"...", query);
     output(msg);
 
-    // TODO(#1): Implement actual semantic search
-    // Status: Placeholder implementation using keyword matching
-    // Future: Will use MLX embeddings for semantic similarity when weights are available
+    // LIMITATION: Semantic search not yet implemented
+    // Current behavior: Placeholder implementation with keyword matching
+    //
+    // Blocking factors:
+    // - MLX embedding model weights not yet available in distribution
+    // - Requires integration with src/neural/mlx_embed.m embeddings
+    // - Need to establish proper vector similarity search backend
+    //
+    // Planned approach:
+    // 1. Generate embeddings for input query using MLX embeddings
+    // 2. Query vector database for semantically similar nodes
+    // 3. Return ranked results by cosine similarity
 
     output("(Ricerca semantica non ancora implementata)");
     return 0;

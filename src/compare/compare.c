@@ -80,11 +80,24 @@ static int sequential_execute(const char* prompt, const char* system,
             continue;
         }
 
-        // Get provider
+        // Get provider and initialize if needed
         Provider* provider = provider_get(model_cfg->provider);
-        if (!provider || !provider->initialized) {
+        if (!provider) {
             res->error = strdup("Provider not available");
-            LOG_WARN(LOG_CAT_SYSTEM, "Provider not available for model: %s", models[i]);
+            LOG_WARN(LOG_CAT_SYSTEM, "Provider not found for model: %s", models[i]);
+            continue;
+        }
+        if (!provider->initialized && provider->init) {
+            ProviderError err = provider->init(provider);
+            if (err != PROVIDER_OK) {
+                res->error = strdup("Provider initialization failed");
+                LOG_WARN(LOG_CAT_SYSTEM, "Failed to init provider for model: %s", models[i]);
+                continue;
+            }
+        }
+        if (!provider->initialized) {
+            res->error = strdup("Provider not initialized");
+            LOG_WARN(LOG_CAT_SYSTEM, "Provider not initialized for model: %s", models[i]);
             continue;
         }
 
@@ -205,10 +218,21 @@ int benchmark_model(const char* prompt, const char* system,
         return -1;
     }
 
-    // Get provider
+    // Get provider and initialize if needed
     Provider* provider = provider_get(model_cfg->provider);
-    if (!provider || !provider->initialized) {
+    if (!provider) {
         result->error = strdup("Provider not available");
+        return -1;
+    }
+    if (!provider->initialized && provider->init) {
+        ProviderError err = provider->init(provider);
+        if (err != PROVIDER_OK) {
+            result->error = strdup("Provider initialization failed");
+            return -1;
+        }
+    }
+    if (!provider->initialized) {
+        result->error = strdup("Provider not initialized");
         return -1;
     }
 

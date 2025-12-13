@@ -254,9 +254,9 @@ int persistence_init(const char* db_path) {
 static sqlite3_stmt* get_cached_stmt(const char* sql) {
     if (!sql || !g_db) return NULL;
 
-    // Try to find in cache
+    // Try to find in cache (use strcmp for proper string comparison)
     for (int i = 0; i < STMT_CACHE_SIZE; i++) {
-        if (g_stmt_cache[i].sql == sql && g_stmt_cache[i].stmt) {
+        if (g_stmt_cache[i].sql && g_stmt_cache[i].stmt && strcmp(g_stmt_cache[i].sql, sql) == 0) {
             // Reset statement for reuse
             sqlite3_reset(g_stmt_cache[i].stmt);
             g_stmt_cache[i].in_use = true;
@@ -528,8 +528,9 @@ int persistence_set_pref(const char* key, const char* value) {
         return -1;
     }
 
-    sqlite3_bind_text(stmt, 1, key, -1, SQLITE_TRANSIENT);
-    sqlite3_bind_text(stmt, 2, value, -1, SQLITE_TRANSIENT);
+    // SQLITE_STATIC is safe here: key/value are function params that outlive sqlite3_step
+    sqlite3_bind_text(stmt, 1, key, -1, SQLITE_STATIC);
+    sqlite3_bind_text(stmt, 2, value, -1, SQLITE_STATIC);
 
     rc = sqlite3_step(stmt);
     sqlite3_finalize(stmt);
