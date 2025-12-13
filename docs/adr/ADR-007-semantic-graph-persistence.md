@@ -1,7 +1,7 @@
 # ADR-007: Semantic Graph Persistence
 
-**Status:** Proposed
-**Date:** 2024-12-13
+**Status:** Implemented
+**Date:** 2025-12-13
 **Author:** Roberto + AI Team
 **Deciders:** Roberto
 
@@ -81,7 +81,7 @@ We will **persist the semantic graph to SQLite** and integrate it with the exist
 ┌─────────────────────────────────────────────────────────────────────┐
 │                         APPLICATION LAYER                           │
 ├─────────────────────────────────────────────────────────────────────┤
-│  Commands: /remember, /recall, /graph, /connections                 │
+│  Commands: /remember, /search, /memories, /forget, /graph           │
 │  Tools: memory_store, memory_search, graph_query                    │
 │  Agents: Auto-memorize, context retrieval                           │
 └─────────────────────────────────────────────────────────────────────┘
@@ -183,8 +183,8 @@ CREATE INDEX idx_relations_to ON semantic_relations(to_id);
 
 ## Success Metrics
 
-- [ ] All semantic nodes survive restart
-- [ ] Relations persist and load correctly
-- [ ] Semantic search returns relevant results (>0.7 precision)
-- [ ] Startup time < 2 seconds with 10k nodes
-- [ ] Memory usage < 500MB with 100k nodes
+- [x] All semantic nodes survive restart
+- [x] Relations persist and load correctly
+- [x] Semantic search returns relevant results (>0.7 precision)
+- [x] Startup time < 2 seconds with 10k nodes
+- [ ] Memory usage < 500MB with 100k nodes (not yet tested at scale)

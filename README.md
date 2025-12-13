@@ -23,6 +23,7 @@ A semantic kernel for human-AI symbiosis, built natively for Apple Silicon.
 ## What's New in v4.0
 
 - **MLX Local Provider**: Run AI models 100% offline on Apple Silicon via MLX-Swift - no Python, no external dependencies
+- **Semantic Memory**: Persistent knowledge graph that survives restarts - Ali remembers across sessions
 - **OpenRouter Provider**: Access 300+ models (DeepSeek R1, Mistral, Llama 3.3, Qwen) via unified API
 - **Ollama Provider**: Run models locally with zero API costs - perfect for offline work and privacy
 - **Setup Wizard**: Interactive `/setup` command to configure providers, API keys, and per-agent models
@@ -64,6 +65,35 @@ convergio --local --model llama-3.2-3b
 - **Free**: Zero API costs
 - **Fast**: No network latency
 - **Optimized**: Metal GPU + Neural Engine acceleration
+
+### Semantic Memory (New in v4.0)
+
+Ali now has **persistent semantic memory** - a knowledge graph that survives restarts. Unlike simple chat history, this creates interconnected memories that Ali can reason about.
+
+**Commands:**
+```bash
+# Store a memory
+> /remember Roberto prefers TypeScript over JavaScript
+
+# Search memories semantically
+> /search what languages does Roberto prefer
+
+# View knowledge graph statistics
+> /memories
+
+# Delete a specific memory
+> /forget 0x12345678
+
+# Show graph structure
+> /graph
+```
+
+**Key Features:**
+- **Persistent**: Memories survive application restarts
+- **Semantic**: Search by meaning, not just keywords
+- **Relational**: Memories can be connected with weighted relationships
+- **Local**: All data stored in SQLite, never leaves your machine
+- **Automatic**: Agents can store memories during conversations
 
 ### Previous Highlights (v3.0)
 
@@ -333,6 +363,13 @@ Options:
 | `cost agents` | Per-agent cost breakdown |
 | `cost set <USD>` | Set budget limit |
 | `cost reset` | Reset session spending |
+| `remember <text>` | Store a memory in the knowledge graph |
+| `search <query>` | Search memories semantically |
+| `memories` | Show knowledge graph statistics |
+| `forget <id>` | Delete a memory by ID |
+| `graph` | Show graph structure and relations |
+| `recall` | View/load past session summaries |
+| `setup` | Configure providers and agent models |
 | `debug` | Toggle debug mode |
 | `quit` | Exit Convergio |
 
