@@ -204,20 +204,38 @@ static void print_gradient_line(const char* line) {
     printf("\n");
 }
 
+// Print brain mascot with two-tone colors (orange left, blue right)
+static void print_brain_mascot(void) {
+    const char* orange = "\033[38;5;208m";
+    const char* blue = "\033[38;5;33m";
+    const char* rst = "\033[0m";
+
+    // Simple pixelated brain mascot (like Claude's ghost)
+    printf("                    %s▄▄▄%s▄▄▄%s\n", orange, blue, rst);
+    printf("                  %s▄█░░░%s█▓▓█▄%s\n", orange, blue, rst);
+    printf("                  %s█░░░░%s█▓▓▓█%s\n", orange, blue, rst);
+    printf("                  %s█░ ● %s█ ● █%s\n", orange, blue, rst);
+    printf("                  %s█░░░░%s█▓▓▓█%s\n", orange, blue, rst);
+    printf("                   %s▀█░░%s█▓█▀%s\n", orange, blue, rst);
+    printf("                    %s▀▀ %s▀▀%s\n", orange, blue, rst);
+}
+
 static void print_banner(void) {
     const char* rst = "\033[0m";
     const char* dim = "\033[2m";
     const char* c3 = "\033[38;5;75m";
 
     printf("\n");
-    print_gradient_line("        ██████╗ ██████╗ ███╗   ██╗██╗   ██╗███████╗██████╗  ██████╗ ██╗ ██████╗ ");
-    print_gradient_line("  ██╗  ██╔════╝██╔═══██╗████╗  ██║██║   ██║██╔════╝██╔══██╗██╔════╝ ██║██╔═══██╗");
-    print_gradient_line("  ██║  ██║     ██║   ██║██╔██╗ ██║██║   ██║█████╗  ██████╔╝██║  ███╗██║██║   ██║");
-    print_gradient_line("  ╚═╝  ██║     ██║   ██║██║╚██╗██║╚██╗ ██╔╝██╔══╝  ██╔══██╗██║   ██║██║██║   ██║");
-    print_gradient_line("  ██╗  ╚██████╗╚██████╔╝██║ ╚████║ ╚████╔╝ ███████╗██║  ██║╚██████╔╝██║╚██████╔╝");
-    print_gradient_line("  ╚═╝   ╚═════╝ ╚═════╝ ╚═╝  ╚═══╝  ╚═══╝  ╚══════╝╚═╝  ╚═╝ ╚═════╝ ╚═╝ ╚═════╝ ");
+    print_brain_mascot();
     printf("\n");
-    print_gradient_line("            Human purpose. AI momentum.");
+    print_gradient_line("  ▶ ██████╗ ██████╗ ███╗   ██╗██╗   ██╗███████╗██████╗  ██████╗ ██╗ ██████╗ ");
+    print_gradient_line("    ██╔════╝██╔═══██╗████╗  ██║██║   ██║██╔════╝██╔══██╗██╔════╝ ██║██╔═══██╗");
+    print_gradient_line("    ██║     ██║   ██║██╔██╗ ██║██║   ██║█████╗  ██████╔╝██║  ███╗██║██║   ██║");
+    print_gradient_line("    ██║     ██║   ██║██║╚██╗██║╚██╗ ██╔╝██╔══╝  ██╔══██╗██║   ██║██║██║   ██║");
+    print_gradient_line("    ╚██████╗╚██████╔╝██║ ╚████║ ╚████╔╝ ███████╗██║  ██║╚██████╔╝██║╚██████╔╝");
+    print_gradient_line("     ╚═════╝ ╚═════╝ ╚═╝  ╚═══╝  ╚═══╝  ╚══════╝╚═╝  ╚═╝ ╚═════╝ ╚═╝ ╚═════╝ ");
+    printf("\n");
+    print_gradient_line("             Human purpose. AI momentum.");
     printf("\n");
     printf("  %sv%s - Optimized for Apple Silicon%s\n", dim, convergio_get_version(), rst);
     printf("  %sDeveloped by Roberdan@FightTheStroke.org%s\n", dim, rst);
