@@ -229,30 +229,14 @@ static ModelConfig g_openai_models[] = {
 };
 static size_t g_openai_model_count = sizeof(g_openai_models) / sizeof(g_openai_models[0]);
 
-// Gemini Models
+// Gemini Models (Dec 2025)
 static ModelConfig g_gemini_models[] = {
     {
-        .id = "gemini-1.5-pro",
-        .display_name = "Gemini 3 Pro",
+        .id = "gemini-3.0-pro",
+        .display_name = "Gemini 3.0 Pro",
         .provider = PROVIDER_GEMINI,
-        .input_cost_per_mtok = 2.0,
-        .output_cost_per_mtok = 12.0,
-        .thinking_cost_per_mtok = 0.0,
-        .context_window = 200000,
-        .max_output = 8192,
-        .supports_tools = true,
-        .supports_vision = true,
-        .supports_streaming = true,
-        .tier = COST_TIER_MID,
-        .released = "2025-06-01",
-        .deprecated = false
-    },
-    {
-        .id = "gemini-1.5-pro",
-        .display_name = "Gemini 3 Ultra",
-        .provider = PROVIDER_GEMINI,
-        .input_cost_per_mtok = 7.0,
-        .output_cost_per_mtok = 21.0,
+        .input_cost_per_mtok = 1.25,
+        .output_cost_per_mtok = 5.0,
         .thinking_cost_per_mtok = 0.0,
         .context_window = 2000000,
         .max_output = 8192,
@@ -260,15 +244,31 @@ static ModelConfig g_gemini_models[] = {
         .supports_vision = true,
         .supports_streaming = true,
         .tier = COST_TIER_MID,
-        .released = "2025-06-01",
+        .released = "2025-11-18",
         .deprecated = false
     },
     {
-        .id = "gemini-1.5-flash",
-        .display_name = "Gemini 3 Flash",
+        .id = "gemini-3.0-deep-think",
+        .display_name = "Gemini 3.0 Deep Think",
         .provider = PROVIDER_GEMINI,
-        .input_cost_per_mtok = 0.075,
-        .output_cost_per_mtok = 0.30,
+        .input_cost_per_mtok = 5.0,
+        .output_cost_per_mtok = 20.0,
+        .thinking_cost_per_mtok = 0.0,
+        .context_window = 1000000,
+        .max_output = 32768,
+        .supports_tools = true,
+        .supports_vision = true,
+        .supports_streaming = true,
+        .tier = COST_TIER_PREMIUM,
+        .released = "2025-12-04",
+        .deprecated = false
+    },
+    {
+        .id = "gemini-2.0-flash",
+        .display_name = "Gemini 2.0 Flash",
+        .provider = PROVIDER_GEMINI,
+        .input_cost_per_mtok = 0.10,
+        .output_cost_per_mtok = 0.40,
         .thinking_cost_per_mtok = 0.0,
         .context_window = 1000000,
         .max_output = 8192,
@@ -276,7 +276,7 @@ static ModelConfig g_gemini_models[] = {
         .supports_vision = true,
         .supports_streaming = true,
         .tier = COST_TIER_CHEAP,
-        .released = "2025-06-01",
+        .released = "2025-01-30",
         .deprecated = false
     }
 };

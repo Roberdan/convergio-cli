@@ -304,18 +304,17 @@ static void extract_token_usage(const char* json, TokenUsage* usage) {
 }
 
 // Get model API ID from model name
+// Model dates based on Anthropic official releases (Dec 2025)
 static const char* get_model_api_id(const char* model) {
-    if (!model) return "claude-sonnet-4-20250514";
+    if (!model) return "claude-sonnet-4-5-20250929";
 
-    // Map friendly names to API IDs
-    if (strcmp(model, "claude-opus-4") == 0) {
-        return "claude-opus-4-5-20251201";
-    } else if (strcmp(model, "claude-sonnet-4") == 0) {
-        return "claude-sonnet-4-5-20251201";
-    } else if (strcmp(model, "claude-sonnet-4") == 0) {
-        return "claude-sonnet-4-20250514";
-    } else if (strcmp(model, "claude-haiku-4.5") == 0) {
-        return "claude-haiku-4-5-20251201";
+    // Map friendly names to API IDs (using official release dates)
+    if (strcmp(model, "claude-opus-4.5") == 0 || strcmp(model, "claude-opus-4") == 0) {
+        return "claude-opus-4-5-20251124";  // Nov 24, 2025
+    } else if (strcmp(model, "claude-sonnet-4.5") == 0 || strcmp(model, "claude-sonnet-4") == 0) {
+        return "claude-sonnet-4-5-20250929";  // Sep 29, 2025 - flagship coding model
+    } else if (strcmp(model, "claude-haiku-4.5") == 0 || strcmp(model, "claude-haiku-4") == 0) {
+        return "claude-haiku-4-5-20251015";  // Oct 15, 2025
     }
 
     // If already an API ID, return as-is

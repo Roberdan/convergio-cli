@@ -233,7 +233,7 @@ static void extract_token_usage(const char* json, TokenUsage* usage) {
 // Build Gemini API URL
 static char* build_api_url(const char* model, const char* api_key) {
     // Format: https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={key}
-    const char* model_name = model ? model : "gemini-1.5-flash";
+    const char* model_name = model ? model : "gemini-2.0-flash";
 
     size_t url_len = strlen(GEMINI_API_BASE) + strlen(model_name) + strlen(api_key) + 64;
     char* url = malloc(url_len);
@@ -421,7 +421,7 @@ static char* gemini_chat(Provider* self, const char* model, const char* system,
 
     data->request_cancelled = 0;
 
-    LOG_DEBUG(LOG_CAT_API, "Gemini API call: model=%s", model ? model : "gemini-1.5-flash");
+    LOG_DEBUG(LOG_CAT_API, "Gemini API call: model=%s", model ? model : "gemini-2.0-flash");
     CURLcode res = curl_easy_perform(curl);
 
     long http_code = 0;
@@ -627,7 +627,7 @@ static char* gemini_chat_with_tools(Provider* self, const char* model, const cha
 
 // Build streaming API URL (Gemini uses streamGenerateContent)
 static char* build_stream_api_url(const char* model, const char* api_key) {
-    const char* model_name = model ? model : "gemini-1.5-flash";
+    const char* model_name = model ? model : "gemini-2.0-flash";
     size_t url_len = strlen(GEMINI_API_BASE) + strlen(model_name) + strlen(api_key) + 80;
     char* url = malloc(url_len);
     if (!url) return NULL;

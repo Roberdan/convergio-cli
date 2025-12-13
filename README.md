@@ -2,6 +2,14 @@
   <img src="docs/logo/CovergioLogo.jpeg" alt="Convergio Logo" width="200"/>
 </p>
 
+<p align="center">
+  <a href="https://github.com/Roberdan/convergio-cli/actions/workflows/ci.yml"><img src="https://github.com/Roberdan/convergio-cli/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="https://github.com/Roberdan/convergio-cli/releases/latest"><img src="https://img.shields.io/github/v/release/Roberdan/convergio-cli?include_prereleases" alt="Release"></a>
+  <a href="https://github.com/Roberdan/convergio-cli/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-Apache%202.0-blue.svg" alt="License"></a>
+  <a href="https://github.com/Roberdan/convergio-cli"><img src="https://img.shields.io/badge/platform-macOS%20(Apple%20Silicon)-lightgrey" alt="Platform"></a>
+  <a href="https://github.com/Roberdan/convergio-cli/stargazers"><img src="https://img.shields.io/github/stars/Roberdan/convergio-cli?style=social" alt="Stars"></a>
+</p>
+
 # Convergio CLI
 
 > **Multi-Model AI Orchestration for Apple Silicon** - The first CLI that lets you mix Claude, GPT, and Gemini models with intelligent routing, cost optimization, and per-agent model selection.
@@ -10,15 +18,25 @@ A semantic kernel for human-AI symbiosis, built natively for Apple Silicon.
 
 **Developed by [Roberto D'Angelo](mailto:Roberdan@FightTheStroke.org) @ [FightTheStroke.org](https://fightthestroke.org)**
 
-## What's New in v3.0
+> **⚠️ Disclaimer:** This software is provided "as is", without warranty of any kind. Use at your own risk. AI-generated content may contain errors - always verify critical information. See [full disclaimer](docs/DISCLAIMER.md).
 
-- **Multi-Provider Support**: Use Anthropic, OpenAI, and Google Gemini in the same session
+## What's New in v4.0
+
+- **OpenRouter Provider**: Access 300+ models (DeepSeek R1, Mistral, Llama 3.3, Qwen) via unified API
+- **Ollama Provider**: Run models locally with zero API costs - perfect for offline work and privacy
+- **Setup Wizard**: Interactive `/setup` command to configure providers, API keys, and per-agent models
+- **Projects Support**: Organize your work with project-based context and memory
+- **Fiona Agent**: New specialized agent for project management tasks
+- **Updated Model IDs**: Latest Anthropic (claude-opus-4.5, sonnet-4.5, haiku-4.5) and Gemini (3.0 Pro, 2.0 Flash, Deep Think)
+- **Improved CI/CD**: Unit tests, E2E tests, and enhanced build validation
+
+### Previous Highlights (v3.0)
+
+- **Multi-Provider Support**: Use Anthropic, OpenAI, Google Gemini, OpenRouter, and Ollama
 - **Intelligent Model Routing**: Automatically select the best model for each task
 - **Per-Agent Model Selection**: Assign different models to different agents
 - **Budget-Aware Downgrading**: Automatically switch to cheaper models when budget runs low
 - **Provider Failover**: Automatic fallback when one provider is unavailable
-- **Real-Time Cost Tracking**: See exactly how much each query costs across providers
-- **Status Bar**: Live display of tokens, costs, and active model
 
 ## Overview
 
