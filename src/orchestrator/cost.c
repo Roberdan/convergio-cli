@@ -289,79 +289,114 @@ char* cost_get_report(void) {
     time_t now = time(NULL);
     int session_minutes = (int)((now - orch->cost.session_start) / 60);
 
-    // Format budget status - use TOTAL spend, not just session
-    char budget_line[64];
-    if (orch->cost.budget_limit_usd > 0) {
-        double pct = (orch->cost.total_spend_usd / orch->cost.budget_limit_usd) * 100;
-        if (orch->cost.budget_exceeded) {
-            snprintf(budget_line, sizeof(budget_line),
-                "$%.2f / $%.2f (%.0f%%) EXCEEDED",
-                orch->cost.total_spend_usd,
-                orch->cost.budget_limit_usd,
-                pct);
+    // Check if we're in LOCAL MODE (tokens used but zero cost)
+    bool is_local_mode = (orch->cost.session_usage.input_tokens > 0 ||
+                          orch->cost.session_usage.output_tokens > 0) &&
+                         orch->cost.session_usage.estimated_cost < 0.0001;
+
+    // Build report
+    int offset = 0;
+
+    if (is_local_mode) {
+        // ========================================================================
+        // LOCAL MODE REPORT (MLX / Ollama - Free inference)
+        // ========================================================================
+        offset += snprintf(report + offset, 2048 - offset,
+            "\n\033[1m╔════════════════════════════════════════════════════╗\033[0m\n"
+            "\033[1m║  \033[32m🏠 LOCAL MODE - FREE INFERENCE\033[0m                    \033[1m║\033[0m\n"
+            "\033[1m╠════════════════════════════════════════════════════╣\033[0m\n");
+
+        // Session section
+        offset += snprintf(report + offset, 2048 - offset,
+            "\033[36m║ SESSION\033[0m (%d min)\n"
+            "║   Input tokens:  %'12llu\n"
+            "║   Output tokens: %'12llu\n"
+            "║   \033[32m✓ Cost:          $0.00 (local inference)\033[0m\n",
+            session_minutes,
+            (unsigned long long)orch->cost.session_usage.input_tokens,
+            (unsigned long long)orch->cost.session_usage.output_tokens);
+
+        offset += snprintf(report + offset, 2048 - offset,
+            "\033[1m╠════════════════════════════════════════════════════╣\033[0m\n"
+            "║ \033[90mRunning on Apple Silicon with MLX - no API costs!\033[0m\n"
+            "\033[1m╚════════════════════════════════════════════════════╝\033[0m\n");
+    } else {
+        // ========================================================================
+        // STANDARD API MODE REPORT (with costs)
+        // ========================================================================
+
+        // Format budget status - use TOTAL spend, not just session
+        char budget_line[64];
+        if (orch->cost.budget_limit_usd > 0) {
+            double pct = (orch->cost.total_spend_usd / orch->cost.budget_limit_usd) * 100;
+            if (orch->cost.budget_exceeded) {
+                snprintf(budget_line, sizeof(budget_line),
+                    "$%.2f / $%.2f (%.0f%%) EXCEEDED",
+                    orch->cost.total_spend_usd,
+                    orch->cost.budget_limit_usd,
+                    pct);
+            } else {
+                snprintf(budget_line, sizeof(budget_line),
+                    "$%.2f / $%.2f (%.0f%%)",
+                    orch->cost.total_spend_usd,
+                    orch->cost.budget_limit_usd,
+                    pct);
+            }
         } else {
-            snprintf(budget_line, sizeof(budget_line),
-                "$%.2f / $%.2f (%.0f%%)",
-                orch->cost.total_spend_usd,
-                orch->cost.budget_limit_usd,
-                pct);
+            snprintf(budget_line, sizeof(budget_line), "No limit set");
         }
-    } else {
-        snprintf(budget_line, sizeof(budget_line), "No limit set");
+
+        offset += snprintf(report + offset, 2048 - offset,
+            "\n\033[1m╔════════════════════════════════════════════════════╗\033[0m\n"
+            "\033[1m║               COST REPORT                          ║\033[0m\n"
+            "\033[1m╠════════════════════════════════════════════════════╣\033[0m\n");
+
+        // Session section
+        offset += snprintf(report + offset, 2048 - offset,
+            "\033[36m║ SESSION\033[0m (%d min)\n"
+            "║   Input tokens:  %'12llu  ($%.4f)\n"
+            "║   Output tokens: %'12llu  ($%.4f)\n"
+            "║   \033[1mTotal cost:      $%.4f\033[0m\n",
+            session_minutes,
+            (unsigned long long)orch->cost.session_usage.input_tokens,
+            (orch->cost.session_usage.input_tokens / 1000000.0) * CLAUDE_SONNET_INPUT_COST,
+            (unsigned long long)orch->cost.session_usage.output_tokens,
+            (orch->cost.session_usage.output_tokens / 1000000.0) * CLAUDE_SONNET_OUTPUT_COST,
+            orch->cost.session_usage.estimated_cost);
+
+        offset += snprintf(report + offset, 2048 - offset,
+            "\033[1m╠════════════════════════════════════════════════════╣\033[0m\n");
+
+        // All-time section
+        offset += snprintf(report + offset, 2048 - offset,
+            "\033[36m║ ALL-TIME\033[0m\n"
+            "║   Input tokens:  %'12llu  ($%.4f)\n"
+            "║   Output tokens: %'12llu  ($%.4f)\n"
+            "║   \033[1mTotal cost:      $%.4f\033[0m\n",
+            (unsigned long long)orch->cost.total_usage.input_tokens,
+            (orch->cost.total_usage.input_tokens / 1000000.0) * CLAUDE_SONNET_INPUT_COST,
+            (unsigned long long)orch->cost.total_usage.output_tokens,
+            (orch->cost.total_usage.output_tokens / 1000000.0) * CLAUDE_SONNET_OUTPUT_COST,
+            orch->cost.total_usage.estimated_cost);
+
+        offset += snprintf(report + offset, 2048 - offset,
+            "\033[1m╠════════════════════════════════════════════════════╣\033[0m\n");
+
+        // Budget section
+        if (orch->cost.budget_exceeded) {
+            offset += snprintf(report + offset, 2048 - offset,
+                "\033[31m║ BUDGET: %s\033[0m\n", budget_line);
+        } else if (orch->cost.budget_limit_usd > 0) {
+            offset += snprintf(report + offset, 2048 - offset,
+                "\033[32m║ BUDGET: %s\033[0m\n", budget_line);
+        } else {
+            offset += snprintf(report + offset, 2048 - offset,
+                "║ BUDGET: %s\n", budget_line);
+        }
+
+        offset += snprintf(report + offset, 2048 - offset,
+            "\033[1m╚════════════════════════════════════════════════════╝\033[0m\n");
     }
-
-    // Build report with properly aligned borders
-    size_t offset = 0;
-    offset += (size_t)snprintf(report + offset, 2048 - offset,
-        "\n\033[1m╔════════════════════════════════════════════════════╗\033[0m\n"
-        "\033[1m║               COST REPORT                          ║\033[0m\n"
-        "\033[1m╠════════════════════════════════════════════════════╣\033[0m\n");
-
-    // Session section
-    offset += (size_t)snprintf(report + offset, 2048 - offset,
-        "\033[36m║ SESSION\033[0m (%d min)\n"
-        "║   Input tokens:  %'12llu  ($%.4f)\n"
-        "║   Output tokens: %'12llu  ($%.4f)\n"
-        "║   \033[1mTotal cost:      $%.4f\033[0m\n",
-        session_minutes,
-        (unsigned long long)orch->cost.session_usage.input_tokens,
-        (orch->cost.session_usage.input_tokens / 1000000.0) * CLAUDE_SONNET_INPUT_COST,
-        (unsigned long long)orch->cost.session_usage.output_tokens,
-        (orch->cost.session_usage.output_tokens / 1000000.0) * CLAUDE_SONNET_OUTPUT_COST,
-        orch->cost.session_usage.estimated_cost);
-
-    offset += (size_t)snprintf(report + offset, 2048 - offset,
-        "\033[1m╠════════════════════════════════════════════════════╣\033[0m\n");
-
-    // All-time section
-    offset += (size_t)snprintf(report + offset, 2048 - offset,
-        "\033[36m║ ALL-TIME\033[0m\n"
-        "║   Input tokens:  %'12llu  ($%.4f)\n"
-        "║   Output tokens: %'12llu  ($%.4f)\n"
-        "║   \033[1mTotal cost:      $%.4f\033[0m\n",
-        (unsigned long long)orch->cost.total_usage.input_tokens,
-        (orch->cost.total_usage.input_tokens / 1000000.0) * CLAUDE_SONNET_INPUT_COST,
-        (unsigned long long)orch->cost.total_usage.output_tokens,
-        (orch->cost.total_usage.output_tokens / 1000000.0) * CLAUDE_SONNET_OUTPUT_COST,
-        orch->cost.total_usage.estimated_cost);
-
-    offset += (size_t)snprintf(report + offset, 2048 - offset,
-        "\033[1m╠════════════════════════════════════════════════════╣\033[0m\n");
-
-    // Budget section
-    if (orch->cost.budget_exceeded) {
-        offset += (size_t)snprintf(report + offset, 2048 - offset,
-            "\033[31m║ BUDGET: %s\033[0m\n", budget_line);
-    } else if (orch->cost.budget_limit_usd > 0) {
-        offset += (size_t)snprintf(report + offset, 2048 - offset,
-            "\033[32m║ BUDGET: %s\033[0m\n", budget_line);
-    } else {
-        offset += (size_t)snprintf(report + offset, 2048 - offset,
-            "║ BUDGET: %s\n", budget_line);
-    }
-
-    offset += (size_t)snprintf(report + offset, 2048 - offset,
-        "\033[1m╚════════════════════════════════════════════════════╝\033[0m\n");
 
     CONVERGIO_MUTEX_UNLOCK(&g_cost_mutex);
 
@@ -381,7 +416,14 @@ char* cost_get_status_line(void) {
         return NULL;
     }
 
-    if (orch->cost.budget_limit_usd > 0) {
+    // Check if we're in LOCAL MODE (tokens used but zero cost)
+    bool is_local_mode = (orch->cost.session_usage.input_tokens > 0 ||
+                          orch->cost.session_usage.output_tokens > 0) &&
+                         orch->cost.current_spend_usd < 0.0001;
+
+    if (is_local_mode) {
+        snprintf(line, 128, "[🏠 Local Mode - Free]");
+    } else if (orch->cost.budget_limit_usd > 0) {
         double remaining = orch->cost.budget_limit_usd - orch->cost.current_spend_usd;
         snprintf(line, 128, "[$%.4f spent | $%.4f remaining]",
             orch->cost.current_spend_usd, remaining > 0 ? remaining : 0);

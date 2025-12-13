@@ -1,3 +1,0 @@
-module MLXFFT {
-    header "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/MLXFFT.build/include/MLXFFT-Swift.h"
-}

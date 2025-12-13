@@ -49,9 +49,12 @@ int cmd_project(int argc, char** argv);
 // Forward declaration for setup wizard
 int cmd_setup(int argc, char** argv);
 
+// Forward declaration for session recall
+int cmd_recall(int argc, char** argv);
+
 // Forward declarations for semantic memory commands
 int cmd_remember(int argc, char** argv);
-int cmd_recall(int argc, char** argv);
+int cmd_search(int argc, char** argv);
 int cmd_memories(int argc, char** argv);
 int cmd_forget(int argc, char** argv);
 int cmd_graph(int argc, char** argv);
@@ -79,9 +82,11 @@ static const ReplCommand COMMANDS[] = {
     {"telemetry",   "Manage telemetry settings",         cmd_telemetry},
     {"tools",       "Manage development tools",          cmd_tools},
     {"news",        "Show release notes",                cmd_news},
+    // Session recall
+    {"recall",      "View/load past sessions",           cmd_recall},
     // Semantic memory commands
     {"remember",    "Store a memory",                    cmd_remember},
-    {"recall",      "Search memories semantically",      cmd_recall},
+    {"search",      "Search memories semantically",      cmd_search},
     {"memories",    "List recent/important memories",    cmd_memories},
     {"forget",      "Delete a memory by ID",             cmd_forget},
     {"graph",       "Show knowledge graph stats",        cmd_graph},
@@ -531,6 +536,39 @@ static const CommandHelp DETAILED_HELP[] = {
         "The knowledge graph stores memories, concepts, and their relationships\n"
         "to enable semantic understanding across sessions.",
         "graph"
+    },
+    {
+        "local",
+        "help local",
+        "Local models guide (MLX on Apple Silicon)",
+        "Run AI models 100% offline on your Mac without cloud APIs or internet.\n"
+        "Requires Apple Silicon (M1/M2/M3/M4/M5).\n\n"
+        "QUICK START:\n"
+        "  /setup -> Local Models -> Download a model\n\n"
+        "AVAILABLE MODELS:\n"
+        "  - Llama 3.2 1B/3B    - Fast, general purpose\n"
+        "  - DeepSeek R1 Distill - Reasoning, coding, math (1.5B/7B/14B)\n"
+        "  - Qwen 2.5 Coder 7B  - Code generation\n"
+        "  - Phi-3 Mini         - Fast, efficient\n"
+        "  - Mistral 7B Q4      - Multilingual, European\n"
+        "  - Llama 3.1 8B Q4    - Best quality, long context\n\n"
+        "BENEFITS:\n"
+        "  - 100% offline operation (no internet required)\n"
+        "  - Complete privacy (data never leaves your Mac)\n"
+        "  - No API costs (free forever)\n"
+        "  - Low latency (no network roundtrip)\n"
+        "  - Apple Silicon optimized (Neural Engine + GPU)\n\n"
+        "LIMITATIONS:\n"
+        "  - Model download required (1-9 GB per model)\n"
+        "  - Quality varies vs cloud models for complex tasks\n"
+        "  - RAM requirements (4-16GB depending on model)\n"
+        "  - Tool calling less reliable than Claude\n\n"
+        "CLI OPTIONS:\n"
+        "  convergio --local              Use MLX provider\n"
+        "  convergio --local -m llama-3.2-3b  Specific model",
+        "/setup           # Open wizard, select Local Models\n"
+        "convergio --local --model deepseek-r1-7b\n"
+        "convergio -l -m llama-3.2-3b"
     },
     {NULL, NULL, NULL, NULL, NULL}
 };
@@ -2445,12 +2483,12 @@ int cmd_remember(int argc, char** argv) {
 }
 
 /**
- * /recall <query> - Search memories semantically
+ * /search <query> - Search memories semantically
  */
-int cmd_recall(int argc, char** argv) {
+int cmd_search(int argc, char** argv) {
     if (argc < 2) {
-        printf("Usage: recall <search query>\n");
-        printf("Example: recall what does Roberto prefer\n");
+        printf("Usage: search <search query>\n");
+        printf("Example: search what does Roberto prefer\n");
         return -1;
     }
 

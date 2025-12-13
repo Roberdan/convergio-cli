@@ -1,3 +1,0 @@
-module HeapModule {
-    header "/Users/roberdan/GitHub/ConvergioCLI-semantic-graph/.build/arm64-apple-macosx/release/HeapModule.build/include/HeapModule-Swift.h"
-}

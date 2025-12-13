@@ -469,6 +469,155 @@ static ModelConfig g_ollama_models[] = {
 };
 static size_t g_ollama_model_count = sizeof(g_ollama_models) / sizeof(g_ollama_models[0]);
 
+// MLX Models (Apple Silicon native - 100% offline)
+static ModelConfig g_mlx_models[] = {
+    {
+        .id = "llama-3.2-1b",
+        .display_name = "Llama 3.2 1B (MLX)",
+        .provider = PROVIDER_MLX,
+        .input_cost_per_mtok = 0.0,
+        .output_cost_per_mtok = 0.0,
+        .thinking_cost_per_mtok = 0.0,
+        .context_window = 131072,
+        .max_output = 8192,
+        .supports_tools = true,
+        .supports_vision = false,
+        .supports_streaming = true,
+        .tier = COST_TIER_CHEAP,
+        .released = "2024-09-01",
+        .deprecated = false
+    },
+    {
+        .id = "llama-3.2-3b",
+        .display_name = "Llama 3.2 3B (MLX)",
+        .provider = PROVIDER_MLX,
+        .input_cost_per_mtok = 0.0,
+        .output_cost_per_mtok = 0.0,
+        .thinking_cost_per_mtok = 0.0,
+        .context_window = 131072,
+        .max_output = 8192,
+        .supports_tools = true,
+        .supports_vision = false,
+        .supports_streaming = true,
+        .tier = COST_TIER_CHEAP,
+        .released = "2024-09-01",
+        .deprecated = false
+    },
+    {
+        .id = "phi-3-mini",
+        .display_name = "Phi-3 Mini (MLX)",
+        .provider = PROVIDER_MLX,
+        .input_cost_per_mtok = 0.0,
+        .output_cost_per_mtok = 0.0,
+        .thinking_cost_per_mtok = 0.0,
+        .context_window = 128000,
+        .max_output = 8192,
+        .supports_tools = true,
+        .supports_vision = false,
+        .supports_streaming = true,
+        .tier = COST_TIER_CHEAP,
+        .released = "2024-04-01",
+        .deprecated = false
+    },
+    {
+        .id = "mistral-7b-q4",
+        .display_name = "Mistral 7B Q4 (MLX)",
+        .provider = PROVIDER_MLX,
+        .input_cost_per_mtok = 0.0,
+        .output_cost_per_mtok = 0.0,
+        .thinking_cost_per_mtok = 0.0,
+        .context_window = 32768,
+        .max_output = 8192,
+        .supports_tools = true,
+        .supports_vision = false,
+        .supports_streaming = true,
+        .tier = COST_TIER_CHEAP,
+        .released = "2024-01-01",
+        .deprecated = false
+    },
+    {
+        .id = "llama-3.1-8b-q4",
+        .display_name = "Llama 3.1 8B Q4 (MLX)",
+        .provider = PROVIDER_MLX,
+        .input_cost_per_mtok = 0.0,
+        .output_cost_per_mtok = 0.0,
+        .thinking_cost_per_mtok = 0.0,
+        .context_window = 131072,
+        .max_output = 8192,
+        .supports_tools = true,
+        .supports_vision = false,
+        .supports_streaming = true,
+        .tier = COST_TIER_CHEAP,
+        .released = "2024-07-01",
+        .deprecated = false
+    },
+    {
+        .id = "deepseek-r1-1.5b",
+        .display_name = "DeepSeek R1 Distill 1.5B (MLX)",
+        .provider = PROVIDER_MLX,
+        .input_cost_per_mtok = 0.0,
+        .output_cost_per_mtok = 0.0,
+        .thinking_cost_per_mtok = 0.0,
+        .context_window = 64000,
+        .max_output = 8192,
+        .supports_tools = true,
+        .supports_vision = false,
+        .supports_streaming = true,
+        .tier = COST_TIER_CHEAP,
+        .released = "2025-01-01",
+        .deprecated = false
+    },
+    {
+        .id = "deepseek-r1-7b",
+        .display_name = "DeepSeek R1 Distill 7B (MLX)",
+        .provider = PROVIDER_MLX,
+        .input_cost_per_mtok = 0.0,
+        .output_cost_per_mtok = 0.0,
+        .thinking_cost_per_mtok = 0.0,
+        .context_window = 64000,
+        .max_output = 8192,
+        .supports_tools = true,
+        .supports_vision = false,
+        .supports_streaming = true,
+        .tier = COST_TIER_CHEAP,
+        .released = "2025-01-01",
+        .deprecated = false
+    },
+    {
+        .id = "deepseek-r1-14b",
+        .display_name = "DeepSeek R1 Distill 14B (MLX)",
+        .provider = PROVIDER_MLX,
+        .input_cost_per_mtok = 0.0,
+        .output_cost_per_mtok = 0.0,
+        .thinking_cost_per_mtok = 0.0,
+        .context_window = 64000,
+        .max_output = 8192,
+        .supports_tools = true,
+        .supports_vision = false,
+        .supports_streaming = true,
+        .tier = COST_TIER_CHEAP,
+        .released = "2025-01-01",
+        .deprecated = false
+    },
+    {
+        .id = "qwen2.5-coder-7b",
+        .display_name = "Qwen 2.5 Coder 7B (MLX)",
+        .provider = PROVIDER_MLX,
+        .input_cost_per_mtok = 0.0,
+        .output_cost_per_mtok = 0.0,
+        .thinking_cost_per_mtok = 0.0,
+        .context_window = 131072,
+        .max_output = 8192,
+        .supports_tools = true,
+        .supports_vision = false,
+        .supports_streaming = true,
+        .tier = COST_TIER_CHEAP,
+        .released = "2024-11-01",
+        .deprecated = false
+    }
+};
+static size_t g_mlx_model_count = sizeof(g_mlx_models) / sizeof(g_mlx_models[0]);
+
 // ============================================================================
 // PROVIDER NAME MAPPING
 // ============================================================================
@@ -478,7 +627,8 @@ static const char* g_provider_names[] = {
     [PROVIDER_OPENAI] = "openai",
     [PROVIDER_GEMINI] = "gemini",
     [PROVIDER_OPENROUTER] = "openrouter",
-    [PROVIDER_OLLAMA] = "ollama"
+    [PROVIDER_OLLAMA] = "ollama",
+    [PROVIDER_MLX] = "mlx"
 };
 
 __attribute__((unused))
@@ -487,7 +637,8 @@ static const char* g_provider_display_names[] = {
     [PROVIDER_OPENAI] = "OpenAI",
     [PROVIDER_GEMINI] = "Google Gemini",
     [PROVIDER_OPENROUTER] = "OpenRouter",
-    [PROVIDER_OLLAMA] = "Ollama (Local)"
+    [PROVIDER_OLLAMA] = "Ollama (Local)",
+    [PROVIDER_MLX] = "MLX (Apple Silicon)"
 };
 
 static const char* g_provider_api_key_envs[] = {
@@ -495,7 +646,8 @@ static const char* g_provider_api_key_envs[] = {
     [PROVIDER_OPENAI] = "OPENAI_API_KEY",
     [PROVIDER_GEMINI] = "GEMINI_API_KEY",
     [PROVIDER_OPENROUTER] = "OPENROUTER_API_KEY",
-    [PROVIDER_OLLAMA] = NULL  // No API key needed for local
+    [PROVIDER_OLLAMA] = NULL,  // No API key needed for local
+    [PROVIDER_MLX] = NULL      // No API key needed - 100% local
 };
 
 // ============================================================================
@@ -558,6 +710,7 @@ extern Provider* openai_provider_create(void);
 extern Provider* gemini_provider_create(void);
 extern Provider* openrouter_provider_create(void);
 extern Provider* ollama_provider_create(void);
+extern Provider* mlx_provider_create(void);
 
 ProviderError provider_registry_init(void) {
     pthread_mutex_lock(&g_registry_mutex);
@@ -600,6 +753,12 @@ ProviderError provider_registry_init(void) {
     g_providers[PROVIDER_OLLAMA] = ollama_provider_create();
     if (g_providers[PROVIDER_OLLAMA]) {
         LOG_DEBUG(LOG_CAT_SYSTEM, "Ollama provider created");
+    }
+
+    // MLX provider (Apple Silicon native - 100% offline)
+    g_providers[PROVIDER_MLX] = mlx_provider_create();
+    if (g_providers[PROVIDER_MLX]) {
+        LOG_DEBUG(LOG_CAT_SYSTEM, "MLX provider created (Apple Silicon)");
     }
 
     g_registry_initialized = true;
@@ -803,6 +962,11 @@ const ModelConfig* model_get_config(const char* model_id) {
         if (result) return result;
     }
 
+    if (hint == PROVIDER_MLX || hint == PROVIDER_COUNT) {
+        result = find_model_in_array(actual_id, g_mlx_models, g_mlx_model_count);
+        if (result) return result;
+    }
+
     return NULL;
 }
 
@@ -823,6 +987,9 @@ const ModelConfig* model_get_by_provider(ProviderType type, size_t* out_count) {
         case PROVIDER_OLLAMA:
             if (out_count) *out_count = g_ollama_model_count;
             return g_ollama_models;
+        case PROVIDER_MLX:
+            if (out_count) *out_count = g_mlx_model_count;
+            return g_mlx_models;
         default:
             if (out_count) *out_count = 0;
             return NULL;
