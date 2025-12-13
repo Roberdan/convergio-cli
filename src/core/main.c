@@ -135,26 +135,24 @@ bool g_streaming_enabled = false;  // Default OFF to enable tool support
 
 // Print a single UTF-8 character with color
 static void print_colored_char(const char* ch, int len, int col, int total_cols) {
-    // Gradient: dark blue -> cyan -> teal -> orange
-    // Creates a warm-to-cool transition matching Convergio brand
+    // Gradient: violet/purple -> magenta -> orange
+    // Creates a warm purple-to-orange transition
     float t = (float)col / (float)total_cols;
 
     int color;
-    if (t < 0.15f) {
-        color = 17;  // Dark navy blue (deep)
-    } else if (t < 0.25f) {
-        color = 24;  // Dark blue
-    } else if (t < 0.35f) {
-        color = 31;  // Medium dark blue
-    } else if (t < 0.45f) {
-        color = 38;  // Teal-blue
-    } else if (t < 0.55f) {
-        color = 44;  // Cyan
-    } else if (t < 0.65f) {
-        color = 43;  // Teal
-    } else if (t < 0.75f) {
-        color = 172; // Dark orange
-    } else if (t < 0.85f) {
+    if (t < 0.12f) {
+        color = 99;  // Light purple/violet
+    } else if (t < 0.24f) {
+        color = 135; // Medium purple
+    } else if (t < 0.36f) {
+        color = 171; // Light magenta
+    } else if (t < 0.48f) {
+        color = 207; // Pink-magenta
+    } else if (t < 0.60f) {
+        color = 213; // Hot pink
+    } else if (t < 0.72f) {
+        color = 209; // Salmon/coral
+    } else if (t < 0.84f) {
         color = 208; // Bright orange
     } else {
         color = 214; // Gold/orange (end)
@@ -212,12 +210,12 @@ static void print_banner(void) {
     const char* c3 = "\033[38;5;75m";
 
     printf("\n");
-    print_gradient_line("   ██████╗ ██████╗ ███╗   ██╗██╗   ██╗███████╗██████╗  ██████╗ ██╗ ██████╗ ");
-    print_gradient_line("  ██╔════╝██╔═══██╗████╗  ██║██║   ██║██╔════╝██╔══██╗██╔════╝ ██║██╔═══██╗");
-    print_gradient_line("  ██║     ██║   ██║██╔██╗ ██║██║   ██║█████╗  ██████╔╝██║  ███╗██║██║   ██║");
-    print_gradient_line("  ██║     ██║   ██║██║╚██╗██║╚██╗ ██╔╝██╔══╝  ██╔══██╗██║   ██║██║██║   ██║");
-    print_gradient_line("  ╚██████╗╚██████╔╝██║ ╚████║ ╚████╔╝ ███████╗██║  ██║╚██████╔╝██║╚██████╔╝");
-    print_gradient_line("   ╚═════╝ ╚═════╝ ╚═╝  ╚═══╝  ╚═══╝  ╚══════╝╚═╝  ╚═╝ ╚═════╝ ╚═╝ ╚═════╝ ");
+    print_gradient_line("        ██████╗ ██████╗ ███╗   ██╗██╗   ██╗███████╗██████╗  ██████╗ ██╗ ██████╗ ");
+    print_gradient_line("  ██╗  ██╔════╝██╔═══██╗████╗  ██║██║   ██║██╔════╝██╔══██╗██╔════╝ ██║██╔═══██╗");
+    print_gradient_line("  ██║  ██║     ██║   ██║██╔██╗ ██║██║   ██║█████╗  ██████╔╝██║  ███╗██║██║   ██║");
+    print_gradient_line("  ╚═╝  ██║     ██║   ██║██║╚██╗██║╚██╗ ██╔╝██╔══╝  ██╔══██╗██║   ██║██║██║   ██║");
+    print_gradient_line("  ██╗  ╚██████╗╚██████╔╝██║ ╚████║ ╚████╔╝ ███████╗██║  ██║╚██████╔╝██║╚██████╔╝");
+    print_gradient_line("  ╚═╝   ╚═════╝ ╚═════╝ ╚═╝  ╚═══╝  ╚═══╝  ╚══════╝╚═╝  ╚═╝ ╚═════╝ ╚═╝ ╚═════╝ ");
     printf("\n");
     print_gradient_line("            Human purpose. AI momentum.");
     printf("\n");
