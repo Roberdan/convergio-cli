@@ -781,7 +781,7 @@ int cmd_status(int argc, char** argv) {
         printf("\nCurrent Space: %s\n", space->name);
         printf("  Purpose: %s\n", space->purpose);
         printf("  Participants: %zu\n", nous_space_participant_count(space));
-        printf("  Urgency: %.2f\n", nous_space_urgency(space));
+        printf("  Urgency: %.2f\n", (double)nous_space_urgency(space));
         printf("  Active: %s\n", nous_space_is_active(space) ? "Yes" : "No");
     } else {
         printf("\nNo active space.\n");
@@ -1089,9 +1089,9 @@ int cmd_agent(int argc, char** argv) {
         }
 
         printf("Created agent \"%s\"\n", agent->name);
-        printf("  Patience: %.2f\n", agent->patience);
-        printf("  Creativity: %.2f\n", agent->creativity);
-        printf("  Assertiveness: %.2f\n", agent->assertiveness);
+        printf("  Patience: %.2f\n", (double)agent->patience);
+        printf("  Creativity: %.2f\n", (double)agent->creativity);
+        printf("  Assertiveness: %.2f\n", (double)agent->assertiveness);
 
         NousAgent* assistant = (NousAgent*)g_assistant;
         if (!assistant) {
@@ -1166,8 +1166,8 @@ int cmd_think(int argc, char** argv) {
 
     printf("Intent parsed:\n");
     printf("  Kind: %d\n", intent->kind);
-    printf("  Confidence: %.2f\n", intent->confidence);
-    printf("  Urgency: %.2f\n", intent->urgency);
+    printf("  Confidence: %.2f\n", (double)intent->confidence);
+    printf("  Urgency: %.2f\n", (double)intent->urgency);
 
     if (intent->question_count > 0) {
         printf("\nClarification needed:\n");
@@ -1270,7 +1270,7 @@ int cmd_space(int argc, char** argv) {
 
     NousSpace* space = (NousSpace*)g_current_space;
     if (strcmp(argv[1], "urgency") == 0 && space) {
-        printf("Current urgency: %.2f\n", nous_space_urgency(space));
+        printf("Current urgency: %.2f\n", (double)nous_space_urgency(space));
         return 0;
     }
 

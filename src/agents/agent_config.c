@@ -365,7 +365,7 @@ static char* extract_string(const char* json, const char* key) {
     const char* end = strchr(start, '"');
     if (!end) return NULL;
 
-    return strndup(start, end - start);
+    return strndup(start, (size_t)(end - start));
 }
 
 static double extract_number(const char* json, const char* key, double default_val) {
@@ -506,13 +506,13 @@ int agent_config_load_directory(const char* dir_path) {
         long size = ftell(f);
         fseek(f, 0, SEEK_SET);
 
-        char* content = malloc(size + 1);
+        char* content = malloc((size_t)size + 1);
         if (!content) {
             fclose(f);
             continue;
         }
 
-        fread(content, 1, size, f);
+        fread(content, 1, (size_t)size, f);
         content[size] = '\0';
         fclose(f);
 
@@ -576,13 +576,13 @@ char* agent_config_list_json(void) {
     char* json = malloc(size);
     if (!json) return NULL;
 
-    int offset = snprintf(json, size, "[");
+    size_t offset = (size_t)snprintf(json, size, "[");
 
     for (size_t i = 0; i < g_config_count; i++) {
         if (i > 0) {
-            offset += snprintf(json + offset, size - offset, ",");
+            offset += (size_t)snprintf(json + offset, size - offset, ",");
         }
-        offset += snprintf(json + offset, size - offset,
+        offset += (size_t)snprintf(json + offset, size - offset,
             "{\"name\":\"%s\",\"role\":\"%s\",\"model\":\"%s\"}",
             g_configs[i].agent_name,
             g_configs[i].description ? g_configs[i].description : "",

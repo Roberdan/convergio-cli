@@ -155,7 +155,9 @@ EMBEDDED_AGENTS = $(SRC_DIR)/agents/embedded_agents.c
 # Default target - MUST be first target in file
 .DEFAULT_GOAL := all
 
+# Enable parallel builds by default (use -j flag)
 all: dirs metal $(TARGET)
+	@echo "Build complete with $(NPROC) parallel jobs"
 	@echo ""
 	@echo "╔═══════════════════════════════════════════════════╗"
 	@echo "║          CONVERGIO KERNEL v$(VERSION)              "
@@ -216,12 +218,15 @@ $(METAL_LIB): $(METAL_AIR)
 		touch $(METAL_LIB); \
 	fi
 
-# Compile C sources
+# Detect number of CPU cores for parallel compilation
+NPROC := $(shell sysctl -n hw.ncpu 2>/dev/null || echo 4)
+
+# Compile C sources (with parallel support)
 $(OBJ_DIR)/%.o: $(SRC_DIR)/%.c
 	@echo "Compiling $<..."
 	@$(CC) $(CFLAGS) -c $< -o $@
 
-# Compile Objective-C sources
+# Compile Objective-C sources (with parallel support)
 $(OBJ_DIR)/%.o: $(SRC_DIR)/%.m
 	@echo "Compiling $<..."
 	@$(OBJC) $(OBJCFLAGS) -c $< -o $@
@@ -309,6 +314,7 @@ FUZZ_SOURCES = tests/fuzz_test.c $(TEST_STUBS)
 # Exclude main.o since fuzz_test has its own main() and stubs provide globals
 FUZZ_OBJECTS = $(filter-out $(OBJ_DIR)/core/main.o,$(OBJECTS))
 
+fuzz_test: DEBUG=1
 fuzz_test: dirs $(OBJECTS) $(FUZZ_TEST)
 	@echo "Running fuzz tests..."
 	@$(FUZZ_TEST)
@@ -322,6 +328,7 @@ UNIT_TEST = $(BIN_DIR)/unit_test
 UNIT_SOURCES = tests/test_unit.c $(TEST_STUBS)
 UNIT_OBJECTS = $(filter-out $(OBJ_DIR)/core/main.o,$(OBJECTS))
 
+unit_test: DEBUG=1
 unit_test: dirs $(OBJECTS) $(UNIT_TEST)
 	@echo "Running unit tests..."
 	@$(UNIT_TEST)
@@ -349,8 +356,34 @@ check-docs:
 	@echo "Checking help documentation coverage..."
 	@./scripts/check_help_docs.sh
 
+# Compare test target
+COMPARE_TEST = $(BIN_DIR)/compare_test
+COMPARE_SOURCES = tests/test_compare.c
+COMPARE_OBJECTS = $(OBJ_DIR)/compare/render.o
+
+compare_test: dirs $(OBJ_DIR)/compare/render.o $(COMPARE_TEST)
+	@echo "Running compare tests..."
+	@$(COMPARE_TEST)
+
+$(COMPARE_TEST): $(COMPARE_SOURCES) $(COMPARE_OBJECTS)
+	@echo "Compiling compare tests..."
+	@$(CC) $(CFLAGS) $(LDFLAGS) -o $(COMPARE_TEST) $(COMPARE_SOURCES) $(COMPARE_OBJECTS) $(FRAMEWORKS) $(LIBS)
+
+# Projects test target
+PROJECTS_TEST = $(BIN_DIR)/projects_test
+PROJECTS_SOURCES = tests/test_projects.c
+PROJECTS_OBJECTS = $(OBJ_DIR)/projects/projects.o
+
+projects_test: dirs $(OBJ_DIR)/projects/projects.o $(PROJECTS_TEST)
+	@echo "Running projects tests..."
+	@$(PROJECTS_TEST)
+
+$(PROJECTS_TEST): $(PROJECTS_SOURCES) $(PROJECTS_OBJECTS)
+	@echo "Compiling projects tests..."
+	@$(CC) $(CFLAGS) $(LDFLAGS) -o $(PROJECTS_TEST) $(PROJECTS_SOURCES) $(PROJECTS_OBJECTS) $(FRAMEWORKS) $(LIBS)
+
 # Run all tests
-test: fuzz_test unit_test compaction_test check-docs
+test: fuzz_test unit_test compaction_test compare_test projects_test check-docs
 	@echo "All tests completed!"
 
 # Help
