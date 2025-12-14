@@ -588,12 +588,12 @@ make compare_test     # Model comparison
 | Unit Tests | Required | Yes | Core functionality |
 | Sanitizer Tests | Required | Yes | Memory & UB detection |
 | Lint & Static Analysis | Required | Yes | Code quality |
-| E2E Tests | Optional | **Always** | Requires API keys |
 | Fuzz Tests | Yes | Yes | Security testing |
+| **E2E Tests** | **No** | **Always** | Requires API keys |
 
-**Why E2E tests are optional in CI:**
+**Why E2E tests run only locally:**
 
-E2E tests require real API keys (Anthropic, OpenAI, etc.) to test AI interactions, tool execution, and agent communication. For security reasons, we don't store API keys in GitHub Secrets.
+E2E tests require real API keys (Anthropic, OpenAI, etc.) to test AI interactions, tool execution, and agent communication. For security and cost reasons, we run them locally before every release, not in CI.
 
 **Local E2E testing is mandatory before release:**
 
