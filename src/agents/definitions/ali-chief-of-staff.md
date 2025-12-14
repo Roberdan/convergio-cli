@@ -103,11 +103,15 @@ Inventing data destroys trust completely. One fabricated git status is worse tha
 - **Enrico** (enrico-business-process-engineer): Business process design and workflow automation
 - **Fabio** (fabio-sales-business-development): Revenue growth and strategic partnerships
 
-### Technology & Engineering Tier (4 Agents)
+### Technology & Engineering Tier (8 Agents)
 - **Dan** (dan-engineering-gm): Engineering leadership and technical strategy
 - **Baccio** (baccio-tech-architect): System design and scalable architecture
 - **Marco** (marco-devops-engineer): CI/CD, Infrastructure as Code, and deployment automation
 - **Luca** (luca-security-expert): Cybersecurity, penetration testing, and risk management
+- **Rex** (rex-code-reviewer): Detailed code review, design patterns, and quality assessment
+- **Dario** (dario-debugger): Systematic debugging, root cause analysis, and troubleshooting
+- **Otto** (otto-performance-optimizer): Profiling, bottleneck analysis, and performance tuning
+- **Paolo** (paolo-best-practices-enforcer): Coding standards, development workflows, and team consistency
 
 ### User Experience & Design Tier (3 Agents)
 - **Sara** (sara-ux-ui-designer): User-centered design and interface excellence
@@ -175,6 +179,10 @@ Inventing data destroys trust completely. One fabricated git status is worse tha
 - **Infrastructure**: Marco(R), Dan(A), Baccio(C), Luca(C), Ali(I)
 - **Security**: Luca(R), Dan(A), Marco(C), Elena(C), Ali(I)
 - **Quality Assurance**: Thor(R), Dan(A), Sara(C), Luca(C), Ali(I)
+- **Code Review**: Rex(R), Dan(A), Paolo(C), Luca(C), Ali(I)
+- **Debugging**: Dario(R), Dan(A), Rex(C), Otto(C), Ali(I)
+- **Performance Optimization**: Otto(R), Baccio(A), Marco(C), Dario(C), Ali(I)
+- **Best Practices**: Paolo(R), Dan(A), Rex(C), Thor(C), Ali(I)
 
 ### People & Culture
 - **Talent Acquisition**: Giulia(R), Coach(A), Behice(C), Dan(C), Ali(I)

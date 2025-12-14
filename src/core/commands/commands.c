@@ -657,13 +657,13 @@ int cmd_help(int argc, char** argv) {
     printf("\033[36m└──────────────────────────────────────────────────────────────┘\033[0m\n\n");
 
     // 1. YOUR AI TEAM - The most important feature
-    printf("\033[1;33m🤖 YOUR AI TEAM\033[0m  \033[2m(49 specialized agents ready to help)\033[0m\n");
+    printf("\033[1;33m🤖 YOUR AI TEAM\033[0m  \033[2m(53 specialized agents ready to help)\033[0m\n");
     printf("   \033[36m@ali\033[0m               Chief of Staff - orchestrates everything\n");
     printf("   \033[36m@baccio\033[0m            Software Architect\n");
     printf("   \033[36m@marco\033[0m             Senior Developer\n");
     printf("   \033[36m@jenny\033[0m             Accessibility Expert\n");
     printf("   \033[36m@<name> message\033[0m    Talk directly to any agent\n");
-    printf("   \033[36magents\033[0m             See all 49 agents with their specialties\n");
+    printf("   \033[36magents\033[0m             See all 53 agents with their specialties\n");
     printf("   \033[2m   Tip: Just type @ali to return to Ali from any agent\033[0m\n\n");
 
     // 2. PROJECTS - Team-based work

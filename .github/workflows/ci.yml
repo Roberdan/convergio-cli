@@ -97,7 +97,9 @@ jobs:
           key: brew-cjson-macos-14-arm64
 
       - name: Install dependencies
-        run: brew list cjson &>/dev/null || brew install cjson
+        run: |
+          brew list cjson &>/dev/null || brew install cjson
+          brew link cjson --overwrite 2>/dev/null || true
 
       - name: Select Xcode
         run: sudo xcode-select -s ${{ env.XCODE_VERSION }}

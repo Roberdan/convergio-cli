@@ -588,7 +588,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - **Ali - Chief of Staff**: Central orchestrator agent that coordinates all other agents
-- **49 Specialist Agents**: Dynamically loaded from `src/agents/definitions/`
+- **53 Specialist Agents**: Dynamically loaded from `src/agents/definitions/`
 - **Parallel Multi-Agent Orchestration**: GCD-based parallel execution of multiple agents
 - **Real-time Agent Status Tracking**: See which agents are working and on what
 - **Inter-Agent Communication**: Message bus for agent-to-agent messaging
