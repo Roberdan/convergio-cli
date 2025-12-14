@@ -51,6 +51,25 @@ public struct CostInfo: Sendable {
     public let sessionUsage: TokenUsage
     public let totalUsage: TokenUsage
 
+    /// Public initializer
+    public init(
+        sessionCost: Double,
+        totalCost: Double,
+        budgetLimit: Double,
+        budgetRemaining: Double,
+        isOverBudget: Bool,
+        sessionUsage: TokenUsage,
+        totalUsage: TokenUsage
+    ) {
+        self.sessionCost = sessionCost
+        self.totalCost = totalCost
+        self.budgetLimit = budgetLimit
+        self.budgetRemaining = budgetRemaining
+        self.isOverBudget = isOverBudget
+        self.sessionUsage = sessionUsage
+        self.totalUsage = totalUsage
+    }
+
     /// Budget usage as a percentage (0-1)
     public var budgetUsagePercent: Double {
         guard budgetLimit > 0 else { return 0 }
