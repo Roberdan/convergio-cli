@@ -306,6 +306,19 @@ int main(int argc, char** argv) {
     // See: https://curl.se/libcurl/c/curl_global_init.html
     curl_global_init(CURL_GLOBAL_DEFAULT);
 
+    // Save the terminal app for notifications to return to the correct terminal
+    const char* term_program = getenv("TERM_PROGRAM");
+    const char* home_dir = getenv("HOME");
+    if (term_program && home_dir) {
+        char term_file[PATH_MAX];
+        snprintf(term_file, sizeof(term_file), "%s/.convergio/terminal", home_dir);
+        FILE* f = fopen(term_file, "w");
+        if (f) {
+            fprintf(f, "%s", term_program);
+            fclose(f);
+        }
+    }
+
     // Only print banner if not in quiet mode (-q sets LOG_LEVEL_ERROR)
     bool quiet_mode = (g_log_level == LOG_LEVEL_ERROR);
     if (!quiet_mode) {

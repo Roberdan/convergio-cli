@@ -178,42 +178,20 @@ NotifyResult notify_send(const NotifyOptions* options) {
 
     NotifyResult result;
 
-    // Check if we have an icon - if so, prefer terminal-notifier (supports icons)
-    char icon_path[PATH_MAX];
-    const char* home = getenv("HOME");
-    bool has_icon = false;
-    if (home) {
-        snprintf(icon_path, sizeof(icon_path), "%s/.convergio/icon.jpeg", home);
-        has_icon = (access(icon_path, R_OK) == 0);
-        if (!has_icon) {
-            snprintf(icon_path, sizeof(icon_path), "%s/.convergio/icon.png", home);
-            has_icon = (access(icon_path, R_OK) == 0);
-        }
-    }
-
-    // If we have icon, try terminal-notifier first (supports icons)
-    if (has_icon && g_available_methods.terminal_notifier) {
-        result = send_via_terminal_notifier(options);
-        if (result == NOTIFY_SUCCESS) {
-            os_log_debug(g_notify_log, "Sent via terminal-notifier (with icon)");
-            return result;
-        }
-    }
-
-    // Try osascript (shows "Convergio" as title, no icon support)
-    if (g_available_methods.osascript) {
-        result = send_via_osascript(options);
-        if (result == NOTIFY_SUCCESS) {
-            os_log_debug(g_notify_log, "Sent via osascript");
-            return result;
-        }
-    }
-
-    // Fallback to terminal-notifier without icon
+    // Prefer terminal-notifier (supports Convergio icon via -sender and click actions)
     if (g_available_methods.terminal_notifier) {
         result = send_via_terminal_notifier(options);
         if (result == NOTIFY_SUCCESS) {
             os_log_debug(g_notify_log, "Sent via terminal-notifier");
+            return result;
+        }
+    }
+
+    // Fallback to osascript (no icon support, but shows "Convergio" title)
+    if (g_available_methods.osascript) {
+        result = send_via_osascript(options);
+        if (result == NOTIFY_SUCCESS) {
+            os_log_debug(g_notify_log, "Sent via osascript");
             return result;
         }
     }
@@ -310,19 +288,6 @@ static NotifyResult send_via_terminal_notifier(const NotifyOptions* opts) {
     char* escaped_body = escape_quotes(opts->body, '\'');
     char* escaped_subtitle = opts->subtitle ? escape_quotes(opts->subtitle, '\'') : NULL;
 
-    // Check for icon in ~/.convergio/
-    char icon_path[PATH_MAX];
-    const char* home = getenv("HOME");
-    bool has_icon = false;
-    if (home) {
-        snprintf(icon_path, sizeof(icon_path), "%s/.convergio/icon.jpeg", home);
-        has_icon = (access(icon_path, R_OK) == 0);
-        if (!has_icon) {
-            snprintf(icon_path, sizeof(icon_path), "%s/.convergio/icon.png", home);
-            has_icon = (access(icon_path, R_OK) == 0);
-        }
-    }
-
     // Build click action - open Terminal with Convergio for reminders
     char click_action[512] = "";
     if (opts->group && strcmp(opts->group, "convergio-reminders") == 0) {
@@ -336,15 +301,14 @@ static NotifyResult send_via_terminal_notifier(const NotifyOptions* opts) {
         snprintf(click_action, sizeof(click_action), "-open '%s' ", opts->action_url);
     }
 
-    // Build command with "Convergio" branding, icon, and optional action
+    // Build command with "Convergio" branding using -sender for icon (from Convergio.app bundle)
     int written = snprintf(cmd, sizeof(cmd),
         "terminal-notifier "
         "-title 'Convergio' "
         "-subtitle '%s%s%s' "
         "-message '%s' "
         "-sound '%s' "
-        "%s%s%s "
-        "-sender io.convergio.cli "
+        "-sender com.convergio.cli "
         "-group '%s' "
         "%s",
         escaped_title,
@@ -352,9 +316,6 @@ static NotifyResult send_via_terminal_notifier(const NotifyOptions* opts) {
         escaped_subtitle ? escaped_subtitle : "",
         escaped_body,
         opts->sound ? opts->sound : "Glass",
-        has_icon ? "-appIcon '" : "",
-        has_icon ? icon_path : "",
-        has_icon ? "'" : "",
         opts->group ? opts->group : "convergio",
         click_action);
 
