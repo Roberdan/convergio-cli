@@ -305,10 +305,14 @@ int main(int argc, char** argv) {
     // See: https://curl.se/libcurl/c/curl_global_init.html
     curl_global_init(CURL_GLOBAL_DEFAULT);
 
-    print_banner();
+    // Only print banner if not in quiet mode (-q sets LOG_LEVEL_ERROR)
+    bool quiet_mode = (g_log_level == LOG_LEVEL_ERROR);
+    if (!quiet_mode) {
+        print_banner();
+    }
 
-    // Show debug mode if enabled
-    if (g_log_level != LOG_LEVEL_NONE) {
+    // Show debug mode if enabled (but not in quiet mode)
+    if (!quiet_mode && g_log_level != LOG_LEVEL_NONE) {
         printf("  \033[33m⚡ Debug mode: %s\033[0m\n\n", nous_log_level_name(g_log_level));
     }
 
