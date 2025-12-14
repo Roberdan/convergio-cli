@@ -483,9 +483,18 @@ typedef struct {
     size_t size;
 } CurlBuffer;
 
+// Maximum response size for OAuth tokens (64KB is plenty for token responses)
+#define MAX_OAUTH_RESPONSE_SIZE (64 * 1024)
+
 static size_t oauth_curl_write_callback(void* contents, size_t size, size_t nmemb, void* userp) {
     size_t total = size * nmemb;
     CurlBuffer* buf = (CurlBuffer*)userp;
+
+    // Check response size limit to prevent OOM
+    if (buf->size + total > MAX_OAUTH_RESPONSE_SIZE) {
+        return 0;  // Abort transfer
+    }
+
     char* new_data = realloc(buf->data, buf->size + total + 1);
     if (!new_data) {
         // Securely wipe and free old buffer on realloc failure

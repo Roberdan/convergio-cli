@@ -1382,11 +1382,25 @@ typedef struct {
     size_t size;
 } CurlResponse;
 
+// Maximum response size to prevent OOM from malicious/broken MCP servers
+// 1MB is generous for MCP protocol responses (resources can be large)
+#define MAX_MCP_RESPONSE_SIZE (1024 * 1024)
+
 static size_t mcp_curl_write_cb(char* ptr, size_t size, size_t nmemb, void* userdata) {
     size_t realsize = size * nmemb;
     CurlResponse* resp = (CurlResponse*)userdata;
 
+    // Check response size limit to prevent OOM
+    if (resp->size + realsize > MAX_MCP_RESPONSE_SIZE) {
+        LOG_ERROR(LOG_CAT_MCP, "MCP response exceeds maximum size (%d bytes)", MAX_MCP_RESPONSE_SIZE);
+        return 0;  // Abort transfer
+    }
+
     resp->data = realloc(resp->data, resp->size + realsize + 1);
+    if (!resp->data) {
+        LOG_ERROR(LOG_CAT_MCP, "Failed to allocate memory for MCP response");
+        return 0;
+    }
     memcpy(resp->data + resp->size, ptr, realsize);
     resp->size += realsize;
     resp->data[resp->size] = '\0';
