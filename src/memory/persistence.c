@@ -21,9 +21,9 @@
 #include <errno.h>
 #include "nous/debug_mutex.h"
 
-// Database handle
-static sqlite3* g_db = NULL;
-CONVERGIO_MUTEX_DECLARE(g_db_mutex);
+// Database handle (shared with semantic_persistence.c)
+sqlite3* g_db = NULL;
+pthread_mutex_t g_db_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 // Prepared statement cache for frequently used queries (performance optimization)
 #define STMT_CACHE_SIZE 8
@@ -157,7 +157,7 @@ static const char* SCHEMA_SQL =
     "  api_calls INTEGER DEFAULT 0"
     ");"
 
-    // Semantic memories (for future RAG)
+    // Semantic memories (legacy - will be migrated to semantic_nodes)
     "CREATE TABLE IF NOT EXISTS memories ("
     "  id INTEGER PRIMARY KEY AUTOINCREMENT,"
     "  content TEXT NOT NULL,"
@@ -167,6 +167,34 @@ static const char* SCHEMA_SQL =
     "  access_count INTEGER DEFAULT 0,"
     "  last_accessed DATETIME,"
     "  created_at DATETIME DEFAULT CURRENT_TIMESTAMP"
+    ");"
+
+    // Semantic graph nodes
+    "CREATE TABLE IF NOT EXISTS semantic_nodes ("
+    "  id INTEGER PRIMARY KEY,"
+    "  type INTEGER NOT NULL,"
+    "  essence TEXT NOT NULL,"
+    "  embedding BLOB,"
+    "  creator_id INTEGER DEFAULT 0,"
+    "  context_id INTEGER DEFAULT 0,"
+    "  importance REAL DEFAULT 0.5 CHECK (importance >= 0 AND importance <= 1),"
+    "  access_count INTEGER DEFAULT 0,"
+    "  created_at INTEGER NOT NULL,"
+    "  last_accessed INTEGER,"
+    "  metadata_json TEXT"
+    ");"
+
+    // Semantic graph relations (weighted edges)
+    "CREATE TABLE IF NOT EXISTS semantic_relations ("
+    "  from_id INTEGER NOT NULL,"
+    "  to_id INTEGER NOT NULL,"
+    "  strength REAL DEFAULT 0.5 CHECK (strength >= 0 AND strength <= 1),"
+    "  relation_type TEXT DEFAULT 'related',"
+    "  created_at INTEGER NOT NULL,"
+    "  updated_at INTEGER,"
+    "  PRIMARY KEY (from_id, to_id),"
+    "  FOREIGN KEY (from_id) REFERENCES semantic_nodes(id) ON DELETE CASCADE,"
+    "  FOREIGN KEY (to_id) REFERENCES semantic_nodes(id) ON DELETE CASCADE"
     ");"
 
     // Checkpoint summaries for context compaction
@@ -193,6 +221,13 @@ static const char* SCHEMA_SQL =
     "CREATE INDEX IF NOT EXISTS idx_messages_parent ON messages(parent_id);"
     "CREATE INDEX IF NOT EXISTS idx_agent_usage_agent ON agent_usage(agent_name);"
     "CREATE INDEX IF NOT EXISTS idx_memories_importance ON memories(importance DESC);"
+    "CREATE INDEX IF NOT EXISTS idx_nodes_type ON semantic_nodes(type);"
+    "CREATE INDEX IF NOT EXISTS idx_nodes_importance ON semantic_nodes(importance DESC);"
+    "CREATE INDEX IF NOT EXISTS idx_nodes_created ON semantic_nodes(created_at DESC);"
+    "CREATE INDEX IF NOT EXISTS idx_nodes_context ON semantic_nodes(context_id);"
+    "CREATE INDEX IF NOT EXISTS idx_relations_from ON semantic_relations(from_id);"
+    "CREATE INDEX IF NOT EXISTS idx_relations_to ON semantic_relations(to_id);"
+    "CREATE INDEX IF NOT EXISTS idx_relations_type ON semantic_relations(relation_type);"
     "CREATE INDEX IF NOT EXISTS idx_memories_category ON memories(category);"
     "CREATE INDEX IF NOT EXISTS idx_checkpoint_session ON checkpoint_summaries(session_id);";
 
@@ -693,15 +728,20 @@ int persistence_save_memory(const char* content, const char* category, float imp
     return (rc == SQLITE_DONE) ? (int)new_id : -1;
 }
 
-// Search memories by importance
+// Search memories by importance (from BOTH old memories table AND new semantic_nodes)
 char** persistence_get_important_memories(size_t limit, size_t* out_count) {
     if (!g_db || !out_count) return NULL;
 
     CONVERGIO_MUTEX_LOCK(&g_db_mutex);
 
+    // Query BOTH tables and merge results, prioritizing by importance
+    // Use UNION to combine results from old memories table and new semantic_nodes
     const char* sql =
-        "SELECT content FROM memories "
-        "ORDER BY importance DESC, access_count DESC LIMIT ?";
+        "SELECT content, importance FROM ("
+        "  SELECT content, importance FROM memories "
+        "  UNION ALL "
+        "  SELECT essence AS content, importance FROM semantic_nodes WHERE type = 9 "
+        ") ORDER BY importance DESC LIMIT ?";
 
     sqlite3_stmt* stmt;
     int rc = sqlite3_prepare_v2(g_db, sql, -1, &stmt, NULL);
@@ -749,39 +789,56 @@ static int compare_matches(const void* a, const void* b) {
 char** persistence_search_memories(const char* query, size_t max_results,
                                     float min_similarity, size_t* out_count) {
     if (!g_db || !query || !out_count) return NULL;
+    (void)min_similarity;  // Not used for keyword search
 
-    // Generate query embedding
-    // Simple keyword search (MLX embeddings unreliable without pre-trained weights)
     CONVERGIO_MUTEX_LOCK(&g_db_mutex);
 
-    // Use LIKE search for keywords
-    char search_sql[512];
-    snprintf(search_sql, sizeof(search_sql),
-        "SELECT content FROM memories WHERE content LIKE '%%%s%%' "
-        "ORDER BY importance DESC LIMIT %zu", query, max_results);
+    // Search BOTH old memories table AND new semantic_nodes using keyword search
+    // Use parameterized query to prevent SQL injection
+    const char* sql =
+        "SELECT content, importance FROM ("
+        "  SELECT content, importance FROM memories WHERE content LIKE ?1 "
+        "  UNION ALL "
+        "  SELECT essence AS content, importance FROM semantic_nodes "
+        "    WHERE type = 9 AND essence LIKE ?1 "
+        ") ORDER BY importance DESC LIMIT ?2";
 
-    sqlite3_stmt* keyword_stmt;
-    int kw_rc = sqlite3_prepare_v2(g_db, search_sql, -1, &keyword_stmt, NULL);
-    if (kw_rc == SQLITE_OK) {
-        char** results = malloc(sizeof(char*) * max_results);
-        size_t count = 0;
-
-        while (sqlite3_step(keyword_stmt) == SQLITE_ROW && count < max_results) {
-            const char* text = (const char*)sqlite3_column_text(keyword_stmt, 0);
-            if (text) results[count++] = strdup(text);
-        }
-        sqlite3_finalize(keyword_stmt);
+    sqlite3_stmt* stmt;
+    int rc = sqlite3_prepare_v2(g_db, sql, -1, &stmt, NULL);
+    if (rc != SQLITE_OK) {
         CONVERGIO_MUTEX_UNLOCK(&g_db_mutex);
-
-        if (count > 0) {
-            *out_count = count;
-            return results;
-        }
-        free(results);
-    } else {
-        CONVERGIO_MUTEX_UNLOCK(&g_db_mutex);
+        return persistence_get_important_memories(max_results, out_count);
     }
 
+    // Build search pattern
+    char pattern[512];
+    snprintf(pattern, sizeof(pattern), "%%%s%%", query);
+
+    sqlite3_bind_text(stmt, 1, pattern, -1, SQLITE_TRANSIENT);
+    sqlite3_bind_int(stmt, 2, (int)max_results);
+
+    char** results = malloc(sizeof(char*) * max_results);
+    if (!results) {
+        sqlite3_finalize(stmt);
+        CONVERGIO_MUTEX_UNLOCK(&g_db_mutex);
+        return NULL;
+    }
+
+    size_t count = 0;
+    while (sqlite3_step(stmt) == SQLITE_ROW && count < max_results) {
+        const char* text = (const char*)sqlite3_column_text(stmt, 0);
+        if (text) results[count++] = strdup(text);
+    }
+
+    sqlite3_finalize(stmt);
+    CONVERGIO_MUTEX_UNLOCK(&g_db_mutex);
+
+    if (count > 0) {
+        *out_count = count;
+        return results;
+    }
+
+    free(results);
     // Fallback to returning all important memories
     return persistence_get_important_memories(max_results, out_count);
 }
