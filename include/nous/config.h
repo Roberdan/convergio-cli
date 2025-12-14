@@ -150,4 +150,28 @@ int convergio_setup_wizard(void);
  */
 bool convergio_setup_complete(void);
 
+// ============================================================================
+// RESPONSE STYLE SETTINGS
+// ============================================================================
+
+/**
+ * Style settings for LLM responses
+ */
+typedef struct {
+    int max_tokens;      // Maximum output tokens
+    double temperature;  // Generation temperature
+    bool markdown;       // Allow markdown formatting
+} StyleSettings;
+
+/**
+ * Get current style settings based on /style configuration
+ * Returns settings struct with max_tokens, temperature, markdown
+ */
+StyleSettings convergio_get_style_settings(void);
+
+/**
+ * Get style name (flash, concise, balanced, detailed)
+ */
+const char* convergio_get_style_name(void);
+
 #endif // CONVERGIO_CONFIG_H

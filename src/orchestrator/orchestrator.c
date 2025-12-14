@@ -15,6 +15,7 @@
 #include "nous/convergence.h"
 #include "nous/updater.h"
 #include "nous/compaction.h"
+#include "nous/config.h"
 #include "nous/nous.h"
 #include "nous/projects.h"
 #include <stdio.h>
@@ -828,6 +829,20 @@ char* orchestrator_process(const char* user_input) {
     }
     size_t conv_capacity = strlen(conversation) + 32768;
 
+    // Apply style settings to system prompt
+    StyleSettings style = convergio_get_style_settings();
+    char* effective_prompt = NULL;
+    if (!style.markdown) {
+        // Prepend no-markdown instruction
+        const char* no_md = "IMPORTANT: Do NOT use markdown formatting. No headers (#), no bold (**), no bullets (*/-), no code blocks (```). Give plain text responses only.\n\n";
+        size_t prompt_len = strlen(no_md) + strlen(g_orchestrator->ali->system_prompt) + 1;
+        effective_prompt = malloc(prompt_len);
+        if (effective_prompt) {
+            snprintf(effective_prompt, prompt_len, "%s%s", no_md, g_orchestrator->ali->system_prompt);
+        }
+    }
+    const char* prompt_to_use = effective_prompt ? effective_prompt : g_orchestrator->ali->system_prompt;
+
     char* final_response = NULL;
     int iteration = 0;
 
@@ -837,7 +852,7 @@ char* orchestrator_process(const char* user_input) {
         // Call Claude with tools
         char* tool_calls_json = NULL;
         char* response = nous_claude_chat_with_tools(
-            g_orchestrator->ali->system_prompt,
+            prompt_to_use,
             conversation,
             tools_json,
             &tool_calls_json
@@ -845,6 +860,7 @@ char* orchestrator_process(const char* user_input) {
 
         if (!response && !tool_calls_json) {
             free(conversation);
+            free(effective_prompt);
             return strdup("Error: Failed to get response from Ali");
         }
 
@@ -863,6 +879,7 @@ char* orchestrator_process(const char* user_input) {
             if (!tool_results) {
                 free(tool_calls_json);
                 free(conversation);
+                free(effective_prompt);
                 if (response) free(response);
                 return strdup("Error: Memory allocation failed");
             }
@@ -994,11 +1011,13 @@ char* orchestrator_process(const char* user_input) {
                 message_send(response_msg);
             }
 
+            free(effective_prompt);
             return synthesized;
         }
 
         // If delegation failed, fall through to return original response
         // (already freed above, so this shouldn't happen - return error)
+        free(effective_prompt);
         return strdup("Error: Delegation failed");
     }
 
@@ -1014,6 +1033,7 @@ char* orchestrator_process(const char* user_input) {
         message_send(response_msg);
     }
 
+    free(effective_prompt);
     return final_response;
 }
 
@@ -1053,13 +1073,27 @@ char* orchestrator_process_stream(const char* user_input, OrchestratorStreamCall
         return strdup(err2);
     }
 
+    // Apply style settings to system prompt
+    StyleSettings style = convergio_get_style_settings();
+    char* effective_prompt = NULL;
+    if (!style.markdown) {
+        // Prepend no-markdown instruction
+        const char* no_md = "IMPORTANT: Do NOT use markdown formatting. No headers (#), no bold (**), no bullets (*/-), no code blocks (```). Give plain text responses only.\n\n";
+        size_t prompt_len = strlen(no_md) + strlen(g_orchestrator->ali->system_prompt) + 1;
+        effective_prompt = malloc(prompt_len);
+        if (effective_prompt) {
+            snprintf(effective_prompt, prompt_len, "%s%s", no_md, g_orchestrator->ali->system_prompt);
+        }
+    }
+
     // Call Claude with streaming - no tools in streaming mode
     char* response = nous_claude_chat_stream(
-        g_orchestrator->ali->system_prompt,
+        effective_prompt ? effective_prompt : g_orchestrator->ali->system_prompt,
         conversation,
         callback,
         user_data
     );
+    free(effective_prompt);
 
     free(conversation);
 

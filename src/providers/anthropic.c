@@ -9,6 +9,7 @@
 
 #include "nous/provider.h"
 #include "nous/model_loader.h"
+#include "nous/config.h"
 #include "nous/nous.h"
 #include "../auth/oauth.h"
 #include <stdlib.h>
@@ -540,14 +541,16 @@ static char* anthropic_chat(Provider* self, const char* model, const char* syste
         return NULL;
     }
 
+    StyleSettings style = convergio_get_style_settings();
     snprintf(json_body, json_size,
         "{"
         "\"model\": \"%s\","
         "\"max_tokens\": %d,"
+        "\"temperature\": %.2f,"
         "\"system\": \"%s\","
         "\"messages\": [{\"role\": \"user\", \"content\": \"%s\"}]"
         "}",
-        api_model, DEFAULT_MAX_TOKENS, escaped_system, escaped_user);
+        api_model, style.max_tokens, style.temperature, escaped_system, escaped_user);
 
     free(escaped_system);
     free(escaped_user);
@@ -703,15 +706,17 @@ static char* anthropic_chat_with_tools(Provider* self, const char* model, const 
         return NULL;
     }
 
+    StyleSettings style = convergio_get_style_settings();
     snprintf(json_body, json_size,
         "{"
         "\"model\": \"%s\","
         "\"max_tokens\": %d,"
+        "\"temperature\": %.2f,"
         "\"system\": \"%s\","
         "\"tools\": %s,"
         "\"messages\": [{\"role\": \"user\", \"content\": \"%s\"}]"
         "}",
-        api_model, DEFAULT_MAX_TOKENS, escaped_system, tools_json, escaped_user);
+        api_model, style.max_tokens, style.temperature, escaped_system, tools_json, escaped_user);
 
     free(escaped_system);
     free(escaped_user);
@@ -878,15 +883,17 @@ static ProviderError anthropic_stream_chat(Provider* self, const char* model, co
         return PROVIDER_ERR_NETWORK;
     }
 
+    StyleSettings style = convergio_get_style_settings();
     snprintf(json_body, json_size,
         "{"
         "\"model\": \"%s\","
         "\"max_tokens\": %d,"
+        "\"temperature\": %.2f,"
         "\"stream\": true,"
         "\"system\": \"%s\","
         "\"messages\": [{\"role\": \"user\", \"content\": \"%s\"}]"
         "}",
-        api_model, DEFAULT_MAX_TOKENS, escaped_system, escaped_user);
+        api_model, style.max_tokens, style.temperature, escaped_system, escaped_user);
 
     free(escaped_system);
     free(escaped_user);

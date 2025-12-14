@@ -9,6 +9,7 @@
  */
 
 #include "nous/provider.h"
+#include "nous/config.h"
 #include "nous/nous.h"
 #include <stdlib.h>
 #include <string.h>
@@ -27,7 +28,7 @@
 #define OPENROUTER_REFERER "https://convergio.dev"
 #define OPENROUTER_TITLE   "ConvergioCLI"
 #define MAX_RESPONSE_SIZE (256 * 1024)
-#define DEFAULT_MAX_TOKENS 8192
+#define DEFAULT_MAX_TOKENS 8192  // Fallback only
 
 // ============================================================================
 // INTERNAL DATA STRUCTURES
@@ -343,16 +344,18 @@ static char* openrouter_chat(Provider* self, const char* model, const char* syst
         return NULL;
     }
 
+    StyleSettings style = convergio_get_style_settings();
     snprintf(json_body, json_size,
         "{"
         "\"model\": \"%s\","
         "\"max_tokens\": %d,"
+        "\"temperature\": %.2f,"
         "\"messages\": ["
         "{\"role\": \"system\", \"content\": \"%s\"},"
         "{\"role\": \"user\", \"content\": \"%s\"}"
         "]"
         "}",
-        api_model, DEFAULT_MAX_TOKENS, escaped_system, escaped_user);
+        api_model, style.max_tokens, style.temperature, escaped_system, escaped_user);
 
     free(escaped_system);
     free(escaped_user);
@@ -501,17 +504,19 @@ static char* openrouter_chat_with_tools(Provider* self, const char* model, const
         return NULL;
     }
 
+    StyleSettings style = convergio_get_style_settings();
     snprintf(json_body, json_size,
         "{"
         "\"model\": \"%s\","
         "\"max_tokens\": %d,"
+        "\"temperature\": %.2f,"
         "\"tools\": %s,"
         "\"messages\": ["
         "{\"role\": \"system\", \"content\": \"%s\"},"
         "{\"role\": \"user\", \"content\": \"%s\"}"
         "]"
         "}",
-        api_model, DEFAULT_MAX_TOKENS, tools_json, escaped_system, escaped_user);
+        api_model, style.max_tokens, style.temperature, tools_json, escaped_system, escaped_user);
 
     free(escaped_system);
     free(escaped_user);
@@ -675,17 +680,19 @@ static ProviderError openrouter_stream_chat(Provider* self, const char* model, c
         return PROVIDER_ERR_NETWORK;
     }
 
+    StyleSettings style = convergio_get_style_settings();
     snprintf(json_body, json_size,
         "{"
         "\"model\": \"%s\","
         "\"max_tokens\": %d,"
+        "\"temperature\": %.2f,"
         "\"stream\": true,"
         "\"messages\": ["
         "{\"role\": \"system\", \"content\": \"%s\"},"
         "{\"role\": \"user\", \"content\": \"%s\"}"
         "]"
         "}",
-        api_model, DEFAULT_MAX_TOKENS, escaped_system, escaped_user);
+        api_model, style.max_tokens, style.temperature, escaped_system, escaped_user);
 
     free(escaped_system);
     free(escaped_user);

@@ -478,3 +478,48 @@ int convergio_setup_wizard(void) {
 bool convergio_setup_complete(void) {
     return convergio_get_api_key() != NULL;
 }
+
+// ============================================================================
+// RESPONSE STYLE SETTINGS
+// ============================================================================
+
+// Style definitions - must match commands.c
+typedef struct {
+    const char* name;
+    int max_tokens;
+    double temperature;
+    bool markdown;
+} StyleDef;
+
+static const StyleDef STYLE_DEFS[] = {
+    {"flash",    1024,  0.3, false},
+    {"concise",  2048,  0.5, true},
+    {"balanced", 4096,  0.7, true},
+    {"detailed", 8192,  0.9, true},
+};
+#define STYLE_DEF_COUNT 4
+
+StyleSettings convergio_get_style_settings(void) {
+    const char* style = g_config.style[0] ? g_config.style : "balanced";
+
+    for (int i = 0; i < STYLE_DEF_COUNT; i++) {
+        if (strcmp(STYLE_DEFS[i].name, style) == 0) {
+            return (StyleSettings){
+                .max_tokens = STYLE_DEFS[i].max_tokens,
+                .temperature = STYLE_DEFS[i].temperature,
+                .markdown = STYLE_DEFS[i].markdown
+            };
+        }
+    }
+
+    // Default to balanced
+    return (StyleSettings){
+        .max_tokens = 4096,
+        .temperature = 0.7,
+        .markdown = true
+    };
+}
+
+const char* convergio_get_style_name(void) {
+    return g_config.style[0] ? g_config.style : "balanced";
+}
