@@ -358,16 +358,16 @@ int64_t todo_create(const TodoCreateOptions* options) {
 
     sqlite3_bind_text(stmt, 1, options->title, -1, SQLITE_TRANSIENT);
     sqlite3_bind_text(stmt, 2, options->description, -1, SQLITE_TRANSIENT);
-    sqlite3_bind_int(stmt, 3, options->priority ? options->priority : TODO_PRIORITY_NORMAL);
-    sqlite3_bind_int(stmt, 4, TODO_STATUS_PENDING);
+    sqlite3_bind_int(stmt, 3, (int)(options->priority ? options->priority : TODO_PRIORITY_NORMAL));
+    sqlite3_bind_int(stmt, 4, (int)TODO_STATUS_PENDING);
     sqlite3_bind_text(stmt, 5, due_buf[0] ? due_buf : NULL, -1, SQLITE_TRANSIENT);
     sqlite3_bind_text(stmt, 6, remind_buf[0] ? remind_buf : NULL, -1, SQLITE_TRANSIENT);
-    sqlite3_bind_int(stmt, 7, options->recurrence);
+    sqlite3_bind_int(stmt, 7, (int)options->recurrence);
     sqlite3_bind_text(stmt, 8, options->recurrence_rule, -1, SQLITE_TRANSIENT);
     sqlite3_bind_text(stmt, 9, options->tags, -1, SQLITE_TRANSIENT);
     sqlite3_bind_text(stmt, 10, options->context, -1, SQLITE_TRANSIENT);
     sqlite3_bind_int64(stmt, 11, options->parent_id);
-    sqlite3_bind_int(stmt, 12, options->source);
+    sqlite3_bind_int(stmt, 12, (int)options->source);
     sqlite3_bind_text(stmt, 13, options->external_id, -1, SQLITE_TRANSIENT);
 
     int rc = sqlite3_step(stmt);
@@ -405,22 +405,22 @@ int todo_update(int64_t id, const TodoCreateOptions* options) {
 
     // Build dynamic UPDATE query with parameter placeholders
     char sql[1024];
-    int len = snprintf(sql, sizeof(sql), "UPDATE tasks SET updated_at = datetime('now')");
+    size_t len = (size_t)snprintf(sql, sizeof(sql), "UPDATE tasks SET updated_at = datetime('now')");
 
     if (options->title)
-        len += snprintf(sql + len, sizeof(sql) - len, ", title = ?");
+        len += (size_t)snprintf(sql + len, sizeof(sql) - len, ", title = ?");
     if (options->description)
-        len += snprintf(sql + len, sizeof(sql) - len, ", description = ?");
+        len += (size_t)snprintf(sql + len, sizeof(sql) - len, ", description = ?");
     if (options->priority)
-        len += snprintf(sql + len, sizeof(sql) - len, ", priority = ?");
+        len += (size_t)snprintf(sql + len, sizeof(sql) - len, ", priority = ?");
     if (options->due_date)
-        len += snprintf(sql + len, sizeof(sql) - len, ", due_date = ?");
+        len += (size_t)snprintf(sql + len, sizeof(sql) - len, ", due_date = ?");
     if (options->reminder_at)
-        len += snprintf(sql + len, sizeof(sql) - len, ", reminder_at = ?");
+        len += (size_t)snprintf(sql + len, sizeof(sql) - len, ", reminder_at = ?");
     if (options->context)
-        len += snprintf(sql + len, sizeof(sql) - len, ", context = ?");
+        len += (size_t)snprintf(sql + len, sizeof(sql) - len, ", context = ?");
     if (options->tags)
-        len += snprintf(sql + len, sizeof(sql) - len, ", tags = ?");
+        len += (size_t)snprintf(sql + len, sizeof(sql) - len, ", tags = ?");
 
     snprintf(sql + len, sizeof(sql) - len, " WHERE id = ?");
 
@@ -440,7 +440,7 @@ int todo_update(int64_t id, const TodoCreateOptions* options) {
     if (options->description)
         sqlite3_bind_text(stmt, param_idx++, options->description, -1, SQLITE_TRANSIENT);
     if (options->priority)
-        sqlite3_bind_int(stmt, param_idx++, options->priority);
+        sqlite3_bind_int(stmt, param_idx++, (int)options->priority);
     if (options->due_date) {
         char buf[32];
         format_iso8601(options->due_date, buf, sizeof(buf));
@@ -579,7 +579,7 @@ int todo_cancel(int64_t id) {
 
 static TodoTask** execute_list_query(sqlite3_stmt* stmt, int* count) {
     TodoTask** tasks = NULL;
-    int capacity = 16;
+    size_t capacity = 16;
     int n = 0;
 
     tasks = malloc(capacity * sizeof(TodoTask*));
@@ -589,7 +589,7 @@ static TodoTask** execute_list_query(sqlite3_stmt* stmt, int* count) {
     }
 
     while (sqlite3_step(stmt) == SQLITE_ROW) {
-        if (n >= capacity) {
+        if ((size_t)n >= capacity) {
             capacity *= 2;
             TodoTask** new_tasks = realloc(tasks, capacity * sizeof(TodoTask*));
             if (!new_tasks) break;
@@ -694,7 +694,7 @@ TodoTask** todo_list(const TodoFilter* filter, int* count) {
 
     // Build dynamic query based on filter with parameter placeholders
     char sql[1024];
-    int len = snprintf(sql, sizeof(sql),
+    size_t len = (size_t)snprintf(sql, sizeof(sql),
                        "SELECT id, title, description, priority, status, due_date, reminder_at, "
                        "recurrence, recurrence_rule, tags, context, parent_id, source, external_id, "
                        "created_at, updated_at, completed_at FROM tasks WHERE 1=1");
@@ -705,38 +705,38 @@ TodoTask** todo_list(const TodoFilter* filter, int* count) {
 
     if (filter) {
         if (!filter->include_completed && !filter->include_cancelled) {
-            len += snprintf(sql + len, sizeof(sql) - len, " AND status IN (0, 1)");
+            len += (size_t)snprintf(sql + len, sizeof(sql) - len, " AND status IN (0, 1)");
         } else if (!filter->include_completed) {
-            len += snprintf(sql + len, sizeof(sql) - len, " AND status != 2");
+            len += (size_t)snprintf(sql + len, sizeof(sql) - len, " AND status != 2");
         } else if (!filter->include_cancelled) {
-            len += snprintf(sql + len, sizeof(sql) - len, " AND status != 3");
+            len += (size_t)snprintf(sql + len, sizeof(sql) - len, " AND status != 3");
         }
 
         if (filter->context) {
-            len += snprintf(sql + len, sizeof(sql) - len, " AND context = ?");
+            len += (size_t)snprintf(sql + len, sizeof(sql) - len, " AND context = ?");
             has_context = 1;
         }
 
         if (filter->due_from) {
             format_iso8601(filter->due_from, due_from_buf, sizeof(due_from_buf));
-            len += snprintf(sql + len, sizeof(sql) - len, " AND due_date >= ?");
+            len += (size_t)snprintf(sql + len, sizeof(sql) - len, " AND due_date >= ?");
             has_due_from = 1;
         }
 
         if (filter->due_to) {
             format_iso8601(filter->due_to, due_to_buf, sizeof(due_to_buf));
-            len += snprintf(sql + len, sizeof(sql) - len, " AND due_date <= ?");
+            len += (size_t)snprintf(sql + len, sizeof(sql) - len, " AND due_date <= ?");
             has_due_to = 1;
         }
 
         int limit = filter->limit > 0 ? filter->limit : 100;
-        len += snprintf(sql + len, sizeof(sql) - len, " ORDER BY priority ASC, due_date ASC LIMIT %d", limit);
+        len += (size_t)snprintf(sql + len, sizeof(sql) - len, " ORDER BY priority ASC, due_date ASC LIMIT %d", limit);
 
         if (filter->offset > 0) {
-            len += snprintf(sql + len, sizeof(sql) - len, " OFFSET %d", filter->offset);
+            len += (size_t)snprintf(sql + len, sizeof(sql) - len, " OFFSET %d", filter->offset);
         }
     } else {
-        len += snprintf(sql + len, sizeof(sql) - len,
+        len += (size_t)snprintf(sql + len, sizeof(sql) - len,
                         " AND status IN (0, 1) ORDER BY priority ASC, due_date ASC LIMIT 100");
     }
 
@@ -805,7 +805,7 @@ TodoInboxItem** inbox_list_unprocessed(int* count) {
     sqlite3_reset(stmt);
 
     TodoInboxItem** items = NULL;
-    int capacity = 16;
+    size_t capacity = 16;
     int n = 0;
 
     items = malloc(capacity * sizeof(TodoInboxItem*));
@@ -816,7 +816,7 @@ TodoInboxItem** inbox_list_unprocessed(int* count) {
     }
 
     while (sqlite3_step(stmt) == SQLITE_ROW) {
-        if (n >= capacity) {
+        if ((size_t)n >= capacity) {
             capacity *= 2;
             TodoInboxItem** new_items = realloc(items, capacity * sizeof(TodoInboxItem*));
             if (!new_items) break;
@@ -1100,7 +1100,7 @@ time_t todo_parse_date(const char* input, time_t base_time) {
     buf[sizeof(buf) - 1] = '\0';
 
     // Convert to lowercase for matching
-    for (char* p = buf; *p; p++) *p = tolower(*p);
+    for (char* p = buf; *p; p++) *p = (char)tolower((unsigned char)*p);
 
     // Default time is end of day
     int target_hour = 23;
