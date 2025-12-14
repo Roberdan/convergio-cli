@@ -85,7 +85,17 @@ Built natively for Apple Silicon in pure C/Objective-C.
 
 > **⚠️ Disclaimer:** This software is provided "as is", without warranty of any kind. Use at your own risk. AI-generated content may contain errors - always verify critical information. See [full disclaimer](docs/DISCLAIMER.md).
 
-## What's New in v4.0
+## What's New in v4.1
+
+- **Hybrid Embedding Strategy**: Intelligent online/offline semantic search - uses OpenAI embeddings when online, MLX locally when offline
+- **Git/Test Workflow Commands**: New `/test`, `/git`, and `/pr` commands for streamlined development workflows
+- **4 New Development Agents**: Rex (System Design), Dario (DevEx), Otto (CI/CD), Paolo (Backend Architecture)
+- **Feature Release Manager Agent**: Automated quality gates and release validation
+- **Budget/Theme Persistence**: Settings now persist correctly across sessions
+- **153 Compiler Warnings Fixed**: Production-quality build with zero warnings
+- **Enhanced E2E Tests**: Coverage for new workflow commands and embeddings
+
+### Previous Highlights (v4.0)
 
 - **MLX Local Provider**: Run AI models 100% offline on Apple Silicon via MLX-Swift - no Python, no external dependencies
 - **Semantic Memory**: Persistent knowledge graph that survives restarts - Ali remembers across sessions
@@ -432,6 +442,9 @@ Options:
 | `forget <id>` | Delete a memory by ID |
 | `graph` | Show graph structure and relations |
 | `recall` | View/load past session summaries |
+| `test` | Auto-detect and run project tests |
+| `git status\|commit\|push\|sync` | Git workflow helper commands |
+| `pr [title]` | Create pull request via gh CLI |
 | `setup` | Configure providers and agent models |
 | `debug` | Toggle debug mode |
 | `quit` | Exit Convergio |
@@ -879,7 +892,7 @@ MIT License - see [LICENSE](LICENSE) for details.
 
 ---
 
-*Convergio CLI v4.0.0 - Multi-Model AI Orchestration for Apple Silicon*
+*Convergio CLI v4.1.0 - Multi-Model AI Orchestration for Apple Silicon*
 
 *Developed by Roberto D'Angelo with AI assistance*
 

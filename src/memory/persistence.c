@@ -23,7 +23,17 @@
 
 // Database handle (shared with semantic_persistence.c)
 sqlite3* g_db = NULL;
-pthread_mutex_t g_db_mutex = PTHREAD_MUTEX_INITIALIZER;
+
+// Use ConvergioMutex for DEBUG mode compatibility
+#ifdef DEBUG
+ConvergioMutex g_db_mutex = {
+    .mutex = PTHREAD_MUTEX_INITIALIZER,
+    .once = PTHREAD_ONCE_INIT,
+    .initialized = 0
+};
+#else
+ConvergioMutex g_db_mutex = PTHREAD_MUTEX_INITIALIZER;
+#endif
 
 // Prepared statement cache for frequently used queries (performance optimization)
 #define STMT_CACHE_SIZE 8

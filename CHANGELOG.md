@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.1.0] - 2025-12-14
+
 ### Added
 - **Hybrid Embedding Strategy** (Issues #1, #2, #3)
   - OpenAI `text-embedding-3-small` for online semantic search
@@ -20,6 +22,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `/git status|commit|push|sync` - Git workflow helper
   - `/pr [title]` - Create pull request via gh CLI
   - Detailed help documentation for all commands
+
+- **4 New Development-Focused Agents**
+  - Rex (System Design Reviewer) - Architecture and code review
+  - Dario (Developer Experience) - DevEx and tooling optimization
+  - Otto (CI/CD Specialist) - Pipeline and automation expert
+  - Paolo (Backend Architect) - API and microservices design
+
+- **Feature Release Manager Agent**
+  - Automated release quality gates
+  - Microsoft Engineering Fundamentals compliance
+  - Pre-release validation
+
+- **E2E Test Expansion**
+  - Tests for /test, /git, /pr commands
+  - Embedding strategy tests
+
+### Changed
+- Updated agent count display in README (+41 to +45 specialists)
+- ISE Engineering Fundamentals added to all technical agents
+- Mermaid diagrams updated for MLX, OpenRouter, Ollama, Semantic Memory
+
+### Fixed
+- Budget and theme settings now persist across sessions
+- License badge corrected from Apache 2.0 to MIT
+- CI pipeline optimizations with Xcode 16 for Swift 6.0 / MLX support
+- MLX stubs for CI builds without Swift 6.0
+- Emoji spinner icons for better UX
+- Resolved compiler warnings (pthread_mutex_t type compatibility)
+- Fixed sign conversion and double promotion warnings
 
 ## [4.0.2] - 2025-12-13
 
