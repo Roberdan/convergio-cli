@@ -113,6 +113,7 @@ C_SOURCES = $(SRC_DIR)/core/fabric.c \
             $(SRC_DIR)/context/compaction.c \
             $(SRC_DIR)/tools/tools.c \
             $(SRC_DIR)/providers/provider.c \
+            $(SRC_DIR)/providers/common.c \
             $(SRC_DIR)/providers/anthropic.c \
             $(SRC_DIR)/providers/openai.c \
             $(SRC_DIR)/providers/gemini.c \
