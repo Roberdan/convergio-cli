@@ -7,6 +7,7 @@
 
 #include "nous/orchestrator.h"
 #include "nous/provider.h"
+#include "nous/config.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -247,6 +248,12 @@ void cost_set_budget(double limit_usd) {
     // Check budget against total spend, not just session
     orch->cost.budget_exceeded = (orch->cost.total_spend_usd >= limit_usd);
     CONVERGIO_MUTEX_UNLOCK(&g_cost_mutex);
+
+    // Persist budget to config file so it survives restarts
+    char budget_str[32];
+    snprintf(budget_str, sizeof(budget_str), "%.2f", limit_usd);
+    convergio_config_set("budget_limit", budget_str);
+    convergio_config_save();
 }
 
 void cost_reset_session(void) {

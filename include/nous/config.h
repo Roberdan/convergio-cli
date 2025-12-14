@@ -28,6 +28,7 @@ typedef struct {
     // UI
     bool color_enabled;
     char debug_level[16];  // none, error, warn, info, debug, trace
+    char theme[32];        // Theme name (Ocean, Forest, Sunset, etc.)
 
     // Updates
     bool check_updates_on_startup;

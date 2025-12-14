@@ -148,6 +148,8 @@ static int parse_config_line(const char* line, char* section, size_t section_siz
             g_config.color_enabled = (strcmp(value, "true") == 0 || strcmp(value, "1") == 0);
         } else if (strcmp(key, "debug_level") == 0) {
             strncpy(g_config.debug_level, value, sizeof(g_config.debug_level) - 1);
+        } else if (strcmp(key, "theme") == 0) {
+            strncpy(g_config.theme, value, sizeof(g_config.theme) - 1);
         }
     } else if (strcmp(section, "updates") == 0) {
         if (strcmp(key, "check_on_startup") == 0) {
@@ -171,6 +173,7 @@ static void set_defaults(void) {
     g_config.budget_warn_percent = 80;
     g_config.color_enabled = true;
     strncpy(g_config.debug_level, "none", sizeof(g_config.debug_level) - 1);
+    strncpy(g_config.theme, "Ocean", sizeof(g_config.theme) - 1);  // Default theme
     g_config.check_updates_on_startup = true;
     g_config.auto_update = false;
 }
@@ -270,7 +273,8 @@ int convergio_config_save(void) {
 
     fprintf(f, "[ui]\n");
     fprintf(f, "color = %s\n", g_config.color_enabled ? "true" : "false");
-    fprintf(f, "debug_level = \"%s\"\n\n", g_config.debug_level);
+    fprintf(f, "debug_level = \"%s\"\n", g_config.debug_level);
+    fprintf(f, "theme = \"%s\"\n\n", g_config.theme[0] ? g_config.theme : "Ocean");
 
     fprintf(f, "[updates]\n");
     fprintf(f, "check_on_startup = %s\n", g_config.check_updates_on_startup ? "true" : "false");
@@ -310,6 +314,9 @@ const char* convergio_config_get(const char* key) {
     if (strcmp(key, "knowledge_dir") == 0) {
         return g_config.knowledge_dir;
     }
+    if (strcmp(key, "theme") == 0) {
+        return g_config.theme[0] ? g_config.theme : "Ocean";
+    }
 
     return NULL;
 }
@@ -327,6 +334,10 @@ int convergio_config_set(const char* key, const char* value) {
     }
     if (strcmp(key, "color") == 0) {
         g_config.color_enabled = (strcmp(value, "true") == 0 || strcmp(value, "1") == 0);
+        return 0;
+    }
+    if (strcmp(key, "theme") == 0) {
+        strncpy(g_config.theme, value, sizeof(g_config.theme) - 1);
         return 0;
     }
 
