@@ -179,8 +179,9 @@ jobs:
         run: |
           echo "=== Running unit tests with sanitizers ==="
           # ASAN_OPTIONS: detect memory issues, abort on error
+          # Note: detect_leaks not supported on macOS, only on Linux
           # UBSAN_OPTIONS: print stack trace on UB detection
-          export ASAN_OPTIONS="abort_on_error=1:detect_leaks=1"
+          export ASAN_OPTIONS="abort_on_error=1"
           export UBSAN_OPTIONS="print_stacktrace=1:halt_on_error=1"
           ./build/bin/unit_test
 
