@@ -13,7 +13,8 @@ OBJC = clang
 ARCH_FLAGS = -arch arm64
 
 # GNU Readline from Homebrew (NOT libedit - libedit doesn't support \001\002 markers for colors)
-READLINE_PREFIX = $(shell brew --prefix readline)
+# Use direct path since `brew` command may not be available in Homebrew sandbox
+READLINE_PREFIX = /opt/homebrew/opt/readline
 
 # Compiler flags
 CFLAGS = $(ARCH_FLAGS) \
