@@ -185,38 +185,9 @@ jobs:
           ./build/bin/unit_test
 
   # ============================================================================
-  # E2E TESTS - Optional (requires API keys, run locally with app-release-manager)
+  # E2E TESTS - Removed from CI (requires API keys)
+  # Run locally with: ./tests/e2e_test.sh or via app-release-manager
   # ============================================================================
-
-  e2e-tests:
-    name: E2E Tests (Optional)
-    runs-on: macos-14
-    needs: build
-    # E2E tests are optional - they require API keys which are not available in CI
-    # Run locally with: ./tests/e2e_test.sh or via app-release-manager
-    continue-on-error: true
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Download release binary
-        uses: actions/download-artifact@v4
-        with:
-          name: convergio-release
-          path: build/bin
-
-      - name: Make binary executable
-        run: chmod +x build/bin/convergio
-
-      - name: Install coreutils for gtimeout
-        run: brew install coreutils
-
-      - name: Run E2E tests (non-API tests only)
-        run: |
-          chmod +x tests/e2e_test.sh
-          # Run tests but don't fail CI - API-dependent tests will be skipped
-          ./tests/e2e_test.sh 2>&1 || echo "::warning::Some E2E tests failed (expected without API keys)"
-        timeout-minutes: 5
 
   # ============================================================================
   # FINAL STATUS - aggregates all job results
@@ -225,13 +196,13 @@ jobs:
   ci-success:
     name: CI Success
     runs-on: macos-14
-    needs: [lint-and-analysis, build, sanitizer-tests, e2e-tests]
+    needs: [lint-and-analysis, build, sanitizer-tests]
     if: always()
     steps:
       - name: Check all jobs passed
         run: |
           # Required jobs: lint, build, sanitizer tests
-          # Optional jobs: e2e-tests (requires API keys, run locally)
+          # E2E tests require API keys - run locally before release
           if [ "${{ needs.lint-and-analysis.result }}" != "success" ] || \
              [ "${{ needs.build.result }}" != "success" ] || \
              [ "${{ needs.sanitizer-tests.result }}" != "success" ]; then
@@ -239,9 +210,5 @@ jobs:
             exit 1
           fi
 
-          # E2E tests are optional - warn if failed but don't block
-          if [ "${{ needs.e2e-tests.result }}" != "success" ]; then
-            echo "::warning::E2E tests did not pass (expected - requires API keys). Run locally with ./tests/e2e_test.sh"
-          fi
-
-          echo "All required CI checks passed!"
+          echo "All CI checks passed!"
+          echo "Note: E2E tests must be run locally before release (requires API keys)"
