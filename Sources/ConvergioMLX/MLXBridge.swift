@@ -134,18 +134,21 @@ private var currentModelId: String?
 
         // CRITICAL FIX: Two detached tasks pattern for deadlock-free sync/async bridging
         // https://wadetregaskis.com/calling-swift-concurrency-async-code-synchronously-in-swift/
+
+        // Build messages array BEFORE the task to avoid captured var mutation warnings (Swift 6)
+        var messages: [[String: String]] = []
+        if let system = systemPrompt, !system.isEmpty {
+            messages.append(["role": "system", "content": system])
+        }
+        messages.append(["role": "user", "content": prompt])
+        let finalMessages = messages  // Immutable copy for sendable closure
+
+        // Capture maxTokens as local let
+        let maxTokensLimit = maxTokens
+
         let coreTask = Task<Void, Never>.detached(priority: .userInitiated) {
             do {
                 let startTime = Date()
-                var generatedText = ""
-                var tokenCount = 0
-
-                // Build messages array
-                var messages: [[String: String]] = []
-                if let system = systemPrompt, !system.isEmpty {
-                    messages.append(["role": "system", "content": system])
-                }
-                messages.append(["role": "user", "content": prompt])
 
                 // Generate with the model
                 let generateParameters = GenerateParameters(
@@ -154,25 +157,29 @@ private var currentModelId: String?
                     repetitionPenalty: 1.1
                 )
 
-                // Use async streaming version - more reliable than sync callback
-                try await container.perform { context in
+                // Use async streaming version - collect results inside perform block
+                // to avoid Swift 6 captured var mutation warnings
+                let (generatedText, tokenCount): (String, Int) = try await container.perform { context in
                     let input = try await context.processor.prepare(
-                        input: .init(messages: messages)
+                        input: .init(messages: finalMessages)
                     )
 
+                    var text = ""
+                    var count = 0
                     for try await output in try MLXLMCommon.generate(
                         input: input,
                         parameters: generateParameters,
                         context: context
                     ) {
-                        tokenCount += 1
+                        count += 1
                         if let chunk = output.chunk {
-                            generatedText += chunk
+                            text += chunk
                         }
-                        if tokenCount >= maxTokens {
+                        if count >= maxTokensLimit {
                             break
                         }
                     }
+                    return (text, count)
                 }
 
                 let elapsed = Date().timeIntervalSince(startTime)
@@ -224,18 +231,20 @@ private var currentModelId: String?
         let semaphore = DispatchSemaphore(value: 0)
 
         // CRITICAL FIX: Two detached tasks pattern for deadlock-free sync/async bridging
+        // Build messages array BEFORE the task to avoid captured var mutation warnings (Swift 6)
+        var messages: [[String: String]] = []
+        if let system = systemPrompt, !system.isEmpty {
+            messages.append(["role": "system", "content": system])
+        }
+        messages.append(["role": "user", "content": prompt])
+        let finalMessages = messages  // Immutable copy for sendable closure
+
+        // Capture maxTokens as local let
+        let maxTokensLimit = maxTokens
+
         let coreTask = Task<Void, Never>.detached(priority: .userInitiated) {
             do {
                 let startTime = Date()
-                var fullText = ""
-                var tokenCount = 0
-
-                // Build messages array
-                var messages: [[String: String]] = []
-                if let system = systemPrompt, !system.isEmpty {
-                    messages.append(["role": "system", "content": system])
-                }
-                messages.append(["role": "user", "content": prompt])
 
                 let generateParameters = GenerateParameters(
                     temperature: temperature,
@@ -243,29 +252,34 @@ private var currentModelId: String?
                     repetitionPenalty: 1.1
                 )
 
-                try await container.perform { context in
+                // Use async streaming version - collect results inside perform block
+                // to avoid Swift 6 captured var mutation warnings
+                let (fullText, tokenCount): (String, Int) = try await container.perform { context in
                     let input = try await context.processor.prepare(
-                        input: .init(messages: messages)
+                        input: .init(messages: finalMessages)
                     )
 
+                    var text = ""
+                    var count = 0
                     // Stream tokens
                     for try await output in try MLXLMCommon.generate(
                         input: input,
                         parameters: generateParameters,
                         context: context
                     ) {
-                        tokenCount += 1
+                        count += 1
 
-                        if let text = output.chunk {
-                            fullText += text
+                        if let chunk = output.chunk {
+                            text += chunk
                             // Call the callback (already on background thread)
-                            callback(text)
+                            callback(chunk)
                         }
 
-                        if tokenCount >= maxTokens {
+                        if count >= maxTokensLimit {
                             break
                         }
                     }
+                    return (text, count)
                 }
 
                 let elapsed = Date().timeIntervalSince(startTime)

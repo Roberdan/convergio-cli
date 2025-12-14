@@ -608,7 +608,7 @@ MLXError mlx_generate(
 
     const MLXModelInfo* model = find_model_info(g_mlx_data.current_model_id);
     LOG_DEBUG(LOG_CAT_SYSTEM, "MLX: Generating response with %s (max_tokens=%zu, temp=%.2f)",
-              model ? model->display_name : "unknown", max_tokens, temperature);
+              model ? model->display_name : "unknown", max_tokens, (double)temperature);
 
     // Call Swift bridge for inference
     int32_t token_count = 0;
@@ -634,10 +634,10 @@ MLXError mlx_generate(
     }
 
     LOG_INFO(LOG_CAT_SYSTEM, "MLX: Generated %d tokens at %.1f tok/s",
-             token_count, tokens_per_sec);
+             token_count, (double)tokens_per_sec);
 
     // Update context tracking
-    g_mlx_data.context_used += mlx_estimate_tokens(prompt) + token_count;
+    g_mlx_data.context_used += mlx_estimate_tokens(prompt) + (size_t)token_count;
 
     *out_response = response;  // Caller must free()
 

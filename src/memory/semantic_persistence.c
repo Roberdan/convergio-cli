@@ -6,6 +6,7 @@
 
 #include "nous/semantic_persistence.h"
 #include "nous/nous.h"
+#include "nous/debug_mutex.h"
 #include <sqlite3.h>
 #include <stdlib.h>
 #include <string.h>
@@ -14,11 +15,7 @@
 
 // External database handle from persistence.c
 extern sqlite3* g_db;
-extern pthread_mutex_t g_db_mutex;
-
-// Thread synchronization macros (platform-agnostic)
-#define CONVERGIO_MUTEX_LOCK(m) pthread_mutex_lock(m)
-#define CONVERGIO_MUTEX_UNLOCK(m) pthread_mutex_unlock(m)
+extern ConvergioMutex g_db_mutex;
 
 // External fabric functions (declared in nous.h)
 // nous_create_node_internal, nous_get_node, nous_release_node, nous_connect
@@ -61,14 +58,14 @@ int sem_persist_save_node(
     sqlite3_bind_text(stmt, 3, essence, -1, SQLITE_TRANSIENT);
 
     if (embedding && embedding_dim > 0) {
-        sqlite3_bind_blob(stmt, 4, embedding, embedding_dim * sizeof(float), SQLITE_TRANSIENT);
+        sqlite3_bind_blob(stmt, 4, embedding, (int)(embedding_dim * sizeof(float)), SQLITE_TRANSIENT);
     } else {
         sqlite3_bind_null(stmt, 4);
     }
 
     sqlite3_bind_int64(stmt, 5, (int64_t)creator_id);
     sqlite3_bind_int64(stmt, 6, (int64_t)context_id);
-    sqlite3_bind_double(stmt, 7, importance);
+    sqlite3_bind_double(stmt, 7, (double)importance);
     sqlite3_bind_int64(stmt, 8, now);
     sqlite3_bind_int64(stmt, 9, now);
 
@@ -118,7 +115,7 @@ int sem_persist_load_node(SemanticID id) {
     // Extract embedding if present
     const void* embedding_blob = sqlite3_column_blob(stmt, 2);
     int embedding_bytes = sqlite3_column_bytes(stmt, 2);
-    size_t embedding_dim = embedding_bytes / sizeof(float);
+    size_t embedding_dim = (embedding_bytes > 0) ? (size_t)embedding_bytes / sizeof(float) : 0;
 
     // Extract other fields
     SemanticID creator_id = (SemanticID)sqlite3_column_int64(stmt, 3);
@@ -152,7 +149,7 @@ int sem_persist_update_importance(SemanticID id, float importance) {
         return -1;
     }
 
-    sqlite3_bind_double(stmt, 1, importance);
+    sqlite3_bind_double(stmt, 1, (double)importance);
     sqlite3_bind_int64(stmt, 2, (int64_t)id);
 
     rc = sqlite3_step(stmt);
@@ -279,7 +276,7 @@ int sem_persist_save_relation(
 
     sqlite3_bind_int64(stmt, 1, (int64_t)from_id);
     sqlite3_bind_int64(stmt, 2, (int64_t)to_id);
-    sqlite3_bind_double(stmt, 3, strength);
+    sqlite3_bind_double(stmt, 3, (double)strength);
     sqlite3_bind_text(stmt, 4, relation_type ? relation_type : "related", -1, SQLITE_TRANSIENT);
     sqlite3_bind_int64(stmt, 5, now);
     sqlite3_bind_int64(stmt, 6, now);
@@ -312,7 +309,7 @@ int sem_persist_update_relation(
         return -1;
     }
 
-    sqlite3_bind_double(stmt, 1, new_strength);
+    sqlite3_bind_double(stmt, 1, (double)new_strength);
     sqlite3_bind_int64(stmt, 2, (int64_t)time(NULL));
     sqlite3_bind_int64(stmt, 3, (int64_t)from_id);
     sqlite3_bind_int64(stmt, 4, (int64_t)to_id);
@@ -450,7 +447,7 @@ int sem_persist_load_graph(size_t max_nodes) {
         // Extract embedding if present
         const void* embedding_blob = sqlite3_column_blob(stmt, 3);
         int embedding_bytes = sqlite3_column_bytes(stmt, 3);
-        size_t embedding_dim = embedding_bytes / sizeof(float);
+        size_t embedding_dim = (embedding_bytes > 0) ? (size_t)embedding_bytes / sizeof(float) : 0;
 
         // Extract other fields
         SemanticID creator_id = (SemanticID)sqlite3_column_int64(stmt, 4);
@@ -613,7 +610,7 @@ SemanticID* sem_persist_load_important(size_t limit, float min_importance, size_
         return NULL;
     }
 
-    sqlite3_bind_double(stmt, 1, min_importance);
+    sqlite3_bind_double(stmt, 1, (double)min_importance);
     sqlite3_bind_int64(stmt, 2, (int64_t)limit);
 
     // Count first
