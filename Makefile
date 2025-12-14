@@ -337,11 +337,29 @@ install: all
 		sudo mkdir -p /usr/local/lib/convergio; \
 		if [ -s $(METAL_LIB) ]; then sudo cp $(METAL_LIB) /usr/local/lib/convergio/; fi; \
 	fi
-	@# Install icon for notifications
-	@mkdir -p ~/.convergio
+	@# Install Convergio.app for notification icon (uses -sender bundle ID)
 	@if [ -f docs/logo/CovergioLogo.jpeg ]; then \
-		cp docs/logo/CovergioLogo.jpeg ~/.convergio/icon.jpeg; \
-		echo "  Notification icon installed"; \
+		echo "  Creating Convergio.app for notifications..."; \
+		mkdir -p /tmp/Convergio.iconset; \
+		sips -z 16 16 docs/logo/CovergioLogo.jpeg --out /tmp/Convergio.iconset/icon_16x16.png -s format png >/dev/null 2>&1; \
+		sips -z 32 32 docs/logo/CovergioLogo.jpeg --out /tmp/Convergio.iconset/icon_16x16@2x.png -s format png >/dev/null 2>&1; \
+		sips -z 32 32 docs/logo/CovergioLogo.jpeg --out /tmp/Convergio.iconset/icon_32x32.png -s format png >/dev/null 2>&1; \
+		sips -z 64 64 docs/logo/CovergioLogo.jpeg --out /tmp/Convergio.iconset/icon_32x32@2x.png -s format png >/dev/null 2>&1; \
+		sips -z 128 128 docs/logo/CovergioLogo.jpeg --out /tmp/Convergio.iconset/icon_128x128.png -s format png >/dev/null 2>&1; \
+		sips -z 256 256 docs/logo/CovergioLogo.jpeg --out /tmp/Convergio.iconset/icon_128x128@2x.png -s format png >/dev/null 2>&1; \
+		sips -z 256 256 docs/logo/CovergioLogo.jpeg --out /tmp/Convergio.iconset/icon_256x256.png -s format png >/dev/null 2>&1; \
+		sips -z 512 512 docs/logo/CovergioLogo.jpeg --out /tmp/Convergio.iconset/icon_256x256@2x.png -s format png >/dev/null 2>&1; \
+		sips -z 512 512 docs/logo/CovergioLogo.jpeg --out /tmp/Convergio.iconset/icon_512x512.png -s format png >/dev/null 2>&1; \
+		sips -z 1024 1024 docs/logo/CovergioLogo.jpeg --out /tmp/Convergio.iconset/icon_512x512@2x.png -s format png >/dev/null 2>&1; \
+		iconutil -c icns /tmp/Convergio.iconset -o /tmp/Convergio.icns; \
+		rm -rf /Applications/Convergio.app; \
+		mkdir -p /Applications/Convergio.app/Contents/MacOS /Applications/Convergio.app/Contents/Resources; \
+		cp /tmp/Convergio.icns /Applications/Convergio.app/Contents/Resources/AppIcon.icns; \
+		printf '<?xml version="1.0" encoding="UTF-8"?>\n<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">\n<plist version="1.0"><dict>\n<key>CFBundleIdentifier</key><string>com.convergio.cli</string>\n<key>CFBundleName</key><string>Convergio</string>\n<key>CFBundleDisplayName</key><string>Convergio</string>\n<key>CFBundleIconFile</key><string>AppIcon</string>\n<key>CFBundleExecutable</key><string>Convergio</string>\n<key>CFBundlePackageType</key><string>APPL</string>\n<key>CFBundleVersion</key><string>1.0</string>\n</dict></plist>' > /Applications/Convergio.app/Contents/Info.plist; \
+		printf '#!/bin/bash\nTERM_FILE="$$HOME/.convergio/terminal"\nTERMINAL_APP=""\nif [ -f "$$TERM_FILE" ]; then TERMINAL_APP=$$(cat "$$TERM_FILE"); fi\ncase "$$TERMINAL_APP" in\n"WarpTerminal") osascript -e '\''tell application "Warp" to activate'\''; sleep 0.3; osascript -e '\''tell application "System Events" to keystroke "convergio" & return'\'';;\n"iTerm.app") osascript -e '\''tell application "iTerm" to create window with default profile command "convergio"'\'';;\n*) osascript -e '\''tell application "Terminal" to do script "convergio"'\'' -e '\''tell application "Terminal" to activate'\'';;\nesac\n' > /Applications/Convergio.app/Contents/MacOS/Convergio; \
+		chmod +x /Applications/Convergio.app/Contents/MacOS/Convergio; \
+		rm -rf /tmp/Convergio.iconset /tmp/Convergio.icns; \
+		echo "  Convergio.app installed for notifications"; \
 	fi
 	@echo "Installed."
 
