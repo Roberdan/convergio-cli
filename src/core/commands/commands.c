@@ -18,6 +18,7 @@
 #include "nous/projects.h"
 #include "nous/semantic_persistence.h"
 #include "nous/model_loader.h"
+#include "nous/todo.h"
 #include "../../auth/oauth.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -59,6 +60,9 @@ int cmd_memories(int argc, char** argv);
 int cmd_forget(int argc, char** argv);
 int cmd_graph(int argc, char** argv);
 
+// Forward declaration for todo command
+int cmd_todo(int argc, char** argv);
+
 static const ReplCommand COMMANDS[] = {
     {"help",        "Show available commands",           cmd_help},
     {"agent",       "Manage agents",                     cmd_agent},
@@ -90,6 +94,8 @@ static const ReplCommand COMMANDS[] = {
     {"memories",    "List recent/important memories",    cmd_memories},
     {"forget",      "Delete a memory by ID",             cmd_forget},
     {"graph",       "Show knowledge graph stats",        cmd_graph},
+    // Todo manager (Anna Executive Assistant)
+    {"todo",        "Manage tasks and reminders",        cmd_todo},
     {"quit",        "Exit Convergio",                    cmd_quit},
     {"exit",        "Exit Convergio",                    cmd_quit},
     {NULL, NULL, NULL}
@@ -580,6 +586,32 @@ static const CommandHelp DETAILED_HELP[] = {
         "/setup           # Open wizard, select Local Models\n"
         "convergio --local --model deepseek-r1-7b\n"
         "convergio -l -m llama-3.2-3b"
+    },
+    {
+        "todo",
+        "todo <subcommand> [args]",
+        "Manage tasks and reminders (Anna Executive Assistant)",
+        "A native local task manager with reminders.\n"
+        "All data stored locally in SQLite database.\n\n"
+        "Subcommands:\n"
+        "  add <title>           Add a new task\n"
+        "  list [today|overdue]  List tasks (default: pending)\n"
+        "  done <id>             Mark task as completed\n"
+        "  start <id>            Mark task as in progress\n"
+        "  edit <id> [field]     Edit a task\n"
+        "  delete <id>           Delete a task\n"
+        "  inbox                 Quick capture to inbox\n"
+        "  stats                 Show task statistics\n\n"
+        "Options for 'add':\n"
+        "  --due <date>          Due date (e.g., tomorrow, next monday)\n"
+        "  --remind <time>       Reminder time (e.g., 1h before)\n"
+        "  --priority <1-3>      1=urgent, 2=normal, 3=low\n"
+        "  --context <ctx>       Project or context tag",
+        "todo add \"Review PR\" --due tomorrow --priority 1\n"
+        "todo list today         # Today's tasks + overdue\n"
+        "todo done 42            # Mark task #42 complete\n"
+        "todo inbox \"Call dentist\"  # Quick capture\n"
+        "todo stats"
     },
     {NULL, NULL, NULL, NULL, NULL}
 };
@@ -2674,4 +2706,388 @@ int cmd_graph(int argc, char** argv) {
     }
 
     return 0;
+}
+
+// ============================================================================
+// TODO COMMAND (Anna Executive Assistant)
+// ============================================================================
+
+/**
+ * Helper: Print a task in a formatted way
+ */
+static void print_task(const TodoTask* task) {
+    // Status indicator
+    const char* status_icon;
+    const char* status_color;
+    switch (task->status) {
+        case TODO_STATUS_COMPLETED:
+            status_icon = "[x]";
+            status_color = "\033[32m";  // Green
+            break;
+        case TODO_STATUS_IN_PROGRESS:
+            status_icon = "[>]";
+            status_color = "\033[33m";  // Yellow
+            break;
+        case TODO_STATUS_CANCELLED:
+            status_icon = "[-]";
+            status_color = "\033[90m";  // Gray
+            break;
+        default:
+            status_icon = "[ ]";
+            status_color = "\033[0m";   // Default
+            break;
+    }
+
+    // Priority indicator
+    const char* priority_str = "";
+    if (task->priority == TODO_PRIORITY_URGENT) {
+        priority_str = "\033[31m!!\033[0m ";  // Red !!
+    } else if (task->priority == TODO_PRIORITY_LOW) {
+        priority_str = "\033[90m~\033[0m ";   // Gray ~
+    }
+
+    // Due date
+    char due_str[64] = "";
+    if (task->due_date > 0) {
+        todo_format_date(task->due_date, due_str, sizeof(due_str), true);
+    }
+
+    // Print
+    printf("  %s%s\033[0m #%-4lld %s%s",
+           status_color, status_icon, task->id, priority_str, task->title);
+
+    if (due_str[0]) {
+        // Check if overdue
+        if (task->due_date < time(NULL) && task->status == TODO_STATUS_PENDING) {
+            printf(" \033[31m(overdue: %s)\033[0m", due_str);
+        } else {
+            printf(" \033[36m(%s)\033[0m", due_str);
+        }
+    }
+
+    if (task->context) {
+        printf(" \033[35m@%s\033[0m", task->context);
+    }
+
+    printf("\n");
+}
+
+/**
+ * /todo - Main todo command handler
+ */
+int cmd_todo(int argc, char** argv) {
+    if (argc < 2) {
+        // Default: show today's tasks
+        int count = 0;
+        TodoTask** tasks = todo_list_today(&count);
+
+        if (!tasks) {
+            printf("Todo system not initialized. Please restart convergio.\n");
+            return -1;
+        }
+
+        if (count == 0) {
+            printf("\033[32mNo tasks for today!\033[0m\n");
+            todo_free_tasks(tasks, count);
+            return 0;
+        }
+
+        printf("\033[1mToday's Tasks\033[0m\n\n");
+        for (int i = 0; i < count; i++) {
+            print_task(tasks[i]);
+        }
+        printf("\n");
+
+        todo_free_tasks(tasks, count);
+        return 0;
+    }
+
+    const char* subcmd = argv[1];
+
+    // ==========================================================
+    // ADD
+    // ==========================================================
+    if (strcmp(subcmd, "add") == 0) {
+        if (argc < 3) {
+            printf("Usage: todo add <title> [--due <date>] [--priority <1-3>] [--context <ctx>]\n");
+            return -1;
+        }
+
+        // Parse arguments
+        TodoCreateOptions opts = {
+            .title = argv[2],
+            .priority = TODO_PRIORITY_NORMAL,
+            .source = TODO_SOURCE_USER
+        };
+
+        for (int i = 3; i < argc; i++) {
+            if (strcmp(argv[i], "--due") == 0 && i + 1 < argc) {
+                opts.due_date = todo_parse_date(argv[++i], 0);
+            } else if (strcmp(argv[i], "--remind") == 0 && i + 1 < argc) {
+                // Parse relative reminder (e.g., "1h" = 1 hour before due)
+                int64_t offset = todo_parse_duration(argv[++i]);
+                if (opts.due_date > 0 && offset > 0) {
+                    opts.reminder_at = opts.due_date - offset;
+                }
+            } else if (strcmp(argv[i], "--priority") == 0 && i + 1 < argc) {
+                int p = atoi(argv[++i]);
+                if (p >= 1 && p <= 3) {
+                    opts.priority = (TodoPriority)p;
+                }
+            } else if (strcmp(argv[i], "--context") == 0 && i + 1 < argc) {
+                opts.context = argv[++i];
+            }
+        }
+
+        int64_t id = todo_create(&opts);
+        if (id < 0) {
+            printf("Failed to create task.\n");
+            return -1;
+        }
+
+        printf("\033[32mTask #%lld created:\033[0m %s\n", id, opts.title);
+        if (opts.due_date > 0) {
+            char due_str[64];
+            todo_format_date(opts.due_date, due_str, sizeof(due_str), true);
+            printf("  Due: %s\n", due_str);
+        }
+        return 0;
+    }
+
+    // ==========================================================
+    // LIST
+    // ==========================================================
+    if (strcmp(subcmd, "list") == 0) {
+        int count = 0;
+        TodoTask** tasks = NULL;
+        const char* header = "Tasks";
+
+        if (argc >= 3) {
+            if (strcmp(argv[2], "today") == 0) {
+                tasks = todo_list_today(&count);
+                header = "Today's Tasks";
+            } else if (strcmp(argv[2], "overdue") == 0) {
+                tasks = todo_list_overdue(&count);
+                header = "Overdue Tasks";
+            } else if (strcmp(argv[2], "all") == 0) {
+                TodoFilter filter = {.include_completed = true, .include_cancelled = true};
+                tasks = todo_list(&filter, &count);
+                header = "All Tasks";
+            } else if (strcmp(argv[2], "upcoming") == 0) {
+                int days = 7;  // Default to next 7 days
+                if (argc >= 4) {
+                    days = atoi(argv[3]);
+                }
+                tasks = todo_list_upcoming(days, &count);
+                header = "Upcoming Tasks";
+            }
+        }
+
+        if (!tasks) {
+            // Default: list pending
+            TodoFilter filter = {.include_completed = false, .include_cancelled = false};
+            tasks = todo_list(&filter, &count);
+            header = "Pending Tasks";
+        }
+
+        if (count == 0) {
+            printf("\033[32mNo tasks found.\033[0m\n");
+            todo_free_tasks(tasks, count);
+            return 0;
+        }
+
+        printf("\033[1m%s\033[0m (%d)\n\n", header, count);
+        for (int i = 0; i < count; i++) {
+            print_task(tasks[i]);
+        }
+        printf("\n");
+
+        todo_free_tasks(tasks, count);
+        return 0;
+    }
+
+    // ==========================================================
+    // DONE
+    // ==========================================================
+    if (strcmp(subcmd, "done") == 0) {
+        if (argc < 3) {
+            printf("Usage: todo done <id>\n");
+            return -1;
+        }
+
+        int64_t id = atoll(argv[2]);
+        TodoTask* task = todo_get(id);
+
+        if (!task) {
+            printf("Task #%lld not found.\n", id);
+            return -1;
+        }
+
+        const char* title = task->title ? task->title : "";
+
+        if (todo_complete(id) < 0) {
+            printf("Failed to complete task.\n");
+            todo_free_task(task);
+            return -1;
+        }
+
+        printf("\033[32mTask #%lld completed:\033[0m %s\n", id, title);
+        todo_free_task(task);
+        return 0;
+    }
+
+    // ==========================================================
+    // START
+    // ==========================================================
+    if (strcmp(subcmd, "start") == 0) {
+        if (argc < 3) {
+            printf("Usage: todo start <id>\n");
+            return -1;
+        }
+
+        int64_t id = atoll(argv[2]);
+        TodoTask* task = todo_get(id);
+
+        if (!task) {
+            printf("Task #%lld not found.\n", id);
+            return -1;
+        }
+
+        const char* title = task->title ? task->title : "";
+
+        if (todo_start(id) < 0) {
+            printf("Failed to start task.\n");
+            todo_free_task(task);
+            return -1;
+        }
+
+        printf("\033[33mTask #%lld started:\033[0m %s\n", id, title);
+        todo_free_task(task);
+        return 0;
+    }
+
+    // ==========================================================
+    // DELETE
+    // ==========================================================
+    if (strcmp(subcmd, "delete") == 0 || strcmp(subcmd, "rm") == 0) {
+        if (argc < 3) {
+            printf("Usage: todo delete <id>\n");
+            return -1;
+        }
+
+        int64_t id = atoll(argv[2]);
+        TodoTask* task = todo_get(id);
+
+        if (!task) {
+            printf("Task #%lld not found.\n", id);
+            return -1;
+        }
+
+        const char* title = task->title ? task->title : "";
+
+        if (todo_delete(id) < 0) {
+            printf("Failed to delete task.\n");
+            todo_free_task(task);
+            return -1;
+        }
+
+        printf("\033[31mTask #%lld deleted:\033[0m %s\n", id, title);
+        todo_free_task(task);
+        return 0;
+    }
+
+    // ==========================================================
+    // INBOX (Quick Capture)
+    // ==========================================================
+    if (strcmp(subcmd, "inbox") == 0) {
+        if (argc >= 3) {
+            // Quick capture
+            int64_t id = inbox_capture(argv[2], "cli");
+            if (id < 0) {
+                printf("Failed to capture to inbox.\n");
+                return -1;
+            }
+            printf("\033[36mCaptured to inbox #%lld:\033[0m %s\n", id, argv[2]);
+            return 0;
+        }
+
+        // List inbox
+        int count = 0;
+        TodoInboxItem** items = inbox_list_unprocessed(&count);
+
+        if (!items || count == 0) {
+            printf("\033[32mInbox is empty.\033[0m\n");
+            if (items) todo_free_inbox_items(items, count);
+            return 0;
+        }
+
+        printf("\033[1mInbox\033[0m (%d items)\n\n", count);
+        for (int i = 0; i < count; i++) {
+            char date_str[64];
+            todo_format_date(items[i]->captured_at, date_str, sizeof(date_str), true);
+            printf("  #%-4lld %s \033[90m(%s)\033[0m\n",
+                   items[i]->id, items[i]->content, date_str);
+        }
+        printf("\n");
+
+        todo_free_inbox_items(items, count);
+        return 0;
+    }
+
+    // ==========================================================
+    // STATS
+    // ==========================================================
+    if (strcmp(subcmd, "stats") == 0) {
+        TodoStats stats = todo_get_stats();
+
+        printf("\033[1mTask Statistics\033[0m\n\n");
+        printf("  Pending:          %d\n", stats.total_pending);
+        printf("  In Progress:      %d\n", stats.total_in_progress);
+        printf("  Completed Today:  %d\n", stats.total_completed_today);
+        printf("  Completed Week:   %d\n", stats.total_completed_week);
+
+        if (stats.total_overdue > 0) {
+            printf("  \033[31mOverdue:          %d\033[0m\n", stats.total_overdue);
+        }
+
+        if (stats.inbox_unprocessed > 0) {
+            printf("  Inbox:            %d unprocessed\n", stats.inbox_unprocessed);
+        }
+
+        printf("\n");
+        return 0;
+    }
+
+    // ==========================================================
+    // SEARCH
+    // ==========================================================
+    if (strcmp(subcmd, "search") == 0 || strcmp(subcmd, "find") == 0) {
+        if (argc < 3) {
+            printf("Usage: todo search <query>\n");
+            return -1;
+        }
+
+        int count = 0;
+        TodoTask** tasks = todo_search(argv[2], &count);
+
+        if (count == 0) {
+            printf("No tasks found matching '%s'.\n", argv[2]);
+            todo_free_tasks(tasks, count);
+            return 0;
+        }
+
+        printf("\033[1mSearch Results\033[0m for '%s' (%d)\n\n", argv[2], count);
+        for (int i = 0; i < count; i++) {
+            print_task(tasks[i]);
+        }
+        printf("\n");
+
+        todo_free_tasks(tasks, count);
+        return 0;
+    }
+
+    // Unknown subcommand
+    printf("Unknown subcommand: %s\n", subcmd);
+    printf("Type 'help todo' for usage.\n");
+    return -1;
 }
