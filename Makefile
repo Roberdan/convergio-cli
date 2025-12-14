@@ -336,6 +336,12 @@ install: all
 		sudo mkdir -p /usr/local/lib/convergio; \
 		if [ -s $(METAL_LIB) ]; then sudo cp $(METAL_LIB) /usr/local/lib/convergio/; fi; \
 	fi
+	@# Install icon for notifications
+	@mkdir -p ~/.convergio
+	@if [ -f docs/logo/CovergioLogo.jpeg ]; then \
+		cp docs/logo/CovergioLogo.jpeg ~/.convergio/icon.jpeg; \
+		echo "  Notification icon installed"; \
+	fi
 	@echo "Installed."
 
 # Uninstall
