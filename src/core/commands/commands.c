@@ -60,8 +60,10 @@ int cmd_memories(int argc, char** argv);
 int cmd_forget(int argc, char** argv);
 int cmd_graph(int argc, char** argv);
 
-// Forward declaration for todo command
+// Forward declarations for todo and reminder commands
 int cmd_todo(int argc, char** argv);
+int cmd_remind(int argc, char** argv);
+int cmd_reminders(int argc, char** argv);
 
 static const ReplCommand COMMANDS[] = {
     {"help",        "Show available commands",           cmd_help},
@@ -96,6 +98,8 @@ static const ReplCommand COMMANDS[] = {
     {"graph",       "Show knowledge graph stats",        cmd_graph},
     // Todo manager (Anna Executive Assistant)
     {"todo",        "Manage tasks and reminders",        cmd_todo},
+    {"remind",      "Quick reminder: /remind <msg> <when>", cmd_remind},
+    {"reminders",   "Show upcoming reminders",           cmd_reminders},
     {"quit",        "Exit Convergio",                    cmd_quit},
     {"exit",        "Exit Convergio",                    cmd_quit},
     {NULL, NULL, NULL}
@@ -612,6 +616,41 @@ static const CommandHelp DETAILED_HELP[] = {
         "todo done 42            # Mark task #42 complete\n"
         "todo inbox \"Call dentist\"  # Quick capture\n"
         "todo stats"
+    },
+    {
+        "remind",
+        "remind <message> <when>",
+        "Quick reminder - simpler than /todo add",
+        "Create a reminder with natural language.\n"
+        "The message and when can be in any order.\n"
+        "Anna will set the reminder at the right time.\n\n"
+        "Supported time formats:\n"
+        "  tonight, stasera          8:00 PM today\n"
+        "  tomorrow morning          9:00 AM tomorrow\n"
+        "  tomorrow at 3pm           3:00 PM tomorrow\n"
+        "  next monday               Next Monday 11:59 PM\n"
+        "  thursday in two weeks     Thursday, 2 weeks from now\n"
+        "  dec 15, december 15       December 15th\n"
+        "  in 2 hours                2 hours from now\n"
+        "  at 15:00                  3:00 PM today/tomorrow",
+        "remind \"Call mom\" tomorrow morning\n"
+        "remind stasera \"Buy groceries\"\n"
+        "remind \"Team meeting\" next tuesday at 10am\n"
+        "remind \"Pay rent\" dec 1\n"
+        "remind in 30 minutes \"Take break\""
+    },
+    {
+        "reminders",
+        "reminders [today|week|all]",
+        "Show upcoming reminders",
+        "Lists your scheduled reminders.\n\n"
+        "Filters:\n"
+        "  (none)    Today's reminders\n"
+        "  week      Next 7 days\n"
+        "  all       All reminders",
+        "reminders           # Today's reminders\n"
+        "reminders week      # Next 7 days\n"
+        "reminders all       # All scheduled"
     },
     {NULL, NULL, NULL, NULL, NULL}
 };
@@ -3090,4 +3129,254 @@ int cmd_todo(int argc, char** argv) {
     printf("Unknown subcommand: %s\n", subcmd);
     printf("Type 'help todo' for usage.\n");
     return -1;
+}
+
+// ============================================================================
+// QUICK REMIND COMMAND (Anna Executive Assistant)
+// ============================================================================
+
+/**
+ * Try to parse a time expression from part of the input.
+ * Returns the parsed time, or 0 if not recognized.
+ */
+static time_t try_parse_time(const char* str) {
+    return todo_parse_date(str, 0);
+}
+
+/**
+ * /remind - Quick reminder creation with smart parsing
+ *
+ * Supports multiple formats:
+ *   /remind "message" tomorrow morning
+ *   /remind tonight "do the thing"
+ *   /remind in 2 hours check email
+ *   /remind domani mattina chiamare Mario --note "riguardo il progetto X"
+ */
+int cmd_remind(int argc, char** argv) {
+    if (argc < 2) {
+        printf("Usage: remind <message> <when> [--note <context>]\n");
+        printf("   or: remind <when> <message> [--note <context>]\n");
+        printf("\nExamples:\n");
+        printf("  remind \"Call mom\" tomorrow morning\n");
+        printf("  remind tonight \"Buy groceries\"\n");
+        printf("  remind in 2 hours \"Take a break\"\n");
+        printf("\nType 'help remind' for more.\n");
+        return -1;
+    }
+
+    // Parse arguments to find message, time, and optional note
+    char message[512] = {0};
+    char time_str[256] = {0};
+    char note[512] = {0};
+    time_t reminder_time = 0;
+
+    // Look for --note first
+    int note_idx = -1;
+    for (int i = 1; i < argc; i++) {
+        if (strcmp(argv[i], "--note") == 0 && i + 1 < argc) {
+            note_idx = i;
+            strncpy(note, argv[i + 1], sizeof(note) - 1);
+            break;
+        }
+    }
+
+    // Now parse the rest (excluding --note and its value)
+    // Strategy: Try to parse time from each word/phrase
+    // The non-time part becomes the message
+
+    char all_args[1024] = {0};
+    for (int i = 1; i < argc; i++) {
+        if (i == note_idx || i == note_idx + 1) continue;  // Skip --note and its value
+        if (all_args[0]) strncat(all_args, " ", sizeof(all_args) - strlen(all_args) - 1);
+        strncat(all_args, argv[i], sizeof(all_args) - strlen(all_args) - 1);
+    }
+
+    // If we have a quoted string, that's likely the message
+    // Try to detect quoted message vs time expression
+    bool found_quoted = false;
+    for (int i = 1; i < argc; i++) {
+        if (i == note_idx || i == note_idx + 1) continue;
+        // Check if this arg looks like a quoted message (starts with quote or contains spaces)
+        if (argv[i][0] == '"' || strchr(argv[i], ' ')) {
+            strncpy(message, argv[i], sizeof(message) - 1);
+            found_quoted = true;
+            break;
+        }
+    }
+
+    // Try to build time_str from non-message parts
+    time_str[0] = '\0';
+    for (int i = 1; i < argc; i++) {
+        if (i == note_idx || i == note_idx + 1) continue;
+        if (found_quoted && strcmp(argv[i], message) == 0) continue;
+
+        if (time_str[0]) strncat(time_str, " ", sizeof(time_str) - strlen(time_str) - 1);
+        strncat(time_str, argv[i], sizeof(time_str) - strlen(time_str) - 1);
+    }
+
+    // Try to parse time
+    if (time_str[0]) {
+        reminder_time = try_parse_time(time_str);
+    }
+
+    // If no quoted message was found, we need to figure out which parts are time
+    // and which are message. Try parsing progressively.
+    if (!found_quoted) {
+        // Strategy: Try parsing from the end backwards to find the time portion
+        // Everything before is the message
+
+        char temp[1024];
+        strncpy(temp, all_args, sizeof(temp) - 1);
+
+        // Try the whole thing as time first
+        reminder_time = try_parse_time(temp);
+        if (reminder_time > 0) {
+            // The whole thing was a time? That means no message
+            printf("Please provide a message for the reminder.\n");
+            return -1;
+        }
+
+        // Try progressively: "msg time" pattern
+        // Split from different positions
+        bool found = false;
+        for (int split = strlen(temp) - 1; split > 0 && !found; split--) {
+            if (temp[split] == ' ') {
+                char time_part[256];
+                strncpy(time_part, temp + split + 1, sizeof(time_part) - 1);
+                time_t t = try_parse_time(time_part);
+                if (t > 0) {
+                    reminder_time = t;
+                    temp[split] = '\0';
+                    strncpy(message, temp, sizeof(message) - 1);
+                    found = true;
+                }
+            }
+        }
+
+        // Try "time msg" pattern if not found
+        if (!found) {
+            for (int split = 0; split < (int)strlen(temp) && !found; split++) {
+                if (temp[split] == ' ') {
+                    char time_part[256] = {0};
+                    strncpy(time_part, temp, split);
+                    time_t t = try_parse_time(time_part);
+                    if (t > 0) {
+                        reminder_time = t;
+                        strncpy(message, temp + split + 1, sizeof(message) - 1);
+                        found = true;
+                    }
+                }
+            }
+        }
+
+        // Last resort: use the whole thing as message with a default time
+        if (!found && !message[0]) {
+            strncpy(message, temp, sizeof(message) - 1);
+        }
+    }
+
+    // Validate we have a message
+    if (!message[0]) {
+        printf("Please provide a message for the reminder.\n");
+        return -1;
+    }
+
+    // If no time parsed, try parsing the time_str we built
+    if (reminder_time == 0 && time_str[0]) {
+        reminder_time = try_parse_time(time_str);
+    }
+
+    // Default to tomorrow morning if no time specified
+    if (reminder_time == 0) {
+        time_t now = time(NULL);
+        struct tm* tm = localtime(&now);
+        tm->tm_mday += 1;
+        tm->tm_hour = 9;
+        tm->tm_min = 0;
+        tm->tm_sec = 0;
+        reminder_time = mktime(tm);
+        printf("\033[33mNo time specified, defaulting to tomorrow morning.\033[0m\n");
+    }
+
+    // Create the reminder
+    TodoCreateOptions opts = {
+        .title = message,
+        .description = note[0] ? note : NULL,
+        .priority = TODO_PRIORITY_NORMAL,
+        .due_date = reminder_time,
+        .reminder_at = reminder_time,  // Remind at the exact time
+        .source = TODO_SOURCE_USER
+    };
+
+    int64_t id = todo_create(&opts);
+    if (id < 0) {
+        printf("Failed to create reminder.\n");
+        return -1;
+    }
+
+    // Format the time for display
+    char time_display[64];
+    todo_format_date(reminder_time, time_display, sizeof(time_display), true);
+
+    printf("\033[32mReminder #%lld set:\033[0m %s\n", id, message);
+    printf("  \033[36mWhen:\033[0m %s\n", time_display);
+    if (note[0]) {
+        printf("  \033[36mNote:\033[0m %s\n", note);
+    }
+
+    return 0;
+}
+
+/**
+ * /reminders - Show upcoming reminders
+ */
+int cmd_reminders(int argc, char** argv) {
+    int days = 1;  // Default: today
+    const char* header = "Today's Reminders";
+
+    if (argc >= 2) {
+        if (strcmp(argv[1], "week") == 0) {
+            days = 7;
+            header = "Reminders This Week";
+        } else if (strcmp(argv[1], "all") == 0) {
+            days = 365;
+            header = "All Reminders";
+        } else if (strcmp(argv[1], "tomorrow") == 0 || strcmp(argv[1], "domani") == 0) {
+            days = 2;
+            header = "Reminders (Today & Tomorrow)";
+        }
+    }
+
+    int count = 0;
+    TodoTask** tasks = todo_list_upcoming(days, &count);
+
+    if (!tasks || count == 0) {
+        printf("\033[32mNo upcoming reminders.\033[0m\n");
+        if (tasks) todo_free_tasks(tasks, count);
+        return 0;
+    }
+
+    printf("\033[1m%s\033[0m (%d)\n\n", header, count);
+
+    for (int i = 0; i < count; i++) {
+        TodoTask* t = tasks[i];
+
+        char time_str[64];
+        todo_format_date(t->due_date, time_str, sizeof(time_str), true);
+
+        // Status icon
+        const char* icon = (t->status == TODO_STATUS_COMPLETED) ? "\033[32m[x]\033[0m" :
+                           (t->status == TODO_STATUS_IN_PROGRESS) ? "\033[33m[>]\033[0m" : "[ ]";
+
+        printf("  %s #%-4lld %s \033[36m(%s)\033[0m\n",
+               icon, t->id, t->title, time_str);
+
+        if (t->description && t->description[0]) {
+            printf("            \033[90m%s\033[0m\n", t->description);
+        }
+    }
+
+    printf("\n");
+    todo_free_tasks(tasks, count);
+    return 0;
 }

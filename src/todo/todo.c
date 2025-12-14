@@ -763,123 +763,324 @@ TodoPriority todo_priority_from_string(const char* str) {
 // DATE PARSING (Natural Language)
 // ============================================================================
 
+// Helper: Parse weekday name to number (0=Sunday, 1=Monday, etc.)
+static int parse_weekday(const char* str) {
+    if (!str) return -1;
+    if (strncmp(str, "sun", 3) == 0) return 0;
+    if (strncmp(str, "mon", 3) == 0) return 1;
+    if (strncmp(str, "tue", 3) == 0) return 2;
+    if (strncmp(str, "wed", 3) == 0) return 3;
+    if (strncmp(str, "thu", 3) == 0) return 4;
+    if (strncmp(str, "fri", 3) == 0) return 5;
+    if (strncmp(str, "sat", 3) == 0) return 6;
+    // Italian
+    if (strncmp(str, "dom", 3) == 0) return 0;
+    if (strncmp(str, "lun", 3) == 0) return 1;
+    if (strncmp(str, "mar", 3) == 0) return 2;
+    if (strncmp(str, "mer", 3) == 0) return 3;
+    if (strncmp(str, "gio", 3) == 0) return 4;
+    if (strncmp(str, "ven", 3) == 0) return 5;
+    if (strncmp(str, "sab", 3) == 0) return 6;
+    return -1;
+}
+
+// Helper: Parse time of day (returns hour, -1 if not found)
+static int parse_time_of_day(const char* str, int* out_min) {
+    if (!str) return -1;
+    *out_min = 0;
+
+    // Time keywords
+    if (strstr(str, "morning") || strstr(str, "mattina")) return 9;
+    if (strstr(str, "noon") || strstr(str, "mezzogiorno")) return 12;
+    if (strstr(str, "afternoon") || strstr(str, "pomeriggio")) return 14;
+    if (strstr(str, "evening") || strstr(str, "sera")) return 19;
+    if (strstr(str, "tonight") || strstr(str, "stasera")) return 20;
+    if (strstr(str, "night") || strstr(str, "notte")) return 21;
+
+    // Parse "at Xpm", "at X:YY", "at X am", "alle X"
+    const char* at_pos = strstr(str, "at ");
+    if (!at_pos) at_pos = strstr(str, "alle ");
+    if (!at_pos) at_pos = strstr(str, "@ ");
+
+    if (at_pos) {
+        // Skip "at " or "alle " or "@ "
+        const char* time_str = at_pos + (at_pos[0] == '@' ? 2 : (at_pos[1] == 't' ? 3 : 5));
+        while (*time_str == ' ') time_str++;
+
+        int hour = 0, min = 0;
+        char ampm[8] = {0};
+
+        // Try "HH:MM am/pm" or "HH:MM"
+        if (sscanf(time_str, "%d:%d %7s", &hour, &min, ampm) >= 2 ||
+            sscanf(time_str, "%d:%d%7s", &hour, &min, ampm) >= 2) {
+            if (ampm[0] == 'p' || ampm[0] == 'P') {
+                if (hour < 12) hour += 12;
+            } else if ((ampm[0] == 'a' || ampm[0] == 'A') && hour == 12) {
+                hour = 0;
+            }
+            *out_min = min;
+            return hour;
+        }
+
+        // Try "Xpm", "X pm", "Xam", "X am"
+        if (sscanf(time_str, "%d %7s", &hour, ampm) >= 1 ||
+            sscanf(time_str, "%d%7s", &hour, ampm) >= 1) {
+            if (ampm[0] == 'p' || ampm[0] == 'P') {
+                if (hour < 12) hour += 12;
+            } else if ((ampm[0] == 'a' || ampm[0] == 'A') && hour == 12) {
+                hour = 0;
+            }
+            return hour;
+        }
+    }
+
+    return -1;
+}
+
 /**
  * Parse a natural language date string.
- * Supports: "today", "tomorrow", "next monday", "in 2 hours",
- *           "Dec 25", "2025-12-25", etc.
+ * Supports:
+ *   - Keywords: today, tomorrow, tonight, this evening
+ *   - Time of day: morning, afternoon, evening, night
+ *   - Relative: next monday, in 2 hours, in 3 days
+ *   - Complex: thursday in two weeks, monday in 3 weeks
+ *   - Specific time: at 3pm, at 15:00, tomorrow at 9am
+ *   - Dates: Dec 25, 2025-12-25, december 15
+ *   - Italian: domani, stasera, lunedi prossimo
  */
 time_t todo_parse_date(const char* input, time_t base_time) {
     if (!input || !*input) return 0;
 
     time_t base = base_time > 0 ? base_time : time(NULL);
-    struct tm* tm = localtime(&base);
+    struct tm tm_copy;
+    struct tm* tm_ptr = localtime(&base);
+    memcpy(&tm_copy, tm_ptr, sizeof(struct tm));
+    struct tm* tm = &tm_copy;
 
     // Make a mutable copy for parsing
-    char buf[128];
+    char buf[256];
     strncpy(buf, input, sizeof(buf) - 1);
     buf[sizeof(buf) - 1] = '\0';
 
     // Convert to lowercase for matching
     for (char* p = buf; *p; p++) *p = tolower(*p);
 
-    // Simple keywords
-    if (strcmp(buf, "today") == 0) {
-        // End of today (23:59)
-        tm->tm_hour = 23;
-        tm->tm_min = 59;
+    // Default time is end of day
+    int target_hour = 23;
+    int target_min = 59;
+
+    // First, extract any time specification
+    int time_min = 0;
+    int parsed_hour = parse_time_of_day(buf, &time_min);
+    if (parsed_hour >= 0) {
+        target_hour = parsed_hour;
+        target_min = time_min;
+    }
+
+    // ============================================================
+    // TIME-OF-DAY KEYWORDS (no date change)
+    // ============================================================
+
+    if (strcmp(buf, "tonight") == 0 || strcmp(buf, "stasera") == 0) {
+        tm->tm_hour = 20;
+        tm->tm_min = 0;
         tm->tm_sec = 0;
         return mktime(tm);
     }
 
-    if (strcmp(buf, "tomorrow") == 0) {
+    if (strcmp(buf, "now") == 0 || strcmp(buf, "adesso") == 0) {
+        return base + 60;  // 1 minute from now
+    }
+
+    // ============================================================
+    // SIMPLE DATE KEYWORDS
+    // ============================================================
+
+    if (strcmp(buf, "today") == 0 || strcmp(buf, "oggi") == 0) {
+        tm->tm_hour = target_hour;
+        tm->tm_min = target_min;
+        tm->tm_sec = 0;
+        return mktime(tm);
+    }
+
+    if (strcmp(buf, "tomorrow") == 0 || strcmp(buf, "domani") == 0 ||
+        strncmp(buf, "tomorrow ", 9) == 0 || strncmp(buf, "domani ", 7) == 0) {
         tm->tm_mday += 1;
-        tm->tm_hour = 23;
-        tm->tm_min = 59;
+        tm->tm_hour = target_hour;
+        tm->tm_min = target_min;
         tm->tm_sec = 0;
         return mktime(tm);
     }
 
-    // "next <weekday>"
-    if (strncmp(buf, "next ", 5) == 0) {
-        const char* day = buf + 5;
-        int target_wday = -1;
+    // "tomorrow morning", "domani mattina"
+    if (strstr(buf, "tomorrow") || strstr(buf, "domani")) {
+        tm->tm_mday += 1;
+        tm->tm_hour = target_hour;
+        tm->tm_min = target_min;
+        tm->tm_sec = 0;
+        return mktime(tm);
+    }
 
-        if (strncmp(day, "mon", 3) == 0) target_wday = 1;
-        else if (strncmp(day, "tue", 3) == 0) target_wday = 2;
-        else if (strncmp(day, "wed", 3) == 0) target_wday = 3;
-        else if (strncmp(day, "thu", 3) == 0) target_wday = 4;
-        else if (strncmp(day, "fri", 3) == 0) target_wday = 5;
-        else if (strncmp(day, "sat", 3) == 0) target_wday = 6;
-        else if (strncmp(day, "sun", 3) == 0) target_wday = 0;
-        else if (strncmp(day, "week", 4) == 0) {
-            // "next week" = 7 days from now
+    // ============================================================
+    // "NEXT <weekday>" or "<weekday> prossimo"
+    // ============================================================
+
+    if (strncmp(buf, "next ", 5) == 0) {
+        const char* rest = buf + 5;
+
+        if (strncmp(rest, "week", 4) == 0) {
             tm->tm_mday += 7;
-            tm->tm_hour = 23;
-            tm->tm_min = 59;
+            tm->tm_hour = target_hour;
+            tm->tm_min = target_min;
             tm->tm_sec = 0;
             return mktime(tm);
         }
 
+        int target_wday = parse_weekday(rest);
         if (target_wday >= 0) {
-            int current_wday = tm->tm_wday;
-            int days_ahead = target_wday - current_wday;
+            int days_ahead = target_wday - tm->tm_wday;
             if (days_ahead <= 0) days_ahead += 7;
             tm->tm_mday += days_ahead;
-            tm->tm_hour = 23;
-            tm->tm_min = 59;
+            tm->tm_hour = target_hour;
+            tm->tm_min = target_min;
             tm->tm_sec = 0;
             return mktime(tm);
         }
     }
 
-    // "in N <unit>"
-    if (strncmp(buf, "in ", 3) == 0) {
+    // Italian: "lunedi prossimo", "martedi prossimo"
+    if (strstr(buf, "prossim")) {
+        int target_wday = parse_weekday(buf);
+        if (target_wday >= 0) {
+            int days_ahead = target_wday - tm->tm_wday;
+            if (days_ahead <= 0) days_ahead += 7;
+            tm->tm_mday += days_ahead;
+            tm->tm_hour = target_hour;
+            tm->tm_min = target_min;
+            tm->tm_sec = 0;
+            return mktime(tm);
+        }
+    }
+
+    // ============================================================
+    // "<weekday> in N weeks" - e.g., "thursday in two weeks"
+    // ============================================================
+
+    {
+        int target_wday = parse_weekday(buf);
+        if (target_wday >= 0) {
+            // Check for "in N week(s)" or "tra N settiman"
+            int weeks = 0;
+            char* in_pos = strstr(buf, " in ");
+            char* tra_pos = strstr(buf, " tra ");
+
+            if (in_pos || tra_pos) {
+                char* num_start = in_pos ? in_pos + 4 : tra_pos + 5;
+
+                // Parse number (including words)
+                if (strncmp(num_start, "two", 3) == 0 || strncmp(num_start, "due", 3) == 0) weeks = 2;
+                else if (strncmp(num_start, "three", 5) == 0 || strncmp(num_start, "tre", 3) == 0) weeks = 3;
+                else if (strncmp(num_start, "four", 4) == 0 || strncmp(num_start, "quattro", 7) == 0) weeks = 4;
+                else sscanf(num_start, "%d", &weeks);
+
+                if (weeks > 0) {
+                    int days_ahead = target_wday - tm->tm_wday;
+                    if (days_ahead <= 0) days_ahead += 7;
+                    tm->tm_mday += days_ahead + (weeks - 1) * 7;
+                    tm->tm_hour = target_hour;
+                    tm->tm_min = target_min;
+                    tm->tm_sec = 0;
+                    return mktime(tm);
+                }
+            }
+
+            // Just a weekday name - assume this week or next
+            int days_ahead = target_wday - tm->tm_wday;
+            if (days_ahead <= 0) days_ahead += 7;
+            tm->tm_mday += days_ahead;
+            tm->tm_hour = target_hour;
+            tm->tm_min = target_min;
+            tm->tm_sec = 0;
+            return mktime(tm);
+        }
+    }
+
+    // ============================================================
+    // "IN N <unit>" - relative time
+    // ============================================================
+
+    if (strncmp(buf, "in ", 3) == 0 || strncmp(buf, "tra ", 4) == 0) {
+        int offset = (buf[0] == 'i') ? 3 : 4;
         int n = 0;
         char unit[32] = {0};
-        if (sscanf(buf + 3, "%d %31s", &n, unit) >= 2) {
-            if (strncmp(unit, "hour", 4) == 0) {
+
+        if (sscanf(buf + offset, "%d %31s", &n, unit) >= 2) {
+            if (strncmp(unit, "hour", 4) == 0 || strncmp(unit, "or", 2) == 0) {
                 return base + n * 3600;
-            } else if (strncmp(unit, "day", 3) == 0) {
+            } else if (strncmp(unit, "day", 3) == 0 || strncmp(unit, "giorn", 5) == 0) {
                 tm->tm_mday += n;
-                tm->tm_hour = 23;
-                tm->tm_min = 59;
+                tm->tm_hour = target_hour;
+                tm->tm_min = target_min;
                 tm->tm_sec = 0;
                 return mktime(tm);
-            } else if (strncmp(unit, "week", 4) == 0) {
+            } else if (strncmp(unit, "week", 4) == 0 || strncmp(unit, "settiman", 8) == 0) {
                 tm->tm_mday += n * 7;
-                tm->tm_hour = 23;
-                tm->tm_min = 59;
+                tm->tm_hour = target_hour;
+                tm->tm_min = target_min;
                 tm->tm_sec = 0;
                 return mktime(tm);
             } else if (strncmp(unit, "min", 3) == 0) {
                 return base + n * 60;
+            } else if (strncmp(unit, "month", 5) == 0 || strncmp(unit, "mes", 3) == 0) {
+                tm->tm_mon += n;
+                tm->tm_hour = target_hour;
+                tm->tm_min = target_min;
+                tm->tm_sec = 0;
+                return mktime(tm);
             }
         }
     }
 
-    // ISO format: YYYY-MM-DD
-    int year, month, day;
-    if (sscanf(input, "%d-%d-%d", &year, &month, &day) == 3) {
+    // ============================================================
+    // ISO FORMAT: YYYY-MM-DD [HH:MM]
+    // ============================================================
+
+    int year, month, day, hour = -1, min = 0;
+    if (sscanf(input, "%d-%d-%d %d:%d", &year, &month, &day, &hour, &min) >= 3) {
         tm->tm_year = year - 1900;
         tm->tm_mon = month - 1;
         tm->tm_mday = day;
-        tm->tm_hour = 23;
-        tm->tm_min = 59;
+        tm->tm_hour = (hour >= 0) ? hour : target_hour;
+        tm->tm_min = (hour >= 0) ? min : target_min;
         tm->tm_sec = 0;
         return mktime(tm);
     }
 
-    // Try parsing "Month Day" format (e.g., "Dec 25")
+    // ============================================================
+    // MONTH DAY FORMAT: "Dec 25", "december 15", "15 december"
+    // ============================================================
+
     const char* months[] = {"jan", "feb", "mar", "apr", "may", "jun",
                             "jul", "aug", "sep", "oct", "nov", "dec"};
+    const char* months_it[] = {"gen", "feb", "mar", "apr", "mag", "giu",
+                               "lug", "ago", "set", "ott", "nov", "dic"};
+
     for (int m = 0; m < 12; m++) {
-        if (strncmp(buf, months[m], 3) == 0) {
+        if (strstr(buf, months[m]) || strstr(buf, months_it[m])) {
             int d = 0;
-            if (sscanf(buf + 3, "%d", &d) == 1 && d >= 1 && d <= 31) {
+            // Try "Dec 25" format
+            if (sscanf(buf + 3, "%d", &d) == 1 || sscanf(buf + 4, "%d", &d) == 1) {
+                // Found
+            } else {
+                // Try "25 December" format
+                sscanf(buf, "%d", &d);
+            }
+
+            if (d >= 1 && d <= 31) {
                 tm->tm_mon = m;
                 tm->tm_mday = d;
-                tm->tm_hour = 23;
-                tm->tm_min = 59;
+                tm->tm_hour = target_hour;
+                tm->tm_min = target_min;
                 tm->tm_sec = 0;
                 // If the date is in the past, assume next year
                 time_t result = mktime(tm);
@@ -890,6 +1091,24 @@ time_t todo_parse_date(const char* input, time_t base_time) {
                 return result;
             }
         }
+    }
+
+    // ============================================================
+    // JUST A TIME: "at 3pm", "15:00"
+    // ============================================================
+
+    if (parsed_hour >= 0) {
+        // If we only parsed a time, assume today (or tomorrow if time has passed)
+        tm->tm_hour = parsed_hour;
+        tm->tm_min = time_min;
+        tm->tm_sec = 0;
+        time_t result = mktime(tm);
+        if (result <= base) {
+            // Time has passed, assume tomorrow
+            tm->tm_mday += 1;
+            result = mktime(tm);
+        }
+        return result;
     }
 
     return 0;  // Parse failed
