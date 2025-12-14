@@ -31,6 +31,7 @@
 #include <sys/ioctl.h>
 #include <readline/readline.h>
 #include <readline/history.h>
+#include <curl/curl.h>  // For curl_global_init/cleanup - must be called once before any threads
 
 
 // ============================================================================
@@ -299,6 +300,10 @@ int main(int argc, char** argv) {
 
     // Setup signal handling
     signals_init();
+
+    // Initialize libcurl globally - MUST be called once before any threads
+    // See: https://curl.se/libcurl/c/curl_global_init.html
+    curl_global_init(CURL_GLOBAL_DEFAULT);
 
     print_banner();
 
@@ -680,6 +685,9 @@ int main(int argc, char** argv) {
     nous_shutdown();
     auth_shutdown();
     convergio_config_shutdown();
+
+    // Cleanup libcurl globally - must be last curl operation
+    curl_global_cleanup();
 
     printf("Goodbye.\n");
     return 0;
