@@ -575,11 +575,40 @@ make test
 
 ```bash
 make unit_test        # Unit tests
-make e2e_test         # End-to-end tests
+make e2e_test         # End-to-end tests (requires API keys)
 make fuzz_test        # Security fuzzing
 make compaction_test  # Context compaction
 make compare_test     # Model comparison
 ```
+
+**Testing Strategy:**
+
+| Test Type | CI (GitHub) | Local | Notes |
+|-----------|-------------|-------|-------|
+| Unit Tests | Required | Yes | Core functionality |
+| Sanitizer Tests | Required | Yes | Memory & UB detection |
+| Lint & Static Analysis | Required | Yes | Code quality |
+| E2E Tests | Optional | **Always** | Requires API keys |
+| Fuzz Tests | Yes | Yes | Security testing |
+
+**Why E2E tests are optional in CI:**
+
+E2E tests require real API keys (Anthropic, OpenAI, etc.) to test AI interactions, tool execution, and agent communication. For security reasons, we don't store API keys in GitHub Secrets.
+
+**Local E2E testing is mandatory before release:**
+
+Before every release, E2E tests are run locally using the `app-release-manager` agent or manually:
+
+```bash
+# Run full E2E suite locally
+./tests/e2e_test.sh
+
+# Or via release manager (includes all quality gates)
+convergio
+> @app-release-manager prepare release v5.0.0
+```
+
+This ensures all features are tested with real AI providers while keeping API keys secure.
 
 ---
 
