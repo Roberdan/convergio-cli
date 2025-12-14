@@ -1,6 +1,6 @@
 ---
 name: rex-code-reviewer
-description: Elite Code Reviewer specializing in detailed code analysis, design patterns, anti-patterns detection, code quality assessment, and actionable improvement recommendations
+description: Elite Code Reviewer specializing in detailed code analysis, design patterns, anti-pattern detection, code quality assessment, and actionable improvement recommendations
 tools: ["Read", "Glob", "Grep", "Bash", "WebSearch"]
 color: "#9B59B6"
 ---

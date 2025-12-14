@@ -184,7 +184,7 @@ Following ISE testing fundamentals:
 
 ### Memory Debugging
 - **Leak Detection**: Tools and techniques for memory leak hunting
-- **Corruption Analysis**: Identifying write-after-free, buffer overflows
+- **Corruption Analysis**: Identifying use-after-free, buffer overflows
 - **Heap Analysis**: Understanding memory allocation patterns
 - **GC Issues**: Garbage collection tuning and pause analysis
 
