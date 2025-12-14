@@ -135,7 +135,9 @@ C_SOURCES = $(SRC_DIR)/core/fabric.c \
             $(SRC_DIR)/agentic/tool_installer.c \
             $(SRC_DIR)/agentic/approval.c \
             $(SRC_DIR)/projects/projects.c \
-            $(SRC_DIR)/todo/todo.c
+            $(SRC_DIR)/todo/todo.c \
+            $(SRC_DIR)/notifications/notify.c \
+            $(SRC_DIR)/mcp/mcp_client.c
 
 OBJC_SOURCES = $(SRC_DIR)/metal/gpu.m \
                $(SRC_DIR)/neural/mlx_embed.m \
@@ -206,6 +208,8 @@ dirs:
 	@mkdir -p $(OBJ_DIR)/agentic
 	@mkdir -p $(OBJ_DIR)/projects
 	@mkdir -p $(OBJ_DIR)/todo
+	@mkdir -p $(OBJ_DIR)/notifications
+	@mkdir -p $(OBJ_DIR)/mcp
 	@mkdir -p $(BIN_DIR)
 	@mkdir -p data
 
