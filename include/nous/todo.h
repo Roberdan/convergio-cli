@@ -348,6 +348,9 @@ int todo_delete_cancelled(int days_old);
  */
 TodoStats todo_get_stats(void);
 
+// Testing helpers
+void todo_invalidate_stats_statement(void);
+
 // ============================================================================
 // MEMORY MANAGEMENT
 // ============================================================================

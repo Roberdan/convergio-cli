@@ -99,17 +99,32 @@ static int setup_test_db(void) {
         "CREATE TABLE IF NOT EXISTS notification_queue ("
         "  id INTEGER PRIMARY KEY AUTOINCREMENT,"
         "  task_id INTEGER,"
-        "  title TEXT NOT NULL,"
-        "  body TEXT,"
         "  scheduled_at TEXT NOT NULL,"
-        "  delivered_at TEXT,"
+        "  method INTEGER DEFAULT 0,"
         "  status INTEGER DEFAULT 0,"
         "  retry_count INTEGER DEFAULT 0,"
-        "  created_at TEXT DEFAULT (datetime('now'))"
+        "  max_retries INTEGER DEFAULT 3,"
+        "  last_error TEXT,"
+        "  sent_at TEXT,"
+        "  acknowledged_at TEXT"
         ");"
         "CREATE VIRTUAL TABLE IF NOT EXISTS tasks_fts USING fts5("
-        "  title, description, tags, content='tasks', content_rowid='id'"
-        ");";
+        "  title, description, tags, context, content='tasks', content_rowid='id'"
+        ");"
+        "CREATE TRIGGER IF NOT EXISTS tasks_fts_insert AFTER INSERT ON tasks BEGIN "
+        "  INSERT INTO tasks_fts(rowid, title, description, tags, context) "
+        "  VALUES (new.id, new.title, new.description, new.tags, new.context); "
+        "END;"
+        "CREATE TRIGGER IF NOT EXISTS tasks_fts_delete AFTER DELETE ON tasks BEGIN "
+        "  INSERT INTO tasks_fts(tasks_fts, rowid, title, description, tags, context) "
+        "  VALUES('delete', old.id, old.title, old.description, old.tags, old.context); "
+        "END;"
+        "CREATE TRIGGER IF NOT EXISTS tasks_fts_update AFTER UPDATE ON tasks BEGIN "
+        "  INSERT INTO tasks_fts(tasks_fts, rowid, title, description, tags, context) "
+        "  VALUES('delete', old.id, old.title, old.description, old.tags, old.context); "
+        "  INSERT INTO tasks_fts(rowid, title, description, tags, context) "
+        "  VALUES (new.id, new.title, new.description, new.tags, new.context); "
+        "END;";
 
     char* err_msg = NULL;
     rc = sqlite3_exec(g_db, schema, NULL, NULL, &err_msg);
@@ -127,6 +142,14 @@ static void teardown_test_db(void) {
         sqlite3_close(g_db);
         g_db = NULL;
     }
+}
+
+static void reset_tables(void) {
+    const char* reset_sql =
+        "DELETE FROM tasks; DELETE FROM tasks_fts; DELETE FROM inbox; DELETE FROM notification_queue;";
+    sqlite3_exec(g_db, reset_sql, NULL, NULL, NULL);
+    todo_shutdown();
+    todo_init();
 }
 
 // ============================================================================
@@ -378,6 +401,180 @@ void test_todo_inbox(void) {
     todo_shutdown();
 }
 
+void test_todo_queries_and_search(void) {
+    TEST_SECTION("Todo List/FTS Query Tests");
+
+    reset_tables();
+
+    time_t now = time(NULL);
+
+    TodoCreateOptions opts = {0};
+    opts.title = "Urgent Today";
+    opts.priority = TODO_PRIORITY_URGENT;
+    opts.due_date = now;
+    todo_create(&opts);
+
+    opts.title = "Normal No Due";
+    opts.priority = TODO_PRIORITY_NORMAL;
+    opts.due_date = 0;
+    todo_create(&opts);
+
+    opts.title = "Low Overdue";
+    opts.priority = TODO_PRIORITY_LOW;
+    opts.due_date = now - 86400;
+    todo_create(&opts);
+
+    opts.title = "Future Task";
+    opts.priority = TODO_PRIORITY_NORMAL;
+    opts.due_date = now + 86400;
+    todo_create(&opts);
+
+    int count = 0;
+    TodoTask** today = todo_list_today(&count);
+    TEST("list_today returns only current tasks", today && count == 3);
+    if (today && count == 3) {
+        TEST("list_today orders by priority then due", today[0]->priority == TODO_PRIORITY_URGENT &&
+             today[1]->priority == TODO_PRIORITY_NORMAL && today[2]->priority == TODO_PRIORITY_LOW &&
+             today[2]->due_date < now);
+        todo_free_tasks(today, count);
+    }
+
+    TodoTask** overdue = todo_list_overdue(&count);
+    TEST("list_overdue surfaces past-due tasks", overdue && count == 1);
+    if (overdue && count == 1) {
+        TEST("overdue task is older than now", overdue[0]->due_date < now);
+        todo_free_tasks(overdue, count);
+    }
+
+    // Limit enforcement for list_today (LIMIT 100)
+    for (int i = 0; i < 120; i++) {
+        char title[32];
+        snprintf(title, sizeof(title), "Limit Task %d", i);
+        opts.title = title;
+        opts.priority = TODO_PRIORITY_NORMAL;
+        opts.due_date = now;
+        todo_create(&opts);
+    }
+
+    TodoTask** limited = todo_list_today(&count);
+    TEST("list_today respects 100 row cap", limited && count == 100);
+    if (limited) {
+        todo_free_tasks(limited, count);
+    }
+
+    // FTS search ordering/limit
+    reset_tables();
+    for (int i = 0; i < 60; i++) {
+        char title[48];
+        snprintf(title, sizeof(title), "Searchable Task %d", i);
+        opts.title = title;
+        opts.description = "needle in haystack";
+        opts.priority = TODO_PRIORITY_NORMAL;
+        opts.due_date = now;
+        todo_create(&opts);
+    }
+
+    TodoTask** search_results = todo_search("needle", &count);
+    TEST("FTS search returns capped results", search_results && count == 50);
+    if (search_results) {
+        TEST("FTS search keeps pending status only", search_results[0]->status == TODO_STATUS_PENDING);
+        todo_free_tasks(search_results, count);
+    }
+
+    todo_shutdown();
+}
+
+void test_todo_stats_and_error_handling(void) {
+    TEST_SECTION("Todo Stats and SQLite Error Handling");
+
+    reset_tables();
+
+    time_t now = time(NULL);
+
+    TodoCreateOptions opts = {0};
+    opts.title = "Pending";
+    opts.priority = TODO_PRIORITY_NORMAL;
+    opts.due_date = now - 3600;
+    todo_create(&opts);
+
+    opts.title = "In Progress";
+    int64_t in_progress_id = todo_create(&opts);
+    todo_start(in_progress_id);
+
+    opts.title = "Completed";
+    int64_t completed_id = todo_create(&opts);
+    todo_complete(completed_id);
+
+    inbox_capture("Process me", "cli");
+
+    TodoStats stats = todo_get_stats();
+    TEST("Stats counts pending", stats.total_pending == 1);
+    TEST("Stats counts in-progress", stats.total_in_progress == 1);
+    TEST("Stats counts completed today", stats.total_completed_today >= 1);
+    TEST("Stats counts overdue", stats.total_overdue == 2);
+    TEST("Stats counts inbox backlog", stats.inbox_unprocessed == 1);
+
+    // Simulate missing prepared statement and ensure graceful recovery
+    todo_invalidate_stats_statement();
+    TodoStats stats_after = todo_get_stats();
+    TEST("Stats recompute after invalidation", stats_after.total_pending == stats.total_pending);
+    TEST("Stats overdue persists after reprepare", stats_after.total_overdue == stats.total_overdue);
+
+    todo_shutdown();
+}
+
+void test_notifications_and_mcp_integration(void) {
+    TEST_SECTION("Notification Queue and MCP Integration");
+
+    reset_tables();
+
+    time_t now = time(NULL);
+    int64_t notif1 = notify_schedule(1, now + 60, NOTIFY_METHOD_TERMINAL);
+    int64_t notif2 = notify_schedule(2, now + 120, NOTIFY_METHOD_LOG);
+
+    TEST("Notification scheduling returns IDs", notif1 > 0 && notif2 > 0);
+
+    int ncount = 0;
+    ScheduledNotification** pending = notify_list_pending(&ncount);
+    TEST("Pending notification list populated", pending && ncount == 2);
+    if (pending && ncount == 2) {
+        TEST("Notifications ordered by schedule", pending[0]->scheduled_at <= pending[1]->scheduled_at);
+    }
+
+    notify_snooze_for(notif1, 5);
+    ScheduledNotification* snoozed = notify_get(notif1);
+    TEST("Snoozed notification updates status", snoozed && snoozed->status == NOTIFY_STATUS_SNOOZED);
+    notify_free(snoozed);
+
+    notify_cancel(notif2);
+    ScheduledNotification* cancelled = notify_get(notif2);
+    TEST("Cancelled notification removed", cancelled == NULL);
+
+    if (pending) {
+        notify_free_list(pending, ncount);
+    }
+
+    // MCP network failure simulation
+    mcp_init();
+    MCPServerConfig cfg = {0};
+    cfg.name = "netfail";
+    cfg.enabled = true;
+    cfg.transport = MCP_TRANSPORT_HTTP;
+    cfg.url = "http://127.0.0.1:9";  // closed port to force connection failure
+    cfg.timeout_ms = 200;
+
+    int add_rc = mcp_add_server(&cfg);
+    TEST("Added MCP server config", add_rc == 0);
+
+    int connect_rc = mcp_connect("netfail");
+    TEST("MCP connect fails fast on network error", connect_rc != MCP_OK);
+
+    const char* last_err = mcp_get_last_error("netfail");
+    TEST("MCP records last error", last_err != NULL && strlen(last_err) > 0);
+
+    mcp_shutdown();
+}
+
 // ============================================================================
 // NOTIFICATION TESTS
 // NOTE: Disabled until Phase 2 implementation (ADR-009)
@@ -439,16 +636,9 @@ int main(int argc, char* argv[]) {
     test_todo_crud_operations();
     test_todo_list_operations();
     test_todo_inbox();
-
-    // NOTE: Notification and MCP tests disabled until Phase 2 & 3 implementation complete
-    // See ADR-009 for implementation status. APIs use different signatures than tests expect.
-    // TODO: Re-enable when notify.c and mcp_client.c are fully implemented
-    //
-    // test_notify_init();
-    // test_notify_send();
-    //
-    // test_mcp_client_create();
-    // test_mcp_tool_call();
+    test_todo_queries_and_search();
+    test_todo_stats_and_error_handling();
+    test_notifications_and_mcp_integration();
 
     // Cleanup
     teardown_test_db();
