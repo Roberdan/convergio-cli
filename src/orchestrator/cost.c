@@ -14,6 +14,12 @@
 #include <pthread.h>
 #include "nous/debug_mutex.h"
 
+// Helper macro for safe snprintf offset accumulation
+#define SNPRINTF_OFFSET(buf, offset, size, ...) do { \
+    int _ret = snprintf((buf) + (offset), (size) - (offset), __VA_ARGS__); \
+    if (_ret > 0) (offset) += (size_t)_ret; \
+} while(0)
+
 // Thread-safe cost tracking
 CONVERGIO_MUTEX_DECLARE(g_cost_mutex);
 
@@ -302,19 +308,19 @@ char* cost_get_report(void) {
                          orch->cost.session_usage.estimated_cost < 0.0001;
 
     // Build report
-    int offset = 0;
+    size_t offset = 0;
 
     if (is_local_mode) {
         // ========================================================================
         // LOCAL MODE REPORT (MLX / Ollama - Free inference)
         // ========================================================================
-        offset += snprintf(report + offset, 2048 - offset,
+        SNPRINTF_OFFSET(report, offset, 2048,
             "\n\033[1m╔════════════════════════════════════════════════════╗\033[0m\n"
             "\033[1m║  \033[32m🏠 LOCAL MODE - FREE INFERENCE\033[0m                    \033[1m║\033[0m\n"
             "\033[1m╠════════════════════════════════════════════════════╣\033[0m\n");
 
         // Session section
-        offset += snprintf(report + offset, 2048 - offset,
+        SNPRINTF_OFFSET(report, offset, 2048,
             "\033[36m║ SESSION\033[0m (%d min)\n"
             "║   Input tokens:  %'12llu\n"
             "║   Output tokens: %'12llu\n"
@@ -323,7 +329,7 @@ char* cost_get_report(void) {
             (unsigned long long)orch->cost.session_usage.input_tokens,
             (unsigned long long)orch->cost.session_usage.output_tokens);
 
-        offset += snprintf(report + offset, 2048 - offset,
+        SNPRINTF_OFFSET(report, offset, 2048,
             "\033[1m╠════════════════════════════════════════════════════╣\033[0m\n"
             "║ \033[90mRunning on Apple Silicon with MLX - no API costs!\033[0m\n"
             "\033[1m╚════════════════════════════════════════════════════╝\033[0m\n");
@@ -353,13 +359,13 @@ char* cost_get_report(void) {
             snprintf(budget_line, sizeof(budget_line), "No limit set");
         }
 
-        offset += snprintf(report + offset, 2048 - offset,
+        SNPRINTF_OFFSET(report, offset, 2048,
             "\n\033[1m╔════════════════════════════════════════════════════╗\033[0m\n"
             "\033[1m║               COST REPORT                          ║\033[0m\n"
             "\033[1m╠════════════════════════════════════════════════════╣\033[0m\n");
 
         // Session section
-        offset += snprintf(report + offset, 2048 - offset,
+        SNPRINTF_OFFSET(report, offset, 2048,
             "\033[36m║ SESSION\033[0m (%d min)\n"
             "║   Input tokens:  %'12llu  ($%.4f)\n"
             "║   Output tokens: %'12llu  ($%.4f)\n"
@@ -371,11 +377,11 @@ char* cost_get_report(void) {
             (orch->cost.session_usage.output_tokens / 1000000.0) * CLAUDE_SONNET_OUTPUT_COST,
             orch->cost.session_usage.estimated_cost);
 
-        offset += snprintf(report + offset, 2048 - offset,
+        SNPRINTF_OFFSET(report, offset, 2048,
             "\033[1m╠════════════════════════════════════════════════════╣\033[0m\n");
 
         // All-time section
-        offset += snprintf(report + offset, 2048 - offset,
+        SNPRINTF_OFFSET(report, offset, 2048,
             "\033[36m║ ALL-TIME\033[0m\n"
             "║   Input tokens:  %'12llu  ($%.4f)\n"
             "║   Output tokens: %'12llu  ($%.4f)\n"
@@ -386,22 +392,22 @@ char* cost_get_report(void) {
             (orch->cost.total_usage.output_tokens / 1000000.0) * CLAUDE_SONNET_OUTPUT_COST,
             orch->cost.total_usage.estimated_cost);
 
-        offset += snprintf(report + offset, 2048 - offset,
+        SNPRINTF_OFFSET(report, offset, 2048,
             "\033[1m╠════════════════════════════════════════════════════╣\033[0m\n");
 
         // Budget section
         if (orch->cost.budget_exceeded) {
-            offset += snprintf(report + offset, 2048 - offset,
+            SNPRINTF_OFFSET(report, offset, 2048,
                 "\033[31m║ BUDGET: %s\033[0m\n", budget_line);
         } else if (orch->cost.budget_limit_usd > 0) {
-            offset += snprintf(report + offset, 2048 - offset,
+            SNPRINTF_OFFSET(report, offset, 2048,
                 "\033[32m║ BUDGET: %s\033[0m\n", budget_line);
         } else {
-            offset += snprintf(report + offset, 2048 - offset,
+            SNPRINTF_OFFSET(report, offset, 2048,
                 "║ BUDGET: %s\n", budget_line);
         }
 
-        offset += snprintf(report + offset, 2048 - offset,
+        SNPRINTF_OFFSET(report, offset, 2048,
             "\033[1m╚════════════════════════════════════════════════════╝\033[0m\n");
     }
 

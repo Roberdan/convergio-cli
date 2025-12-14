@@ -62,7 +62,12 @@ static char* read_file(const char* path) {
     if (!f) return NULL;
 
     fseek(f, 0, SEEK_END);
-    long size = ftell(f);
+    long size_long = ftell(f);
+    if (size_long < 0) {
+        fclose(f);
+        return NULL;
+    }
+    size_t size = (size_t)size_long;
     fseek(f, 0, SEEK_SET);
 
     char* content = malloc(size + 1);

@@ -55,7 +55,7 @@ echo ""
 # Extract documented command names from DETAILED_HELP[] array
 # Format: {"command_name", "usage", "description", ...},
 echo -e "${YELLOW}Extracting documented commands from DETAILED_HELP[] array...${NC}"
-DOCUMENTED_NAMES=$(grep -A 500 'static const CommandHelp DETAILED_HELP\[\]' "$COMMANDS_FILE" | \
+DOCUMENTED_NAMES=$(grep -A 1000 'static const CommandHelp DETAILED_HELP\[\]' "$COMMANDS_FILE" | \
     grep '^ *{$' -A 1 | \
     grep '"' | \
     sed -n 's/.*"\([^"]*\)".*/\1/p' | \
