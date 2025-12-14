@@ -162,6 +162,41 @@ void test_todo_date_parsing(void) {
     TEST("Handle empty string", parsed == 0);
 }
 
+void test_iso8601_parsing(void) {
+    TEST_SECTION("ISO8601 Parsing Tests");
+
+    struct tm tm = {0};
+    time_t parsed = 0;
+
+    tm.tm_year = 2024 - 1900;
+    tm.tm_mon = 4;
+    tm.tm_mday = 10;
+    tm.tm_hour = 12;
+    tm.tm_min = 30;
+    tm.tm_sec = 45;
+    time_t expected_utc = timegm(&tm);
+
+    TEST("Parse full timestamp with 'T' and Z", todo_parse_iso8601("2024-05-10T12:30:45Z", &parsed) == TODO_ISO8601_OK && parsed == expected_utc);
+
+    tm.tm_hour = 10;
+    tm.tm_min = 30;
+    tm.tm_sec = 45;
+    time_t expected_offset = timegm(&tm);
+    TEST("Parse timestamp with timezone offset", todo_parse_iso8601("2024-05-10 12:30:45+02:00", &parsed) == TODO_ISO8601_OK && parsed == expected_offset);
+
+    tm.tm_hour = 0;
+    tm.tm_min = 0;
+    tm.tm_sec = 0;
+    time_t expected_date_only = timegm(&tm);
+    TEST("Parse date-only input", todo_parse_iso8601("2024-05-10", &parsed) == TODO_ISO8601_OK && parsed == expected_date_only);
+
+    parsed = 123;
+    TEST("Reject invalid timestamp", todo_parse_iso8601("2024-99-99T00:00:00", &parsed) == TODO_ISO8601_INVALID && parsed == 0);
+
+    parsed = 123;
+    TEST("Handle empty input gracefully", todo_parse_iso8601("", &parsed) == TODO_ISO8601_EMPTY && parsed == 0);
+}
+
 // ============================================================================
 // TODO PRIORITY PARSING TESTS
 // ============================================================================
@@ -399,6 +434,7 @@ int main(int argc, char* argv[]) {
 
     // Run todo tests
     test_todo_date_parsing();
+    test_iso8601_parsing();
     test_todo_priority_parsing();
     test_todo_crud_operations();
     test_todo_list_operations();

@@ -58,6 +58,13 @@ typedef enum {
     TODO_SOURCE_MCP_SYNC = 2
 } TodoSource;
 
+// ISO8601 parse results
+typedef enum {
+    TODO_ISO8601_OK = 0,
+    TODO_ISO8601_EMPTY = 1,
+    TODO_ISO8601_INVALID = -1
+} TodoIso8601Result;
+
 // ============================================================================
 // STRUCTURES
 // ============================================================================
@@ -186,6 +193,17 @@ int todo_update(int64_t id, const TodoCreateOptions* options);
  * @return 0 on success, -1 on error
  */
 int todo_delete(int64_t id);
+
+/**
+ * Parse an ISO8601 timestamp string into UTC time.
+ * Supports date-only (YYYY-MM-DD), date-time with separators (space or 'T'),
+ * and optional timezone offsets (Z or +/-HH:MM).
+ * @param str Timestamp string
+ * @param out Output time value
+ * @return TODO_ISO8601_OK on success, TODO_ISO8601_EMPTY for empty input,
+ *         TODO_ISO8601_INVALID on validation error
+ */
+int todo_parse_iso8601(const char* str, time_t* out);
 
 // ============================================================================
 // STATUS CHANGES
