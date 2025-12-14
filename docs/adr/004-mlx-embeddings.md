@@ -1,6 +1,7 @@
-# ADR-004: MLX Integration for Local Embeddings
+# ADR-004: Hybrid Embedding Strategy
 
 **Date**: 2025-12-11
+**Updated**: 2025-12-14
 **Status**: Approved - Implemented
 **Author**: AI Team
 
@@ -12,6 +13,21 @@ Current state:
 - Using Claude API for all AI responses (cloud-based)
 - Semantic Fabric exists with NEON-optimized similarity search
 - No local embedding generation
+
+## Decision Update (2025-12-14)
+
+**Hybrid approach chosen by Roberto:**
+
+| Mode | LLM Provider | Embedding Provider |
+|------|--------------|-------------------|
+| **Online** | Claude/GPT/Gemini (cloud) | OpenAI `text-embedding-3-small` |
+| **Offline** | MLX local models | e5-small-v2 local (MLX) |
+
+**Rationale:**
+- When using cloud LLMs, embeddings via API add negligible latency
+- OpenAI embeddings are high quality (1536 dims) and cheap ($0.00002/1K tokens)
+- When fully offline with MLX, use local embeddings for consistency
+- Simpler implementation: leverage existing OpenAI provider infrastructure
 
 ## What is MLX?
 

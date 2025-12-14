@@ -24,6 +24,9 @@
 // ============================================================================
 
 #define OPENAI_API_URL "https://api.openai.com/v1/chat/completions"
+#define OPENAI_EMBED_URL "https://api.openai.com/v1/embeddings"
+#define OPENAI_EMBED_MODEL "text-embedding-3-small"
+#define OPENAI_EMBED_DIM 768
 #define MAX_RESPONSE_SIZE (256 * 1024)
 #define DEFAULT_MAX_TOKENS 8192
 
@@ -764,6 +767,146 @@ static ProviderError openai_list_models(Provider* self, ModelConfig** out_models
         *out_models = (ModelConfig*)model_get_by_provider(PROVIDER_OPENAI, out_count);
     }
     return PROVIDER_OK;
+}
+
+// ============================================================================
+// EMBEDDINGS API
+// ============================================================================
+
+/**
+ * Generate text embeddings using OpenAI text-embedding-3-small
+ * Returns 768-dimensional float array (caller must free)
+ * Returns NULL on error
+ */
+float* openai_embed_text(const char* text, size_t* out_dim) {
+    if (!text || !out_dim) return NULL;
+
+    const char* api_key = getenv("OPENAI_API_KEY");
+    if (!api_key || strlen(api_key) == 0) {
+        LOG_WARN(LOG_CAT_API, "OpenAI embeddings: OPENAI_API_KEY not set");
+        return NULL;
+    }
+
+    CURL* curl = curl_easy_init();
+    if (!curl) {
+        LOG_ERROR(LOG_CAT_API, "OpenAI embeddings: Failed to create curl handle");
+        return NULL;
+    }
+
+    // Build JSON request
+    char* escaped_text = json_escape(text);
+    if (!escaped_text) {
+        curl_easy_cleanup(curl);
+        return NULL;
+    }
+
+    size_t json_size = strlen(escaped_text) + 256;
+    char* json_body = malloc(json_size);
+    if (!json_body) {
+        free(escaped_text);
+        curl_easy_cleanup(curl);
+        return NULL;
+    }
+
+    snprintf(json_body, json_size,
+        "{\"model\": \"%s\", \"input\": \"%s\", \"dimensions\": %d}",
+        OPENAI_EMBED_MODEL, escaped_text, OPENAI_EMBED_DIM);
+
+    free(escaped_text);
+
+    // Setup response buffer
+    ResponseBuffer response = {
+        .data = malloc(65536),
+        .size = 0,
+        .capacity = 65536
+    };
+    if (!response.data) {
+        free(json_body);
+        curl_easy_cleanup(curl);
+        return NULL;
+    }
+    response.data[0] = '\0';
+
+    // Build headers
+    char auth_header[256];
+    snprintf(auth_header, sizeof(auth_header), "Authorization: Bearer %s", api_key);
+
+    struct curl_slist* headers = NULL;
+    headers = curl_slist_append(headers, "Content-Type: application/json");
+    headers = curl_slist_append(headers, auth_header);
+
+    // Setup curl
+    curl_easy_setopt(curl, CURLOPT_URL, OPENAI_EMBED_URL);
+    curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
+    curl_easy_setopt(curl, CURLOPT_POSTFIELDS, json_body);
+    curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_callback);
+    curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response);
+    curl_easy_setopt(curl, CURLOPT_TIMEOUT, 30L);
+
+    LOG_DEBUG(LOG_CAT_API, "OpenAI embeddings API call: model=%s dim=%d", OPENAI_EMBED_MODEL, OPENAI_EMBED_DIM);
+    CURLcode res = curl_easy_perform(curl);
+
+    long http_code = 0;
+    curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &http_code);
+
+    curl_slist_free_all(headers);
+    curl_easy_cleanup(curl);
+    free(json_body);
+
+    if (res != CURLE_OK) {
+        LOG_ERROR(LOG_CAT_API, "OpenAI embeddings: curl error: %s", curl_easy_strerror(res));
+        free(response.data);
+        return NULL;
+    }
+
+    if (http_code != 200) {
+        LOG_ERROR(LOG_CAT_API, "OpenAI embeddings: HTTP %ld: %s", http_code, response.data);
+        free(response.data);
+        return NULL;
+    }
+
+    // Parse embedding from response
+    // Format: {"data":[{"embedding":[0.1,0.2,...]}]}
+    const char* embed_key = "\"embedding\":[";
+    const char* found = strstr(response.data, embed_key);
+    if (!found) {
+        LOG_ERROR(LOG_CAT_API, "OpenAI embeddings: no embedding in response");
+        free(response.data);
+        return NULL;
+    }
+
+    found += strlen(embed_key);
+
+    // Allocate result
+    float* embedding = calloc(OPENAI_EMBED_DIM, sizeof(float));
+    if (!embedding) {
+        free(response.data);
+        return NULL;
+    }
+
+    // Parse float array
+    int idx = 0;
+    const char* p = found;
+    while (*p && idx < OPENAI_EMBED_DIM) {
+        while (*p && (isspace(*p) || *p == ',')) p++;
+        if (*p == ']') break;
+
+        char* end;
+        embedding[idx] = strtof(p, &end);
+        if (end == p) break;
+        p = end;
+        idx++;
+    }
+
+    if (idx != OPENAI_EMBED_DIM) {
+        LOG_WARN(LOG_CAT_API, "OpenAI embeddings: got %d dims, expected %d", idx, OPENAI_EMBED_DIM);
+    }
+
+    free(response.data);
+    *out_dim = (size_t)idx;
+
+    LOG_DEBUG(LOG_CAT_API, "OpenAI embeddings: generated %d-dim vector", idx);
+    return embedding;
 }
 
 // ============================================================================

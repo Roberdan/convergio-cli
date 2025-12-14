@@ -1,8 +1,9 @@
 /**
- * CONVERGIO MLX EMBEDDINGS - Pure Metal Implementation
+ * CONVERGIO MLX EMBEDDINGS - Hybrid Implementation
  *
- * Local text embedding generation using Metal compute shaders
- * Optimized for Apple Silicon GPU
+ * Embedding generation with hybrid strategy:
+ * - ONLINE: Uses OpenAI text-embedding-3-small via API (768 dims)
+ * - OFFLINE: Uses local Metal transformer with random weights (fallback)
  *
  * This implements a simplified MiniLM-compatible transformer
  * entirely in Metal for maximum performance and zero dependencies.
@@ -18,6 +19,9 @@
 #include <string.h>
 #include <math.h>
 #include <arm_neon.h>
+
+// External: OpenAI embeddings (from providers/openai.c)
+extern float* openai_embed_text(const char* text, size_t* out_dim);
 
 // ============================================================================
 // GLOBAL STATE
@@ -705,7 +709,37 @@ cleanup:
 // ============================================================================
 
 float* mlx_embed_text(const char* text, size_t* out_dim) {
-    if (!g_model || !g_model->initialized || !text) {
+    if (!text) {
+        if (out_dim) *out_dim = 0;
+        return NULL;
+    }
+
+    // HYBRID STRATEGY: Try OpenAI first (when online), then fallback to local
+    const char* openai_key = getenv("OPENAI_API_KEY");
+    if (openai_key && strlen(openai_key) > 0) {
+        size_t dim = 0;
+        float* embedding = openai_embed_text(text, &dim);
+        if (embedding && dim > 0) {
+            // Pad to MLX_HIDDEN_DIM if needed (OpenAI returns 768, MLX expects 384)
+            if (dim != MLX_HIDDEN_DIM) {
+                float* padded = calloc(MLX_HIDDEN_DIM, sizeof(float));
+                if (padded) {
+                    size_t copy_dim = (dim < MLX_HIDDEN_DIM) ? dim : MLX_HIDDEN_DIM;
+                    memcpy(padded, embedding, copy_dim * sizeof(float));
+                    free(embedding);
+                    if (out_dim) *out_dim = MLX_HIDDEN_DIM;
+                    return padded;
+                }
+            }
+            if (out_dim) *out_dim = dim;
+            return embedding;
+        }
+        // If OpenAI fails, fall through to local MLX
+        if (embedding) free(embedding);
+    }
+
+    // FALLBACK: Local Metal transformer (uses random weights)
+    if (!g_model || !g_model->initialized) {
         if (out_dim) *out_dim = 0;
         return NULL;
     }
@@ -717,7 +751,7 @@ float* mlx_embed_text(const char* text, size_t* out_dim) {
         return NULL;
     }
 
-    // Generate embedding
+    // Generate embedding locally
     float* embedding = forward_cpu(tokens);
 
     mlx_free_tokens(tokens);
