@@ -19,7 +19,10 @@
 #include "nous/semantic_persistence.h"
 #include "nous/model_loader.h"
 #include "nous/todo.h"
+#include "nous/notify.h"
+#include "nous/mcp_client.h"
 #include "../../auth/oauth.h"
+#include <cjson/cJSON.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -70,6 +73,10 @@ int cmd_test(int argc, char** argv);
 int cmd_git(int argc, char** argv);
 int cmd_pr(int argc, char** argv);
 
+// Forward declarations for daemon and MCP commands
+int cmd_daemon(int argc, char** argv);
+int cmd_mcp(int argc, char** argv);
+
 static const ReplCommand COMMANDS[] = {
     {"help",        "Show available commands",           cmd_help},
     {"agent",       "Manage agents",                     cmd_agent},
@@ -109,6 +116,9 @@ static const ReplCommand COMMANDS[] = {
     {"test",        "Run project tests (auto-detect framework)", cmd_test},
     {"git",         "Git workflow helper (status/commit/push)", cmd_git},
     {"pr",          "Create pull request via gh CLI",    cmd_pr},
+    // Anna Executive Assistant - Daemon & MCP
+    {"daemon",      "Manage notification daemon",        cmd_daemon},
+    {"mcp",         "Manage MCP servers and tools",      cmd_mcp},
     {"quit",        "Exit Convergio",                    cmd_quit},
     {"exit",        "Exit Convergio",                    cmd_quit},
     {NULL, NULL, NULL}
@@ -3542,4 +3552,418 @@ int cmd_reminders(int argc, char** argv) {
     printf("\n");
     if (tasks) todo_free_tasks(tasks, count);
     return 0;
+}
+
+// ============================================================================
+// DAEMON COMMAND - Notification Daemon Management
+// ============================================================================
+
+int cmd_daemon(int argc, char** argv) {
+    if (argc < 2) {
+        printf("\n");
+        printf("╔═══════════════════════════════════════════════════╗\n");
+        printf("║           NOTIFICATION DAEMON                     ║\n");
+        printf("╠═══════════════════════════════════════════════════╣\n");
+        printf("║ Usage: /daemon <command>                          ║\n");
+        printf("╠═══════════════════════════════════════════════════╣\n");
+        printf("║ Commands:                                         ║\n");
+        printf("║   start       Start the daemon                    ║\n");
+        printf("║   stop        Stop the daemon                     ║\n");
+        printf("║   restart     Restart the daemon                  ║\n");
+        printf("║   status      Show daemon status                  ║\n");
+        printf("║   health      Show detailed health info           ║\n");
+        printf("║   install     Install LaunchAgent                 ║\n");
+        printf("║   uninstall   Remove LaunchAgent                  ║\n");
+        printf("║   test        Send a test notification            ║\n");
+        printf("╚═══════════════════════════════════════════════════╝\n");
+        printf("\n");
+        return 0;
+    }
+
+    const char* subcmd = argv[1];
+
+    if (strcmp(subcmd, "start") == 0) {
+        printf("Starting notification daemon...\n");
+        int result = notify_daemon_start();
+        if (result == 0) {
+            printf("\033[32m✓ Daemon started (PID %d)\033[0m\n", notify_daemon_get_pid());
+        } else {
+            printf("\033[31m✗ Failed to start daemon\033[0m\n");
+        }
+        return result;
+    }
+
+    if (strcmp(subcmd, "stop") == 0) {
+        printf("Stopping notification daemon...\n");
+        int result = notify_daemon_stop();
+        if (result == 0) {
+            printf("\033[32m✓ Daemon stopped\033[0m\n");
+        } else {
+            printf("\033[31m✗ Failed to stop daemon\033[0m\n");
+        }
+        return result;
+    }
+
+    if (strcmp(subcmd, "restart") == 0) {
+        printf("Restarting notification daemon...\n");
+        int result = notify_daemon_restart();
+        if (result == 0) {
+            printf("\033[32m✓ Daemon restarted (PID %d)\033[0m\n", notify_daemon_get_pid());
+        } else {
+            printf("\033[31m✗ Failed to restart daemon\033[0m\n");
+        }
+        return result;
+    }
+
+    if (strcmp(subcmd, "status") == 0) {
+        bool running = notify_daemon_is_running();
+        pid_t pid = notify_daemon_get_pid();
+
+        printf("\n");
+        printf("Daemon Status: %s%s\033[0m\n",
+               running ? "\033[32m" : "\033[31m",
+               running ? "RUNNING" : "STOPPED");
+
+        if (running && pid > 0) {
+            printf("Process ID:    %d\n", pid);
+        }
+
+        printf("Best Method:   %s\n", notify_method_to_string(notify_get_best_method()));
+        printf("\n");
+        return 0;
+    }
+
+    if (strcmp(subcmd, "health") == 0) {
+        notify_print_health();
+        return 0;
+    }
+
+    if (strcmp(subcmd, "install") == 0) {
+        printf("Installing LaunchAgent...\n");
+        int result = notify_daemon_install();
+        if (result == 0) {
+            printf("\033[32m✓ LaunchAgent installed\033[0m\n");
+            printf("  The daemon will now start automatically at login.\n");
+        } else {
+            printf("\033[31m✗ Failed to install LaunchAgent\033[0m\n");
+        }
+        return result;
+    }
+
+    if (strcmp(subcmd, "uninstall") == 0) {
+        printf("Uninstalling LaunchAgent...\n");
+        int result = notify_daemon_uninstall();
+        if (result == 0) {
+            printf("\033[32m✓ LaunchAgent uninstalled\033[0m\n");
+        } else {
+            printf("\033[31m✗ Failed to uninstall LaunchAgent\033[0m\n");
+        }
+        return result;
+    }
+
+    if (strcmp(subcmd, "test") == 0) {
+        printf("Sending test notification...\n");
+        NotifyResult result = notify_send_simple("Convergio Test", "This is a test notification from Convergio.");
+        if (result == NOTIFY_SUCCESS) {
+            printf("\033[32m✓ Test notification sent\033[0m\n");
+        } else {
+            printf("\033[31m✗ Failed to send notification (code %d)\033[0m\n", result);
+        }
+        return (result == NOTIFY_SUCCESS) ? 0 : -1;
+    }
+
+    printf("\033[31mUnknown daemon command: %s\033[0m\n", subcmd);
+    printf("Use '/daemon' to see available commands.\n");
+    return -1;
+}
+
+// ============================================================================
+// MCP COMMAND - Model Context Protocol Client Management
+// ============================================================================
+
+int cmd_mcp(int argc, char** argv) {
+    if (argc < 2) {
+        printf("\n");
+        printf("╔═══════════════════════════════════════════════════╗\n");
+        printf("║              MCP CLIENT                           ║\n");
+        printf("╠═══════════════════════════════════════════════════╣\n");
+        printf("║ Usage: /mcp <command> [args]                      ║\n");
+        printf("╠═══════════════════════════════════════════════════╣\n");
+        printf("║ Commands:                                         ║\n");
+        printf("║   list              List configured servers       ║\n");
+        printf("║   status            Show connection status        ║\n");
+        printf("║   health            Show detailed health info     ║\n");
+        printf("║   connect <name>    Connect to a server           ║\n");
+        printf("║   disconnect <name> Disconnect from a server      ║\n");
+        printf("║   connect-all       Connect to all enabled        ║\n");
+        printf("║   enable <name>     Enable a server               ║\n");
+        printf("║   disable <name>    Disable a server              ║\n");
+        printf("║   tools             List all available tools      ║\n");
+        printf("║   tools <server>    List tools from server        ║\n");
+        printf("║   call <tool> [json] Call a tool                  ║\n");
+        printf("╚═══════════════════════════════════════════════════╝\n");
+        printf("\n");
+        printf("Configuration file: ~/.convergio/mcp.json\n");
+        printf("\n");
+        return 0;
+    }
+
+    const char* subcmd = argv[1];
+
+    if (strcmp(subcmd, "list") == 0) {
+        int count;
+        char** servers = mcp_list_servers(&count);
+
+        printf("\n");
+        printf("Configured MCP Servers:\n");
+        printf("───────────────────────\n");
+
+        if (count == 0) {
+            printf("  \033[90mNo servers configured.\033[0m\n");
+            printf("  Add servers in ~/.convergio/mcp.json\n");
+        } else {
+            for (int i = 0; i < count; i++) {
+                MCPServerConfig* config = mcp_get_server_config(servers[i]);
+                MCPConnectionStatus status = mcp_get_status(servers[i]);
+
+                const char* status_icon;
+                const char* status_color;
+
+                switch (status) {
+                    case MCP_STATUS_CONNECTED:
+                        status_icon = "●";
+                        status_color = "\033[32m";
+                        break;
+                    case MCP_STATUS_CONNECTING:
+                        status_icon = "○";
+                        status_color = "\033[33m";
+                        break;
+                    case MCP_STATUS_ERROR:
+                        status_icon = "✗";
+                        status_color = "\033[31m";
+                        break;
+                    default:
+                        status_icon = "○";
+                        status_color = "\033[90m";
+                        break;
+                }
+
+                printf("  %s%s\033[0m %-20s %s%s\033[0m\n",
+                       status_color, status_icon,
+                       servers[i],
+                       config && config->enabled ? "" : "\033[90m",
+                       config && config->enabled ? "" : "(disabled)");
+
+                free(servers[i]);
+            }
+            free(servers);
+        }
+        printf("\n");
+        return 0;
+    }
+
+    if (strcmp(subcmd, "status") == 0) {
+        int count;
+        char** connected = mcp_list_connected(&count);
+
+        printf("\n");
+        printf("Connected MCP Servers: %d\n", count);
+        printf("───────────────────────────\n");
+
+        if (count == 0) {
+            printf("  \033[90mNo servers connected.\033[0m\n");
+            printf("  Use '/mcp connect <name>' to connect.\n");
+        } else {
+            for (int i = 0; i < count; i++) {
+                MCPServer* server = mcp_get_server(connected[i]);
+                if (server) {
+                    printf("  \033[32m●\033[0m %-20s %d tools\n",
+                           connected[i], server->tool_count);
+                }
+                free(connected[i]);
+            }
+            free(connected);
+        }
+        printf("\n");
+        return 0;
+    }
+
+    if (strcmp(subcmd, "health") == 0) {
+        mcp_print_health();
+        return 0;
+    }
+
+    if (strcmp(subcmd, "connect") == 0) {
+        if (argc < 3) {
+            printf("\033[31mUsage: /mcp connect <server_name>\033[0m\n");
+            return -1;
+        }
+
+        const char* name = argv[2];
+        printf("Connecting to %s...\n", name);
+
+        int result = mcp_connect(name);
+        if (result == MCP_OK) {
+            MCPServer* server = mcp_get_server(name);
+            printf("\033[32m✓ Connected to %s\033[0m\n", name);
+            if (server) {
+                printf("  Tools: %d\n", server->tool_count);
+                printf("  Resources: %d\n", server->resource_count);
+                printf("  Prompts: %d\n", server->prompt_count);
+            }
+        } else {
+            const char* err = mcp_get_last_error(name);
+            printf("\033[31m✗ Failed to connect: %s\033[0m\n",
+                   err ? err : "unknown error");
+        }
+        return result;
+    }
+
+    if (strcmp(subcmd, "disconnect") == 0) {
+        if (argc < 3) {
+            printf("\033[31mUsage: /mcp disconnect <server_name>\033[0m\n");
+            return -1;
+        }
+
+        const char* name = argv[2];
+        printf("Disconnecting from %s...\n", name);
+
+        int result = mcp_disconnect(name);
+        if (result == 0) {
+            printf("\033[32m✓ Disconnected from %s\033[0m\n", name);
+        } else {
+            printf("\033[31m✗ Failed to disconnect\033[0m\n");
+        }
+        return result;
+    }
+
+    if (strcmp(subcmd, "connect-all") == 0) {
+        printf("Connecting to all enabled servers...\n");
+        int connected = mcp_connect_all();
+        printf("\033[32m✓ Connected to %d servers\033[0m\n", connected);
+        return 0;
+    }
+
+    if (strcmp(subcmd, "enable") == 0) {
+        if (argc < 3) {
+            printf("\033[31mUsage: /mcp enable <server_name>\033[0m\n");
+            return -1;
+        }
+
+        int result = mcp_enable_server(argv[2]);
+        if (result == 0) {
+            printf("\033[32m✓ Server %s enabled\033[0m\n", argv[2]);
+        } else {
+            printf("\033[31m✗ Server not found: %s\033[0m\n", argv[2]);
+        }
+        return result;
+    }
+
+    if (strcmp(subcmd, "disable") == 0) {
+        if (argc < 3) {
+            printf("\033[31mUsage: /mcp disable <server_name>\033[0m\n");
+            return -1;
+        }
+
+        int result = mcp_disable_server(argv[2]);
+        if (result == 0) {
+            printf("\033[32m✓ Server %s disabled\033[0m\n", argv[2]);
+        } else {
+            printf("\033[31m✗ Server not found: %s\033[0m\n", argv[2]);
+        }
+        return result;
+    }
+
+    if (strcmp(subcmd, "tools") == 0) {
+        printf("\n");
+
+        if (argc >= 3) {
+            // List tools from specific server
+            const char* server_name = argv[2];
+            int count;
+            MCPTool** tools = mcp_list_tools(server_name, &count);
+
+            printf("Tools from %s (%d):\n", server_name, count);
+            printf("───────────────────────────\n");
+
+            if (!tools || count == 0) {
+                printf("  \033[90mNo tools available.\033[0m\n");
+            } else {
+                for (int i = 0; i < count; i++) {
+                    printf("  • \033[36m%s\033[0m\n", tools[i]->name);
+                    if (tools[i]->description) {
+                        printf("    %s\n", tools[i]->description);
+                    }
+                }
+                free(tools);
+            }
+        } else {
+            // List all tools from all servers
+            int count;
+            MCPToolRef* tools = mcp_list_all_tools(&count);
+
+            printf("All Available Tools (%d):\n", count);
+            printf("───────────────────────────\n");
+
+            if (!tools || count == 0) {
+                printf("  \033[90mNo tools available.\033[0m\n");
+                printf("  Connect to a server first with '/mcp connect <name>'\n");
+            } else {
+                const char* last_server = NULL;
+                for (int i = 0; i < count; i++) {
+                    if (!last_server || strcmp(last_server, tools[i].server_name) != 0) {
+                        if (last_server) printf("\n");
+                        printf("  \033[1m%s:\033[0m\n", tools[i].server_name);
+                        last_server = tools[i].server_name;
+                    }
+                    printf("    • \033[36m%s\033[0m\n", tools[i].tool->name);
+                }
+                free(tools);
+            }
+        }
+        printf("\n");
+        return 0;
+    }
+
+    if (strcmp(subcmd, "call") == 0) {
+        if (argc < 3) {
+            printf("\033[31mUsage: /mcp call <tool_name> [json_arguments]\033[0m\n");
+            return -1;
+        }
+
+        const char* tool_name = argv[2];
+        cJSON* args = NULL;
+
+        if (argc >= 4) {
+            args = cJSON_Parse(argv[3]);
+            if (!args) {
+                printf("\033[31mInvalid JSON arguments\033[0m\n");
+                return -1;
+            }
+        }
+
+        printf("Calling tool: %s\n", tool_name);
+
+        MCPToolResult* result = mcp_call_tool_auto(tool_name, args);
+        if (args) cJSON_Delete(args);
+
+        if (result->is_error) {
+            printf("\033[31m✗ Error: %s\033[0m\n",
+                   result->error_message ? result->error_message : "unknown error");
+        } else {
+            printf("\033[32m✓ Success\033[0m\n");
+            if (result->content) {
+                char* output = cJSON_Print(result->content);
+                printf("%s\n", output);
+                free(output);
+            }
+        }
+
+        mcp_free_result(result);
+        return 0;
+    }
+
+    printf("\033[31mUnknown MCP command: %s\033[0m\n", subcmd);
+    printf("Use '/mcp' to see available commands.\n");
+    return -1;
 }
