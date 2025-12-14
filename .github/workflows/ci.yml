@@ -176,6 +176,9 @@ jobs:
       - name: Make binary executable
         run: chmod +x build/bin/convergio
 
+      - name: Install coreutils for gtimeout
+        run: brew install coreutils
+
       - name: Run E2E tests
         run: |
           chmod +x tests/e2e_test.sh
