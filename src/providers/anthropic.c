@@ -311,23 +311,29 @@ static void extract_token_usage(const char* json, TokenUsage* usage) {
 static const char* get_model_api_id(const char* model) {
     if (!model) return "claude-sonnet-4-5-20250929";
 
+    // Strip provider prefix if present (e.g., "anthropic/claude-haiku-4.5" -> "claude-haiku-4.5")
+    const char* model_name = model;
+    if (strncmp(model, "anthropic/", 10) == 0) {
+        model_name = model + 10;
+    }
+
     // FIRST: Check JSON config for api_id
-    const JsonModelConfig* json = models_get_json_model(model);
+    const JsonModelConfig* json = models_get_json_model(model_name);
     if (json && json->api_id) {
         return json->api_id;
     }
 
     // FALLBACK: Hardcoded mappings (for when JSON not available)
-    if (strcmp(model, "claude-opus-4.5") == 0) {
+    if (strcmp(model_name, "claude-opus-4.5") == 0) {
         return "claude-opus-4-5-20251101";
-    } else if (strcmp(model, "claude-sonnet-4.5") == 0) {
+    } else if (strcmp(model_name, "claude-sonnet-4.5") == 0) {
         return "claude-sonnet-4-5-20250929";
-    } else if (strcmp(model, "claude-haiku-4.5") == 0) {
+    } else if (strcmp(model_name, "claude-haiku-4.5") == 0) {
         return "claude-haiku-4-5-20251001";
     }
 
     // If already an API ID, return as-is
-    return model;
+    return model_name;
 }
 
 // Build authentication header
