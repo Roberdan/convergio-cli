@@ -30,7 +30,7 @@
 | **Sara** | UX Designer | User-centered design excellence |
 | **Omri** | Data Scientist | ML, predictive modeling, analytics |
 | **Sofia** | Marketing Strategist | Growth hacking and brand strategy |
-| ... | **+41 more specialists** | Legal, HR, Creative, PM, and more |
+| ... | **+45 more specialists** | Legal, HR, Creative, PM, and more |
 
 **Ask Ali anything.** Behind the scenes, the right experts are automatically engaged, they collaborate in parallel, and Ali synthesizes their insights into a single, actionable response.
 
