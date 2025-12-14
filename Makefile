@@ -65,9 +65,9 @@ FRAMEWORKS = -framework Metal \
              -framework Security \
              -framework AppKit
 
-# Libraries (cJSON linked statically to avoid dylib signature issues)
-# GNU readline linked explicitly from Homebrew (libedit doesn't support prompt color markers)
-LIBS = -L$(READLINE_PREFIX)/lib -lreadline -lcurl -lsqlite3 /opt/homebrew/opt/cjson/lib/libcjson.a
+# Libraries (cJSON and readline linked statically to avoid dylib signature issues on macOS)
+# GNU readline linked statically from Homebrew (libedit doesn't support prompt color markers)
+LIBS = -lcurl -lsqlite3 /opt/homebrew/opt/cjson/lib/libcjson.a $(READLINE_PREFIX)/lib/libreadline.a $(READLINE_PREFIX)/lib/libhistory.a -lncurses
 
 # Swift Package Manager (for MLX integration)
 SWIFT_BUILD_DIR = .build/release
