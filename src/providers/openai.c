@@ -278,8 +278,7 @@ static ProviderError openai_init(Provider* self) {
         return PROVIDER_ERR_AUTH;
     }
 
-    curl_global_init(CURL_GLOBAL_DEFAULT);
-
+    // Note: curl_global_init is called once in main.c at startup
     data->initialized = true;
     self->initialized = true;
 
