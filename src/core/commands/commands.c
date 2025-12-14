@@ -504,6 +504,17 @@ static const CommandHelp DETAILED_HELP[] = {
         "recall code style"
     },
     {
+        "search",
+        "search <query>",
+        "Search memories semantically",
+        "Searches the knowledge graph for memories matching your query.\n"
+        "Returns up to 10 matching results ordered by importance.\n\n"
+        "This is an alias for 'recall <query>' with the same functionality.",
+        "search Roberto preferences\n"
+        "search API documentation\n"
+        "search coding style"
+    },
+    {
         "memories",
         "memories",
         "List knowledge graph statistics and important memories",
