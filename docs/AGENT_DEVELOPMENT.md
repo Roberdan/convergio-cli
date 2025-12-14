@@ -12,6 +12,352 @@ Agents in Convergio are specialized AI personalities that handle specific types 
 
 ---
 
+## Agent Architecture: Two Types of Agents
+
+Convergio supports **two types of agents** with different purposes and lifecycles:
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                         CONVERGIO AGENT ARCHITECTURE                         │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────┐    ┌─────────────────────────────────────┐
+│      EMBEDDED AGENTS (Core)     │    │       CUSTOM AGENTS (User)          │
+├─────────────────────────────────┤    ├─────────────────────────────────────┤
+│ Location:                       │    │ Location:                           │
+│   src/agents/definitions/*.md   │    │   ~/.convergio/agents/*.json        │
+│                                 │    │                                     │
+│ Format: Markdown + YAML         │    │ Format: JSON                        │
+│                                 │    │                                     │
+│ When loaded: Build time         │    │ When loaded: Runtime                │
+│   (compiled into binary)        │    │   (hot-reload supported)            │
+│                                 │    │                                     │
+│ Who creates: Convergio devs     │    │ Who creates: End users              │
+│                                 │    │                                     │
+│ Count: 53 agents                │    │ Count: Unlimited                    │
+│                                 │    │                                     │
+│ Modify: Edit .md → make         │    │ Modify: Edit .json → agent reload   │
+└─────────────────────────────────┘    └─────────────────────────────────────┘
+                │                                      │
+                │                                      │
+                ▼                                      ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                           CONVERGIO RUNTIME                                  │
+│                                                                             │
+│   At startup:                                                               │
+│   1. Load embedded agents from EMBEDDED_AGENTS[] array (instant, in-memory) │
+│   2. Scan ~/.convergio/agents/ for custom JSON files (file I/O)             │
+│   3. Merge both into unified agent registry                                 │
+│                                                                             │
+│   Custom agents can override embedded agents by using the same name         │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+### When to Use Which?
+
+| Scenario | Use Embedded | Use Custom |
+|----------|--------------|------------|
+| Adding a new core specialist to Convergio | ✅ | |
+| Creating a personal assistant for your workflow | | ✅ |
+| Contributing to the Convergio project | ✅ | |
+| Experimenting with agent configurations | | ✅ |
+| Customizing an existing agent's behavior | | ✅ (override) |
+| Production deployment with fixed agents | ✅ | |
+
+### Key Differences
+
+| Aspect | Embedded Agents | Custom Agents |
+|--------|-----------------|---------------|
+| **Performance** | Instant (in-memory) | Fast (file read at startup) |
+| **Distribution** | Part of binary | Separate files |
+| **Modification** | Requires rebuild | Hot-reload with `agent reload` |
+| **Security** | Immutable at runtime | User-editable |
+| **Portability** | Automatic | Must copy ~/.convergio/agents/ |
+
+---
+
+## Embedded Agents (For Convergio Developers)
+
+Embedded agents are the **53 core specialists** that ship with Convergio. They are compiled directly into the binary for maximum performance and reliability.
+
+### How Embedding Works
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                         EMBEDDING PROCESS (Build Time)                       │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+Step 1: WRITE AGENT DEFINITION
+┌─────────────────────────────────────────┐
+│ src/agents/definitions/rex-code-        │
+│ reviewer.md                             │
+│                                         │
+│ ---                                     │
+│ name: rex-code-reviewer                 │
+│ description: Elite Code Reviewer...     │
+│ tools: ["Read", "Glob", "Grep"]         │
+│ color: "#9B59B6"                        │
+│ ---                                     │
+│                                         │
+│ You are **Rex** — an elite Code         │
+│ Reviewer specializing in...             │
+└─────────────────────────────────────────┘
+                    │
+                    ▼
+Step 2: RUN EMBEDDING SCRIPT
+┌─────────────────────────────────────────┐
+│ $ make                                  │
+│   └── scripts/embed_agents.sh           │
+│                                         │
+│ The script:                             │
+│ 1. Reads all .md files                  │
+│ 2. Escapes special characters           │
+│ 3. Generates C string literals          │
+│ 4. Creates EMBEDDED_AGENTS[] array      │
+└─────────────────────────────────────────┘
+                    │
+                    ▼
+Step 3: GENERATED C FILE
+┌─────────────────────────────────────────┐
+│ src/agents/embedded_agents.c            │
+│                                         │
+│ // Auto-generated - DO NOT EDIT         │
+│                                         │
+│ static const char agent_rex_code_       │
+│ reviewer_md[] =                         │
+│   "---\n"                               │
+│   "name: rex-code-reviewer\n"           │
+│   "description: Elite Code...\n"        │
+│   ...                                   │
+│                                         │
+│ const EmbeddedAgent EMBEDDED_AGENTS[] = │
+│ {                                       │
+│   {"rex-code-reviewer.md",              │
+│    agent_rex_code_reviewer_md,          │
+│    sizeof(agent_rex_code_reviewer_md)}, │
+│   ...                                   │
+│ };                                      │
+│                                         │
+│ const size_t EMBEDDED_AGENTS_COUNT = 54;│
+└─────────────────────────────────────────┘
+                    │
+                    ▼
+Step 4: COMPILE INTO BINARY
+┌─────────────────────────────────────────┐
+│ $ make                                  │
+│   └── gcc ... embedded_agents.c ...     │
+│                                         │
+│ Result: convergio binary contains       │
+│ all agent definitions as static         │
+│ strings in the DATA segment             │
+│                                         │
+│ Benefits:                               │
+│ - Zero file I/O at runtime              │
+│ - No missing file errors                │
+│ - Tamper-proof agents                   │
+│ - Single-file distribution              │
+└─────────────────────────────────────────┘
+```
+
+### Adding a New Embedded Agent
+
+1. **Create the agent definition file:**
+   ```bash
+   # Use kebab-case: firstname-role-description.md
+   touch src/agents/definitions/alex-security-auditor.md
+   ```
+
+2. **Write the agent definition:**
+   ```markdown
+   ---
+   name: alex-security-auditor
+   description: Security auditor specializing in vulnerability assessment
+   tools: ["Read", "Glob", "Grep", "Bash", "WebSearch"]
+   color: "#E74C3C"
+   ---
+
+   <!--
+   Copyright (c) 2025 Convergio.io
+   Licensed under Creative Commons Attribution-NonCommercial-ShareAlike 4.0
+   Part of the MyConvergio Claude Code Subagents Suite
+   -->
+
+   You are **Alex** — an elite Security Auditor specializing in...
+
+   ## Security & Ethics Framework
+   - **Role Adherence**: I strictly maintain focus on security auditing...
+   ...
+   ```
+
+3. **Regenerate embedded agents:**
+   ```bash
+   make
+   # This automatically runs scripts/embed_agents.sh
+   ```
+
+4. **Verify the agent was added:**
+   ```bash
+   ./build/bin/convergio agents | grep alex
+   ```
+
+5. **Update documentation:**
+   - Add the agent to Ali's tier list in `ali-chief-of-staff.md`
+   - Update agent count in README.md, CHANGELOG.md, commands.c
+   - Add RACI matrix entries if applicable
+
+### Embedded Agent File Format
+
+```yaml
+---
+# YAML Frontmatter (required)
+name: agent-name              # Unique identifier, kebab-case
+description: Short description # One-line summary
+tools: ["Tool1", "Tool2"]     # Available tools (see Tools section)
+color: "#HEX"                 # UI color for agent
+---
+
+# Markdown Body (the system prompt)
+
+You are **Name** — description of the agent's persona...
+
+## Security & Ethics Framework
+...
+
+## Core Identity
+- **Primary Role**: What the agent does
+- **Expertise Level**: Seniority/experience
+- **Communication Style**: How it communicates
+...
+
+## Core Competencies
+### Area 1
+- Skill 1
+- Skill 2
+...
+
+## Key Deliverables
+1. Deliverable 1
+2. Deliverable 2
+...
+```
+
+### The embed_agents.sh Script
+
+Located at `scripts/embed_agents.sh`, this script:
+
+1. Scans `src/agents/definitions/*.md`
+2. Sanitizes filenames for C variable names (`-` → `_`, `.` → `_`)
+3. Escapes content for C string literals (`"` → `\"`, `\n` preserved)
+4. Generates `src/agents/embedded_agents.c` with:
+   - Individual `static const char agent_*[]` for each agent
+   - `EMBEDDED_AGENTS[]` array with metadata
+   - `EMBEDDED_AGENTS_COUNT` constant
+   - Lookup functions: `get_embedded_agent()`, `get_all_embedded_agents()`
+
+**Never edit `embedded_agents.c` directly** — it's auto-generated and will be overwritten.
+
+---
+
+## Custom Agents (For End Users)
+
+Custom agents let you create your own AI specialists **without recompiling** Convergio.
+
+### Quick Start: Create Your First Custom Agent
+
+```bash
+# Method 1: Use the CLI command
+convergio
+> agent create helper "A friendly general-purpose assistant"
+
+# Method 2: Create JSON file manually
+mkdir -p ~/.convergio/agents
+cat > ~/.convergio/agents/helper.json << 'EOF'
+{
+  "name": "helper",
+  "description": "A friendly general-purpose assistant",
+  "role": "executor",
+  "model": {
+    "provider": "anthropic",
+    "model_id": "claude-sonnet-4.5"
+  },
+  "system_prompt": "You are Helper, a friendly and efficient assistant. You help with any task the user needs, always being clear and concise."
+}
+EOF
+
+# Reload agents to pick up the new one
+convergio
+> agent reload
+```
+
+### CLI Commands for Custom Agents
+
+| Command | Description |
+|---------|-------------|
+| `agent create <name> "<description>"` | Create a new custom agent |
+| `agent reload` | Reload all agents (picks up new/modified files) |
+| `agent edit <name>` | Open agent JSON in $EDITOR |
+| `agents` | List all agents (embedded + custom) |
+| `@<name> <message>` | Talk to a specific agent |
+
+### Custom Agent JSON Format
+
+```json
+{
+  "name": "string (required)",
+  "description": "string (required)",
+  "role": "string (required) - see Available Roles below",
+  "model": {
+    "provider": "anthropic | openai | gemini | openrouter | ollama",
+    "model_id": "model identifier"
+  },
+  "fallback": {
+    "provider": "backup provider",
+    "model_id": "backup model"
+  },
+  "settings": {
+    "max_tokens": 8192,
+    "temperature": 0.7,
+    "streaming": true,
+    "tools": true
+  },
+  "budget": {
+    "max_per_call": 0.50,
+    "session": 5.00
+  },
+  "system_prompt": "The agent's personality and instructions..."
+}
+```
+
+### Overriding Embedded Agents
+
+You can customize a built-in agent by creating a custom agent with the **same name**:
+
+```json
+// ~/.convergio/agents/marco.json
+// This overrides the embedded Marco agent
+{
+  "name": "marco",
+  "description": "My customized Marco with extra Python focus",
+  "role": "coder",
+  "model": {
+    "provider": "anthropic",
+    "model_id": "claude-sonnet-4.5"
+  },
+  "system_prompt": "You are Marco, a software engineer with deep expertise in Python. Focus on Pythonic solutions, use type hints, and follow PEP 8..."
+}
+```
+
+After creating the override:
+```bash
+convergio
+> agent reload
+> @marco  # Now uses your custom version
+```
+
+To restore the original, simply delete the custom JSON file and run `agent reload`.
+
+---
+
 ## Built-in Agents
 
 ### Ali (Orchestrator)
