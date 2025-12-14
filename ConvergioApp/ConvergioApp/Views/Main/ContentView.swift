@@ -86,66 +86,6 @@ struct AgentGridView: View {
     }
 }
 
-// MARK: - Agent Detail View
-
-struct AgentDetailView: View {
-    let agent: Agent
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 20) {
-            // Header
-            HStack(spacing: 16) {
-                Image(systemName: agent.role.iconName)
-                    .font(.system(size: 48))
-                    .foregroundStyle(.primary)
-                    .frame(width: 80, height: 80)
-                    .background(.ultraThinMaterial)
-                    .clipShape(Circle())
-
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(agent.name)
-                        .font(.largeTitle)
-                        .fontWeight(.bold)
-
-                    Text(agent.role.displayName)
-                        .font(.title3)
-                        .foregroundStyle(.secondary)
-
-                    HStack {
-                        Circle()
-                            .fill(agent.workState.isActive ? Color.green : Color.gray)
-                            .frame(width: 8, height: 8)
-                        Text(agent.workState.displayName)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-            }
-            .padding()
-
-            Divider()
-
-            // Description
-            Text(agent.description)
-                .font(.body)
-                .padding(.horizontal)
-
-            // Current task
-            if let task = agent.currentTask {
-                GroupBox("Current Task") {
-                    Text(task)
-                        .font(.body)
-                }
-                .padding(.horizontal)
-            }
-
-            Spacer()
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .navigationTitle(agent.name)
-    }
-}
-
 // MARK: - Cost Badge
 
 struct CostBadge: View {
