@@ -8,6 +8,7 @@
  */
 
 #include "nous/provider.h"
+#include "nous/config.h"
 #include "nous/nous.h"
 #include <stdlib.h>
 #include <string.h>
@@ -24,7 +25,7 @@
 
 #define GEMINI_API_BASE "https://generativelanguage.googleapis.com/v1beta/models"
 #define MAX_RESPONSE_SIZE (256 * 1024)
-#define DEFAULT_MAX_TOKENS 8192
+#define DEFAULT_MAX_TOKENS 8192  // Fallback only
 
 // ============================================================================
 // INTERNAL DATA STRUCTURES
@@ -370,21 +371,22 @@ static char* gemini_chat(Provider* self, const char* model, const char* system,
         return NULL;
     }
 
+    StyleSettings style = convergio_get_style_settings();
     if (system && strlen(system) > 0) {
         snprintf(json_body, json_size,
             "{"
             "\"systemInstruction\": {\"parts\": [{\"text\": \"%s\"}]},"
             "\"contents\": [{\"parts\": [{\"text\": \"%s\"}]}],"
-            "\"generationConfig\": {\"maxOutputTokens\": %d}"
+            "\"generationConfig\": {\"maxOutputTokens\": %d, \"temperature\": %.2f}"
             "}",
-            escaped_system, escaped_user, DEFAULT_MAX_TOKENS);
+            escaped_system, escaped_user, style.max_tokens, style.temperature);
     } else {
         snprintf(json_body, json_size,
             "{"
             "\"contents\": [{\"parts\": [{\"text\": \"%s\"}]}],"
-            "\"generationConfig\": {\"maxOutputTokens\": %d}"
+            "\"generationConfig\": {\"maxOutputTokens\": %d, \"temperature\": %.2f}"
             "}",
-            escaped_user, DEFAULT_MAX_TOKENS);
+            escaped_user, style.max_tokens, style.temperature);
     }
 
     free(escaped_system);
@@ -538,23 +540,24 @@ static char* gemini_chat_with_tools(Provider* self, const char* model, const cha
         return NULL;
     }
 
+    StyleSettings style = convergio_get_style_settings();
     if (system && strlen(system) > 0) {
         snprintf(json_body, json_size,
             "{"
             "\"systemInstruction\": {\"parts\": [{\"text\": \"%s\"}]},"
             "\"contents\": [{\"parts\": [{\"text\": \"%s\"}]}],"
             "\"tools\": %s,"
-            "\"generationConfig\": {\"maxOutputTokens\": %d}"
+            "\"generationConfig\": {\"maxOutputTokens\": %d, \"temperature\": %.2f}"
             "}",
-            escaped_system, escaped_user, tools_json, DEFAULT_MAX_TOKENS);
+            escaped_system, escaped_user, tools_json, style.max_tokens, style.temperature);
     } else {
         snprintf(json_body, json_size,
             "{"
             "\"contents\": [{\"parts\": [{\"text\": \"%s\"}]}],"
             "\"tools\": %s,"
-            "\"generationConfig\": {\"maxOutputTokens\": %d}"
+            "\"generationConfig\": {\"maxOutputTokens\": %d, \"temperature\": %.2f}"
             "}",
-            escaped_user, tools_json, DEFAULT_MAX_TOKENS);
+            escaped_user, tools_json, style.max_tokens, style.temperature);
     }
 
     free(escaped_system);
@@ -732,21 +735,22 @@ static ProviderError gemini_stream_chat(Provider* self, const char* model, const
         return PROVIDER_ERR_NETWORK;
     }
 
+    StyleSettings style = convergio_get_style_settings();
     if (system && strlen(system) > 0) {
         snprintf(json_body, json_size,
             "{"
             "\"systemInstruction\": {\"parts\": [{\"text\": \"%s\"}]},"
             "\"contents\": [{\"parts\": [{\"text\": \"%s\"}]}],"
-            "\"generationConfig\": {\"maxOutputTokens\": %d}"
+            "\"generationConfig\": {\"maxOutputTokens\": %d, \"temperature\": %.2f}"
             "}",
-            escaped_system, escaped_user, DEFAULT_MAX_TOKENS);
+            escaped_system, escaped_user, style.max_tokens, style.temperature);
     } else {
         snprintf(json_body, json_size,
             "{"
             "\"contents\": [{\"parts\": [{\"text\": \"%s\"}]}],"
-            "\"generationConfig\": {\"maxOutputTokens\": %d}"
+            "\"generationConfig\": {\"maxOutputTokens\": %d, \"temperature\": %.2f}"
             "}",
-            escaped_user, DEFAULT_MAX_TOKENS);
+            escaped_user, style.max_tokens, style.temperature);
     }
 
     free(escaped_system);
