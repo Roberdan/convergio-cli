@@ -59,6 +59,11 @@ int cmd_memories(int argc, char** argv);
 int cmd_forget(int argc, char** argv);
 int cmd_graph(int argc, char** argv);
 
+// Forward declarations for git/test workflow commands
+int cmd_test(int argc, char** argv);
+int cmd_git(int argc, char** argv);
+int cmd_pr(int argc, char** argv);
+
 static const ReplCommand COMMANDS[] = {
     {"help",        "Show available commands",           cmd_help},
     {"agent",       "Manage agents",                     cmd_agent},
@@ -90,6 +95,10 @@ static const ReplCommand COMMANDS[] = {
     {"memories",    "List recent/important memories",    cmd_memories},
     {"forget",      "Delete a memory by ID",             cmd_forget},
     {"graph",       "Show knowledge graph stats",        cmd_graph},
+    // Git/Test workflow commands
+    {"test",        "Run project tests (auto-detect framework)", cmd_test},
+    {"git",         "Git workflow helper (status/commit/push)", cmd_git},
+    {"pr",          "Create pull request via gh CLI",    cmd_pr},
     {"quit",        "Exit Convergio",                    cmd_quit},
     {"exit",        "Exit Convergio",                    cmd_quit},
     {NULL, NULL, NULL}
@@ -580,6 +589,50 @@ static const CommandHelp DETAILED_HELP[] = {
         "/setup           # Open wizard, select Local Models\n"
         "convergio --local --model deepseek-r1-7b\n"
         "convergio -l -m llama-3.2-3b"
+    },
+    {
+        "test",
+        "test",
+        "Run project tests with auto-detected framework",
+        "Automatically detects and runs tests for your project.\n\n"
+        "SUPPORTED FRAMEWORKS:\n"
+        "  - make test     (Makefile with 'test' target)\n"
+        "  - cargo test    (Rust - Cargo.toml)\n"
+        "  - go test       (Go - go.mod)\n"
+        "  - npm test      (Node.js - package.json)\n"
+        "  - pytest        (Python - pytest.ini/pyproject.toml/tests/)\n\n"
+        "The command auto-detects which framework to use based on\n"
+        "project files in the current directory.",
+        "/test    # Run tests with auto-detected framework"
+    },
+    {
+        "git",
+        "git [status|commit|push|sync] [args]",
+        "Git workflow helper commands",
+        "Simplified git workflow commands for common operations.\n\n"
+        "SUBCOMMANDS:\n"
+        "  status, s       Show git status and recent commits\n"
+        "  commit, c <msg> Stage all changes and commit\n"
+        "  push, p         Push to remote\n"
+        "  sync            Pull --rebase and push\n\n"
+        "The commit command automatically adds the Claude Code signature.",
+        "/git status\n"
+        "/git commit Fix login bug\n"
+        "/git push\n"
+        "/git sync"
+    },
+    {
+        "pr",
+        "pr [title]",
+        "Create pull request via GitHub CLI",
+        "Creates a pull request using the 'gh' CLI tool.\n\n"
+        "REQUIREMENTS:\n"
+        "  - GitHub CLI (gh) must be installed and authenticated\n"
+        "  - Must be on a feature branch (not main/master)\n\n"
+        "If no title is provided, generates one from branch name.\n"
+        "Automatically pushes branch before creating PR.",
+        "/pr Add user authentication\n"
+        "/pr    # Uses branch name as title"
     },
     {NULL, NULL, NULL, NULL, NULL}
 };
@@ -2674,4 +2727,223 @@ int cmd_graph(int argc, char** argv) {
     }
 
     return 0;
+}
+
+// ============================================================================
+// GIT/TEST WORKFLOW COMMANDS (Issue #15)
+// ============================================================================
+
+/**
+ * /test - Run project tests with auto-detection of test framework
+ */
+int cmd_test(int argc, char** argv) {
+    (void)argc; (void)argv;
+
+    // Check what test frameworks/files exist
+    bool has_makefile = (access("Makefile", F_OK) == 0);
+    bool has_package_json = (access("package.json", F_OK) == 0);
+    bool has_cargo_toml = (access("Cargo.toml", F_OK) == 0);
+    bool has_go_mod = (access("go.mod", F_OK) == 0);
+    bool has_pytest = (access("pytest.ini", F_OK) == 0 || access("pyproject.toml", F_OK) == 0);
+    bool has_tests_dir = (access("tests", F_OK) == 0);
+
+    const char* cmd = NULL;
+    const char* framework = NULL;
+
+    // Priority: explicit test directory structure first
+    if (has_makefile) {
+        // Check if make test target exists
+        FILE* fp = popen("make -n test 2>/dev/null", "r");
+        if (fp) {
+            char buf[256];
+            if (fgets(buf, sizeof(buf), fp) != NULL) {
+                cmd = "make test";
+                framework = "make";
+            }
+            pclose(fp);
+        }
+    }
+
+    if (!cmd && has_cargo_toml) {
+        cmd = "cargo test";
+        framework = "cargo";
+    }
+
+    if (!cmd && has_go_mod) {
+        cmd = "go test ./...";
+        framework = "go";
+    }
+
+    if (!cmd && has_package_json) {
+        cmd = "npm test";
+        framework = "npm";
+    }
+
+    if (!cmd && (has_pytest || has_tests_dir)) {
+        cmd = "python3 -m pytest -v";
+        framework = "pytest";
+    }
+
+    if (!cmd) {
+        printf("\033[33m⚠ No test framework detected.\033[0m\n\n");
+        printf("Supported frameworks:\n");
+        printf("  • make test     (Makefile with 'test' target)\n");
+        printf("  • cargo test    (Rust - Cargo.toml)\n");
+        printf("  • go test       (Go - go.mod)\n");
+        printf("  • npm test      (Node.js - package.json)\n");
+        printf("  • pytest        (Python - pytest.ini/pyproject.toml/tests/)\n");
+        return -1;
+    }
+
+    printf("\033[1;36m🧪 Running tests with %s\033[0m\n", framework);
+    printf("  Command: %s\n\n", cmd);
+
+    int result = system(cmd);
+
+    printf("\n");
+    if (result == 0) {
+        printf("\033[32m✓ Tests passed!\033[0m\n");
+    } else {
+        printf("\033[31m✗ Tests failed (exit code: %d)\033[0m\n", WEXITSTATUS(result));
+    }
+
+    return result == 0 ? 0 : -1;
+}
+
+/**
+ * /git - Git workflow helper
+ */
+int cmd_git(int argc, char** argv) {
+    // Check if we're in a git repo
+    if (access(".git", F_OK) != 0) {
+        printf("\033[31mError: Not in a git repository.\033[0m\n");
+        return -1;
+    }
+
+    bool has_gh = (system("which gh >/dev/null 2>&1") == 0);
+    const char* subcommand = (argc > 1) ? argv[1] : "status";
+
+    if (strcmp(subcommand, "status") == 0 || strcmp(subcommand, "s") == 0) {
+        printf("\033[1;36m📊 Git Status\033[0m\n\n");
+        system("git status --short --branch");
+        printf("\n\033[36mRecent commits:\033[0m\n");
+        system("git log --oneline -5");
+        return 0;
+    }
+
+    if (strcmp(subcommand, "commit") == 0 || strcmp(subcommand, "c") == 0) {
+        if (argc < 3) {
+            printf("Usage: git commit <message>\n");
+            return -1;
+        }
+
+        char msg[1024] = {0};
+        for (int i = 2; i < argc; i++) {
+            if (i > 2) strncat(msg, " ", sizeof(msg) - strlen(msg) - 1);
+            strncat(msg, argv[i], sizeof(msg) - strlen(msg) - 1);
+        }
+
+        printf("\033[36mStaging changes...\033[0m\n");
+        system("git add -A");
+
+        int status = system("git diff --cached --quiet");
+        if (status == 0) {
+            printf("\033[33mNo changes to commit.\033[0m\n");
+            return 0;
+        }
+
+        char cmd_buf[2048];
+        snprintf(cmd_buf, sizeof(cmd_buf),
+            "git commit -m \"%s\" -m \"\" -m \"🤖 Generated with [Claude Code](https://claude.com/claude-code)\" -m \"Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\"",
+            msg);
+
+        printf("\033[36mCommitting...\033[0m\n");
+        int result = system(cmd_buf);
+        if (result == 0) {
+            printf("\033[32m✓ Committed!\033[0m\n");
+        }
+        return result == 0 ? 0 : -1;
+    }
+
+    if (strcmp(subcommand, "push") == 0 || strcmp(subcommand, "p") == 0) {
+        printf("\033[36mPushing...\033[0m\n");
+        int result = system("git push");
+        if (result == 0) printf("\033[32m✓ Pushed!\033[0m\n");
+        return result == 0 ? 0 : -1;
+    }
+
+    if (strcmp(subcommand, "sync") == 0) {
+        printf("\033[36mSyncing...\033[0m\n");
+        int result = system("git pull --rebase && git push");
+        if (result == 0) printf("\033[32m✓ Synced!\033[0m\n");
+        return result == 0 ? 0 : -1;
+    }
+
+    printf("\033[1;36m📦 Git Workflow\033[0m\n\n");
+    printf("Subcommands:\n");
+    printf("  status, s       Show status and recent commits\n");
+    printf("  commit, c <msg> Stage all and commit\n");
+    printf("  push, p         Push to remote\n");
+    printf("  sync            Pull --rebase and push\n");
+    if (has_gh) printf("\nFor PRs: /pr <title>\n");
+    return 0;
+}
+
+/**
+ * /pr - Create pull request via gh CLI
+ */
+int cmd_pr(int argc, char** argv) {
+    if (system("which gh >/dev/null 2>&1") != 0) {
+        printf("\033[31mError: 'gh' CLI not installed.\033[0m\n");
+        printf("Install: brew install gh && gh auth login\n");
+        return -1;
+    }
+
+    if (access(".git", F_OK) != 0) {
+        printf("\033[31mError: Not in a git repository.\033[0m\n");
+        return -1;
+    }
+
+    FILE* fp = popen("git branch --show-current", "r");
+    if (!fp) return -1;
+    char branch[256] = {0};
+    if (fgets(branch, sizeof(branch), fp)) {
+        branch[strcspn(branch, "\n")] = 0;
+    }
+    pclose(fp);
+
+    if (strcmp(branch, "main") == 0 || strcmp(branch, "master") == 0) {
+        printf("\033[31mError: Cannot create PR from %s.\033[0m\n", branch);
+        printf("Create a feature branch first.\n");
+        return -1;
+    }
+
+    char title[512] = {0};
+    if (argc > 1) {
+        for (int i = 1; i < argc; i++) {
+            if (i > 1) strncat(title, " ", sizeof(title) - strlen(title) - 1);
+            strncat(title, argv[i], sizeof(title) - strlen(title) - 1);
+        }
+    } else {
+        strncpy(title, branch, sizeof(title) - 1);
+        for (char* p = title; *p; p++) {
+            if (*p == '-' || *p == '_') *p = ' ';
+        }
+    }
+
+    printf("\033[1;36m🔀 Creating PR\033[0m\n");
+    printf("  Branch: %s\n  Title: %s\n\n", branch, title);
+
+    char push_cmd[512];
+    snprintf(push_cmd, sizeof(push_cmd), "git push -u origin %s 2>&1", branch);
+    system(push_cmd);
+
+    char pr_cmd[2048];
+    snprintf(pr_cmd, sizeof(pr_cmd),
+        "gh pr create --title \"%s\" --body \"## Summary\\n\\n## Test Plan\\n- [ ] Tests pass\\n\\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\"",
+        title);
+
+    int result = system(pr_cmd);
+    if (result == 0) printf("\n\033[32m✓ PR created!\033[0m\n");
+    return result == 0 ? 0 : -1;
 }
