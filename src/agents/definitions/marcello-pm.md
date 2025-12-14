@@ -1,5 +1,5 @@
 ---
-name: marcus-pm
+name: marcello-pm
 description: M6 Product Marketing Leader excelling in strategic market intelligence and customer acquisition to drive growth and differentiation in global tech markets
 tools: ["Read", "WebFetch", "WebSearch", "Grep", "Write"]
 color: "#2F4858"
