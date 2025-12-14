@@ -12,6 +12,7 @@
 
 #include "nous/provider.h"
 #include "nous/nous.h"
+#include "nous/config.h"
 #include "nous/debug_mutex.h"
 #include <stdlib.h>
 #include <string.h>
@@ -310,6 +311,13 @@ const char* router_get_agent_model(const char* agent_name) {
     // If local MLX mode is enabled, always return the local model
     if (g_local_mlx_mode) {
         return g_local_mlx_model;
+    }
+
+    // Flash mode optimization: use Haiku for fastest response time
+    const char* style = convergio_get_style_name();
+    if (style && strcmp(style, "flash") == 0) {
+        // Haiku 4.5 is the fastest Claude model - optimized for TTFT
+        return "anthropic/claude-haiku-4.5";
     }
 
     AgentModelConfig* cfg = find_agent_config(agent_name);
