@@ -239,8 +239,8 @@ static void* spinner_func(void* arg) {
         if (ticks_in_second >= 10) {
             ticks_in_second = 0;
             elapsed_seconds++;
-            // Change verb every ~4 seconds
-            if (elapsed_seconds % 4 == 0) {
+            // Change verb every ~4 seconds (skip first second to avoid immediate change)
+            if (elapsed_seconds > 0 && elapsed_seconds % 4 == 0) {
                 verb_index = (verb_index + 1) % SPINNER_VERB_COUNT;
             }
         }
