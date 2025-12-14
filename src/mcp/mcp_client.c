@@ -1215,9 +1215,19 @@ static int stdio_connect(MCPServer* server) {
         close(stdout_pipe[0]);
         close(stderr_pipe[0]);
 
-        // Set environment
+        // Set environment using setenv (safer - copies the value)
         for (int i = 0; i < config->env_count; i++) {
-            putenv(config->env[i]);
+            char* env_entry = config->env[i];
+            char* equal_sign = strchr(env_entry, '=');
+            if (equal_sign) {
+                size_t key_len = (size_t)(equal_sign - env_entry);
+                char key[256];
+                if (key_len < sizeof(key)) {
+                    memcpy(key, env_entry, key_len);
+                    key[key_len] = '\0';
+                    setenv(key, equal_sign + 1, 1);
+                }
+            }
         }
 
         // Change directory if specified

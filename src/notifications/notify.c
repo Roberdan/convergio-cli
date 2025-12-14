@@ -38,6 +38,8 @@
 #include <stdatomic.h>
 #include <mach-o/dyld.h>
 
+extern char **environ;
+
 // Global database connection (from persistence module)
 extern sqlite3* g_db;
 extern pthread_mutex_t g_db_mutex;
@@ -980,10 +982,20 @@ int notify_daemon_install(void) {
 
     fclose(f);
 
-    // Load the agent
-    char cmd[PATH_MAX + 64];
-    snprintf(cmd, sizeof(cmd), "launchctl load '%s'", plist_path);
-    return system(cmd);
+    // Load the agent using posix_spawn (safer than system())
+    pid_t pid;
+    char *argv[] = { "launchctl", "load", plist_path, NULL };
+    int status = 0;
+
+    if (posix_spawnp(&pid, "launchctl", NULL, NULL, argv, environ) != 0) {
+        return -1;
+    }
+
+    if (waitpid(pid, &status, 0) == -1) {
+        return -1;
+    }
+
+    return WIFEXITED(status) ? WEXITSTATUS(status) : -1;
 }
 
 int notify_daemon_uninstall(void) {
@@ -993,10 +1005,14 @@ int notify_daemon_uninstall(void) {
 
     snprintf(plist_path, sizeof(plist_path), "%s/Library/LaunchAgents/io.convergio.daemon.plist", home);
 
-    // Unload the agent
-    char cmd[PATH_MAX + 64];
-    snprintf(cmd, sizeof(cmd), "launchctl unload '%s' 2>/dev/null", plist_path);
-    system(cmd);
+    // Unload the agent using posix_spawn (safer than system())
+    pid_t pid;
+    char *argv[] = { "launchctl", "unload", plist_path, NULL };
+
+    if (posix_spawnp(&pid, "launchctl", NULL, NULL, argv, environ) == 0) {
+        int status;
+        waitpid(pid, &status, 0);  // Ignore errors - file might not exist
+    }
 
     // Remove plist
     unlink(plist_path);
