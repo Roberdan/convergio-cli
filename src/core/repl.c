@@ -185,32 +185,46 @@ void repl_print_separator(void) {
     printf("\n" ANSI_DIM "────────────────────────────────────────────────────────────────" ANSI_RESET "\n\n");
 }
 
-// Dynamic spinner verbs - changes every few seconds for visual interest
-static const char* SPINNER_VERBS[] = {
-    "Thinking",
-    "Pondering",
-    "Analyzing",
-    "Reasoning",
-    "Synthesizing",
-    "Processing",
-    "Contemplating",
-    "Evaluating",
-    "Considering",
-    "Reflecting",
-    "Deliberating",
-    "Exploring",
+// Spinner states with different icons for each action type
+typedef struct {
+    const char* verb;
+    const char** frames;
+    int frame_count;
+} SpinnerState;
+
+// Different spinner frame sets for different actions
+static const char* FRAMES_THINKING[] = {"🧠", "💭", "🧠", "💡"};  // Brain thinking
+static const char* FRAMES_ANALYZING[] = {"🔍", "📊", "🔎", "📈"};  // Analysis
+static const char* FRAMES_PROCESSING[] = {"⚙️ ", "🔄", "⚙️ ", "🔃"};  // Processing
+static const char* FRAMES_EXPLORING[] = {"🧭", "🗺️ ", "🔭", "🌐"};  // Exploration
+
+static const SpinnerState SPINNER_STATES[] = {
+    {"Thinking",      FRAMES_THINKING,   4},
+    {"Pondering",     FRAMES_THINKING,   4},
+    {"Analyzing",     FRAMES_ANALYZING,  4},
+    {"Reasoning",     FRAMES_THINKING,   4},
+    {"Synthesizing",  FRAMES_PROCESSING, 4},
+    {"Processing",    FRAMES_PROCESSING, 4},
+    {"Contemplating", FRAMES_THINKING,   4},
+    {"Evaluating",    FRAMES_ANALYZING,  4},
+    {"Considering",   FRAMES_THINKING,   4},
+    {"Reflecting",    FRAMES_THINKING,   4},
+    {"Deliberating",  FRAMES_THINKING,   4},
+    {"Exploring",     FRAMES_EXPLORING,  4},
 };
-#define SPINNER_VERB_COUNT 12
+#define SPINNER_STATE_COUNT 12
 
 // Spinner thread function - polls for ESC key to cancel
 static void* spinner_func(void* arg) {
     (void)arg;
 
-    // Animated spinner frames (braille dots pattern)
-    const char* frames[] = {"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"};
     int frame = 0;
     int verb_index = 0;
     int ticks = 0;
+
+    // Get spinner color from theme (before entering loop, as theme is read-only during spin)
+    const Theme* t = theme_get();
+    const char* spinner_color = t->spinner ? t->spinner : "\033[38;5;208m";  // Orange fallback
 
     // Save terminal settings and enable raw mode for ESC detection
     struct termios raw;
@@ -233,19 +247,24 @@ static void* spinner_func(void* arg) {
             }
         }
 
-        // Change verb every ~3 seconds (37 ticks * 80ms = ~3s)
-        if (ticks > 0 && ticks % 37 == 0) {
-            verb_index = (verb_index + 1) % SPINNER_VERB_COUNT;
+        // Change verb every ~3 seconds (20 ticks * 150ms = 3s)
+        if (ticks > 0 && ticks % 20 == 0) {
+            verb_index = (verb_index + 1) % SPINNER_STATE_COUNT;
+            frame = 0;  // Reset frame when changing verb
         }
 
-        // Colored spinner with dynamic verb (using standard ANSI colors for compatibility)
-        printf(ANSI_CURSOR_START ANSI_CYAN "%s" ANSI_RESET " " ANSI_DIM "%s..." ANSI_RESET "  (ESC to cancel)  ",
-               frames[frame], SPINNER_VERBS[verb_index]);
+        // Get current state and its frames
+        const SpinnerState* state = &SPINNER_STATES[verb_index];
+        const char* icon = state->frames[frame % state->frame_count];
+
+        // Colored spinner with action-specific icon (default: orange like Claude Code)
+        printf(ANSI_CURSOR_START "%s%s" ANSI_RESET " " ANSI_DIM "%s..." ANSI_RESET "  (ESC to cancel)  ",
+               spinner_color, icon, state->verb);
         fflush(stdout);
 
-        frame = (frame + 1) % 10;
+        frame = (frame + 1) % state->frame_count;
         ticks++;
-        usleep(80000);  // 80ms
+        usleep(150000);  // 150ms (slower for emoji visibility)
     }
 
     // Restore terminal settings

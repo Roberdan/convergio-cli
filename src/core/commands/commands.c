@@ -16,6 +16,7 @@
 #include "nous/telemetry.h"
 #include "nous/agentic.h"
 #include "nous/projects.h"
+#include "nous/semantic_persistence.h"
 #include "nous/model_loader.h"
 #include "../../auth/oauth.h"
 #include <stdio.h>
@@ -48,8 +49,15 @@ int cmd_project(int argc, char** argv);
 // Forward declaration for setup wizard
 int cmd_setup(int argc, char** argv);
 
-// Forward declaration for recall command
+// Forward declaration for session recall
 int cmd_recall(int argc, char** argv);
+
+// Forward declarations for semantic memory commands
+int cmd_remember(int argc, char** argv);
+int cmd_search(int argc, char** argv);
+int cmd_memories(int argc, char** argv);
+int cmd_forget(int argc, char** argv);
+int cmd_graph(int argc, char** argv);
 
 static const ReplCommand COMMANDS[] = {
     {"help",        "Show available commands",           cmd_help},
@@ -74,7 +82,14 @@ static const ReplCommand COMMANDS[] = {
     {"telemetry",   "Manage telemetry settings",         cmd_telemetry},
     {"tools",       "Manage development tools",          cmd_tools},
     {"news",        "Show release notes",                cmd_news},
-    {"recall",      "Show/manage past session summaries", cmd_recall},
+    // Session recall
+    {"recall",      "View/load past sessions",           cmd_recall},
+    // Semantic memory commands
+    {"remember",    "Store a memory",                    cmd_remember},
+    {"search",      "Search memories semantically",      cmd_search},
+    {"memories",    "List recent/important memories",    cmd_memories},
+    {"forget",      "Delete a memory by ID",             cmd_forget},
+    {"graph",       "Show knowledge graph stats",        cmd_graph},
     {"quit",        "Exit Convergio",                    cmd_quit},
     {"exit",        "Exit Convergio",                    cmd_quit},
     {NULL, NULL, NULL}
@@ -461,6 +476,111 @@ static const CommandHelp DETAILED_HELP[] = {
         "quit\n"
         "exit"
     },
+    // Semantic memory commands
+    {
+        "remember",
+        "remember <text>",
+        "Store a memory in the knowledge graph",
+        "Creates a persistent memory node that survives across sessions.\n"
+        "Memories are stored with high importance (0.9) and can be:\n"
+        "  - Searched with 'recall'\n"
+        "  - Listed with 'memories'\n"
+        "  - Deleted with 'forget'\n\n"
+        "Memories persist in SQLite and are loaded on startup.",
+        "remember Roberto prefers clean code\n"
+        "remember The API key is stored in keychain\n"
+        "remember Use snake_case for variables"
+    },
+    {
+        "recall",
+        "recall <query>",
+        "Search memories by keyword",
+        "Searches the knowledge graph for memories matching your query.\n"
+        "Returns up to 10 matching results with their importance scores.\n\n"
+        "Currently uses keyword matching. Semantic similarity search\n"
+        "will be added when the embedding system is fully implemented.",
+        "recall Roberto\n"
+        "recall API key\n"
+        "recall code style"
+    },
+    {
+        "search",
+        "search <query>",
+        "Search memories semantically",
+        "Searches the knowledge graph for memories matching your query.\n"
+        "Returns up to 10 matching results ordered by importance.\n\n"
+        "This is an alias for 'recall <query>' with the same functionality.",
+        "search Roberto preferences\n"
+        "search API documentation\n"
+        "search coding style"
+    },
+    {
+        "memories",
+        "memories",
+        "List knowledge graph statistics and important memories",
+        "Shows:\n"
+        "  - Total nodes and relations in the graph\n"
+        "  - Nodes currently loaded in memory\n"
+        "  - The 10 most important memories (importance >= 0.5)\n\n"
+        "Use this to get an overview of what Convergio remembers.",
+        "memories"
+    },
+    {
+        "forget",
+        "forget <id>",
+        "Delete a memory by its ID",
+        "Permanently removes a memory from the knowledge graph.\n"
+        "The ID is a hexadecimal number shown in 'recall' or 'memories' output.\n\n"
+        "This also removes all relations connected to that memory.",
+        "forget 0x1234567890abcdef\n"
+        "forget 1234567890abcdef"
+    },
+    {
+        "graph",
+        "graph",
+        "Show knowledge graph statistics",
+        "Displays detailed statistics about the semantic knowledge graph:\n"
+        "  - Total nodes in database\n"
+        "  - Nodes loaded in memory\n"
+        "  - Total relations (connections between nodes)\n"
+        "  - Breakdown of nodes by type (Memory, Concept, Entity, etc.)\n\n"
+        "The knowledge graph stores memories, concepts, and their relationships\n"
+        "to enable semantic understanding across sessions.",
+        "graph"
+    },
+    {
+        "local",
+        "help local",
+        "Local models guide (MLX on Apple Silicon)",
+        "Run AI models 100% offline on your Mac without cloud APIs or internet.\n"
+        "Requires Apple Silicon (M1/M2/M3/M4/M5).\n\n"
+        "QUICK START:\n"
+        "  /setup -> Local Models -> Download a model\n\n"
+        "AVAILABLE MODELS:\n"
+        "  - Llama 3.2 1B/3B    - Fast, general purpose\n"
+        "  - DeepSeek R1 Distill - Reasoning, coding, math (1.5B/7B/14B)\n"
+        "  - Qwen 2.5 Coder 7B  - Code generation\n"
+        "  - Phi-3 Mini         - Fast, efficient\n"
+        "  - Mistral 7B Q4      - Multilingual, European\n"
+        "  - Llama 3.1 8B Q4    - Best quality, long context\n\n"
+        "BENEFITS:\n"
+        "  - 100% offline operation (no internet required)\n"
+        "  - Complete privacy (data never leaves your Mac)\n"
+        "  - No API costs (free forever)\n"
+        "  - Low latency (no network roundtrip)\n"
+        "  - Apple Silicon optimized (Neural Engine + GPU)\n\n"
+        "LIMITATIONS:\n"
+        "  - Model download required (1-9 GB per model)\n"
+        "  - Quality varies vs cloud models for complex tasks\n"
+        "  - RAM requirements (4-16GB depending on model)\n"
+        "  - Tool calling less reliable than Claude\n\n"
+        "CLI OPTIONS:\n"
+        "  convergio --local              Use MLX provider\n"
+        "  convergio --local -m llama-3.2-3b  Specific model",
+        "/setup           # Open wizard, select Local Models\n"
+        "convergio --local --model deepseek-r1-7b\n"
+        "convergio -l -m llama-3.2-3b"
+    },
     {NULL, NULL, NULL, NULL, NULL}
 };
 
@@ -553,19 +673,28 @@ int cmd_help(int argc, char** argv) {
     printf("   \033[36mproject switch <name>\033[0m      Switch between projects\n");
     printf("   \033[36mproject\033[0m                    Show current project & team\n\n");
 
-    // 3. POWER FEATURES
+    // 3. KNOWLEDGE GRAPH - Persistent semantic memory
+    printf("\033[1;33m🧠 KNOWLEDGE GRAPH\033[0m  \033[2m(persistent memory across sessions)\033[0m\n");
+    printf("   \033[36mremember <text>\033[0m    Store important facts and preferences\n");
+    printf("   \033[36mrecall <query>\033[0m     Search your memories by keyword\n");
+    printf("   \033[36mmemories\033[0m           List stored memories and graph stats\n");
+    printf("   \033[36mgraph\033[0m              Show knowledge graph statistics\n");
+    printf("   \033[36mforget <id>\033[0m        Remove a memory\n");
+    printf("   \033[2m   Tip: Memories persist in SQLite and survive restarts\033[0m\n\n");
+
+    // 4. POWER FEATURES
     printf("\033[1;33m⚡ POWER FEATURES\033[0m\n");
     printf("   \033[36mcompare \"prompt\"\033[0m           Compare responses from 2-3 different models\n");
     printf("   \033[36mbenchmark \"prompt\" <model>\033[0m Test ONE model's speed & cost (N runs)\n");
     printf("   \033[36msetup\033[0m                      Configure providers & models per agent\n\n");
 
-    // 4. CUSTOMIZATION
+    // 5. CUSTOMIZATION
     printf("\033[1;33m🎨 CUSTOMIZATION\033[0m\n");
     printf("   \033[36mtheme\033[0m              Interactive theme selector with preview\n");
     printf("   \033[36magent edit <name>\033[0m  Customize any agent's personality & model\n");
     printf("   \033[36magent create\033[0m       Create your own custom agent\n\n");
 
-    // 5. SYSTEM
+    // 6. SYSTEM
     printf("\033[1;33m⚙️  SYSTEM\033[0m\n");
     printf("   \033[36mcost\033[0m / \033[36mcost report\033[0m   Track spending across all providers\n");
     printf("   \033[36mstatus\033[0m             System health & active agents\n");
@@ -2320,4 +2449,229 @@ int cmd_project(int argc, char** argv) {
     printf("Unknown project command: %s\n", subcommand);
     printf("Run 'project' without arguments for usage information.\n");
     return -1;
+}
+
+// ============================================================================
+// SEMANTIC MEMORY COMMANDS
+// ============================================================================
+
+/**
+ * /remember <text> - Store a memory with high importance
+ */
+int cmd_remember(int argc, char** argv) {
+    if (argc < 2) {
+        printf("Usage: remember <text to remember>\n");
+        printf("Example: remember Roberto prefers clean, readable code\n");
+        return -1;
+    }
+
+    // Join all arguments into one string
+    char content[2048] = {0};
+    size_t len = 0;
+    for (int i = 1; i < argc && len < sizeof(content) - 2; i++) {
+        if (i > 1) content[len++] = ' ';
+        size_t arg_len = strlen(argv[i]);
+        if (len + arg_len < sizeof(content) - 1) {
+            memcpy(content + len, argv[i], arg_len);
+            len += arg_len;
+        }
+    }
+
+    // Create semantic node
+    SemanticID id = nous_create_node(SEMANTIC_TYPE_MEMORY, content);
+    if (id == SEMANTIC_ID_NULL) {
+        printf("\033[31mError: Failed to store memory.\033[0m\n");
+        return -1;
+    }
+
+    // Set high importance for explicitly remembered items (both DB and in-memory)
+    sem_persist_update_importance(id, 0.9f);
+    NousSemanticNode* node = nous_get_node(id);
+    if (node) {
+        node->importance = 0.9f;
+        nous_release_node(node);
+    }
+
+    printf("\033[32m✓ Remembered:\033[0m \"%s\"\n", content);
+    printf("\033[90mMemory ID: 0x%llx\033[0m\n", (unsigned long long)id);
+
+    return 0;
+}
+
+/**
+ * /search <query> - Search memories semantically
+ */
+int cmd_search(int argc, char** argv) {
+    if (argc < 2) {
+        printf("Usage: search <search query>\n");
+        printf("Example: search what does Roberto prefer\n");
+        return -1;
+    }
+
+    // Join all arguments into search query
+    char query[1024] = {0};
+    size_t len = 0;
+    for (int i = 1; i < argc && len < sizeof(query) - 2; i++) {
+        if (i > 1) query[len++] = ' ';
+        size_t arg_len = strlen(argv[i]);
+        if (len + arg_len < sizeof(query) - 1) {
+            memcpy(query + len, argv[i], arg_len);
+            len += arg_len;
+        }
+    }
+
+    // Search by essence (keyword search for now)
+    size_t count = 0;
+    SemanticID* results = sem_persist_search_essence(query, 10, &count);
+
+    if (!results || count == 0) {
+        printf("\033[33mNo memories found for:\033[0m \"%s\"\n", query);
+        return 0;
+    }
+
+    printf("\033[1mFound %zu matching memories:\033[0m\n\n", count);
+
+    for (size_t i = 0; i < count; i++) {
+        NousSemanticNode* node = nous_get_node(results[i]);
+        if (node && node->essence) {
+            printf("  \033[36m[%zu]\033[0m %s\n", i + 1, node->essence);
+            printf("      \033[90mID: 0x%llx | Importance: %.2f\033[0m\n",
+                   (unsigned long long)node->id, node->importance);
+            nous_release_node(node);
+        }
+    }
+
+    free(results);
+    return 0;
+}
+
+/**
+ * /memories - List recent and important memories
+ */
+int cmd_memories(int argc, char** argv) {
+    (void)argc; (void)argv;
+
+    // Get graph statistics
+    GraphStats stats = sem_persist_get_stats();
+
+    printf("\033[1m📚 Knowledge Graph\033[0m\n");
+    printf("   Total nodes: %zu\n", stats.total_nodes);
+    printf("   Total relations: %zu\n", stats.total_relations);
+    printf("   Nodes in memory: %zu\n", stats.nodes_in_memory);
+    printf("\n");
+
+    // Load most important memories
+    size_t count = 0;
+    SemanticID* important = sem_persist_load_important(10, 0.5f, &count);
+
+    if (important && count > 0) {
+        printf("\033[1m⭐ Most Important Memories:\033[0m\n\n");
+        for (size_t i = 0; i < count; i++) {
+            NousSemanticNode* node = nous_get_node(important[i]);
+            if (node && node->essence) {
+                // Truncate long essences
+                char display[80];
+                if (strlen(node->essence) > 75) {
+                    snprintf(display, sizeof(display), "%.72s...", node->essence);
+                } else {
+                    snprintf(display, sizeof(display), "%s", node->essence);
+                }
+                printf("  \033[36m[%zu]\033[0m %s\n", i + 1, display);
+                printf("      \033[90mImportance: %.2f | Accessed: %llu times\033[0m\n",
+                       node->importance, (unsigned long long)node->access_count);
+                nous_release_node(node);
+            }
+        }
+        free(important);
+    } else {
+        printf("\033[33mNo memories stored yet.\033[0m\n");
+        printf("Use \033[1mremember <text>\033[0m to store your first memory!\n");
+    }
+
+    return 0;
+}
+
+/**
+ * /forget <id> - Delete a memory by ID
+ */
+int cmd_forget(int argc, char** argv) {
+    if (argc < 2) {
+        printf("Usage: forget <memory_id>\n");
+        printf("Example: forget 0x1234567890abcdef\n");
+        printf("\nUse 'memories' or 'recall' to find memory IDs.\n");
+        return -1;
+    }
+
+    // Parse hex ID with proper error checking
+    char* endptr = NULL;
+    const char* num_str = argv[1];
+    if (strncmp(num_str, "0x", 2) == 0 || strncmp(num_str, "0X", 2) == 0) {
+        num_str += 2;
+    }
+
+    errno = 0;
+    SemanticID id = strtoull(num_str, &endptr, 16);
+
+    // Check for parsing errors: no digits parsed, or trailing garbage
+    if (endptr == num_str || *endptr != '\0' || errno == ERANGE) {
+        printf("\033[31mError: Invalid memory ID format. Use hex format like 0x1234.\033[0m\n");
+        return -1;
+    }
+
+    // Note: id == 0 is technically valid but very unlikely to be a real ID
+    if (id == 0) {
+        printf("\033[33mWarning: ID 0 is unusual. Proceeding anyway.\033[0m\n");
+    }
+
+    // Check if it exists
+    if (!sem_persist_node_exists(id)) {
+        printf("\033[31mError: Memory 0x%llx not found.\033[0m\n", (unsigned long long)id);
+        return -1;
+    }
+
+    // Delete from persistence
+    int rc = sem_persist_delete_node(id);
+    if (rc != 0) {
+        printf("\033[31mError: Failed to delete memory.\033[0m\n");
+        return -1;
+    }
+
+    // Also delete from in-memory fabric (if loaded)
+    nous_delete_node(id);
+
+    printf("\033[32m✓ Forgotten memory 0x%llx\033[0m\n", (unsigned long long)id);
+    return 0;
+}
+
+/**
+ * /graph - Show knowledge graph statistics
+ */
+int cmd_graph(int argc, char** argv) {
+    (void)argc; (void)argv;
+
+    GraphStats stats = sem_persist_get_stats();
+
+    printf("\033[1m🧠 Semantic Knowledge Graph\033[0m\n\n");
+
+    printf("  \033[36mNodes\033[0m\n");
+    printf("    Total in database:    %zu\n", stats.total_nodes);
+    printf("    Loaded in memory:     %zu\n", stats.nodes_in_memory);
+    printf("\n");
+
+    printf("  \033[36mRelations\033[0m\n");
+    printf("    Total connections:    %zu\n", stats.total_relations);
+    printf("\n");
+
+    printf("  \033[36mNodes by Type\033[0m\n");
+    const char* type_names[] = {
+        "Void", "Concept", "Entity", "Relation", "Intent",
+        "Agent", "Space", "Event", "Feeling", "Memory", "Pattern"
+    };
+    for (int i = 0; i < 11 && i < 16; i++) {
+        if (stats.nodes_by_type[i] > 0) {
+            printf("    %-12s: %zu\n", type_names[i], stats.nodes_by_type[i]);
+        }
+    }
+
+    return 0;
 }

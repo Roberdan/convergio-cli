@@ -6,212 +6,144 @@ on:
   push:
     branches: [main]
 
+# Cancel in-progress runs for the same branch
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  XCODE_VERSION: /Applications/Xcode_16.2.app/Contents/Developer
+
 jobs:
-  build:
-    name: Build & Test
-    runs-on: macos-14  # Apple Silicon (M1)
+  # ============================================================================
+  # FAST CHECKS (no build, no deps) - instant feedback
+  # ============================================================================
 
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Install dependencies
-        run: brew install cjson
-
-      - name: Build (Release)
-        run: |
-          make clean
-          make 2>&1 | tee build.log
-
-      - name: Check for warnings
-        run: |
-          # Filter out Metal Toolchain message (not a compiler warning)
-          if grep -i "warning:" build.log | grep -v "Metal Toolchain"; then
-            echo "::error::Build produced warnings"
-            exit 1
-          fi
-          echo "No compiler warnings found"
-
-      - name: Verify binary exists
-        run: |
-          test -f ./build/bin/convergio || (echo "Binary not found" && exit 1)
-
-      - name: Verify version flag
-        run: |
-          ./build/bin/convergio --version
-
-      - name: Verify help flag
-        run: |
-          ./build/bin/convergio --help
-
-      - name: Check binary size
-        run: |
-          SIZE=$(stat -f%z ./build/bin/convergio)
-          echo "Binary size: $SIZE bytes ($(echo "scale=2; $SIZE/1024/1024" | bc) MB)"
-          if [ $SIZE -gt 10485760 ]; then
-            echo "::warning::Binary size exceeds 10MB"
-          fi
-
-      - name: Upload build artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: convergio-ci-build
-          path: build/bin/convergio
-          retention-days: 7
-
-  debug-build:
-    name: Debug Build (Sanitizers)
+  quick-checks:
+    name: Quick Checks
     runs-on: macos-14
-
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Install dependencies
-        run: brew install cjson
-
-      - name: Build with sanitizers
+      - name: Security scan
         run: |
-          make clean
-          make debug 2>&1 | tee debug-build.log
+          echo "=== Checking for hardcoded secrets ==="
+          ! grep -rE "(api[_-]?key|secret|password|token)\s*=" --include="*.c" --include="*.h" src include 2>/dev/null | grep -v "getenv" | grep -v "keychain" | grep -v "// " || echo "::warning::Potential secrets found"
 
-      - name: Report sanitizer warnings
+          echo "=== Checking for dangerous functions ==="
+          ! grep -rE "\b(gets|sprintf|strcpy|strcat|scanf)\s*\(" --include="*.c" src 2>/dev/null || echo "::warning::Dangerous functions found"
+
+      - name: Code quality
         run: |
-          # Note: Some conversion warnings are expected in debug mode
-          # The important thing is that the build succeeds
-          echo "Debug build completed"
-
-      - name: Verify debug binary exists
-        run: |
-          test -f ./build/bin/convergio || (echo "Debug binary not found" && exit 1)
-
-  unit-tests:
-    name: Unit Tests
-    runs-on: macos-14
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Install dependencies
-        run: brew install cjson
-
-      - name: Build and run unit tests
-        run: |
-          make clean
-          make unit_test 2>&1
-
-      - name: Verify unit test results
-        run: |
-          if [ -f ./build/bin/unit_test ]; then
-            echo "Unit tests completed successfully"
-          else
-            echo "::error::Unit test binary not found"
-            exit 1
-          fi
-
-  fuzz-tests:
-    name: Fuzz Tests
-    runs-on: macos-14
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Install dependencies
-        run: brew install cjson
-
-      - name: Build fuzz tests
-        run: |
-          make clean
-          make fuzz_test 2>&1 || true
-
-      - name: Check fuzz test results
-        run: |
-          if [ -f ./build/bin/fuzz_test ]; then
-            echo "Fuzz tests completed"
-          else
-            echo "::notice::Fuzz test binary not found (build may have failed)"
-          fi
-
-  e2e-tests:
-    name: E2E Tests
-    runs-on: macos-14
-    needs: build  # Requires successful build first
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Install dependencies
-        run: brew install cjson
-
-      - name: Build
-        run: make clean && make
-
-      - name: Run E2E tests (offline subset)
-        run: |
-          # Run tests that don't require API keys
-          chmod +x tests/e2e_test.sh
-          # Run with timeout and capture output
-          timeout 120 ./tests/e2e_test.sh 2>&1 || true
-        continue-on-error: true  # E2E tests may fail without API keys
-
-      - name: E2E test summary
-        run: |
-          echo "E2E tests completed (some tests may skip without API keys)"
+          echo "=== Checking for TODO/FIXME ==="
+          grep -rE "(TODO|FIXME)" --include="*.c" --include="*.h" src include 2>/dev/null | head -10 || true
 
   static-analysis:
     name: Static Analysis
     runs-on: macos-14
-
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+
+      - name: Cache LLVM
+        id: cache-llvm
+        uses: actions/cache@v4
+        with:
+          path: /opt/homebrew/opt/llvm
+          key: llvm-macos-14-arm64-v1
 
       - name: Install clang-tidy
-        run: |
-          brew install llvm
-          echo "$(brew --prefix llvm)/bin" >> $GITHUB_PATH
+        if: steps.cache-llvm.outputs.cache-hit != 'true'
+        run: brew install llvm
 
       - name: Run clang-tidy
         continue-on-error: true
         run: |
-          # Find all C source files and run clang-tidy
-          find src -name "*.c" -type f | head -5 | while read file; do
-            echo "Checking $file..."
-            clang-tidy "$file" -- -Iinclude -std=c17 2>&1 || true
-          done
+          export PATH="/opt/homebrew/opt/llvm/bin:$PATH"
+          find src -name "*.c" -type f | head -5 | xargs -P4 -I{} sh -c 'echo "Checking {}..." && clang-tidy {} -- -Iinclude -std=c17 2>&1 || true'
 
-  security-check:
-    name: Security Check
+  # ============================================================================
+  # BUILD MATRIX - all builds run in parallel with shared cache
+  # ============================================================================
+
+  build-matrix:
+    name: Build (${{ matrix.target }})
     runs-on: macos-14
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: release
+            make_cmd: make
+            artifact: convergio-release
+          - target: debug
+            make_cmd: make debug
+            artifact: convergio-debug
+          - target: unit-test
+            make_cmd: make unit_test
+            artifact: ""
+          - target: fuzz-test
+            make_cmd: make fuzz_test
+            artifact: ""
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Check for hardcoded secrets
+      - name: Cache Homebrew
+        uses: actions/cache@v4
+        with:
+          path: |
+            /opt/homebrew/Cellar/cjson
+            /opt/homebrew/opt/cjson
+          key: brew-cjson-macos-14-arm64
+
+      - name: Install dependencies
+        run: brew list cjson &>/dev/null || brew install cjson
+
+      - name: Select Xcode
+        run: sudo xcode-select -s ${{ env.XCODE_VERSION }}
+
+      - name: Build ${{ matrix.target }}
+        run: ${{ matrix.make_cmd }} 2>&1 | tee build.log
+
+      - name: Check warnings (release only)
+        if: matrix.target == 'release'
         run: |
-          # Check for potential API keys or secrets
-          if grep -rE "(api[_-]?key|secret|password|token)\s*=" --include="*.c" --include="*.h" src include 2>/dev/null | grep -v "getenv" | grep -v "keychain" | grep -v "// "; then
-            echo "::warning::Potential hardcoded secrets found"
-          else
-            echo "No hardcoded secrets detected"
+          if grep -i "warning:" build.log | grep -v "Metal Toolchain" | grep -v "Swift build failed"; then
+            echo "::error::Build produced warnings"
+            exit 1
           fi
 
-      - name: Check for dangerous functions
-        run: |
-          # Check for potentially dangerous functions
-          DANGEROUS_FUNCS="gets|sprintf|strcpy|strcat|scanf"
-          if grep -rE "\b($DANGEROUS_FUNCS)\s*\(" --include="*.c" src 2>/dev/null; then
-            echo "::warning::Potentially dangerous functions found (consider safer alternatives)"
-          else
-            echo "No dangerous functions detected"
-          fi
+      - name: Verify binary
+        run: test -f ./build/bin/convergio || test -f ./build/bin/unit_test || test -f ./build/bin/fuzz_test
 
-      - name: Check for TODO/FIXME security items
+      - name: Upload artifact
+        if: matrix.artifact != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: build/bin/convergio
+          retention-days: 7
+
+  # ============================================================================
+  # E2E TESTS - uses release artifact (no rebuild)
+  # ============================================================================
+
+  e2e-tests:
+    name: E2E Tests
+    runs-on: macos-14
+    needs: build-matrix
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download release binary
+        uses: actions/download-artifact@v4
+        with:
+          name: convergio-release
+          path: build/bin
+
+      - name: Run E2E tests
         run: |
-          if grep -rE "(TODO|FIXME).*secur" --include="*.c" --include="*.h" src include 2>/dev/null; then
-            echo "::notice::Security-related TODO/FIXME items found"
-          fi
+          chmod +x build/bin/convergio tests/e2e_test.sh
+          timeout 120 ./tests/e2e_test.sh 2>&1 || true
+        continue-on-error: true

@@ -53,6 +53,7 @@ typedef struct {
     // Special
     const char* separator;      // Line separators
     const char* cost;           // Cost display
+    const char* spinner;        // Spinner/thinking indicator color
 } Theme;
 
 // Initialize theme system (loads saved preference)
