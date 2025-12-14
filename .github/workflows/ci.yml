@@ -92,6 +92,7 @@ jobs:
           brew list cjson &>/dev/null || brew install cjson
           brew list ccache &>/dev/null || brew install ccache
           brew link cjson --overwrite 2>/dev/null || true
+          brew link ccache --overwrite 2>/dev/null || true
 
       # --- Compilation cache ---
       - name: Cache ccache
