@@ -575,41 +575,8 @@ void test_notifications_and_mcp_integration(void) {
     mcp_shutdown();
 }
 
-// ============================================================================
-// NOTIFICATION TESTS
-// NOTE: Disabled until Phase 2 implementation (ADR-009)
-// The notify.h API has different signature than expected by tests
-// ============================================================================
-
-#if 0  // Enable when notify.c is fully implemented
-void test_notify_init(void) {
-    TEST_SECTION("Notification System Tests");
-    // ... tests here when API is stable
-}
-
-void test_notify_send(void) {
-    TEST_SECTION("Notification Send Tests");
-    // ... tests here when API is stable
-}
-#endif
-
-// ============================================================================
-// MCP CLIENT TESTS
-// NOTE: Disabled until Phase 3 implementation (ADR-009)
-// The mcp_client.h API has different signature than expected by tests
-// ============================================================================
-
-#if 0  // Enable when mcp_client.c is fully implemented
-void test_mcp_client_create(void) {
-    TEST_SECTION("MCP Client Tests");
-    // ... tests here when API is stable
-}
-
-void test_mcp_tool_call(void) {
-    TEST_SECTION("MCP Tool Call Tests");
-    // ... tests here when API is stable
-}
-#endif
+// Note: Notification and MCP tests are now integrated in test_notifications_and_mcp_integration()
+// Phase 2 (Notifications) and Phase 3 (MCP Client) are fully implemented in v4.2.0
 
 // ============================================================================
 // MAIN
