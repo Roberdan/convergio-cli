@@ -46,10 +46,48 @@ typedef enum {
 
 static sqlite3_stmt* g_stmts[STMT_CACHE_SIZE] = {0};
 static bool g_todo_initialized = false;
+static const char* g_stmt_names[STMT_CACHE_SIZE] = {
+    [STMT_INSERT_TASK] = "STMT_INSERT_TASK",
+    [STMT_GET_TASK] = "STMT_GET_TASK",
+    [STMT_UPDATE_TASK] = "STMT_UPDATE_TASK",
+    [STMT_DELETE_TASK] = "STMT_DELETE_TASK",
+    [STMT_LIST_TASKS] = "STMT_LIST_TASKS",
+    [STMT_LIST_TODAY] = "STMT_LIST_TODAY",
+    [STMT_LIST_OVERDUE] = "STMT_LIST_OVERDUE",
+    [STMT_COMPLETE_TASK] = "STMT_COMPLETE_TASK",
+    [STMT_INSERT_INBOX] = "STMT_INSERT_INBOX",
+    [STMT_LIST_INBOX] = "STMT_LIST_INBOX",
+    [STMT_SEARCH_FTS] = "STMT_SEARCH_FTS",
+    [STMT_GET_STATS] = "STMT_GET_STATS",
+};
 
 // ============================================================================
 // INTERNAL HELPERS
 // ============================================================================
+
+static void finalize_statement_cache(void) {
+    for (int i = 0; i < STMT_CACHE_SIZE; i++) {
+        if (g_stmts[i]) {
+            sqlite3_finalize(g_stmts[i]);
+            g_stmts[i] = NULL;
+        }
+    }
+}
+
+static int prepare_statement(StmtIndex idx, const char* sql) {
+    int rc = sqlite3_prepare_v3(
+        g_db,
+        sql,
+        -1,
+        SQLITE_PREPARE_PERSISTENT,
+        &g_stmts[idx],
+        NULL);
+    if (rc != SQLITE_OK) {
+        fprintf(stderr, "todo_init: failed to prepare %s (rc=%d): %s\n",
+                g_stmt_names[idx], rc, sqlite3_errmsg(g_db));
+    }
+    return rc;
+}
 
 static char* safe_strdup(const char* s) {
     return s ? strdup(s) : NULL;
@@ -168,38 +206,33 @@ int todo_init(void) {
 
     pthread_mutex_lock(&g_db_mutex);
 
-    int rc = 0;
-    rc |= sqlite3_prepare_v3(g_db, sql_insert, -1, SQLITE_PREPARE_PERSISTENT, &g_stmts[STMT_INSERT_TASK], NULL);
-    rc |= sqlite3_prepare_v3(g_db, sql_get, -1, SQLITE_PREPARE_PERSISTENT, &g_stmts[STMT_GET_TASK], NULL);
-    rc |= sqlite3_prepare_v3(g_db, sql_list_today, -1, SQLITE_PREPARE_PERSISTENT, &g_stmts[STMT_LIST_TODAY], NULL);
-    rc |= sqlite3_prepare_v3(g_db, sql_list_overdue, -1, SQLITE_PREPARE_PERSISTENT, &g_stmts[STMT_LIST_OVERDUE], NULL);
-    rc |= sqlite3_prepare_v3(g_db, sql_complete, -1, SQLITE_PREPARE_PERSISTENT, &g_stmts[STMT_COMPLETE_TASK], NULL);
-    rc |= sqlite3_prepare_v3(g_db, sql_insert_inbox, -1, SQLITE_PREPARE_PERSISTENT, &g_stmts[STMT_INSERT_INBOX], NULL);
-    rc |= sqlite3_prepare_v3(g_db, sql_list_inbox, -1, SQLITE_PREPARE_PERSISTENT, &g_stmts[STMT_LIST_INBOX], NULL);
-    rc |= sqlite3_prepare_v3(g_db, sql_search, -1, SQLITE_PREPARE_PERSISTENT, &g_stmts[STMT_SEARCH_FTS], NULL);
-    rc |= sqlite3_prepare_v3(g_db, sql_stats, -1, SQLITE_PREPARE_PERSISTENT, &g_stmts[STMT_GET_STATS], NULL);
+    if (prepare_statement(STMT_INSERT_TASK, sql_insert) != SQLITE_OK) goto init_error;
+    if (prepare_statement(STMT_GET_TASK, sql_get) != SQLITE_OK) goto init_error;
+    if (prepare_statement(STMT_LIST_TODAY, sql_list_today) != SQLITE_OK) goto init_error;
+    if (prepare_statement(STMT_LIST_OVERDUE, sql_list_overdue) != SQLITE_OK) goto init_error;
+    if (prepare_statement(STMT_COMPLETE_TASK, sql_complete) != SQLITE_OK) goto init_error;
+    if (prepare_statement(STMT_INSERT_INBOX, sql_insert_inbox) != SQLITE_OK) goto init_error;
+    if (prepare_statement(STMT_LIST_INBOX, sql_list_inbox) != SQLITE_OK) goto init_error;
+    if (prepare_statement(STMT_SEARCH_FTS, sql_search) != SQLITE_OK) goto init_error;
+    if (prepare_statement(STMT_GET_STATS, sql_stats) != SQLITE_OK) goto init_error;
 
     pthread_mutex_unlock(&g_db_mutex);
 
-    if (rc != SQLITE_OK) {
-        fprintf(stderr, "todo_init: Failed to prepare statements\n");
-        return -1;
-    }
-
     g_todo_initialized = true;
     return 0;
+
+init_error:
+    finalize_statement_cache();
+    pthread_mutex_unlock(&g_db_mutex);
+    g_todo_initialized = false;
+    return -1;
 }
 
 void todo_shutdown(void) {
     if (!g_todo_initialized) return;
 
     pthread_mutex_lock(&g_db_mutex);
-    for (int i = 0; i < STMT_CACHE_SIZE; i++) {
-        if (g_stmts[i]) {
-            sqlite3_finalize(g_stmts[i]);
-            g_stmts[i] = NULL;
-        }
-    }
+    finalize_statement_cache();
     pthread_mutex_unlock(&g_db_mutex);
 
     g_todo_initialized = false;
