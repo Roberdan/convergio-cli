@@ -271,51 +271,88 @@ int todo_update(int64_t id, const TodoCreateOptions* options) {
     if (!options) return -1;
     if (!g_todo_initialized && todo_init() != 0) return -1;
 
-    // Build dynamic UPDATE query
+    // Build dynamic UPDATE query with parameter placeholders
     char sql[1024];
     int len = snprintf(sql, sizeof(sql), "UPDATE tasks SET updated_at = datetime('now')");
 
     if (options->title)
-        len += snprintf(sql + len, sizeof(sql) - len, ", title = '%s'", options->title);
+        len += snprintf(sql + len, sizeof(sql) - len, ", title = ?");
     if (options->description)
-        len += snprintf(sql + len, sizeof(sql) - len, ", description = '%s'", options->description);
+        len += snprintf(sql + len, sizeof(sql) - len, ", description = ?");
     if (options->priority)
-        len += snprintf(sql + len, sizeof(sql) - len, ", priority = %d", options->priority);
+        len += snprintf(sql + len, sizeof(sql) - len, ", priority = ?");
+    if (options->due_date)
+        len += snprintf(sql + len, sizeof(sql) - len, ", due_date = ?");
+    if (options->reminder_at)
+        len += snprintf(sql + len, sizeof(sql) - len, ", reminder_at = ?");
+    if (options->context)
+        len += snprintf(sql + len, sizeof(sql) - len, ", context = ?");
+    if (options->tags)
+        len += snprintf(sql + len, sizeof(sql) - len, ", tags = ?");
+
+    snprintf(sql + len, sizeof(sql) - len, " WHERE id = ?");
+
+    pthread_mutex_lock(&g_db_mutex);
+
+    sqlite3_stmt* stmt = NULL;
+    int rc = sqlite3_prepare_v2(g_db, sql, -1, &stmt, NULL);
+    if (rc != SQLITE_OK) {
+        pthread_mutex_unlock(&g_db_mutex);
+        return -1;
+    }
+
+    // Bind parameters in order
+    int param_idx = 1;
+    if (options->title)
+        sqlite3_bind_text(stmt, param_idx++, options->title, -1, SQLITE_TRANSIENT);
+    if (options->description)
+        sqlite3_bind_text(stmt, param_idx++, options->description, -1, SQLITE_TRANSIENT);
+    if (options->priority)
+        sqlite3_bind_int(stmt, param_idx++, options->priority);
     if (options->due_date) {
         char buf[32];
         format_iso8601(options->due_date, buf, sizeof(buf));
-        len += snprintf(sql + len, sizeof(sql) - len, ", due_date = '%s'", buf);
+        sqlite3_bind_text(stmt, param_idx++, buf, -1, SQLITE_TRANSIENT);
     }
     if (options->reminder_at) {
         char buf[32];
         format_iso8601(options->reminder_at, buf, sizeof(buf));
-        len += snprintf(sql + len, sizeof(sql) - len, ", reminder_at = '%s'", buf);
+        sqlite3_bind_text(stmt, param_idx++, buf, -1, SQLITE_TRANSIENT);
     }
     if (options->context)
-        len += snprintf(sql + len, sizeof(sql) - len, ", context = '%s'", options->context);
+        sqlite3_bind_text(stmt, param_idx++, options->context, -1, SQLITE_TRANSIENT);
     if (options->tags)
-        len += snprintf(sql + len, sizeof(sql) - len, ", tags = '%s'", options->tags);
+        sqlite3_bind_text(stmt, param_idx++, options->tags, -1, SQLITE_TRANSIENT);
 
-    snprintf(sql + len, sizeof(sql) - len, " WHERE id = %lld", id);
+    sqlite3_bind_int64(stmt, param_idx, id);
 
-    pthread_mutex_lock(&g_db_mutex);
-    int rc = sqlite3_exec(g_db, sql, NULL, NULL, NULL);
+    rc = sqlite3_step(stmt);
+    sqlite3_finalize(stmt);
     pthread_mutex_unlock(&g_db_mutex);
 
-    return (rc == SQLITE_OK) ? 0 : -1;
+    return (rc == SQLITE_DONE) ? 0 : -1;
 }
 
 int todo_delete(int64_t id) {
     if (!g_todo_initialized && todo_init() != 0) return -1;
 
-    char sql[128];
-    snprintf(sql, sizeof(sql), "DELETE FROM tasks WHERE id = %lld", id);
+    const char* sql = "DELETE FROM tasks WHERE id = ?";
 
     pthread_mutex_lock(&g_db_mutex);
-    int rc = sqlite3_exec(g_db, sql, NULL, NULL, NULL);
+
+    sqlite3_stmt* stmt = NULL;
+    int rc = sqlite3_prepare_v2(g_db, sql, -1, &stmt, NULL);
+    if (rc != SQLITE_OK) {
+        pthread_mutex_unlock(&g_db_mutex);
+        return -1;
+    }
+
+    sqlite3_bind_int64(stmt, 1, id);
+    rc = sqlite3_step(stmt);
+    sqlite3_finalize(stmt);
     pthread_mutex_unlock(&g_db_mutex);
 
-    return (rc == SQLITE_OK) ? 0 : -1;
+    return (rc == SQLITE_DONE) ? 0 : -1;
 }
 
 // ============================================================================
@@ -340,44 +377,68 @@ int todo_complete(int64_t id) {
 int todo_uncomplete(int64_t id) {
     if (!g_todo_initialized && todo_init() != 0) return -1;
 
-    char sql[128];
-    snprintf(sql, sizeof(sql),
-             "UPDATE tasks SET status = 0, completed_at = NULL, "
-             "updated_at = datetime('now') WHERE id = %lld", id);
+    const char* sql = "UPDATE tasks SET status = 0, completed_at = NULL, "
+                      "updated_at = datetime('now') WHERE id = ?";
 
     pthread_mutex_lock(&g_db_mutex);
-    int rc = sqlite3_exec(g_db, sql, NULL, NULL, NULL);
+
+    sqlite3_stmt* stmt = NULL;
+    int rc = sqlite3_prepare_v2(g_db, sql, -1, &stmt, NULL);
+    if (rc != SQLITE_OK) {
+        pthread_mutex_unlock(&g_db_mutex);
+        return -1;
+    }
+
+    sqlite3_bind_int64(stmt, 1, id);
+    rc = sqlite3_step(stmt);
+    sqlite3_finalize(stmt);
     pthread_mutex_unlock(&g_db_mutex);
 
-    return (rc == SQLITE_OK) ? 0 : -1;
+    return (rc == SQLITE_DONE) ? 0 : -1;
 }
 
 int todo_start(int64_t id) {
     if (!g_todo_initialized && todo_init() != 0) return -1;
 
-    char sql[128];
-    snprintf(sql, sizeof(sql),
-             "UPDATE tasks SET status = 1, updated_at = datetime('now') WHERE id = %lld", id);
+    const char* sql = "UPDATE tasks SET status = 1, updated_at = datetime('now') WHERE id = ?";
 
     pthread_mutex_lock(&g_db_mutex);
-    int rc = sqlite3_exec(g_db, sql, NULL, NULL, NULL);
+
+    sqlite3_stmt* stmt = NULL;
+    int rc = sqlite3_prepare_v2(g_db, sql, -1, &stmt, NULL);
+    if (rc != SQLITE_OK) {
+        pthread_mutex_unlock(&g_db_mutex);
+        return -1;
+    }
+
+    sqlite3_bind_int64(stmt, 1, id);
+    rc = sqlite3_step(stmt);
+    sqlite3_finalize(stmt);
     pthread_mutex_unlock(&g_db_mutex);
 
-    return (rc == SQLITE_OK) ? 0 : -1;
+    return (rc == SQLITE_DONE) ? 0 : -1;
 }
 
 int todo_cancel(int64_t id) {
     if (!g_todo_initialized && todo_init() != 0) return -1;
 
-    char sql[128];
-    snprintf(sql, sizeof(sql),
-             "UPDATE tasks SET status = 3, updated_at = datetime('now') WHERE id = %lld", id);
+    const char* sql = "UPDATE tasks SET status = 3, updated_at = datetime('now') WHERE id = ?";
 
     pthread_mutex_lock(&g_db_mutex);
-    int rc = sqlite3_exec(g_db, sql, NULL, NULL, NULL);
+
+    sqlite3_stmt* stmt = NULL;
+    int rc = sqlite3_prepare_v2(g_db, sql, -1, &stmt, NULL);
+    if (rc != SQLITE_OK) {
+        pthread_mutex_unlock(&g_db_mutex);
+        return -1;
+    }
+
+    sqlite3_bind_int64(stmt, 1, id);
+    rc = sqlite3_step(stmt);
+    sqlite3_finalize(stmt);
     pthread_mutex_unlock(&g_db_mutex);
 
-    return (rc == SQLITE_OK) ? 0 : -1;
+    return (rc == SQLITE_DONE) ? 0 : -1;
 }
 
 // ============================================================================
@@ -499,12 +560,16 @@ TodoTask** todo_list(const TodoFilter* filter, int* count) {
         return NULL;
     }
 
-    // Build dynamic query based on filter
+    // Build dynamic query based on filter with parameter placeholders
     char sql[1024];
     int len = snprintf(sql, sizeof(sql),
                        "SELECT id, title, description, priority, status, due_date, reminder_at, "
                        "recurrence, recurrence_rule, tags, context, parent_id, source, external_id, "
                        "created_at, updated_at, completed_at FROM tasks WHERE 1=1");
+
+    // Track which params to bind
+    int has_context = 0, has_due_from = 0, has_due_to = 0;
+    char due_from_buf[32] = {0}, due_to_buf[32] = {0};
 
     if (filter) {
         if (!filter->include_completed && !filter->include_cancelled) {
@@ -516,19 +581,20 @@ TodoTask** todo_list(const TodoFilter* filter, int* count) {
         }
 
         if (filter->context) {
-            len += snprintf(sql + len, sizeof(sql) - len, " AND context = '%s'", filter->context);
+            len += snprintf(sql + len, sizeof(sql) - len, " AND context = ?");
+            has_context = 1;
         }
 
         if (filter->due_from) {
-            char buf[32];
-            format_iso8601(filter->due_from, buf, sizeof(buf));
-            len += snprintf(sql + len, sizeof(sql) - len, " AND due_date >= '%s'", buf);
+            format_iso8601(filter->due_from, due_from_buf, sizeof(due_from_buf));
+            len += snprintf(sql + len, sizeof(sql) - len, " AND due_date >= ?");
+            has_due_from = 1;
         }
 
         if (filter->due_to) {
-            char buf[32];
-            format_iso8601(filter->due_to, buf, sizeof(buf));
-            len += snprintf(sql + len, sizeof(sql) - len, " AND due_date <= '%s'", buf);
+            format_iso8601(filter->due_to, due_to_buf, sizeof(due_to_buf));
+            len += snprintf(sql + len, sizeof(sql) - len, " AND due_date <= ?");
+            has_due_to = 1;
         }
 
         int limit = filter->limit > 0 ? filter->limit : 100;
@@ -544,8 +610,22 @@ TodoTask** todo_list(const TodoFilter* filter, int* count) {
 
     pthread_mutex_lock(&g_db_mutex);
 
-    sqlite3_stmt* stmt;
-    sqlite3_prepare_v2(g_db, sql, -1, &stmt, NULL);
+    sqlite3_stmt* stmt = NULL;
+    int rc = sqlite3_prepare_v2(g_db, sql, -1, &stmt, NULL);
+    if (rc != SQLITE_OK) {
+        pthread_mutex_unlock(&g_db_mutex);
+        *count = 0;
+        return NULL;
+    }
+
+    // Bind parameters in order
+    int param_idx = 1;
+    if (has_context)
+        sqlite3_bind_text(stmt, param_idx++, filter->context, -1, SQLITE_TRANSIENT);
+    if (has_due_from)
+        sqlite3_bind_text(stmt, param_idx++, due_from_buf, -1, SQLITE_TRANSIENT);
+    if (has_due_to)
+        sqlite3_bind_text(stmt, param_idx++, due_to_buf, -1, SQLITE_TRANSIENT);
 
     TodoTask** tasks = execute_list_query(stmt, count);
 
@@ -630,29 +710,46 @@ TodoInboxItem** inbox_list_unprocessed(int* count) {
 int inbox_process(int64_t inbox_id, int64_t task_id) {
     if (!g_todo_initialized && todo_init() != 0) return -1;
 
-    char sql[128];
-    snprintf(sql, sizeof(sql),
-             "UPDATE inbox SET processed = 1, processed_task_id = %lld WHERE id = %lld",
-             task_id, inbox_id);
+    const char* sql = "UPDATE inbox SET processed = 1, processed_task_id = ? WHERE id = ?";
 
     pthread_mutex_lock(&g_db_mutex);
-    int rc = sqlite3_exec(g_db, sql, NULL, NULL, NULL);
+
+    sqlite3_stmt* stmt = NULL;
+    int rc = sqlite3_prepare_v2(g_db, sql, -1, &stmt, NULL);
+    if (rc != SQLITE_OK) {
+        pthread_mutex_unlock(&g_db_mutex);
+        return -1;
+    }
+
+    sqlite3_bind_int64(stmt, 1, task_id);
+    sqlite3_bind_int64(stmt, 2, inbox_id);
+    rc = sqlite3_step(stmt);
+    sqlite3_finalize(stmt);
     pthread_mutex_unlock(&g_db_mutex);
 
-    return (rc == SQLITE_OK) ? 0 : -1;
+    return (rc == SQLITE_DONE) ? 0 : -1;
 }
 
 int inbox_delete(int64_t inbox_id) {
     if (!g_todo_initialized && todo_init() != 0) return -1;
 
-    char sql[64];
-    snprintf(sql, sizeof(sql), "DELETE FROM inbox WHERE id = %lld", inbox_id);
+    const char* sql = "DELETE FROM inbox WHERE id = ?";
 
     pthread_mutex_lock(&g_db_mutex);
-    int rc = sqlite3_exec(g_db, sql, NULL, NULL, NULL);
+
+    sqlite3_stmt* stmt = NULL;
+    int rc = sqlite3_prepare_v2(g_db, sql, -1, &stmt, NULL);
+    if (rc != SQLITE_OK) {
+        pthread_mutex_unlock(&g_db_mutex);
+        return -1;
+    }
+
+    sqlite3_bind_int64(stmt, 1, inbox_id);
+    rc = sqlite3_step(stmt);
+    sqlite3_finalize(stmt);
     pthread_mutex_unlock(&g_db_mutex);
 
-    return (rc == SQLITE_OK) ? 0 : -1;
+    return (rc == SQLITE_DONE) ? 0 : -1;
 }
 
 // ============================================================================
