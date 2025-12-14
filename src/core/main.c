@@ -621,21 +621,17 @@ int main(int argc, char** argv) {
             snprintf(agents_ptr, agents_remaining, "Ali");
         }
 
-        // Build prompt: Convergio (Agents) [Project] > (ALL BOLD, theme colors)
-        // \001 and \002 wrap non-printing chars for readline cursor positioning
+        // Build prompt: Convergio (Agents) [Project] > (ALL BOLD, single theme color)
+        // \001 and \002 wrap non-printing ANSI codes for readline (GNU readline required!)
+        // Structure: [BOLD][COLOR]entire prompt text[RESET] - no mid-prompt resets
         if (current_proj) {
             snprintf(prompt, sizeof(prompt),
-                "\001\033[1m%s\002Convergio\001\033[0m\002 "
-                "\001\033[1m%s\002(%s)\001\033[0m\002 "
-                "\001\033[1m%s\002[%s]\001\033[0m\002 "
-                "\001\033[1m%s\002>\001\033[0m\002 ",
-                t->prompt_name, t->prompt_name, agents_str, t->prompt_name, current_proj->name, t->prompt_arrow);
+                "\001\033[1m%s\002Convergio (%s) [%s] >\001\033[0m\002 ",
+                t->prompt_name, agents_str, current_proj->name);
         } else {
             snprintf(prompt, sizeof(prompt),
-                "\001\033[1m%s\002Convergio\001\033[0m\002 "
-                "\001\033[1m%s\002(%s)\001\033[0m\002 "
-                "\001\033[1m%s\002>\001\033[0m\002 ",
-                t->prompt_name, t->prompt_name, agents_str, t->prompt_arrow);
+                "\001\033[1m%s\002Convergio (%s) >\001\033[0m\002 ",
+                t->prompt_name, agents_str);
         }
 
         line = readline(prompt);
