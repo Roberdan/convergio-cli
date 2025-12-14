@@ -471,27 +471,24 @@ int sem_persist_load_graph(size_t max_nodes) {
 
     sqlite3_finalize(stmt);
 
-    // Now load relations for loaded nodes
+    // Load relations only for nodes that were loaded (using subquery for efficiency)
+    // This avoids loading all relations and filtering in memory
     const char* rel_sql =
-        "SELECT from_id, to_id, strength FROM semantic_relations";
+        "SELECT r.from_id, r.to_id, r.strength FROM semantic_relations r "
+        "WHERE r.from_id IN (SELECT id FROM semantic_nodes ORDER BY importance DESC, access_count DESC LIMIT ?) "
+        "AND r.to_id IN (SELECT id FROM semantic_nodes ORDER BY importance DESC, access_count DESC LIMIT ?)";
 
     rc = sqlite3_prepare_v2(g_db, rel_sql, -1, &stmt, NULL);
     if (rc == SQLITE_OK) {
+        sqlite3_bind_int64(stmt, 1, (int64_t)max_nodes);
+        sqlite3_bind_int64(stmt, 2, (int64_t)max_nodes);
+
         while (sqlite3_step(stmt) == SQLITE_ROW) {
             SemanticID from = (SemanticID)sqlite3_column_int64(stmt, 0);
             SemanticID to = (SemanticID)sqlite3_column_int64(stmt, 1);
             float strength = (float)sqlite3_column_double(stmt, 2);
 
-            // Only connect if both nodes are loaded
-            NousSemanticNode* from_node = nous_get_node(from);
-            NousSemanticNode* to_node = nous_get_node(to);
-
-            if (from_node && to_node) {
-                nous_connect(from, to, strength);
-            }
-
-            if (from_node) nous_release_node(from_node);
-            if (to_node) nous_release_node(to_node);
+            nous_connect(from, to, strength);
         }
         sqlite3_finalize(stmt);
     }
@@ -722,9 +719,17 @@ SemanticID* sem_persist_search_essence(const char* query, size_t limit, size_t* 
 // MIGRATION
 // ============================================================================
 
+// Structure to hold memory data for migration
+typedef struct {
+    char* content;
+    char* category;
+    float importance;
+} MigrationMemory;
+
 int sem_persist_migrate_memories(void) {
     if (!g_db) return -1;
 
+    // Phase 1: Read all memory data while holding mutex (minimal blocking)
     CONVERGIO_MUTEX_LOCK(&g_db_mutex);
 
     // Check if there are memories to migrate
@@ -747,45 +752,81 @@ int sem_persist_migrate_memories(void) {
         return 0;
     }
 
-    // Migrate each memory
-    const char* sql =
-        "SELECT content, category, importance, embedding, created_at "
-        "FROM memories";
-
-    rc = sqlite3_prepare_v2(g_db, sql, -1, &stmt, NULL);
-    if (rc != SQLITE_OK) {
+    // Allocate array to hold all memory data
+    MigrationMemory* memories = calloc(total, sizeof(MigrationMemory));
+    if (!memories) {
         CONVERGIO_MUTEX_UNLOCK(&g_db_mutex);
         return -1;
     }
 
-    int migrated = 0;
-    while (sqlite3_step(stmt) == SQLITE_ROW) {
+    // Load all memories into array
+    const char* sql =
+        "SELECT content, category, importance FROM memories";
+
+    rc = sqlite3_prepare_v2(g_db, sql, -1, &stmt, NULL);
+    if (rc != SQLITE_OK) {
+        free(memories);
+        CONVERGIO_MUTEX_UNLOCK(&g_db_mutex);
+        return -1;
+    }
+
+    size_t loaded = 0;
+    while (sqlite3_step(stmt) == SQLITE_ROW && loaded < total) {
         const char* content = (const char*)sqlite3_column_text(stmt, 0);
         const char* category = (const char*)sqlite3_column_text(stmt, 1);
-        float importance = (float)sqlite3_column_double(stmt, 2);
 
         if (content) {
-            // Create semantic node
-            SemanticID id = nous_create_node(SEMANTIC_TYPE_MEMORY, content);
-            if (id != SEMANTIC_ID_NULL) {
-                // Update importance
-                sem_persist_update_importance(id, importance);
+            memories[loaded].content = strdup(content);
+            memories[loaded].category = category ? strdup(category) : NULL;
+            memories[loaded].importance = (float)sqlite3_column_double(stmt, 2);
 
-                // Create category relation if present
-                if (category && strlen(category) > 0 && strcmp(category, "general") != 0) {
-                    SemanticID cat_id = nous_create_node(SEMANTIC_TYPE_CONCEPT, category);
-                    if (cat_id != SEMANTIC_ID_NULL) {
-                        nous_connect(id, cat_id, 0.7f);
-                    }
+            // Check for allocation failure
+            if (!memories[loaded].content) {
+                // Cleanup and abort
+                for (size_t j = 0; j < loaded; j++) {
+                    free(memories[j].content);
+                    free(memories[j].category);
                 }
-
-                migrated++;
+                free(memories);
+                sqlite3_finalize(stmt);
+                CONVERGIO_MUTEX_UNLOCK(&g_db_mutex);
+                return -1;
             }
+            loaded++;
         }
     }
 
     sqlite3_finalize(stmt);
-    CONVERGIO_MUTEX_UNLOCK(&g_db_mutex);
+    CONVERGIO_MUTEX_UNLOCK(&g_db_mutex);  // Release mutex before node creation
+
+    // Phase 2: Create semantic nodes (mutex released, no blocking)
+    int migrated = 0;
+    for (size_t i = 0; i < loaded; i++) {
+        MigrationMemory* mem = &memories[i];
+
+        SemanticID id = nous_create_node(SEMANTIC_TYPE_MEMORY, mem->content);
+        if (id != SEMANTIC_ID_NULL) {
+            // Update importance
+            sem_persist_update_importance(id, mem->importance);
+
+            // Create category relation if present
+            if (mem->category && strlen(mem->category) > 0 &&
+                strcmp(mem->category, "general") != 0) {
+                SemanticID cat_id = nous_create_node(SEMANTIC_TYPE_CONCEPT, mem->category);
+                if (cat_id != SEMANTIC_ID_NULL) {
+                    nous_connect(id, cat_id, 0.7f);
+                }
+            }
+
+            migrated++;
+        }
+
+        // Free memory data after processing
+        free(mem->content);
+        free(mem->category);
+    }
+
+    free(memories);
 
     LOG_INFO(LOG_CAT_MEMORY, "Migrated %d/%zu memories to semantic graph", migrated, total);
     return migrated;
