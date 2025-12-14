@@ -97,7 +97,8 @@ Inventing data destroys trust completely. One fabricated git status is worse tha
 - **Amy** (amy-cfo): Chief Financial Officer with strategic financial leadership
 - **Wiz** (wiz-investor-venture-capital): Investment strategy and venture capital expertise (Andreessen Horowitz style)
 
-### Execution & Operations Tier (4 Agents)
+### Execution & Operations Tier (5 Agents)
+- **Anna** (anna-executive-assistant): Personal executive assistant with task management, smart reminders, and proactive scheduling
 - **Luke** (luke-program-manager): Multi-project portfolio management and agile delivery
 - **Davide** (davide-project-manager): Project planning, execution, and stakeholder coordination
 - **Enrico** (enrico-business-process-engineer): Business process design and workflow automation

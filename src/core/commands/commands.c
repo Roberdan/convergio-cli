@@ -77,6 +77,9 @@ int cmd_pr(int argc, char** argv);
 int cmd_daemon(int argc, char** argv);
 int cmd_mcp(int argc, char** argv);
 
+// Forward declaration for style command
+int cmd_style(int argc, char** argv);
+
 static const ReplCommand COMMANDS[] = {
     {"help",        "Show available commands",           cmd_help},
     {"agent",       "Manage agents",                     cmd_agent},
@@ -95,6 +98,7 @@ static const ReplCommand COMMANDS[] = {
     {"hardware",    "Show hardware information",         cmd_hardware},
     {"stream",      "Toggle streaming mode (on/off)",    cmd_stream},
     {"theme",       "Interactive theme selector (or /theme <name>)", cmd_theme},
+    {"style",       "Set response style (flash/concise/balanced/detailed)", cmd_style},
     {"compare",     "Compare responses from 2-3 models", cmd_compare},
     {"benchmark",   "Test ONE model's speed (N runs)",   cmd_benchmark},
     {"telemetry",   "Manage telemetry settings",         cmd_telemetry},
@@ -1912,6 +1916,75 @@ int cmd_theme(int argc, char** argv) {
         } else {
             printf("Theme unchanged: %s\n", theme_get_name(selected));
         }
+    }
+    return 0;
+}
+
+// ============================================================================
+// RESPONSE STYLE COMMAND
+// ============================================================================
+
+// Style definitions
+typedef struct {
+    const char* name;
+    const char* description;
+    int max_tokens;
+    double temperature;
+    bool markdown;
+} StyleDef;
+
+static const StyleDef STYLES[] = {
+    {"flash",    "Ultra fast, direct answers, no formatting",    1024,  0.3, false},
+    {"concise",  "Brief but formatted, good balance",            2048,  0.5, true},
+    {"balanced", "Default, equilibrated detail and speed",       4096,  0.7, true},
+    {"detailed", "In-depth analysis, maximum detail",            8192,  0.8, true},
+};
+#define STYLE_COUNT 4
+
+static const StyleDef* style_get_def(const char* name) {
+    for (int i = 0; i < STYLE_COUNT; i++) {
+        if (strcmp(STYLES[i].name, name) == 0) {
+            return &STYLES[i];
+        }
+    }
+    return NULL;
+}
+
+int cmd_style(int argc, char** argv) {
+    const char* current = convergio_config_get("style");
+    if (!current) current = "balanced";
+
+    if (argc > 1) {
+        // Set style
+        const StyleDef* def = style_get_def(argv[1]);
+        if (def) {
+            convergio_config_set("style", argv[1]);
+            convergio_config_save();
+            printf("\n\033[1mStyle changed to: %s\033[0m\n", def->name);
+            printf("  %s\n", def->description);
+            printf("  Max tokens: %d | Temperature: %.1f | Markdown: %s\n\n",
+                   def->max_tokens, def->temperature, def->markdown ? "yes" : "no");
+        } else {
+            printf("\033[31mUnknown style: %s\033[0m\n\n", argv[1]);
+            printf("Available styles:\n");
+            for (int i = 0; i < STYLE_COUNT; i++) {
+                printf("  \033[1m%-10s\033[0m %s\n", STYLES[i].name, STYLES[i].description);
+            }
+            printf("\n");
+        }
+    } else {
+        // Show current style and options
+        printf("\n\033[1mResponse Style Configuration\033[0m\n\n");
+        printf("Current style: \033[1;36m%s\033[0m\n\n", current);
+        printf("Available styles:\n");
+        for (int i = 0; i < STYLE_COUNT; i++) {
+            const char* marker = strcmp(STYLES[i].name, current) == 0 ? " *" : "  ";
+            printf("%s\033[1m%-10s\033[0m %s\n", marker, STYLES[i].name, STYLES[i].description);
+            printf("              tokens: %d | temp: %.1f | markdown: %s\n",
+                   STYLES[i].max_tokens, STYLES[i].temperature,
+                   STYLES[i].markdown ? "yes" : "no");
+        }
+        printf("\nUsage: /style <name>\n\n");
     }
     return 0;
 }
