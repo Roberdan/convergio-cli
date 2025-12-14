@@ -68,6 +68,7 @@ include_directories(
     ${READLINE_INCLUDE_DIR}
     ${CURL_INCLUDE_DIR}
     ${SQLITE3_INCLUDE_DIR}
+    /opt/homebrew/include
 )
 
 # Source files - all C sources

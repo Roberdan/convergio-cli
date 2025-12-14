@@ -907,8 +907,10 @@ typedef struct {
     bool completed;
 } AgentTask;
 
-// Claude API
-extern char* nous_claude_chat(const char* system_prompt, const char* user_message);
+// Provider interface for agent execution
+#include "nous/provider.h"
+#define REGISTRY_MODEL "claude-sonnet-4-20250514"
+
 extern void cost_record_agent_usage(ManagedAgent* agent, uint64_t input_tokens, uint64_t output_tokens);
 
 // Execute multiple agents in parallel using GCD
@@ -928,9 +930,20 @@ void agent_execute_parallel(ManagedAgent** agents, size_t count, const char* inp
         tasks[i].completed = false;
 
         dispatch_group_async(group, queue, ^{
-            // Call Claude API for this agent
+            // Use Provider interface for agent execution
             if (tasks[i].agent && tasks[i].agent->system_prompt) {
-                char* response = nous_claude_chat(tasks[i].agent->system_prompt, tasks[i].input);
+                Provider* provider = provider_get(PROVIDER_ANTHROPIC);
+                char* response = NULL;
+                if (provider && provider->chat) {
+                    TokenUsage usage = {0};
+                    response = provider->chat(
+                        provider,
+                        REGISTRY_MODEL,
+                        tasks[i].agent->system_prompt,
+                        tasks[i].input,
+                        &usage
+                    );
+                }
                 if (response) {
                     tasks[i].output = response;
                     tasks[i].completed = true;

@@ -6,12 +6,15 @@
 
 #include "nous/convergence.h"
 #include "nous/orchestrator.h"
+#include "nous/provider.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
+// Model used for orchestrator convergence (matches previous claude.c default)
+#define ORCHESTRATOR_MODEL "claude-sonnet-4-20250514"
+
 // External functions
-extern char* nous_claude_chat(const char* system_prompt, const char* user_message);
 extern Orchestrator* orchestrator_get(void);
 
 // ============================================================================
@@ -51,10 +54,19 @@ char* orchestrator_converge(ExecutionPlan* plan) {
         task = task->next;
     }
 
-    // Ask Ali to synthesize
-    char* final = nous_claude_chat(
-        "You are Ali. Synthesize the following multi-agent analysis into a clear, actionable response.",
-        combined);
+    // Ask Ali to synthesize using Provider interface
+    char* final = NULL;
+    Provider* provider = provider_get(PROVIDER_ANTHROPIC);
+    if (provider && provider->chat) {
+        TokenUsage usage = {0};
+        final = provider->chat(
+            provider,
+            ORCHESTRATOR_MODEL,
+            "You are Ali. Synthesize the following multi-agent analysis into a clear, actionable response.",
+            combined,
+            &usage
+        );
+    }
 
     free(combined);
 
