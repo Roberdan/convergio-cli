@@ -71,10 +71,13 @@ static void save_conversation(const char* role, const char* content, const char*
     }
 }
 
-// Claude API (from neural/claude.c)
+// Provider interface for simple chat calls
+#include "nous/provider.h"
+#define ORCHESTRATOR_MODEL "claude-sonnet-4-20250514"
+
+// Claude API for initialization and tool-based chat (complex tool loop)
 extern int nous_claude_init(void);
 extern void nous_claude_shutdown(void);
-extern char* nous_claude_chat(const char* system_prompt, const char* user_message);
 extern char* nous_claude_chat_with_tools(const char* system_prompt, const char* user_message,
                                           const char* tools_json, char** out_tool_calls);
 
@@ -849,7 +852,7 @@ char* orchestrator_process(const char* user_input) {
     while (iteration < MAX_TOOL_ITERATIONS) {
         iteration++;
 
-        // Call Claude with tools
+        // Call Claude with tools (using specialized tool handler from claude.c)
         char* tool_calls_json = NULL;
         char* response = nous_claude_chat_with_tools(
             prompt_to_use,
@@ -1355,7 +1358,19 @@ char* orchestrator_parallel_analyze(const char* input, const char** agent_names,
             tasks[i].output = NULL;
 
             dispatch_group_async(group, queue, ^{
-                char* response = nous_claude_chat(tasks[i].agent->system_prompt, tasks[i].input);
+                // Use Provider interface for parallel agent execution
+                Provider* provider = provider_get(PROVIDER_ANTHROPIC);
+                char* response = NULL;
+                if (provider && provider->chat) {
+                    TokenUsage usage = {0};
+                    response = provider->chat(
+                        provider,
+                        ORCHESTRATOR_MODEL,
+                        tasks[i].agent->system_prompt,
+                        tasks[i].input,
+                        &usage
+                    );
+                }
                 tasks[i].output = response;
                 if (response) {
                     // Create task record
