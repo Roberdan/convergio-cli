@@ -106,7 +106,7 @@ fi
 # =============================================================================
 echo -e "${BLUE}=== Section 1: Basic Commands ===${NC}"
 
-run_test "version" "" "4\."
+run_test "version" "" "5\."
 run_test "help shows commands" "help" "Available commands"
 run_test "status shows kernel" "status" "NOUS System Status"
 run_test "hardware shows chip" "hardware" "Apple"
@@ -217,7 +217,7 @@ fi
 # Test file_read tool
 echo -n "  Testing: file_read tool... "
 output=$(echo -e "Leggi il file VERSION e dimmi cosa contiene\nquit" | timeout 60 $CONVERGIO -q 2>&1) || true
-if echo "$output" | grep -qE "4\.[0-9]+\.[0-9]+|version|VERSION"; then
+if echo "$output" | grep -qE "[45]\.[0-9]+\.[0-9]+|version|VERSION"; then
     echo -e "${GREEN}PASS${NC}"
     ((PASSED++))
 else
