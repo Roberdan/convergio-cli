@@ -456,7 +456,9 @@ int stream_execute(StreamContext* ctx, const char* url, const char* body,
                 snprintf(auth_header, sizeof(auth_header), "x-api-key: %s", api_key);
             }
             headers = curl_slist_append(headers, auth_header);
-            headers = curl_slist_append(headers, "anthropic-version: 2024-01-01");
+            headers = curl_slist_append(headers, "anthropic-version: 2023-06-01");
+            // Enable prompt caching beta for reduced TTFT (up to 51% improvement)
+            headers = curl_slist_append(headers, "anthropic-beta: prompt-caching-2024-07-31");
             break;
         case PROVIDER_OPENAI:
             snprintf(auth_header, sizeof(auth_header), "Authorization: Bearer %s", api_key);

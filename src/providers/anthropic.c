@@ -581,6 +581,8 @@ static char* anthropic_chat(Provider* self, const char* model, const char* syste
     headers = curl_slist_append(headers, "Content-Type: application/json");
     headers = curl_slist_append(headers, auth_header);
     headers = curl_slist_append(headers, "anthropic-version: " ANTHROPIC_VERSION);
+    // Enable prompt caching beta for reduced TTFT (up to 51% improvement)
+    headers = curl_slist_append(headers, "anthropic-beta: prompt-caching-2024-07-31");
     free(auth_header);
 
     // Setup curl
@@ -748,6 +750,8 @@ static char* anthropic_chat_with_tools(Provider* self, const char* model, const 
     headers = curl_slist_append(headers, "Content-Type: application/json");
     headers = curl_slist_append(headers, auth_header);
     headers = curl_slist_append(headers, "anthropic-version: " ANTHROPIC_VERSION);
+    // Enable prompt caching beta for reduced TTFT
+    headers = curl_slist_append(headers, "anthropic-beta: prompt-caching-2024-07-31");
     free(auth_header);
 
     // Setup curl
