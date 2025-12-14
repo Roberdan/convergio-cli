@@ -847,6 +847,17 @@ int cmd_help(int argc, char** argv) {
     printf("   \033[36magents\033[0m             See all 53 agents with their specialties\n");
     printf("   \033[2m   Tip: Just type @ali to return to Ali from any agent\033[0m\n\n");
 
+    // ANNA - Executive Assistant
+    printf("\033[1;33m👩‍💼 ANNA - Executive Assistant\033[0m  \033[2m(your personal productivity hub)\033[0m\n");
+    printf("   \033[36m@anna <task>\033[0m           Natural language task management (IT/EN)\n");
+    printf("   \033[36mtodo\033[0m / \033[36mtodo list\033[0m      List your tasks with priorities\n");
+    printf("   \033[36mtodo add <task>\033[0m        Add a new task (supports @agent delegation)\n");
+    printf("   \033[36mtodo done <id>\033[0m         Mark task as completed\n");
+    printf("   \033[36mremind <time> <msg>\033[0m    Set reminders (e.g., remind 10m call Bob)\n");
+    printf("   \033[36mreminders\033[0m              List pending reminders\n");
+    printf("   \033[36mdaemon start\033[0m           Background agent for scheduled tasks\n");
+    printf("   \033[2m   Tip: Anna speaks Italian too! \"ricordami tra 5 minuti\"\033[0m\n\n");
+
     // 2. PROJECTS - Team-based work
     printf("\033[1;33m📁 PROJECTS\033[0m  \033[2m(dedicated agent teams per project)\033[0m\n");
     printf("   \033[36mproject new <name>\033[0m         Create project with dedicated team\n");
