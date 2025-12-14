@@ -8,10 +8,14 @@
 #include "nous/orchestrator.h"
 #include "nous/nous.h"
 #include "nous/projects.h"
+#include "nous/provider.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <dispatch/dispatch.h>
+
+// Model used for agent delegation (matches previous claude.c default)
+#define DELEGATION_MODEL "claude-sonnet-4-20250514"
 
 // External functions from orchestrator
 extern int persistence_save_conversation(const char* session_id, const char* role,
@@ -21,9 +25,6 @@ extern void agent_set_idle(ManagedAgent* agent);
 extern ManagedAgent* agent_find_by_name(const char* name);
 extern ManagedAgent* agent_spawn(AgentRole role, const char* name, const char* context);
 extern void cost_record_agent_usage(ManagedAgent* agent, uint64_t input_tokens, uint64_t output_tokens);
-
-// External Claude API
-extern char* nous_claude_chat(const char* system_prompt, const char* user_message);
 
 // Structure for parallel agent execution
 typedef struct {
@@ -198,7 +199,18 @@ char* execute_delegations(DelegationList* delegations, const char* user_input,
                             tasks[i].agent->system_prompt,
                             tasks[i].context ? tasks[i].context : "Please analyze and respond.");
 
-                    tasks[i].response = nous_claude_chat(prompt_with_context, tasks[i].user_input);
+                    // Use Provider interface for agent chat
+                    Provider* provider = provider_get(PROVIDER_ANTHROPIC);
+                    if (provider && provider->chat) {
+                        TokenUsage usage = {0};
+                        tasks[i].response = provider->chat(
+                            provider,
+                            DELEGATION_MODEL,
+                            prompt_with_context,
+                            tasks[i].user_input,
+                            &usage
+                        );
+                    }
                     free(prompt_with_context);
 
                     if (tasks[i].response) {
@@ -256,8 +268,19 @@ char* execute_delegations(DelegationList* delegations, const char* user_input,
         "and provide actionable conclusions.",
         user_input);
 
-    // Ali synthesizes all responses
-    char* synthesized = nous_claude_chat(ali->system_prompt, convergence_prompt);
+    // Ali synthesizes all responses using Provider interface
+    char* synthesized = NULL;
+    Provider* synth_provider = provider_get(PROVIDER_ANTHROPIC);
+    if (synth_provider && synth_provider->chat) {
+        TokenUsage synth_usage = {0};
+        synthesized = synth_provider->chat(
+            synth_provider,
+            DELEGATION_MODEL,
+            ali->system_prompt,
+            convergence_prompt,
+            &synth_usage
+        );
+    }
     free(convergence_prompt);
 
     if (synthesized) {
