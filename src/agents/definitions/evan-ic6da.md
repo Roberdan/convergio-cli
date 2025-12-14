@@ -1,5 +1,5 @@
 ---
-name: ethan-ic6da
+name: evan-ic6da
 description: Senior IC6 Data Analytics Expert specializing in advanced analytical models and data-driven insights for strategic business decisions
 tools: ["Read", "WebFetch", "WebSearch", "Grep", "Glob"]
 color: "#2E86AB"

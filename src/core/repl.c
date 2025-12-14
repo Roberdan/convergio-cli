@@ -13,6 +13,7 @@
 #include "nous/theme.h"
 #include "nous/clipboard.h"
 #include "nous/projects.h"
+#include "nous/embedded_agents.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -79,34 +80,74 @@ void repl_clear_current_agent(void) {
 // READLINE COMPLETION FOR @AGENTS
 // ============================================================================
 
+// Helper to extract agent short name from filename
+// "anna-executive-assistant.md" -> "anna"
+// "ali-chief-of-staff.md" -> "ali"
+static char* extract_agent_name(const char* filename) {
+    if (!filename) return NULL;
+
+    // Skip CommonValuesAndPrinciples.md - not an agent
+    if (strstr(filename, "CommonValues") != NULL) return NULL;
+
+    // Find first hyphen to get short name
+    const char* hyphen = strchr(filename, '-');
+    if (hyphen) {
+        size_t short_len = (size_t)(hyphen - filename);
+        char* name = malloc(short_len + 1);
+        if (name) {
+            strncpy(name, filename, short_len);
+            name[short_len] = '\0';
+            return name;
+        }
+    }
+
+    // Fallback: remove .md extension
+    size_t len = strlen(filename);
+    if (len > 3 && strcmp(filename + len - 3, ".md") == 0) {
+        char* name = malloc(len - 2);
+        if (name) {
+            strncpy(name, filename, len - 3);
+            name[len - 3] = '\0';
+            return name;
+        }
+    }
+    return strdup(filename);
+}
+
 // Generator function for @agent completions
 static char* agent_name_generator(const char* text, int state) {
     static size_t list_index;
-    static ManagedAgent* agents[64];
     static size_t agent_count;
+    static const EmbeddedAgent* agents;
 
-    // First call - build agent list
+    // First call - get embedded agents list
     if (state == 0) {
         list_index = 0;
-        agent_count = agent_get_all(agents, 64);
+        agents = get_all_embedded_agents(&agent_count);
     }
 
     // Skip the @ prefix for matching
     const char* partial = text;
     if (partial[0] == '@') partial++;
+    size_t partial_len = strlen(partial);
 
-    // Return matches
+    // Return matches from embedded agents
     while (list_index < agent_count) {
-        ManagedAgent* agent = agents[list_index++];
-        if (agent && agent->name) {
-            // Check if agent name starts with the partial text (case-insensitive)
-            if (strncasecmp(agent->name, partial, strlen(partial)) == 0) {
-                // Return @name format
-                char* match = malloc(strlen(agent->name) + 2);
-                if (match) {
-                    snprintf(match, strlen(agent->name) + 2, "@%s", agent->name);
-                    return match;
+        const EmbeddedAgent* agent = &agents[list_index++];
+        if (agent && agent->filename) {
+            char* name = extract_agent_name(agent->filename);
+            if (name) {
+                // Check if agent name starts with the partial text (case-insensitive)
+                if (strncasecmp(name, partial, partial_len) == 0) {
+                    // Return @name format
+                    char* match = malloc(strlen(name) + 2);
+                    if (match) {
+                        snprintf(match, strlen(name) + 2, "@%s", name);
+                        free(name);
+                        return match;
+                    }
                 }
+                free(name);
             }
         }
     }
