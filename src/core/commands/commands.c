@@ -717,6 +717,51 @@ static const CommandHelp DETAILED_HELP[] = {
         "/reminders week   # Next 7 days\n"
         "/reminders all    # All scheduled"
     },
+    {
+        "daemon",
+        "daemon <command>",
+        "Manage the notification daemon",
+        "Controls the background daemon for delivering scheduled reminders.\n\n"
+        "COMMANDS:\n"
+        "  start       Start the daemon\n"
+        "  stop        Stop the daemon\n"
+        "  restart     Restart the daemon\n"
+        "  status      Show daemon status (running/stopped)\n"
+        "  health      Show detailed health info\n"
+        "  install     Install LaunchAgent for auto-start\n"
+        "  uninstall   Remove LaunchAgent\n"
+        "  test        Send a test notification\n\n"
+        "The daemon delivers notifications even when Convergio isn't running.\n"
+        "Uses terminal-notifier or osascript with automatic fallback.",
+        "/daemon start     # Start the daemon\n"
+        "/daemon status    # Check if running\n"
+        "/daemon health    # Detailed health info\n"
+        "/daemon install   # Auto-start at login\n"
+        "/daemon test      # Send test notification"
+    },
+    {
+        "mcp",
+        "mcp <command> [args]",
+        "Manage MCP server connections",
+        "Controls connections to Model Context Protocol (MCP) servers.\n\n"
+        "COMMANDS:\n"
+        "  list              List all configured servers\n"
+        "  status            Show connection status\n"
+        "  health            Show detailed health info\n"
+        "  connect <name>    Connect to a specific server\n"
+        "  disconnect <name> Disconnect from a server\n"
+        "  connect-all       Connect to all enabled servers\n"
+        "  enable <name>     Enable a server\n"
+        "  disable <name>    Disable a server\n"
+        "  tools             List all tools from connected servers\n"
+        "  tools <server>    List tools from specific server\n"
+        "  call <tool> [json] Call a tool with arguments\n\n"
+        "Configuration: ~/.convergio/mcp.json",
+        "/mcp list                    # Show configured servers\n"
+        "/mcp connect filesystem      # Connect to server\n"
+        "/mcp tools                   # List available tools\n"
+        "/mcp call read_file '{\"path\":\"/tmp/test.txt\"}'"
+    },
     {NULL, NULL, NULL, NULL, NULL}
 };
 

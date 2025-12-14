@@ -11,6 +11,16 @@ set +e
 
 CONVERGIO="./build/bin/convergio"
 TIMEOUT_SEC=15
+
+# macOS doesn't have timeout, use gtimeout from coreutils or fallback
+if command -v timeout &>/dev/null; then
+    TIMEOUT_CMD="timeout"
+elif command -v gtimeout &>/dev/null; then
+    TIMEOUT_CMD="gtimeout"
+else
+    # Fallback: no timeout (run with simple shell backgrounding)
+    TIMEOUT_CMD=""
+fi
 PASSED=0
 FAILED=0
 SKIPPED=0
@@ -30,7 +40,7 @@ run_test() {
 
     echo -n "  Testing: $name... "
 
-    output=$(echo -e "$commands\nquit" | timeout $TIMEOUT_SEC $CONVERGIO -q 2>&1) || true
+    output=$(echo -e "$commands\nquit" | ${TIMEOUT_CMD:-cat} ${TIMEOUT_CMD:+$TIMEOUT_SEC} $CONVERGIO -q 2>&1) || true
 
     if echo "$output" | grep -q "$expected"; then
         echo -e "${GREEN}PASS${NC}"
@@ -52,7 +62,7 @@ run_test_no_error() {
 
     echo -n "  Testing: $name... "
 
-    output=$(echo -e "$commands\nquit" | timeout $TIMEOUT_SEC $CONVERGIO -q 2>&1) || true
+    output=$(echo -e "$commands\nquit" | ${TIMEOUT_CMD:-cat} ${TIMEOUT_CMD:+$TIMEOUT_SEC} $CONVERGIO -q 2>&1) || true
 
     # Filter out "Debug mode:" lines before checking for errors
     filtered=$(echo "$output" | grep -v "Debug mode:")
@@ -332,7 +342,7 @@ run_test "project templates" "project templates" "app-dev"
 echo -n "  Testing: project create... "
 # Clean up any existing test project first
 rm -rf ~/.convergio/projects/testproject-e2e* 2>/dev/null
-output=$(echo -e "project create TestProject-E2E --team baccio,davide --purpose \"E2E test project\"\nquit" | timeout $TIMEOUT_SEC $CONVERGIO -q 2>&1) || true
+output=$(echo -e "project create TestProject-E2E --team baccio,davide --purpose \"E2E test project\"\nquit" | ${TIMEOUT_CMD:-cat} ${TIMEOUT_CMD:+$TIMEOUT_SEC} $CONVERGIO -q 2>&1) || true
 if echo "$output" | grep -qi "created project\|TestProject"; then
     echo -e "${GREEN}PASS${NC}"
     ((PASSED++))
@@ -344,7 +354,7 @@ fi
 
 # Test project list
 echo -n "  Testing: project list... "
-output=$(echo -e "project list\nquit" | timeout $TIMEOUT_SEC $CONVERGIO -q 2>&1) || true
+output=$(echo -e "project list\nquit" | ${TIMEOUT_CMD:-cat} ${TIMEOUT_CMD:+$TIMEOUT_SEC} $CONVERGIO -q 2>&1) || true
 if echo "$output" | grep -qi "testproject-e2e\|projects"; then
     echo -e "${GREEN}PASS${NC}"
     ((PASSED++))
@@ -356,7 +366,7 @@ fi
 
 # Test project status
 echo -n "  Testing: project status... "
-output=$(echo -e "project use testproject-e2e\nproject status\nquit" | timeout $TIMEOUT_SEC $CONVERGIO -q 2>&1) || true
+output=$(echo -e "project use testproject-e2e\nproject status\nquit" | ${TIMEOUT_CMD:-cat} ${TIMEOUT_CMD:+$TIMEOUT_SEC} $CONVERGIO -q 2>&1) || true
 if echo "$output" | grep -qi "team\|baccio\|davide"; then
     echo -e "${GREEN}PASS${NC}"
     ((PASSED++))
@@ -368,7 +378,7 @@ fi
 
 # Test project team add
 echo -n "  Testing: project team add... "
-output=$(echo -e "project use testproject-e2e\nproject team add stefano\nproject status\nquit" | timeout $TIMEOUT_SEC $CONVERGIO -q 2>&1) || true
+output=$(echo -e "project use testproject-e2e\nproject team add stefano\nproject status\nquit" | ${TIMEOUT_CMD:-cat} ${TIMEOUT_CMD:+$TIMEOUT_SEC} $CONVERGIO -q 2>&1) || true
 if echo "$output" | grep -qi "added\|stefano"; then
     echo -e "${GREEN}PASS${NC}"
     ((PASSED++))
@@ -380,7 +390,7 @@ fi
 
 # Test project team remove
 echo -n "  Testing: project team remove... "
-output=$(echo -e "project use testproject-e2e\nproject team remove stefano\nquit" | timeout $TIMEOUT_SEC $CONVERGIO -q 2>&1) || true
+output=$(echo -e "project use testproject-e2e\nproject team remove stefano\nquit" | ${TIMEOUT_CMD:-cat} ${TIMEOUT_CMD:+$TIMEOUT_SEC} $CONVERGIO -q 2>&1) || true
 if echo "$output" | grep -qi "removed"; then
     echo -e "${GREEN}PASS${NC}"
     ((PASSED++))
@@ -392,7 +402,7 @@ fi
 
 # Test project focus
 echo -n "  Testing: project focus... "
-output=$(echo -e "project use testproject-e2e\nproject focus Building the authentication module\nquit" | timeout $TIMEOUT_SEC $CONVERGIO -q 2>&1) || true
+output=$(echo -e "project use testproject-e2e\nproject focus Building the authentication module\nquit" | ${TIMEOUT_CMD:-cat} ${TIMEOUT_CMD:+$TIMEOUT_SEC} $CONVERGIO -q 2>&1) || true
 if echo "$output" | grep -qi "focus.*updated\|authentication"; then
     echo -e "${GREEN}PASS${NC}"
     ((PASSED++))
@@ -404,7 +414,7 @@ fi
 
 # Test project decision
 echo -n "  Testing: project decision... "
-output=$(echo -e "project use testproject-e2e\nproject decision Using JWT for authentication\nquit" | timeout $TIMEOUT_SEC $CONVERGIO -q 2>&1) || true
+output=$(echo -e "project use testproject-e2e\nproject decision Using JWT for authentication\nquit" | ${TIMEOUT_CMD:-cat} ${TIMEOUT_CMD:+$TIMEOUT_SEC} $CONVERGIO -q 2>&1) || true
 if echo "$output" | grep -qi "decision.*recorded\|JWT"; then
     echo -e "${GREEN}PASS${NC}"
     ((PASSED++))
@@ -416,7 +426,7 @@ fi
 
 # Test project clear
 echo -n "  Testing: project clear... "
-output=$(echo -e "project clear\nproject\nquit" | timeout $TIMEOUT_SEC $CONVERGIO -q 2>&1) || true
+output=$(echo -e "project clear\nproject\nquit" | ${TIMEOUT_CMD:-cat} ${TIMEOUT_CMD:+$TIMEOUT_SEC} $CONVERGIO -q 2>&1) || true
 if echo "$output" | grep -qi "cleared\|no active"; then
     echo -e "${GREEN}PASS${NC}"
     ((PASSED++))
@@ -429,7 +439,7 @@ fi
 # Test project create with template
 echo -n "  Testing: project create with template... "
 rm -rf ~/.convergio/projects/marketing-test* 2>/dev/null
-output=$(echo -e "project create \"Marketing Test\" --template marketing\nquit" | timeout $TIMEOUT_SEC $CONVERGIO -q 2>&1) || true
+output=$(echo -e "project create \"Marketing Test\" --template marketing\nquit" | ${TIMEOUT_CMD:-cat} ${TIMEOUT_CMD:+$TIMEOUT_SEC} $CONVERGIO -q 2>&1) || true
 if echo "$output" | grep -qi "created\|copywriter\|designer\|analyst"; then
     echo -e "${GREEN}PASS${NC}"
     ((PASSED++))
@@ -463,7 +473,7 @@ run_test "setup shows ollama" "setup" "Ollama"
 
 # Test setup wizard can exit
 echo -n "  Testing: setup wizard exit... "
-output=$(echo -e "setup\n5\nquit" | timeout $TIMEOUT_SEC $CONVERGIO -q 2>&1) || true
+output=$(echo -e "setup\n5\nquit" | ${TIMEOUT_CMD:-cat} ${TIMEOUT_CMD:+$TIMEOUT_SEC} $CONVERGIO -q 2>&1) || true
 if echo "$output" | grep -qi "setup\|wizard\|configure"; then
     echo -e "${GREEN}PASS${NC}"
     ((PASSED++))
