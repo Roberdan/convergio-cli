@@ -16,15 +16,16 @@ env:
 
 jobs:
   # ============================================================================
-  # FAST CHECKS (no build, no deps) - instant feedback
+  # FAST CHECKS - combined job for quick feedback (no build deps)
   # ============================================================================
 
-  quick-checks:
-    name: Quick Checks
+  lint-and-analysis:
+    name: Lint & Static Analysis
     runs-on: macos-14
     steps:
       - uses: actions/checkout@v4
 
+      # --- Security & Quality Checks (instant) ---
       - name: Security scan
         run: |
           echo "=== Checking for hardcoded secrets ==="
@@ -38,12 +39,7 @@ jobs:
           echo "=== Checking for TODO/FIXME ==="
           grep -rE "(TODO|FIXME)" --include="*.c" --include="*.h" src include 2>/dev/null | head -10 || true
 
-  static-analysis:
-    name: Static Analysis
-    runs-on: macos-14
-    steps:
-      - uses: actions/checkout@v4
-
+      # --- Static Analysis (with caching) ---
       - name: Cache LLVM
         id: cache-llvm
         uses: actions/cache@v4
@@ -62,67 +58,100 @@ jobs:
           find src -name "*.c" -type f | head -5 | xargs -P4 -I{} sh -c 'echo "Checking {}..." && clang-tidy {} -- -Iinclude -std=c17 2>&1 || true'
 
   # ============================================================================
-  # BUILD MATRIX - all builds run in parallel with shared cache
+  # BUILD - single job that produces all artifacts with ccache
   # ============================================================================
 
-  build-matrix:
-    name: Build (${{ matrix.target }})
+  build:
+    name: Build
     runs-on: macos-14
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - target: release
-            make_cmd: make
-            artifact: convergio-release
-          - target: debug
-            make_cmd: make debug
-            artifact: convergio-debug
-          - target: unit-test
-            make_cmd: make unit_test
-            artifact: ""
-          - target: fuzz-test
-            make_cmd: make fuzz_test
-            artifact: ""
+    outputs:
+      cache-key: ${{ steps.cache-key.outputs.key }}
 
     steps:
       - uses: actions/checkout@v4
 
-      - name: Cache Homebrew
+      - name: Generate cache key
+        id: cache-key
+        run: |
+          # Cache key based on source files hash
+          echo "key=build-${{ runner.os }}-${{ hashFiles('src/**/*.c', 'include/**/*.h', 'Makefile') }}" >> $GITHUB_OUTPUT
+
+      # --- Dependencies (cached) ---
+      - name: Cache Homebrew packages
         uses: actions/cache@v4
         with:
           path: |
             /opt/homebrew/Cellar/cjson
+            /opt/homebrew/Cellar/ccache
             /opt/homebrew/opt/cjson
-          key: brew-cjson-macos-14-arm64
+            /opt/homebrew/opt/ccache
+          key: brew-deps-macos-14-arm64-v2
 
       - name: Install dependencies
         run: |
           brew list cjson &>/dev/null || brew install cjson
+          brew list ccache &>/dev/null || brew install ccache
           brew link cjson --overwrite 2>/dev/null || true
+
+      # --- Compilation cache ---
+      - name: Cache ccache
+        uses: actions/cache@v4
+        with:
+          path: ~/.ccache
+          key: ccache-${{ runner.os }}-${{ hashFiles('src/**/*.c', 'include/**/*.h') }}
+          restore-keys: |
+            ccache-${{ runner.os }}-
+
+      - name: Configure ccache
+        run: |
+          ccache --set-config=max_size=500M
+          ccache --set-config=compression=true
+          ccache -z  # Reset stats
 
       - name: Select Xcode
         run: sudo xcode-select -s ${{ env.XCODE_VERSION }}
 
-      - name: Build ${{ matrix.target }}
-        run: ${{ matrix.make_cmd }} 2>&1 | tee build.log
-
-      - name: Check warnings (release only)
-        if: matrix.target == 'release'
+      # --- Build all targets in parallel ---
+      - name: Build release
         run: |
-          if grep -i "warning:" build.log | grep -v "Metal Toolchain" | grep -v "Swift build failed"; then
+          export PATH="/opt/homebrew/opt/ccache/libexec:$PATH"
+          make clean
+          make CC="ccache clang" 2>&1 | tee build-release.log
+
+      - name: Check warnings
+        run: |
+          if grep -i "warning:" build-release.log | grep -v "Metal Toolchain" | grep -v "Swift build failed"; then
             echo "::error::Build produced warnings"
             exit 1
           fi
 
-      - name: Verify binary
-        run: test -f ./build/bin/convergio || test -f ./build/bin/unit_test || test -f ./build/bin/fuzz_test
+      - name: Build debug
+        run: |
+          export PATH="/opt/homebrew/opt/ccache/libexec:$PATH"
+          make debug CC="ccache clang" 2>&1
 
-      - name: Upload artifact
-        if: matrix.artifact != ''
+      - name: Build and run unit tests
+        run: |
+          export PATH="/opt/homebrew/opt/ccache/libexec:$PATH"
+          make unit_test CC="ccache clang"
+          echo "=== Running unit tests ==="
+          ./build/bin/unit_test
+
+      - name: Build and run fuzz tests
+        run: |
+          export PATH="/opt/homebrew/opt/ccache/libexec:$PATH"
+          make fuzz_test CC="ccache clang"
+          echo "=== Running fuzz tests (quick mode) ==="
+          timeout 30 ./build/bin/fuzz_test 2>&1 || true
+
+      - name: Show ccache stats
+        run: ccache -s
+
+      # --- Upload artifacts ---
+      - name: Upload release binary
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.artifact }}
+          name: convergio-release
           path: build/bin/convergio
           retention-days: 7
 
@@ -133,7 +162,7 @@ jobs:
   e2e-tests:
     name: E2E Tests
     runs-on: macos-14
-    needs: build-matrix
+    needs: build
 
     steps:
       - uses: actions/checkout@v4
@@ -144,8 +173,31 @@ jobs:
           name: convergio-release
           path: build/bin
 
+      - name: Make binary executable
+        run: chmod +x build/bin/convergio
+
       - name: Run E2E tests
         run: |
-          chmod +x build/bin/convergio tests/e2e_test.sh
-          timeout 120 ./tests/e2e_test.sh 2>&1 || true
-        continue-on-error: true
+          chmod +x tests/e2e_test.sh
+          ./tests/e2e_test.sh 2>&1
+        timeout-minutes: 5
+
+  # ============================================================================
+  # FINAL STATUS - aggregates all job results
+  # ============================================================================
+
+  ci-success:
+    name: CI Success
+    runs-on: macos-14
+    needs: [lint-and-analysis, build, e2e-tests]
+    if: always()
+    steps:
+      - name: Check all jobs passed
+        run: |
+          if [ "${{ needs.lint-and-analysis.result }}" != "success" ] || \
+             [ "${{ needs.build.result }}" != "success" ] || \
+             [ "${{ needs.e2e-tests.result }}" != "success" ]; then
+            echo "::error::One or more jobs failed"
+            exit 1
+          fi
+          echo "All CI checks passed!"
