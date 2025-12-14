@@ -19,6 +19,7 @@
 #include "nous/repl.h"
 #include "nous/signals.h"
 #include "nous/projects.h"
+#include "nous/mlx.h"
 #include "../auth/oauth.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -44,6 +45,13 @@ extern void nous_destroy_agent(NousAgent* agent);
 
 // Default budget in USD
 #define DEFAULT_BUDGET_USD 5.00
+
+// MLX local mode flag
+static bool g_use_local_mlx = false;
+static char g_mlx_model[64] = {0};  // Selected MLX model
+
+// External router function for local mode
+extern void router_set_local_mode(bool enabled, const char* model_id);
 
 // ============================================================================
 // DEBUG LOGGING IMPLEMENTATION
@@ -210,15 +218,15 @@ static void print_banner(void) {
     const char* c3 = "\033[38;5;75m";
 
     printf("\n");
-    // Pixel-art style logo with gradient cyan → purple → pink
-    print_gradient_line("  ██████╗ ██████╗ ███╗   ██╗██╗   ██╗███████╗██████╗  ██████╗ ██╗ ██████╗ ");
-    print_gradient_line(" ██╔════╝██╔═══██╗████╗  ██║██║   ██║██╔════╝██╔══██╗██╔════╝ ██║██╔═══██╗");
-    print_gradient_line(" ██║     ██║   ██║██╔██╗ ██║██║   ██║█████╗  ██████╔╝██║  ███╗██║██║   ██║");
-    print_gradient_line(" ██║     ██║   ██║██║╚██╗██║╚██╗ ██╔╝██╔══╝  ██╔══██╗██║   ██║██║██║   ██║");
-    print_gradient_line(" ╚██████╗╚██████╔╝██║ ╚████║ ╚████╔╝ ███████╗██║  ██║╚██████╔╝██║╚██████╔╝");
-    print_gradient_line("  ╚═════╝ ╚═════╝ ╚═╝  ╚═══╝  ╚═══╝  ╚══════╝╚═╝  ╚═╝ ╚═════╝ ╚═╝ ╚═════╝ ");
+    // Block-style > arrow with CONVERGIO text
+    print_gradient_line(" ███           ██████╗ ██████╗ ███╗   ██╗██╗   ██╗███████╗██████╗  ██████╗ ██╗ ██████╗ ");
+    print_gradient_line("  ░░███       ██╔════╝██╔═══██╗████╗  ██║██║   ██║██╔════╝██╔══██╗██╔════╝ ██║██╔═══██╗");
+    print_gradient_line("    ░░███     ██║     ██║   ██║██╔██╗ ██║██║   ██║█████╗  ██████╔╝██║  ███╗██║██║   ██║");
+    print_gradient_line("     ███░     ██║     ██║   ██║██║╚██╗██║╚██╗ ██╔╝██╔══╝  ██╔══██╗██║   ██║██║██║   ██║");
+    print_gradient_line("   ███░      ╚██████╗╚██████╔╝██║ ╚████║ ╚████╔╝ ███████╗██║  ██║╚██████╔╝██║╚██████╔╝");
+    print_gradient_line(" ███░         ╚═════╝ ╚═════╝ ╚═╝  ╚═══╝  ╚═══╝  ╚══════╝╚═╝  ╚═╝ ╚═════╝ ╚═╝ ╚═════╝ ");
     printf("\n");
-    print_gradient_line("         Your team, with human purpose and AI momentum.");
+    print_gradient_line("          Your team, with human purpose and AI momentum.");
     printf("\n");
     printf("  %sv%s%s  •  %s/help%s for commands\n", dim, convergio_get_version(), rst, c3, rst);
     printf("\n");
@@ -247,21 +255,33 @@ int main(int argc, char** argv) {
                 fprintf(stderr, "Error: Cannot access workspace path: %s\n", argv[i]);
                 return 1;
             }
+        } else if (strcmp(argv[i], "--local") == 0 || strcmp(argv[i], "-l") == 0) {
+            g_use_local_mlx = true;
+        } else if ((strcmp(argv[i], "--model") == 0 || strcmp(argv[i], "-m") == 0) && i + 1 < argc) {
+            strncpy(g_mlx_model, argv[++i], sizeof(g_mlx_model) - 1);
+            g_mlx_model[sizeof(g_mlx_model) - 1] = '\0';
         } else if (strcmp(argv[i], "--help") == 0 || strcmp(argv[i], "-h") == 0) {
             printf("Convergio — Human purpose. AI momentum.\n\n");
             printf("Usage: convergio [OPTIONS] [COMMAND]\n\n");
             printf("Commands:\n");
-            printf("  setup                   Configure API key and settings\n");
-            printf("  update [check|install]  Check for or install updates\n");
-            printf("  compare \"<prompt>\"      Compare responses from multiple AI models\n");
-            printf("  benchmark [model]       Benchmark a model's response time\n\n");
+            printf("  setup                   Configure API key, models, and settings\n");
+            printf("  update [check|install]  Check for or install updates\n\n");
             printf("Options:\n");
             printf("  -w, --workspace <path>  Set workspace directory (default: current dir)\n");
+            printf("  -l, --local             Use MLX local models (Apple Silicon only)\n");
+            printf("  -m, --model <model>     Specify model (e.g., llama-3.2-3b, deepseek-r1-7b)\n");
             printf("  -d, --debug             Enable debug logging\n");
             printf("  -t, --trace             Enable trace logging (verbose)\n");
             printf("  -q, --quiet             Suppress non-error output\n");
             printf("  -v, --version           Show version\n");
-            printf("  -h, --help              Show this help message\n");
+            printf("  -h, --help              Show this help message\n\n");
+            printf("Local Models (MLX):\n");
+            printf("  Convergio supports 100%% offline operation using MLX on Apple Silicon.\n");
+            printf("  Use /setup -> Local Models to download models, or:\n");
+            printf("    convergio --local --model deepseek-r1-7b\n\n");
+            printf("  Available models: llama-3.2-1b, llama-3.2-3b, deepseek-r1-1.5b,\n");
+            printf("                    deepseek-r1-7b, deepseek-r1-14b, qwen2.5-coder-7b,\n");
+            printf("                    phi-3-mini, mistral-7b-q4, llama-3.1-8b-q4\n");
             return 0;
         } else if (strcmp(argv[i], "--version") == 0 || strcmp(argv[i], "-v") == 0) {
             printf("Convergio %s\n", convergio_get_version());
@@ -274,26 +294,6 @@ int main(int argc, char** argv) {
                 return convergio_cmd_update_install();
             }
             return convergio_cmd_update_check();
-        } else if (strcmp(argv[i], "compare") == 0) {
-            // CLI compare mode
-            // Initialize minimal systems needed for compare
-            convergio_config_init();
-            auth_init();
-            // Pass remaining args to compare command
-            // cmd_compare expects (argc, argv) where argv[0] is "compare"
-            // If no prompt provided, it shows help
-            int cmd_argc = argc - i;
-            char** cmd_argv = &argv[i];
-            return cmd_compare(cmd_argc, cmd_argv);
-        } else if (strcmp(argv[i], "benchmark") == 0) {
-            // CLI benchmark mode
-            // Initialize minimal systems
-            convergio_config_init();
-            auth_init();
-            // Pass remaining args to benchmark command
-            int cmd_argc = argc - i;
-            char** cmd_argv = &argv[i];
-            return cmd_benchmark(cmd_argc, cmd_argv);
         }
     }
 
@@ -472,6 +472,54 @@ int main(int argc, char** argv) {
         init_errors = true;
     }
 
+    // Set local MLX mode if requested
+    if (g_use_local_mlx) {
+        const char* model_id = g_mlx_model[0] ? g_mlx_model : "deepseek-r1-1.5b";
+        router_set_local_mode(true, model_id);
+
+        // Pre-check and download model BEFORE entering REPL
+        // This ensures the progress bar is visible (not hidden by spinner)
+        if (mlx_is_available()) {
+            size_t model_count = 0;
+            const MLXModelInfo* models = mlx_get_available_models(&model_count);
+
+            // Find the requested model
+            const MLXModelInfo* selected = NULL;
+            for (size_t i = 0; i < model_count; i++) {
+                if (strcmp(models[i].id, model_id) == 0) {
+                    selected = &models[i];
+                    break;
+                }
+            }
+
+            if (selected) {
+                printf("\n  \033[36m🖥️  MLX Local Mode\033[0m\n");
+                printf("  Model: %s (%zu MB)\n", selected->display_name, selected->size_mb);
+
+                // Pre-download if not cached
+                extern bool mlx_bridge_model_exists(const char*);
+                if (!mlx_bridge_model_exists(selected->huggingface_id)) {
+                    printf("  \033[33m⚠ Model not cached locally. Starting download...\033[0m\n");
+                    printf("  \033[90mThis is a one-time download from HuggingFace.\033[0m\n\n");
+
+                    MLXError err = mlx_download_model_with_progress(selected->huggingface_id);
+                    if (err != MLX_OK) {
+                        printf("  \033[31m✗ Failed to download model: %s\033[0m\n", mlx_error_message(err));
+                        printf("  \033[90mTrying to continue anyway...\033[0m\n");
+                    }
+                } else {
+                    printf("  \033[32m✓ Model ready (cached)\033[0m\n\n");
+                }
+            } else {
+                printf("  \033[31m✗ Unknown model: %s\033[0m\n", model_id);
+                printf("  Available: llama-3.2-1b, llama-3.2-3b, deepseek-r1-1.5b, deepseek-r1-7b, etc.\n\n");
+            }
+        } else {
+            printf("  \033[31m✗ MLX not available on this system\033[0m\n");
+            printf("  MLX requires Apple Silicon (M1/M2/M3/M4) and macOS 14+\n\n");
+        }
+    }
+
     // Initialize workspace sandbox
     tools_init_workspace(workspace);
 
@@ -561,7 +609,7 @@ int main(int argc, char** argv) {
                                         i > 0 ? ", " : "", short_name);
                 if (written > 0 && (size_t)written < agents_remaining) {
                     agents_ptr += written;
-                    agents_remaining -= (size_t)written;
+                    agents_remaining -= written;
                 }
             }
             if (working_count > 3) {
