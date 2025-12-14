@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Hybrid Embedding Strategy** (Issues #1, #2, #3)
+  - OpenAI `text-embedding-3-small` for online semantic search
+  - Local MLX fallback when offline
+  - `openai_embed_text()` in `src/providers/openai.c`
+  - Updated `nous_generate_embedding()` and `mlx_embed_text()` for hybrid approach
+  - ADR-004 updated with decision
+
+- **Git/Test Workflow Commands** (Issue #15)
+  - `/test` - Auto-detect and run project tests (make, cargo, go, npm, pytest)
+  - `/git status|commit|push|sync` - Git workflow helper
+  - `/pr [title]` - Create pull request via gh CLI
+  - Detailed help documentation for all commands
+
 ## [4.0.2] - 2025-12-13
 
 ### Fixed
