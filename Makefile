@@ -12,6 +12,9 @@ OBJC = clang
 # Apple Silicon optimizations (generic for all M-series chips)
 ARCH_FLAGS = -arch arm64
 
+# GNU Readline from Homebrew (NOT libedit - libedit doesn't support \001\002 markers for colors)
+READLINE_PREFIX = $(shell brew --prefix readline)
+
 # Compiler flags
 CFLAGS = $(ARCH_FLAGS) \
          -std=c17 \
@@ -22,6 +25,7 @@ CFLAGS = $(ARCH_FLAGS) \
          -fvectorize \
          -I./include \
          -I/opt/homebrew/include \
+         -I$(READLINE_PREFIX)/include \
          -DCONVERGIO_VERSION=\"$(VERSION)\"
 
 OBJCFLAGS = $(CFLAGS) -fobjc-arc
@@ -62,7 +66,8 @@ FRAMEWORKS = -framework Metal \
              -framework AppKit
 
 # Libraries (cJSON linked statically to avoid dylib signature issues)
-LIBS = -lreadline -lcurl -lsqlite3 /opt/homebrew/opt/cjson/lib/libcjson.a
+# GNU readline linked explicitly from Homebrew (libedit doesn't support prompt color markers)
+LIBS = -L$(READLINE_PREFIX)/lib -lreadline -lcurl -lsqlite3 /opt/homebrew/opt/cjson/lib/libcjson.a
 
 # Swift Package Manager (for MLX integration)
 SWIFT_BUILD_DIR = .build/release

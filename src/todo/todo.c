@@ -46,37 +46,183 @@ typedef enum {
 
 static sqlite3_stmt* g_stmts[STMT_CACHE_SIZE] = {0};
 static bool g_todo_initialized = false;
+static const char* g_stmt_names[STMT_CACHE_SIZE] = {
+    [STMT_INSERT_TASK] = "STMT_INSERT_TASK",
+    [STMT_GET_TASK] = "STMT_GET_TASK",
+    [STMT_UPDATE_TASK] = "STMT_UPDATE_TASK",
+    [STMT_DELETE_TASK] = "STMT_DELETE_TASK",
+    [STMT_LIST_TASKS] = "STMT_LIST_TASKS",
+    [STMT_LIST_TODAY] = "STMT_LIST_TODAY",
+    [STMT_LIST_OVERDUE] = "STMT_LIST_OVERDUE",
+    [STMT_COMPLETE_TASK] = "STMT_COMPLETE_TASK",
+    [STMT_INSERT_INBOX] = "STMT_INSERT_INBOX",
+    [STMT_LIST_INBOX] = "STMT_LIST_INBOX",
+    [STMT_SEARCH_FTS] = "STMT_SEARCH_FTS",
+    [STMT_GET_STATS] = "STMT_GET_STATS",
+};
+
+static const char* SQL_STATS =
+    "SELECT "
+    "(SELECT COUNT(*) FROM tasks WHERE status = 0), "
+    "(SELECT COUNT(*) FROM tasks WHERE status = 1), "
+    "(SELECT COUNT(*) FROM tasks WHERE status = 2 AND date(completed_at) = date('now')), "
+    "(SELECT COUNT(*) FROM tasks WHERE status = 2 AND date(completed_at) >= date('now', '-7 days')), "
+    "(SELECT COUNT(*) FROM tasks WHERE status IN (0,1) AND due_date IS NOT NULL AND datetime(due_date) < datetime('now')), "
+    "(SELECT COUNT(*) FROM inbox WHERE processed = 0)";
+
+void todo_invalidate_stats_statement(void) {
+    pthread_mutex_lock(&g_db_mutex);
+    if (g_stmts[STMT_GET_STATS]) {
+        sqlite3_finalize(g_stmts[STMT_GET_STATS]);
+        g_stmts[STMT_GET_STATS] = NULL;
+    }
+    pthread_mutex_unlock(&g_db_mutex);
+}
 
 // ============================================================================
 // INTERNAL HELPERS
 // ============================================================================
 
+static void finalize_statement_cache(void) {
+    for (int i = 0; i < STMT_CACHE_SIZE; i++) {
+        if (g_stmts[i]) {
+            sqlite3_finalize(g_stmts[i]);
+            g_stmts[i] = NULL;
+        }
+    }
+}
+
+static int prepare_statement(StmtIndex idx, const char* sql) {
+    int rc = sqlite3_prepare_v3(
+        g_db,
+        sql,
+        -1,
+        SQLITE_PREPARE_PERSISTENT,
+        &g_stmts[idx],
+        NULL);
+    if (rc != SQLITE_OK) {
+        fprintf(stderr, "todo_init: failed to prepare %s (rc=%d): %s\n",
+                g_stmt_names[idx], rc, sqlite3_errmsg(g_db));
+    }
+    return rc;
+}
+
 static char* safe_strdup(const char* s) {
     return s ? strdup(s) : NULL;
 }
 
-static time_t parse_iso8601(const char* str) {
-    if (!str || !*str) return 0;
+static int parse_offset(const char* str, int* offset_seconds, const char** endptr) {
+    int sign = (*str == '-') ? -1 : 1;
+    int hours = 0, minutes = 0, consumed = 0;
+
+    const char* cursor = str + 1;
+    if (sscanf(cursor, "%2d:%2d%n", &hours, &minutes, &consumed) != 2) {
+        if (sscanf(cursor, "%2d%2d%n", &hours, &minutes, &consumed) != 2) {
+            return TODO_ISO8601_INVALID;
+        }
+    }
+
+    if (hours < 0 || hours > 23 || minutes < 0 || minutes > 59) {
+        return TODO_ISO8601_INVALID;
+    }
+
+    *offset_seconds = sign * (hours * 3600 + minutes * 60);
+    *endptr = cursor + consumed;
+    return TODO_ISO8601_OK;
+}
+
+int todo_parse_iso8601(const char* str, time_t* out) {
+    if (!out) return TODO_ISO8601_INVALID;
+    *out = 0;
+
+    if (!str || !*str) return TODO_ISO8601_EMPTY;
+
+    int year = 0, month = 0, day = 0, consumed = 0;
+    int hour = 0, minute = 0, second = 0;
+    const char* cursor = str;
+
+    if (sscanf(cursor, "%4d-%2d-%2d%n", &year, &month, &day, &consumed) != 3) {
+        return TODO_ISO8601_INVALID;
+    }
+
+    if (year < 1900 || month < 1 || month > 12 || day < 1 || day > 31) {
+        return TODO_ISO8601_INVALID;
+    }
+
+    cursor += consumed;
+
+    if (*cursor == '\0') {
+        hour = minute = second = 0;
+    } else if (*cursor == 'T' || *cursor == 't' || *cursor == ' ') {
+        cursor++;
+        if (sscanf(cursor, "%2d:%2d:%2d%n", &hour, &minute, &second, &consumed) != 3) {
+            return TODO_ISO8601_INVALID;
+        }
+        if (hour < 0 || hour > 23 || minute < 0 || minute > 59 || second < 0 || second > 60) {
+            return TODO_ISO8601_INVALID;
+        }
+        cursor += consumed;
+    } else {
+        return TODO_ISO8601_INVALID;
+    }
+
+    int offset_seconds = 0;
+    if (*cursor == 'Z' || *cursor == 'z') {
+        cursor++;
+    } else if (*cursor == '+' || *cursor == '-') {
+        int rc = parse_offset(cursor, &offset_seconds, &cursor);
+        if (rc != TODO_ISO8601_OK) {
+            return rc;
+        }
+    }
+
+    while (*cursor == ' ') cursor++;
+    if (*cursor != '\0') {
+        return TODO_ISO8601_INVALID;
+    }
 
     struct tm tm = {0};
-    // Try ISO 8601 format: YYYY-MM-DD HH:MM:SS
-    if (sscanf(str, "%d-%d-%d %d:%d:%d",
-               &tm.tm_year, &tm.tm_mon, &tm.tm_mday,
-               &tm.tm_hour, &tm.tm_min, &tm.tm_sec) >= 3) {
-        tm.tm_year -= 1900;
-        tm.tm_mon -= 1;
-        return mktime(&tm);
+    tm.tm_year = year - 1900;
+    tm.tm_mon = month - 1;
+    tm.tm_mday = day;
+    tm.tm_hour = hour;
+    tm.tm_min = minute;
+    tm.tm_sec = second;
+
+    time_t utc_time = timegm(&tm);
+    if (utc_time == (time_t)-1 && tm.tm_year + 1900 < 1970) {
+        return TODO_ISO8601_INVALID;
     }
-    return 0;
+
+    if (offset_seconds != 0) {
+        utc_time -= offset_seconds;
+    }
+
+    *out = utc_time;
+    return TODO_ISO8601_OK;
+}
+
+static time_t parse_iso8601_field(const char* value, const char* field_name) {
+    time_t parsed = 0;
+    int rc = todo_parse_iso8601(value, &parsed);
+    if (rc == TODO_ISO8601_INVALID) {
+        fprintf(stderr, "todo: invalid ISO8601 value for %s: %s\n", field_name, value ? value : "(null)");
+    }
+    return parsed;
 }
 
 static void format_iso8601(time_t t, char* buf, size_t size) {
+    if (size == 0) return;
     if (t == 0) {
         buf[0] = '\0';
         return;
     }
-    struct tm* tm = localtime(&t);
-    strftime(buf, size, "%Y-%m-%d %H:%M:%S", tm);
+    struct tm* tm = gmtime(&t);
+    if (!tm) {
+        buf[0] = '\0';
+        return;
+    }
+    strftime(buf, size, "%Y-%m-%dT%H:%M:%SZ", tm);
 }
 
 static TodoTask* task_from_row(sqlite3_stmt* stmt) {
@@ -89,8 +235,8 @@ static TodoTask* task_from_row(sqlite3_stmt* stmt) {
     task->description = safe_strdup((const char*)sqlite3_column_text(stmt, col++));
     task->priority = (TodoPriority)sqlite3_column_int(stmt, col++);
     task->status = (TodoStatus)sqlite3_column_int(stmt, col++);
-    task->due_date = parse_iso8601((const char*)sqlite3_column_text(stmt, col++));
-    task->reminder_at = parse_iso8601((const char*)sqlite3_column_text(stmt, col++));
+    task->due_date = parse_iso8601_field((const char*)sqlite3_column_text(stmt, col++), "due_date");
+    task->reminder_at = parse_iso8601_field((const char*)sqlite3_column_text(stmt, col++), "reminder_at");
     task->recurrence = (TodoRecurrence)sqlite3_column_int(stmt, col++);
     task->recurrence_rule = safe_strdup((const char*)sqlite3_column_text(stmt, col++));
     task->tags = safe_strdup((const char*)sqlite3_column_text(stmt, col++));
@@ -98,9 +244,9 @@ static TodoTask* task_from_row(sqlite3_stmt* stmt) {
     task->parent_id = sqlite3_column_int64(stmt, col++);
     task->source = (TodoSource)sqlite3_column_int(stmt, col++);
     task->external_id = safe_strdup((const char*)sqlite3_column_text(stmt, col++));
-    task->created_at = parse_iso8601((const char*)sqlite3_column_text(stmt, col++));
-    task->updated_at = parse_iso8601((const char*)sqlite3_column_text(stmt, col++));
-    task->completed_at = parse_iso8601((const char*)sqlite3_column_text(stmt, col++));
+    task->created_at = parse_iso8601_field((const char*)sqlite3_column_text(stmt, col++), "created_at");
+    task->updated_at = parse_iso8601_field((const char*)sqlite3_column_text(stmt, col++), "updated_at");
+    task->completed_at = parse_iso8601_field((const char*)sqlite3_column_text(stmt, col++), "completed_at");
 
     return task;
 }
@@ -157,49 +303,35 @@ int todo_init(void) {
         "WHERE tasks_fts MATCH ? AND t.status IN (0, 1) "
         "ORDER BY rank LIMIT 50";
 
-    const char* sql_stats =
-        "SELECT "
-        "(SELECT COUNT(*) FROM tasks WHERE status = 0), "
-        "(SELECT COUNT(*) FROM tasks WHERE status = 1), "
-        "(SELECT COUNT(*) FROM tasks WHERE status = 2 AND date(completed_at) = date('now')), "
-        "(SELECT COUNT(*) FROM tasks WHERE status = 2 AND date(completed_at) >= date('now', '-7 days')), "
-        "(SELECT COUNT(*) FROM tasks WHERE status IN (0,1) AND due_date IS NOT NULL AND datetime(due_date) < datetime('now')), "
-        "(SELECT COUNT(*) FROM inbox WHERE processed = 0)";
-
     pthread_mutex_lock(&g_db_mutex);
 
-    int rc = 0;
-    rc |= sqlite3_prepare_v3(g_db, sql_insert, -1, SQLITE_PREPARE_PERSISTENT, &g_stmts[STMT_INSERT_TASK], NULL);
-    rc |= sqlite3_prepare_v3(g_db, sql_get, -1, SQLITE_PREPARE_PERSISTENT, &g_stmts[STMT_GET_TASK], NULL);
-    rc |= sqlite3_prepare_v3(g_db, sql_list_today, -1, SQLITE_PREPARE_PERSISTENT, &g_stmts[STMT_LIST_TODAY], NULL);
-    rc |= sqlite3_prepare_v3(g_db, sql_list_overdue, -1, SQLITE_PREPARE_PERSISTENT, &g_stmts[STMT_LIST_OVERDUE], NULL);
-    rc |= sqlite3_prepare_v3(g_db, sql_complete, -1, SQLITE_PREPARE_PERSISTENT, &g_stmts[STMT_COMPLETE_TASK], NULL);
-    rc |= sqlite3_prepare_v3(g_db, sql_insert_inbox, -1, SQLITE_PREPARE_PERSISTENT, &g_stmts[STMT_INSERT_INBOX], NULL);
-    rc |= sqlite3_prepare_v3(g_db, sql_list_inbox, -1, SQLITE_PREPARE_PERSISTENT, &g_stmts[STMT_LIST_INBOX], NULL);
-    rc |= sqlite3_prepare_v3(g_db, sql_search, -1, SQLITE_PREPARE_PERSISTENT, &g_stmts[STMT_SEARCH_FTS], NULL);
-    rc |= sqlite3_prepare_v3(g_db, sql_stats, -1, SQLITE_PREPARE_PERSISTENT, &g_stmts[STMT_GET_STATS], NULL);
+    if (prepare_statement(STMT_INSERT_TASK, sql_insert) != SQLITE_OK) goto init_error;
+    if (prepare_statement(STMT_GET_TASK, sql_get) != SQLITE_OK) goto init_error;
+    if (prepare_statement(STMT_LIST_TODAY, sql_list_today) != SQLITE_OK) goto init_error;
+    if (prepare_statement(STMT_LIST_OVERDUE, sql_list_overdue) != SQLITE_OK) goto init_error;
+    if (prepare_statement(STMT_COMPLETE_TASK, sql_complete) != SQLITE_OK) goto init_error;
+    if (prepare_statement(STMT_INSERT_INBOX, sql_insert_inbox) != SQLITE_OK) goto init_error;
+    if (prepare_statement(STMT_LIST_INBOX, sql_list_inbox) != SQLITE_OK) goto init_error;
+    if (prepare_statement(STMT_SEARCH_FTS, sql_search) != SQLITE_OK) goto init_error;
+    if (prepare_statement(STMT_GET_STATS, SQL_STATS) != SQLITE_OK) goto init_error;
 
     pthread_mutex_unlock(&g_db_mutex);
 
-    if (rc != SQLITE_OK) {
-        fprintf(stderr, "todo_init: Failed to prepare statements\n");
-        return -1;
-    }
-
     g_todo_initialized = true;
     return 0;
+
+init_error:
+    finalize_statement_cache();
+    pthread_mutex_unlock(&g_db_mutex);
+    g_todo_initialized = false;
+    return -1;
 }
 
 void todo_shutdown(void) {
     if (!g_todo_initialized) return;
 
     pthread_mutex_lock(&g_db_mutex);
-    for (int i = 0; i < STMT_CACHE_SIZE; i++) {
-        if (g_stmts[i]) {
-            sqlite3_finalize(g_stmts[i]);
-            g_stmts[i] = NULL;
-        }
-    }
+    finalize_statement_cache();
     pthread_mutex_unlock(&g_db_mutex);
 
     g_todo_initialized = false;
@@ -694,7 +826,7 @@ TodoInboxItem** inbox_list_unprocessed(int* count) {
         TodoInboxItem* item = calloc(1, sizeof(TodoInboxItem));
         item->id = sqlite3_column_int64(stmt, 0);
         item->content = safe_strdup((const char*)sqlite3_column_text(stmt, 1));
-        item->captured_at = parse_iso8601((const char*)sqlite3_column_text(stmt, 2));
+        item->captured_at = parse_iso8601_field((const char*)sqlite3_column_text(stmt, 2), "captured_at");
         item->processed = sqlite3_column_int(stmt, 3);
         item->processed_task_id = sqlite3_column_int64(stmt, 4);
         item->source = safe_strdup((const char*)sqlite3_column_text(stmt, 5));
@@ -761,8 +893,16 @@ TodoStats todo_get_stats(void) {
     if (!g_todo_initialized && todo_init() != 0) return stats;
 
     pthread_mutex_lock(&g_db_mutex);
-
     sqlite3_stmt* stmt = g_stmts[STMT_GET_STATS];
+    if (!stmt) {
+        if (sqlite3_prepare_v3(g_db, SQL_STATS, -1, SQLITE_PREPARE_PERSISTENT,
+                               &g_stmts[STMT_GET_STATS], NULL) != SQLITE_OK) {
+            pthread_mutex_unlock(&g_db_mutex);
+            return stats;
+        }
+        stmt = g_stmts[STMT_GET_STATS];
+    }
+
     sqlite3_reset(stmt);
 
     if (sqlite3_step(stmt) == SQLITE_ROW) {

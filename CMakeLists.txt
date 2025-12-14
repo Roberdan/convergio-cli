@@ -349,6 +349,11 @@ target_link_libraries(test_projects
 
 add_test(NAME projects_test COMMAND test_projects)
 
+# Anna Executive Assistant tests (reuse Make target to ensure full dependency graph)
+add_test(NAME anna_test
+    COMMAND ${CMAKE_MAKE_PROGRAM} anna_test
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
+
 # Print configuration
 message(STATUS "")
 message(STATUS "=== Convergio Kernel Configuration ===")
