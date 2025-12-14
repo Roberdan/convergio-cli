@@ -16,12 +16,14 @@
 4. [macOS Tahoe 26 & Liquid Glass Deep Dive](#macos-tahoe-26--liquid-glass-deep-dive)
 5. [Architecture: Unified Repository Strategy](#architecture-unified-repository-strategy)
 6. [Advanced Features: Anna, Notifications, Browser](#advanced-features-anna-notifications-browser)
-7. [UI/UX Design Proposals](#uiux-design-proposals)
-8. [Technical Implementation Plan](#technical-implementation-plan)
-9. [Phase Breakdown & Milestones](#phase-breakdown--milestones)
-10. [Risk Matrix & Mitigations](#risk-matrix--mitigations)
-11. [Competitive Analysis](#competitive-analysis)
-12. [Success Metrics](#success-metrics)
+7. [Vertical Market Solutions](#vertical-market-solutions)
+8. [Accessibility & Inclusive Design](#accessibility--inclusive-design)
+9. [UI/UX Design Proposals](#uiux-design-proposals)
+10. [Technical Implementation Plan](#technical-implementation-plan)
+11. [Phase Breakdown & Milestones](#phase-breakdown--milestones)
+12. [Risk Matrix & Mitigations](#risk-matrix--mitigations)
+13. [Competitive Analysis](#competitive-analysis)
+14. [Success Metrics](#success-metrics)
 
 ---
 
@@ -447,12 +449,16 @@ stateDiagram-v2
     Responding --> Thinking: Follow-up question
 
     Idle --> [*]: App Quit
-
-    note right of Thinking: Visual: Pulsing ring
-    note right of Collaborating: Visual: Connection lines
-    note right of Converging: Visual: Move to center
-    note right of Responding: Visual: Streaming glow
 ```
+
+**Visual Indicators per State:**
+| State | Visual Effect | Animation |
+|-------|---------------|-----------|
+| **Idle** | Dim glass, gray ring | None |
+| **Thinking** | Bright glass, blue ring | Soft pulse (1.5s) |
+| **Collaborating** | Connected lines to other agents | Line drawing |
+| **Converging** | Moving toward center | Position interpolation |
+| **Responding** | Bright glass, streaming glow | Shimmer effect |
 
 ### Notification Flow
 
@@ -1665,6 +1671,1109 @@ public final class Orchestrator: ObservableObject {
         }
     }
 }
+```
+
+---
+
+## Vertical Market Solutions
+
+### Vision: One Platform, Infinite Possibilities
+
+Convergio's architecture enables **vertical market customization** through agent persona replacement. The core orchestration engine remains unchanged - only the agent definitions and UI themes adapt to each industry.
+
+### Vertical Architecture
+
+```mermaid
+graph TB
+    subgraph "Core Platform (Unchanged)"
+        ENGINE[Orchestration Engine]
+        PROVIDERS[AI Providers]
+        PERSISTENCE[Persistence Layer]
+        UI_FRAMEWORK[UI Framework]
+    end
+
+    subgraph "Vertical Layer (Customizable)"
+        AGENTS[Agent Personas]
+        THEMES[Visual Themes]
+        TERMINOLOGY[Domain Terminology]
+        WORKFLOWS[Industry Workflows]
+    end
+
+    subgraph "Vertical Products"
+        EDU[Convergio EDU]
+        HEALTH[Convergio Health]
+        MARKETING[Convergio Marketing]
+        LOGISTICS[Convergio Logistics]
+        RESEARCH[Convergio Research]
+        LEGAL[Convergio Legal]
+        FINANCE[Convergio Finance]
+    end
+
+    ENGINE --> AGENTS
+    PROVIDERS --> AGENTS
+    PERSISTENCE --> WORKFLOWS
+    UI_FRAMEWORK --> THEMES
+
+    AGENTS --> EDU
+    AGENTS --> HEALTH
+    AGENTS --> MARKETING
+    AGENTS --> LOGISTICS
+    AGENTS --> RESEARCH
+    AGENTS --> LEGAL
+    AGENTS --> FINANCE
+```
+
+### Vertical Definitions
+
+#### 1. Convergio EDU (Education)
+
+**Target:** Schools, universities, tutoring centers, homeschooling families
+
+**Agent Personas:**
+| Original Agent | EDU Persona | Role |
+|----------------|-------------|------|
+| Ali (Chief of Staff) | **Prof. Sofia** (Dean) | Coordinates learning team |
+| Angela (Data Analyst) | **Dr. Marco** (Math Teacher) | Mathematics, statistics, logic |
+| Amy (CFO) | **Prof. Elena** (Science Teacher) | Physics, chemistry, biology |
+| Matteo (Strategy) | **Dr. Luca** (History Teacher) | History, geography, civics |
+| Sofia (Marketing) | **Prof. Anna** (Language Arts) | Writing, literature, communication |
+| Jony (Creative Director) | **Maestro Giorgio** (Art Teacher) | Visual arts, music, creativity |
+| Oliver (PM) | **Coach Roberto** (PE Teacher) | Physical education, health, wellness |
+
+**Special Features:**
+- **Adaptive Learning Mode** - Adjusts explanation complexity based on student level
+- **Progress Tracking** - Visual learning progress with achievements
+- **Parent Dashboard** - Summary reports for parents/guardians
+- **Homework Helper** - Step-by-step problem solving (shows work, not just answers)
+- **Study Planner** - Integrated with Anna for study schedules
+- **Dyslexia Mode** - OpenDyslexic font, colored overlays, text-to-speech
+- **Dyscalculia Support** - Visual math representations, step highlighting
+
+**UI Theme:**
+- Warm, encouraging colors (soft blues, greens)
+- Achievement badges and progress bars
+- Simplified navigation for younger users
+- Parental controls integration
+
+```swift
+// Example: EDU vertical configuration
+struct ConvergioEDUConfig: VerticalConfig {
+    let name = "Convergio EDU"
+    let icon = "graduationcap.fill"
+    let primaryColor = Color(hex: "4A90D9")  // Calming blue
+
+    let agentMapping: [String: AgentPersona] = [
+        "ali": AgentPersona(
+            name: "Prof. Sofia",
+            title: "Dean of Learning",
+            icon: "person.bust",
+            systemPrompt: """
+                You are Prof. Sofia, the Dean of Learning at Convergio Academy.
+                You coordinate a team of expert teachers to help students learn.
+                Always be encouraging, patient, and adapt to the student's level.
+                Never give direct answers - guide students to discover solutions.
+                Celebrate small victories and normalize making mistakes as learning.
+                """
+        ),
+        // ... more mappings
+    ]
+
+    let features: [VerticalFeature] = [
+        .progressTracking,
+        .parentDashboard,
+        .adaptiveLearning,
+        .homeworkHelper,
+        .studyPlanner
+    ]
+}
+```
+
+#### 2. Convergio Health (Healthcare)
+
+**Target:** Hospitals, clinics, healthcare administrators, medical researchers
+
+**Agent Personas:**
+| Original Agent | Health Persona | Role |
+|----------------|----------------|------|
+| Ali | **Dr. Chief** (CMO) | Coordinates medical team |
+| Angela | **Dr. Data** (Clinical Analyst) | Medical data analysis, statistics |
+| Amy | **Dr. Finance** (Healthcare CFO) | Medical billing, budgets |
+| Elena (Legal) | **Dr. Compliance** | HIPAA, medical regulations |
+| Guardian | **Dr. Security** | PHI protection, audit trails |
+
+**Special Features:**
+- **HIPAA Compliance Mode** - All data handling follows HIPAA guidelines
+- **Medical Terminology** - Understands and uses proper medical terms
+- **Clinical Decision Support** - Evidence-based recommendations with citations
+- **Patient Communication** - Helps draft clear patient communications
+- **Research Assistant** - Literature review, study design support
+- **Audit Trail** - Complete logging for compliance
+
+**Critical Requirements:**
+- No diagnosis or treatment recommendations without "educational purposes only" disclaimer
+- All outputs include "consult healthcare provider" notice
+- PHI handling strictly controlled
+- Integration with medical knowledge bases (with proper licensing)
+
+#### 3. Convergio Marketing
+
+**Target:** Marketing agencies, brand managers, content creators
+
+**Agent Personas:**
+| Original Agent | Marketing Persona | Role |
+|----------------|-------------------|------|
+| Ali | **Chief Brand Officer** | Brand strategy coordination |
+| Sofia | **Creative Director** | Campaign concepts, messaging |
+| Angela | **Analytics Lead** | Performance metrics, ROI |
+| Riccardo | **Content Strategist** | Storytelling, content calendar |
+| Sara | **UX Researcher** | Audience insights, personas |
+
+**Special Features:**
+- **Campaign Builder** - End-to-end campaign planning
+- **Content Calendar** - Integrated scheduling with Anna
+- **A/B Test Designer** - Experiment design and analysis
+- **Brand Voice Keeper** - Maintains consistent brand tone
+- **Competitor Tracker** - Market intelligence summaries
+- **Social Listening** - Trend analysis and insights
+
+#### 4. Convergio Logistics
+
+**Target:** Supply chain managers, warehouse operators, transportation companies
+
+**Agent Personas:**
+| Original Agent | Logistics Persona | Role |
+|----------------|-------------------|------|
+| Ali | **Operations Director** | End-to-end coordination |
+| Angela | **Demand Planner** | Forecasting, inventory optimization |
+| Enrico | **Process Engineer** | Workflow optimization |
+| Wanda | **Route Optimizer** | Transportation planning |
+| Amy | **Cost Controller** | Logistics budget management |
+
+**Special Features:**
+- **Route Optimization** - Multi-stop planning with constraints
+- **Inventory Forecasting** - Demand prediction models
+- **Supplier Scorecards** - Vendor performance tracking
+- **Capacity Planning** - Resource allocation optimization
+- **Risk Assessment** - Supply chain vulnerability analysis
+
+#### 5. Convergio Research
+
+**Target:** Academic researchers, R&D teams, think tanks
+
+**Agent Personas:**
+| Original Agent | Research Persona | Role |
+|----------------|------------------|------|
+| Ali | **Principal Investigator** | Research coordination |
+| Angela | **Statistician** | Research methodology, analysis |
+| Socrates | **Critical Reviewer** | Hypothesis testing, peer review |
+| Marcus | **Literature Expert** | Systematic reviews, citations |
+| Elena | **Ethics Advisor** | IRB compliance, research ethics |
+
+**Special Features:**
+- **Literature Review Assistant** - Systematic search and synthesis
+- **Methodology Advisor** - Study design recommendations
+- **Statistical Consultant** - Analysis approach selection
+- **Citation Manager** - Reference organization
+- **Grant Writing Support** - Proposal structure and language
+- **Peer Review Prep** - Anticipate reviewer questions
+
+#### 6. Convergio Legal
+
+**Target:** Law firms, corporate legal departments, compliance teams
+
+**Agent Personas:**
+| Original Agent | Legal Persona | Role |
+|----------------|---------------|------|
+| Ali | **Managing Partner** | Case coordination |
+| Elena | **Senior Counsel** | Legal analysis, compliance |
+| Angela | **Paralegal Analyst** | Document review, research |
+| Matteo | **Strategy Counsel** | Case strategy, negotiations |
+| Guardian | **Compliance Officer** | Regulatory monitoring |
+
+#### 7. Convergio Finance
+
+**Target:** Investment firms, corporate finance, financial advisors
+
+**Agent Personas:**
+| Original Agent | Finance Persona | Role |
+|----------------|-----------------|------|
+| Ali | **Chief Investment Officer** | Portfolio coordination |
+| Amy | **CFO** | Financial planning, analysis |
+| Angela | **Quantitative Analyst** | Financial modeling, risk |
+| Michael | **Investment Analyst** | Due diligence, valuations |
+| Elena | **Compliance Officer** | Regulatory, fiduciary duties |
+
+### Vertical Implementation Strategy
+
+```mermaid
+flowchart LR
+    subgraph "Phase 1: Core Platform"
+        A[Base Convergio] --> B[Vertical Framework]
+        B --> C[Agent Persona System]
+        C --> D[Theme Engine]
+    end
+
+    subgraph "Phase 2: First Verticals"
+        D --> E[Convergio EDU]
+        D --> F[Convergio Marketing]
+    end
+
+    subgraph "Phase 3: Expansion"
+        E --> G[Convergio Health]
+        F --> H[Convergio Research]
+        G --> I[Convergio Legal]
+        H --> J[Convergio Finance]
+        I --> K[Convergio Logistics]
+    end
+
+    subgraph "Phase 4: Marketplace"
+        K --> L[Custom Verticals]
+        L --> M[Partner Ecosystem]
+    end
+```
+
+### Technical Implementation
+
+```swift
+// Vertical configuration protocol
+protocol VerticalConfig {
+    var name: String { get }
+    var identifier: String { get }
+    var icon: String { get }
+    var primaryColor: Color { get }
+    var agentMapping: [String: AgentPersona] { get }
+    var features: [VerticalFeature] { get }
+    var terminology: [String: String] { get }
+    var disclaimers: [String] { get }
+    var accessibilityOverrides: AccessibilityConfig? { get }
+}
+
+// Agent persona definition
+struct AgentPersona {
+    let name: String
+    let title: String
+    let icon: String
+    let systemPrompt: String
+    let voiceProfile: VoiceProfile?  // For TTS
+    let specializations: [String]
+}
+
+// Vertical manager
+@MainActor
+class VerticalManager: ObservableObject {
+    @Published var activeVertical: VerticalConfig = DefaultConvergioConfig()
+    @Published var availableVerticals: [VerticalConfig] = []
+
+    func switchVertical(to vertical: VerticalConfig) {
+        // Update agent personas
+        orchestrator.reloadAgents(with: vertical.agentMapping)
+
+        // Update UI theme
+        ThemeManager.shared.apply(vertical.primaryColor)
+
+        // Update terminology
+        TerminologyManager.shared.load(vertical.terminology)
+
+        // Apply accessibility overrides
+        if let a11y = vertical.accessibilityOverrides {
+            AccessibilityManager.shared.apply(a11y)
+        }
+
+        activeVertical = vertical
+    }
+}
+```
+
+### Business Model for Verticals
+
+| Tier | Verticals Included | Price Point |
+|------|-------------------|-------------|
+| **Convergio Core** | Base (54 agents) | Free / $9.99/mo |
+| **Convergio Pro** | Core + 2 verticals | $29.99/mo |
+| **Convergio Enterprise** | All verticals + custom | Contact sales |
+| **Vertical Add-ons** | Individual verticals | $14.99/mo each |
+
+---
+
+## Accessibility & Inclusive Design
+
+> **Principle:** Convergio must be usable by EVERYONE, regardless of ability. Accessibility is not a feature - it's a fundamental requirement.
+
+### Accessibility Standards Compliance
+
+| Standard | Compliance Level | Status |
+|----------|------------------|--------|
+| **WCAG 2.2** | AAA | Target |
+| **Section 508** | Full | Required |
+| **EN 301 549** | Full | Required (EU) |
+| **Apple Accessibility Guidelines** | Full | Required |
+| **ADA Compliance** | Full | Required |
+
+### Accessibility Architecture
+
+```mermaid
+graph TB
+    subgraph "Input Methods"
+        KEYBOARD[Full Keyboard Navigation]
+        VOICE[Voice Control]
+        SWITCH[Switch Control]
+        EYETRACK[Eye Tracking]
+        SIRI[Siri Shortcuts]
+    end
+
+    subgraph "Output Methods"
+        VOICEOVER[VoiceOver Screen Reader]
+        BRAILLE[Braille Display Support]
+        TTS[Text-to-Speech]
+        HAPTIC[Haptic Feedback]
+        VISUAL[Visual Indicators]
+    end
+
+    subgraph "Cognitive Accessibility"
+        DYSLEXIA[Dyslexia Support]
+        DYSCALCULIA[Dyscalculia Support]
+        ADHD[Focus Mode]
+        AUTISM[Sensory Settings]
+        SIMPLIFY[Simplified Mode]
+    end
+
+    subgraph "Motor Accessibility"
+        LARGETARGETS[Large Touch Targets]
+        DWELLCLICK[Dwell Click]
+        GESTURES[Custom Gestures]
+        TIMING[Extended Timing]
+    end
+
+    subgraph "Convergio Core"
+        ENGINE[Accessibility Engine]
+    end
+
+    KEYBOARD --> ENGINE
+    VOICE --> ENGINE
+    SWITCH --> ENGINE
+    EYETRACK --> ENGINE
+    SIRI --> ENGINE
+
+    ENGINE --> VOICEOVER
+    ENGINE --> BRAILLE
+    ENGINE --> TTS
+    ENGINE --> HAPTIC
+    ENGINE --> VISUAL
+
+    ENGINE --> DYSLEXIA
+    ENGINE --> DYSCALCULIA
+    ENGINE --> ADHD
+    ENGINE --> AUTISM
+    ENGINE --> SIMPLIFY
+
+    ENGINE --> LARGETARGETS
+    ENGINE --> DWELLCLICK
+    ENGINE --> GESTURES
+    ENGINE --> TIMING
+```
+
+### Visual Accessibility
+
+#### Color & Contrast
+
+```swift
+// Accessibility color system
+struct AccessibleColors {
+    // Minimum contrast ratios (WCAG AAA)
+    static let minContrastNormal: CGFloat = 7.0  // Normal text
+    static let minContrastLarge: CGFloat = 4.5   // Large text (18pt+)
+
+    // High contrast theme
+    static let highContrastBackground = Color.black
+    static let highContrastForeground = Color.white
+    static let highContrastAccent = Color.yellow
+
+    // Color blind safe palette
+    static let colorBlindSafe: [Color] = [
+        Color(hex: "0077BB"),  // Blue
+        Color(hex: "EE7733"),  // Orange
+        Color(hex: "009988"),  // Teal
+        Color(hex: "CC3311"),  // Red
+        Color(hex: "33BBEE"),  // Cyan
+        Color(hex: "EE3377"),  // Magenta
+        Color(hex: "BBBBBB"),  // Gray
+    ]
+
+    // Never rely on color alone
+    static func statusIndicator(_ status: AgentStatus) -> some View {
+        HStack(spacing: 4) {
+            // Shape distinguishes status (not just color)
+            switch status {
+            case .idle:
+                Circle()
+                    .stroke(Color.gray, lineWidth: 2)
+            case .thinking:
+                Circle()
+                    .fill(Color.blue)
+                    .overlay(PulseAnimation())
+            case .active:
+                Circle()
+                    .fill(Color.green)
+            case .error:
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .foregroundColor(.red)
+            }
+
+            // Text label always present
+            Text(status.localizedDescription)
+                .accessibilityLabel(status.accessibilityDescription)
+        }
+    }
+}
+```
+
+#### Typography & Readability
+
+```swift
+// Dyslexia-friendly typography
+struct DyslexiaFriendlyText: ViewModifier {
+    @Environment(\.accessibilityDyslexiaFriendly) var dyslexiaMode
+
+    func body(content: Content) -> some View {
+        content
+            .font(dyslexiaMode ? .custom("OpenDyslexic", size: 16) : .body)
+            .lineSpacing(dyslexiaMode ? 8 : 4)
+            .tracking(dyslexiaMode ? 1.2 : 0)
+            .foregroundColor(dyslexiaMode ? Color(hex: "1A1A2E") : .primary)
+    }
+}
+
+// Reading ruler for focus
+struct ReadingRuler: View {
+    @Binding var position: CGFloat
+    let lineHeight: CGFloat = 24
+
+    var body: some View {
+        GeometryReader { geo in
+            VStack(spacing: 0) {
+                // Dimmed area above
+                Color.black.opacity(0.5)
+                    .frame(height: position)
+
+                // Clear reading line
+                Color.clear
+                    .frame(height: lineHeight * 2)
+                    .border(Color.yellow, width: 2)
+
+                // Dimmed area below
+                Color.black.opacity(0.5)
+            }
+            .gesture(
+                DragGesture()
+                    .onChanged { value in
+                        position = value.location.y
+                    }
+            )
+        }
+        .allowsHitTesting(true)
+        .accessibilityLabel("Reading guide. Drag to move.")
+    }
+}
+
+// Color overlay for visual stress reduction
+struct ColorOverlay: View {
+    @AppStorage("overlayColor") var overlayColor: String = "none"
+    @AppStorage("overlayOpacity") var overlayOpacity: Double = 0.2
+
+    var body: some View {
+        if overlayColor != "none" {
+            Rectangle()
+                .fill(colorForName(overlayColor))
+                .opacity(overlayOpacity)
+                .allowsHitTesting(false)
+        }
+    }
+
+    private func colorForName(_ name: String) -> Color {
+        switch name {
+        case "yellow": return .yellow
+        case "blue": return .blue
+        case "pink": return .pink
+        case "green": return .green
+        case "peach": return Color(hex: "FFDAB9")
+        default: return .clear
+        }
+    }
+}
+```
+
+### Cognitive Accessibility
+
+#### Dyslexia Support
+
+```swift
+struct DyslexiaSettings: View {
+    @AppStorage("dyslexiaFontEnabled") var dyslexiaFont = false
+    @AppStorage("lineSpacingMultiplier") var lineSpacing = 1.5
+    @AppStorage("letterSpacingMultiplier") var letterSpacing = 1.0
+    @AppStorage("syllableHighlighting") var syllableHighlight = false
+    @AppStorage("colorOverlay") var colorOverlay = "none"
+    @AppStorage("readingRuler") var readingRuler = false
+
+    var body: some View {
+        Form {
+            Section("Typography") {
+                Toggle("OpenDyslexic Font", isOn: $dyslexiaFont)
+                    .accessibilityHint("Uses a font designed for readers with dyslexia")
+
+                Slider(value: $lineSpacing, in: 1.0...3.0, step: 0.25) {
+                    Text("Line Spacing: \(lineSpacing, specifier: "%.2f")x")
+                }
+
+                Slider(value: $letterSpacing, in: 0.5...2.0, step: 0.1) {
+                    Text("Letter Spacing: \(letterSpacing, specifier: "%.1f")x")
+                }
+            }
+
+            Section("Reading Aids") {
+                Toggle("Syllable Highlighting", isOn: $syllableHighlight)
+                    .accessibilityHint("Highlights syllables in different colors to aid reading")
+
+                Toggle("Reading Ruler", isOn: $readingRuler)
+                    .accessibilityHint("Shows a movable guide to focus on one line at a time")
+
+                Picker("Color Overlay", selection: $colorOverlay) {
+                    Text("None").tag("none")
+                    Text("Yellow").tag("yellow")
+                    Text("Blue").tag("blue")
+                    Text("Pink").tag("pink")
+                    Text("Green").tag("green")
+                    Text("Peach").tag("peach")
+                }
+                .accessibilityHint("Applies a colored tint to reduce visual stress")
+            }
+
+            Section("Text-to-Speech") {
+                NavigationLink("Configure Voice") {
+                    VoiceSettingsView()
+                }
+
+                Toggle("Auto-read Responses", isOn: .constant(false))
+                    .accessibilityHint("Automatically reads agent responses aloud")
+            }
+        }
+    }
+}
+```
+
+#### Dyscalculia Support
+
+```swift
+struct DyscalculiaSettings: View {
+    @AppStorage("visualNumbers") var visualNumbers = false
+    @AppStorage("numberLine") var numberLine = false
+    @AppStorage("stepByStepMath") var stepByStep = true
+    @AppStorage("mathAnxietyMode") var mathAnxietyMode = false
+
+    var body: some View {
+        Form {
+            Section("Number Representation") {
+                Toggle("Visual Number Representations", isOn: $visualNumbers)
+                    .accessibilityHint("Shows numbers as visual blocks or dots")
+
+                Toggle("Number Line Helper", isOn: $numberLine)
+                    .accessibilityHint("Displays a number line for context")
+            }
+
+            Section("Calculation Support") {
+                Toggle("Step-by-Step Solutions", isOn: $stepByStep)
+                    .accessibilityHint("Shows each step of calculations clearly")
+
+                Toggle("Math Anxiety Mode", isOn: $mathAnxietyMode)
+                    .accessibilityHint("Uses encouraging language and removes time pressure")
+            }
+        }
+    }
+}
+
+// Visual number representation
+struct VisualNumber: View {
+    let value: Int
+    let maxDots = 10
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            // Numeric representation
+            Text("\(value)")
+                .font(.title)
+                .accessibilityLabel("The number \(value)")
+
+            // Visual dot representation (for small numbers)
+            if value <= maxDots * maxDots {
+                LazyVGrid(columns: Array(repeating: GridItem(.fixed(12)), count: min(value, maxDots))) {
+                    ForEach(0..<value, id: \.self) { _ in
+                        Circle()
+                            .fill(Color.blue)
+                            .frame(width: 10, height: 10)
+                    }
+                }
+                .accessibilityHidden(true)
+            }
+
+            // Number line context
+            NumberLineView(value: value, range: 0...max(value + 5, 20))
+        }
+    }
+}
+```
+
+#### ADHD & Focus Support
+
+```swift
+struct FocusModeSettings: View {
+    @AppStorage("focusModeEnabled") var focusMode = false
+    @AppStorage("reducedAnimations") var reducedAnimations = false
+    @AppStorage("minimalistUI") var minimalistUI = false
+    @AppStorage("taskTimer") var taskTimer = false
+    @AppStorage("breakReminders") var breakReminders = false
+
+    var body: some View {
+        Form {
+            Section("Focus Aids") {
+                Toggle("Focus Mode", isOn: $focusMode)
+                    .accessibilityHint("Hides non-essential UI elements")
+
+                Toggle("Minimalist Interface", isOn: $minimalistUI)
+                    .accessibilityHint("Shows only the most essential controls")
+
+                Toggle("Reduce Animations", isOn: $reducedAnimations)
+                    .accessibilityHint("Minimizes motion and transitions")
+            }
+
+            Section("Time Management") {
+                Toggle("Task Timer", isOn: $taskTimer)
+                    .accessibilityHint("Shows a timer for the current task")
+
+                Toggle("Break Reminders", isOn: $breakReminders)
+                    .accessibilityHint("Reminds you to take breaks")
+
+                if breakReminders {
+                    Stepper("Break every 25 minutes", value: .constant(25), in: 10...60, step: 5)
+                }
+            }
+        }
+    }
+}
+
+// Focus mode modifier
+struct FocusModeModifier: ViewModifier {
+    @Environment(\.accessibilityFocusMode) var focusMode
+
+    func body(content: Content) -> some View {
+        content
+            .overlay {
+                if focusMode {
+                    // Dim everything except focused element
+                    FocusDimOverlay()
+                }
+            }
+    }
+}
+```
+
+#### Autism Spectrum & Sensory Settings
+
+```swift
+struct SensorySettings: View {
+    @AppStorage("reduceVisualClutter") var reduceClutter = false
+    @AppStorage("predictableTransitions") var predictableTransitions = true
+    @AppStorage("soundsEnabled") var soundsEnabled = true
+    @AppStorage("hapticFeedback") var hapticFeedback = true
+    @AppStorage("warningBeforeChanges") var warningBeforeChanges = true
+
+    var body: some View {
+        Form {
+            Section("Visual") {
+                Toggle("Reduce Visual Clutter", isOn: $reduceClutter)
+                    .accessibilityHint("Simplifies the interface by hiding decorative elements")
+
+                Toggle("Predictable Transitions", isOn: $predictableTransitions)
+                    .accessibilityHint("Uses consistent, predictable animations")
+            }
+
+            Section("Audio & Haptic") {
+                Toggle("Sound Effects", isOn: $soundsEnabled)
+
+                Toggle("Haptic Feedback", isOn: $hapticFeedback)
+            }
+
+            Section("Predictability") {
+                Toggle("Warn Before Major Changes", isOn: $warningBeforeChanges)
+                    .accessibilityHint("Shows a confirmation before changing screens or modes")
+            }
+        }
+    }
+}
+```
+
+### Motor Accessibility
+
+#### Large Touch Targets
+
+```swift
+// Minimum touch target: 44x44 points (Apple guideline)
+// Accessible target: 48x48 points minimum
+struct AccessibleButton<Content: View>: View {
+    let action: () -> Void
+    @ViewBuilder let content: () -> Content
+
+    @Environment(\.accessibilityLargeTouchTargets) var largeTouchTargets
+
+    var body: some View {
+        Button(action: action) {
+            content()
+                .frame(
+                    minWidth: largeTouchTargets ? 56 : 44,
+                    minHeight: largeTouchTargets ? 56 : 44
+                )
+                .contentShape(Rectangle())
+        }
+    }
+}
+
+// Spacing between interactive elements
+struct AccessibleSpacing {
+    static func minimum(_ base: CGFloat = 8) -> CGFloat {
+        let largeTouchTargets = UserDefaults.standard.bool(forKey: "accessibilityLargeTouchTargets")
+        return largeTouchTargets ? base * 1.5 : base
+    }
+}
+```
+
+#### Switch Control & Dwell Click
+
+```swift
+// Full keyboard navigation
+struct KeyboardNavigable: ViewModifier {
+    @FocusState private var isFocused: Bool
+
+    func body(content: Content) -> some View {
+        content
+            .focusable()
+            .focused($isFocused)
+            .overlay {
+                if isFocused {
+                    RoundedRectangle(cornerRadius: 8)
+                        .stroke(Color.accentColor, lineWidth: 3)
+                }
+            }
+            .accessibilityAddTraits(.isButton)
+    }
+}
+
+// Dwell click support
+struct DwellClickModifier: ViewModifier {
+    @AppStorage("dwellClickEnabled") var dwellEnabled = false
+    @AppStorage("dwellClickDuration") var dwellDuration = 1.0
+
+    @State private var hoverTimer: Timer?
+    @State private var hoverProgress: Double = 0
+
+    let action: () -> Void
+
+    func body(content: Content) -> some View {
+        content
+            .overlay {
+                if dwellEnabled && hoverProgress > 0 {
+                    CircularProgressView(progress: hoverProgress)
+                        .frame(width: 30, height: 30)
+                }
+            }
+            .onHover { hovering in
+                if dwellEnabled {
+                    if hovering {
+                        startDwellTimer()
+                    } else {
+                        cancelDwellTimer()
+                    }
+                }
+            }
+    }
+
+    private func startDwellTimer() {
+        hoverProgress = 0
+        hoverTimer = Timer.scheduledTimer(withTimeInterval: 0.05, repeats: true) { _ in
+            hoverProgress += 0.05 / dwellDuration
+            if hoverProgress >= 1.0 {
+                action()
+                cancelDwellTimer()
+            }
+        }
+    }
+
+    private func cancelDwellTimer() {
+        hoverTimer?.invalidate()
+        hoverTimer = nil
+        hoverProgress = 0
+    }
+}
+```
+
+### Voice Control & Screen Reader
+
+#### VoiceOver Optimization
+
+```swift
+// Comprehensive VoiceOver support
+struct AgentCardAccessible: View {
+    let agent: Agent
+
+    var body: some View {
+        AgentCardView(agent: agent)
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel(agentAccessibilityLabel)
+            .accessibilityValue(agentAccessibilityValue)
+            .accessibilityHint(agentAccessibilityHint)
+            .accessibilityActions {
+                Button("Select \(agent.name)") {
+                    // Select agent
+                }
+                Button("View \(agent.name)'s details") {
+                    // Show details
+                }
+                Button("Ask \(agent.name) directly") {
+                    // Direct message
+                }
+            }
+    }
+
+    private var agentAccessibilityLabel: String {
+        "\(agent.name), \(agent.role)"
+    }
+
+    private var agentAccessibilityValue: String {
+        switch agent.state {
+        case .idle: return "Available"
+        case .thinking: return "Currently thinking"
+        case .responding: return "Responding"
+        case .collaborating: return "Collaborating with other agents"
+        }
+    }
+
+    private var agentAccessibilityHint: String {
+        "Double tap to select. Swipe up or down for more actions."
+    }
+}
+
+// Announce important changes
+func announceToVoiceOver(_ message: String, priority: UIAccessibilityNotification = .announcement) {
+    UIAccessibility.post(notification: priority, argument: message)
+}
+
+// Example usage
+func onConvergenceComplete() {
+    announceToVoiceOver("Convergence complete. \(activeAgents.count) agents have synthesized a response.", priority: .announcement)
+}
+```
+
+#### Voice Control Commands
+
+```swift
+// Custom voice control commands
+struct VoiceCommands {
+    static func register() {
+        // Navigation
+        UIApplication.shared.accessibilityCustomActions = [
+            UIAccessibilityCustomAction(name: "Go to conversation") { _ in
+                navigateTo(.conversation)
+                return true
+            },
+            UIAccessibilityCustomAction(name: "Go to agents") { _ in
+                navigateTo(.agents)
+                return true
+            },
+            UIAccessibilityCustomAction(name: "Open settings") { _ in
+                navigateTo(.settings)
+                return true
+            },
+
+            // Actions
+            UIAccessibilityCustomAction(name: "Send message") { _ in
+                sendCurrentMessage()
+                return true
+            },
+            UIAccessibilityCustomAction(name: "Clear conversation") { _ in
+                clearConversation()
+                return true
+            },
+            UIAccessibilityCustomAction(name: "Read last response") { _ in
+                readLastResponse()
+                return true
+            },
+        ]
+    }
+}
+```
+
+### Accessibility Settings Hub
+
+```swift
+struct AccessibilitySettingsView: View {
+    var body: some View {
+        NavigationStack {
+            List {
+                Section {
+                    NavigationLink {
+                        VisionSettingsView()
+                    } label: {
+                        Label("Vision", systemImage: "eye")
+                    }
+
+                    NavigationLink {
+                        DyslexiaSettings()
+                    } label: {
+                        Label("Dyslexia Support", systemImage: "textformat")
+                    }
+
+                    NavigationLink {
+                        DyscalculiaSettings()
+                    } label: {
+                        Label("Dyscalculia Support", systemImage: "number")
+                    }
+                }
+
+                Section {
+                    NavigationLink {
+                        MotorSettingsView()
+                    } label: {
+                        Label("Motor & Mobility", systemImage: "hand.raised")
+                    }
+
+                    NavigationLink {
+                        VoiceControlSettingsView()
+                    } label: {
+                        Label("Voice Control", systemImage: "mic")
+                    }
+                }
+
+                Section {
+                    NavigationLink {
+                        FocusModeSettings()
+                    } label: {
+                        Label("Focus & Attention", systemImage: "eye.trianglebadge.exclamationmark")
+                    }
+
+                    NavigationLink {
+                        SensorySettings()
+                    } label: {
+                        Label("Sensory Preferences", systemImage: "waveform")
+                    }
+                }
+
+                Section {
+                    NavigationLink {
+                        TextToSpeechSettingsView()
+                    } label: {
+                        Label("Text-to-Speech", systemImage: "speaker.wave.3")
+                    }
+
+                    NavigationLink {
+                        LanguageSettingsView()
+                    } label: {
+                        Label("Language & Reading", systemImage: "globe")
+                    }
+                }
+
+                Section {
+                    Button("Reset to Defaults") {
+                        resetAccessibilitySettings()
+                    }
+                    .foregroundColor(.red)
+                }
+            }
+            .navigationTitle("Accessibility")
+        }
+    }
+}
+```
+
+### Testing & Validation
+
+```swift
+// Automated accessibility testing
+struct AccessibilityTests {
+    static func runAudit() -> [AccessibilityIssue] {
+        var issues: [AccessibilityIssue] = []
+
+        // Check contrast ratios
+        issues += checkContrastRatios()
+
+        // Check touch target sizes
+        issues += checkTouchTargets()
+
+        // Check accessibility labels
+        issues += checkAccessibilityLabels()
+
+        // Check keyboard navigation
+        issues += checkKeyboardNavigation()
+
+        // Check VoiceOver compatibility
+        issues += checkVoiceOverCompatibility()
+
+        return issues
+    }
+
+    static func checkContrastRatios() -> [AccessibilityIssue] {
+        // Implementation using ColorContrast library
+        []
+    }
+
+    static func checkTouchTargets() -> [AccessibilityIssue] {
+        // Check all interactive elements are at least 44x44
+        []
+    }
+}
+
+// Accessibility audit view (dev tool)
+struct AccessibilityAuditView: View {
+    @State private var issues: [AccessibilityIssue] = []
+
+    var body: some View {
+        List(issues) { issue in
+            VStack(alignment: .leading) {
+                Text(issue.title)
+                    .font(.headline)
+                Text(issue.description)
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                Text("Severity: \(issue.severity.rawValue)")
+                    .font(.caption)
+                    .foregroundColor(issue.severity.color)
+            }
+        }
+        .onAppear {
+            issues = AccessibilityTests.runAudit()
+        }
+    }
+}
+```
+
+### Accessibility Commitment
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                                                                             │
+│                    CONVERGIO ACCESSIBILITY COMMITMENT                       │
+│                                                                             │
+│  We believe that AI-powered productivity tools should be accessible        │
+│  to everyone, regardless of ability. Convergio is committed to:            │
+│                                                                             │
+│  ✓ WCAG 2.2 AAA compliance as our minimum standard                         │
+│  ✓ Regular accessibility audits by disabled users                          │
+│  ✓ Dedicated accessibility team for ongoing improvements                   │
+│  ✓ Free accessibility features (never paywalled)                           │
+│  ✓ Open dialogue with the disability community                             │
+│  ✓ Transparent accessibility roadmap                                       │
+│                                                                             │
+│  If you encounter any accessibility barriers, please contact us:           │
+│  accessibility@convergio.app                                               │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
