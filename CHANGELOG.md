@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [5.0.1] - 2025-12-14
+
+### Fixed
+
+- **E2E Test Suite Updates**
+  - Updated test expectations to match current CLI output format
+  - Fixed readline static linking for macOS code signing compatibility
+  - All 70 E2E tests now pass (9 skipped by design)
+
+### Changed
+
+- **Build System**
+  - Use direct path for readline prefix in Makefile
+  - Link readline statically to avoid dyld issues on user machines
+
 ## [5.0.0] - 2025-12-14
 
 ### Added
