@@ -14,6 +14,7 @@
 
 #include <stdbool.h>
 #include <stddef.h>
+#include <stdint.h>
 
 // ============================================================================
 // TOOL TYPES
@@ -34,6 +35,13 @@ typedef enum {
     TOOL_KNOWLEDGE_ADD,   // Add to knowledge base
     TOOL_PROJECT_TEAM,    // Manage project team
     TOOL_AGENT_DELEGATE,  // Delegate to another agent
+    // Anna's task management tools
+    TOOL_TODO_CREATE,     // Create a new task
+    TOOL_TODO_LIST,       // List tasks with filters
+    TOOL_TODO_UPDATE,     // Update task status/details
+    TOOL_TODO_DELETE,     // Delete a task
+    TOOL_NOTIFY_SCHEDULE, // Schedule a notification/reminder
+    TOOL_NOTIFY_CANCEL,   // Cancel a scheduled notification
 } ToolType;
 
 // Local tool definition (distinct from provider.h's ToolDefinition for API calls)
@@ -143,6 +151,34 @@ ToolResult* tool_knowledge_search(const char* query, size_t max_results);
 
 // Add a document to the knowledge base
 ToolResult* tool_knowledge_add(const char* title, const char* content, const char* category);
+
+// ============================================================================
+// TODO/TASK TOOLS (Anna's task management)
+// ============================================================================
+
+// Create a new task
+ToolResult* tool_todo_create(const char* title, const char* description, const char* priority,
+                             const char* due_date, const char* tags);
+
+// List tasks with optional filters
+ToolResult* tool_todo_list(const char* status, const char* priority, int limit);
+
+// Update a task (by ID)
+ToolResult* tool_todo_update(int64_t task_id, const char* status, const char* priority,
+                             const char* due_date);
+
+// Delete a task (by ID)
+ToolResult* tool_todo_delete(int64_t task_id);
+
+// ============================================================================
+// NOTIFICATION TOOLS (Anna's reminder system)
+// ============================================================================
+
+// Schedule a notification for a specific time
+ToolResult* tool_notify_schedule(const char* message, const char* when, const char* sound);
+
+// Cancel a scheduled notification
+ToolResult* tool_notify_cancel(int64_t notify_id);
 
 // ============================================================================
 // SAFETY

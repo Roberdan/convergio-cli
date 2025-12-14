@@ -637,9 +637,11 @@ int repl_parse_and_execute(char* line) {
     // Skip empty lines
     if (!line || strlen(line) == 0) return 0;
 
-    // Check for direct agent communication: @agent_name message
+    // Check for direct agent communication: @agent_name [message]
+    // - @agent_name message -> send message to agent
+    // - @agent_name        -> switch to agent mode (continue conversation with that agent)
     if (line[0] == '@') {
-        // Extract agent name (until first space)
+        // Extract agent name (until first space or end of line)
         char agent_name[128] = {0};
         const char* msg_start = NULL;
 
@@ -653,15 +655,45 @@ int repl_parse_and_execute(char* line) {
                 // Skip leading whitespace in message
                 while (*msg_start == ' ' || *msg_start == '\t') msg_start++;
             }
+        } else {
+            // No space - just agent name (switch mode)
+            size_t name_len = strlen(line) - 1;  // -1 to skip @
+            if (name_len > 0 && name_len < sizeof(agent_name)) {
+                strncpy(agent_name, line + 1, name_len);
+                agent_name[name_len] = '\0';
+            }
         }
 
-        if (strlen(agent_name) > 0 && msg_start && strlen(msg_start) > 0) {
-            return repl_direct_agent_communication(agent_name, msg_start);
-        } else {
-            printf("Usage: @agent_name your message\n");
-            printf("Example: @baccio What's the best architecture for this system?\n");
+        // Validate agent name
+        if (strlen(agent_name) == 0) {
+            printf("Usage: @agent_name [message]\n");
+            printf("  @baccio            Switch to talk with Baccio\n");
+            printf("  @baccio ciao!      Send message to Baccio\n");
+            printf("Type 'agents' to see available agents.\n");
             return 0;
         }
+
+        // Find the agent
+        ManagedAgent* agent = agent_find_by_name(agent_name);
+        if (!agent) {
+            printf(ANSI_YELLOW "Agent '%s' not found." ANSI_RESET "\n", agent_name);
+            printf("Type 'agents' to see available agents, or try Tab completion.\n");
+            return 0;
+        }
+
+        // If message provided, send to agent
+        if (msg_start && strlen(msg_start) > 0) {
+            return repl_direct_agent_communication(agent_name, msg_start);
+        }
+
+        // No message - switch to this agent
+        repl_set_current_agent(agent);
+        printf(ANSI_GREEN "Switched to " ANSI_BOLD "%s" ANSI_RESET ANSI_GREEN "." ANSI_RESET "\n", agent->name);
+        if (agent->description) {
+            printf(ANSI_DIM "%s" ANSI_RESET "\n", agent->description);
+        }
+        printf(ANSI_DIM "All your messages will now go to %s. Type 'ali' or 'back' to return to Ali." ANSI_RESET "\n", agent->name);
+        return 0;
     }
 
     // Tokenize for command parsing (with quote handling)
