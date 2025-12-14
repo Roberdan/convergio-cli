@@ -100,6 +100,8 @@ set(NOUS_SOURCES
     src/orchestrator/planning.c
     src/orchestrator/convergence.c
     src/memory/persistence.c
+    src/memory/semantic_persistence.c
+    src/context/compaction.c
     src/tools/tools.c
     # Multi-provider support
     src/providers/provider.c
@@ -112,6 +114,7 @@ set(NOUS_SOURCES
     src/providers/streaming.c
     src/providers/tools.c
     src/providers/tokens.c
+    src/providers/model_loader.c
     src/router/model_router.c
     src/router/cost_optimizer.c
     # Synchronization
@@ -135,6 +138,10 @@ set(NOUS_SOURCES
     src/agentic/approval.c
     # Projects
     src/projects/projects.c
+    # Anna Executive Assistant (Phase 1-3)
+    src/todo/todo.c
+    src/notifications/notify.c
+    src/mcp/mcp_client.c
 )
 
 # Objective-C sources
@@ -145,6 +152,7 @@ set(NOUS_OBJC_SOURCES
     src/auth/keychain.m
     src/core/hardware.m
     src/core/clipboard.m
+    src/providers/mlx.m
 )
 
 # Metal shaders
