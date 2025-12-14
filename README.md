@@ -27,6 +27,18 @@
 
 ---
 
+<h2 align="center">Install in 10 Seconds</h2>
+
+```bash
+brew tap Roberdan/convergio-cli && brew install convergio
+```
+
+<p align="center">
+  <em>Then just run <code>convergio</code> and start talking to Ali!</em>
+</p>
+
+---
+
 ## The Vision
 
 **Imagine having an entire consulting firm at your fingertips.** Not just one AI assistant — a full team of 54 specialists who work together, debate ideas, and deliver integrated solutions.
@@ -484,18 +496,27 @@ flowchart TB
 
 ### Why Convergio vs Others?
 
-| Feature | Convergio | Claude Code | Warp |
-|---------|-----------|-------------|------|
-| **Multi-Provider** | 6 providers | Claude only | Multi |
-| **Agents** | 54 specialists | Subagents | Single |
-| **Inter-Agent Comms** | Message Bus | None | None |
-| **Parallel Execution** | GCD native | Batched | Sequential |
-| **Convergence** | Automatic | Manual | N/A |
-| **Per-Agent Models** | Yes | No | No |
-| **Cost Management** | Granular | None | Credits |
-| **Local AI** | MLX + Ollama | No | No |
-| **Open Source** | Full | Closed | Partial |
-| **Apple Optimized** | Metal + Neural Engine | Node.js | Rust |
+| Feature | Convergio | Claude Code | Warp | VSCode + Copilot | Codex CLI |
+|---------|-----------|-------------|------|------------------|-----------|
+| **Multi-Provider** | 6 providers | Claude only | Multi | OpenAI only | OpenAI only |
+| **Agents** | 54 specialists | Subagents | Single | Autocomplete | Single |
+| **Inter-Agent Comms** | Message Bus | None | None | None | None |
+| **Parallel Execution** | GCD native | Batched | Sequential | N/A | Sequential |
+| **Convergence** | Automatic | Manual | N/A | N/A | N/A |
+| **Per-Agent Models** | Yes | No | No | No | No |
+| **Cost Management** | Granular budget | None | Credits | Subscription | API credits |
+| **Local AI** | MLX + Ollama | No | No | No | No |
+| **Task Management** | Native (Anna) | No | No | Extensions | No |
+| **MCP Support** | Native client | Server | No | No | No |
+| **Open Source** | Full | Closed | Partial | Extensions only | Closed |
+| **Apple Optimized** | Metal + Neural Engine | Node.js | Rust | Electron | Python |
+
+**Key Differentiators:**
+
+- **vs Claude Code**: Convergio supports 6 providers (not just Claude), has 54 real specialist agents (not isolated subagents), automatic convergence, and per-agent model routing
+- **vs Warp**: Convergio has true multi-agent orchestration with message bus, not just AI-assisted terminal
+- **vs VSCode + Copilot**: Convergio is a full AI orchestration platform, not just code autocomplete. Native task management, semantic memory, and tool execution
+- **vs Codex CLI**: Convergio offers multi-agent collaboration, local AI support, and granular cost control
 
 ---
 
