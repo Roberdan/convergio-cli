@@ -449,12 +449,16 @@ stateDiagram-v2
     Responding --> Thinking: Follow-up question
 
     Idle --> [*]: App Quit
-
-    note right of Thinking: Visual: Pulsing ring
-    note right of Collaborating: Visual: Connection lines
-    note right of Converging: Visual: Move to center
-    note right of Responding: Visual: Streaming glow
 ```
+
+**Visual Indicators per State:**
+| State | Visual Effect | Animation |
+|-------|---------------|-----------|
+| **Idle** | Dim glass, gray ring | None |
+| **Thinking** | Bright glass, blue ring | Soft pulse (1.5s) |
+| **Collaborating** | Connected lines to other agents | Line drawing |
+| **Converging** | Moving toward center | Position interpolation |
+| **Responding** | Bright glass, streaming glow | Shimmer effect |
 
 ### Notification Flow
 
