@@ -83,9 +83,11 @@ jobs:
           path: |
             /opt/homebrew/Cellar/cjson
             /opt/homebrew/Cellar/ccache
+            /opt/homebrew/Cellar/blake3
             /opt/homebrew/opt/cjson
             /opt/homebrew/opt/ccache
-          key: brew-deps-macos-14-arm64-v2
+            /opt/homebrew/opt/blake3
+          key: brew-deps-macos-14-arm64-v3
 
       - name: Install dependencies
         run: |
@@ -93,6 +95,7 @@ jobs:
           brew list ccache &>/dev/null || brew install ccache
           brew link cjson --overwrite 2>/dev/null || true
           brew link ccache --overwrite 2>/dev/null || true
+          brew link blake3 --overwrite 2>/dev/null || true
 
       # --- Compilation cache ---
       - name: Cache ccache

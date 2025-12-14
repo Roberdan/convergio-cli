@@ -408,6 +408,23 @@ $(UNIT_TEST): $(UNIT_SOURCES) $(UNIT_OBJECTS) $(SWIFT_LIB) $(MLX_STUBS_OBJ)
 		$(CC) $(CFLAGS) $(LDFLAGS) -o $(UNIT_TEST) $(UNIT_SOURCES) $(UNIT_OBJECTS) $(MLX_STUBS_OBJ) $(FRAMEWORKS) $(LIBS); \
 	fi
 
+# Anna Executive Assistant test target - tests todo, notify, mcp_client
+ANNA_TEST = $(BIN_DIR)/anna_test
+ANNA_SOURCES = tests/test_anna.c $(TEST_STUBS)
+ANNA_OBJECTS = $(filter-out $(OBJ_DIR)/core/main.o,$(OBJECTS))
+
+anna_test: dirs swift $(OBJECTS) $(MLX_STUBS_OBJ) $(ANNA_TEST)
+	@echo "Running Anna Executive Assistant tests..."
+	@$(ANNA_TEST)
+
+$(ANNA_TEST): $(ANNA_SOURCES) $(ANNA_OBJECTS) $(SWIFT_LIB) $(MLX_STUBS_OBJ)
+	@echo "Compiling Anna tests..."
+	@if [ -s "$(SWIFT_LIB)" ]; then \
+		$(CC) $(CFLAGS) $(LDFLAGS) -o $(ANNA_TEST) $(ANNA_SOURCES) $(ANNA_OBJECTS) $(SWIFT_LIB) $(FRAMEWORKS) $(LIBS) $(SWIFT_RUNTIME_LIBS); \
+	else \
+		$(CC) $(CFLAGS) $(LDFLAGS) -o $(ANNA_TEST) $(ANNA_SOURCES) $(ANNA_OBJECTS) $(MLX_STUBS_OBJ) $(FRAMEWORKS) $(LIBS); \
+	fi
+
 # Compaction test target - tests context compaction module
 COMPACTION_TEST = $(BIN_DIR)/compaction_test
 COMPACTION_SOURCES = tests/test_compaction.c
@@ -428,7 +445,7 @@ check-docs:
 	@./scripts/check_help_docs.sh
 
 # Run all tests
-test: fuzz_test unit_test compaction_test check-docs
+test: fuzz_test unit_test anna_test compaction_test check-docs
 	@echo "All tests completed!"
 
 # Help
@@ -446,6 +463,7 @@ help:
 	@echo "  test       - Run all tests (unit, fuzz, docs)"
 	@echo "  fuzz_test  - Build and run fuzz tests"
 	@echo "  unit_test  - Build and run unit tests"
+	@echo "  anna_test  - Build and run Anna Executive Assistant tests"
 	@echo "  check-docs - Verify all REPL commands are documented"
 	@echo "  hwinfo     - Show Apple Silicon hardware info"
 	@echo "  version    - Show version"
@@ -454,4 +472,4 @@ help:
 	@echo "Variables:"
 	@echo "  DEBUG=1   - Enable debug build"
 
-.PHONY: all dirs metal run clean debug install uninstall hwinfo help fuzz_test unit_test check-docs test version dist release
+.PHONY: all dirs metal run clean debug install uninstall hwinfo help fuzz_test unit_test anna_test check-docs test version dist release
