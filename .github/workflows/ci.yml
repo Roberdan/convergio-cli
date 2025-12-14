@@ -179,40 +179,16 @@ jobs:
         run: |
           echo "=== Running unit tests with sanitizers ==="
           # ASAN_OPTIONS: detect memory issues, abort on error
+          # Note: detect_leaks not supported on macOS, only on Linux
           # UBSAN_OPTIONS: print stack trace on UB detection
-          export ASAN_OPTIONS="abort_on_error=1:detect_leaks=1"
+          export ASAN_OPTIONS="abort_on_error=1"
           export UBSAN_OPTIONS="print_stacktrace=1:halt_on_error=1"
           ./build/bin/unit_test
 
   # ============================================================================
-  # E2E TESTS - uses release artifact (no rebuild)
+  # E2E TESTS - Removed from CI (requires API keys)
+  # Run locally with: ./tests/e2e_test.sh or via app-release-manager
   # ============================================================================
-
-  e2e-tests:
-    name: E2E Tests
-    runs-on: macos-14
-    needs: build
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Download release binary
-        uses: actions/download-artifact@v4
-        with:
-          name: convergio-release
-          path: build/bin
-
-      - name: Make binary executable
-        run: chmod +x build/bin/convergio
-
-      - name: Install coreutils for gtimeout
-        run: brew install coreutils
-
-      - name: Run E2E tests
-        run: |
-          chmod +x tests/e2e_test.sh
-          ./tests/e2e_test.sh 2>&1
-        timeout-minutes: 5
 
   # ============================================================================
   # FINAL STATUS - aggregates all job results
@@ -221,17 +197,19 @@ jobs:
   ci-success:
     name: CI Success
     runs-on: macos-14
-    needs: [lint-and-analysis, build, sanitizer-tests, e2e-tests]
+    needs: [lint-and-analysis, build, sanitizer-tests]
     if: always()
     steps:
       - name: Check all jobs passed
         run: |
-          # All jobs are now required (E2E quiet mode banner fixed)
+          # Required jobs: lint, build, sanitizer tests
+          # E2E tests require API keys - run locally before release
           if [ "${{ needs.lint-and-analysis.result }}" != "success" ] || \
              [ "${{ needs.build.result }}" != "success" ] || \
-             [ "${{ needs.sanitizer-tests.result }}" != "success" ] || \
-             [ "${{ needs.e2e-tests.result }}" != "success" ]; then
+             [ "${{ needs.sanitizer-tests.result }}" != "success" ]; then
             echo "::error::One or more required jobs failed"
             exit 1
           fi
+
           echo "All CI checks passed!"
+          echo "Note: E2E tests must be run locally before release (requires API keys)"
