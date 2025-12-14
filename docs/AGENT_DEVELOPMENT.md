@@ -53,6 +53,102 @@ Convergio supports **two types of agents** with different purposes and lifecycle
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
+### Interactive Diagram (Mermaid)
+
+```mermaid
+flowchart TB
+    subgraph BUILD["🔨 BUILD TIME"]
+        MD["📄 Agent Definitions<br/>src/agents/definitions/*.md"]
+        SCRIPT["⚙️ embed_agents.sh"]
+        EMBED["📦 embedded_agents.c<br/>(C string literals)"]
+        BIN["🎯 convergio binary"]
+
+        MD --> SCRIPT
+        SCRIPT --> EMBED
+        EMBED --> BIN
+    end
+
+    subgraph RUNTIME["⚡ RUNTIME"]
+        START["🚀 convergio starts"]
+
+        subgraph LOAD["Loading Phase"]
+            EMBEDDED["1️⃣ Load Embedded<br/>EMBEDDED_AGENTS[]<br/>~0ms, in-memory"]
+            CUSTOM["2️⃣ Scan Custom<br/>~/.convergio/agents/*.json<br/>~5-20ms, file I/O"]
+        end
+
+        MERGE["3️⃣ Merge into Registry<br/>(custom overrides embedded)"]
+        REG["📋 Agent Registry<br/>HashMap&lt;name, AgentInstance&gt;"]
+
+        START --> EMBEDDED
+        START --> CUSTOM
+        EMBEDDED --> MERGE
+        CUSTOM --> MERGE
+        MERGE --> REG
+    end
+
+    subgraph USE["💬 USAGE"]
+        USER["👤 User: @rex review code"]
+        LOOKUP["🔍 registry.lookup('rex')"]
+        AGENT["🤖 AgentInstance<br/>system_prompt + tools + model"]
+        API["☁️ API Call<br/>Claude / GPT / Gemini"]
+        RESP["📝 Response"]
+
+        USER --> LOOKUP
+        LOOKUP --> AGENT
+        AGENT --> API
+        API --> RESP
+    end
+
+    BIN --> START
+    REG --> LOOKUP
+
+    style BUILD fill:#e1f5fe
+    style RUNTIME fill:#fff3e0
+    style USE fill:#e8f5e9
+```
+
+### Complete Agent Lifecycle (Sequence Diagram)
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant Dev as 👨‍💻 Developer
+    participant MD as 📄 .md files
+    participant Script as ⚙️ embed_agents.sh
+    participant C as 📦 embedded_agents.c
+    participant Make as 🔨 make
+    participant Bin as 🎯 convergio
+    participant User as 👤 User
+    participant Reg as 📋 Registry
+    participant API as ☁️ LLM API
+
+    Note over Dev,C: BUILD TIME (Embedded Agents)
+    Dev->>MD: Create/edit agent.md
+    Dev->>Make: make
+    Make->>Script: Run embedding
+    Script->>MD: Read all .md files
+    Script->>C: Generate C code
+    Make->>Bin: Compile binary
+
+    Note over Bin,API: RUNTIME
+    User->>Bin: ./convergio
+    Bin->>Reg: Load EMBEDDED_AGENTS[]
+    Bin->>Reg: Scan ~/.convergio/agents/*.json
+    Reg->>Reg: Merge (custom wins)
+
+    User->>Bin: @rex review this code
+    Bin->>Reg: lookup("rex")
+    Reg->>Bin: AgentInstance
+    Bin->>API: POST /chat (system_prompt)
+    API->>Bin: Response
+    Bin->>User: Display answer
+
+    Note over User,Reg: HOT RELOAD (Custom Agents)
+    User->>Bin: agent reload
+    Bin->>Reg: Re-scan ~/.convergio/agents/
+    Reg->>Reg: Update registry
+```
+
 ### When to Use Which?
 
 | Scenario | Use Embedded | Use Custom |
