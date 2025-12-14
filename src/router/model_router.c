@@ -60,7 +60,7 @@ typedef struct {
     size_t fallback_requests;
     size_t downgrade_requests;
 
-    pthread_mutex_t mutex;
+    ConvergioMutex mutex;
     bool initialized;
 } RouterState;
 
@@ -75,7 +75,15 @@ static RouterState g_router = {
     .total_requests = 0,
     .fallback_requests = 0,
     .downgrade_requests = 0,
+#ifdef DEBUG
+    .mutex = {
+        .mutex = PTHREAD_MUTEX_INITIALIZER,
+        .once = PTHREAD_ONCE_INIT,
+        .initialized = 0
+    },
+#else
     .mutex = PTHREAD_MUTEX_INITIALIZER,
+#endif
     .initialized = false
 };
 

@@ -2589,7 +2589,7 @@ int cmd_search(int argc, char** argv) {
         if (node && node->essence) {
             printf("  \033[36m[%zu]\033[0m %s\n", i + 1, node->essence);
             printf("      \033[90mID: 0x%llx | Importance: %.2f\033[0m\n",
-                   (unsigned long long)node->id, node->importance);
+                   (unsigned long long)node->id, (double)node->importance);
             nous_release_node(node);
         }
     }
@@ -2631,7 +2631,7 @@ int cmd_memories(int argc, char** argv) {
                 }
                 printf("  \033[36m[%zu]\033[0m %s\n", i + 1, display);
                 printf("      \033[90mImportance: %.2f | Accessed: %llu times\033[0m\n",
-                       node->importance, (unsigned long long)node->access_count);
+                       (double)node->importance, (unsigned long long)node->access_count);
                 nous_release_node(node);
             }
         }

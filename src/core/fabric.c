@@ -302,7 +302,7 @@ SemanticID nous_create_node_internal(
     // Initialize timestamps
     struct timespec ts;
     clock_gettime(CLOCK_REALTIME, &ts);
-    node->created_at = (uint64_t)ts.tv_sec * 1000000000ULL + ts.tv_nsec;
+    node->created_at = (uint64_t)ts.tv_sec * 1000000000ULL + (uint64_t)ts.tv_nsec;
     node->last_accessed = node->created_at;
 
     // Insert into shard with lock
