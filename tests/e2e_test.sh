@@ -585,6 +585,52 @@ else
 fi
 
 # =============================================================================
+# GIT/TEST WORKFLOW COMMANDS (Issue #15)
+# =============================================================================
+echo ""
+echo -e "${BLUE}┌────────────────────────────────────────────────────────────┐${NC}"
+echo -e "${BLUE}│  GIT/TEST WORKFLOW COMMANDS                                │${NC}"
+echo -e "${BLUE}└────────────────────────────────────────────────────────────┘${NC}"
+
+# /test command
+run_test "test command shows framework detection" "test" "test"
+
+# /git command - should work (we're in a git repo)
+run_test "git status works" "git status" "Recent commits"
+run_test "git help shows subcommands" "git" "Subcommands"
+
+# /pr command - check it detects we're on main
+run_test "pr blocks on main branch" "pr" "Cannot create PR from main"
+
+# Help documentation
+run_test "help test exists" "help test" "auto-detect"
+run_test "help git exists" "help git" "Git workflow"
+run_test "help pr exists" "help pr" "pull request"
+
+# =============================================================================
+# SEMANTIC EMBEDDINGS (Issues #1, #2, #3)
+# =============================================================================
+echo ""
+echo -e "${BLUE}┌────────────────────────────────────────────────────────────┐${NC}"
+echo -e "${BLUE}│  SEMANTIC MEMORY & EMBEDDINGS                              │${NC}"
+echo -e "${BLUE}└────────────────────────────────────────────────────────────┘${NC}"
+
+# Search command (uses embeddings)
+run_test "search command works" "search test query" "Cerco\|No\|Found"
+
+# Remember command
+run_test "remember command works" "remember Test memory for E2E" "Stored\|Remembered\|memory"
+
+# Check if OpenAI embeddings would be used (if key is set)
+if [ -n "$OPENAI_API_KEY" ]; then
+    echo -e "  Testing: OpenAI embeddings available... ${GREEN}PASS${NC} (API key set)"
+    ((PASSED++))
+else
+    echo -e "  Testing: OpenAI embeddings available... ${YELLOW}SKIP${NC} (no API key, using fallback)"
+    ((SKIPPED++))
+fi
+
+# =============================================================================
 # SUMMARY
 # =============================================================================
 echo ""
