@@ -32,6 +32,8 @@ CONVERGIO_MUTEX_DECLARE(g_orch_mutex);
 
 // External functions
 extern int persistence_init(const char* db_path);
+extern int todo_init(void);
+extern void todo_shutdown(void);
 extern void persistence_shutdown(void);
 extern int msgbus_init(void);
 extern void msgbus_shutdown(void);
@@ -396,6 +398,11 @@ int orchestrator_init(double budget_limit_usd) {
         LOG_WARN(LOG_CAT_SYSTEM, "context compaction init failed, continuing without compaction");
     }
 
+    // Initialize todo manager (Anna Executive Assistant)
+    if (todo_init() != 0) {
+        LOG_WARN(LOG_CAT_SYSTEM, "todo manager init failed, continuing without todo");
+    }
+
     if (msgbus_init() != 0) {
         LOG_WARN(LOG_CAT_SYSTEM, "message bus init failed");
     }
@@ -513,6 +520,7 @@ void orchestrator_shutdown(void) {
     }
 
     // Shutdown subsystems
+    todo_shutdown();        // Must be before persistence_shutdown
     compaction_shutdown();  // Must be before persistence_shutdown
     persistence_shutdown();
     msgbus_shutdown();

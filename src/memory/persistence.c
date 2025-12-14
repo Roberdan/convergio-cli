@@ -225,6 +225,61 @@ static const char* SCHEMA_SQL =
     "  UNIQUE(session_id, checkpoint_num)"
     ");"
 
+    // ========================================================================
+    // TODO MANAGER TABLES (Anna Executive Assistant)
+    // ========================================================================
+
+    // Tasks table
+    "CREATE TABLE IF NOT EXISTS tasks ("
+    "  id INTEGER PRIMARY KEY AUTOINCREMENT,"
+    "  title TEXT NOT NULL,"
+    "  description TEXT,"
+    "  priority INTEGER DEFAULT 2 CHECK (priority BETWEEN 1 AND 3),"
+    "  status INTEGER DEFAULT 0 CHECK (status BETWEEN 0 AND 3),"
+    "  due_date TEXT,"
+    "  reminder_at TEXT,"
+    "  recurrence INTEGER DEFAULT 0 CHECK (recurrence BETWEEN 0 AND 5),"
+    "  recurrence_rule TEXT,"
+    "  tags TEXT,"
+    "  context TEXT,"
+    "  parent_id INTEGER REFERENCES tasks(id) ON DELETE CASCADE,"
+    "  source INTEGER DEFAULT 0 CHECK (source BETWEEN 0 AND 2),"
+    "  external_id TEXT,"
+    "  created_at TEXT DEFAULT (datetime('now')),"
+    "  updated_at TEXT DEFAULT (datetime('now')),"
+    "  completed_at TEXT"
+    ");"
+
+    // Notification queue for reminders
+    "CREATE TABLE IF NOT EXISTS notification_queue ("
+    "  id INTEGER PRIMARY KEY AUTOINCREMENT,"
+    "  task_id INTEGER NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,"
+    "  scheduled_at TEXT NOT NULL,"
+    "  method INTEGER DEFAULT 0,"
+    "  status INTEGER DEFAULT 0,"
+    "  retry_count INTEGER DEFAULT 0,"
+    "  max_retries INTEGER DEFAULT 3,"
+    "  last_error TEXT,"
+    "  sent_at TEXT,"
+    "  acknowledged_at TEXT"
+    ");"
+
+    // Quick capture inbox
+    "CREATE TABLE IF NOT EXISTS inbox ("
+    "  id INTEGER PRIMARY KEY AUTOINCREMENT,"
+    "  content TEXT NOT NULL,"
+    "  captured_at TEXT DEFAULT (datetime('now')),"
+    "  processed INTEGER DEFAULT 0,"
+    "  processed_task_id INTEGER REFERENCES tasks(id),"
+    "  source TEXT DEFAULT 'cli'"
+    ");"
+
+    // Full-text search for tasks
+    "CREATE VIRTUAL TABLE IF NOT EXISTS tasks_fts USING fts5("
+    "  title, description, tags, context,"
+    "  content='tasks', content_rowid='id'"
+    ");"
+
     // Indexes for performance
     "CREATE INDEX IF NOT EXISTS idx_messages_session ON messages(session_id);"
     "CREATE INDEX IF NOT EXISTS idx_messages_created ON messages(created_at);"
@@ -239,7 +294,35 @@ static const char* SCHEMA_SQL =
     "CREATE INDEX IF NOT EXISTS idx_relations_to ON semantic_relations(to_id);"
     "CREATE INDEX IF NOT EXISTS idx_relations_type ON semantic_relations(relation_type);"
     "CREATE INDEX IF NOT EXISTS idx_memories_category ON memories(category);"
-    "CREATE INDEX IF NOT EXISTS idx_checkpoint_session ON checkpoint_summaries(session_id);";
+    "CREATE INDEX IF NOT EXISTS idx_checkpoint_session ON checkpoint_summaries(session_id);"
+
+    // Todo manager indexes
+    "CREATE INDEX IF NOT EXISTS idx_tasks_due_date ON tasks(due_date) WHERE status IN (0, 1);"
+    "CREATE INDEX IF NOT EXISTS idx_tasks_status ON tasks(status);"
+    "CREATE INDEX IF NOT EXISTS idx_tasks_priority ON tasks(priority);"
+    "CREATE INDEX IF NOT EXISTS idx_tasks_context ON tasks(context);"
+    "CREATE INDEX IF NOT EXISTS idx_tasks_parent ON tasks(parent_id);"
+    "CREATE INDEX IF NOT EXISTS idx_notification_scheduled ON notification_queue(scheduled_at) WHERE status = 0;"
+    "CREATE INDEX IF NOT EXISTS idx_notification_task ON notification_queue(task_id);"
+    "CREATE INDEX IF NOT EXISTS idx_inbox_unprocessed ON inbox(processed) WHERE processed = 0;"
+
+    // FTS triggers for tasks
+    "CREATE TRIGGER IF NOT EXISTS tasks_fts_insert AFTER INSERT ON tasks BEGIN "
+    "  INSERT INTO tasks_fts(rowid, title, description, tags, context) "
+    "  VALUES (new.id, new.title, new.description, new.tags, new.context); "
+    "END;"
+
+    "CREATE TRIGGER IF NOT EXISTS tasks_fts_delete AFTER DELETE ON tasks BEGIN "
+    "  INSERT INTO tasks_fts(tasks_fts, rowid, title, description, tags, context) "
+    "  VALUES('delete', old.id, old.title, old.description, old.tags, old.context); "
+    "END;"
+
+    "CREATE TRIGGER IF NOT EXISTS tasks_fts_update AFTER UPDATE ON tasks BEGIN "
+    "  INSERT INTO tasks_fts(tasks_fts, rowid, title, description, tags, context) "
+    "  VALUES('delete', old.id, old.title, old.description, old.tags, old.context); "
+    "  INSERT INTO tasks_fts(rowid, title, description, tags, context) "
+    "  VALUES (new.id, new.title, new.description, new.tags, new.context); "
+    "END;";
 
 // ============================================================================
 // INITIALIZATION
