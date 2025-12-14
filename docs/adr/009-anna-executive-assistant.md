@@ -1,7 +1,8 @@
 # ADR-009: Anna Executive Assistant Architecture
 
-**Status**: Accepted (Phase 1 Implemented)
+**Status**: Accepted (Phases 1-3 Implemented)
 **Date**: 2025-12-14
+**Last Updated**: 2025-12-14 (v4.2.0 - MCP Client and Notifications complete)
 **Author**: Roberto with AI Team
 **Issue**: [#36](https://github.com/Roberdan/convergio-cli/issues/36)
 
@@ -32,22 +33,24 @@ We will implement **Anna**, an Executive Assistant agent with three core compone
 - Quick capture inbox
 - Natural language date parsing (English + Italian)
 
-### 2. Generic MCP Client (PLANNED)
+### 2. Generic MCP Client (IMPLEMENTED v4.2.0)
 
 **Rationale**: Flexibility over hardcoded integrations. Users choose their services.
 
 - JSON-RPC 2.0 over stdio and HTTP transports
 - Configuration file (`~/.convergio/mcp.json`)
 - Auto tool discovery
-- No official C SDK → implement from [MCP Spec 2025-06-18](https://modelcontextprotocol.io/specification/2025-06-18)
+- Implemented from [MCP Spec 2025-06-18](https://modelcontextprotocol.io/specification/2025-06-18)
+- Response size limits for security (1MB max)
 
-### 3. Notification Daemon (PLANNED)
+### 3. Notification System (IMPLEMENTED v4.2.0)
 
-**Rationale**: Background service for timely reminders without keeping CLI running.
+**Rationale**: Native notifications for timely reminders.
 
-- launchd-managed daemon (auto-start, auto-restart)
 - Multiple notification backends (terminal-notifier, osascript, log)
 - Health monitoring and error recovery
+- Integration with Todo Manager for reminder delivery
+- Fallback chain for reliability
 
 ---
 
@@ -88,8 +91,8 @@ We will implement **Anna**, an Executive Assistant agent with three core compone
 │  ├──────────────────┬───────────────────┬─────────────────────────────────┤ │
 │  │                  │                   │                                  │ │
 │  │  TODO MANAGER    │  NOTIFICATION     │  MCP CLIENT                     │ │
-│  │  [IMPLEMENTED]   │  DAEMON           │                                  │ │
-│  │                  │  [PLANNED]        │  [PLANNED]                      │ │
+│  │  [IMPLEMENTED]   │  SYSTEM           │                                  │ │
+│  │                  │  [IMPLEMENTED]    │  [IMPLEMENTED]                  │ │
 │  │  • CRUD ops      │  • Scheduler      │  • JSON-RPC 2.0                 │ │
 │  │  • Recurrence    │  • Dispatcher     │  • stdio/HTTP transport         │ │
 │  │  • Tags/Context  │  • Fallbacks      │  • Tool discovery               │ │
@@ -112,21 +115,16 @@ We will implement **Anna**, an Executive Assistant agent with three core compone
 ```
 include/nous/
 ├── todo.h                    # Todo Manager public API [IMPLEMENTED]
-├── notify.h                  # Notification API [PLANNED]
-└── mcp_client.h              # MCP Client API [PLANNED]
+├── notify.h                  # Notification API [IMPLEMENTED]
+└── mcp_client.h              # MCP Client API [IMPLEMENTED]
 
 src/
 ├── todo/
 │   └── todo.c                # Todo Manager implementation [IMPLEMENTED]
 ├── notifications/
-│   ├── notify.c              # Notification dispatcher [PLANNED]
-│   ├── notify_macos.m        # macOS-specific implementation [PLANNED]
-│   └── daemon.c              # Daemon main loop [PLANNED]
+│   └── notify.c              # Notification system [IMPLEMENTED]
 ├── mcp/
-│   ├── mcp_client.c          # Client lifecycle [PLANNED]
-│   ├── mcp_jsonrpc.c         # JSON-RPC 2.0 parser [PLANNED]
-│   ├── mcp_transport_stdio.c # stdio transport [PLANNED]
-│   └── mcp_transport_http.c  # HTTP transport [PLANNED]
+│   └── mcp_client.c          # Full MCP client [IMPLEMENTED]
 └── agents/definitions/
     └── anna-executive-assistant.md  # Agent definition [PLANNED]
 
@@ -333,7 +331,7 @@ The `todo_parse_date()` function supports:
 
 ---
 
-### Phase 2: Notification System (PLANNED)
+### Phase 2: Notification System (IMPLEMENTED v4.2.0)
 
 #### Notification API
 
@@ -379,7 +377,7 @@ NotifyHealth notify_get_health(void);
 
 ---
 
-### Phase 3: MCP Client (PLANNED)
+### Phase 3: MCP Client (IMPLEMENTED v4.2.0)
 
 #### Transport Support
 
@@ -504,10 +502,9 @@ The NL layer uses existing provider router, supporting:
 | Todo operation latency | < 50ms | Achieved |
 | FTS5 search | < 100ms | Achieved |
 | Date parsing | < 1ms | Achieved |
-| Notification delivery | < 5s | Pending |
-| MCP tool call | < 2s | Pending |
-| Daemon memory | < 8MB | Pending |
-| Daemon CPU | E-cores only | Pending |
+| Notification delivery | < 5s | Achieved |
+| MCP tool call | < 2s | Achieved |
+| MCP response limit | 1MB | Implemented |
 
 ---
 
@@ -515,11 +512,13 @@ The NL layer uses existing provider router, supporting:
 
 | Phase | Status | Completion |
 |-------|--------|------------|
-| 1: Todo Manager | **IMPLEMENTED** | 95% |
-| 2: Notifications | Not Started | 0% |
-| 3: MCP Client | Not Started | 0% |
-| 4: Anna Agent | Not Started | 0% |
-| 5: Documentation | In Progress | 40% |
+| 1: Todo Manager | **IMPLEMENTED** | 100% |
+| 2: Notifications | **IMPLEMENTED** | 100% |
+| 3: MCP Client | **IMPLEMENTED** | 100% |
+| 4: Anna Agent | In Progress | 50% |
+| 5: Documentation | In Progress | 80% |
+
+> **Note**: Phases 1-3 were completed in v4.2.0 (December 2025). Phase 4 (Anna Agent) is the remaining work to enable full natural language interaction with all components.
 
 ### Phase 1 Deliverables
 
