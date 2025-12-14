@@ -8,6 +8,7 @@
  */
 
 #include "nous/provider.h"
+#include "nous/provider_common.h"
 #include "nous/model_loader.h"
 #include "nous/config.h"
 #include "nous/nous.h"
@@ -35,11 +36,7 @@
 // INTERNAL DATA STRUCTURES
 // ============================================================================
 
-typedef struct {
-    char* data;
-    size_t size;
-    size_t capacity;
-} ResponseBuffer;
+// ResponseBuffer now from provider_common.h
 
 typedef struct {
     bool initialized;
@@ -72,27 +69,7 @@ static ProviderError openai_list_models(Provider* self, ModelConfig** out_models
 // HELPER FUNCTIONS
 // ============================================================================
 
-static size_t write_callback(void* contents, size_t size, size_t nmemb, void* userp) {
-    size_t total = size * nmemb;
-    ResponseBuffer* buf = (ResponseBuffer*)userp;
-
-    if (buf->size + total >= buf->capacity) {
-        size_t new_cap = buf->capacity * 2;
-        if (new_cap < buf->size + total + 1) {
-            new_cap = buf->size + total + 1;
-        }
-        char* new_data = realloc(buf->data, new_cap);
-        if (!new_data) return 0;
-        buf->data = new_data;
-        buf->capacity = new_cap;
-    }
-
-    memcpy(buf->data + buf->size, contents, total);
-    buf->size += total;
-    buf->data[buf->size] = '\0';
-
-    return total;
-}
+// write_callback now from provider_common.h (provider_write_callback)
 
 static int progress_callback(void* clientp, curl_off_t dltotal, curl_off_t dlnow,
                             curl_off_t ultotal, curl_off_t ulnow) {
@@ -409,7 +386,7 @@ static char* openai_chat(Provider* self, const char* model, const char* system,
     curl_easy_setopt(curl, CURLOPT_URL, OPENAI_API_URL);
     curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
     curl_easy_setopt(curl, CURLOPT_POSTFIELDS, json_body);
-    curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_callback);
+    curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, provider_write_callback);
     curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response);
     curl_easy_setopt(curl, CURLOPT_TIMEOUT, 120L);
     curl_easy_setopt(curl, CURLOPT_NOPROGRESS, 0L);
@@ -569,7 +546,7 @@ static char* openai_chat_with_tools(Provider* self, const char* model, const cha
     curl_easy_setopt(curl, CURLOPT_URL, OPENAI_API_URL);
     curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
     curl_easy_setopt(curl, CURLOPT_POSTFIELDS, json_body);
-    curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_callback);
+    curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, provider_write_callback);
     curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response);
     curl_easy_setopt(curl, CURLOPT_TIMEOUT, 120L);
     curl_easy_setopt(curl, CURLOPT_NOPROGRESS, 0L);
@@ -845,7 +822,7 @@ float* openai_embed_text(const char* text, size_t* out_dim) {
     curl_easy_setopt(curl, CURLOPT_URL, OPENAI_EMBED_URL);
     curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
     curl_easy_setopt(curl, CURLOPT_POSTFIELDS, json_body);
-    curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_callback);
+    curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, provider_write_callback);
     curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response);
     curl_easy_setopt(curl, CURLOPT_TIMEOUT, 30L);
 
