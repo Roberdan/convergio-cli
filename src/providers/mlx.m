@@ -813,6 +813,120 @@ static ProviderErrorInfo* mlx_provider_get_last_error(Provider* self) {
 }
 
 // ============================================================================
+// CHAT WITH TOOLS (fallback to regular chat - MLX doesn't support native tool calling)
+// ============================================================================
+
+static char* mlx_provider_chat_with_tools(
+    Provider* self,
+    const char* model,
+    const char* system,
+    const char* user,
+    ToolDefinition* tools,
+    size_t tool_count,
+    ToolCall** out_tool_calls,
+    size_t* out_tool_count,
+    TokenUsage* usage
+) {
+    // MLX local models don't support native tool calling yet
+    // Fall back to regular chat - the model can still describe tool usage in text
+    (void)tools;
+    (void)tool_count;
+
+    if (out_tool_calls) *out_tool_calls = NULL;
+    if (out_tool_count) *out_tool_count = 0;
+
+    LOG_DEBUG(LOG_CAT_SYSTEM, "MLX: tool calling not natively supported, falling back to chat");
+    return mlx_provider_chat(self, model, system, user, usage);
+}
+
+// ============================================================================
+// STREAMING CHAT (simulated - MLX bridge doesn't support true streaming yet)
+// ============================================================================
+
+static ProviderError mlx_provider_stream_chat(
+    Provider* self,
+    const char* model,
+    const char* system,
+    const char* user,
+    StreamHandler* handler,
+    TokenUsage* usage
+) {
+    if (!self || !user) return PROVIDER_ERR_INVALID_REQUEST;
+    if (!g_mlx_data.initialized) return PROVIDER_ERR_NOT_INITIALIZED;
+
+    // MLX Swift bridge doesn't support streaming callbacks yet
+    // Fall back to regular generation and deliver as single chunk
+    LOG_DEBUG(LOG_CAT_SYSTEM, "MLX: streaming not natively supported, using single-chunk delivery");
+
+    char* response = mlx_provider_chat(self, model, system, user, usage);
+
+    if (!response) {
+        if (handler && handler->on_error) {
+            handler->on_error(g_mlx_data.last_error_message ? g_mlx_data.last_error_message : "MLX generation failed",
+                            handler->user_ctx);
+        }
+        return PROVIDER_ERR_UNKNOWN;
+    }
+
+    // Deliver the complete response as a single chunk
+    if (handler) {
+        if (handler->on_chunk) {
+            handler->on_chunk(response, false, handler->user_ctx);
+            handler->on_chunk("", true, handler->user_ctx);  // Signal completion
+        }
+        if (handler->on_complete) {
+            handler->on_complete(response, handler->user_ctx);
+        }
+    }
+
+    free(response);
+    return PROVIDER_OK;
+}
+
+// ============================================================================
+// LIST MODELS
+// ============================================================================
+
+static ProviderError mlx_provider_list_models(
+    Provider* self,
+    ModelConfig** out_models,
+    size_t* out_count
+) {
+    (void)self;
+
+    if (!out_models || !out_count) return PROVIDER_ERR_INVALID_REQUEST;
+
+    // Return the static model info converted to ModelConfig format
+    size_t count = sizeof(g_mlx_model_info) / sizeof(g_mlx_model_info[0]);
+
+    ModelConfig* models = calloc(count, sizeof(ModelConfig));
+    if (!models) return PROVIDER_ERR_UNKNOWN;
+
+    for (size_t i = 0; i < count; i++) {
+        models[i].id = g_mlx_model_info[i].id;
+        models[i].display_name = g_mlx_model_info[i].display_name;
+        models[i].provider = PROVIDER_MLX;
+        models[i].input_cost_per_mtok = 0.0;   // Free - local inference
+        models[i].output_cost_per_mtok = 0.0;  // Free - local inference
+        models[i].thinking_cost_per_mtok = 0.0;
+        models[i].context_window = g_mlx_model_info[i].context_window;
+        models[i].max_output = 4096;  // Default max output
+        models[i].supports_tools = g_mlx_model_info[i].supports_tools;
+        models[i].supports_vision = false;  // MLX text models don't support vision yet
+        models[i].supports_streaming = false;  // Not truly supported yet
+        models[i].tier = COST_TIER_CHEAP;  // Free!
+        models[i].released = "2024-09-25";  // Llama 3.2 release
+        models[i].deprecated = false;
+    }
+
+    *out_models = models;
+    *out_count = count;
+
+    LOG_DEBUG(LOG_CAT_SYSTEM, "MLX: listed %zu available models", count);
+    return PROVIDER_OK;
+}
+
+// ============================================================================
 // PROVIDER FACTORY
 // ============================================================================
 
@@ -841,13 +955,13 @@ Provider* mlx_provider_create(void) {
 
     // Chat operations
     provider->chat = mlx_provider_chat;
-    provider->chat_with_tools = NULL;  // TODO: Implement tool calling
-    provider->stream_chat = NULL;      // TODO: Implement streaming
+    provider->chat_with_tools = mlx_provider_chat_with_tools;
+    provider->stream_chat = mlx_provider_stream_chat;
 
     // Utilities
     provider->estimate_tokens = mlx_provider_estimate_tokens;
     provider->get_last_error = mlx_provider_get_last_error;
-    provider->list_models = NULL;      // TODO: Implement
+    provider->list_models = mlx_provider_list_models;
 
     provider->impl_data = &g_mlx_data;
 
