@@ -76,21 +76,10 @@ jobs:
           # Cache key based on source files hash
           echo "key=build-${{ runner.os }}-${{ hashFiles('src/**/*.c', 'include/**/*.h', 'Makefile') }}" >> $GITHUB_OUTPUT
 
-      # --- Dependencies (cached) ---
-      - name: Cache Homebrew packages
-        uses: actions/cache@v4
-        with:
-          path: |
-            /opt/homebrew/Cellar/cjson
-            /opt/homebrew/Cellar/ccache
-            /opt/homebrew/opt/cjson
-            /opt/homebrew/opt/ccache
-          key: brew-deps-macos-14-arm64-v2
-
+      # --- Dependencies ---
       - name: Install dependencies
         run: |
-          brew list cjson &>/dev/null || brew install cjson
-          brew list ccache &>/dev/null || brew install ccache
+          brew install cjson ccache || true
           brew link cjson --overwrite 2>/dev/null || true
 
       # --- Compilation cache ---
