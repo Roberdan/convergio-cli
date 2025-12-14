@@ -23,6 +23,9 @@
 #define CLAUDE_MODEL "claude-sonnet-4-20250514"
 #define MAX_RESPONSE_SIZE (256 * 1024)  // 256KB max response
 
+// External: OpenAI embeddings (from providers/openai.c)
+extern float* openai_embed_text(const char* text, size_t* out_dim);
+
 static bool g_initialized = false;
 
 // ============================================================================
@@ -1214,33 +1217,39 @@ char* nous_agent_think_with_claude(NousAgent* agent, const char* input) {
 }
 
 // ============================================================================
-// EMBEDDING GENERATION (placeholder - uses Claude for now)
+// EMBEDDING GENERATION - OpenAI text-embedding-3-small (online) / hash fallback
 // ============================================================================
 
 int nous_generate_embedding(const char* text, NousEmbedding* out) {
-    // LIMITATION: Currently uses deterministic hash-based pseudo-embeddings
-    //
-    // A proper embedding model has not been integrated because:
-    // 1. External API dependency: Requires Voyage AI, OpenAI, or MLX embeddings
-    // 2. Authentication overhead: Would need separate API keys/setup
-    // 3. Development stage: This is a placeholder for semantic search/RAG features
-    // 4. Performance cost: Real embeddings add latency to every operation
-    //
-    // This implementation provides:
-    // - Deterministic output (same input -> same embedding)
-    // - Fast local computation (no network calls)
-    // - Suitable for testing and development
-    //
-    // For production use, integrate one of:
-    // - Voyage AI embeddings (voyage_embed_2)
-    // - OpenAI embeddings (text-embedding-3-small)
-    // - MLX embeddings (local, via src/neural/mlx_embed.m)
-    //
-    // Issue reference: #3
-
     if (!text || !out) return -1;
 
-    // Deterministic pseudo-embedding from text hash (NOT semantic)
+    // Try OpenAI embeddings first (when online with OPENAI_API_KEY)
+    const char* openai_key = getenv("OPENAI_API_KEY");
+    if (openai_key && strlen(openai_key) > 0) {
+        size_t dim = 0;
+        float* embedding = openai_embed_text(text, &dim);
+
+        if (embedding && dim > 0) {
+            // Convert float32 to _Float16 and copy to output
+            memset(out->values, 0, sizeof(out->values));
+            size_t copy_dim = (dim < NOUS_EMBEDDING_DIM) ? dim : NOUS_EMBEDDING_DIM;
+            for (size_t i = 0; i < copy_dim; i++) {
+                out->values[i] = (_Float16)embedding[i];
+            }
+            free(embedding);
+            return 0;
+        }
+        // If OpenAI fails, fall through to hash-based fallback
+        if (embedding) free(embedding);
+    }
+
+    // Fallback: Deterministic hash-based pseudo-embeddings
+    // Used when:
+    // - OPENAI_API_KEY not set (offline mode)
+    // - OpenAI API call fails (network error, rate limit, etc.)
+    //
+    // For fully offline semantic embeddings, use MLX local model
+    // (requires e5-small-v2 weights - see ADR-004)
     memset(out->values, 0, sizeof(out->values));
 
     unsigned long hash = 5381;

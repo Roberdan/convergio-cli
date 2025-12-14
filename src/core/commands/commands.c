@@ -65,6 +65,11 @@ int cmd_todo(int argc, char** argv);
 int cmd_remind(int argc, char** argv);
 int cmd_reminders(int argc, char** argv);
 
+// Forward declarations for git/test workflow commands
+int cmd_test(int argc, char** argv);
+int cmd_git(int argc, char** argv);
+int cmd_pr(int argc, char** argv);
+
 static const ReplCommand COMMANDS[] = {
     {"help",        "Show available commands",           cmd_help},
     {"agent",       "Manage agents",                     cmd_agent},
@@ -100,6 +105,10 @@ static const ReplCommand COMMANDS[] = {
     {"todo",        "Manage tasks and reminders",        cmd_todo},
     {"remind",      "Quick reminder: /remind <msg> <when>", cmd_remind},
     {"reminders",   "Show upcoming reminders",           cmd_reminders},
+    // Git/Test workflow commands
+    {"test",        "Run project tests (auto-detect framework)", cmd_test},
+    {"git",         "Git workflow helper (status/commit/push)", cmd_git},
+    {"pr",          "Create pull request via gh CLI",    cmd_pr},
     {"quit",        "Exit Convergio",                    cmd_quit},
     {"exit",        "Exit Convergio",                    cmd_quit},
     {NULL, NULL, NULL}
@@ -592,65 +601,107 @@ static const CommandHelp DETAILED_HELP[] = {
         "convergio -l -m llama-3.2-3b"
     },
     {
+        "test",
+        "test",
+        "Run project tests with auto-detected framework",
+        "Automatically detects and runs tests for your project.\n\n"
+        "SUPPORTED FRAMEWORKS:\n"
+        "  - make test     (Makefile with 'test' target)\n"
+        "  - cargo test    (Rust - Cargo.toml)\n"
+        "  - go test       (Go - go.mod)\n"
+        "  - npm test      (Node.js - package.json)\n"
+        "  - pytest        (Python - pytest.ini/pyproject.toml/tests/)\n\n"
+        "The command auto-detects which framework to use based on\n"
+        "project files in the current directory.",
+        "/test    # Run tests with auto-detected framework"
+    },
+    {
+        "git",
+        "git [status|commit|push|sync] [args]",
+        "Git workflow helper commands",
+        "Simplified git workflow commands for common operations.\n\n"
+        "SUBCOMMANDS:\n"
+        "  status, s       Show git status and recent commits\n"
+        "  commit, c <msg> Stage all changes and commit\n"
+        "  push, p         Push to remote\n"
+        "  sync            Pull --rebase and push\n\n"
+        "The commit command automatically adds the Claude Code signature.",
+        "/git status\n"
+        "/git commit Fix login bug\n"
+        "/git push\n"
+        "/git sync"
+    },
+    {
+        "pr",
+        "pr [title]",
+        "Create pull request via GitHub CLI",
+        "Creates a pull request using the 'gh' CLI tool.\n\n"
+        "REQUIREMENTS:\n"
+        "  - GitHub CLI (gh) must be installed and authenticated\n"
+        "  - Must be on a feature branch (not main/master)\n\n"
+        "If no title is provided, generates one from branch name.\n"
+        "Automatically pushes branch before creating PR.",
+        "/pr Add user authentication\n"
+        "/pr    # Uses branch name as title"
+    },
+    {
         "todo",
-        "todo <subcommand> [args]",
-        "Manage tasks and reminders (Anna Executive Assistant)",
-        "A native local task manager with reminders.\n"
-        "All data stored locally in SQLite database.\n\n"
-        "Subcommands:\n"
-        "  add <title>           Add a new task\n"
-        "  list [today|overdue]  List tasks (default: pending)\n"
-        "  done <id>             Mark task as completed\n"
-        "  start <id>            Mark task as in progress\n"
-        "  edit <id> [field]     Edit a task\n"
-        "  delete <id>           Delete a task\n"
-        "  inbox                 Quick capture to inbox\n"
-        "  stats                 Show task statistics\n\n"
-        "Options for 'add':\n"
-        "  --due <date>          Due date (e.g., tomorrow, next monday)\n"
-        "  --remind <time>       Reminder time (e.g., 1h before)\n"
-        "  --priority <1-3>      1=urgent, 2=normal, 3=low\n"
-        "  --context <ctx>       Project or context tag",
-        "todo add \"Review PR\" --due tomorrow --priority 1\n"
-        "todo list today         # Today's tasks + overdue\n"
-        "todo done 42            # Mark task #42 complete\n"
-        "todo inbox \"Call dentist\"  # Quick capture\n"
-        "todo stats"
+        "todo <add|list|done|start|delete|inbox|search|stats> [args]",
+        "Native task manager with reminders",
+        "A local task manager with SQLite storage and natural language dates.\n\n"
+        "SUBCOMMANDS:\n"
+        "  add <title> [--due <date>] [--remind <time>] [--priority <1-3>] [--context <ctx>]\n"
+        "              Add a new task\n"
+        "  list [today|overdue|upcoming|all]\n"
+        "              List tasks (default: pending)\n"
+        "  done <id>   Mark task as completed\n"
+        "  start <id>  Mark task as in progress\n"
+        "  delete <id> Delete a task\n"
+        "  inbox [text] Quick capture or list inbox items\n"
+        "  search <q>  Full-text search across tasks\n"
+        "  stats       Show task statistics\n\n"
+        "DATE FORMATS:\n"
+        "  Natural: tomorrow, tonight, next monday, in 2 hours\n"
+        "  Italian: domani, stasera, lunedi prossimo, tra 2 ore\n"
+        "  Specific: dec 25, 2025-12-25, at 3pm, alle 14",
+        "/todo add \"Review PR\" --due tomorrow --remind 1h\n"
+        "/todo list today\n"
+        "/todo done 5\n"
+        "/todo inbox \"Call dentist\"\n"
+        "/todo search meeting"
     },
     {
         "remind",
-        "remind <message> <when>",
-        "Quick reminder - simpler than /todo add",
-        "Create a reminder with natural language.\n"
-        "The message and when can be in any order.\n"
-        "Anna will set the reminder at the right time.\n\n"
-        "Supported time formats:\n"
-        "  tonight, stasera          8:00 PM today\n"
-        "  tomorrow morning          9:00 AM tomorrow\n"
-        "  tomorrow at 3pm           3:00 PM tomorrow\n"
-        "  next monday               Next Monday 11:59 PM\n"
-        "  thursday in two weeks     Thursday, 2 weeks from now\n"
-        "  dec 15, december 15       December 15th\n"
-        "  in 2 hours                2 hours from now\n"
-        "  at 15:00                  3:00 PM today/tomorrow",
-        "remind \"Call mom\" tomorrow morning\n"
-        "remind stasera \"Buy groceries\"\n"
-        "remind \"Team meeting\" next tuesday at 10am\n"
-        "remind \"Pay rent\" dec 1\n"
-        "remind in 30 minutes \"Take break\""
+        "remind <message> <when> [--note <context>]",
+        "Quick reminder creation",
+        "Create reminders quickly with natural language.\n"
+        "The order of message and time is flexible - Anna figures it out.\n\n"
+        "TIME FORMATS:\n"
+        "  Time of day: tonight, tomorrow morning, tomorrow evening\n"
+        "  Specific: at 3pm, at 15:00, alle 14\n"
+        "  Relative: in 30 minutes, in 2 hours, tra 2 ore\n"
+        "  Weekdays: next monday, lunedi prossimo\n"
+        "  Dates: dec 15, 2025-12-25\n\n"
+        "Add context with --note for extra details.",
+        "/remind \"Call mom\" tomorrow morning\n"
+        "/remind tonight \"Buy groceries\"\n"
+        "/remind \"Team meeting\" next tuesday at 10am\n"
+        "/remind \"Review PR\" tomorrow --note \"Check auth changes in #123\""
     },
     {
         "reminders",
         "reminders [today|week|all]",
-        "Show upcoming reminders",
-        "Lists your scheduled reminders.\n\n"
-        "Filters:\n"
-        "  (none)    Today's reminders\n"
-        "  week      Next 7 days\n"
-        "  all       All reminders",
-        "reminders           # Today's reminders\n"
-        "reminders week      # Next 7 days\n"
-        "reminders all       # All scheduled"
+        "View upcoming reminders",
+        "Shows scheduled reminders filtered by time range.\n\n"
+        "FILTERS:\n"
+        "  today   Today's reminders (default)\n"
+        "  week    Next 7 days\n"
+        "  all     All scheduled reminders\n\n"
+        "Use /todo done <id> to mark complete\n"
+        "Use /todo delete <id> to remove",
+        "/reminders        # Today's reminders\n"
+        "/reminders week   # Next 7 days\n"
+        "/reminders all    # All scheduled"
     },
     {NULL, NULL, NULL, NULL, NULL}
 };
@@ -2748,24 +2799,243 @@ int cmd_graph(int argc, char** argv) {
 }
 
 // ============================================================================
-// TODO COMMAND (Anna Executive Assistant)
+// GIT/TEST WORKFLOW COMMANDS (Issue #15)
 // ============================================================================
 
 /**
- * Helper: Print a task in a formatted way
+ * /test - Run project tests with auto-detection of test framework
  */
-static void print_task(const TodoTask* task) {
+int cmd_test(int argc, char** argv) {
+    (void)argc; (void)argv;
+
+    // Check what test frameworks/files exist
+    bool has_makefile = (access("Makefile", F_OK) == 0);
+    bool has_package_json = (access("package.json", F_OK) == 0);
+    bool has_cargo_toml = (access("Cargo.toml", F_OK) == 0);
+    bool has_go_mod = (access("go.mod", F_OK) == 0);
+    bool has_pytest = (access("pytest.ini", F_OK) == 0 || access("pyproject.toml", F_OK) == 0);
+    bool has_tests_dir = (access("tests", F_OK) == 0);
+
+    const char* cmd = NULL;
+    const char* framework = NULL;
+
+    // Priority: explicit test directory structure first
+    if (has_makefile) {
+        // Check if make test target exists
+        FILE* fp = popen("make -n test 2>/dev/null", "r");
+        if (fp) {
+            char buf[256];
+            if (fgets(buf, sizeof(buf), fp) != NULL) {
+                cmd = "make test";
+                framework = "make";
+            }
+            pclose(fp);
+        }
+    }
+
+    if (!cmd && has_cargo_toml) {
+        cmd = "cargo test";
+        framework = "cargo";
+    }
+
+    if (!cmd && has_go_mod) {
+        cmd = "go test ./...";
+        framework = "go";
+    }
+
+    if (!cmd && has_package_json) {
+        cmd = "npm test";
+        framework = "npm";
+    }
+
+    if (!cmd && (has_pytest || has_tests_dir)) {
+        cmd = "python3 -m pytest -v";
+        framework = "pytest";
+    }
+
+    if (!cmd) {
+        printf("\033[33m⚠ No test framework detected.\033[0m\n\n");
+        printf("Supported frameworks:\n");
+        printf("  • make test     (Makefile with 'test' target)\n");
+        printf("  • cargo test    (Rust - Cargo.toml)\n");
+        printf("  • go test       (Go - go.mod)\n");
+        printf("  • npm test      (Node.js - package.json)\n");
+        printf("  • pytest        (Python - pytest.ini/pyproject.toml/tests/)\n");
+        return -1;
+    }
+
+    printf("\033[1;36m🧪 Running tests with %s\033[0m\n", framework);
+    printf("  Command: %s\n\n", cmd);
+
+    int result = system(cmd);
+
+    printf("\n");
+    if (result == 0) {
+        printf("\033[32m✓ Tests passed!\033[0m\n");
+    } else {
+        printf("\033[31m✗ Tests failed (exit code: %d)\033[0m\n", WEXITSTATUS(result));
+    }
+
+    return result == 0 ? 0 : -1;
+}
+
+/**
+ * /git - Git workflow helper
+ */
+int cmd_git(int argc, char** argv) {
+    // Check if we're in a git repo
+    if (access(".git", F_OK) != 0) {
+        printf("\033[31mError: Not in a git repository.\033[0m\n");
+        return -1;
+    }
+
+    bool has_gh = (system("which gh >/dev/null 2>&1") == 0);
+    const char* subcommand = (argc > 1) ? argv[1] : "status";
+
+    if (strcmp(subcommand, "status") == 0 || strcmp(subcommand, "s") == 0) {
+        printf("\033[1;36m📊 Git Status\033[0m\n\n");
+        system("git status --short --branch");
+        printf("\n\033[36mRecent commits:\033[0m\n");
+        system("git log --oneline -5");
+        return 0;
+    }
+
+    if (strcmp(subcommand, "commit") == 0 || strcmp(subcommand, "c") == 0) {
+        if (argc < 3) {
+            printf("Usage: git commit <message>\n");
+            return -1;
+        }
+
+        char msg[1024] = {0};
+        for (int i = 2; i < argc; i++) {
+            if (i > 2) strncat(msg, " ", sizeof(msg) - strlen(msg) - 1);
+            strncat(msg, argv[i], sizeof(msg) - strlen(msg) - 1);
+        }
+
+        printf("\033[36mStaging changes...\033[0m\n");
+        system("git add -A");
+
+        int status = system("git diff --cached --quiet");
+        if (status == 0) {
+            printf("\033[33mNo changes to commit.\033[0m\n");
+            return 0;
+        }
+
+        char cmd_buf[2048];
+        snprintf(cmd_buf, sizeof(cmd_buf),
+            "git commit -m \"%s\" -m \"\" -m \"🤖 Generated with [Claude Code](https://claude.com/claude-code)\" -m \"Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\"",
+            msg);
+
+        printf("\033[36mCommitting...\033[0m\n");
+        int result = system(cmd_buf);
+        if (result == 0) {
+            printf("\033[32m✓ Committed!\033[0m\n");
+        }
+        return result == 0 ? 0 : -1;
+    }
+
+    if (strcmp(subcommand, "push") == 0 || strcmp(subcommand, "p") == 0) {
+        printf("\033[36mPushing...\033[0m\n");
+        int result = system("git push");
+        if (result == 0) printf("\033[32m✓ Pushed!\033[0m\n");
+        return result == 0 ? 0 : -1;
+    }
+
+    if (strcmp(subcommand, "sync") == 0) {
+        printf("\033[36mSyncing...\033[0m\n");
+        int result = system("git pull --rebase && git push");
+        if (result == 0) printf("\033[32m✓ Synced!\033[0m\n");
+        return result == 0 ? 0 : -1;
+    }
+
+    printf("\033[1;36m📦 Git Workflow\033[0m\n\n");
+    printf("Subcommands:\n");
+    printf("  status, s       Show status and recent commits\n");
+    printf("  commit, c <msg> Stage all and commit\n");
+    printf("  push, p         Push to remote\n");
+    printf("  sync            Pull --rebase and push\n");
+    if (has_gh) printf("\nFor PRs: /pr <title>\n");
+    return 0;
+}
+
+/**
+ * /pr - Create pull request via gh CLI
+ */
+int cmd_pr(int argc, char** argv) {
+    if (system("which gh >/dev/null 2>&1") != 0) {
+        printf("\033[31mError: 'gh' CLI not installed.\033[0m\n");
+        printf("Install: brew install gh && gh auth login\n");
+        return -1;
+    }
+
+    if (access(".git", F_OK) != 0) {
+        printf("\033[31mError: Not in a git repository.\033[0m\n");
+        return -1;
+    }
+
+    FILE* fp = popen("git branch --show-current", "r");
+    if (!fp) return -1;
+    char branch[256] = {0};
+    if (fgets(branch, sizeof(branch), fp)) {
+        branch[strcspn(branch, "\n")] = 0;
+    }
+    pclose(fp);
+
+    if (strcmp(branch, "main") == 0 || strcmp(branch, "master") == 0) {
+        printf("\033[31mError: Cannot create PR from %s.\033[0m\n", branch);
+        printf("Create a feature branch first.\n");
+        return -1;
+    }
+
+    char title[512] = {0};
+    if (argc > 1) {
+        for (int i = 1; i < argc; i++) {
+            if (i > 1) strncat(title, " ", sizeof(title) - strlen(title) - 1);
+            strncat(title, argv[i], sizeof(title) - strlen(title) - 1);
+        }
+    } else {
+        strncpy(title, branch, sizeof(title) - 1);
+        for (char* p = title; *p; p++) {
+            if (*p == '-' || *p == '_') *p = ' ';
+        }
+    }
+
+    printf("\033[1;36m🔀 Creating PR\033[0m\n");
+    printf("  Branch: %s\n  Title: %s\n\n", branch, title);
+
+    char push_cmd[512];
+    snprintf(push_cmd, sizeof(push_cmd), "git push -u origin %s 2>&1", branch);
+    system(push_cmd);
+
+    char pr_cmd[2048];
+    snprintf(pr_cmd, sizeof(pr_cmd),
+        "gh pr create --title \"%s\" --body \"## Summary\\n\\n## Test Plan\\n- [ ] Tests pass\\n\\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\"",
+        title);
+
+    int result = system(pr_cmd);
+    if (result == 0) printf("\n\033[32m✓ PR created!\033[0m\n");
+    return result == 0 ? 0 : -1;
+}
+
+// ============================================================================
+// TODO MANAGER COMMANDS (Anna Executive Assistant)
+// ============================================================================
+
+/**
+ * Helper: Print a task with formatting
+ */
+static void print_task_item(const TodoTask* task) {
     // Status indicator
     const char* status_icon;
     const char* status_color;
     switch (task->status) {
-        case TODO_STATUS_COMPLETED:
-            status_icon = "[x]";
-            status_color = "\033[32m";  // Green
-            break;
         case TODO_STATUS_IN_PROGRESS:
             status_icon = "[>]";
             status_color = "\033[33m";  // Yellow
+            break;
+        case TODO_STATUS_COMPLETED:
+            status_icon = "[x]";
+            status_color = "\033[32m";  // Green
             break;
         case TODO_STATUS_CANCELLED:
             status_icon = "[-]";
@@ -2773,171 +3043,177 @@ static void print_task(const TodoTask* task) {
             break;
         default:
             status_icon = "[ ]";
-            status_color = "\033[0m";   // Default
-            break;
+            status_color = "\033[0m";
     }
 
     // Priority indicator
-    const char* priority_str = "";
-    if (task->priority == TODO_PRIORITY_URGENT) {
-        priority_str = "\033[31m!!\033[0m ";  // Red !!
-    } else if (task->priority == TODO_PRIORITY_LOW) {
-        priority_str = "\033[90m~\033[0m ";   // Gray ~
-    }
+    const char* priority = "";
+    if (task->priority == 1) priority = " \033[31m!!\033[0m";
+    else if (task->priority == 3) priority = " \033[90m~\033[0m";
 
-    // Due date
-    char due_str[64] = "";
-    if (task->due_date > 0) {
-        todo_format_date(task->due_date, due_str, sizeof(due_str), true);
-    }
+    // Print main line
+    printf("  %s%s\033[0m %lld. %s%s",
+           status_color, status_icon, (long long)task->id, task->title, priority);
 
-    // Print
-    printf("  %s%s\033[0m #%-4lld %s%s",
-           status_color, status_icon, task->id, priority_str, task->title);
-
-    if (due_str[0]) {
-        // Check if overdue
-        if (task->due_date < time(NULL) && task->status == TODO_STATUS_PENDING) {
-            printf(" \033[31m(overdue: %s)\033[0m", due_str);
-        } else {
-            printf(" \033[36m(%s)\033[0m", due_str);
-        }
-    }
-
-    if (task->context) {
+    // Context tag
+    if (task->context && task->context[0]) {
         printf(" \033[35m@%s\033[0m", task->context);
     }
 
+    // Due date
+    if (task->due_date > 0) {
+        char date_buf[64];
+        todo_format_date(task->due_date, date_buf, sizeof(date_buf), true);
+        time_t now = time(NULL);
+        if (task->due_date < now && task->status == TODO_STATUS_PENDING) {
+            printf(" \033[31m(overdue: %s)\033[0m", date_buf);
+        } else {
+            printf(" \033[90m(due: %s)\033[0m", date_buf);
+        }
+    }
+
     printf("\n");
+
+    // Description if present
+    if (task->description && task->description[0]) {
+        printf("      \033[90m%s\033[0m\n", task->description);
+    }
 }
 
 /**
- * /todo - Main todo command handler
+ * /todo - Task manager command
  */
 int cmd_todo(int argc, char** argv) {
     if (argc < 2) {
-        // Default: show today's tasks
-        int count = 0;
-        TodoTask** tasks = todo_list_today(&count);
-
-        if (!tasks) {
-            printf("Todo system not initialized. Please restart convergio.\n");
-            return -1;
-        }
-
-        if (count == 0) {
-            printf("\033[32mNo tasks for today!\033[0m\n");
-            todo_free_tasks(tasks, count);
-            return 0;
-        }
-
-        printf("\033[1mToday's Tasks\033[0m\n\n");
-        for (int i = 0; i < count; i++) {
-            print_task(tasks[i]);
-        }
-        printf("\n");
-
-        todo_free_tasks(tasks, count);
+        // Show usage
+        printf("\n\033[1m📋 Todo Manager\033[0m (Anna Executive Assistant)\n\n");
+        printf("Usage: todo <subcommand> [args]\n\n");
+        printf("Subcommands:\n");
+        printf("  add <title> [options]  Add a new task\n");
+        printf("  list [filter]          List tasks\n");
+        printf("  done <id>              Mark task completed\n");
+        printf("  start <id>             Mark task in progress\n");
+        printf("  delete <id>            Delete a task\n");
+        printf("  inbox [text]           Quick capture / list inbox\n");
+        printf("  search <query>         Search tasks\n");
+        printf("  stats                  Show statistics\n");
+        printf("\nRun 'help todo' for detailed options.\n\n");
         return 0;
     }
 
-    const char* subcmd = argv[1];
+    const char* subcommand = argv[1];
 
-    // ==========================================================
-    // ADD
-    // ==========================================================
-    if (strcmp(subcmd, "add") == 0) {
+    // --- todo add ---
+    if (strcmp(subcommand, "add") == 0) {
         if (argc < 3) {
-            printf("Usage: todo add <title> [--due <date>] [--priority <1-3>] [--context <ctx>]\n");
+            printf("Usage: todo add <title> [--due <date>] [--remind <time>] [--priority <1-3>] [--context <ctx>]\n");
             return -1;
         }
+
+        char title[256] = {0};
+        char* due_str = NULL;
+        char* remind_str = NULL;
+        int priority = 2;
+        char* context = NULL;
 
         // Parse arguments
-        TodoCreateOptions opts = {
-            .title = argv[2],
-            .priority = TODO_PRIORITY_NORMAL,
-            .source = TODO_SOURCE_USER
-        };
-
-        for (int i = 3; i < argc; i++) {
+        int i = 2;
+        while (i < argc) {
             if (strcmp(argv[i], "--due") == 0 && i + 1 < argc) {
-                opts.due_date = todo_parse_date(argv[++i], 0);
+                due_str = argv[++i];
             } else if (strcmp(argv[i], "--remind") == 0 && i + 1 < argc) {
-                // Parse relative reminder (e.g., "1h" = 1 hour before due)
-                int64_t offset = todo_parse_duration(argv[++i]);
-                if (opts.due_date > 0 && offset > 0) {
-                    opts.reminder_at = opts.due_date - offset;
-                }
+                remind_str = argv[++i];
             } else if (strcmp(argv[i], "--priority") == 0 && i + 1 < argc) {
-                int p = atoi(argv[++i]);
-                if (p >= 1 && p <= 3) {
-                    opts.priority = (TodoPriority)p;
-                }
+                priority = atoi(argv[++i]);
             } else if (strcmp(argv[i], "--context") == 0 && i + 1 < argc) {
-                opts.context = argv[++i];
+                context = argv[++i];
+            } else {
+                // Part of title
+                if (title[0]) strncat(title, " ", sizeof(title) - strlen(title) - 1);
+                strncat(title, argv[i], sizeof(title) - strlen(title) - 1);
             }
+            i++;
         }
 
-        int64_t id = todo_create(&opts);
-        if (id < 0) {
-            printf("Failed to create task.\n");
+        if (!title[0]) {
+            printf("Error: Task title required.\n");
             return -1;
         }
 
-        printf("\033[32mTask #%lld created:\033[0m %s\n", id, opts.title);
-        if (opts.due_date > 0) {
-            char due_str[64];
-            todo_format_date(opts.due_date, due_str, sizeof(due_str), true);
-            printf("  Due: %s\n", due_str);
+        time_t due = 0;
+        if (due_str) {
+            due = todo_parse_date(due_str, time(NULL));
+        }
+
+        int remind = 0;
+        if (remind_str) {
+            remind = (int)todo_parse_duration(remind_str);
+        }
+
+        TodoCreateOptions opts = {
+            .title = title,
+            .description = NULL,
+            .priority = priority,
+            .due_date = due,
+            .reminder_at = remind > 0 ? (due > 0 ? due - remind : time(NULL) + remind) : 0,
+            .recurrence = TODO_RECURRENCE_NONE,
+            .recurrence_rule = NULL,
+            .tags = NULL,
+            .context = context,
+            .parent_id = 0,
+            .source = TODO_SOURCE_USER,
+            .external_id = NULL
+        };
+        int64_t id = todo_create(&opts);
+        if (id > 0) {
+            printf("\033[32m✓ Task added:\033[0m %s (ID: %lld)\n", title, (long long)id);
+            if (due > 0) {
+                char buf[64];
+                todo_format_date(due, buf, sizeof(buf), true);
+                printf("  Due: %s\n", buf);
+            }
+        } else {
+            printf("\033[31mError: Failed to add task.\033[0m\n");
+            return -1;
         }
         return 0;
     }
 
-    // ==========================================================
-    // LIST
-    // ==========================================================
-    if (strcmp(subcmd, "list") == 0) {
+    // --- todo list ---
+    if (strcmp(subcommand, "list") == 0) {
+        const char* list_filter = (argc > 2) ? argv[2] : NULL;
+
         int count = 0;
         TodoTask** tasks = NULL;
-        const char* header = "Tasks";
 
-        if (argc >= 3) {
-            if (strcmp(argv[2], "today") == 0) {
-                tasks = todo_list_today(&count);
-                header = "Today's Tasks";
-            } else if (strcmp(argv[2], "overdue") == 0) {
-                tasks = todo_list_overdue(&count);
-                header = "Overdue Tasks";
-            } else if (strcmp(argv[2], "all") == 0) {
-                TodoFilter filter = {.include_completed = true, .include_cancelled = true};
-                tasks = todo_list(&filter, &count);
-                header = "All Tasks";
-            } else if (strcmp(argv[2], "upcoming") == 0) {
-                int days = 7;  // Default to next 7 days
-                if (argc >= 4) {
-                    days = atoi(argv[3]);
-                }
-                tasks = todo_list_upcoming(days, &count);
-                header = "Upcoming Tasks";
-            }
+        if (list_filter && strcmp(list_filter, "today") == 0) {
+            tasks = todo_list_today(&count);
+            printf("\n\033[1m📋 Today's Tasks\033[0m\n\n");
+        } else if (list_filter && strcmp(list_filter, "overdue") == 0) {
+            tasks = todo_list_overdue(&count);
+            printf("\n\033[1m📋 Overdue Tasks\033[0m\n\n");
+        } else if (list_filter && strcmp(list_filter, "upcoming") == 0) {
+            int days = (argc > 3) ? atoi(argv[3]) : 7;
+            tasks = todo_list_upcoming(days, &count);
+            printf("\n\033[1m📋 Upcoming Tasks (next %d days)\033[0m\n\n", days);
+        } else if (list_filter && strcmp(list_filter, "all") == 0) {
+            TodoFilter all_filter = {0};
+            all_filter.include_completed = true;
+            all_filter.include_cancelled = true;
+            tasks = todo_list(&all_filter, &count);
+            printf("\n\033[1m📋 All Tasks\033[0m\n\n");
+        } else {
+            tasks = todo_list(NULL, &count);
+            printf("\n\033[1m📋 Pending Tasks\033[0m\n\n");
         }
 
-        if (!tasks) {
-            // Default: list pending
-            TodoFilter filter = {.include_completed = false, .include_cancelled = false};
-            tasks = todo_list(&filter, &count);
-            header = "Pending Tasks";
-        }
-
-        if (count == 0) {
-            printf("\033[32mNo tasks found.\033[0m\n");
-            todo_free_tasks(tasks, count);
+        if (!tasks || count == 0) {
+            printf("  \033[90mNo tasks found.\033[0m\n\n");
             return 0;
         }
 
-        printf("\033[1m%s\033[0m (%d)\n\n", header, count);
         for (int i = 0; i < count; i++) {
-            print_task(tasks[i]);
+            print_task_item(tasks[i]);
         }
         printf("\n");
 
@@ -2945,438 +3221,325 @@ int cmd_todo(int argc, char** argv) {
         return 0;
     }
 
-    // ==========================================================
-    // DONE
-    // ==========================================================
-    if (strcmp(subcmd, "done") == 0) {
+    // --- todo done ---
+    if (strcmp(subcommand, "done") == 0) {
         if (argc < 3) {
             printf("Usage: todo done <id>\n");
             return -1;
         }
-
         int64_t id = atoll(argv[2]);
-        TodoTask* task = todo_get(id);
-
-        if (!task) {
-            printf("Task #%lld not found.\n", id);
+        if (todo_complete(id) == 0) {
+            printf("\033[32m✓ Task %lld completed!\033[0m\n", (long long)id);
+        } else {
+            printf("\033[31mError: Failed to complete task.\033[0m\n");
             return -1;
         }
-
-        const char* title = task->title ? task->title : "";
-
-        if (todo_complete(id) < 0) {
-            printf("Failed to complete task.\n");
-            todo_free_task(task);
-            return -1;
-        }
-
-        printf("\033[32mTask #%lld completed:\033[0m %s\n", id, title);
-        todo_free_task(task);
         return 0;
     }
 
-    // ==========================================================
-    // START
-    // ==========================================================
-    if (strcmp(subcmd, "start") == 0) {
+    // --- todo start ---
+    if (strcmp(subcommand, "start") == 0) {
         if (argc < 3) {
             printf("Usage: todo start <id>\n");
             return -1;
         }
-
         int64_t id = atoll(argv[2]);
-        TodoTask* task = todo_get(id);
-
-        if (!task) {
-            printf("Task #%lld not found.\n", id);
+        if (todo_start(id) == 0) {
+            printf("\033[33m→ Task %lld in progress\033[0m\n", (long long)id);
+        } else {
+            printf("\033[31mError: Failed to start task.\033[0m\n");
             return -1;
         }
-
-        const char* title = task->title ? task->title : "";
-
-        if (todo_start(id) < 0) {
-            printf("Failed to start task.\n");
-            todo_free_task(task);
-            return -1;
-        }
-
-        printf("\033[33mTask #%lld started:\033[0m %s\n", id, title);
-        todo_free_task(task);
         return 0;
     }
 
-    // ==========================================================
-    // DELETE
-    // ==========================================================
-    if (strcmp(subcmd, "delete") == 0 || strcmp(subcmd, "rm") == 0) {
+    // --- todo delete / rm ---
+    if (strcmp(subcommand, "delete") == 0 || strcmp(subcommand, "rm") == 0) {
         if (argc < 3) {
             printf("Usage: todo delete <id>\n");
             return -1;
         }
-
         int64_t id = atoll(argv[2]);
-        TodoTask* task = todo_get(id);
-
-        if (!task) {
-            printf("Task #%lld not found.\n", id);
+        if (todo_delete(id) == 0) {
+            printf("\033[32m✓ Task %lld deleted.\033[0m\n", (long long)id);
+        } else {
+            printf("\033[31mError: Failed to delete task.\033[0m\n");
             return -1;
         }
-
-        const char* title = task->title ? task->title : "";
-
-        if (todo_delete(id) < 0) {
-            printf("Failed to delete task.\n");
-            todo_free_task(task);
-            return -1;
-        }
-
-        printf("\033[31mTask #%lld deleted:\033[0m %s\n", id, title);
-        todo_free_task(task);
         return 0;
     }
 
-    // ==========================================================
-    // INBOX (Quick Capture)
-    // ==========================================================
-    if (strcmp(subcmd, "inbox") == 0) {
-        if (argc >= 3) {
+    // --- todo inbox ---
+    if (strcmp(subcommand, "inbox") == 0) {
+        if (argc < 3) {
+            // List inbox items
+            int count = 0;
+            TodoInboxItem** items = inbox_list_unprocessed(&count);
+            printf("\n\033[1m📥 Inbox\033[0m\n\n");
+            if (!items || count == 0) {
+                printf("  \033[90mInbox is empty.\033[0m\n\n");
+                return 0;
+            }
+            for (int i = 0; i < count; i++) {
+                printf("  %lld. %s\n", (long long)items[i]->id, items[i]->content);
+            }
+            printf("\n");
+            todo_free_inbox_items(items, count);
+        } else {
             // Quick capture
-            int64_t id = inbox_capture(argv[2], "cli");
-            if (id < 0) {
-                printf("Failed to capture to inbox.\n");
+            char content[512] = {0};
+            for (int i = 2; i < argc; i++) {
+                if (i > 2) strncat(content, " ", sizeof(content) - strlen(content) - 1);
+                strncat(content, argv[i], sizeof(content) - strlen(content) - 1);
+            }
+            int64_t id = inbox_capture(content, "cli");
+            if (id > 0) {
+                printf("\033[32m✓ Captured to inbox:\033[0m %s\n", content);
+            } else {
+                printf("\033[31mError: Failed to capture.\033[0m\n");
                 return -1;
             }
-            printf("\033[36mCaptured to inbox #%lld:\033[0m %s\n", id, argv[2]);
-            return 0;
         }
-
-        // List inbox
-        int count = 0;
-        TodoInboxItem** items = inbox_list_unprocessed(&count);
-
-        if (!items || count == 0) {
-            printf("\033[32mInbox is empty.\033[0m\n");
-            if (items) todo_free_inbox_items(items, count);
-            return 0;
-        }
-
-        printf("\033[1mInbox\033[0m (%d items)\n\n", count);
-        for (int i = 0; i < count; i++) {
-            char date_str[64];
-            todo_format_date(items[i]->captured_at, date_str, sizeof(date_str), true);
-            printf("  #%-4lld %s \033[90m(%s)\033[0m\n",
-                   items[i]->id, items[i]->content, date_str);
-        }
-        printf("\n");
-
-        todo_free_inbox_items(items, count);
         return 0;
     }
 
-    // ==========================================================
-    // STATS
-    // ==========================================================
-    if (strcmp(subcmd, "stats") == 0) {
-        TodoStats stats = todo_get_stats();
-
-        printf("\033[1mTask Statistics\033[0m\n\n");
-        printf("  Pending:          %d\n", stats.total_pending);
-        printf("  In Progress:      %d\n", stats.total_in_progress);
-        printf("  Completed Today:  %d\n", stats.total_completed_today);
-        printf("  Completed Week:   %d\n", stats.total_completed_week);
-
-        if (stats.total_overdue > 0) {
-            printf("  \033[31mOverdue:          %d\033[0m\n", stats.total_overdue);
-        }
-
-        if (stats.inbox_unprocessed > 0) {
-            printf("  Inbox:            %d unprocessed\n", stats.inbox_unprocessed);
-        }
-
-        printf("\n");
-        return 0;
-    }
-
-    // ==========================================================
-    // SEARCH
-    // ==========================================================
-    if (strcmp(subcmd, "search") == 0 || strcmp(subcmd, "find") == 0) {
+    // --- todo search / find ---
+    if (strcmp(subcommand, "search") == 0 || strcmp(subcommand, "find") == 0) {
         if (argc < 3) {
             printf("Usage: todo search <query>\n");
             return -1;
         }
+        char query[256] = {0};
+        for (int i = 2; i < argc; i++) {
+            if (i > 2) strncat(query, " ", sizeof(query) - strlen(query) - 1);
+            strncat(query, argv[i], sizeof(query) - strlen(query) - 1);
+        }
 
         int count = 0;
-        TodoTask** tasks = todo_search(argv[2], &count);
-
-        if (count == 0) {
-            printf("No tasks found matching '%s'.\n", argv[2]);
-            todo_free_tasks(tasks, count);
+        TodoTask** results = todo_search(query, &count);
+        printf("\n\033[1m🔍 Search: \"%s\"\033[0m\n\n", query);
+        if (!results || count == 0) {
+            printf("  \033[90mNo matching tasks found.\033[0m\n\n");
             return 0;
         }
-
-        printf("\033[1mSearch Results\033[0m for '%s' (%d)\n\n", argv[2], count);
         for (int i = 0; i < count; i++) {
-            print_task(tasks[i]);
+            print_task_item(results[i]);
         }
         printf("\n");
-
-        todo_free_tasks(tasks, count);
+        todo_free_tasks(results, count);
         return 0;
     }
 
-    // Unknown subcommand
-    printf("Unknown subcommand: %s\n", subcmd);
-    printf("Type 'help todo' for usage.\n");
+    // --- todo stats ---
+    if (strcmp(subcommand, "stats") == 0) {
+        TodoStats stats = todo_get_stats();
+        printf("\n\033[1m📊 Todo Statistics\033[0m\n\n");
+        printf("  Pending:       %d\n", stats.total_pending);
+        printf("  In Progress:   %d\n", stats.total_in_progress);
+        printf("  Completed:     today: %d, week: %d\n",
+               stats.total_completed_today, stats.total_completed_week);
+        printf("  Overdue:       %d\n", stats.total_overdue);
+        printf("  Inbox items:   %d\n", stats.inbox_unprocessed);
+        printf("\n");
+        return 0;
+    }
+
+    printf("Unknown todo command: %s\n", subcommand);
+    printf("Run 'todo' without arguments for usage.\n");
     return -1;
 }
 
-// ============================================================================
-// QUICK REMIND COMMAND (Anna Executive Assistant)
-// ============================================================================
-
 /**
- * Try to parse a time expression from part of the input.
- * Returns the parsed time, or 0 if not recognized.
+ * Helper: Try to parse time from a word
+ * Returns true if the word looks like a time specifier
  */
-static time_t try_parse_time(const char* str) {
-    return todo_parse_date(str, 0);
+static bool try_parse_time(const char* word) {
+    if (!word) return false;
+
+    // Keywords that indicate time
+    if (strstr(word, "tomorrow") || strstr(word, "domani")) return true;
+    if (strstr(word, "tonight") || strstr(word, "stasera")) return true;
+    if (strstr(word, "morning") || strstr(word, "mattina")) return true;
+    if (strstr(word, "afternoon") || strstr(word, "pomeriggio")) return true;
+    if (strstr(word, "evening") || strstr(word, "sera")) return true;
+    if (strstr(word, "next") || strstr(word, "prossimo")) return true;
+    if (strstr(word, "monday") || strstr(word, "lunedi")) return true;
+    if (strstr(word, "tuesday") || strstr(word, "martedi")) return true;
+    if (strstr(word, "wednesday") || strstr(word, "mercoledi")) return true;
+    if (strstr(word, "thursday") || strstr(word, "giovedi")) return true;
+    if (strstr(word, "friday") || strstr(word, "venerdi")) return true;
+    if (strstr(word, "saturday") || strstr(word, "sabato")) return true;
+    if (strstr(word, "sunday") || strstr(word, "domenica")) return true;
+    if (strncmp(word, "in", 2) == 0 || strncmp(word, "tra", 3) == 0) return true;
+    if (strncmp(word, "at", 2) == 0 || strncmp(word, "alle", 4) == 0) return true;
+
+    // Month names
+    const char* months[] = {"jan", "feb", "mar", "apr", "may", "jun",
+                            "jul", "aug", "sep", "oct", "nov", "dec",
+                            "gen", "mag", "giu", "lug", "ago", "set", "ott", "dic"};
+    for (int i = 0; i < 20; i++) {
+        if (strncasecmp(word, months[i], 3) == 0) return true;
+    }
+
+    // ISO date format
+    if (strlen(word) >= 10 && word[4] == '-' && word[7] == '-') return true;
+
+    return false;
 }
 
 /**
- * /remind - Quick reminder creation with smart parsing
- *
- * Supports multiple formats:
- *   /remind "message" tomorrow morning
- *   /remind tonight "do the thing"
- *   /remind in 2 hours check email
- *   /remind domani mattina chiamare Mario --note "riguardo il progetto X"
+ * /remind - Quick reminder creation
  */
 int cmd_remind(int argc, char** argv) {
-    if (argc < 2) {
+    if (argc < 3) {
         printf("Usage: remind <message> <when> [--note <context>]\n");
-        printf("   or: remind <when> <message> [--note <context>]\n");
+        printf("       remind <when> <message> [--note <context>]\n");
         printf("\nExamples:\n");
         printf("  remind \"Call mom\" tomorrow morning\n");
         printf("  remind tonight \"Buy groceries\"\n");
-        printf("  remind in 2 hours \"Take a break\"\n");
-        printf("\nType 'help remind' for more.\n");
+        printf("  remind \"Meeting\" next tuesday at 10am --note \"Bring slides\"\n");
         return -1;
     }
 
-    // Parse arguments to find message, time, and optional note
-    char message[512] = {0};
+    char message[256] = {0};
     char time_str[256] = {0};
     char note[512] = {0};
-    time_t reminder_time = 0;
 
-    // Look for --note first
-    int note_idx = -1;
+    // Parse arguments, separating message from time
+    bool in_time = false;
+
     for (int i = 1; i < argc; i++) {
         if (strcmp(argv[i], "--note") == 0 && i + 1 < argc) {
-            note_idx = i;
-            strncpy(note, argv[i + 1], sizeof(note) - 1);
+            // Collect all remaining args as note
+            for (int j = i + 1; j < argc; j++) {
+                if (note[0]) strncat(note, " ", sizeof(note) - strlen(note) - 1);
+                strncat(note, argv[j], sizeof(note) - strlen(note) - 1);
+            }
             break;
         }
-    }
 
-    // Now parse the rest (excluding --note and its value)
-    // Strategy: Try to parse time from each word/phrase
-    // The non-time part becomes the message
+        // Check if this looks like a time specifier
+        bool is_time = try_parse_time(argv[i]);
 
-    char all_args[1024] = {0};
-    for (int i = 1; i < argc; i++) {
-        if (i == note_idx || i == note_idx + 1) continue;  // Skip --note and its value
-        if (all_args[0]) strncat(all_args, " ", sizeof(all_args) - strlen(all_args) - 1);
-        strncat(all_args, argv[i], sizeof(all_args) - strlen(all_args) - 1);
-    }
+        // If starts with quote, it's message
+        if (argv[i][0] == '"' || argv[i][0] == '\'') {
+            is_time = false;
+        }
 
-    // If we have a quoted string, that's likely the message
-    // Try to detect quoted message vs time expression
-    bool found_quoted = false;
-    for (int i = 1; i < argc; i++) {
-        if (i == note_idx || i == note_idx + 1) continue;
-        // Check if this arg looks like a quoted message (starts with quote or contains spaces)
-        if (argv[i][0] == '"' || strchr(argv[i], ' ')) {
-            strncpy(message, argv[i], sizeof(message) - 1);
-            found_quoted = true;
-            break;
+        if (is_time) {
+            in_time = true;
+            if (time_str[0]) strncat(time_str, " ", sizeof(time_str) - strlen(time_str) - 1);
+            strncat(time_str, argv[i], sizeof(time_str) - strlen(time_str) - 1);
+        } else if (!in_time || !message[0]) {
+            // Part of message
+            if (message[0]) strncat(message, " ", sizeof(message) - strlen(message) - 1);
+            strncat(message, argv[i], sizeof(message) - strlen(message) - 1);
+        } else {
+            // Continuation of time
+            if (time_str[0]) strncat(time_str, " ", sizeof(time_str) - strlen(time_str) - 1);
+            strncat(time_str, argv[i], sizeof(time_str) - strlen(time_str) - 1);
         }
     }
 
-    // Try to build time_str from non-message parts
-    time_str[0] = '\0';
-    for (int i = 1; i < argc; i++) {
-        if (i == note_idx || i == note_idx + 1) continue;
-        if (found_quoted && strcmp(argv[i], message) == 0) continue;
-
-        if (time_str[0]) strncat(time_str, " ", sizeof(time_str) - strlen(time_str) - 1);
-        strncat(time_str, argv[i], sizeof(time_str) - strlen(time_str) - 1);
-    }
-
-    // Try to parse time
-    if (time_str[0]) {
-        reminder_time = try_parse_time(time_str);
-    }
-
-    // If no quoted message was found, we need to figure out which parts are time
-    // and which are message. Try parsing progressively.
-    if (!found_quoted) {
-        // Strategy: Try parsing from the end backwards to find the time portion
-        // Everything before is the message
-
-        char temp[1024];
-        strncpy(temp, all_args, sizeof(temp) - 1);
-
-        // Try the whole thing as time first
-        reminder_time = try_parse_time(temp);
-        if (reminder_time > 0) {
-            // The whole thing was a time? That means no message
-            printf("Please provide a message for the reminder.\n");
-            return -1;
-        }
-
-        // Try progressively: "msg time" pattern
-        // Split from different positions
-        bool found = false;
-        for (int split = strlen(temp) - 1; split > 0 && !found; split--) {
-            if (temp[split] == ' ') {
-                char time_part[256];
-                strncpy(time_part, temp + split + 1, sizeof(time_part) - 1);
-                time_t t = try_parse_time(time_part);
-                if (t > 0) {
-                    reminder_time = t;
-                    temp[split] = '\0';
-                    strncpy(message, temp, sizeof(message) - 1);
-                    found = true;
-                }
-            }
-        }
-
-        // Try "time msg" pattern if not found
-        if (!found) {
-            for (int split = 0; split < (int)strlen(temp) && !found; split++) {
-                if (temp[split] == ' ') {
-                    char time_part[256] = {0};
-                    strncpy(time_part, temp, split);
-                    time_t t = try_parse_time(time_part);
-                    if (t > 0) {
-                        reminder_time = t;
-                        strncpy(message, temp + split + 1, sizeof(message) - 1);
-                        found = true;
-                    }
-                }
-            }
-        }
-
-        // Last resort: use the whole thing as message with a default time
-        if (!found && !message[0]) {
-            strncpy(message, temp, sizeof(message) - 1);
+    // Strip quotes from message
+    size_t msg_len = strlen(message);
+    if (msg_len > 1 && (message[0] == '"' || message[0] == '\'')) {
+        memmove(message, message + 1, msg_len);
+        msg_len--;
+        if (msg_len > 0 && (message[msg_len - 1] == '"' || message[msg_len - 1] == '\'')) {
+            message[msg_len - 1] = '\0';
         }
     }
 
-    // Validate we have a message
     if (!message[0]) {
-        printf("Please provide a message for the reminder.\n");
+        printf("\033[31mError: Reminder message required.\033[0m\n");
         return -1;
     }
 
-    // If no time parsed, try parsing the time_str we built
-    if (reminder_time == 0 && time_str[0]) {
-        reminder_time = try_parse_time(time_str);
+    if (!time_str[0]) {
+        printf("\033[31mError: When should I remind you?\033[0m\n");
+        return -1;
     }
 
-    // Default to tomorrow morning if no time specified
-    if (reminder_time == 0) {
-        time_t now = time(NULL);
-        struct tm* tm = localtime(&now);
-        tm->tm_mday += 1;
-        tm->tm_hour = 9;
-        tm->tm_min = 0;
-        tm->tm_sec = 0;
-        reminder_time = mktime(tm);
-        printf("\033[33mNo time specified, defaulting to tomorrow morning.\033[0m\n");
+    // Parse the time
+    time_t remind_time = todo_parse_date(time_str, time(NULL));
+    if (remind_time <= 0) {
+        printf("\033[31mError: Could not understand time: %s\033[0m\n", time_str);
+        return -1;
     }
 
-    // Create the reminder
+    // Create the reminder as a todo with due date
     TodoCreateOptions opts = {
         .title = message,
         .description = note[0] ? note : NULL,
         .priority = TODO_PRIORITY_NORMAL,
-        .due_date = reminder_time,
-        .reminder_at = reminder_time,  // Remind at the exact time
-        .source = TODO_SOURCE_USER
+        .due_date = remind_time,
+        .reminder_at = remind_time,
+        .recurrence = TODO_RECURRENCE_NONE,
+        .recurrence_rule = NULL,
+        .tags = NULL,
+        .context = "reminder",
+        .parent_id = 0,
+        .source = TODO_SOURCE_USER,
+        .external_id = NULL
     };
-
     int64_t id = todo_create(&opts);
-    if (id < 0) {
-        printf("Failed to create reminder.\n");
+
+    if (id > 0) {
+        char date_buf[64];
+        todo_format_date(remind_time, date_buf, sizeof(date_buf), true);
+        printf("\033[32m✓ Reminder set:\033[0m %s\n", message);
+        printf("  When: %s\n", date_buf);
+        if (note[0]) {
+            printf("  Note: %s\n", note);
+        }
+    } else {
+        printf("\033[31mError: Failed to create reminder.\033[0m\n");
         return -1;
-    }
-
-    // Format the time for display
-    char time_display[64];
-    todo_format_date(reminder_time, time_display, sizeof(time_display), true);
-
-    printf("\033[32mReminder #%lld set:\033[0m %s\n", id, message);
-    printf("  \033[36mWhen:\033[0m %s\n", time_display);
-    if (note[0]) {
-        printf("  \033[36mNote:\033[0m %s\n", note);
     }
 
     return 0;
 }
 
 /**
- * /reminders - Show upcoming reminders
+ * /reminders - View upcoming reminders
  */
 int cmd_reminders(int argc, char** argv) {
-    int days = 1;  // Default: today
-    const char* header = "Today's Reminders";
-
-    if (argc >= 2) {
-        if (strcmp(argv[1], "week") == 0) {
-            days = 7;
-            header = "Reminders This Week";
-        } else if (strcmp(argv[1], "all") == 0) {
-            days = 365;
-            header = "All Reminders";
-        } else if (strcmp(argv[1], "tomorrow") == 0 || strcmp(argv[1], "domani") == 0) {
-            days = 2;
-            header = "Reminders (Today & Tomorrow)";
-        }
-    }
+    const char* rem_filter = (argc > 1) ? argv[1] : "today";
 
     int count = 0;
-    TodoTask** tasks = todo_list_upcoming(days, &count);
+    TodoTask** tasks = NULL;
 
-    if (!tasks || count == 0) {
-        printf("\033[32mNo upcoming reminders.\033[0m\n");
-        if (tasks) todo_free_tasks(tasks, count);
-        return 0;
+    if (strcmp(rem_filter, "week") == 0) {
+        tasks = todo_list_upcoming(7, &count);
+        printf("\n\033[1m⏰ Reminders (next 7 days)\033[0m\n\n");
+    } else if (strcmp(rem_filter, "all") == 0) {
+        // Get all tasks with context "reminder"
+        TodoFilter filter = {0};
+        filter.context = "reminder";
+        tasks = todo_list(&filter, &count);
+        printf("\n\033[1m⏰ All Reminders\033[0m\n\n");
+    } else {
+        tasks = todo_list_today(&count);
+        printf("\n\033[1m⏰ Today's Reminders\033[0m\n\n");
     }
 
-    printf("\033[1m%s\033[0m (%d)\n\n", header, count);
-
-    for (int i = 0; i < count; i++) {
-        TodoTask* t = tasks[i];
-
-        char time_str[64];
-        todo_format_date(t->due_date, time_str, sizeof(time_str), true);
-
-        // Status icon
-        const char* icon = (t->status == TODO_STATUS_COMPLETED) ? "\033[32m[x]\033[0m" :
-                           (t->status == TODO_STATUS_IN_PROGRESS) ? "\033[33m[>]\033[0m" : "[ ]";
-
-        printf("  %s #%-4lld %s \033[36m(%s)\033[0m\n",
-               icon, t->id, t->title, time_str);
-
-        if (t->description && t->description[0]) {
-            printf("            \033[90m%s\033[0m\n", t->description);
+    // Filter to only show reminders
+    int reminder_count = 0;
+    if (tasks && count > 0) {
+        for (int i = 0; i < count; i++) {
+            if (tasks[i]->context && strcmp(tasks[i]->context, "reminder") == 0) {
+                print_task_item(tasks[i]);
+                reminder_count++;
+            }
         }
+    }
+
+    if (reminder_count == 0) {
+        printf("  \033[90mNo reminders scheduled.\033[0m\n");
     }
 
     printf("\n");
-    todo_free_tasks(tasks, count);
+    if (tasks) todo_free_tasks(tasks, count);
     return 0;
 }

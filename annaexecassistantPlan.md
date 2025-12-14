@@ -3,7 +3,94 @@
 **Issue**: [#36](https://github.com/Roberdan/convergio-cli/issues/36)
 **ADR**: [ADR-009: Anna Executive Assistant](docs/adr/009-anna-executive-assistant.md)
 **Created**: 2025-12-14
-**Status**: Planning
+**Status**: In Progress (Phase 1 near completion)
+**Last Updated**: 2025-12-14
+
+---
+
+## EXECUTION STATUS
+
+### Phase 1: Native Todo Manager - 90% Complete
+
+| Task | Status | Notes |
+|------|--------|-------|
+| Database schema migration | **DONE** | Tables: tasks, notification_queue, inbox with FTS5 |
+| Todo API (`todo.h`, `todo.c`) | **DONE** | Full CRUD, search, inbox, stats |
+| CLI commands `/todo` | **DONE** | add, list, done, start, delete, inbox, search, stats |
+| Natural language date parsing | **DONE** | English + Italian: "tomorrow", "domani", "next monday", "lunedi prossimo" |
+| Enhanced date parsing | **DONE** | "tonight", "tomorrow morning", "at 3pm", "alle 14", "thursday in two weeks" |
+| Quick `/remind` command | **DONE** | Flexible syntax: `/remind "msg" when` or `/remind when "msg"` with `--note` |
+| `/reminders` command | **DONE** | View today/week/all reminders |
+| Makefile integration | **DONE** | todo module added to build |
+| Merge with main | **IN PROGRESS** | Resolving merge conflict in commands.c |
+| Compile and test | **PENDING** | Fixing API mismatches |
+
+### Phase 2: Notification System - Not Started
+
+| Task | Status |
+|------|--------|
+| Notification API design | PENDING |
+| terminal-notifier integration | PENDING |
+| osascript fallback | PENDING |
+| Daemon implementation | PENDING |
+| LaunchAgent plist | PENDING |
+| Daemon CLI commands | PENDING |
+
+### Phase 3: Generic MCP Client - Not Started
+
+| Task | Status |
+|------|--------|
+| MCP Client API | PENDING |
+| JSON-RPC 2.0 implementation | PENDING |
+| stdio transport | PENDING |
+| HTTP transport | PENDING |
+| Tool discovery | PENDING |
+| Configuration loader | PENDING |
+
+### Phase 4: Anna Agent - Not Started
+
+| Task | Status |
+|------|--------|
+| Agent definition | PENDING |
+| Custom tools (TodoRead, TodoWrite, etc.) | PENDING |
+| Ali integration | PENDING |
+| Natural language intent recognition | PENDING |
+
+### Phase 5: Documentation - Partially Done
+
+| Task | Status |
+|------|--------|
+| `/help todo` documentation | **DONE** (`docs/help/todo.md`) |
+| `/help remind` documentation | **DONE** (`docs/help/remind.md`) |
+| ADR-009 update | PENDING (needs completion) |
+| README updates | PENDING |
+| ANNA.md comprehensive docs | PENDING |
+
+---
+
+## KEY FILES CREATED/MODIFIED
+
+### New Files
+- `include/nous/todo.h` - Todo Manager API
+- `src/todo/todo.c` - Todo Manager implementation
+- `docs/help/todo.md` - /todo command help
+- `docs/help/remind.md` - /remind command help
+
+### Modified Files
+- `src/memory/persistence.c` - Added todo schema
+- `src/core/commands/commands.c` - Added /todo, /remind, /reminders commands
+- `src/orchestrator/orchestrator.c` - Added todo_init/shutdown
+- `Makefile` - Added todo module
+
+---
+
+## NEXT STEPS
+
+1. **Complete merge conflict resolution** - Fix API mismatches in commands.c
+2. **Compile and test** - Verify todo/remind/reminders work correctly
+3. **Commit merge** - Complete the merge from main
+4. **Update ADR-009** - Add comprehensive architecture documentation
+5. **Phase 2: Notification daemon** - Enable scheduled reminders
 
 ---
 
