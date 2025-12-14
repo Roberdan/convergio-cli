@@ -319,9 +319,7 @@ int nous_claude_init(void) {
     }
     free(auth_header);
 
-    // Initialize libcurl globally (thread-safe)
-    curl_global_init(CURL_GLOBAL_DEFAULT);
-
+    // Note: curl_global_init is called once in main.c at startup
     g_initialized = true;
     return 0;
 }
@@ -329,8 +327,7 @@ int nous_claude_init(void) {
 void nous_claude_shutdown(void) {
     if (!g_initialized) return;
 
-    curl_global_cleanup();
-
+    // Note: curl_global_cleanup is called once in main.c at shutdown
     // Note: auth_shutdown() is called separately in main.c
 
     g_initialized = false;

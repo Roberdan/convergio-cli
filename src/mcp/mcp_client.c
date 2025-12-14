@@ -98,9 +98,7 @@ int mcp_init(void) {
 
     pthread_mutex_init(&g_mcp.lock, NULL);
 
-    // Initialize curl for HTTP transport
-    curl_global_init(CURL_GLOBAL_DEFAULT);
-
+    // Note: curl_global_init is called once in main.c at startup
     g_mcp.initialized = true;
 
     // Try to load default config
