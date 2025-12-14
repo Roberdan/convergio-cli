@@ -12,7 +12,7 @@
 
 # Convergio CLI
 
-> **Your Virtual AI Executive Team** — A complete C-suite of 53 specialized AI agents, orchestrated by Ali, your Chief of Staff. One command, one interface, unlimited expertise.
+> **Your Virtual AI Executive Team** — A complete C-suite of 54 specialized AI agents, orchestrated by Ali, your Chief of Staff. One command, one interface, unlimited expertise.
 
 ## The Pitch
 
@@ -30,7 +30,8 @@
 | **Sara** | UX Designer | User-centered design excellence |
 | **Omri** | Data Scientist | ML, predictive modeling, analytics |
 | **Sofia** | Marketing Strategist | Growth hacking and brand strategy |
-| ... | **+45 more specialists** | Legal, HR, Creative, PM, and more |
+| **Anna** | Executive Assistant | Personal productivity, tasks, reminders |
+| ... | **+46 more specialists** | Legal, HR, Creative, PM, and more |
 
 **Ask Ali anything.** Behind the scenes, the right experts are automatically engaged, they collaborate in parallel, and Ali synthesizes their insights into a single, actionable response.
 
@@ -85,15 +86,22 @@ Built natively for Apple Silicon in pure C/Objective-C.
 
 > **⚠️ Disclaimer:** This software is provided "as is", without warranty of any kind. Use at your own risk. AI-generated content may contain errors - always verify critical information. See [full disclaimer](docs/DISCLAIMER.md).
 
-## What's New in v4.1
+## What's New in v4.2
+
+- **Anna Executive Assistant**: Personal productivity agent with native task management, smart reminders, and proactive scheduling
+- **Native Todo Manager** (`/todo`): Local-first task management with SQLite - priorities, due dates, recurrence, full-text search
+- **Quick Reminders** (`/remind`): Natural language reminder creation - "remind me tomorrow at 3pm" or "ricordami domani alle 15"
+- **Notification System** (`/daemon`): Background daemon for macOS notifications - never miss a reminder
+- **MCP Client Integration** (`/mcp`): Connect to Model Context Protocol servers for external tool integration
+- **New Commands**: `/reminders`, `/daemon`, `/mcp` for enhanced productivity workflows
+- **54 Specialist Agents**: Added Anna to the team (+1 from v4.1)
+
+### Previous Highlights (v4.1)
 
 - **Hybrid Embedding Strategy**: Intelligent online/offline semantic search - uses OpenAI embeddings when online, MLX locally when offline
 - **Git/Test Workflow Commands**: New `/test`, `/git`, and `/pr` commands for streamlined development workflows
 - **4 New Development Agents**: Rex (System Design), Dario (DevEx), Otto (CI/CD), Paolo (Backend Architecture)
 - **Feature Release Manager Agent**: Automated quality gates and release validation
-- **Budget/Theme Persistence**: Settings now persist correctly across sessions
-- **153 Compiler Warnings Fixed**: Production-quality build with zero warnings
-- **Enhanced E2E Tests**: Coverage for new workflow commands and embeddings
 
 ### Previous Highlights (v4.0)
 
@@ -442,6 +450,11 @@ Options:
 | `forget <id>` | Delete a memory by ID |
 | `graph` | Show graph structure and relations |
 | `recall` | View/load past session summaries |
+| `todo add\|list\|done\|start\|delete` | Native task manager |
+| `remind <msg> <when>` | Quick reminder with natural language time |
+| `reminders` | View upcoming scheduled reminders |
+| `daemon status\|start\|stop` | Manage notification daemon |
+| `mcp list\|connect\|tools` | Manage MCP server connections |
 | `test` | Auto-detect and run project tests |
 | `git status\|commit\|push\|sync` | Git workflow helper commands |
 | `pr [title]` | Create pull request via gh CLI |
@@ -892,7 +905,7 @@ MIT License - see [LICENSE](LICENSE) for details.
 
 ---
 
-*Convergio CLI v4.1.0 - Multi-Model AI Orchestration for Apple Silicon*
+*Convergio CLI v4.2.0 - Multi-Model AI Orchestration for Apple Silicon*
 
 *Developed by Roberto D'Angelo with AI assistance*
 
