@@ -93,7 +93,12 @@ public struct Message: Identifiable, Sendable {
         self.id = UInt64(bitPattern: Int64(truncatingIfNeeded: Int(bitPattern: cMessage)))
         self.type = MessageType(from: convergio_message_get_type(cMessage))
         self.senderId = convergio_message_get_sender(cMessage)
-        self.content = String(cString: convergio_message_get_content(cMessage) ?? "")
+
+        if let contentPtr = convergio_message_get_content(cMessage) {
+            self.content = String(cString: contentPtr)
+        } else {
+            self.content = ""
+        }
 
         let unix = convergio_message_get_timestamp(cMessage)
         self.timestamp = Date(timeIntervalSince1970: TimeInterval(unix))

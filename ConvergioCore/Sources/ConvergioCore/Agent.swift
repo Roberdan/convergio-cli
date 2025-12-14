@@ -122,8 +122,19 @@ public final class Agent: Identifiable, ObservableObject, Sendable {
 
         // Extract data from C
         self.id = convergio_agent_get_id(cAgent)
-        self.name = String(cString: convergio_agent_get_name(cAgent) ?? "Unknown")
-        self.description = String(cString: convergio_agent_get_description(cAgent) ?? "")
+
+        if let namePtr = convergio_agent_get_name(cAgent) {
+            self.name = String(cString: namePtr)
+        } else {
+            self.name = "Unknown"
+        }
+
+        if let descPtr = convergio_agent_get_description(cAgent) {
+            self.description = String(cString: descPtr)
+        } else {
+            self.description = ""
+        }
+
         self.role = AgentRole(from: convergio_agent_get_role(cAgent))
 
         // Initial state
@@ -159,7 +170,7 @@ public final class Agent: Identifiable, ObservableObject, Sendable {
 // MARK: - Agent Hashable & Equatable
 
 extension Agent: Hashable {
-    public static func == (lhs: Agent, rhs: Agent) -> Bool {
+    public nonisolated static func == (lhs: Agent, rhs: Agent) -> Bool {
         lhs.id == rhs.id
     }
 
