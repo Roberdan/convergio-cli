@@ -16,6 +16,7 @@
 
 #include "nous/mcp_client.h"
 #include "nous/config.h"
+#include "nous/nous.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -1390,13 +1391,13 @@ static size_t mcp_curl_write_cb(char* ptr, size_t size, size_t nmemb, void* user
 
     // Check response size limit to prevent OOM
     if (resp->size + realsize > MAX_MCP_RESPONSE_SIZE) {
-        LOG_ERROR(LOG_CAT_MCP, "MCP response exceeds maximum size (%d bytes)", MAX_MCP_RESPONSE_SIZE);
+        LOG_ERROR(LOG_CAT_SYSTEM, "MCP response exceeds maximum size (%d bytes)", MAX_MCP_RESPONSE_SIZE);
         return 0;  // Abort transfer
     }
 
     resp->data = realloc(resp->data, resp->size + realsize + 1);
     if (!resp->data) {
-        LOG_ERROR(LOG_CAT_MCP, "Failed to allocate memory for MCP response");
+        LOG_ERROR(LOG_CAT_SYSTEM, "Failed to allocate memory for MCP response");
         return 0;
     }
     memcpy(resp->data + resp->size, ptr, realsize);

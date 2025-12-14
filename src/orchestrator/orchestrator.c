@@ -833,12 +833,12 @@ char* orchestrator_process(const char* user_input) {
     StyleSettings style = convergio_get_style_settings();
     char* effective_prompt = NULL;
     if (!style.markdown) {
-        // Prepend no-markdown instruction
-        const char* no_md = "IMPORTANT: Do NOT use markdown formatting. No headers (#), no bold (**), no bullets (*/-), no code blocks (```). Give plain text responses only.\n\n";
-        size_t prompt_len = strlen(no_md) + strlen(g_orchestrator->ali->system_prompt) + 1;
+        // APPEND strong no-markdown instruction at the END (more effective)
+        const char* no_md = "\n\n## CRITICAL OUTPUT FORMAT RULES ##\nYou MUST follow these rules for THIS response:\n1. NO markdown whatsoever - no #headers, no **bold**, no *italic*, no `code`, no ```blocks```\n2. NO bullet points or lists - write in flowing paragraphs\n3. NO emojis\n4. Be BRIEF and DIRECT - 2-3 sentences maximum\n5. Plain text only, like a quick chat message\nVIOLATING THESE RULES IS NOT ALLOWED.";
+        size_t prompt_len = strlen(g_orchestrator->ali->system_prompt) + strlen(no_md) + 1;
         effective_prompt = malloc(prompt_len);
         if (effective_prompt) {
-            snprintf(effective_prompt, prompt_len, "%s%s", no_md, g_orchestrator->ali->system_prompt);
+            snprintf(effective_prompt, prompt_len, "%s%s", g_orchestrator->ali->system_prompt, no_md);
         }
     }
     const char* prompt_to_use = effective_prompt ? effective_prompt : g_orchestrator->ali->system_prompt;
@@ -1077,12 +1077,12 @@ char* orchestrator_process_stream(const char* user_input, OrchestratorStreamCall
     StyleSettings style = convergio_get_style_settings();
     char* effective_prompt = NULL;
     if (!style.markdown) {
-        // Prepend no-markdown instruction
-        const char* no_md = "IMPORTANT: Do NOT use markdown formatting. No headers (#), no bold (**), no bullets (*/-), no code blocks (```). Give plain text responses only.\n\n";
-        size_t prompt_len = strlen(no_md) + strlen(g_orchestrator->ali->system_prompt) + 1;
+        // APPEND strong no-markdown instruction at the END (more effective)
+        const char* no_md = "\n\n## CRITICAL OUTPUT FORMAT RULES ##\nYou MUST follow these rules for THIS response:\n1. NO markdown whatsoever - no #headers, no **bold**, no *italic*, no `code`, no ```blocks```\n2. NO bullet points or lists - write in flowing paragraphs\n3. NO emojis\n4. Be BRIEF and DIRECT - 2-3 sentences maximum\n5. Plain text only, like a quick chat message\nVIOLATING THESE RULES IS NOT ALLOWED.";
+        size_t prompt_len = strlen(g_orchestrator->ali->system_prompt) + strlen(no_md) + 1;
         effective_prompt = malloc(prompt_len);
         if (effective_prompt) {
-            snprintf(effective_prompt, prompt_len, "%s%s", no_md, g_orchestrator->ali->system_prompt);
+            snprintf(effective_prompt, prompt_len, "%s%s", g_orchestrator->ali->system_prompt, no_md);
         }
     }
 
