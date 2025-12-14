@@ -61,3 +61,5 @@ CMakeFiles/
 
 # Instruments/Profiling
 *.plist
+
+\!NOGIT
