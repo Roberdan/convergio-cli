@@ -28,6 +28,7 @@
 #include <signal.h>
 #include <spawn.h>
 #include <errno.h>
+#include <limits.h>
 #include <sys/wait.h>
 #include <sys/stat.h>
 #include <dispatch/dispatch.h>
@@ -177,20 +178,42 @@ NotifyResult notify_send(const NotifyOptions* options) {
 
     NotifyResult result;
 
-    // Try terminal-notifier first (best UX)
-    if (g_available_methods.terminal_notifier) {
+    // Check if we have an icon - if so, prefer terminal-notifier (supports icons)
+    char icon_path[PATH_MAX];
+    const char* home = getenv("HOME");
+    bool has_icon = false;
+    if (home) {
+        snprintf(icon_path, sizeof(icon_path), "%s/.convergio/icon.jpeg", home);
+        has_icon = (access(icon_path, R_OK) == 0);
+        if (!has_icon) {
+            snprintf(icon_path, sizeof(icon_path), "%s/.convergio/icon.png", home);
+            has_icon = (access(icon_path, R_OK) == 0);
+        }
+    }
+
+    // If we have icon, try terminal-notifier first (supports icons)
+    if (has_icon && g_available_methods.terminal_notifier) {
         result = send_via_terminal_notifier(options);
         if (result == NOTIFY_SUCCESS) {
-            os_log_debug(g_notify_log, "Sent via terminal-notifier");
+            os_log_debug(g_notify_log, "Sent via terminal-notifier (with icon)");
             return result;
         }
     }
 
-    // Fallback to osascript
+    // Try osascript (shows "Convergio" as title, no icon support)
     if (g_available_methods.osascript) {
         result = send_via_osascript(options);
         if (result == NOTIFY_SUCCESS) {
             os_log_debug(g_notify_log, "Sent via osascript");
+            return result;
+        }
+    }
+
+    // Fallback to terminal-notifier without icon
+    if (g_available_methods.terminal_notifier) {
+        result = send_via_terminal_notifier(options);
+        if (result == NOTIFY_SUCCESS) {
+            os_log_debug(g_notify_log, "Sent via terminal-notifier");
             return result;
         }
     }
@@ -280,32 +303,60 @@ static char* escape_quotes(const char* str, char quote_char) {
     return escaped;
 }
 
-// Method 1: terminal-notifier (best UX, supports actions)
+// Method 1: terminal-notifier (supports actions and icons)
 static NotifyResult send_via_terminal_notifier(const NotifyOptions* opts) {
     char cmd[4096];
     char* escaped_title = escape_quotes(opts->title, '\'');
     char* escaped_body = escape_quotes(opts->body, '\'');
     char* escaped_subtitle = opts->subtitle ? escape_quotes(opts->subtitle, '\'') : NULL;
 
+    // Check for icon in ~/.convergio/
+    char icon_path[PATH_MAX];
+    const char* home = getenv("HOME");
+    bool has_icon = false;
+    if (home) {
+        snprintf(icon_path, sizeof(icon_path), "%s/.convergio/icon.jpeg", home);
+        has_icon = (access(icon_path, R_OK) == 0);
+        if (!has_icon) {
+            snprintf(icon_path, sizeof(icon_path), "%s/.convergio/icon.png", home);
+            has_icon = (access(icon_path, R_OK) == 0);
+        }
+    }
+
+    // Build click action - open Terminal with Convergio for reminders
+    char click_action[512] = "";
+    if (opts->group && strcmp(opts->group, "convergio-reminders") == 0) {
+        // For reminders: open Terminal with Convergio
+        // The AppleScript opens Terminal and runs convergio
+        snprintf(click_action, sizeof(click_action),
+            "-execute \"osascript -e 'tell application \\\"Terminal\\\" to do script \\\"convergio\\\"' "
+            "-e 'tell application \\\"Terminal\\\" to activate'\" ");
+    } else if (opts->action_url) {
+        // For other notifications with URL
+        snprintf(click_action, sizeof(click_action), "-open '%s' ", opts->action_url);
+    }
+
+    // Build command with "Convergio" branding, icon, and optional action
     int written = snprintf(cmd, sizeof(cmd),
         "terminal-notifier "
-        "-title '%s' "
+        "-title 'Convergio' "
+        "-subtitle '%s%s%s' "
         "-message '%s' "
-        "%s%s%s "
         "-sound '%s' "
+        "%s%s%s "
         "-sender io.convergio.cli "
         "-group '%s' "
-        "%s%s%s",
+        "%s",
         escaped_title,
-        escaped_body,
-        escaped_subtitle ? "-subtitle '" : "",
+        escaped_subtitle ? " - " : "",
         escaped_subtitle ? escaped_subtitle : "",
-        escaped_subtitle ? "'" : "",
+        escaped_body,
         opts->sound ? opts->sound : "Glass",
+        has_icon ? "-appIcon '" : "",
+        has_icon ? icon_path : "",
+        has_icon ? "'" : "",
         opts->group ? opts->group : "convergio",
-        opts->action_url ? "-open '" : "",
-        opts->action_url ? opts->action_url : "",
-        opts->action_url ? "'" : "");
+        click_action);
 
     free(escaped_title);
     free(escaped_body);
@@ -326,16 +377,16 @@ static NotifyResult send_via_osascript(const NotifyOptions* opts) {
     char* escaped_body = escape_quotes(opts->body, '"');
     char* escaped_subtitle = opts->subtitle ? escape_quotes(opts->subtitle, '"') : NULL;
 
+    // Format: "Convergio" as main title, original title as subtitle
     int written = snprintf(cmd, sizeof(cmd),
         "osascript -e 'display notification \"%s\" "
-        "with title \"%s\" "
-        "%s%s%s "
+        "with title \"Convergio\" "
+        "subtitle \"%s%s%s\" "
         "sound name \"%s\"'",
         escaped_body,
         escaped_title,
-        escaped_subtitle ? "subtitle \"" : "",
+        escaped_subtitle ? " - " : "",
         escaped_subtitle ? escaped_subtitle : "",
-        escaped_subtitle ? "\"" : "",
         opts->sound ? opts->sound : "Glass");
 
     free(escaped_title);
@@ -429,8 +480,9 @@ bool notify_is_available(NotifyMethod method) {
 }
 
 NotifyMethod notify_get_best_method(void) {
-    if (g_available_methods.terminal_notifier) return NOTIFY_METHOD_NATIVE;
+    // Prefer osascript (shows "Convergio" as title)
     if (g_available_methods.osascript) return NOTIFY_METHOD_OSASCRIPT;
+    if (g_available_methods.terminal_notifier) return NOTIFY_METHOD_NATIVE;
     if (g_available_methods.terminal) return NOTIFY_METHOD_TERMINAL;
     if (g_available_methods.sound) return NOTIFY_METHOD_SOUND;
     return NOTIFY_METHOD_LOG;
@@ -805,12 +857,20 @@ static void daemon_check_pending(void) {
     for (int i = 0; i < batch_count; i++) {
         NotificationBatch* n = &g_batch[i];
 
+        // Format actionable message
+        char action_body[512];
+        if (n->body[0]) {
+            snprintf(action_body, sizeof(action_body), "%s", n->body);
+        } else {
+            snprintf(action_body, sizeof(action_body), "%s", n->title);
+        }
+
         NotifyOptions opts = {
             .title = "Reminder",
             .subtitle = n->title,
-            .body = n->body[0] ? n->body : n->title,
+            .body = action_body,
             .sound = n->sound,
-            .group = "convergio-reminders",
+            .group = "convergio-reminders",  // Click opens Convergio in Terminal
             .action_url = NULL,
             .timeout_ms = 0
         };

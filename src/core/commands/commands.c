@@ -3794,7 +3794,18 @@ int cmd_daemon(int argc, char** argv) {
 
     if (strcmp(subcmd, "test") == 0) {
         printf("Sending test notification...\n");
-        NotifyResult result = notify_send_simple("Convergio Test", "This is a test notification from Convergio.");
+        printf("(Click the notification to open Convergio)\n");
+        // Use reminder group to test click-to-open functionality
+        NotifyOptions opts = {
+            .title = "Test Notification",
+            .subtitle = NULL,
+            .body = "Click here to open Convergio",
+            .sound = "Glass",
+            .group = "convergio-reminders",  // This enables click-to-open
+            .action_url = NULL,
+            .timeout_ms = 0
+        };
+        NotifyResult result = notify_send(&opts);
         if (result == NOTIFY_SUCCESS) {
             printf("\033[32m✓ Test notification sent\033[0m\n");
         } else {
