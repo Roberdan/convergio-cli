@@ -72,9 +72,17 @@ typedef struct {
     size_t size;
 } ResponseBuffer;
 
+// Maximum response size for GitHub API (256KB should be plenty for release JSON)
+#define MAX_UPDATER_RESPONSE_SIZE (256 * 1024)
+
 static size_t write_callback(void* contents, size_t size, size_t nmemb, void* userp) {
     size_t realsize = size * nmemb;
     ResponseBuffer* buf = (ResponseBuffer*)userp;
+
+    // Check response size limit to prevent OOM
+    if (buf->size + realsize > MAX_UPDATER_RESPONSE_SIZE) {
+        return 0;  // Abort transfer
+    }
 
     char* ptr = realloc(buf->data, buf->size + realsize + 1);
     if (!ptr) {
