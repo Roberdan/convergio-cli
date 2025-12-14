@@ -843,13 +843,15 @@ int cmd_help(int argc, char** argv) {
     printf("   \033[36m@baccio\033[0m            Software Architect\n");
     printf("   \033[36m@marco\033[0m             Senior Developer\n");
     printf("   \033[36m@jenny\033[0m             Accessibility Expert\n");
-    printf("   \033[36m@<name> message\033[0m    Talk directly to any agent\n");
+    printf("   \033[36m@<name>\033[0m            Switch to talk with agent (Tab autocomplete)\n");
+    printf("   \033[36m@<name> message\033[0m    Send message directly to agent\n");
     printf("   \033[36magents\033[0m             See all 53 agents with their specialties\n");
-    printf("   \033[2m   Tip: Just type @ali to return to Ali from any agent\033[0m\n\n");
+    printf("   \033[2m   Tip: @ali or 'back' returns to Ali from any agent\033[0m\n\n");
 
     // ANNA - Executive Assistant
     printf("\033[1;33m👩‍💼 ANNA - Executive Assistant\033[0m  \033[2m(your personal productivity hub)\033[0m\n");
-    printf("   \033[36m@anna <task>\033[0m           Natural language task management (IT/EN)\n");
+    printf("   \033[36m@anna\033[0m                  Switch to Anna for task management\n");
+    printf("   \033[36m@anna <task>\033[0m           Send task to Anna (IT/EN supported)\n");
     printf("   \033[36mtodo\033[0m / \033[36mtodo list\033[0m      List your tasks with priorities\n");
     printf("   \033[36mtodo add <task>\033[0m        Add a new task (supports @agent delegation)\n");
     printf("   \033[36mtodo done <id>\033[0m         Mark task as completed\n");

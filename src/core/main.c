@@ -20,6 +20,7 @@
 #include "nous/signals.h"
 #include "nous/projects.h"
 #include "nous/mlx.h"
+#include "nous/notify.h"
 #include "../auth/oauth.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -535,6 +536,9 @@ int main(int argc, char** argv) {
 
     // Initialize projects
     projects_init();
+
+    // Initialize notification system (for daemon, reminders, etc.)
+    notify_init();
 
     // Only show status if there were errors during initialization
     (void)init_errors;  // Suppress unused warning - errors already printed

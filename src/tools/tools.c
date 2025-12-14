@@ -7,6 +7,8 @@
 #include "nous/tools.h"
 #include "nous/config.h"
 #include "nous/projects.h"
+#include "nous/todo.h"
+#include "nous/notify.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -281,6 +283,82 @@ static const char* TOOLS_JSON =
 "        \"agent_name\": {\"type\": \"string\", \"description\": \"Name of the agent to add/remove (e.g. 'baccio', 'stefano')\"}\n"
 "      },\n"
 "      \"required\": [\"action\"]\n"
+"    }\n"
+"  },\n"
+"  {\n"
+"    \"name\": \"todo_create\",\n"
+"    \"description\": \"Create a new task/todo item. Use for reminders and task management.\",\n"
+"    \"input_schema\": {\n"
+"      \"type\": \"object\",\n"
+"      \"properties\": {\n"
+"        \"title\": {\"type\": \"string\", \"description\": \"Task title (what to do)\"},\n"
+"        \"description\": {\"type\": \"string\", \"description\": \"Optional detailed description\"},\n"
+"        \"priority\": {\"type\": \"string\", \"enum\": [\"critical\", \"high\", \"normal\", \"low\"], \"description\": \"Task priority (default: normal)\"},\n"
+"        \"due_date\": {\"type\": \"string\", \"description\": \"When task is due (e.g. '2024-12-15 14:30', 'tomorrow', 'in 2 hours', 'tra 2 minuti')\"},\n"
+"        \"tags\": {\"type\": \"string\", \"description\": \"Comma-separated tags for categorization\"}\n"
+"      },\n"
+"      \"required\": [\"title\"]\n"
+"    }\n"
+"  },\n"
+"  {\n"
+"    \"name\": \"todo_list\",\n"
+"    \"description\": \"List tasks/todos with optional filters.\",\n"
+"    \"input_schema\": {\n"
+"      \"type\": \"object\",\n"
+"      \"properties\": {\n"
+"        \"status\": {\"type\": \"string\", \"enum\": [\"pending\", \"in_progress\", \"completed\", \"all\"], \"description\": \"Filter by status (default: pending)\"},\n"
+"        \"priority\": {\"type\": \"string\", \"enum\": [\"critical\", \"high\", \"normal\", \"low\", \"all\"], \"description\": \"Filter by priority\"},\n"
+"        \"limit\": {\"type\": \"integer\", \"description\": \"Maximum tasks to return (default: 10)\"}\n"
+"      }\n"
+"    }\n"
+"  },\n"
+"  {\n"
+"    \"name\": \"todo_update\",\n"
+"    \"description\": \"Update an existing task by ID.\",\n"
+"    \"input_schema\": {\n"
+"      \"type\": \"object\",\n"
+"      \"properties\": {\n"
+"        \"task_id\": {\"type\": \"integer\", \"description\": \"ID of the task to update\"},\n"
+"        \"status\": {\"type\": \"string\", \"enum\": [\"pending\", \"in_progress\", \"completed\", \"cancelled\"], \"description\": \"New status\"},\n"
+"        \"priority\": {\"type\": \"string\", \"enum\": [\"critical\", \"high\", \"normal\", \"low\"], \"description\": \"New priority\"},\n"
+"        \"due_date\": {\"type\": \"string\", \"description\": \"New due date\"}\n"
+"      },\n"
+"      \"required\": [\"task_id\"]\n"
+"    }\n"
+"  },\n"
+"  {\n"
+"    \"name\": \"todo_delete\",\n"
+"    \"description\": \"Delete a task by ID.\",\n"
+"    \"input_schema\": {\n"
+"      \"type\": \"object\",\n"
+"      \"properties\": {\n"
+"        \"task_id\": {\"type\": \"integer\", \"description\": \"ID of the task to delete\"}\n"
+"      },\n"
+"      \"required\": [\"task_id\"]\n"
+"    }\n"
+"  },\n"
+"  {\n"
+"    \"name\": \"notify_schedule\",\n"
+"    \"description\": \"Schedule a macOS notification/reminder for a specific time.\",\n"
+"    \"input_schema\": {\n"
+"      \"type\": \"object\",\n"
+"      \"properties\": {\n"
+"        \"message\": {\"type\": \"string\", \"description\": \"The reminder message to display\"},\n"
+"        \"when\": {\"type\": \"string\", \"description\": \"When to show notification (e.g. '14:30', 'in 2 hours', 'tra 5 minuti', 'tomorrow 9am')\"},\n"
+"        \"sound\": {\"type\": \"string\", \"enum\": [\"default\", \"ping\", \"basso\", \"blow\", \"bottle\", \"frog\", \"funk\", \"glass\", \"hero\", \"morse\", \"pop\", \"purr\", \"sosumi\", \"submarine\", \"tink\"], \"description\": \"Notification sound (default: default)\"}\n"
+"      },\n"
+"      \"required\": [\"message\", \"when\"]\n"
+"    }\n"
+"  },\n"
+"  {\n"
+"    \"name\": \"notify_cancel\",\n"
+"    \"description\": \"Cancel a scheduled notification by ID.\",\n"
+"    \"input_schema\": {\n"
+"      \"type\": \"object\",\n"
+"      \"properties\": {\n"
+"        \"notify_id\": {\"type\": \"integer\", \"description\": \"ID of the notification to cancel\"}\n"
+"      },\n"
+"      \"required\": [\"notify_id\"]\n"
 "    }\n"
 "  }\n"
 "]\n";
@@ -2013,6 +2091,18 @@ LocalToolCall* tools_parse_call(const char* tool_name, const char* arguments_jso
         call->type = TOOL_KNOWLEDGE_ADD;
     } else if (strcmp(tool_name, "project_team") == 0) {
         call->type = TOOL_PROJECT_TEAM;
+    } else if (strcmp(tool_name, "todo_create") == 0) {
+        call->type = TOOL_TODO_CREATE;
+    } else if (strcmp(tool_name, "todo_list") == 0) {
+        call->type = TOOL_TODO_LIST;
+    } else if (strcmp(tool_name, "todo_update") == 0) {
+        call->type = TOOL_TODO_UPDATE;
+    } else if (strcmp(tool_name, "todo_delete") == 0) {
+        call->type = TOOL_TODO_DELETE;
+    } else if (strcmp(tool_name, "notify_schedule") == 0) {
+        call->type = TOOL_NOTIFY_SCHEDULE;
+    } else if (strcmp(tool_name, "notify_cancel") == 0) {
+        call->type = TOOL_NOTIFY_CANCEL;
     } else {
         tools_free_call(call);
         return NULL;
@@ -2154,7 +2244,318 @@ ToolResult* tools_execute(const LocalToolCall* call) {
             return r;
         }
 
+        case TOOL_TODO_CREATE: {
+            char* title = json_get_string(args, "title");
+            char* description = json_get_string(args, "description");
+            char* priority = json_get_string(args, "priority");
+            char* due_date = json_get_string(args, "due_date");
+            char* tags = json_get_string(args, "tags");
+            ToolResult* r = tool_todo_create(title, description, priority, due_date, tags);
+            free(title);
+            free(description);
+            free(priority);
+            free(due_date);
+            free(tags);
+            return r;
+        }
+
+        case TOOL_TODO_LIST: {
+            char* status = json_get_string(args, "status");
+            char* priority = json_get_string(args, "priority");
+            int limit = json_get_int(args, "limit", 10);
+            ToolResult* r = tool_todo_list(status, priority, limit);
+            free(status);
+            free(priority);
+            return r;
+        }
+
+        case TOOL_TODO_UPDATE: {
+            int64_t task_id = (int64_t)json_get_int(args, "task_id", 0);
+            char* status = json_get_string(args, "status");
+            char* priority = json_get_string(args, "priority");
+            char* due_date = json_get_string(args, "due_date");
+            ToolResult* r = tool_todo_update(task_id, status, priority, due_date);
+            free(status);
+            free(priority);
+            free(due_date);
+            return r;
+        }
+
+        case TOOL_TODO_DELETE: {
+            int64_t task_id = (int64_t)json_get_int(args, "task_id", 0);
+            ToolResult* r = tool_todo_delete(task_id);
+            return r;
+        }
+
+        case TOOL_NOTIFY_SCHEDULE: {
+            char* message = json_get_string(args, "message");
+            char* when = json_get_string(args, "when");
+            char* sound = json_get_string(args, "sound");
+            ToolResult* r = tool_notify_schedule(message, when, sound);
+            free(message);
+            free(when);
+            free(sound);
+            return r;
+        }
+
+        case TOOL_NOTIFY_CANCEL: {
+            int64_t notify_id = (int64_t)json_get_int(args, "notify_id", 0);
+            ToolResult* r = tool_notify_cancel(notify_id);
+            return r;
+        }
+
         default:
             return result_error("Unknown tool type");
     }
+}
+
+// ============================================================================
+// TODO TOOLS (Anna's task management)
+// ============================================================================
+
+// Helper: Convert priority string to enum
+static TodoPriority parse_priority(const char* str) {
+    if (!str) return TODO_PRIORITY_NORMAL;
+    if (strcasecmp(str, "critical") == 0 || strcasecmp(str, "urgent") == 0) return TODO_PRIORITY_URGENT;
+    if (strcasecmp(str, "high") == 0) return TODO_PRIORITY_URGENT;
+    if (strcasecmp(str, "low") == 0) return TODO_PRIORITY_LOW;
+    return TODO_PRIORITY_NORMAL;
+}
+
+// Helper: Convert status string to enum
+static TodoStatus parse_status(const char* str) {
+    if (!str) return TODO_STATUS_PENDING;
+    if (strcasecmp(str, "in_progress") == 0) return TODO_STATUS_IN_PROGRESS;
+    if (strcasecmp(str, "completed") == 0) return TODO_STATUS_COMPLETED;
+    if (strcasecmp(str, "cancelled") == 0) return TODO_STATUS_CANCELLED;
+    return TODO_STATUS_PENDING;
+}
+
+ToolResult* tool_todo_create(const char* title, const char* description, const char* priority,
+                             const char* due_date, const char* tags) {
+    if (!title || strlen(title) == 0) {
+        return result_error("Task title is required");
+    }
+
+    TodoCreateOptions opts = {
+        .title = title,
+        .description = description,
+        .priority = parse_priority(priority),
+        .due_date = due_date ? todo_parse_date(due_date, time(NULL)) : 0,
+        .reminder_at = 0,
+        .recurrence = TODO_RECURRENCE_NONE,
+        .recurrence_rule = NULL,
+        .tags = tags,
+        .context = NULL,
+        .parent_id = 0,
+        .source = TODO_SOURCE_AGENT,
+        .external_id = NULL
+    };
+
+    int64_t task_id = todo_create(&opts);
+    if (task_id < 0) {
+        return result_error("Failed to create task");
+    }
+
+    // Format success response
+    char response[512];
+    if (opts.due_date > 0) {
+        char due_str[64];
+        struct tm* tm = localtime(&opts.due_date);
+        strftime(due_str, sizeof(due_str), "%Y-%m-%d %H:%M", tm);
+        snprintf(response, sizeof(response),
+                 "Task created successfully:\n- ID: %lld\n- Title: %s\n- Due: %s\n- Priority: %s",
+                 (long long)task_id, title, due_str, priority ? priority : "normal");
+    } else {
+        snprintf(response, sizeof(response),
+                 "Task created successfully:\n- ID: %lld\n- Title: %s\n- Priority: %s",
+                 (long long)task_id, title, priority ? priority : "normal");
+    }
+
+    return result_success(response);
+}
+
+ToolResult* tool_todo_list(const char* status, const char* priority, int limit) {
+    TodoFilter filter = {0};
+    TodoStatus status_arr[1];
+    TodoPriority priority_arr[1];
+
+    // Parse status filter
+    if (status && strcasecmp(status, "all") != 0) {
+        status_arr[0] = parse_status(status);
+        filter.statuses = status_arr;
+        filter.status_count = 1;
+    }
+
+    // Parse priority filter
+    if (priority && strcasecmp(priority, "all") != 0) {
+        priority_arr[0] = parse_priority(priority);
+        filter.priorities = priority_arr;
+        filter.priority_count = 1;
+    }
+
+    filter.limit = limit > 0 ? limit : 10;
+    filter.include_completed = (status && strcasecmp(status, "completed") == 0);
+
+    int count = 0;
+    TodoTask** tasks = todo_list(&filter, &count);
+
+    if (!tasks || count == 0) {
+        return result_success("No tasks found matching the filter.");
+    }
+
+    // Build response
+    size_t buf_size = 4096;
+    char* buf = malloc(buf_size);
+    size_t pos = 0;
+
+    pos += snprintf(buf + pos, buf_size - pos, "Found %d task(s):\n\n", count);
+
+    for (int i = 0; i < count && pos < buf_size - 200; i++) {
+        TodoTask* t = tasks[i];
+        const char* status_str = t->status == TODO_STATUS_PENDING ? "pending" :
+                                 t->status == TODO_STATUS_IN_PROGRESS ? "in_progress" :
+                                 t->status == TODO_STATUS_COMPLETED ? "completed" : "cancelled";
+        const char* pri_str = t->priority == TODO_PRIORITY_URGENT ? "high" :
+                              t->priority == TODO_PRIORITY_LOW ? "low" : "normal";
+
+        pos += snprintf(buf + pos, buf_size - pos, "[%lld] %s\n", (long long)t->id, t->title);
+        pos += snprintf(buf + pos, buf_size - pos, "    Status: %s | Priority: %s\n", status_str, pri_str);
+
+        if (t->due_date > 0) {
+            char due_str[64];
+            struct tm* tm = localtime(&t->due_date);
+            strftime(due_str, sizeof(due_str), "%Y-%m-%d %H:%M", tm);
+            pos += snprintf(buf + pos, buf_size - pos, "    Due: %s\n", due_str);
+        }
+
+        pos += snprintf(buf + pos, buf_size - pos, "\n");
+        todo_free_task(t);
+    }
+    free(tasks);
+
+    ToolResult* r = result_success(buf);
+    free(buf);
+    return r;
+}
+
+ToolResult* tool_todo_update(int64_t task_id, const char* status, const char* priority,
+                             const char* due_date) {
+    if (task_id <= 0) {
+        return result_error("Invalid task ID");
+    }
+
+    // First check if task exists
+    TodoTask* existing = todo_get(task_id);
+    if (!existing) {
+        return result_error("Task not found");
+    }
+
+    // Handle status change
+    if (status) {
+        TodoStatus new_status = parse_status(status);
+        if (new_status == TODO_STATUS_COMPLETED) {
+            todo_complete(task_id);
+        } else {
+            TodoCreateOptions opts = {0};
+            opts.priority = priority ? parse_priority(priority) : existing->priority;
+            opts.due_date = due_date ? todo_parse_date(due_date, time(NULL)) : existing->due_date;
+            // Note: We can't directly set status via update, so we just update other fields
+            todo_update(task_id, &opts);
+        }
+    } else if (priority || due_date) {
+        TodoCreateOptions opts = {0};
+        opts.priority = priority ? parse_priority(priority) : existing->priority;
+        opts.due_date = due_date ? todo_parse_date(due_date, time(NULL)) : existing->due_date;
+        todo_update(task_id, &opts);
+    }
+
+    todo_free_task(existing);
+
+    char response[128];
+    snprintf(response, sizeof(response), "Task %lld updated successfully.", (long long)task_id);
+    return result_success(response);
+}
+
+ToolResult* tool_todo_delete(int64_t task_id) {
+    if (task_id <= 0) {
+        return result_error("Invalid task ID");
+    }
+
+    int result = todo_delete(task_id);
+    if (result != 0) {
+        return result_error("Failed to delete task (may not exist)");
+    }
+
+    char response[128];
+    snprintf(response, sizeof(response), "Task %lld deleted successfully.", (long long)task_id);
+    return result_success(response);
+}
+
+// ============================================================================
+// NOTIFICATION TOOLS (Anna's reminder system)
+// ============================================================================
+
+ToolResult* tool_notify_schedule(const char* message, const char* when, const char* sound) {
+    if (!message || strlen(message) == 0) {
+        return result_error("Reminder message is required");
+    }
+    if (!when || strlen(when) == 0) {
+        return result_error("Time is required (e.g., 'in 2 hours', 'tra 5 minuti', '14:30')");
+    }
+
+    // Parse the time using natural language parser
+    time_t fire_at = todo_parse_date(when, time(NULL));
+    if (fire_at <= time(NULL)) {
+        return result_error("Scheduled time must be in the future");
+    }
+
+    // Create a task for the reminder (so it appears in task list)
+    TodoCreateOptions task_opts = {
+        .title = message,
+        .description = "Scheduled reminder",
+        .priority = TODO_PRIORITY_NORMAL,
+        .due_date = fire_at,
+        .reminder_at = fire_at,
+        .source = TODO_SOURCE_AGENT
+    };
+    int64_t task_id = todo_create(&task_opts);
+
+    // Schedule the notification
+    int64_t notify_id = notify_schedule(task_id, fire_at, NOTIFY_METHOD_NATIVE);
+    if (notify_id < 0) {
+        // Try osascript as fallback
+        notify_id = notify_schedule(task_id, fire_at, NOTIFY_METHOD_OSASCRIPT);
+    }
+
+    if (notify_id < 0) {
+        return result_error("Failed to schedule notification");
+    }
+
+    // Format response
+    char response[256];
+    char time_str[64];
+    struct tm* tm = localtime(&fire_at);
+    strftime(time_str, sizeof(time_str), "%Y-%m-%d %H:%M", tm);
+
+    snprintf(response, sizeof(response),
+             "Reminder scheduled:\n- Message: %s\n- Time: %s\n- Notification ID: %lld",
+             message, time_str, (long long)notify_id);
+
+    return result_success(response);
+}
+
+ToolResult* tool_notify_cancel(int64_t notify_id) {
+    if (notify_id <= 0) {
+        return result_error("Invalid notification ID");
+    }
+
+    int result = notify_cancel(notify_id);
+    if (result != 0) {
+        return result_error("Failed to cancel notification (may not exist)");
+    }
+
+    char response[128];
+    snprintf(response, sizeof(response), "Notification %lld cancelled successfully.", (long long)notify_id);
+    return result_success(response);
 }
