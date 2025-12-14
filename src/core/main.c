@@ -466,8 +466,9 @@ int main(int argc, char** argv) {
         agent_config_load_directory(config_path);
     }
 
-    // Initialize Orchestrator with Ali
-    if (orchestrator_init(DEFAULT_BUDGET_USD) != 0) {
+    // Initialize Orchestrator with budget from config (or default)
+    double budget = g_config.budget_limit > 0 ? g_config.budget_limit : DEFAULT_BUDGET_USD;
+    if (orchestrator_init(budget) != 0) {
         fprintf(stderr, "  \033[31m✗ Orchestrator initialization failed\033[0m\n");
         init_errors = true;
     }

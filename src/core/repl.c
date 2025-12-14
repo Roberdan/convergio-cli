@@ -212,6 +212,10 @@ static void* spinner_func(void* arg) {
     int verb_index = 0;
     int ticks = 0;
 
+    // Get spinner color from theme (before entering loop, as theme is read-only during spin)
+    const Theme* t = theme_get();
+    const char* spinner_color = t->spinner ? t->spinner : "\033[38;5;208m";  // Orange fallback
+
     // Save terminal settings and enable raw mode for ESC detection
     struct termios raw;
     tcgetattr(STDIN_FILENO, &g_orig_termios);
@@ -238,9 +242,9 @@ static void* spinner_func(void* arg) {
             verb_index = (verb_index + 1) % SPINNER_VERB_COUNT;
         }
 
-        // Colored spinner with dynamic verb (using standard ANSI colors for compatibility)
-        printf(ANSI_CURSOR_START ANSI_CYAN "%s" ANSI_RESET " " ANSI_DIM "%s..." ANSI_RESET "  (ESC to cancel)  ",
-               frames[frame], SPINNER_VERBS[verb_index]);
+        // Colored spinner with theme color (default: orange like Claude Code)
+        printf(ANSI_CURSOR_START "%s%s" ANSI_RESET " " ANSI_DIM "%s..." ANSI_RESET "  (ESC to cancel)  ",
+               spinner_color, frames[frame], SPINNER_VERBS[verb_index]);
         fflush(stdout);
 
         frame = (frame + 1) % 10;

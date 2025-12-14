@@ -76,6 +76,7 @@ static const Theme THEMES[THEME_COUNT] = {
 
         .separator     = DIM CYAN,
         .cost          = COLOR256(39),
+        .spinner       = COLOR256(208),          // Orange (like Claude Code)
     },
 
     // THEME_FOREST - Green nature tones
@@ -105,6 +106,7 @@ static const Theme THEMES[THEME_COUNT] = {
 
         .separator     = DIM GREEN,
         .cost          = COLOR256(34),
+        .spinner       = COLOR256(208),          // Orange (like Claude Code)
     },
 
     // THEME_SUNSET - Warm orange/red tones
@@ -134,6 +136,7 @@ static const Theme THEMES[THEME_COUNT] = {
 
         .separator     = DIM COLOR256(208),
         .cost          = COLOR256(208),
+        .spinner       = COLOR256(208),          // Orange (same as theme)
     },
 
     // THEME_MONO - Classic grayscale
@@ -163,6 +166,7 @@ static const Theme THEMES[THEME_COUNT] = {
 
         .separator     = DIM,
         .cost          = WHITE,
+        .spinner       = WHITE,                  // White spinner for mono theme
     },
 
     // THEME_LIGHT - Light mode for bright environments
@@ -192,6 +196,7 @@ static const Theme THEMES[THEME_COUNT] = {
 
         .separator     = COLOR256(250),          // Light gray
         .cost          = COLOR256(24),
+        .spinner       = COLOR256(208),          // Orange (like Claude Code)
     },
 
     // THEME_DARK - Dark mode optimized for OLED
@@ -221,6 +226,7 @@ static const Theme THEMES[THEME_COUNT] = {
 
         .separator     = COLOR256(238),          // Dark gray
         .cost          = COLOR256(141),
+        .spinner       = COLOR256(208),          // Orange (like Claude Code)
     },
 
     // THEME_COLORBLIND - Accessible for all color vision types
@@ -253,6 +259,7 @@ static const Theme THEMES[THEME_COUNT] = {
 
         .separator     = COLOR256(244),          // Gray
         .cost          = COLOR256(75),           // Sky blue
+        .spinner       = COLOR256(214),          // Orange (accessible contrast)
     },
 };
 
