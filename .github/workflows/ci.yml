@@ -54,8 +54,10 @@ jobs:
       - name: Run clang-tidy
         continue-on-error: true
         run: |
+          # Run clang-tidy on all .c files (no limit - full analysis)
           export PATH="/opt/homebrew/opt/llvm/bin:$PATH"
-          find src -name "*.c" -type f | head -5 | xargs -P4 -I{} sh -c 'echo "Checking {}..." && clang-tidy {} -- -Iinclude -std=c17 2>&1 || true'
+          echo "=== Running clang-tidy on all source files ==="
+          find src -name "*.c" -type f | xargs -P4 -I{} sh -c 'echo "Checking {}..." && clang-tidy {} -- -Iinclude -std=c17 2>&1 || true'
 
   # ============================================================================
   # BUILD - single job that produces all artifacts with ccache
@@ -146,6 +148,43 @@ jobs:
           retention-days: 7
 
   # ============================================================================
+  # SANITIZER TESTS - memory and undefined behavior detection
+  # ============================================================================
+
+  sanitizer-tests:
+    name: Sanitizer Tests
+    runs-on: macos-14
+    needs: build
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          brew install cjson
+          brew link cjson --overwrite 2>/dev/null || true
+
+      - name: Select Xcode
+        run: sudo xcode-select -s ${{ env.XCODE_VERSION }}
+
+      # Build with sanitizers enabled (AddressSanitizer + UndefinedBehaviorSanitizer)
+      # DEBUG=1 in Makefile enables: -fsanitize=address,undefined
+      - name: Build with sanitizers
+        run: |
+          echo "=== Building with AddressSanitizer and UBSan (DEBUG=1) ==="
+          make clean
+          make unit_test DEBUG=1 2>&1
+
+      - name: Run unit tests with sanitizers
+        run: |
+          echo "=== Running unit tests with sanitizers ==="
+          # ASAN_OPTIONS: detect memory issues, abort on error
+          # UBSAN_OPTIONS: print stack trace on UB detection
+          export ASAN_OPTIONS="abort_on_error=1:detect_leaks=1"
+          export UBSAN_OPTIONS="print_stacktrace=1:halt_on_error=1"
+          ./build/bin/unit_test
+
+  # ============================================================================
   # E2E TESTS - uses release artifact (no rebuild)
   # ============================================================================
 
@@ -183,14 +222,16 @@ jobs:
   ci-success:
     name: CI Success
     runs-on: macos-14
-    needs: [lint-and-analysis, build, e2e-tests]
+    needs: [lint-and-analysis, build, sanitizer-tests, e2e-tests]
     if: always()
     steps:
       - name: Check all jobs passed
         run: |
+          # Required jobs: lint, build, sanitizers
           # E2E tests are continue-on-error (TODO: fix quiet mode banner)
           if [ "${{ needs.lint-and-analysis.result }}" != "success" ] || \
-             [ "${{ needs.build.result }}" != "success" ]; then
+             [ "${{ needs.build.result }}" != "success" ] || \
+             [ "${{ needs.sanitizer-tests.result }}" != "success" ]; then
             echo "::error::One or more required jobs failed"
             exit 1
           fi
