@@ -424,26 +424,33 @@ static int execute_find(TokenStream* ts) {
         return -1;
     }
 
-    // Create query embedding and search
-    // For now, just acknowledge
+    // Search using semantic embeddings (OpenAI when online, fallback to keyword)
     char msg[256];
     snprintf(msg, sizeof(msg), "Cerco: \"%s\"...", query);
     output(msg);
 
-    // LIMITATION: Semantic search not yet implemented
-    // Current behavior: Placeholder implementation with keyword matching
-    //
-    // Blocking factors:
-    // - MLX embedding model weights not yet available in distribution
-    // - Requires integration with src/neural/mlx_embed.m embeddings
-    // - Need to establish proper vector similarity search backend
-    //
-    // Planned approach:
-    // 1. Generate embeddings for input query using MLX embeddings
-    // 2. Query vector database for semantically similar nodes
-    // 3. Return ranked results by cosine similarity
+    // Use persistence layer to search memories
+    extern char** persistence_search_memories(const char* query, size_t max_results,
+                                              float min_similarity, size_t* out_count);
+    size_t count = 0;
+    char** results = persistence_search_memories(query, 5, 0.3f, &count);
 
-    output("(Ricerca semantica non ancora implementata)");
+    if (results && count > 0) {
+        char result_msg[2048];
+        int len = snprintf(result_msg, sizeof(result_msg), "Trovati %zu risultati:\n\n", count);
+        for (size_t i = 0; i < count && len < (int)sizeof(result_msg) - 100; i++) {
+            if (results[i]) {
+                len += snprintf(result_msg + len, sizeof(result_msg) - (size_t)len,
+                               "[%zu] %s\n", i + 1, results[i]);
+                free(results[i]);
+            }
+        }
+        free(results);
+        output(result_msg);
+    } else {
+        output("Nessun risultato trovato.");
+    }
+
     return 0;
 }
 
