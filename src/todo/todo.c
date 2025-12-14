@@ -61,6 +61,24 @@ static const char* g_stmt_names[STMT_CACHE_SIZE] = {
     [STMT_GET_STATS] = "STMT_GET_STATS",
 };
 
+static const char* SQL_STATS =
+    "SELECT "
+    "(SELECT COUNT(*) FROM tasks WHERE status = 0), "
+    "(SELECT COUNT(*) FROM tasks WHERE status = 1), "
+    "(SELECT COUNT(*) FROM tasks WHERE status = 2 AND date(completed_at) = date('now')), "
+    "(SELECT COUNT(*) FROM tasks WHERE status = 2 AND date(completed_at) >= date('now', '-7 days')), "
+    "(SELECT COUNT(*) FROM tasks WHERE status IN (0,1) AND due_date IS NOT NULL AND datetime(due_date) < datetime('now')), "
+    "(SELECT COUNT(*) FROM inbox WHERE processed = 0)";
+
+void todo_invalidate_stats_statement(void) {
+    pthread_mutex_lock(&g_db_mutex);
+    if (g_stmts[STMT_GET_STATS]) {
+        sqlite3_finalize(g_stmts[STMT_GET_STATS]);
+        g_stmts[STMT_GET_STATS] = NULL;
+    }
+    pthread_mutex_unlock(&g_db_mutex);
+}
+
 // ============================================================================
 // INTERNAL HELPERS
 // ============================================================================
@@ -285,15 +303,6 @@ int todo_init(void) {
         "WHERE tasks_fts MATCH ? AND t.status IN (0, 1) "
         "ORDER BY rank LIMIT 50";
 
-    const char* sql_stats =
-        "SELECT "
-        "(SELECT COUNT(*) FROM tasks WHERE status = 0), "
-        "(SELECT COUNT(*) FROM tasks WHERE status = 1), "
-        "(SELECT COUNT(*) FROM tasks WHERE status = 2 AND date(completed_at) = date('now')), "
-        "(SELECT COUNT(*) FROM tasks WHERE status = 2 AND date(completed_at) >= date('now', '-7 days')), "
-        "(SELECT COUNT(*) FROM tasks WHERE status IN (0,1) AND due_date IS NOT NULL AND datetime(due_date) < datetime('now')), "
-        "(SELECT COUNT(*) FROM inbox WHERE processed = 0)";
-
     pthread_mutex_lock(&g_db_mutex);
 
     if (prepare_statement(STMT_INSERT_TASK, sql_insert) != SQLITE_OK) goto init_error;
@@ -304,7 +313,7 @@ int todo_init(void) {
     if (prepare_statement(STMT_INSERT_INBOX, sql_insert_inbox) != SQLITE_OK) goto init_error;
     if (prepare_statement(STMT_LIST_INBOX, sql_list_inbox) != SQLITE_OK) goto init_error;
     if (prepare_statement(STMT_SEARCH_FTS, sql_search) != SQLITE_OK) goto init_error;
-    if (prepare_statement(STMT_GET_STATS, sql_stats) != SQLITE_OK) goto init_error;
+    if (prepare_statement(STMT_GET_STATS, SQL_STATS) != SQLITE_OK) goto init_error;
 
     pthread_mutex_unlock(&g_db_mutex);
 
@@ -884,8 +893,16 @@ TodoStats todo_get_stats(void) {
     if (!g_todo_initialized && todo_init() != 0) return stats;
 
     pthread_mutex_lock(&g_db_mutex);
-
     sqlite3_stmt* stmt = g_stmts[STMT_GET_STATS];
+    if (!stmt) {
+        if (sqlite3_prepare_v3(g_db, SQL_STATS, -1, SQLITE_PREPARE_PERSISTENT,
+                               &g_stmts[STMT_GET_STATS], NULL) != SQLITE_OK) {
+            pthread_mutex_unlock(&g_db_mutex);
+            return stats;
+        }
+        stmt = g_stmts[STMT_GET_STATS];
+    }
+
     sqlite3_reset(stmt);
 
     if (sqlite3_step(stmt) == SQLITE_ROW) {

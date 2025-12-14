@@ -640,6 +640,24 @@ ScheduledNotification* notify_get(int64_t id) {
         n->scheduled_at = mktime(&tm);
     }
 
+    const char* method_str = (const char*)sqlite3_column_text(stmt, 3);
+    if (method_str) {
+        if (strcmp(method_str, "native") == 0) n->method = NOTIFY_METHOD_NATIVE;
+        else if (strcmp(method_str, "osascript") == 0) n->method = NOTIFY_METHOD_OSASCRIPT;
+        else if (strcmp(method_str, "terminal") == 0) n->method = NOTIFY_METHOD_TERMINAL;
+        else if (strcmp(method_str, "sound") == 0) n->method = NOTIFY_METHOD_SOUND;
+        else n->method = NOTIFY_METHOD_LOG;
+    }
+
+    const char* status = (const char*)sqlite3_column_text(stmt, 4);
+    if (status) {
+        if (strcmp(status, "pending") == 0) n->status = NOTIFY_STATUS_PENDING;
+        else if (strcmp(status, "sent") == 0) n->status = NOTIFY_STATUS_SENT;
+        else if (strcmp(status, "failed") == 0) n->status = NOTIFY_STATUS_FAILED;
+        else if (strcmp(status, "acknowledged") == 0) n->status = NOTIFY_STATUS_ACKNOWLEDGED;
+        else if (strcmp(status, "snoozed") == 0) n->status = NOTIFY_STATUS_SNOOZED;
+    }
+
     n->retry_count = sqlite3_column_int(stmt, 5);
     n->max_retries = sqlite3_column_int(stmt, 6);
 
