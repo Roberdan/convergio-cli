@@ -12,7 +12,7 @@
 
 # Convergio CLI
 
-> **Your Virtual AI Executive Team** — A complete C-suite of 49 specialized AI agents, orchestrated by Ali, your Chief of Staff. One command, one interface, unlimited expertise.
+> **Your Virtual AI Executive Team** — A complete C-suite of 53 specialized AI agents, orchestrated by Ali, your Chief of Staff. One command, one interface, unlimited expertise.
 
 ## The Pitch
 
@@ -68,7 +68,7 @@
 
 | Single AI Agent | Convergio's Virtual Team |
 |-----------------|--------------------------|
-| One perspective | 49 specialized perspectives |
+| One perspective | 53 specialized perspectives |
 | Sequential thinking | Parallel collaboration |
 | Generic responses | Domain-expert insights |
 | No internal debate | Agents challenge each other |
@@ -178,7 +178,7 @@ USER INPUT
 | Feature | Convergio | Claude Code | Warp |
 |---------|-----------|-------------|------|
 | **Multi-Provider** | ✅ Native (Claude, GPT, Gemini) | ❌ Claude only | ✅ Native |
-| **Team Orchestration** | ✅ Ali + 49 specialists | ⚠️ Isolated subagents | ⚠️ Single agent |
+| **Team Orchestration** | ✅ Ali + 53 specialists | ⚠️ Isolated subagents | ⚠️ Single agent |
 | **Inter-Agent Communication** | ✅ Message Bus | ❌ None | ❌ None |
 | **Parallel Execution** | ✅ GCD native | ⚠️ Max ~10, batched | ❌ Sequential |
 | **Convergence/Synthesis** | ✅ Automatic | ❌ Manual | ❌ N/A |
@@ -446,7 +446,7 @@ flowchart TB
     end
 
     subgraph AGENTS["👥 Agent Execution Layer"]
-        AgentPool["Agent Pool<br/>(49 specialists)"]
+        AgentPool["Agent Pool<br/>(53 specialists)"]
         GCD["GCD Parallelization"]
         AgentState["Agent State<br/>Management"]
     end
@@ -585,7 +585,7 @@ graph TB
 
     subgraph AgentSystem["Agent System"]
         Agent["agent.c<br/>Base Agent"]
-        Embedded["embedded_agents.c<br/>49 Specialists"]
+        Embedded["embedded_agents.c<br/>53 Specialists"]
         AgentConfig["agent_config.c<br/>Model Mapping"]
     end
 
@@ -626,7 +626,7 @@ graph TB
 | **Orchestrator** | Ali, Planning, Cost Control | Task coordination, resource management |
 | **Router** | Model Router, Cost Optimizer | Intelligent model selection, failover |
 | **Providers** | Anthropic, OpenAI, Gemini adapters | API communication, streaming |
-| **Agents** | 49 specialists + Agent Pool | Specialized task execution |
+| **Agents** | 53 specialists + Agent Pool | Specialized task execution |
 | **Tools** | File, Shell, Web, Memory | External interactions |
 | **Fabric** | Semantic Graph, NEON SIMD | Vector search, embeddings |
 | **Silicon** | Metal GPU, GCD, Keychain | Hardware acceleration, security |
@@ -639,7 +639,7 @@ graph TB
 | **Model Selection** | Single model | Per-agent model routing |
 | **Architecture** | Single LLM wrapper | Multi-agent orchestration |
 | **Language** | TypeScript/Node.js | Pure C/Objective-C |
-| **Agent Model** | Single assistant | 49 specialist agents + Ali coordinator |
+| **Agent Model** | Single assistant | 53 specialist agents + Ali coordinator |
 | **Parallel Execution** | N/A | GCD-based parallel agent delegation |
 | **Cost Control** | Basic | Granular budget caps, per-agent tracking |
 | **Provider Failover** | N/A | Automatic fallback chains |
@@ -672,7 +672,7 @@ convergio-cli/
 │   ├── neural/           # Claude API, MLX embeddings
 │   ├── memory/           # SQLite persistence + RAG
 │   ├── tools/            # Tool execution (file, shell, web)
-│   ├── agents/           # Agent definitions (49 specialists)
+│   ├── agents/           # Agent definitions (53 specialists)
 │   ├── sync/             # File locking, synchronization
 │   ├── ui/               # Status bar, hyperlinks, terminal
 │   └── metal/            # GPU compute
