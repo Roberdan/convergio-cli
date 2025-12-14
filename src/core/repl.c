@@ -185,34 +185,20 @@ void repl_print_separator(void) {
     printf("\n" ANSI_DIM "────────────────────────────────────────────────────────────────" ANSI_RESET "\n\n");
 }
 
-// Spinner states with different icons for each action type
-typedef struct {
-    const char* verb;
-    const char** frames;
-    int frame_count;
-} SpinnerState;
+// Spinner frames - Claude Code style (braille dots animation)
+static const char* SPINNER_FRAMES[] = {"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"};
+#define SPINNER_FRAME_COUNT 10
 
-// Different spinner frame sets for different actions
-static const char* FRAMES_THINKING[] = {"🧠", "💭", "🧠", "💡"};  // Brain thinking
-static const char* FRAMES_ANALYZING[] = {"🔍", "📊", "🔎", "📈"};  // Analysis
-static const char* FRAMES_PROCESSING[] = {"⚙️ ", "🔄", "⚙️ ", "🔃"};  // Processing
-static const char* FRAMES_EXPLORING[] = {"🧭", "🗺️ ", "🔭", "🌐"};  // Exploration
-
-static const SpinnerState SPINNER_STATES[] = {
-    {"Thinking",      FRAMES_THINKING,   4},
-    {"Pondering",     FRAMES_THINKING,   4},
-    {"Analyzing",     FRAMES_ANALYZING,  4},
-    {"Reasoning",     FRAMES_THINKING,   4},
-    {"Synthesizing",  FRAMES_PROCESSING, 4},
-    {"Processing",    FRAMES_PROCESSING, 4},
-    {"Contemplating", FRAMES_THINKING,   4},
-    {"Evaluating",    FRAMES_ANALYZING,  4},
-    {"Considering",   FRAMES_THINKING,   4},
-    {"Reflecting",    FRAMES_THINKING,   4},
-    {"Deliberating",  FRAMES_THINKING,   4},
-    {"Exploring",     FRAMES_EXPLORING,  4},
+// Thinking verbs that rotate
+static const char* SPINNER_VERBS[] = {
+    "Reasoning",
+    "Thinking",
+    "Analyzing",
+    "Processing",
+    "Considering",
+    "Evaluating",
 };
-#define SPINNER_STATE_COUNT 12
+#define SPINNER_VERB_COUNT 6
 
 // Spinner thread function - polls for ESC key to cancel
 static void* spinner_func(void* arg) {
@@ -220,7 +206,8 @@ static void* spinner_func(void* arg) {
 
     int frame = 0;
     int verb_index = 0;
-    int ticks = 0;
+    int elapsed_seconds = 0;
+    int ticks_in_second = 0;
 
     // Get spinner color from theme (before entering loop, as theme is read-only during spin)
     const Theme* t = theme_get();
@@ -247,24 +234,37 @@ static void* spinner_func(void* arg) {
             }
         }
 
-        // Change verb every ~3 seconds (20 ticks * 150ms = 3s)
-        if (ticks > 0 && ticks % 20 == 0) {
-            verb_index = (verb_index + 1) % SPINNER_STATE_COUNT;
-            frame = 0;  // Reset frame when changing verb
+        // Update elapsed time (10 ticks = 1 second at 100ms per tick)
+        ticks_in_second++;
+        if (ticks_in_second >= 10) {
+            ticks_in_second = 0;
+            elapsed_seconds++;
+            // Change verb every ~4 seconds
+            if (elapsed_seconds % 4 == 0) {
+                verb_index = (verb_index + 1) % SPINNER_VERB_COUNT;
+            }
         }
 
-        // Get current state and its frames
-        const SpinnerState* state = &SPINNER_STATES[verb_index];
-        const char* icon = state->frames[frame % state->frame_count];
+        // Get current frame and verb
+        const char* spinner_char = SPINNER_FRAMES[frame];
+        const char* verb = SPINNER_VERBS[verb_index];
 
-        // Colored spinner with action-specific icon (default: orange like Claude Code)
-        printf(ANSI_CURSOR_START "%s%s" ANSI_RESET " " ANSI_DIM "%s..." ANSI_RESET "  (ESC to cancel)  ",
-               spinner_color, icon, state->verb);
+        // Format elapsed time
+        char time_str[16];
+        if (elapsed_seconds < 60) {
+            snprintf(time_str, sizeof(time_str), "%ds", elapsed_seconds);
+        } else {
+            snprintf(time_str, sizeof(time_str), "%dm%02ds", elapsed_seconds / 60, elapsed_seconds % 60);
+        }
+
+        // Colored spinner with braille dots animation (Claude Code style) + timer
+        printf(ANSI_CURSOR_START "%s%s" ANSI_RESET " " ANSI_DIM "%s ..." ANSI_RESET "   "
+               ANSI_DIM "%s" ANSI_RESET "   (ESC to cancel)   ",
+               spinner_color, spinner_char, verb, time_str);
         fflush(stdout);
 
-        frame = (frame + 1) % state->frame_count;
-        ticks++;
-        usleep(150000);  // 150ms (slower for emoji visibility)
+        frame = (frame + 1) % SPINNER_FRAME_COUNT;
+        usleep(100000);  // 100ms for smooth animation
     }
 
     // Restore terminal settings

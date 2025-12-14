@@ -7,6 +7,71 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.2.0] - 2025-12-14
+
+### Added
+
+- **Anna Executive Assistant Agent**
+  - Personal productivity assistant with native task management
+  - Intelligent scheduling and proactive reminders
+  - Integration with the agent ecosystem via Ali coordination
+  - Natural language task understanding (English + Italian)
+  - ADR-009 documenting the architecture decision
+
+- **Native Todo Manager (`/todo` command)**
+  - SQLite-based local task storage (privacy-first, no external dependencies)
+  - Full CRUD operations: add, list, done, start, delete
+  - Task priorities (urgent, normal, low) and status tracking
+  - Due dates with natural language parsing ("tomorrow", "next monday", "domani", "tra 2 ore")
+  - Recurrence support (daily, weekly, monthly)
+  - Quick capture inbox for thoughts and ideas
+  - Full-text search (FTS5) across all tasks
+  - Context/project tagging system
+
+- **Quick Reminders (`/remind` command)**
+  - Fast reminder creation with flexible syntax
+  - Natural language time parsing (English + Italian support)
+  - Time-of-day shortcuts: "tonight", "tomorrow morning", "stasera"
+  - Relative times: "in 2 hours", "in 30 minutes", "tra 2 ore"
+  - Weekday support: "next monday", "thursday in two weeks"
+  - Optional notes for context
+
+- **Notification System (`/daemon` command)**
+  - Native macOS notifications via terminal-notifier or osascript
+  - Background daemon for reminder delivery when CLI not running
+  - LaunchAgent for auto-start at login
+  - Multiple notification backends with automatic fallback
+  - Apple Silicon optimized (E-core scheduling)
+  - Health monitoring and error recovery
+
+- **MCP Client Integration (`/mcp` command)**
+  - Generic Model Context Protocol client
+  - JSON-RPC 2.0 over stdio and HTTP transports
+  - Auto tool discovery from connected servers
+  - Multi-server support with connection pooling
+  - Configuration via `~/.convergio/mcp.json`
+  - Implements MCP Specification 2025-06-18
+
+- **New Commands**
+  - `/reminders` - View upcoming scheduled reminders
+  - `/daemon status|start|stop|health` - Manage notification daemon
+  - `/mcp list|connect|tools|call` - Manage MCP server connections
+
+### Changed
+
+- Agent count increased from 53 to 54 specialists (added Anna)
+- Enhanced help documentation system with new command docs
+
+### Security
+
+- Security fixes from Copilot code review
+- Improved input validation in task/reminder parsing
+
+### Documentation
+
+- ADR-009: Anna Executive Assistant Architecture
+- Help documentation for `/todo`, `/remind`, `/reminders`, `/daemon`, `/mcp`
+
 ## [4.1.0] - 2025-12-14
 
 ### Added
@@ -670,7 +735,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-[Unreleased]: https://github.com/Roberdan/convergio-cli/compare/v4.0.0...HEAD
+[Unreleased]: https://github.com/Roberdan/convergio-cli/compare/v4.2.0...HEAD
+[4.2.0]: https://github.com/Roberdan/convergio-cli/compare/v4.1.0...v4.2.0
+[4.1.0]: https://github.com/Roberdan/convergio-cli/compare/v4.0.0...v4.1.0
 [4.0.0]: https://github.com/Roberdan/convergio-cli/compare/v3.0.13...v4.0.0
 [3.0.13]: https://github.com/Roberdan/convergio-cli/compare/v3.0.12...v3.0.13
 [3.0.12]: https://github.com/Roberdan/convergio-cli/compare/v3.0.11...v3.0.12
