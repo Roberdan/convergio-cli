@@ -150,6 +150,8 @@ static int parse_config_line(const char* line, char* section, size_t section_siz
             strncpy(g_config.debug_level, value, sizeof(g_config.debug_level) - 1);
         } else if (strcmp(key, "theme") == 0) {
             strncpy(g_config.theme, value, sizeof(g_config.theme) - 1);
+        } else if (strcmp(key, "style") == 0) {
+            strncpy(g_config.style, value, sizeof(g_config.style) - 1);
         }
     } else if (strcmp(section, "updates") == 0) {
         if (strcmp(key, "check_on_startup") == 0) {
@@ -174,6 +176,7 @@ static void set_defaults(void) {
     g_config.color_enabled = true;
     strncpy(g_config.debug_level, "none", sizeof(g_config.debug_level) - 1);
     strncpy(g_config.theme, "Ocean", sizeof(g_config.theme) - 1);  // Default theme
+    strncpy(g_config.style, "balanced", sizeof(g_config.style) - 1);  // Default style
     g_config.check_updates_on_startup = true;
     g_config.auto_update = false;
 }
@@ -274,7 +277,8 @@ int convergio_config_save(void) {
     fprintf(f, "[ui]\n");
     fprintf(f, "color = %s\n", g_config.color_enabled ? "true" : "false");
     fprintf(f, "debug_level = \"%s\"\n", g_config.debug_level);
-    fprintf(f, "theme = \"%s\"\n\n", g_config.theme[0] ? g_config.theme : "Ocean");
+    fprintf(f, "theme = \"%s\"\n", g_config.theme[0] ? g_config.theme : "Ocean");
+    fprintf(f, "style = \"%s\"\n\n", g_config.style[0] ? g_config.style : "balanced");
 
     fprintf(f, "[updates]\n");
     fprintf(f, "check_on_startup = %s\n", g_config.check_updates_on_startup ? "true" : "false");
@@ -317,6 +321,9 @@ const char* convergio_config_get(const char* key) {
     if (strcmp(key, "theme") == 0) {
         return g_config.theme[0] ? g_config.theme : "Ocean";
     }
+    if (strcmp(key, "style") == 0) {
+        return g_config.style[0] ? g_config.style : "balanced";
+    }
 
     return NULL;
 }
@@ -338,6 +345,10 @@ int convergio_config_set(const char* key, const char* value) {
     }
     if (strcmp(key, "theme") == 0) {
         strncpy(g_config.theme, value, sizeof(g_config.theme) - 1);
+        return 0;
+    }
+    if (strcmp(key, "style") == 0) {
+        strncpy(g_config.style, value, sizeof(g_config.style) - 1);
         return 0;
     }
 
