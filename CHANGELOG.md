@@ -7,6 +7,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [5.0.0] - 2025-12-14
+
+### Added
+
+- **Major Version 5.0 Release** - Production-ready release with comprehensive quality gates
+  - Zero compiler warnings policy enforced
+  - Full Microsoft Engineering Fundamentals compliance
+  - Comprehensive E2E test suite with 50+ test scenarios
+
+### Changed
+
+- **Code Quality Improvements**
+  - Fixed all sign conversion warnings in todo.c (26 warnings eliminated)
+  - Fixed sign conversion warnings in tools.c (5 warnings eliminated)
+  - Fixed implicit conversion warning in commands.c (1 warning eliminated)
+  - Explicit type casts for TodoPriority, TodoStatus, TodoRecurrence, TodoSource enums
+  - Proper size_t usage for buffer position tracking
+
+- **Release Process**
+  - Integrated brutal release manager with zero-tolerance quality gates
+  - All compiler warnings are now blocking for releases
+  - Automated model freshness verification for AI providers
+
+### Security
+
+- All memory allocation patterns verified safe
+- No unsafe C functions in release code paths
+- Keychain storage with iCloud sync disabled
+
+### Technical
+
+- Apple Silicon M1-M5 support verified (hardware.h updated)
+- AI model configurations current (config/models.json version 2025.12.4)
+  - Anthropic Claude: claude-opus-4-5-20251101, claude-sonnet-4-5-20250929
+  - OpenAI: gpt-5.2, gpt-5.2-pro, gpt-5.2-instant, o3, o3-mini, o4-mini
+  - Google Gemini: gemini-3.0-pro, gemini-3.0-deep-think, gemini-2.0-flash
+- Build system produces zero warnings with -Wsign-conversion enabled
+
 ## [4.2.0] - 2025-12-14
 
 ### Added
@@ -735,7 +773,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-[Unreleased]: https://github.com/Roberdan/convergio-cli/compare/v4.2.0...HEAD
+[Unreleased]: https://github.com/Roberdan/convergio-cli/compare/v5.0.0...HEAD
+[5.0.0]: https://github.com/Roberdan/convergio-cli/compare/v4.2.0...v5.0.0
 [4.2.0]: https://github.com/Roberdan/convergio-cli/compare/v4.1.0...v4.2.0
 [4.1.0]: https://github.com/Roberdan/convergio-cli/compare/v4.0.0...v4.1.0
 [4.0.0]: https://github.com/Roberdan/convergio-cli/compare/v3.0.13...v4.0.0

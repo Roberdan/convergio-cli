@@ -1,50 +1,58 @@
 <p align="center">
-  <img src="docs/logo/CovergioLogo.jpeg" alt="Convergio Logo" width="200"/>
+  <img src="docs/logo/convergio_header.jpeg" alt="Convergio" width="600"/>
+</p>
+
+<h1 align="center">Convergio CLI</h1>
+
+<p align="center">
+  <strong>Your Virtual AI Executive Team</strong><br/>
+  <em>54 specialized AI agents. One command. Unlimited expertise.</em>
 </p>
 
 <p align="center">
   <a href="https://github.com/Roberdan/convergio-cli/actions/workflows/ci.yml"><img src="https://github.com/Roberdan/convergio-cli/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
-  <a href="https://github.com/Roberdan/convergio-cli/releases/latest"><img src="https://img.shields.io/github/v/release/Roberdan/convergio-cli?include_prereleases" alt="Release"></a>
-  <a href="https://github.com/Roberdan/convergio-cli/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License"></a>
-  <a href="https://github.com/Roberdan/convergio-cli"><img src="https://img.shields.io/badge/platform-macOS%20(Apple%20Silicon)-lightgrey" alt="Platform"></a>
+  <a href="https://github.com/Roberdan/convergio-cli/releases/latest"><img src="https://img.shields.io/badge/version-5.0.0-blue" alt="Version 5.0.0"></a>
+  <a href="https://github.com/Roberdan/convergio-cli/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-green.svg" alt="License"></a>
+  <a href="https://github.com/Roberdan/convergio-cli"><img src="https://img.shields.io/badge/platform-macOS%20(Apple%20Silicon)-black" alt="Platform"></a>
   <a href="https://github.com/Roberdan/convergio-cli/stargazers"><img src="https://img.shields.io/github/stars/Roberdan/convergio-cli?style=social" alt="Stars"></a>
 </p>
 
-# Convergio CLI
+<p align="center">
+  <a href="#-quick-start">Quick Start</a> •
+  <a href="#-features">Features</a> •
+  <a href="#-anna-executive-assistant">Anna Assistant</a> •
+  <a href="#-mlx-local-ai">MLX Local AI</a> •
+  <a href="#-documentation">Docs</a>
+</p>
 
-> **Your Virtual AI Executive Team** — A complete C-suite of 54 specialized AI agents, orchestrated by Ali, your Chief of Staff. One command, one interface, unlimited expertise.
+---
 
-## The Pitch
+<h2 align="center">Install in 10 Seconds</h2>
 
-**Imagine having an entire consulting firm at your fingertips.** Not just one AI assistant — a full team of specialists who work together, debate ideas, and deliver integrated solutions.
+```bash
+brew tap Roberdan/convergio-cli && brew install convergio
+```
 
-**Ali is your Chief of Staff** — your single point of contact who coordinates:
+<p align="center">
+  <em>Then just run <code>convergio</code> and start talking to Ali!</em>
+</p>
 
-| Agent | Role | Specialty |
-|-------|------|-----------|
-| **Domik** | McKinsey Partner | Strategic decisions with ISE prioritization |
-| **Amy** | CFO | Financial analysis and ROI modeling |
-| **Baccio** | Tech Architect | System design and scalable architecture |
-| **Luca** | Security Expert | Cybersecurity and penetration testing |
-| **Marco** | DevOps Engineer | CI/CD, Infrastructure as Code |
-| **Sara** | UX Designer | User-centered design excellence |
-| **Omri** | Data Scientist | ML, predictive modeling, analytics |
-| **Sofia** | Marketing Strategist | Growth hacking and brand strategy |
-| **Anna** | Executive Assistant | Personal productivity, tasks, reminders |
-| ... | **+46 more specialists** | Legal, HR, Creative, PM, and more |
+---
 
-**Ask Ali anything.** Behind the scenes, the right experts are automatically engaged, they collaborate in parallel, and Ali synthesizes their insights into a single, actionable response.
+## The Vision
+
+**Imagine having an entire consulting firm at your fingertips.** Not just one AI assistant — a full team of 54 specialists who work together, debate ideas, and deliver integrated solutions.
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                         YOU                                     │
-│              "Launch a global SaaS platform"                    │
+│                         YOU                                      │
+│              "Launch a global SaaS platform"                     │
 └─────────────────────────────────────────────────────────────────┘
                               │
                               ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│                    ALI (Chief of Staff)                         │
-│         Analyzes → Delegates → Coordinates → Synthesizes        │
+│                    ALI (Chief of Staff)                          │
+│         Analyzes → Delegates → Coordinates → Synthesizes         │
 └─────────────────────────────────────────────────────────────────┘
                               │
         ┌─────────────────────┼─────────────────────┐
@@ -59,264 +67,244 @@
                               ▼
 ┌─────────────────────────────────────────────────────────────────┐
 │                    CONVERGENCE                                   │
-│    Integrated strategy + architecture + financial plan          │
+│    Integrated strategy + architecture + financial plan           │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-**This is not a chatbot. This is a virtual consulting team that works in parallel, communicates internally, and converges toward unified solutions.**
-
-### Why a Team, Not Just an Agent?
-
-| Single AI Agent | Convergio's Virtual Team |
-|-----------------|--------------------------|
-| One perspective | 53 specialized perspectives |
-| Sequential thinking | Parallel collaboration |
-| Generic responses | Domain-expert insights |
-| No internal debate | Agents challenge each other |
-| Manual synthesis | Automatic convergence |
-| One model fits all | Best model per agent (Claude for strategy, GPT for code, Gemini for documents) |
-
-**The result?** Solutions that are more comprehensive, more nuanced, and delivered faster than any single AI could achieve.
+**This is not a chatbot. This is a virtual consulting team.**
 
 ---
 
-Built natively for Apple Silicon in pure C/Objective-C.
+## What's New in v5.0.0
 
-**Developed by [Roberto D'Angelo](mailto:Roberdan@FightTheStroke.org) @ [FightTheStroke.org](https://fightthestroke.org)**
+### Anna Executive Assistant - Your AI-Powered Personal Productivity System
 
-> **⚠️ Disclaimer:** This software is provided "as is", without warranty of any kind. Use at your own risk. AI-generated content may contain errors - always verify critical information. See [full disclaimer](docs/DISCLAIMER.md).
+Anna is your dedicated executive assistant agent with native task management, smart reminders, and proactive scheduling — all running locally with zero cloud dependencies.
 
-## What's New in v4.2
-
-- **Anna Executive Assistant**: Personal productivity agent with native task management, smart reminders, and proactive scheduling
-- **Native Todo Manager** (`/todo`): Local-first task management with SQLite - priorities, due dates, recurrence, full-text search
-- **Quick Reminders** (`/remind`): Natural language reminder creation - "remind me tomorrow at 3pm" or "ricordami domani alle 15"
-- **Notification System** (`/daemon`): Background daemon for macOS notifications - never miss a reminder
-- **MCP Client Integration** (`/mcp`): Connect to Model Context Protocol servers for external tool integration
-- **New Commands**: `/reminders`, `/daemon`, `/mcp` for enhanced productivity workflows
-- **54 Specialist Agents**: Added Anna to the team (+1 from v4.1)
-
-### Previous Highlights (v4.1)
-
-- **Hybrid Embedding Strategy**: Intelligent online/offline semantic search - uses OpenAI embeddings when online, MLX locally when offline
-- **Git/Test Workflow Commands**: New `/test`, `/git`, and `/pr` commands for streamlined development workflows
-- **4 New Development Agents**: Rex (System Design), Dario (DevEx), Otto (CI/CD), Paolo (Backend Architecture)
-- **Feature Release Manager Agent**: Automated quality gates and release validation
-
-### Previous Highlights (v4.0)
-
-- **MLX Local Provider**: Run AI models 100% offline on Apple Silicon via MLX-Swift - no Python, no external dependencies
-- **Semantic Memory**: Persistent knowledge graph that survives restarts - Ali remembers across sessions
-- **OpenRouter Provider**: Access 300+ models (DeepSeek R1, Mistral, Llama 3.3, Qwen) via unified API
-- **Ollama Provider**: Run models locally with zero API costs - perfect for offline work and privacy
-- **Setup Wizard**: Interactive `/setup` command to configure providers, API keys, and per-agent models
-- **Projects Support**: Organize your work with project-based context and memory
-- **Fiona Agent**: New specialized agent for project management tasks
-- **Updated Model IDs**: Latest Anthropic (claude-opus-4.5, sonnet-4.5, haiku-4.5) and Gemini (3.0 Pro, 2.0 Flash, Deep Think)
-- **Improved CI/CD**: Unit tests, E2E tests, and enhanced build validation
-
-### MLX Local Models (New in v4.0)
-
-Run AI models **100% offline** on your Mac without any cloud APIs, internet, or external dependencies. MLX integration is built using Apple's MLX-Swift framework for native Apple Silicon performance.
-
-**Quick Start:**
 ```bash
-# Via Setup Wizard (Recommended)
-convergio
-> /setup
-# Select "Local Models" -> Download a model
+# Natural language task creation
+> /todo add "Review Q4 budget" high due:tomorrow
 
-# Or via CLI flags
+# Quick reminders with natural language dates
+> /remind "Call John about the merger" in 2 hours
+> /remind "Quarterly review" next Monday at 9am
+> /remind "Dentist appointment" Dec 25 at 10:00
+
+# Smart scheduling (English + Italian)
+> /remind "Riunione team" domani alle 15:00
+```
+
+**Anna Features:**
+- **Native Todo Manager**: Priorities, due dates, subtasks, tags, recurrence (iCal RRULE)
+- **Full-Text Search**: FTS5-powered search across all tasks
+- **Smart Reminders**: Natural language date parsing in English and Italian
+- **Background Daemon**: macOS notifications even when Convergio is closed
+- **Inbox System**: Quick capture without immediate processing
+- **Statistics**: Daily/weekly completion tracking
+
+### MLX Local AI - 100% Offline, Zero Cost
+
+Run AI models completely offline on your Mac. No API keys, no internet, no costs. Pure Apple Silicon performance.
+
+```bash
+# Start with local AI
 convergio --local --model llama-3.2-3b
+
+# Or use the setup wizard
+> /setup
+# Select "Local Models" → Download a model
 ```
 
 **Available Local Models:**
+
 | Model | Size | RAM | Best For |
 |-------|------|-----|----------|
-| Llama 3.2 1B | 1.5GB | 8GB | Fast, basic tasks |
-| Llama 3.2 3B | 3.1GB | 8GB | Balanced (recommended) |
-| DeepSeek R1 1.5B | 1.2GB | 8GB | Fast reasoning |
-| DeepSeek R1 7B | 4.5GB | 16GB | Strong reasoning |
-| DeepSeek R1 14B | 8.5GB | 24GB | Best reasoning |
-| Qwen 2.5 Coder 7B | 4.5GB | 16GB | Code generation |
-| Mistral 7B Q4 | 4.5GB | 16GB | Multilingual |
-| Llama 3.1 8B Q4 | 5GB | 16GB | Best quality |
+| **Llama 3.2 1B** | 1.5GB | 8GB | Ultra-fast, basic tasks |
+| **Llama 3.2 3B** | 3.1GB | 8GB | Balanced (recommended) |
+| **DeepSeek R1 1.5B** | 1.2GB | 8GB | Fast reasoning |
+| **DeepSeek R1 7B** | 4.5GB | 16GB | Strong reasoning |
+| **DeepSeek R1 14B** | 8.5GB | 24GB | Best reasoning |
+| **Qwen 2.5 Coder 7B** | 4.5GB | 16GB | Code generation |
+| **Mistral 7B Q4** | 4.5GB | 16GB | Multilingual |
+| **Llama 3.1 8B Q4** | 5GB | 16GB | Best overall quality |
 
-**Benefits:**
+**Why Local?**
 - **Privacy**: Data never leaves your Mac
-- **Offline**: No internet required
-- **Free**: Zero API costs
+- **Offline**: Works without internet
+- **Free**: Zero API costs forever
 - **Fast**: No network latency
 - **Optimized**: Metal GPU + Neural Engine acceleration
 
-### Semantic Memory (New in v4.0)
+### MCP Integration - Extensible Tool Ecosystem
 
-Ali now has **persistent semantic memory** - a knowledge graph that survives restarts. Unlike simple chat history, this creates interconnected memories that Ali can reason about.
+Connect to any Model Context Protocol server to extend Convergio's capabilities.
 
-**Commands:**
 ```bash
-# Store a memory
+# List connected MCP servers
+> /mcp list
+
+# Connect to a new server
+> /mcp connect filesystem
+
+# View available tools
+> /mcp tools
+```
+
+**MCP Features:**
+- **Multi-Transport**: stdio, HTTP POST, Server-Sent Events (SSE)
+- **Auto-Discovery**: Automatic tool detection from servers
+- **JSON-RPC 2.0**: Full protocol compliance
+- **MCP 2025-06-18**: Latest specification support
+
+### Latest AI Models (December 2025)
+
+| Provider | Models | Highlights |
+|----------|--------|------------|
+| **Anthropic** | Claude Opus 4.5, Claude Sonnet 4.5, Claude Haiku 4.5 | Extended thinking, tool use, vision |
+| **OpenAI** | GPT-5.2, GPT-5.2 Pro, o3, o3-mini, o4-mini | Advanced reasoning, multimodal |
+| **Google** | Gemini 3.0 Pro, Gemini 3.0 Deep Think, Gemini 2.0 Flash | 2M token context, thinking mode |
+| **OpenRouter** | DeepSeek R1, Llama 3.3, Mistral Large 2, Qwen 2.5 | 300+ models, competitive pricing |
+| **Ollama** | Any local model | Self-hosted, privacy-first |
+| **MLX** | Llama, DeepSeek, Qwen, Mistral | 100% offline Apple Silicon |
+
+### Apple Silicon M5 Support
+
+Full support for the complete Apple Silicon family:
+
+| Chip | Status | Optimization |
+|------|--------|--------------|
+| **M5 / M5 Pro / M5 Max / M5 Ultra** | Native | Full Neural Engine + Metal 3 |
+| **M4 / M4 Pro / M4 Max** | Native | Neural Engine + Metal 3 |
+| **M3 / M3 Pro / M3 Max** | Native | Neural Engine + Metal 3 |
+| **M2 / M2 Pro / M2 Max / M2 Ultra** | Native | Neural Engine + Metal |
+| **M1 / M1 Pro / M1 Max / M1 Ultra** | Native | Neural Engine + Metal |
+
+---
+
+## Features
+
+### Multi-Agent Orchestration
+
+**54 Specialist Agents** working in parallel, coordinated by Ali:
+
+| Agent | Role | Specialty |
+|-------|------|-----------|
+| **Ali** | Chief of Staff | Orchestration, synthesis |
+| **Domik** | McKinsey Partner | Strategic decisions, ISE prioritization |
+| **Amy** | CFO | Financial analysis, ROI modeling |
+| **Baccio** | Tech Architect | System design, scalable architecture |
+| **Luca** | Security Expert | Cybersecurity, penetration testing |
+| **Marco** | DevOps Engineer | CI/CD, Infrastructure as Code |
+| **Sara** | UX Designer | User-centered design |
+| **Omri** | Data Scientist | ML, predictive modeling, analytics |
+| **Sofia** | Marketing Strategist | Growth hacking, brand strategy |
+| **Anna** | Executive Assistant | Tasks, reminders, productivity |
+| **Rex** | System Design | Architecture patterns |
+| **Dario** | DevEx | Developer experience |
+| **Otto** | CI/CD Specialist | Pipeline optimization |
+| **Paolo** | Backend Architecture | API design, microservices |
+| ... | **+40 more** | Legal, HR, Creative, PM, QA, etc. |
+
+### Intelligent Model Routing
+
+Automatically select the best model for each task:
+
+```
+Budget > $3.00  →  Claude Opus 4.5 / GPT-5.2 Pro (full capability)
+Budget > $1.00  →  Claude Sonnet 4.5 / GPT-5.2 (balanced)
+Budget > $0.10  →  Claude Haiku 4.5 / Gemini Flash (fast, cheap)
+Budget < $0.10  →  Session paused (user confirmation required)
+```
+
+### Semantic Memory & Knowledge Graph
+
+Persistent, interconnected memories that survive restarts:
+
+```bash
+# Store memories
 > /remember Roberto prefers TypeScript over JavaScript
 
-# Search memories semantically
+# Semantic search (by meaning, not keywords)
 > /search what languages does Roberto prefer
 
-# View knowledge graph statistics
-> /memories
-
-# Delete a specific memory
-> /forget 0x12345678
-
-# Show graph structure
+# View knowledge graph
 > /graph
+
+# Delete memories
+> /forget 0x12345678
 ```
 
-**Key Features:**
-- **Persistent**: Memories survive application restarts
-- **Semantic**: Search by meaning, not just keywords
-- **Relational**: Memories can be connected with weighted relationships
-- **Local**: All data stored in SQLite, never leaves your machine
-- **Automatic**: Agents can store memories during conversations
+### Context Compaction - Unlimited Conversations
 
-### Previous Highlights (v3.0)
+Never lose context. Convergio automatically compacts long conversations:
 
-- **Multi-Provider Support**: Use Anthropic, OpenAI, Google Gemini, OpenRouter, and Ollama
-- **Intelligent Model Routing**: Automatically select the best model for each task
-- **Per-Agent Model Selection**: Assign different models to different agents
-- **Budget-Aware Downgrading**: Automatically switch to cheaper models when budget runs low
-- **Provider Failover**: Automatic fallback when one provider is unavailable
+- **Dynamic Thresholds**: Adapts to model context window
+- **Intelligent Summarization**: Preserves key information
+- **5 Checkpoints**: Restore any previous state
+- **Cost Optimized**: Uses economical models for summarization
 
-## Technical Capabilities
+### Response Styles
 
-Under the hood, Convergio provides enterprise-grade orchestration features:
+Customize how agents respond:
 
-| Feature | Description |
-|---------|-------------|
-| **Parallel Orchestration** | GCD-based parallel agent execution on Apple Silicon |
-| **Inter-Agent Communication** | Message bus for real-time agent collaboration |
-| **Intelligent Routing** | Automatic model selection based on task + budget |
-| **Provider Failover** | Automatic fallback when providers are unavailable |
-| **Cost Control** | Per-agent budget tracking with auto-downgrade |
-| **Tool Execution** | File I/O, shell commands, web fetch, memory/RAG |
-| **Conversation Memory** | Persistent sessions with context preservation |
-| **Agent State Tracking** | Real-time visibility: THINKING, IDLE, COLLABORATING |
-
-## Why Convergio?
-
-**For Developers:**
-- **No vendor lock-in** - Switch providers without code changes
-- **Cost control** - Set budgets, track spending per agent, auto-downgrade when needed
-- **Resilience** - Automatic failover if one provider is down or rate-limited
-- **Best tool for each job** - Use Claude for coding, GPT for multimodal, Gemini for long context
-
-**For Teams:**
-- **Predictable costs** - Hard budget limits prevent surprise bills
-- **Audit trail** - Full logging of which model handled what task
-- **Native performance** - Pure C, no runtime dependencies, Apple Silicon optimized
-
-## Why Not Just Use Claude Code or Warp?
-
-Tools like **Claude Code** and **Warp Terminal** offer excellent AI-assisted development. Here's why Convergio is different:
-
-### The Team Collaboration Model
-
-Convergio's core differentiator is **true multi-agent team orchestration**:
-
-```
-USER INPUT
-    │
-    ▼
-┌─────────────────────────────────────────────┐
-│         ALI (Chief of Staff)                │
-│   Analyzes → Decides who to delegate        │
-└─────────────────────────────────────────────┘
-    │
-    │ GCD dispatch_group_async (parallel)
-    ▼
-┌────────┬────────┬────────┬────────┐
-│ Marco  │ Baccio │ Luca   │ Sara   │  ← PARALLEL
-│ (Code) │ (Arch) │ (Sec)  │(Write) │
-└───┬────┴───┬────┴───┬────┴───┬────┘
-    │        │        │        │
-    └────────┴────────┴────────┘
-                 │
-                 ▼
-┌─────────────────────────────────────────────┐
-│           MESSAGE BUS                        │
-│  • Inter-agent routing                      │
-│  • Conversation history                     │
-│  • Event callbacks                          │
-└─────────────────────────────────────────────┘
-                 │
-                 ▼
-┌─────────────────────────────────────────────┐
-│     CONVERGENCE (Ali synthesizes)           │
-│  Integrates all perspectives into           │
-│  a unified, comprehensive response          │
-└─────────────────────────────────────────────┘
+```bash
+> /style flash      # Ultra-concise, immediate
+> /style concise    # Brief, to-the-point
+> /style balanced   # Moderate detail (default)
+> /style detailed   # Comprehensive, thorough
 ```
 
-### Feature Comparison
+### Model Comparison & Benchmarking
 
-| Feature | Convergio | Claude Code | Warp |
-|---------|-----------|-------------|------|
-| **Multi-Provider** | ✅ Native (Claude, GPT, Gemini) | ❌ Claude only | ✅ Native |
-| **Team Orchestration** | ✅ Ali + 53 specialists | ⚠️ Isolated subagents | ⚠️ Single agent |
-| **Inter-Agent Communication** | ✅ Message Bus | ❌ None | ❌ None |
-| **Parallel Execution** | ✅ GCD native | ⚠️ Max ~10, batched | ❌ Sequential |
-| **Convergence/Synthesis** | ✅ Automatic | ❌ Manual | ❌ N/A |
-| **Per-Agent Model Mapping** | ✅ Marco→GPT, Luca→o1 | ❌ Same for all | ❌ N/A |
-| **Cost Management** | ✅ Granular, budget caps, auto-downgrade | ❌ None | ⚠️ Credits only |
-| **Agent State Tracking** | ✅ THINKING, IDLE, COLLABORATING | ❌ None | ❌ None |
-| **Open Source** | ✅ Full | ❌ Closed | ⚠️ Partial |
-| **Apple Silicon Optimized** | ✅ NEON, Metal, GCD | ❌ Node.js | ❌ Rust/generic |
+Compare responses from multiple models:
 
-### What's Missing in Claude Code
+```bash
+# Compare models side-by-side
+> /compare "Explain quantum computing"
 
-- **Single provider lock-in** - Only Claude models, no GPT or Gemini
-- **No cost management** - No budget caps, no tracking, no auto-downgrade
-- **Isolated subagents** - Subagents don't communicate with each other
-- **No convergence** - You must manually synthesize multiple agent outputs
-- **No model routing** - Can't assign different models to different tasks
+# Benchmark model performance
+> /benchmark claude-sonnet-4-5
+```
 
-### What's Missing in Warp
+### Development Tools Integration
 
-- **Single agent model** - Agent Mode is one agent with tools, not a team
-- **No inter-agent communication** - No message bus
-- **Limited cost control** - Credits system, no granular per-agent tracking
-- **Closed source core** - Limited customization of routing logic
+```bash
+# Auto-detect and run tests
+> /test
 
-### When to Use What
+# Git workflow
+> /git status
+> /git commit
+> /git push
 
-| Use Case | Best Tool |
-|----------|-----------|
-| Quick Claude interactions | Claude Code |
-| Modern terminal with AI | Warp |
-| **Multi-model orchestration** | **Convergio** |
-| **Team-based task delegation** | **Convergio** |
-| **Cost-controlled sessions** | **Convergio** |
-| **Parallel specialist agents** | **Convergio** |
+# Create pull request
+> /pr "Add new feature"
 
-## Supported Providers & Models
+# Check development tools
+> /tools check
+> /tools install
+```
 
-| Provider | Models (examples) | Best For | Pricing |
-|----------|--------------------|----------|---------|
-| **Anthropic** | Claude Opus 4, Claude Sonnet 4 | Complex reasoning, coding, agents | Varies by plan |
-| **OpenAI** | GPT-4o, o1, GPT-4o-mini | Coding, reasoning, multimodal | See provider docs |
-| **Google** | Gemini 1.5 Pro, Gemini 1.5 Flash | Long context, cost-effective | See provider docs |
-| **OpenRouter** | DeepSeek R1, Llama 3.3, Mistral | 300+ models, competitive pricing | See openrouter.ai |
-| **Ollama** | Llama, Mistral, CodeLlama | Local inference, privacy | Free (local) |
-| **MLX** | Llama 3.2, DeepSeek R1 Distill, Qwen 2.5 | 100% offline, Apple Silicon native | Free (local) |
+### Themes & Customization
+
+```bash
+# Interactive theme selector
+> /theme
+
+# Available themes: default, dark, light, monokai, dracula, nord
+```
+
+---
 
 ## Quick Start
 
 ### Prerequisites
 
-- macOS 14+ (Sonoma)
-- Apple Silicon (M1/M2/M3/M4) - auto-detected at runtime
+- macOS 14+ (Sonoma or later)
+- Apple Silicon (M1/M2/M3/M4/M5)
 - Xcode Command Line Tools (for building from source)
 
-### Installation via Homebrew (Recommended)
+### Installation via Homebrew
 
 ```bash
 brew tap Roberdan/convergio-cli
@@ -325,192 +313,117 @@ brew install convergio
 
 ### Installation from Source
 
-1. **Clone the repository**
-   ```bash
-   git clone https://github.com/Roberdan/convergio-cli.git
-   cd convergio-cli
-   ```
+```bash
+# Clone
+git clone https://github.com/Roberdan/convergio-cli.git
+cd convergio-cli
 
-2. **Build the project**
-   ```bash
-   make
-   ```
+# Build
+make
 
-3. **Run setup wizard**
-   ```bash
-   ./build/bin/convergio setup
-   ```
-   This will configure your API keys and store them securely in macOS Keychain.
+# Setup (interactive wizard)
+./build/bin/convergio setup
 
-4. **Run Convergio**
-   ```bash
-   ./build/bin/convergio
-   ```
+# Run
+./build/bin/convergio
+```
 
 ### Configuration
 
-API keys can be configured in multiple ways (in order of priority):
+API keys can be configured via:
 
-1. **macOS Keychain** (Recommended): Run `convergio setup`
+1. **macOS Keychain** (Recommended): `convergio setup`
 2. **Environment variables**:
    ```bash
    export ANTHROPIC_API_KEY=sk-ant-...
    export OPENAI_API_KEY=sk-proj-...
    export GEMINI_API_KEY=AIza...
+   export OPENROUTER_API_KEY=sk-or-...
    ```
 3. **Config file**: `~/.convergio/config.json`
 
-**Claude Max Subscription**: If you have a Claude Max subscription ($20/month), set:
-```bash
-export CLAUDE_MAX=true
-```
+---
 
-## Usage Examples
+## Commands Reference
 
-### Basic Chat
-```bash
-convergio "What is the capital of France?"
-```
-
-### Specify a Provider
-```bash
-convergio --provider openai "Generate a poem"
-convergio --provider anthropic "Review this code"
-convergio --provider gemini "Analyze this document"
-```
-
-### Specify a Model
-```bash
-convergio --model claude-opus-4 "Complex reasoning task"
-convergio --model gpt-4o "Analyze this code"
-convergio --model gemini-1.5-pro "Summarize these documents"
-```
-
-### Budget-Limited Session
-```bash
-convergio --budget 2.00 "Start a session with $2 limit"
-```
-
-### Interactive REPL
-```bash
-convergio
-> Hello Ali, can you help me with a coding task?
-Ali: Of course! What would you like to work on?
-> cost
-Session: $0.0032 spent | $4.9968 remaining (using Claude Sonnet 4)
-```
-
-## Command Line Options
-
-```bash
-convergio [OPTIONS] [COMMAND]
-
-Commands:
-  setup                    Configure API keys and settings
-  update [check|install]   Check for or install updates
-  providers test           Test all configured providers
-  providers status         Show provider status
-  models list              List available models
-  cost status              Show current spending
-  cost agents              Show per-agent costs
-
-Options:
-  -p, --provider <name>    Use specific provider (anthropic, openai, gemini)
-  -m, --model <id>         Use specific model
-  -b, --budget <USD>       Set session budget limit
-  -a, --agent <name>       Use specific agent
-  -w, --workspace <path>   Set workspace directory
-  -d, --debug              Enable debug logging
-  -t, --trace              Enable trace logging
-  -q, --quiet              Disable all logging
-  --stream                 Enable streaming output
-  --no-status              Disable status bar
-  -v, --version            Show version
-  -h, --help               Show help message
-```
-
-## REPL Commands
+### Core Commands
 
 | Command | Description |
 |---------|-------------|
-| `help` | Show available commands |
-| `agents` | List all available agents |
-| `providers status` | Show provider status |
-| `providers test` | Test provider connectivity |
-| `models list` | List available models |
-| `status` | Show system status |
-| `cost` | Show current spending |
-| `cost report` | Detailed cost report |
-| `cost agents` | Per-agent cost breakdown |
-| `cost set <USD>` | Set budget limit |
-| `cost reset` | Reset session spending |
-| `remember <text>` | Store a memory in the knowledge graph |
-| `search <query>` | Search memories semantically |
-| `memories` | Show knowledge graph statistics |
-| `forget <id>` | Delete a memory by ID |
-| `graph` | Show graph structure and relations |
-| `recall` | View/load past session summaries |
-| `todo add\|list\|done\|start\|delete` | Native task manager |
-| `remind <msg> <when>` | Quick reminder with natural language time |
-| `reminders` | View upcoming scheduled reminders |
-| `daemon status\|start\|stop` | Manage notification daemon |
-| `mcp list\|connect\|tools` | Manage MCP server connections |
-| `test` | Auto-detect and run project tests |
-| `git status\|commit\|push\|sync` | Git workflow helper commands |
-| `pr [title]` | Create pull request via gh CLI |
-| `setup` | Configure providers and agent models |
-| `debug` | Toggle debug mode |
-| `quit` | Exit Convergio |
+| `/help [command]` | Interactive help system |
+| `/status` | System status and agent info |
+| `/quit` | Exit Convergio |
 
-## Agent-Model Mapping
+### Agent Management
 
-Different agents can use different models optimized for their tasks:
+| Command | Description |
+|---------|-------------|
+| `/agents` | List all 54 agents |
+| `/agent <name>` | Configure individual agent |
+| `/think <query>` | Direct agent thinking mode |
 
-| Agent | Default Model | Fallback | Use Case |
-|-------|--------------|----------|----------|
-| **Ali** (Chief of Staff) | Claude Opus 4 | GPT-4o | Coordination, synthesis |
-| **Marco** (Coder) | Claude Sonnet 4 | GPT-4o | Code generation |
-| **Baccio** (Architect) | Claude Opus 4 | GPT-4o | System design |
-| **Luca** (Security) | o1 | Claude Opus 4 | Security analysis |
-| **Nina** (Analyst) | Gemini 1.5 Pro | GPT-4o | Data analysis (2M context) |
-| **Thor** (Reviewer) | GPT-4o-mini | Gemini 1.5 Flash | Fast reviews |
-| **Router** | GPT-4o-mini | Gemini 1.5 Flash | Fast routing decisions |
+### Anna Executive Assistant
 
-## Cost Optimization
+| Command | Description |
+|---------|-------------|
+| `/todo add <task>` | Create a task |
+| `/todo list` | Show all tasks |
+| `/todo done <id>` | Complete a task |
+| `/todo start <id>` | Start working on a task |
+| `/todo delete <id>` | Delete a task |
+| `/remind <msg> <when>` | Create a reminder (natural language) |
+| `/reminders` | Show upcoming reminders |
+| `/daemon start/stop/status` | Manage notification daemon |
 
-Convergio automatically optimizes costs:
+### Memory & Knowledge
 
-1. **Smart Model Selection**: Uses cheaper models for simple tasks
-2. **Prompt Caching**: Reduces costs by up to 90% for repeated queries
-3. **Budget Enforcement**: Prevents overspending with hard limits
-4. **Downgrade Strategy**: Automatically switches to cheaper models when budget runs low
+| Command | Description |
+|---------|-------------|
+| `/remember <text>` | Store a memory |
+| `/search <query>` | Semantic search |
+| `/memories` | List recent memories |
+| `/forget <id>` | Delete a memory |
+| `/graph` | Knowledge graph stats |
 
-Example budget progression:
-```
-Budget > $3.00 → Claude Opus 4 / GPT-4o (full capability)
-Budget > $1.00 → Claude Sonnet 4 / GPT-4o (balanced)
-Budget > $0.10 → GPT-4o-mini / Gemini 1.5 Flash (fast, cheap)
-Budget < $0.10 → Session paused (user confirmation required)
-```
+### Model & Provider
 
-## Tools Available to Ali
+| Command | Description |
+|---------|-------------|
+| `/setup` | Interactive configuration wizard |
+| `/auth` | Authentication status |
+| `/cost` | Show/set budget |
+| `/compare` | Compare multiple models |
+| `/benchmark` | Test model speed |
 
-Ali can interact with the real world using these tools:
+### Development Tools
 
-| Tool | Description | Safety |
-|------|-------------|--------|
-| `file_read` | Read file contents | System paths blocked |
-| `file_write` | Write/append to files | System paths blocked |
-| `file_list` | List directory contents | System paths blocked |
-| `shell_exec` | Execute shell commands | Dangerous commands blocked |
-| `web_fetch` | Fetch URL content | Standard HTTP/HTTPS |
-| `memory_store` | Store info for later retrieval | SQLite + local embeddings |
-| `memory_search` | Semantic search (RAG) | Cosine similarity |
-| `note_write` | Create/update markdown notes | Stored in data/notes/ |
-| `note_read` | Read note contents | - |
-| `note_list` | List all available notes | - |
-| `knowledge_add` | Add to knowledge base | Stored in data/knowledge/ |
-| `knowledge_search` | Search knowledge base | Keyword matching |
+| Command | Description |
+|---------|-------------|
+| `/test` | Run project tests (auto-detect) |
+| `/git <status/commit/push>` | Git workflow |
+| `/pr [title]` | Create pull request |
+| `/tools <check/install>` | Manage dev tools |
+
+### MCP Integration
+
+| Command | Description |
+|---------|-------------|
+| `/mcp list` | List MCP servers |
+| `/mcp connect <server>` | Connect to server |
+| `/mcp tools` | Show available tools |
+
+### System
+
+| Command | Description |
+|---------|-------------|
+| `/debug <level>` | Set log level |
+| `/stream <on/off>` | Toggle streaming |
+| `/theme <name>` | Change theme |
+| `/style <style>` | Set response style |
+| `/hardware` | Show hardware info |
+| `/update` | Check for updates |
+
+---
 
 ## Architecture
 
@@ -518,374 +431,192 @@ Ali can interact with the real world using these tools:
 
 ```mermaid
 flowchart TB
-    subgraph UI["🖥️ User Interface Layer"]
+    subgraph UI["User Interface Layer"]
         REPL["REPL Commands"]
-        StatusBar["Status Bar<br/>(tokens, costs, model)"]
-        Terminal["Terminal UI<br/>(ANSI, Hyperlinks)"]
-        SetupWizard["Setup Wizard<br/>(interactive config)"]
+        StatusBar["Status Bar"]
+        SetupWizard["Setup Wizard"]
     end
 
-    subgraph ORCH["🎯 Orchestrator Layer"]
-        Ali["Ali<br/>(Chief of Staff)"]
-        Planning["Task Planning"]
-        CostCtrl["Cost Control"]
+    subgraph ORCH["Orchestrator Layer"]
+        Ali["Ali (Chief of Staff)"]
         MsgBus["Message Bus"]
         Conv["Convergence"]
     end
 
-    subgraph ROUTER["🧠 Intelligent Routing Layer"]
+    subgraph ROUTER["Intelligent Routing"]
         ModelRouter["Model Router"]
         CostOpt["Cost Optimizer"]
-        BudgetCheck["Budget Check"]
         Failover["Provider Failover"]
     end
 
-    subgraph PROVIDERS["☁️ Multi-Provider Layer"]
-        direction TB
-        subgraph CloudAPI["Cloud APIs"]
-            Anthropic["Anthropic<br/>Claude Opus 4.5<br/>Claude Sonnet 4.5"]
-            OpenAI["OpenAI<br/>GPT-4o, o1<br/>GPT-4o-mini"]
-            Gemini["Google Gemini<br/>Gemini 3.0 Pro<br/>Gemini 2.0 Flash"]
-            OpenRouter["OpenRouter<br/>DeepSeek R1<br/>Llama 3.3, Mistral"]
+    subgraph PROVIDERS["Multi-Provider Layer"]
+        subgraph Cloud["Cloud APIs"]
+            Anthropic["Anthropic"]
+            OpenAI["OpenAI"]
+            Gemini["Google Gemini"]
+            OpenRouter["OpenRouter"]
         end
-        subgraph LocalInference["🏠 Local (FREE)"]
-            MLX["MLX Swift<br/>Llama 3.2, DeepSeek R1<br/>100% offline"]
-            Ollama["Ollama<br/>Local models<br/>No API costs"]
+        subgraph Local["Local (FREE)"]
+            MLX["MLX Swift"]
+            Ollama["Ollama"]
         end
     end
 
-    subgraph AGENTS["👥 Agent Execution Layer"]
-        AgentPool["Agent Pool<br/>(53 specialists)"]
+    subgraph AGENTS["Agent Execution"]
+        AgentPool["54 Specialists"]
         GCD["GCD Parallelization"]
-        AgentState["Agent State<br/>Management"]
     end
 
-    subgraph TOOLS["🔧 Tool Execution Layer"]
-        FileTools["File Tools<br/>(read/write/list)"]
+    subgraph TOOLS["Tool Execution"]
+        FileTools["File Tools"]
         ShellExec["Shell Exec"]
         WebFetch["Web Fetch"]
-        MemoryRAG["Memory & RAG"]
-        KnowledgeBase["Knowledge Base"]
+        MCPClient["MCP Client"]
     end
 
-    subgraph FABRIC["🧬 Semantic Fabric Layer"]
-        SemanticGraph["Semantic Node Graph<br/>(64-shard, lock-free)"]
-        SemanticPersist["Semantic Persistence<br/>(SQLite write-through)"]
-        NEON["NEON SIMD Search"]
+    subgraph FABRIC["Semantic Fabric"]
+        SemanticGraph["Knowledge Graph"]
         SQLite["SQLite Storage"]
     end
 
-    subgraph SILICON["⚡ Apple Silicon Layer"]
+    subgraph SILICON["Apple Silicon"]
         Metal["Metal GPU"]
-        MLXSwift["MLX-Swift<br/>(Neural Engine)"]
-        Accelerate["Accelerate Framework"]
-        GCDQueues["GCD Dispatch Queues"]
-        Keychain["macOS Keychain"]
+        NeuralEngine["Neural Engine"]
+        GCDQueues["GCD Queues"]
     end
 
     UI --> ORCH
     ORCH --> ROUTER
     ROUTER --> PROVIDERS
-    PROVIDERS --> ORCH
     ORCH --> AGENTS
     AGENTS --> TOOLS
     TOOLS --> FABRIC
     FABRIC --> SILICON
-
-    Ali --> Planning
-    Ali --> CostCtrl
-    Ali --> MsgBus
-    MsgBus --> Conv
-
-    ModelRouter --> BudgetCheck
-    ModelRouter --> CostOpt
-    CostOpt --> Failover
-
-    AgentPool --> GCD
-    GCD --> AgentState
-
-    MLX --> MLXSwift
-    SemanticGraph --> SemanticPersist
-    SemanticPersist --> SQLite
 ```
 
-### Request Flow
+### Why Convergio vs Others?
 
-```mermaid
-sequenceDiagram
-    participant U as User
-    participant R as REPL
-    participant A as Ali (Orchestrator)
-    participant MR as Model Router
-    participant P as Provider (Claude/GPT/Gemini)
-    participant AG as Specialist Agents
-    participant T as Tools
-    participant DB as SQLite
+| Feature | Convergio | Claude Code | Warp | VSCode + Copilot | Codex CLI |
+|---------|-----------|-------------|------|------------------|-----------|
+| **Multi-Provider** | 6 providers | Claude only | Multi | OpenAI only | OpenAI only |
+| **Agents** | 54 specialists | Subagents | Single | Autocomplete | Single |
+| **Inter-Agent Comms** | Message Bus | None | None | None | None |
+| **Parallel Execution** | GCD native | Batched | Sequential | N/A | Sequential |
+| **Convergence** | Automatic | Manual | N/A | N/A | N/A |
+| **Per-Agent Models** | Yes | No | No | No | No |
+| **Cost Management** | Granular budget | None | Credits | Subscription | API credits |
+| **Local AI** | MLX + Ollama | No | No | No | No |
+| **Task Management** | Native (Anna) | No | No | Extensions | No |
+| **MCP Support** | Native client | Server | No | No | No |
+| **Open Source** | Full | Closed | Partial | Extensions only | Closed |
+| **Apple Optimized** | Metal + Neural Engine | Node.js | Rust | Electron | Python |
 
-    U->>R: Input query
-    R->>A: Parse & route
-    A->>MR: Check budget & select model
-    MR->>MR: Budget check
-    MR->>P: Select optimal provider
-    P-->>A: Provider ready
+**Key Differentiators:**
 
-    alt Simple Task
-        A->>P: Direct API call
-        P-->>A: Response
-    else Complex Task
-        A->>AG: Delegate to specialists
-        par Parallel Execution
-            AG->>P: Agent 1 query
-            AG->>P: Agent 2 query
-            AG->>P: Agent N query
-        end
-        AG->>T: Tool calls (file/shell/web)
-        T-->>AG: Tool results
-        AG-->>A: Agent responses
-        A->>A: Convergence
-    end
+- **vs Claude Code**: Convergio supports 6 providers (not just Claude), has 54 real specialist agents (not isolated subagents), automatic convergence, and per-agent model routing
+- **vs Warp**: Convergio has true multi-agent orchestration with message bus, not just AI-assisted terminal
+- **vs VSCode + Copilot**: Convergio is a full AI orchestration platform, not just code autocomplete. Native task management, semantic memory, and tool execution
+- **vs Codex CLI**: Convergio offers multi-agent collaboration, local AI support, and granular cost control
 
-    A->>DB: Persist conversation & costs
-    A-->>R: Formatted response
-    R-->>U: Display with status bar
-```
+---
 
-### Budget-Aware Model Selection
+## Technical Specifications
 
-```mermaid
-flowchart LR
-    Budget["Current Budget"] --> Check{Budget Level?}
+### Performance
 
-    Check -->|"> $3.00"| Premium["Premium Models<br/>Claude Opus 4<br/>GPT-4o"]
-    Check -->|"> $1.00"| Balanced["Balanced Models<br/>Claude Sonnet 4<br/>GPT-4o"]
-    Check -->|"> $0.10"| Fast["Fast/Cheap Models<br/>GPT-4o-mini<br/>Gemini 1.5 Flash"]
-    Check -->|"< $0.10"| Pause["⚠️ Session Paused<br/>Confirmation Required"]
+| Metric | Value |
+|--------|-------|
+| Source Files | 71 C/Objective-C/Swift |
+| Lines of Code | ~58,837 LOC |
+| AI Agents | 54 specialists |
+| Providers | 6 (Cloud + Local) |
+| Commands | 40+ REPL commands |
+| Tools | 15+ execution tools |
+| Models Supported | 300+ across providers |
+| Local Models | 8 MLX models |
 
-    Premium --> Execute["Execute Query"]
-    Balanced --> Execute
-    Fast --> Execute
-    Pause --> Confirm{"User Confirms?"}
-    Confirm -->|Yes| AddBudget["Add Budget"]
-    Confirm -->|No| End["End Session"]
-    AddBudget --> Check
-```
+### Apple Silicon Optimizations
 
-### Component Relationships
+- **Metal GPU**: Hardware-accelerated compute shaders
+- **Neural Engine**: MLX model inference
+- **GCD**: Optimal thread scheduling (P-cores + E-cores)
+- **Unified Memory**: Zero-copy CPU/GPU data sharing
+- **Accelerate**: BLAS optimizations for matrix operations
 
-```mermaid
-graph TB
-    subgraph Core["Core Components"]
-        Main["main.c<br/>Entry Point"]
-        Fabric["fabric.c<br/>Semantic Graph"]
-        Config["config.c<br/>Configuration"]
-        REPL["repl.c<br/>Interactive Shell"]
-        SetupWiz["setup_wizard.c<br/>Interactive Setup"]
-    end
-
-    subgraph Orchestration["Orchestration"]
-        Orch["orchestrator.c<br/>Ali Coordinator"]
-        Registry["registry.c<br/>Agent Registry"]
-        Cost["cost.c<br/>Cost Tracking"]
-        Delegation["delegation.c<br/>Task Delegation"]
-        Convergence["convergence.c<br/>Result Merging"]
-    end
-
-    subgraph Providers["Provider Adapters"]
-        ProviderC["provider.c<br/>Abstract Interface"]
-        AnthropicC["anthropic.c<br/>Claude API"]
-        OpenAIC["openai.c<br/>GPT API"]
-        GeminiC["gemini.c<br/>Gemini API"]
-        OpenRouterC["openrouter.c<br/>300+ Models"]
-        OllamaC["ollama.c<br/>Local Models"]
-        MLXC["mlx.m<br/>MLX Swift Bridge"]
-        Streaming["streaming.c<br/>SSE Processing"]
-        Retry["retry.c<br/>Resilience"]
-    end
-
-    subgraph AgentSystem["Agent System"]
-        Agent["agent.c<br/>Base Agent"]
-        Embedded["embedded_agents.c<br/>53 Specialists"]
-        AgentConfig["agent_config.c<br/>Model Mapping"]
-    end
-
-    subgraph Storage["Storage & Memory"]
-        Persistence["persistence.c<br/>SQLite Backend"]
-        SemanticPersist["semantic_persistence.c<br/>Knowledge Graph"]
-        Tools["tools.c<br/>Tool Execution"]
-    end
-
-    Main --> Fabric
-    Main --> Config
-    Main --> REPL
-    REPL --> Orch
-    REPL --> SetupWiz
-    Orch --> Registry
-    Orch --> Cost
-    Orch --> Delegation
-    Delegation --> Convergence
-    Registry --> Agent
-    Agent --> Embedded
-    Agent --> AgentConfig
-    Orch --> ProviderC
-    ProviderC --> AnthropicC
-    ProviderC --> OpenAIC
-    ProviderC --> GeminiC
-    ProviderC --> OpenRouterC
-    ProviderC --> OllamaC
-    ProviderC --> MLXC
-    AnthropicC --> Streaming
-    OpenAIC --> Streaming
-    GeminiC --> Streaming
-    OpenRouterC --> Streaming
-    Streaming --> Retry
-    Agent --> Tools
-    Tools --> Persistence
-    Tools --> SemanticPersist
-    Cost --> Persistence
-    Fabric --> SemanticPersist
-```
-
-### Data Flow Summary
-
-| Layer | Components | Responsibility |
-|-------|------------|----------------|
-| **UI** | REPL, Status Bar, Terminal, Setup Wizard | User interaction, configuration |
-| **Orchestrator** | Ali, Planning, Cost Control | Task coordination, resource management |
-| **Router** | Model Router, Cost Optimizer | Intelligent model selection, failover |
-| **Providers** | Anthropic, OpenAI, Gemini, OpenRouter, Ollama, MLX | API/local inference |
-| **Agents** | 53 specialists + Agent Pool | Specialized task execution |
-| **Tools** | File, Shell, Web, Memory | External interactions |
-| **Fabric** | Semantic Graph, Semantic Persistence | Knowledge graph, write-through cache |
-| **Silicon** | Metal GPU, MLX-Swift, GCD, Keychain | Neural Engine, hardware acceleration |
-
-## How is this different from Claude CLI?
-
-| Feature | Claude CLI | Convergio CLI |
-|---------|------------|------------------|
-| **Providers** | Anthropic only | Anthropic + OpenAI + Gemini |
-| **Model Selection** | Single model | Per-agent model routing |
-| **Architecture** | Single LLM wrapper | Multi-agent orchestration |
-| **Language** | TypeScript/Node.js | Pure C/Objective-C |
-| **Agent Model** | Single assistant | 53 specialist agents + Ali coordinator |
-| **Parallel Execution** | N/A | GCD-based parallel agent delegation |
-| **Cost Control** | Basic | Granular budget caps, per-agent tracking |
-| **Provider Failover** | N/A | Automatic fallback chains |
-| **Hardware** | Generic | Apple Silicon optimized |
-
-## Apple Silicon Optimizations
-
-Convergio CLI is specifically optimized for Apple Silicon with:
-
-- **NEON SIMD**: Vectorized operations for embedding similarity search
-- **Metal GPU Shaders**: Hardware-accelerated compute for neural operations
-- **Accelerate Framework**: BLAS optimizations for matrix operations
-- **GCD (Grand Central Dispatch)**: Optimal thread scheduling across P-cores and E-cores
-- **Unified Memory**: Zero-copy data sharing between CPU and GPU
-
-## Project Structure
-
-```
-convergio-cli/
-├── include/nous/          # Public headers
-│   ├── nous.h            # Core semantic fabric
-│   ├── provider.h        # Provider abstraction
-│   ├── orchestrator.h    # Multi-agent orchestration
-│   └── tools.h           # Tool execution
-├── src/
-│   ├── core/             # Main entry point, fabric
-│   ├── providers/        # Provider adapters (anthropic, openai, gemini)
-│   ├── router/           # Model routing, cost optimization
-│   ├── orchestrator/     # Ali, cost, registry, msgbus
-│   ├── neural/           # Claude API, MLX embeddings
-│   ├── memory/           # SQLite persistence + RAG
-│   ├── tools/            # Tool execution (file, shell, web)
-│   ├── agents/           # Agent definitions (53 specialists)
-│   ├── sync/             # File locking, synchronization
-│   ├── ui/               # Status bar, hyperlinks, terminal
-│   └── metal/            # GPU compute
-├── config/               # Model configurations
-├── shaders/              # Metal compute shaders
-├── docs/                 # Documentation
-├── tests/                # Unit tests
-├── data/                 # Runtime data (SQLite, notes, knowledge)
-└── README.md             # This file
-```
+---
 
 ## Documentation
 
-- [Provider Setup Guide](docs/PROVIDERS.md) - Configure Anthropic, OpenAI, Gemini
-- [Model Selection Guide](docs/MODEL_SELECTION.md) - Per-agent model configuration
-- [Cost Optimization](docs/COST_OPTIMIZATION.md) - Budget management strategies
-- [Agent Development](docs/AGENT_DEVELOPMENT.md) - Create custom agents
-- [Migration Guide](docs/MIGRATION_v3.md) - Upgrade from v2.x
-- [Troubleshooting](docs/TROUBLESHOOTING.md) - Common issues and solutions
+- [Provider Setup Guide](docs/PROVIDERS.md)
+- [Model Selection Guide](docs/MODEL_SELECTION.md)
+- [Cost Optimization](docs/COST_OPTIMIZATION.md)
+- [Agent Development](docs/AGENT_DEVELOPMENT.md)
+- [MCP Integration](docs/MCP_INTEGRATION.md)
+- [Troubleshooting](docs/TROUBLESHOOTING.md)
+
+---
 
 ## Development
 
-### Building from Source
+### Building
 
 ```bash
-# Clean build (uses parallel compilation automatically)
+# Clean build
 make clean && make
 
-# Build with debug symbols
+# Debug build
 make DEBUG=1
 
-# Run all tests
+# Run tests
 make test
-
-# Run specific tests
-make fuzz_test      # Security fuzzing tests
-make unit_test      # Unit tests
-make compaction_test # Context compaction tests
-make compare_test   # Model comparison tests
 ```
 
-### Debug Logging
-
-Enable debug logging to see what's happening under the hood:
+### Testing
 
 ```bash
-# Via command line
-./build/bin/convergio --debug
-
-# Or at runtime
-convergio> debug trace
+make unit_test        # Unit tests
+make e2e_test         # End-to-end tests (requires API keys)
+make fuzz_test        # Security fuzzing
+make compaction_test  # Context compaction
+make compare_test     # Model comparison
 ```
 
-## Known Issues & Limitations
+**Testing Strategy:**
 
-### Code Organization
-- Some source files exceed the recommended 250-line limit (e.g., `embedded_agents.c` is auto-generated)
-- Large files like `commands.c` (2312 lines) and `tools.c` (2153 lines) may benefit from refactoring
+| Test Type | CI (GitHub) | Local | Notes |
+|-----------|-------------|-------|-------|
+| Unit Tests | Required | Yes | Core functionality |
+| Sanitizer Tests | Required | Yes | Memory & UB detection |
+| Lint & Static Analysis | Required | Yes | Code quality |
+| Fuzz Tests | Yes | Yes | Security testing |
+| **E2E Tests** | **No** | **Always** | Requires API keys |
 
-### Features
-- Pre-trained embedding weights for semantic search are not yet included (infrastructure ready)
-- Some TODO comments remain in the codebase (see `AUDIT_REPORT.md` for details)
+**Why E2E tests run only locally:**
 
-### Platform
-- macOS only (Apple Silicon optimized)
-- Requires Xcode Command Line Tools for building from source
+E2E tests require real API keys (Anthropic, OpenAI, etc.) to test AI interactions, tool execution, and agent communication. For security and cost reasons, we run them locally before every release, not in CI.
 
-## Roadmap
+**Local E2E testing is mandatory before release:**
 
-- [x] Multi-provider support (Anthropic, OpenAI, Gemini)
-- [x] Intelligent model routing
-- [x] Per-agent model selection
-- [x] Budget-aware cost optimization
-- [x] Provider failover chains
-- [x] Status bar with live metrics
-- [ ] Pre-trained embedding weights for semantic search
-- [ ] Voice input/output support
-- [ ] Plugin system for custom tools
-- [ ] Web UI interface
+Before every release, E2E tests are run locally using the `app-release-manager` agent or manually:
+
+```bash
+# Run full E2E suite locally
+./tests/e2e_test.sh
+
+# Or via release manager (includes all quality gates)
+convergio
+> @app-release-manager prepare release v5.0.0
+```
+
+This ensures all features are tested with real AI providers while keeping API keys secure.
+
+---
 
 ## Contributing
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+Contributions are welcome! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 
-- See `AGENTS.md` for repository guidelines
-- Read `CONTRIBUTING.md` for contribution flow
+---
 
 ## Legal
 
@@ -893,26 +624,32 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 - [Privacy Policy](PRIVACY_POLICY.md)
 - [Disclaimer](docs/DISCLAIMER.md)
 
+---
+
 ## License
 
 MIT License - see [LICENSE](LICENSE) for details.
+
+---
 
 ## Acknowledgments
 
 - [FightTheStroke.org](https://fightthestroke.org) - Supporting the project
 - Anthropic, OpenAI, Google - LLM providers
-- Apple's MLX framework - Inspiration for local ML on Apple Silicon
-
----
-
-*Convergio CLI v4.2.0 - Multi-Model AI Orchestration for Apple Silicon*
-
-*Developed by Roberto D'Angelo with AI assistance*
+- Apple's MLX framework - Local ML on Apple Silicon
 
 ---
 
 <p align="center">
-  <b>Built with ❤️ for Mario by the Convergio Team</b>
-  <br><br>
-  <i>Making AI work for humans, not the other way around.</i>
+  <strong>Convergio CLI v5.0.0</strong><br/>
+  <em>Multi-Model AI Orchestration for Apple Silicon</em>
+</p>
+
+<p align="center">
+  Developed by <a href="mailto:Roberdan@FightTheStroke.org">Roberto D'Angelo</a> with AI assistance
+</p>
+
+<p align="center">
+  <strong>Built with love for Mario by the Convergio Team</strong><br/>
+  <em>Making AI work for humans, not the other way around.</em>
 </p>

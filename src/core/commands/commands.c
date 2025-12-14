@@ -3294,7 +3294,7 @@ int cmd_todo(int argc, char** argv) {
         TodoCreateOptions opts = {
             .title = title,
             .description = NULL,
-            .priority = priority,
+            .priority = (TodoPriority)priority,
             .due_date = due,
             .reminder_at = remind > 0 ? (due > 0 ? due - remind : time(NULL) + remind) : 0,
             .recurrence = TODO_RECURRENCE_NONE,

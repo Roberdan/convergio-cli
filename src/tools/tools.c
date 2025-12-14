@@ -2409,7 +2409,7 @@ ToolResult* tool_todo_list(const char* status, const char* priority, int limit) 
     char* buf = malloc(buf_size);
     size_t pos = 0;
 
-    pos += snprintf(buf + pos, buf_size - pos, "Found %d task(s):\n\n", count);
+    pos += (size_t)snprintf(buf + pos, buf_size - pos, "Found %d task(s):\n\n", count);
 
     for (int i = 0; i < count && pos < buf_size - 200; i++) {
         TodoTask* t = tasks[i];
@@ -2419,17 +2419,17 @@ ToolResult* tool_todo_list(const char* status, const char* priority, int limit) 
         const char* pri_str = t->priority == TODO_PRIORITY_URGENT ? "high" :
                               t->priority == TODO_PRIORITY_LOW ? "low" : "normal";
 
-        pos += snprintf(buf + pos, buf_size - pos, "[%lld] %s\n", (long long)t->id, t->title);
-        pos += snprintf(buf + pos, buf_size - pos, "    Status: %s | Priority: %s\n", status_str, pri_str);
+        pos += (size_t)snprintf(buf + pos, buf_size - pos, "[%lld] %s\n", (long long)t->id, t->title);
+        pos += (size_t)snprintf(buf + pos, buf_size - pos, "    Status: %s | Priority: %s\n", status_str, pri_str);
 
         if (t->due_date > 0) {
             char due_str[64];
             struct tm* tm = localtime(&t->due_date);
             strftime(due_str, sizeof(due_str), "%Y-%m-%d %H:%M", tm);
-            pos += snprintf(buf + pos, buf_size - pos, "    Due: %s\n", due_str);
+            pos += (size_t)snprintf(buf + pos, buf_size - pos, "    Due: %s\n", due_str);
         }
 
-        pos += snprintf(buf + pos, buf_size - pos, "\n");
+        pos += (size_t)snprintf(buf + pos, buf_size - pos, "\n");
         todo_free_task(t);
     }
     free(tasks);
