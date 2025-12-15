@@ -12,6 +12,8 @@ import ConvergioCore
 
 @main
 struct ConvergioApp: App {
+    @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
+
     @StateObject private var orchestratorVM = OrchestratorViewModel()
     @StateObject private var conversationVM = ConversationViewModel()
     @StateObject private var keychainManager = KeychainManager.shared
@@ -107,6 +109,13 @@ struct ConvergioApp: App {
                     orchestratorVM.showCostDashboard.toggle()
                 }
                 .keyboardShortcut("2", modifiers: [.command, .option])
+
+                Divider()
+
+                Button("Agent Interaction Visualizer") {
+                    openWindow(id: "agent-visualizer")
+                }
+                .keyboardShortcut("3", modifiers: [.command, .option])
             }
 
             // Help menu
@@ -158,6 +167,14 @@ struct ConvergioApp: App {
             KeyboardShortcutsView()
         }
         .defaultSize(width: 500, height: 400)
+
+        // Agent Interaction Visualizer
+        Window("Agent Interaction Visualizer", id: "agent-visualizer") {
+            AgentInteractionVisualizer()
+                .environmentObject(orchestratorVM)
+        }
+        .defaultSize(width: 900, height: 700)
+        .windowStyle(.hiddenTitleBar)
     }
 }
 
