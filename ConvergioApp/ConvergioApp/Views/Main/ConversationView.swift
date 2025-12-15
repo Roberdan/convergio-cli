@@ -78,32 +78,30 @@ struct ConversationView: View {
 
             Divider()
 
-            // Input area
-            HStack(alignment: .bottom, spacing: 12) {
-                // Text input with visible styling
-                TextEditor(text: $inputText)
+            // Input area - compact design
+            HStack(alignment: .center, spacing: 10) {
+                // Text input - single line by default, expands as needed
+                TextField("Ask the team...", text: $inputText, axis: .vertical)
+                    .textFieldStyle(.plain)
                     .font(.body)
-                    .frame(minHeight: 36, maxHeight: 120)
-                    .scrollContentBackground(.hidden)
-                    .padding(8)
+                    .lineLimit(1...4)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 8)
                     .background(Color(nsColor: .textBackgroundColor))
-                    .clipShape(RoundedRectangle(cornerRadius: 10))
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
                     .overlay(
-                        RoundedRectangle(cornerRadius: 10)
-                            .stroke(Color.secondary.opacity(0.3), lineWidth: 1)
+                        RoundedRectangle(cornerRadius: 8)
+                            .stroke(Color.secondary.opacity(0.2), lineWidth: 1)
                     )
-                    .overlay(alignment: .leading) {
-                        if inputText.isEmpty {
-                            Text("Ask the team...")
-                                .foregroundStyle(.secondary)
-                                .padding(.leading, 12)
-                                .allowsHitTesting(false)
-                        }
-                    }
                     .focused($isInputFocused)
                     .disabled(conversationVM.isProcessing)
                     .onAppear {
                         isInputFocused = true
+                    }
+                    .onSubmit {
+                        if !inputText.isEmpty && !conversationVM.isProcessing {
+                            sendMessage()
+                        }
                     }
 
                 // Send/Stop button
@@ -115,16 +113,16 @@ struct ConversationView: View {
                     }
                 } label: {
                     Image(systemName: conversationVM.isProcessing ? "stop.circle.fill" : "arrow.up.circle.fill")
-                        .font(.system(size: 28))
+                        .font(.system(size: 24))
                         .foregroundStyle(conversationVM.isProcessing ? .red : (inputText.isEmpty ? .secondary : .accentColor))
                         .contentTransition(.symbolEffect(.replace))
                 }
                 .buttonStyle(.plain)
                 .disabled(inputText.isEmpty && !conversationVM.isProcessing)
                 .keyboardShortcut(.return, modifiers: [.command])
-                .padding(.bottom, 4)
             }
-            .padding(12)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
             .background(.ultraThinMaterial)
         }
         .navigationTitle("Conversation")
