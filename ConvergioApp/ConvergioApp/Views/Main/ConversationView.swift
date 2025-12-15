@@ -124,6 +124,9 @@ struct ConversationView: View {
             .padding(.horizontal, 12)
             .padding(.vertical, 8)
             .background(.ultraThinMaterial)
+
+            // Status bar
+            StatusBarView()
         }
         .navigationTitle("Conversation")
         .toolbar {
@@ -348,6 +351,64 @@ struct TypingIndicator: View {
         .onAppear {
             animating = true
         }
+    }
+}
+
+// MARK: - Status Bar View
+
+struct StatusBarView: View {
+    @EnvironmentObject var orchestratorVM: OrchestratorViewModel
+    @EnvironmentObject var conversationVM: ConversationViewModel
+
+    var body: some View {
+        HStack(spacing: 16) {
+            // Model indicator
+            HStack(spacing: 4) {
+                Image(systemName: "cpu")
+                    .font(.caption2)
+                Text(orchestratorVM.currentModel)
+                    .font(.caption2)
+            }
+            .foregroundStyle(.secondary)
+
+            Divider()
+                .frame(height: 12)
+
+            // Token count
+            HStack(spacing: 4) {
+                Image(systemName: "number")
+                    .font(.caption2)
+                Text("\(orchestratorVM.costInfo.sessionUsage.totalTokens) tokens")
+                    .font(.caption2)
+            }
+            .foregroundStyle(.secondary)
+
+            Divider()
+                .frame(height: 12)
+
+            // Cost indicator
+            HStack(spacing: 4) {
+                Image(systemName: "dollarsign.circle")
+                    .font(.caption2)
+                Text(String(format: "$%.2f / $%.0f", orchestratorVM.costInfo.sessionCost, orchestratorVM.costInfo.budgetLimit))
+                    .font(.caption2)
+            }
+            .foregroundStyle(orchestratorVM.costInfo.isOverBudget ? .red : .secondary)
+
+            Spacer()
+
+            // Message count
+            HStack(spacing: 4) {
+                Image(systemName: "bubble.left.and.bubble.right")
+                    .font(.caption2)
+                Text("\(conversationVM.messages.count) messages")
+                    .font(.caption2)
+            }
+            .foregroundStyle(.secondary)
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 4)
+        .background(Color(nsColor: .windowBackgroundColor))
     }
 }
 
