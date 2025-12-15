@@ -116,22 +116,33 @@ struct ConvergioApp: App {
                     openWindow(id: "agent-visualizer")
                 }
                 .keyboardShortcut("3", modifiers: [.command, .option])
+
+                Button("Agent Editor") {
+                    openWindow(id: "agent-editor")
+                }
+                .keyboardShortcut("4", modifiers: [.command, .option])
             }
 
             // Help menu
             CommandGroup(replacing: .help) {
                 Button("Convergio Help") {
-                    if let url = URL(string: "https://github.com/Roberdan/Convergio/wiki") {
-                        NSWorkspace.shared.open(url)
-                    }
+                    openWindow(id: "help-system")
                 }
-                .keyboardShortcut("?", modifiers: [.command, .shift])
+                .keyboardShortcut("?", modifiers: .command)
 
                 Divider()
 
                 Button("Keyboard Shortcuts") {
                     openWindow(id: "help-shortcuts")
                 }
+
+                Button("Online Documentation") {
+                    if let url = URL(string: "https://github.com/Roberdan/Convergio/wiki") {
+                        NSWorkspace.shared.open(url)
+                    }
+                }
+
+                Divider()
 
                 Button("Report an Issue") {
                     if let url = URL(string: "https://github.com/Roberdan/Convergio/issues") {
@@ -175,6 +186,19 @@ struct ConvergioApp: App {
         }
         .defaultSize(width: 900, height: 700)
         .windowStyle(.hiddenTitleBar)
+
+        // Agent Markdown Editor
+        Window("Agent Editor", id: "agent-editor") {
+            AgentMarkdownEditor()
+                .environmentObject(orchestratorVM)
+        }
+        .defaultSize(width: 1100, height: 750)
+
+        // Help System
+        Window("Convergio Help", id: "help-system") {
+            HelpSystemView()
+        }
+        .defaultSize(width: 900, height: 600)
     }
 }
 
@@ -262,6 +286,8 @@ struct KeyboardShortcutsView: View {
         ("View", [
             ("Cmd+Opt+1", "Toggle Agent Panel"),
             ("Cmd+Opt+2", "Toggle Cost Dashboard"),
+            ("Cmd+Opt+3", "Agent Visualizer"),
+            ("Cmd+Opt+4", "Agent Editor"),
             ("Cmd+Opt+L", "Open Log Viewer"),
         ]),
         ("Global", [

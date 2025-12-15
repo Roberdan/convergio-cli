@@ -46,8 +46,13 @@ struct MainSettingsView: View {
                 .tabItem {
                     Label("Advanced", systemImage: "gearshape.2")
                 }
+
+            MCPServicesSettingsTab()
+                .tabItem {
+                    Label("MCP Services", systemImage: "server.rack")
+                }
         }
-        .frame(width: 600, height: 450)
+        .frame(width: 700, height: 500)
     }
 }
 
@@ -686,6 +691,566 @@ struct AdvancedSettingsTab: View {
             }
         }
         .padding()
+    }
+}
+
+// MARK: - MCP Services Settings Tab
+
+/// Model Context Protocol server configuration
+struct MCPServerConfig: Identifiable, Codable, Equatable {
+    let id: UUID
+    var name: String
+    var command: String  // Command to launch the server (e.g., "npx -y @modelcontextprotocol/server-filesystem")
+    var args: [String]   // Command arguments
+    var env: [String: String]  // Environment variables
+    var isEnabled: Bool
+    var transportType: MCPTransportType
+
+    init(id: UUID = UUID(), name: String = "", command: String = "", args: [String] = [], env: [String: String] = [:], isEnabled: Bool = true, transportType: MCPTransportType = .stdio) {
+        self.id = id
+        self.name = name
+        self.command = command
+        self.args = args
+        self.env = env
+        self.isEnabled = isEnabled
+        self.transportType = transportType
+    }
+}
+
+enum MCPTransportType: String, Codable, CaseIterable {
+    case stdio = "stdio"
+    case sse = "sse"
+    case http = "http"
+
+    var displayName: String {
+        switch self {
+        case .stdio: return "Standard I/O"
+        case .sse: return "Server-Sent Events"
+        case .http: return "HTTP"
+        }
+    }
+
+    var icon: String {
+        switch self {
+        case .stdio: return "terminal"
+        case .sse: return "antenna.radiowaves.left.and.right"
+        case .http: return "globe"
+        }
+    }
+}
+
+/// Manager for MCP server configurations
+class MCPConfigManager: ObservableObject {
+    static let shared = MCPConfigManager()
+
+    @Published var servers: [MCPServerConfig] = []
+
+    private let configKey = "mcp_servers_config"
+
+    init() {
+        loadServers()
+    }
+
+    func loadServers() {
+        if let data = UserDefaults.standard.data(forKey: configKey),
+           let decoded = try? JSONDecoder().decode([MCPServerConfig].self, from: data) {
+            servers = decoded
+        } else {
+            // Add default servers as examples
+            servers = [
+                MCPServerConfig(
+                    name: "Filesystem",
+                    command: "npx",
+                    args: ["-y", "@modelcontextprotocol/server-filesystem", "/tmp"],
+                    isEnabled: false
+                ),
+                MCPServerConfig(
+                    name: "GitHub",
+                    command: "npx",
+                    args: ["-y", "@modelcontextprotocol/server-github"],
+                    env: ["GITHUB_TOKEN": ""],
+                    isEnabled: false
+                ),
+                MCPServerConfig(
+                    name: "Memory",
+                    command: "npx",
+                    args: ["-y", "@modelcontextprotocol/server-memory"],
+                    isEnabled: false
+                )
+            ]
+        }
+    }
+
+    func saveServers() {
+        if let encoded = try? JSONEncoder().encode(servers) {
+            UserDefaults.standard.set(encoded, forKey: configKey)
+        }
+    }
+
+    func addServer(_ server: MCPServerConfig) {
+        servers.append(server)
+        saveServers()
+    }
+
+    func removeServer(_ server: MCPServerConfig) {
+        servers.removeAll { $0.id == server.id }
+        saveServers()
+    }
+
+    func updateServer(_ server: MCPServerConfig) {
+        if let index = servers.firstIndex(where: { $0.id == server.id }) {
+            servers[index] = server
+            saveServers()
+        }
+    }
+
+    func toggleServer(_ server: MCPServerConfig) {
+        if let index = servers.firstIndex(where: { $0.id == server.id }) {
+            servers[index].isEnabled.toggle()
+            saveServers()
+        }
+    }
+}
+
+struct MCPServicesSettingsTab: View {
+    @StateObject private var configManager = MCPConfigManager.shared
+    @State private var selectedServer: MCPServerConfig?
+    @State private var showAddSheet = false
+    @State private var editingServer: MCPServerConfig?
+
+    var body: some View {
+        HSplitView {
+            // Server list
+            VStack(spacing: 0) {
+                List(selection: $selectedServer) {
+                    ForEach(configManager.servers) { server in
+                        MCPServerRow(server: server, configManager: configManager)
+                            .tag(server)
+                    }
+                }
+                .listStyle(.sidebar)
+
+                Divider()
+
+                // Add/Remove buttons
+                HStack(spacing: 8) {
+                    Button {
+                        showAddSheet = true
+                    } label: {
+                        Image(systemName: "plus")
+                    }
+                    .buttonStyle(.borderless)
+                    .help("Add new MCP server")
+
+                    Button {
+                        if let server = selectedServer {
+                            configManager.removeServer(server)
+                            selectedServer = nil
+                        }
+                    } label: {
+                        Image(systemName: "minus")
+                    }
+                    .buttonStyle(.borderless)
+                    .disabled(selectedServer == nil)
+                    .help("Remove selected server")
+
+                    Spacer()
+                }
+                .padding(8)
+            }
+            .frame(minWidth: 200, maxWidth: 250)
+
+            // Detail view
+            if let server = selectedServer {
+                MCPServerDetailView(
+                    server: server,
+                    configManager: configManager,
+                    onEdit: { editingServer = $0 }
+                )
+            } else {
+                VStack(spacing: 16) {
+                    Image(systemName: "server.rack")
+                        .font(.system(size: 48))
+                        .foregroundStyle(.secondary)
+                    Text("Select a server to view details")
+                        .foregroundStyle(.secondary)
+                    Text("MCP (Model Context Protocol) servers provide tools and resources to AI models.")
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
+                        .multilineTextAlignment(.center)
+                        .frame(maxWidth: 200)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+        }
+        .sheet(isPresented: $showAddSheet) {
+            MCPServerEditorSheet(
+                server: MCPServerConfig(),
+                isNew: true,
+                onSave: { newServer in
+                    configManager.addServer(newServer)
+                    selectedServer = newServer
+                }
+            )
+        }
+        .sheet(item: $editingServer) { server in
+            MCPServerEditorSheet(
+                server: server,
+                isNew: false,
+                onSave: { updatedServer in
+                    configManager.updateServer(updatedServer)
+                    selectedServer = updatedServer
+                }
+            )
+        }
+    }
+}
+
+private struct MCPServerRow: View {
+    let server: MCPServerConfig
+    @ObservedObject var configManager: MCPConfigManager
+
+    var body: some View {
+        HStack(spacing: 10) {
+            Image(systemName: server.transportType.icon)
+                .foregroundStyle(server.isEnabled ? .green : .secondary)
+                .frame(width: 20)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(server.name.isEmpty ? "Unnamed Server" : server.name)
+                    .font(.headline)
+                Text(server.command)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
+
+            Spacer()
+
+            Toggle("", isOn: Binding(
+                get: { server.isEnabled },
+                set: { _ in configManager.toggleServer(server) }
+            ))
+            .toggleStyle(.switch)
+            .controlSize(.small)
+        }
+        .padding(.vertical, 4)
+    }
+}
+
+private struct MCPServerDetailView: View {
+    let server: MCPServerConfig
+    @ObservedObject var configManager: MCPConfigManager
+    var onEdit: (MCPServerConfig) -> Void
+
+    @State private var testStatus: TestStatus = .idle
+    @State private var testMessage = ""
+
+    enum TestStatus {
+        case idle, testing, success, failure
+    }
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 20) {
+                // Header
+                HStack {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(server.name.isEmpty ? "Unnamed Server" : server.name)
+                            .font(.title2.bold())
+                        HStack(spacing: 8) {
+                            Label(server.transportType.displayName, systemImage: server.transportType.icon)
+                                .font(.caption)
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 4)
+                                .background(Color.secondary.opacity(0.1))
+                                .clipShape(Capsule())
+
+                            if server.isEnabled {
+                                Label("Enabled", systemImage: "checkmark.circle.fill")
+                                    .font(.caption)
+                                    .foregroundStyle(.green)
+                            } else {
+                                Label("Disabled", systemImage: "xmark.circle")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                    }
+
+                    Spacer()
+
+                    Button("Edit") {
+                        onEdit(server)
+                    }
+                    .buttonStyle(.bordered)
+                }
+
+                Divider()
+
+                // Command section
+                GroupBox("Command") {
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack {
+                            Text("Executable:")
+                                .foregroundStyle(.secondary)
+                            Text(server.command)
+                                .font(.body.monospaced())
+                        }
+
+                        if !server.args.isEmpty {
+                            HStack(alignment: .top) {
+                                Text("Arguments:")
+                                    .foregroundStyle(.secondary)
+                                VStack(alignment: .leading, spacing: 2) {
+                                    ForEach(server.args, id: \.self) { arg in
+                                        Text(arg)
+                                            .font(.body.monospaced())
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(4)
+                }
+
+                // Environment variables
+                if !server.env.isEmpty {
+                    GroupBox("Environment Variables") {
+                        VStack(alignment: .leading, spacing: 4) {
+                            ForEach(Array(server.env.keys.sorted()), id: \.self) { key in
+                                HStack {
+                                    Text(key)
+                                        .font(.body.monospaced())
+                                        .foregroundStyle(.secondary)
+                                    Text("=")
+                                        .foregroundStyle(.tertiary)
+                                    if server.env[key]?.isEmpty ?? true {
+                                        Text("(not set)")
+                                            .font(.caption)
+                                            .foregroundStyle(.orange)
+                                    } else {
+                                        Text(maskValue(server.env[key] ?? ""))
+                                            .font(.body.monospaced())
+                                    }
+                                }
+                            }
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(4)
+                    }
+                }
+
+                // Test connection
+                GroupBox("Connection Test") {
+                    HStack {
+                        Button {
+                            testConnection()
+                        } label: {
+                            HStack {
+                                if testStatus == .testing {
+                                    ProgressView()
+                                        .scaleEffect(0.7)
+                                }
+                                Text("Test Connection")
+                            }
+                        }
+                        .disabled(testStatus == .testing)
+
+                        Spacer()
+
+                        switch testStatus {
+                        case .idle:
+                            EmptyView()
+                        case .testing:
+                            Text("Testing...")
+                                .foregroundStyle(.secondary)
+                        case .success:
+                            Label("Connected", systemImage: "checkmark.circle.fill")
+                                .foregroundStyle(.green)
+                        case .failure:
+                            Label(testMessage, systemImage: "xmark.circle.fill")
+                                .foregroundStyle(.red)
+                        }
+                    }
+                    .padding(4)
+                }
+
+                Spacer()
+            }
+            .padding()
+        }
+    }
+
+    private func maskValue(_ value: String) -> String {
+        guard value.count > 4 else { return "****" }
+        return String(value.prefix(4)) + String(repeating: "*", count: min(20, value.count - 4))
+    }
+
+    private func testConnection() {
+        testStatus = .testing
+        testMessage = ""
+
+        // Simulate connection test
+        // In real implementation, this would attempt to launch the MCP server
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+            // Check if command exists
+            let process = Process()
+            process.executableURL = URL(fileURLWithPath: "/usr/bin/which")
+            process.arguments = [server.command]
+
+            let pipe = Pipe()
+            process.standardOutput = pipe
+            process.standardError = pipe
+
+            do {
+                try process.run()
+                process.waitUntilExit()
+
+                if process.terminationStatus == 0 {
+                    testStatus = .success
+                } else {
+                    testStatus = .failure
+                    testMessage = "Command not found"
+                }
+            } catch {
+                testStatus = .failure
+                testMessage = "Error: \(error.localizedDescription)"
+            }
+        }
+    }
+}
+
+private struct MCPServerEditorSheet: View {
+    @Environment(\.dismiss) private var dismiss
+
+    @State var server: MCPServerConfig
+    let isNew: Bool
+    var onSave: (MCPServerConfig) -> Void
+
+    @State private var argsText = ""
+    @State private var envKeyInput = ""
+    @State private var envValueInput = ""
+
+    var body: some View {
+        VStack(spacing: 0) {
+            // Header
+            HStack {
+                Text(isNew ? "Add MCP Server" : "Edit MCP Server")
+                    .font(.headline)
+                Spacer()
+                Button("Cancel") {
+                    dismiss()
+                }
+                .keyboardShortcut(.cancelAction)
+            }
+            .padding()
+
+            Divider()
+
+            // Form
+            Form {
+                Section("Server Information") {
+                    TextField("Name", text: $server.name, prompt: Text("e.g., Filesystem, GitHub"))
+
+                    Picker("Transport", selection: $server.transportType) {
+                        ForEach(MCPTransportType.allCases, id: \.self) { type in
+                            Label(type.displayName, systemImage: type.icon).tag(type)
+                        }
+                    }
+                }
+
+                Section("Command") {
+                    TextField("Command", text: $server.command, prompt: Text("e.g., npx, node, python"))
+
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Arguments (one per line)")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        TextEditor(text: $argsText)
+                            .font(.body.monospaced())
+                            .frame(height: 80)
+                            .border(Color.secondary.opacity(0.3))
+                    }
+                }
+
+                Section("Environment Variables") {
+                    ForEach(Array(server.env.keys.sorted()), id: \.self) { key in
+                        HStack {
+                            Text(key)
+                                .font(.body.monospaced())
+                            Spacer()
+                            SecureField("Value", text: Binding(
+                                get: { server.env[key] ?? "" },
+                                set: { server.env[key] = $0 }
+                            ))
+                            .frame(width: 200)
+                            Button {
+                                server.env.removeValue(forKey: key)
+                            } label: {
+                                Image(systemName: "minus.circle.fill")
+                                    .foregroundStyle(.red)
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+
+                    HStack {
+                        TextField("Key", text: $envKeyInput)
+                            .frame(width: 120)
+                        SecureField("Value", text: $envValueInput)
+                        Button {
+                            if !envKeyInput.isEmpty {
+                                server.env[envKeyInput] = envValueInput
+                                envKeyInput = ""
+                                envValueInput = ""
+                            }
+                        } label: {
+                            Image(systemName: "plus.circle.fill")
+                                .foregroundStyle(.green)
+                        }
+                        .buttonStyle(.plain)
+                        .disabled(envKeyInput.isEmpty)
+                    }
+                }
+
+                Section {
+                    Toggle("Enable this server", isOn: $server.isEnabled)
+                }
+            }
+            .formStyle(.grouped)
+            .scrollContentBackground(.hidden)
+
+            Divider()
+
+            // Footer
+            HStack {
+                Spacer()
+
+                Button("Save") {
+                    // Parse args from text
+                    server.args = argsText.components(separatedBy: .newlines).filter { !$0.isEmpty }
+                    onSave(server)
+                    dismiss()
+                }
+                .keyboardShortcut(.defaultAction)
+                .disabled(server.name.isEmpty || server.command.isEmpty)
+            }
+            .padding()
+        }
+        .frame(width: 500, height: 550)
+        .onAppear {
+            argsText = server.args.joined(separator: "\n")
+        }
+    }
+}
+
+// MARK: - SettingsView Wrapper (for Scene)
+
+struct SettingsView: View {
+    var body: some View {
+        MainSettingsView()
     }
 }
 
