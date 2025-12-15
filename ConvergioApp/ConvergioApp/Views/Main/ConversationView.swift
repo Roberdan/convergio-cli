@@ -9,6 +9,8 @@
 
 import SwiftUI
 import ConvergioCore
+import UniformTypeIdentifiers
+import AppKit
 
 struct ConversationView: View {
     @EnvironmentObject var conversationVM: ConversationViewModel
@@ -20,57 +22,64 @@ struct ConversationView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            // Message list
-            ScrollViewReader { proxy in
-                ScrollView {
-                    VStack(alignment: .leading, spacing: 16) {
-                        ForEach(conversationVM.messages) { message in
-                            MessageBubble(message: message)
-                                .id(message.id)
-                                .transition(.asymmetric(
-                                    insertion: .scale(scale: 0.95).combined(with: .opacity),
-                                    removal: .opacity
-                                ))
-                        }
+            // Message list or Empty State
+            if conversationVM.messages.isEmpty && !conversationVM.isStreaming {
+                EmptyConversationView()
+            } else {
+                ScrollViewReader { proxy in
+                    ScrollView {
+                        VStack(alignment: .leading, spacing: 16) {
+                            ForEach(conversationVM.messages) { message in
+                                MessageBubble(message: message)
+                                    .id(message.id)
+                                    .transition(.asymmetric(
+                                        insertion: .scale(scale: 0.95).combined(with: .opacity),
+                                        removal: .opacity
+                                    ))
+                            }
 
-                        // Streaming indicator
-                        if conversationVM.isStreaming {
-                            StreamingIndicator(text: conversationVM.streamingText)
-                                .id("streaming")
-                                .transition(.opacity)
-                        }
+                            // Streaming indicator
+                            if conversationVM.isStreaming {
+                                StreamingIndicator(text: conversationVM.streamingText)
+                                    .id("streaming")
+                                    .transition(.opacity)
+                            }
 
-                        // Invisible spacer to ensure scroll works
-                        Color.clear
-                            .frame(height: 1)
-                            .id("bottom")
+                            // Invisible spacer to ensure scroll works
+                            Color.clear
+                                .frame(height: 1)
+                                .id("bottom")
+                        }
+                        .padding()
+                        .animation(.easeInOut(duration: 0.2), value: conversationVM.messages.count)
                     }
-                    .padding()
-                    .animation(.easeInOut(duration: 0.2), value: conversationVM.messages.count)
-                }
-                .onAppear {
-                    scrollProxy = proxy
-                }
-                .onChange(of: conversationVM.messages.count) { oldCount, newCount in
-                    // Scroll immediately when new message added
-                    DispatchQueue.main.async {
-                        withAnimation(.easeOut(duration: 0.15)) {
-                            proxy.scrollTo("bottom", anchor: .bottom)
+                    .onAppear {
+                        scrollProxy = proxy
+                    }
+                    .onChange(of: conversationVM.messages.count) { oldCount, newCount in
+                        // Scroll immediately when new message added
+                        DispatchQueue.main.async {
+                            withAnimation(.easeOut(duration: 0.15)) {
+                                proxy.scrollTo("bottom", anchor: .bottom)
+                            }
                         }
                     }
-                }
-                .onChange(of: conversationVM.streamingText) { _, newText in
-                    // Scroll during streaming (throttled)
-                    if newText.count % 20 == 0 || newText.hasSuffix("\n") {
-                        DispatchQueue.main.async {
-                            proxy.scrollTo("streaming", anchor: .bottom)
+                    .onChange(of: conversationVM.streamingText) { _, newText in
+                        // Scroll during streaming (throttled)
+                        if newText.count % 20 == 0 || newText.hasSuffix("\n") {
+                            DispatchQueue.main.async {
+                                proxy.scrollTo("streaming", anchor: .bottom)
+                            }
                         }
                     }
-                }
-                .onChange(of: conversationVM.isStreaming) { _, isStreaming in
-                    if isStreaming {
-                        DispatchQueue.main.async {
-                            proxy.scrollTo("streaming", anchor: .bottom)
+                    .onChange(of: conversationVM.isStreaming) { wasStreaming, isStreaming in
+                        if isStreaming {
+                            DispatchQueue.main.async {
+                                proxy.scrollTo("streaming", anchor: .bottom)
+                            }
+                        } else if wasStreaming && !isStreaming {
+                            // Response completed - play sound
+                            AppDelegate.playCompletionSound()
                         }
                     }
                 }
@@ -128,7 +137,7 @@ struct ConversationView: View {
             // Status bar
             StatusBarView()
         }
-        .navigationTitle("Conversation")
+        .navigationTitle(dynamicTitle)
         .toolbar {
             ToolbarItemGroup(placement: .automatic) {
                 Button {
@@ -138,6 +147,15 @@ struct ConversationView: View {
                 }
                 .help("New Conversation")
                 .keyboardShortcut("n", modifiers: [.command])
+
+                // Export chat
+                Button {
+                    exportChat()
+                } label: {
+                    Image(systemName: "square.and.arrow.up")
+                }
+                .help("Export Chat")
+                .disabled(conversationVM.messages.isEmpty)
 
                 if conversationVM.isProcessing {
                     ProgressView()
@@ -152,6 +170,47 @@ struct ConversationView: View {
                     }
                     .help("Cancel (Cmd+.)")
                     .keyboardShortcut(".", modifiers: [.command])
+                }
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .newConversation)) { _ in
+            conversationVM.newConversation()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .clearHistory)) { _ in
+            conversationVM.clearHistory()
+        }
+    }
+
+    // MARK: - Dynamic Title
+
+    private var dynamicTitle: String {
+        if conversationVM.messages.isEmpty {
+            return "Convergio"
+        } else {
+            return "Convergio - \(conversationVM.messages.count) messages"
+        }
+    }
+
+    // MARK: - Export Chat
+
+    private func exportChat() {
+        let panel = NSSavePanel()
+        panel.allowedContentTypes = [.plainText, .text]
+        panel.nameFieldStringValue = "conversation_\(Date().ISO8601Format()).txt"
+        panel.title = "Export Conversation"
+
+        panel.begin { response in
+            if response == .OK, let url = panel.url {
+                let content = conversationVM.messages.map { message in
+                    let sender = message.isFromUser ? "You" : "AI Team"
+                    return "[\(message.formattedTime)] \(sender):\n\(message.content)\n"
+                }.joined(separator: "\n---\n\n")
+
+                do {
+                    try content.write(to: url, atomically: true, encoding: .utf8)
+                    logInfo("Exported conversation to \(url.path)", category: "Export")
+                } catch {
+                    logError("Failed to export: \(error)", category: "Export")
                 }
             }
         }
@@ -173,10 +232,76 @@ struct ConversationView: View {
     }
 }
 
+// MARK: - Empty Conversation View
+
+struct EmptyConversationView: View {
+    @State private var animateLogo = false
+
+    var body: some View {
+        VStack(spacing: 24) {
+            Spacer()
+
+            // Animated logo
+            ZStack {
+                Circle()
+                    .fill(Color.purple.opacity(0.1))
+                    .frame(width: 120, height: 120)
+                    .scaleEffect(animateLogo ? 1.05 : 0.95)
+
+                Image(systemName: "brain.head.profile")
+                    .font(.system(size: 50))
+                    .foregroundStyle(.purple.gradient)
+            }
+            .animation(
+                .easeInOut(duration: 2).repeatForever(autoreverses: true),
+                value: animateLogo
+            )
+            .onAppear { animateLogo = true }
+
+            Text("Welcome to Convergio")
+                .font(.title2.weight(.semibold))
+
+            Text("Your AI Executive Team is ready to help")
+                .font(.body)
+                .foregroundStyle(.secondary)
+
+            // Quick suggestions
+            VStack(alignment: .leading, spacing: 12) {
+                Text("Try asking:")
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
+
+                ForEach([
+                    "Help me plan a project",
+                    "Analyze this problem for me",
+                    "Write a compelling email"
+                ], id: \.self) { suggestion in
+                    HStack {
+                        Image(systemName: "lightbulb")
+                            .foregroundStyle(.yellow)
+                        Text(suggestion)
+                            .font(.callout)
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 8)
+                    .background(Color.secondary.opacity(0.1))
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                }
+            }
+
+            Spacer()
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Color(nsColor: .windowBackgroundColor))
+    }
+}
+
 // MARK: - Message Bubble
 
 struct MessageBubble: View {
     let message: Message
+    @State private var isHovering = false
+    @State private var showCopied = false
 
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
@@ -203,6 +328,25 @@ struct MessageBubble: View {
                     Text(message.formattedTime)
                         .font(.caption2)
                         .foregroundStyle(.secondary)
+
+                    // Copy button (appears on hover)
+                    if isHovering && !message.isFromUser {
+                        Button {
+                            copyToClipboard()
+                        } label: {
+                            HStack(spacing: 2) {
+                                Image(systemName: showCopied ? "checkmark" : "doc.on.doc")
+                                if showCopied {
+                                    Text("Copied!")
+                                        .font(.caption2)
+                                }
+                            }
+                            .font(.caption)
+                            .foregroundStyle(showCopied ? .green : .secondary)
+                        }
+                        .buttonStyle(.plain)
+                        .transition(.opacity)
+                    }
                 }
 
                 // Message content
@@ -223,6 +367,30 @@ struct MessageBubble: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: message.isFromUser ? .trailing : .leading)
+        .onHover { hovering in
+            withAnimation(.easeInOut(duration: 0.15)) {
+                isHovering = hovering
+            }
+        }
+        .contextMenu {
+            Button("Copy") {
+                copyToClipboard()
+            }
+        }
+    }
+
+    private func copyToClipboard() {
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(message.content, forType: .string)
+
+        withAnimation {
+            showCopied = true
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+            withAnimation {
+                showCopied = false
+            }
+        }
     }
 
     private var senderName: String {
