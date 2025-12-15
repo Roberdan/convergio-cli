@@ -112,30 +112,29 @@ struct GeneralSettingsTab: View {
 // MARK: - Providers Settings Tab
 
 struct ProvidersSettingsTab: View {
-    @EnvironmentObject var orchestratorVM: OrchestratorViewModel
-    @State private var selectedProvider = "Anthropic"
-    @State private var apiKeys: [String: String] = [:]
-
-    private let providers = [
-        ProviderInfo(name: "Anthropic", icon: "brain", models: ["claude-sonnet-4-20250514", "claude-3-5-sonnet-20241022"]),
-        ProviderInfo(name: "OpenAI", icon: "sparkles", models: ["gpt-4o", "gpt-4o-mini"]),
-        ProviderInfo(name: "Google", icon: "g.circle", models: ["gemini-2.0-flash", "gemini-1.5-pro"]),
-        ProviderInfo(name: "Local (MLX)", icon: "desktopcomputer", models: ["llama-3.2", "mistral-7b"])
-    ]
+    @ObservedObject var keychainManager = KeychainManager.shared
+    @State private var selectedProvider: APIProvider = .anthropic
 
     var body: some View {
         HSplitView {
             // Provider list
-            List(providers, id: \.name, selection: $selectedProvider) { provider in
+            List(APIProvider.allCases, selection: $selectedProvider) { provider in
                 HStack(spacing: 12) {
                     Image(systemName: provider.icon)
                         .frame(width: 24)
+                        .foregroundStyle(keychainManager.getKey(for: provider) != nil ? .green : .secondary)
                     VStack(alignment: .leading) {
-                        Text(provider.name)
+                        Text(provider.displayName)
                             .font(.headline)
-                        Text("\(provider.models.count) models")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
+                        if keychainManager.getKey(for: provider) != nil {
+                            Text("Configured")
+                                .font(.caption)
+                                .foregroundStyle(.green)
+                        } else {
+                            Text("Not configured")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
                     }
                 }
                 .padding(.vertical, 4)
@@ -143,47 +142,65 @@ struct ProvidersSettingsTab: View {
             .frame(minWidth: 150, maxWidth: 200)
 
             // Provider detail
-            if let provider = providers.first(where: { $0.name == selectedProvider }) {
-                ProviderDetailView(provider: provider, apiKey: binding(for: provider.name))
-            }
+            ProviderDetailView(provider: selectedProvider)
         }
         .padding()
     }
-
-    private func binding(for provider: String) -> Binding<String> {
-        Binding(
-            get: { apiKeys[provider] ?? "" },
-            set: { apiKeys[provider] = $0 }
-        )
-    }
-}
-
-private struct ProviderInfo {
-    let name: String
-    let icon: String
-    let models: [String]
 }
 
 private struct ProviderDetailView: View {
-    let provider: ProviderInfo
-    @Binding var apiKey: String
+    let provider: APIProvider
+    @ObservedObject var keychainManager = KeychainManager.shared
+    @State private var apiKeyInput = ""
     @State private var showApiKey = false
     @State private var isTestingConnection = false
     @State private var connectionStatus: ConnectionStatus = .unknown
+    @State private var showSaveConfirmation = false
 
     enum ConnectionStatus {
         case unknown, testing, success, failure
     }
 
+    private var hasExistingKey: Bool {
+        keychainManager.getKey(for: provider) != nil
+    }
+
+    private var maskedKey: String {
+        keychainManager.getMaskedKey(for: provider) ?? ""
+    }
+
     var body: some View {
         Form {
             Section("API Configuration") {
+                if hasExistingKey {
+                    // Show existing key (masked)
+                    HStack {
+                        Text("Current Key:")
+                            .foregroundStyle(.secondary)
+                        Text(maskedKey)
+                            .font(.body.monospaced())
+                        Spacer()
+                        Button("Remove") {
+                            keychainManager.deleteKey(for: provider)
+                            apiKeyInput = ""
+                            connectionStatus = .unknown
+                        }
+                        .foregroundStyle(.red)
+                    }
+
+                    Divider()
+
+                    Text("Enter new key to replace:")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
                 HStack {
                     if showApiKey {
-                        TextField("API Key", text: $apiKey)
+                        TextField("API Key", text: $apiKeyInput)
                             .textFieldStyle(.roundedBorder)
                     } else {
-                        SecureField("API Key", text: $apiKey)
+                        SecureField("API Key", text: $apiKeyInput)
                             .textFieldStyle(.roundedBorder)
                     }
                     Button {
@@ -195,58 +212,83 @@ private struct ProviderDetailView: View {
                 }
 
                 HStack {
+                    Button("Save Key") {
+                        saveKey()
+                    }
+                    .disabled(apiKeyInput.isEmpty)
+                    .buttonStyle(.borderedProminent)
+
+                    if showSaveConfirmation {
+                        Label("Saved!", systemImage: "checkmark.circle.fill")
+                            .foregroundStyle(.green)
+                            .transition(.opacity)
+                    }
+
+                    Spacer()
+
                     Button("Test Connection") {
                         testConnection()
                     }
-                    .disabled(apiKey.isEmpty || isTestingConnection)
+                    .disabled(!hasExistingKey || isTestingConnection)
 
                     if isTestingConnection {
                         ProgressView()
                             .scaleEffect(0.7)
                     }
 
-                    Spacer()
-
                     connectionStatusView
                 }
             }
 
-            Section("Available Models") {
-                ForEach(provider.models, id: \.self) { model in
+            Section("Provider Info") {
+                HStack {
+                    Text("Environment Variable")
+                    Spacer()
+                    Text(provider.envVariable)
+                        .font(.body.monospaced())
+                        .foregroundStyle(.secondary)
+                }
+
+                if !keychainManager.isValidKeyFormat(apiKeyInput, for: provider) && !apiKeyInput.isEmpty {
+                    Label("Key format may be invalid", systemImage: "exclamationmark.triangle")
+                        .foregroundStyle(.orange)
+                        .font(.caption)
+                }
+            }
+
+            Section("Models") {
+                ForEach(modelsForProvider, id: \.self) { model in
                     HStack {
                         Text(model)
                             .font(.body.monospaced())
                         Spacer()
-                        Button("Set Default") {
-                            // TODO: Set default model
-                        }
-                        .buttonStyle(.bordered)
-                        .controlSize(.small)
-                    }
-                }
-            }
-
-            if provider.name == "Local (MLX)" {
-                Section("Local Model Settings") {
-                    Text("Local models run on Apple Silicon using MLX framework.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-
-                    HStack {
-                        Text("GPU Memory Limit")
-                        Spacer()
-                        Picker("", selection: .constant("Auto")) {
-                            Text("Auto").tag("Auto")
-                            Text("8 GB").tag("8")
-                            Text("16 GB").tag("16")
-                            Text("32 GB").tag("32")
-                        }
-                        .frame(width: 100)
                     }
                 }
             }
         }
         .padding()
+        .onChange(of: provider) { _, _ in
+            apiKeyInput = ""
+            connectionStatus = .unknown
+            showSaveConfirmation = false
+        }
+    }
+
+    private var modelsForProvider: [String] {
+        switch provider {
+        case .anthropic:
+            return ["claude-sonnet-4-20250514", "claude-3-5-sonnet-20241022", "claude-3-opus-20240229"]
+        case .openai:
+            return ["gpt-4o", "gpt-4o-mini", "gpt-4-turbo"]
+        case .gemini:
+            return ["gemini-2.0-flash", "gemini-1.5-pro", "gemini-1.5-flash"]
+        case .openrouter:
+            return ["anthropic/claude-3.5-sonnet", "openai/gpt-4o", "google/gemini-pro"]
+        case .perplexity:
+            return ["llama-3.1-sonar-large-128k-online", "llama-3.1-sonar-small-128k-online"]
+        case .grok:
+            return ["grok-2", "grok-2-mini"]
+        }
     }
 
     @ViewBuilder
@@ -266,14 +308,39 @@ private struct ProviderDetailView: View {
         }
     }
 
+    private func saveKey() {
+        guard !apiKeyInput.isEmpty else { return }
+
+        if keychainManager.saveKey(apiKeyInput, for: provider) {
+            apiKeyInput = ""
+            showSaveConfirmation = true
+            logInfo("Saved \(provider.displayName) API key", category: "Settings")
+
+            // Hide confirmation after 2 seconds
+            DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+                withAnimation {
+                    showSaveConfirmation = false
+                }
+            }
+        }
+    }
+
     private func testConnection() {
+        guard hasExistingKey else { return }
+
         isTestingConnection = true
         connectionStatus = .testing
 
-        // Simulate connection test
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+        // TODO: Implement actual API test
+        // For now, just validate the key exists and has valid format
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
             isTestingConnection = false
-            connectionStatus = apiKey.count > 10 ? .success : .failure
+            if let key = keychainManager.getKey(for: provider),
+               keychainManager.isValidKeyFormat(key, for: provider) {
+                connectionStatus = .success
+            } else {
+                connectionStatus = .failure
+            }
         }
     }
 }
