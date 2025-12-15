@@ -22,6 +22,11 @@ struct ConvergioApp: App {
         // Set up crash handler
         setupCrashHandler()
         logInfo("Convergio app starting", category: "System")
+
+        // Initialize Keychain and load API keys
+        Task { @MainActor in
+            KeychainManager.shared.initializeOnLaunch()
+        }
     }
 
     var body: some Scene {
