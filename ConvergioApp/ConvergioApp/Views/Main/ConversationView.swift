@@ -80,17 +80,31 @@ struct ConversationView: View {
 
             // Input area
             HStack(alignment: .bottom, spacing: 12) {
-                // Text input
-                TextField("Ask the team...", text: $inputText, axis: .vertical)
-                    .textFieldStyle(.plain)
-                    .lineLimit(1...10)
-                    .focused($isInputFocused)
-                    .onSubmit {
-                        if !inputText.isEmpty && !conversationVM.isProcessing {
-                            sendMessage()
+                // Text input with visible styling
+                TextEditor(text: $inputText)
+                    .font(.body)
+                    .frame(minHeight: 36, maxHeight: 120)
+                    .scrollContentBackground(.hidden)
+                    .padding(8)
+                    .background(Color(nsColor: .textBackgroundColor))
+                    .clipShape(RoundedRectangle(cornerRadius: 10))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 10)
+                            .stroke(Color.secondary.opacity(0.3), lineWidth: 1)
+                    )
+                    .overlay(alignment: .leading) {
+                        if inputText.isEmpty {
+                            Text("Ask the team...")
+                                .foregroundStyle(.secondary)
+                                .padding(.leading, 12)
+                                .allowsHitTesting(false)
                         }
                     }
+                    .focused($isInputFocused)
                     .disabled(conversationVM.isProcessing)
+                    .onAppear {
+                        isInputFocused = true
+                    }
 
                 // Send/Stop button
                 Button {
@@ -101,15 +115,16 @@ struct ConversationView: View {
                     }
                 } label: {
                     Image(systemName: conversationVM.isProcessing ? "stop.circle.fill" : "arrow.up.circle.fill")
-                        .font(.title2)
+                        .font(.system(size: 28))
                         .foregroundStyle(conversationVM.isProcessing ? .red : (inputText.isEmpty ? .secondary : .accentColor))
                         .contentTransition(.symbolEffect(.replace))
                 }
                 .buttonStyle(.plain)
                 .disabled(inputText.isEmpty && !conversationVM.isProcessing)
                 .keyboardShortcut(.return, modifiers: [.command])
+                .padding(.bottom, 4)
             }
-            .padding()
+            .padding(12)
             .background(.ultraThinMaterial)
         }
         .navigationTitle("Conversation")
