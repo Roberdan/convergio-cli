@@ -75,6 +75,35 @@ brew tap Roberdan/convergio-cli && brew install convergio
 
 ---
 
+## Coming Soon: Convergio Native for macOS
+
+<p align="center">
+  <img src="https://img.shields.io/badge/🚧_IN_DEVELOPMENT-Native_macOS_App-purple?style=for-the-badge" alt="In Development"/>
+</p>
+
+We're building a **stunning native macOS application** with Apple's Liquid Glass design language! The CLI will remain fully supported, but soon you'll have a beautiful GUI option.
+
+**Features in development:**
+- 🎨 Liquid Glass UI with glass-morphism effects
+- 🤖 Real-time Agent Interaction Visualizer
+- ⚙️ Full Settings UI (API keys, budgets, MCP servers)
+- 📝 Agent Markdown Editor with live preview
+- 📚 Comprehensive in-app Help System
+- 🔔 Native macOS notifications
+- ⌨️ Global hotkey (Cmd+Shift+Space)
+
+**Want to contribute or follow progress?**
+→ Check out the [`feature/native-app`](https://github.com/Roberdan/convergio-cli/tree/feature/native-app) branch!
+
+```bash
+git clone https://github.com/Roberdan/convergio-cli.git
+cd convergio-cli
+git checkout feature/native-app
+cd ConvergioApp && xcodegen && open ConvergioApp.xcodeproj
+```
+
+---
+
 ## What's New in v5.0.0
 
 ### Anna Executive Assistant - Your AI-Powered Personal Productivity System
