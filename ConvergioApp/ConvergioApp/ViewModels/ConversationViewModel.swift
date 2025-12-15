@@ -59,7 +59,8 @@ public final class ConversationViewModel: ObservableObject {
 
         do {
             let response = try await orchestrator.sendStreaming(input) { [weak self] chunk in
-                Task { @MainActor in
+                // Use DispatchQueue for immediate main thread execution
+                DispatchQueue.main.async {
                     self?.streamingText += chunk
                 }
             }

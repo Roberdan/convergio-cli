@@ -440,9 +440,14 @@ private final class StreamingActor: @unchecked Sendable {
     }
 
     func handleChunk(_ chunk: String) {
+        // Call callback immediately without holding the lock during execution
+        // The lock only protects against concurrent handleChunk calls
         lock.lock()
-        defer { lock.unlock() }
-        onChunk(chunk)
+        let callback = onChunk
+        lock.unlock()
+
+        // Execute callback - it will handle its own thread safety
+        callback(chunk)
     }
 }
 
