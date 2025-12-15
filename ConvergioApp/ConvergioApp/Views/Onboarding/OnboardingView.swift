@@ -14,9 +14,10 @@ import ConvergioCore
 
 struct OnboardingView: View {
     @Binding var isComplete: Bool
+    @EnvironmentObject var keychainManager: KeychainManager
     @State private var currentStep = 0
     @State private var apiKey = ""
-    @State private var selectedProvider = "anthropic"
+    @State private var selectedProvider: APIProvider = .anthropic
 
     private let totalSteps = 5
 
@@ -94,10 +95,14 @@ struct OnboardingView: View {
     }
 
     private func completeOnboarding() {
+        // Save API key to Keychain
+        if !apiKey.isEmpty {
+            keychainManager.saveKey(apiKey, for: selectedProvider)
+        }
+
         UserDefaults.standard.set(true, forKey: "onboardingComplete")
-        UserDefaults.standard.set(selectedProvider, forKey: "selectedProvider")
-        // Store API key securely in keychain in production
-        isComplete = true
+        UserDefaults.standard.set(selectedProvider.rawValue, forKey: "selectedProvider")
+        isComplete = false // This dismisses the sheet
     }
 }
 
@@ -241,15 +246,11 @@ private struct AgentPreviewCard: View {
 // MARK: - Provider Setup Step
 
 private struct ProviderSetupStep: View {
-    @Binding var selectedProvider: String
+    @Binding var selectedProvider: APIProvider
     @Binding var apiKey: String
     @State private var showApiKey = false
 
-    private let providers = [
-        ("anthropic", "Anthropic", "Claude models", "brain"),
-        ("openai", "OpenAI", "GPT models", "sparkles"),
-        ("google", "Google", "Gemini models", "g.circle"),
-    ]
+    private let providers: [APIProvider] = [.anthropic, .openai, .gemini]
 
     var body: some View {
         VStack(spacing: 24) {
@@ -264,14 +265,14 @@ private struct ProviderSetupStep: View {
 
             // Provider selection
             HStack(spacing: 16) {
-                ForEach(providers, id: \.0) { (id, name, desc, icon) in
+                ForEach(providers) { provider in
                     ProviderOptionCard(
-                        name: name,
-                        description: desc,
-                        icon: icon,
-                        isSelected: selectedProvider == id
+                        name: provider.displayName,
+                        description: providerDescription(for: provider),
+                        icon: provider.icon,
+                        isSelected: selectedProvider == provider
                     ) {
-                        selectedProvider = id
+                        selectedProvider = provider
                     }
                 }
             }
@@ -308,6 +309,17 @@ private struct ProviderSetupStep: View {
             .frame(maxWidth: 400)
         }
         .padding(40)
+    }
+
+    private func providerDescription(for provider: APIProvider) -> String {
+        switch provider {
+        case .anthropic: return "Claude models"
+        case .openai: return "GPT models"
+        case .gemini: return "Gemini models"
+        case .openrouter: return "Multi-provider"
+        case .perplexity: return "Search AI"
+        case .grok: return "Grok models"
+        }
     }
 }
 

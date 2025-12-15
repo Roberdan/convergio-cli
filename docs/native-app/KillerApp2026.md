@@ -4,8 +4,8 @@
 
 **Created:** 2025-12-14 18:49:29
 **Author:** Roberto + AI Team
-**Status:** IMPLEMENTATION IN PROGRESS - Phases 0-5 Complete, API Keys Integrated
-**Last Updated:** 2025-12-14 22:30:00
+**Status:** IMPLEMENTATION IN PROGRESS - All Quick Improvements Complete
+**Last Updated:** 2025-12-15 08:20:00
 
 ---
 
@@ -129,13 +129,22 @@ Convergio CLI is **architecturally perfect** for native app conversion:
 | **KeychainManager** | Secure API key storage in macOS Keychain | DONE |
 | **Provider Settings** | Full UI for managing 6 providers | DONE |
 | **Env Import** | Auto-import from environment variables | DONE |
+| **Real App Icons** | Generated from Convergio logo (docs/logo) | DONE |
+| **About Dialog** | Version info, credits, copyright | DONE |
+| **Help Menu** | Wiki link, keyboard shortcuts, issue reporting | DONE |
+| **Keyboard Shortcuts Window** | Full shortcuts reference (Help menu) | DONE |
+| **Smart Onboarding** | Auto-show if no API keys configured | DONE |
+| **Status Bar** | Model, tokens, cost, message count in chat | DONE |
 
 ### Next Steps (To Continue Later)
 
 1. **Verify streaming works** - Test if responses stream in real-time
 2. **C-side streaming** - May need to check `orchestrator_process_stream` implementation
 3. **Test with real API** - Verify full conversation flow works
-4. **Onboarding flow** - Show onboarding on first launch if no keys
+4. ~~**Onboarding flow**~~ - DONE: Shows onboarding if no API keys configured
+5. **Anna voice assistant** - Voice input/output integration
+6. **Global hotkey** - Cmd+Shift+Space from anywhere
+7. **Menu bar widget** - Quick access mini-view
 
 ### Files Created (Session 2025-12-14)
 
