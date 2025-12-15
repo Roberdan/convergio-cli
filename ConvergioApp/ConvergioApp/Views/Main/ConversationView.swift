@@ -15,6 +15,7 @@ struct ConversationView: View {
     @EnvironmentObject var orchestratorVM: OrchestratorViewModel
 
     @State private var inputText = ""
+    @State private var scrollProxy: ScrollViewProxy?
     @FocusState private var isInputFocused: Bool
 
     var body: some View {
@@ -22,28 +23,55 @@ struct ConversationView: View {
             // Message list
             ScrollViewReader { proxy in
                 ScrollView {
-                    LazyVStack(alignment: .leading, spacing: 16) {
+                    VStack(alignment: .leading, spacing: 16) {
                         ForEach(conversationVM.messages) { message in
                             MessageBubble(message: message)
                                 .id(message.id)
+                                .transition(.asymmetric(
+                                    insertion: .scale(scale: 0.95).combined(with: .opacity),
+                                    removal: .opacity
+                                ))
                         }
 
                         // Streaming indicator
                         if conversationVM.isStreaming {
                             StreamingIndicator(text: conversationVM.streamingText)
                                 .id("streaming")
+                                .transition(.opacity)
                         }
+
+                        // Invisible spacer to ensure scroll works
+                        Color.clear
+                            .frame(height: 1)
+                            .id("bottom")
                     }
                     .padding()
+                    .animation(.easeInOut(duration: 0.2), value: conversationVM.messages.count)
                 }
-                .onChange(of: conversationVM.messages.count) { _, _ in
-                    withAnimation(.easeOut(duration: 0.2)) {
-                        proxy.scrollTo(conversationVM.messages.last?.id, anchor: .bottom)
+                .onAppear {
+                    scrollProxy = proxy
+                }
+                .onChange(of: conversationVM.messages.count) { oldCount, newCount in
+                    // Scroll immediately when new message added
+                    DispatchQueue.main.async {
+                        withAnimation(.easeOut(duration: 0.15)) {
+                            proxy.scrollTo("bottom", anchor: .bottom)
+                        }
                     }
                 }
-                .onChange(of: conversationVM.streamingText) { _, _ in
-                    withAnimation(.easeOut(duration: 0.1)) {
-                        proxy.scrollTo("streaming", anchor: .bottom)
+                .onChange(of: conversationVM.streamingText) { _, newText in
+                    // Scroll during streaming (throttled)
+                    if newText.count % 20 == 0 || newText.hasSuffix("\n") {
+                        DispatchQueue.main.async {
+                            proxy.scrollTo("streaming", anchor: .bottom)
+                        }
+                    }
+                }
+                .onChange(of: conversationVM.isStreaming) { _, isStreaming in
+                    if isStreaming {
+                        DispatchQueue.main.async {
+                            proxy.scrollTo("streaming", anchor: .bottom)
+                        }
                     }
                 }
             }
@@ -58,19 +86,24 @@ struct ConversationView: View {
                     .lineLimit(1...10)
                     .focused($isInputFocused)
                     .onSubmit {
-                        if !inputText.isEmpty {
+                        if !inputText.isEmpty && !conversationVM.isProcessing {
                             sendMessage()
                         }
                     }
                     .disabled(conversationVM.isProcessing)
 
-                // Send button
+                // Send/Stop button
                 Button {
-                    sendMessage()
+                    if conversationVM.isProcessing {
+                        conversationVM.cancel()
+                    } else {
+                        sendMessage()
+                    }
                 } label: {
-                    Image(systemName: conversationVM.isProcessing ? "stop.fill" : "arrow.up.circle.fill")
+                    Image(systemName: conversationVM.isProcessing ? "stop.circle.fill" : "arrow.up.circle.fill")
                         .font(.title2)
-                        .foregroundStyle(inputText.isEmpty && !conversationVM.isProcessing ? .secondary : .primary)
+                        .foregroundStyle(conversationVM.isProcessing ? .red : (inputText.isEmpty ? .secondary : .accentColor))
+                        .contentTransition(.symbolEffect(.replace))
                 }
                 .buttonStyle(.plain)
                 .disabled(inputText.isEmpty && !conversationVM.isProcessing)
@@ -88,14 +121,21 @@ struct ConversationView: View {
                     Image(systemName: "plus.circle")
                 }
                 .help("New Conversation")
+                .keyboardShortcut("n", modifiers: [.command])
 
                 if conversationVM.isProcessing {
+                    ProgressView()
+                        .scaleEffect(0.7)
+                        .frame(width: 20, height: 20)
+
                     Button {
                         conversationVM.cancel()
                     } label: {
-                        Image(systemName: "stop.circle")
+                        Image(systemName: "xmark.circle")
+                            .foregroundStyle(.red)
                     }
-                    .help("Cancel")
+                    .help("Cancel (Cmd+.)")
+                    .keyboardShortcut(".", modifiers: [.command])
                 }
             }
         }
@@ -103,15 +143,16 @@ struct ConversationView: View {
 
     private func sendMessage() {
         guard !inputText.isEmpty else { return }
+        guard !conversationVM.isProcessing else { return }
 
-        if conversationVM.isProcessing {
-            conversationVM.cancel()
-        } else {
-            let message = inputText
-            inputText = ""
-            Task {
-                await conversationVM.send(message)
-            }
+        let message = inputText
+        inputText = ""
+
+        // Keep focus on input
+        isInputFocused = true
+
+        Task {
+            await conversationVM.send(message)
         }
     }
 }
