@@ -115,7 +115,7 @@ bool orch_plan_get_progress(ExecutionPlan* plan, int* total, int* completed, flo
         if (plan_db_get_progress(plan->db_id, &progress) == PLAN_DB_OK) {
             if (total) *total = progress.total;
             if (completed) *completed = progress.completed;
-            if (percent) *percent = progress.percent_complete;
+            if (percent) *percent = (float)progress.percent_complete;
             return true;
         }
     }

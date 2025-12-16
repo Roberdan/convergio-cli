@@ -111,7 +111,7 @@ static char* json_escape_string(const char* str) {
             default:
                 if ((unsigned char)*p < 32) {
                     // Control character - use \u00XX format
-                    out += sprintf(out, "\\u%04x", (unsigned char)*p);
+                    out += snprintf(out, 7, "\\u%04x", (unsigned char)*p);
                 } else {
                     *out++ = *p;
                 }
@@ -848,11 +848,12 @@ char* plan_db_generate_mermaid(const char* plan_id) {
     }
 
     size_t pos = 0;
-    pos += snprintf(buf + pos, buf_size - pos,
+    int written = snprintf(buf + pos, buf_size - pos,
         "gantt\n"
         "    title Execution Plan Progress\n"
         "    dateFormat X\n"
         "    axisFormat %%H:%%M\n\n");
+    if (written > 0) pos += (size_t)written;
 
     for (TaskRecord* t = tasks; t; t = t->next) {
         const char* status_class;
@@ -876,9 +877,10 @@ char* plan_db_generate_mermaid(const char* plan_id) {
         time_t end = t->completed_at ? t->completed_at : (start + 60); // Default 1 min
 
         if (pos < buf_size - 200) {
-            pos += snprintf(buf + pos, buf_size - pos,
+            int w = snprintf(buf + pos, buf_size - pos,
                 "    %s :%s, %ld, %ld\n",
                 short_desc, status_class, start, end);
+            if (w > 0) pos += (size_t)w;
         }
     }
 
@@ -1003,7 +1005,7 @@ PlanDbError plan_db_export_json(const char* plan_id, char** out_json) {
     char* escaped_desc = json_escape_string(plan.description);
 
     size_t pos = 0;
-    pos += snprintf(buf + pos, buf_size - pos,
+    int w = snprintf(buf + pos, buf_size - pos,
         "{\n"
         "  \"id\": \"%s\",\n"
         "  \"description\": \"%s\",\n"
@@ -1022,18 +1024,22 @@ PlanDbError plan_db_export_json(const char* plan_id, char** out_json) {
         progress.total,
         progress.completed,
         progress.percent_complete);
+    if (w > 0) pos += (size_t)w;
 
     free(escaped_desc);
 
     bool first = true;
     for (TaskRecord* t = tasks; t; t = t->next) {
-        if (!first) pos += snprintf(buf + pos, buf_size - pos, ",\n");
+        if (!first) {
+            w = snprintf(buf + pos, buf_size - pos, ",\n");
+            if (w > 0) pos += (size_t)w;
+        }
         first = false;
 
         char* task_desc = json_escape_string(t->description);
         char* task_agent = json_escape_string(t->assigned_agent);
 
-        pos += snprintf(buf + pos, buf_size - pos,
+        w = snprintf(buf + pos, buf_size - pos,
             "    {\n"
             "      \"id\": \"%s\",\n"
             "      \"description\": \"%s\",\n"
@@ -1046,12 +1052,15 @@ PlanDbError plan_db_export_json(const char* plan_id, char** out_json) {
             task_status_to_string(t->status),
             task_agent,
             t->priority);
+        if (w > 0) pos += (size_t)w;
 
         free(task_desc);
         free(task_agent);
     }
 
-    pos += snprintf(buf + pos, buf_size - pos, "\n  ]\n}\n");
+    w = snprintf(buf + pos, buf_size - pos, "\n  ]\n}\n");
+    if (w > 0) pos += (size_t)w;
+    (void)pos; // Suppress unused warning
 
     task_record_free_list(tasks);
     plan_record_free(&plan);

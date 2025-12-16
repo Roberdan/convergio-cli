@@ -23,6 +23,12 @@
 #define MAX_FILENAME_LEN 256
 #define DEFAULT_OUTPUT_DIR "outputs"
 
+// Safe snprintf position addition (handles int -> size_t conversion)
+#define SNPRINTF_ADD(pos, buf, buf_size, ...) do { \
+    int _w = snprintf((buf) + (pos), (buf_size) - (pos), __VA_ARGS__); \
+    if (_w > 0) (pos) += (size_t)_w; \
+} while(0)
+
 // ============================================================================
 // GLOBAL STATE
 // ============================================================================
@@ -362,16 +368,16 @@ char* output_mermaid_block(const MermaidDiagram* diagram) {
 
     // Title comment if provided
     if (diagram->title) {
-        pos += snprintf(result + pos, len - pos, "<!-- %s -->\n", diagram->title);
+        SNPRINTF_ADD(pos, result, len, "<!-- %s -->\n", diagram->title);
     }
 
-    pos += snprintf(result + pos, len - pos, "```mermaid\n");
+    SNPRINTF_ADD(pos, result, len, "```mermaid\n");
 
     if (diagram->type != MERMAID_CUSTOM) {
-        pos += snprintf(result + pos, len - pos, "%s\n", type_str);
+        SNPRINTF_ADD(pos, result, len, "%s\n", type_str);
     }
 
-    pos += snprintf(result + pos, len - pos, "%s\n```", diagram->content);
+    SNPRINTF_ADD(pos, result, len, "%s\n```", diagram->content);
 
     return result;
 }
@@ -387,22 +393,22 @@ char* output_mermaid_flowchart(const char* title, const char* direction,
     size_t pos = 0;
 
     if (title) {
-        pos += snprintf(buf + pos, buf_size - pos, "---\ntitle: %s\n---\n", title);
+        SNPRINTF_ADD(pos, buf, buf_size, "---\ntitle: %s\n---\n", title);
     }
 
-    pos += snprintf(buf + pos, buf_size - pos, "flowchart %s\n", direction);
+    SNPRINTF_ADD(pos, buf, buf_size, "flowchart %s\n", direction);
 
     // Add nodes
     if (nodes) {
         for (int i = 0; nodes[i]; i++) {
-            pos += snprintf(buf + pos, buf_size - pos, "    %s\n", nodes[i]);
+            SNPRINTF_ADD(pos, buf, buf_size, "    %s\n", nodes[i]);
         }
     }
 
     // Add edges
     if (edges) {
         for (int i = 0; edges[i]; i++) {
-            pos += snprintf(buf + pos, buf_size - pos, "    %s\n", edges[i]);
+            SNPRINTF_ADD(pos, buf, buf_size, "    %s\n", edges[i]);
         }
     }
 
@@ -418,22 +424,22 @@ char* output_mermaid_sequence(const char* title, const char** participants,
     size_t pos = 0;
 
     if (title) {
-        pos += snprintf(buf + pos, buf_size - pos, "---\ntitle: %s\n---\n", title);
+        SNPRINTF_ADD(pos, buf, buf_size, "---\ntitle: %s\n---\n", title);
     }
 
-    pos += snprintf(buf + pos, buf_size - pos, "sequenceDiagram\n");
+    SNPRINTF_ADD(pos, buf, buf_size, "sequenceDiagram\n");
 
     // Add participants
     if (participants) {
         for (int i = 0; participants[i]; i++) {
-            pos += snprintf(buf + pos, buf_size - pos, "    participant %s\n", participants[i]);
+            SNPRINTF_ADD(pos, buf, buf_size, "    participant %s\n", participants[i]);
         }
     }
 
     // Add messages
     if (messages) {
         for (int i = 0; messages[i]; i++) {
-            pos += snprintf(buf + pos, buf_size - pos, "    %s\n", messages[i]);
+            SNPRINTF_ADD(pos, buf, buf_size, "    %s\n", messages[i]);
         }
     }
 
@@ -448,13 +454,13 @@ char* output_mermaid_gantt(const char* title, const char** sections,
 
     size_t pos = 0;
 
-    pos += snprintf(buf + pos, buf_size - pos, "gantt\n");
+    SNPRINTF_ADD(pos, buf, buf_size, "gantt\n");
 
     if (title) {
-        pos += snprintf(buf + pos, buf_size - pos, "    title %s\n", title);
+        SNPRINTF_ADD(pos, buf, buf_size, "    title %s\n", title);
     }
 
-    pos += snprintf(buf + pos, buf_size - pos, "    dateFormat YYYY-MM-DD\n");
+    SNPRINTF_ADD(pos, buf, buf_size, "    dateFormat YYYY-MM-DD\n");
 
     // Add sections and tasks
     int section_idx = 0;
@@ -462,14 +468,14 @@ char* output_mermaid_gantt(const char* title, const char** sections,
         for (int i = 0; tasks[i]; i++) {
             // Check if we need a new section
             if (sections[section_idx] && strncmp(tasks[i], "section:", 8) == 0) {
-                pos += snprintf(buf + pos, buf_size - pos, "    section %s\n", sections[section_idx]);
+                SNPRINTF_ADD(pos, buf, buf_size, "    section %s\n", sections[section_idx]);
                 section_idx++;
             }
-            pos += snprintf(buf + pos, buf_size - pos, "    %s\n", tasks[i]);
+            SNPRINTF_ADD(pos, buf, buf_size, "    %s\n", tasks[i]);
         }
     } else if (tasks) {
         for (int i = 0; tasks[i]; i++) {
-            pos += snprintf(buf + pos, buf_size - pos, "    %s\n", tasks[i]);
+            SNPRINTF_ADD(pos, buf, buf_size, "    %s\n", tasks[i]);
         }
     }
 
@@ -486,14 +492,14 @@ char* output_mermaid_pie(const char* title, const char** labels,
 
     size_t pos = 0;
 
-    pos += snprintf(buf + pos, buf_size - pos, "pie showData\n");
+    SNPRINTF_ADD(pos, buf, buf_size, "pie showData\n");
 
     if (title) {
-        pos += snprintf(buf + pos, buf_size - pos, "    title %s\n", title);
+        SNPRINTF_ADD(pos, buf, buf_size, "    title %s\n", title);
     }
 
     for (int i = 0; i < count && labels[i] && values[i]; i++) {
-        pos += snprintf(buf + pos, buf_size - pos, "    \"%s\" : %s\n", labels[i], values[i]);
+        SNPRINTF_ADD(pos, buf, buf_size, "    \"%s\" : %s\n", labels[i], values[i]);
     }
 
     return buf;
@@ -530,11 +536,11 @@ char* output_table(const TableColumn* columns, int col_count,
     size_t pos = 0;
 
     // Header row
-    pos += snprintf(buf + pos, buf_size - pos, "|");
+    SNPRINTF_ADD(pos, buf, buf_size, "|");
     for (int i = 0; i < col_count; i++) {
-        pos += snprintf(buf + pos, buf_size - pos, " %s |", columns[i].header ? columns[i].header : "");
+        SNPRINTF_ADD(pos, buf, buf_size, " %s |", columns[i].header ? columns[i].header : "");
     }
-    pos += snprintf(buf + pos, buf_size - pos, "\n|");
+    SNPRINTF_ADD(pos, buf, buf_size, "\n|");
 
     // Separator row with alignment
     for (int i = 0; i < col_count; i++) {
@@ -548,19 +554,19 @@ char* output_table(const TableColumn* columns, int col_count,
         } else {
             align_left = ':';
         }
-        pos += snprintf(buf + pos, buf_size - pos, "%c---%c|", align_left, align_right);
+        SNPRINTF_ADD(pos, buf, buf_size, "%c---%c|", align_left, align_right);
     }
-    pos += snprintf(buf + pos, buf_size - pos, "\n");
+    SNPRINTF_ADD(pos, buf, buf_size, "\n");
 
     // Data rows
     if (rows) {
         for (int r = 0; r < row_count && rows[r]; r++) {
-            pos += snprintf(buf + pos, buf_size - pos, "|");
+            SNPRINTF_ADD(pos, buf, buf_size, "|");
             for (int c = 0; c < col_count; c++) {
                 const char* cell = (rows[r] && rows[r][c]) ? rows[r][c] : "";
-                pos += snprintf(buf + pos, buf_size - pos, " %s |", cell);
+                SNPRINTF_ADD(pos, buf, buf_size, " %s |", cell);
             }
-            pos += snprintf(buf + pos, buf_size - pos, "\n");
+            SNPRINTF_ADD(pos, buf, buf_size, "\n");
         }
     }
 
@@ -572,7 +578,7 @@ char* output_table_simple(const char** headers, int col_count,
     if (!headers || col_count <= 0) return NULL;
 
     // Create column definitions with defaults
-    TableColumn* columns = malloc(sizeof(TableColumn) * col_count);
+    TableColumn* columns = malloc(sizeof(TableColumn) * (size_t)col_count);
     for (int i = 0; i < col_count; i++) {
         columns[i].header = headers[i];
         columns[i].width = 0;
@@ -750,8 +756,8 @@ size_t output_get_total_size(void) {
         snprintf(full_path, sizeof(full_path), "%s/%s", g_base_path, entry->d_name);
 
         struct stat st;
-        if (stat(full_path, &st) == 0) {
-            total += st.st_size;
+        if (stat(full_path, &st) == 0 && st.st_size > 0) {
+            total += (size_t)st.st_size;
         }
     }
 

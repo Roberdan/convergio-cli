@@ -7,6 +7,53 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [5.1.0] - 2025-12-16
+
+### Added
+
+- **Plan Database** (PR #60)
+  - SQLite-backed persistent storage for execution plans
+  - ACID transactions with WAL mode for concurrent access
+  - Thread-safe task claiming for multi-agent coordination
+  - New `/plan` command with subcommands:
+    - `list` - Show all plans with status
+    - `status <id>` - Show detailed plan progress
+    - `export <id>` - Export to Markdown with Mermaid Gantt charts
+    - `cleanup <days>` - Delete old plans
+  - Files: `src/orchestrator/plan_db.c`, `include/nous/plan_db.h`
+  - ADR: `docs/adr/011-centralized-plan-database.md`
+
+- **Output Service** (PR #62)
+  - Centralized service for structured document generation
+  - Mermaid diagram support (flowchart, sequence, gantt, pie, mindmap)
+  - OSC8 terminal hyperlinks for clickable file paths
+  - Auto-organization by date and project
+  - New `/output` command with subcommands:
+    - `list` - Show recent outputs
+    - `latest` - Show most recent output
+    - `open <path>` - Open in default app
+    - `delete <path>` - Remove output file
+    - `size` - Show disk usage
+    - `cleanup <days>` - Delete old outputs
+  - Files: `src/tools/output_service.c`, `include/nous/output_service.h`
+  - ADR: `docs/adr/012-output-service.md`
+
+### Fixed
+
+- **Code Quality**
+  - Fixed 41 compiler warnings in new plan_db.c and output_service.c
+  - Replaced deprecated `sprintf` with `snprintf` in plan_db.c
+  - Fixed sign conversion warnings throughout output_service.c
+  - Added safe SNPRINTF_ADD macro for size_t position tracking
+  - Fixed double promotion warnings in commands.c
+
+### Technical
+
+- All new code follows zero-warnings policy
+- Plan database uses SQLite with WAL mode (busy timeout 5s)
+- Output files stored in `~/.convergio/outputs/` organized by date
+- Plans stored in `~/.convergio/plans.db`
+
 ## [5.0.1] - 2025-12-14
 
 ### Fixed
@@ -788,7 +835,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-[Unreleased]: https://github.com/Roberdan/convergio-cli/compare/v5.0.0...HEAD
+[Unreleased]: https://github.com/Roberdan/convergio-cli/compare/v5.1.0...HEAD
+[5.1.0]: https://github.com/Roberdan/convergio-cli/compare/v5.0.1...v5.1.0
+[5.0.1]: https://github.com/Roberdan/convergio-cli/compare/v5.0.0...v5.0.1
 [5.0.0]: https://github.com/Roberdan/convergio-cli/compare/v4.2.0...v5.0.0
 [4.2.0]: https://github.com/Roberdan/convergio-cli/compare/v4.1.0...v4.2.0
 [4.1.0]: https://github.com/Roberdan/convergio-cli/compare/v4.0.0...v4.1.0
