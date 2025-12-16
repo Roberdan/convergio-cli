@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [5.2.0] - 2025-12-16
+
 ### Added
 
 - **Native Notification Helper** (ConvergioNotify.app)
@@ -15,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Uses NSUserNotification API for reliable notification delivery
   - Auto-installed to /Applications during `make install` or Homebrew install
   - Signed and notarized as part of release workflow
+  - ADR: `docs/adr/013-native-notification-helper.md`
 
 - **Notification Daemon Auto-Start**
   - Daemon now starts automatically on Convergio launch
@@ -25,11 +28,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Notification Icon Display**
   - Notifications now display Convergio logo instead of Terminal icon
-  - Works on all recent macOS versions
+  - Works on all recent macOS versions (12-15)
 
 - **E2E Test Cleanup**
   - Test tasks now use `E2E_TEST_` prefix for identification
   - Proper cleanup prevents test data pollution in user database
+
+### Technical
+
+- Added `notify-helper` target to Makefile
+- Release workflow signs and notarizes ConvergioNotify.app
+- Homebrew formula installs helper to /Applications
+- Updated notification fallback chain to prefer native helper
 
 ## [5.1.0] - 2025-12-16
 
