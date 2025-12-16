@@ -204,22 +204,20 @@ CompactionResult* compaction_summarize(
         // Create truncated summary (first 2000 chars + last 2000 chars)
         size_t msg_len = strlen(messages_text);
         if (msg_len > 4000) {
-            #define TRUNCATE_MARKER "\n\n[... conversation truncated ...]\n\n"
-            #define TRUNCATE_MARKER_LEN 38  // sizeof(TRUNCATE_MARKER) - 1
+            static const char TRUNCATE_MARKER[] = "\n\n[... conversation truncated ...]\n\n";
             #define TRUNCATE_CHUNK 2000
 
-            size_t summary_len = TRUNCATE_CHUNK + TRUNCATE_MARKER_LEN + TRUNCATE_CHUNK;
+            size_t marker_len = sizeof(TRUNCATE_MARKER) - 1;  // Exclude null terminator
+            size_t summary_len = TRUNCATE_CHUNK + marker_len + TRUNCATE_CHUNK;
             summary = malloc(summary_len + 1);
             if (summary) {
                 memcpy(summary, messages_text, TRUNCATE_CHUNK);
-                memcpy(summary + TRUNCATE_CHUNK, TRUNCATE_MARKER, TRUNCATE_MARKER_LEN);
-                memcpy(summary + TRUNCATE_CHUNK + TRUNCATE_MARKER_LEN,
+                memcpy(summary + TRUNCATE_CHUNK, TRUNCATE_MARKER, marker_len);
+                memcpy(summary + TRUNCATE_CHUNK + marker_len,
                        messages_text + msg_len - TRUNCATE_CHUNK, TRUNCATE_CHUNK);
                 summary[summary_len] = '\0';
             }
 
-            #undef TRUNCATE_MARKER
-            #undef TRUNCATE_MARKER_LEN
             #undef TRUNCATE_CHUNK
         } else {
             summary = strdup(messages_text);
