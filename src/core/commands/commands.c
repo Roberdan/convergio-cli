@@ -21,6 +21,7 @@
 #include "nous/todo.h"
 #include "nous/notify.h"
 #include "nous/mcp_client.h"
+#include "nous/plan_db.h"
 #include "../../auth/oauth.h"
 #include <cjson/cJSON.h>
 #include <stdio.h>
@@ -80,6 +81,9 @@ int cmd_mcp(int argc, char** argv);
 // Forward declaration for style command
 int cmd_style(int argc, char** argv);
 
+// Forward declaration for plan command
+int cmd_plan(int argc, char** argv);
+
 static const ReplCommand COMMANDS[] = {
     {"help",        "Show available commands",           cmd_help},
     {"agent",       "Manage agents",                     cmd_agent},
@@ -123,6 +127,8 @@ static const ReplCommand COMMANDS[] = {
     // Anna Executive Assistant - Daemon & MCP
     {"daemon",      "Manage notification daemon",        cmd_daemon},
     {"mcp",         "Manage MCP servers and tools",      cmd_mcp},
+    // Execution Plan management
+    {"plan",        "Manage execution plans (list/status/export)", cmd_plan},
     {"quit",        "Exit Convergio",                    cmd_quit},
     {"exit",        "Exit Convergio",                    cmd_quit},
     {NULL, NULL, NULL}
@@ -761,6 +767,24 @@ static const CommandHelp DETAILED_HELP[] = {
         "/mcp connect filesystem      # Connect to server\n"
         "/mcp tools                   # List available tools\n"
         "/mcp call read_file '{\"path\":\"/tmp/test.txt\"}'"
+    },
+    {
+        "plan",
+        "plan <subcommand> [args]",
+        "Manage execution plans",
+        "View, export, and manage multi-step execution plans.\n"
+        "Plans are created automatically when agents work on complex tasks.\n\n"
+        "Subcommands:\n"
+        "  list              List all plans with status and progress\n"
+        "  status <id>       Show detailed plan status with tasks\n"
+        "  export <id>       Export plan to markdown file\n"
+        "  delete <id>       Delete a plan\n"
+        "  cleanup [days]    Clean up old plans (default: 30 days)\n\n"
+        "Plans are stored in ~/.convergio/plans.db (SQLite)",
+        "/plan list                   # Show all plans\n"
+        "/plan status abc123          # Show plan details\n"
+        "/plan export abc123          # Export to /tmp/plan-abc123.md\n"
+        "/plan cleanup 7              # Delete plans older than 7 days"
     },
     {NULL, NULL, NULL, NULL, NULL}
 };
@@ -4107,5 +4131,232 @@ int cmd_mcp(int argc, char** argv) {
 
     printf("\033[31mUnknown MCP command: %s\033[0m\n", subcmd);
     printf("Use '/mcp' to see available commands.\n");
+    return -1;
+}
+
+// ============================================================================
+// PLAN COMMAND
+// ============================================================================
+
+/**
+ * /plan - Execution plan management
+ *
+ * Subcommands:
+ *   list             List all plans
+ *   status <id>      Show plan status and progress
+ *   export <id>      Export plan to markdown
+ *   delete <id>      Delete a plan
+ *   cleanup [days]   Clean up old plans (default: 30 days)
+ */
+int cmd_plan(int argc, char** argv) {
+    if (!plan_db_is_ready()) {
+        printf("\033[31m✗ Plan database not initialized.\033[0m\n");
+        return -1;
+    }
+
+    if (argc < 2) {
+        printf("\n\033[1m📋 Execution Plan Manager\033[0m\n\n");
+        printf("Usage: plan <subcommand> [args]\n\n");
+        printf("Subcommands:\n");
+        printf("  list              List all plans\n");
+        printf("  status <id>       Show plan status and progress\n");
+        printf("  export <id>       Export plan to markdown file\n");
+        printf("  delete <id>       Delete a plan\n");
+        printf("  cleanup [days]    Clean up old plans (default: 30)\n");
+        printf("\n");
+        return 0;
+    }
+
+    const char* subcmd = argv[1];
+
+    // --- plan list ---
+    if (strcmp(subcmd, "list") == 0) {
+        printf("\n\033[1m📋 Execution Plans\033[0m\n");
+        printf("──────────────────────────────────────────────────────────\n");
+
+        PlanRecord plans[50];
+        int count = 0;
+        PlanDbError err = plan_db_list_plans(-1, 50, 0, plans, 50, &count);
+
+        if (err != PLAN_DB_OK || count == 0) {
+            printf("  \033[90mNo plans found.\033[0m\n\n");
+            return 0;
+        }
+
+        for (int i = 0; i < count; i++) {
+            PlanRecord* p = &plans[i];
+            const char* status_icon = "⏳";
+            const char* status_color = "\033[33m";
+
+            switch (p->status) {
+                case PLAN_STATUS_ACTIVE:
+                    status_icon = "🔄";
+                    status_color = "\033[36m";
+                    break;
+                case PLAN_STATUS_COMPLETED:
+                    status_icon = "✅";
+                    status_color = "\033[32m";
+                    break;
+                case PLAN_STATUS_FAILED:
+                    status_icon = "❌";
+                    status_color = "\033[31m";
+                    break;
+                case PLAN_STATUS_CANCELLED:
+                    status_icon = "⛔";
+                    status_color = "\033[90m";
+                    break;
+                default:
+                    break;
+            }
+
+            // Get progress
+            PlanProgress progress = {0};
+            plan_db_get_progress(p->id, &progress);
+
+            printf("  %s %s%s\033[0m\n", status_icon, status_color, p->description);
+            printf("     ID: \033[90m%.8s...\033[0m  Tasks: %d/%d (%.0f%%)\n",
+                   p->id, progress.completed, progress.total, progress.percent_complete);
+
+            // Free strings allocated by plan_db
+            plan_record_free(p);
+        }
+
+        printf("\n  Total: %d plan(s)\n\n", count);
+        return 0;
+    }
+
+    // --- plan status ---
+    if (strcmp(subcmd, "status") == 0) {
+        if (argc < 3) {
+            printf("\033[31mUsage: plan status <plan_id>\033[0m\n");
+            return -1;
+        }
+
+        const char* plan_id = argv[2];
+        PlanRecord plan;
+        PlanDbError err = plan_db_get_plan(plan_id, &plan);
+
+        if (err != PLAN_DB_OK) {
+            printf("\033[31m✗ Plan not found: %s\033[0m\n", plan_id);
+            return -1;
+        }
+
+        PlanProgress progress;
+        plan_db_get_progress(plan_id, &progress);
+
+        printf("\n\033[1m📋 Plan Status\033[0m\n");
+        printf("──────────────────────────────────────────────────────────\n");
+        printf("  Goal: %s\n", plan.description);
+        printf("  ID: %s\n", plan.id);
+        printf("  Progress: %d/%d tasks (%.1f%%)\n",
+               progress.completed, progress.total, progress.percent_complete);
+
+        // Show progress bar
+        int bar_width = 30;
+        int filled = (int)(progress.percent_complete / 100.0f * bar_width);
+        printf("  [");
+        for (int i = 0; i < bar_width; i++) {
+            if (i < filled) printf("\033[32m█\033[0m");
+            else printf("\033[90m░\033[0m");
+        }
+        printf("]\n");
+
+        // List tasks
+        TaskRecord* tasks = NULL;
+        plan_db_get_tasks(plan_id, -1, &tasks);
+
+        if (tasks) {
+            printf("\n  Tasks:\n");
+            for (TaskRecord* t = tasks; t; t = t->next) {
+                const char* icon = "○";
+                const char* color = "\033[90m";
+
+                switch (t->status) {
+                    case TASK_DB_STATUS_IN_PROGRESS:
+                        icon = "●";
+                        color = "\033[36m";
+                        break;
+                    case TASK_DB_STATUS_COMPLETED:
+                        icon = "✓";
+                        color = "\033[32m";
+                        break;
+                    case TASK_DB_STATUS_FAILED:
+                        icon = "✗";
+                        color = "\033[31m";
+                        break;
+                    default:
+                        break;
+                }
+
+                printf("    %s%s\033[0m %s", color, icon, t->description);
+                if (t->assigned_agent) {
+                    printf(" \033[35m@%s\033[0m", t->assigned_agent);
+                }
+                printf("\n");
+            }
+            task_record_free_list(tasks);
+        }
+
+        printf("\n");
+        plan_record_free(&plan);
+        return 0;
+    }
+
+    // --- plan export ---
+    if (strcmp(subcmd, "export") == 0) {
+        if (argc < 3) {
+            printf("\033[31mUsage: plan export <plan_id>\033[0m\n");
+            return -1;
+        }
+
+        const char* plan_id = argv[2];
+        char filepath[PATH_MAX];
+        snprintf(filepath, sizeof(filepath), "/tmp/plan-%s.md", plan_id);
+
+        PlanDbError err = plan_db_export_markdown(plan_id, filepath, true);
+
+        if (err == PLAN_DB_OK) {
+            printf("\033[32m✓ Plan exported to: %s\033[0m\n", filepath);
+        } else {
+            printf("\033[31m✗ Export failed\033[0m\n");
+            return -1;
+        }
+        return 0;
+    }
+
+    // --- plan delete ---
+    if (strcmp(subcmd, "delete") == 0) {
+        if (argc < 3) {
+            printf("\033[31mUsage: plan delete <plan_id>\033[0m\n");
+            return -1;
+        }
+
+        const char* plan_id = argv[2];
+        PlanDbError err = plan_db_delete_plan(plan_id);
+
+        if (err == PLAN_DB_OK) {
+            printf("\033[32m✓ Plan deleted\033[0m\n");
+        } else {
+            printf("\033[31m✗ Delete failed (plan not found?)\033[0m\n");
+            return -1;
+        }
+        return 0;
+    }
+
+    // --- plan cleanup ---
+    if (strcmp(subcmd, "cleanup") == 0) {
+        int days = 30;
+        if (argc >= 3) {
+            days = atoi(argv[2]);
+            if (days <= 0) days = 30;
+        }
+
+        int deleted = plan_db_cleanup_old(days, -1);
+        printf("\033[32m✓ Cleaned up %d old plan(s) (older than %d days)\033[0m\n", deleted, days);
+        return 0;
+    }
+
+    printf("\033[31mUnknown plan command: %s\033[0m\n", subcmd);
+    printf("Use '/plan' to see available commands.\n");
     return -1;
 }
