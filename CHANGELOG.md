@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [5.2.1] - 2025-12-16
+
+### Fixed
+
+- **Duplicate Notification Entries**
+  - Removed old `Convergio.app` stub that caused duplicate entries in System Settings > Notifications
+  - Only `ConvergioNotify.app` is now installed for notifications
+  - Install target now cleans up old `Convergio.app` if present
+
 ## [5.2.0] - 2025-12-16
 
 ### Added
