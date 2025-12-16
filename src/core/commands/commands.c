@@ -812,6 +812,21 @@ static const CommandHelp DETAILED_HELP[] = {
         "/output size                 # Show disk usage\n"
         "/output cleanup 7            # Delete outputs older than 7 days"
     },
+    {
+        "style",
+        "style [flash|concise|balanced|detailed]",
+        "Set response style",
+        "Controls how verbose AI responses are.\n\n"
+        "STYLES:\n"
+        "  flash       Ultra-concise, immediate answers\n"
+        "  concise     Brief, to-the-point responses\n"
+        "  balanced    Moderate detail (default)\n"
+        "  detailed    Comprehensive, thorough explanations\n\n"
+        "Without arguments, shows the current style setting.",
+        "/style              # Show current style\n"
+        "/style flash        # Set to ultra-concise\n"
+        "/style detailed     # Set to comprehensive"
+    },
     {NULL, NULL, NULL, NULL, NULL}
 };
 
@@ -4279,7 +4294,7 @@ int cmd_plan(int argc, char** argv) {
 
         // Show progress bar
         int bar_width = 30;
-        int filled = (int)(progress.percent_complete / 100.0f * bar_width);
+        int filled = (int)((double)progress.percent_complete / 100.0 * (double)bar_width);
         printf("  [");
         for (int i = 0; i < bar_width; i++) {
             if (i < filled) printf("\033[32m█\033[0m");
@@ -4522,7 +4537,7 @@ int cmd_output(int argc, char** argv) {
     // --- output size ---
     if (strcmp(subcmd, "size") == 0) {
         size_t total_size = output_get_total_size();
-        float size_mb = (float)total_size / (1024.0f * 1024.0f);
+        double size_mb = (double)total_size / (1024.0 * 1024.0);
 
         printf("\n\033[1m📊 Output Storage\033[0m\n");
         printf("──────────────────────────────────────────────────────────\n");

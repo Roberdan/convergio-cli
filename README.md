@@ -11,7 +11,7 @@
 
 <p align="center">
   <a href="https://github.com/Roberdan/convergio-cli/actions/workflows/ci.yml"><img src="https://github.com/Roberdan/convergio-cli/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
-  <a href="https://github.com/Roberdan/convergio-cli/releases/latest"><img src="https://img.shields.io/badge/version-5.0.0-blue" alt="Version 5.0.0"></a>
+  <a href="https://github.com/Roberdan/convergio-cli/releases/latest"><img src="https://img.shields.io/badge/version-5.1.0-blue" alt="Version 5.1.0"></a>
   <a href="https://github.com/Roberdan/convergio-cli/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-green.svg" alt="License"></a>
   <a href="https://github.com/Roberdan/convergio-cli"><img src="https://img.shields.io/badge/platform-macOS%20(Apple%20Silicon)-black" alt="Platform"></a>
   <a href="https://github.com/Roberdan/convergio-cli/stargazers"><img src="https://img.shields.io/github/stars/Roberdan/convergio-cli?style=social" alt="Stars"></a>
@@ -101,6 +101,61 @@ cd convergio-cli
 git checkout feature/native-app
 cd ConvergioApp && xcodegen && open ConvergioApp.xcodeproj
 ```
+
+---
+
+## What's New in v5.1.0
+
+### Plan Database - Persistent Execution Plans
+
+Track and manage multi-step execution plans with SQLite-backed persistent storage.
+
+```bash
+# List all execution plans
+> /plan list
+
+# Show detailed plan status
+> /plan status abc123
+
+# Export plan to Markdown with Mermaid diagrams
+> /plan export abc123
+
+# Cleanup old plans
+> /plan cleanup 30
+```
+
+**Plan Database Features:**
+- **ACID transactions** - Thread-safe multi-agent coordination
+- **Progress tracking** - Real-time task completion stats
+- **Export to Markdown** - With Mermaid Gantt charts
+- **Automatic cleanup** - Remove old plans after N days
+
+### Output Service - Structured Document Generation
+
+Generate rich Markdown documents with Mermaid diagrams, tables, and clickable links.
+
+```bash
+# List recent outputs
+> /output list
+
+# Show most recent output
+> /output latest
+
+# Open output in default app
+> /output open /path/to/report.md
+
+# Check disk usage
+> /output size
+
+# Cleanup old outputs
+> /output cleanup 30
+```
+
+**Output Service Features:**
+- **Mermaid diagrams** - Flowcharts, sequence, Gantt, pie, mindmap
+- **Table generation** - Formatted Markdown tables
+- **OSC8 hyperlinks** - Clickable file paths in terminal (iTerm2, Warp, Kitty)
+- **Auto-organization** - Files sorted by date/project
 
 ---
 
@@ -441,6 +496,26 @@ API keys can be configured via:
 | `/mcp connect <server>` | Connect to server |
 | `/mcp tools` | Show available tools |
 
+### Plan Database
+
+| Command | Description |
+|---------|-------------|
+| `/plan list` | List all execution plans |
+| `/plan status <id>` | Show plan details and progress |
+| `/plan export <id>` | Export to Markdown with Mermaid |
+| `/plan cleanup <days>` | Delete plans older than N days |
+
+### Output Service
+
+| Command | Description |
+|---------|-------------|
+| `/output list` | Show recent output files |
+| `/output latest` | Show most recent output |
+| `/output open <path>` | Open file in default app |
+| `/output delete <path>` | Remove output file |
+| `/output size` | Show disk usage |
+| `/output cleanup <days>` | Delete outputs older than N days |
+
 ### System
 
 | Command | Description |
@@ -670,7 +745,7 @@ MIT License - see [LICENSE](LICENSE) for details.
 ---
 
 <p align="center">
-  <strong>Convergio CLI v5.0.0</strong><br/>
+  <strong>Convergio CLI v5.1.0</strong><br/>
   <em>Multi-Model AI Orchestration for Apple Silicon</em>
 </p>
 
