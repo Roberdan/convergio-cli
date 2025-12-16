@@ -2684,7 +2684,7 @@ static int move_to_trash(const char* path) {
     char cmd[PATH_MAX + 256];
     snprintf(cmd, sizeof(cmd),
         "osascript -e 'tell application \"Finder\" to delete POSIX file \"%s\"' 2>/dev/null",
-        path);
+        escaped_path);
 
     int result = system(cmd);
     free(escaped_path);
@@ -2723,7 +2723,13 @@ static int move_to_trash(const char* path) {
     char buffer[8192];
     size_t bytes;
     while ((bytes = fread(buffer, 1, sizeof(buffer), src)) > 0) {
-        fwrite(buffer, 1, bytes, dst);
+        size_t written = fwrite(buffer, 1, bytes, dst);
+        if (written != bytes) {
+            fclose(src);
+            fclose(dst);
+            unlink(trash_path);
+            return -1;
+        }
     }
 
     fclose(src);
@@ -2769,7 +2775,14 @@ static char* backup_before_edit(const char* path) {
     char buffer[8192];
     size_t bytes;
     while ((bytes = fread(buffer, 1, sizeof(buffer), src)) > 0) {
-        fwrite(buffer, 1, bytes, dst);
+        size_t written = fwrite(buffer, 1, bytes, dst);
+        if (written != bytes) {
+            fclose(src);
+            fclose(dst);
+            remove(backup_path);
+            free(backup_path);
+            return NULL;
+        }
     }
 
     fclose(src);
@@ -2827,11 +2840,22 @@ typedef struct {
 
 static void glob_add(GlobResult* gr, const char* path, time_t mtime) {
     if (gr->count >= gr->capacity) {
-        gr->capacity = gr->capacity ? gr->capacity * 2 : 64;
-        gr->files = realloc(gr->files, gr->capacity * sizeof(char*));
-        gr->mtimes = realloc(gr->mtimes, gr->capacity * sizeof(time_t));
+        size_t new_capacity = gr->capacity ? gr->capacity * 2 : 64;
+        char** new_files = realloc(gr->files, new_capacity * sizeof(char*));
+        time_t* new_mtimes = realloc(gr->mtimes, new_capacity * sizeof(time_t));
+        if (!new_files || !new_mtimes) {
+            // Allocation failed, preserve original pointers
+            free(new_files);
+            free(new_mtimes);
+            return;
+        }
+        gr->files = new_files;
+        gr->mtimes = new_mtimes;
+        gr->capacity = new_capacity;
     }
-    gr->files[gr->count] = strdup(path);
+    char* dup_path = strdup(path);
+    if (!dup_path) return;
+    gr->files[gr->count] = dup_path;
     gr->mtimes[gr->count] = mtime;
     gr->count++;
 }
@@ -2925,6 +2949,12 @@ ToolResult* tool_glob(const char* pattern, const char* path, int max_results) {
 
     // Sort by mtime (newest first)
     size_t* indices = malloc(gr.count * sizeof(size_t));
+    if (!indices) {
+        for (size_t i = 0; i < gr.count; i++) free(gr.files[i]);
+        free(gr.files);
+        free(gr.mtimes);
+        return result_error("Memory allocation failed");
+    }
     for (size_t i = 0; i < gr.count; i++) indices[i] = i;
     // macOS qsort_r: (base, nel, width, thunk, compar)
     qsort_r(indices, gr.count, sizeof(size_t), gr.mtimes, glob_compare_mtime);
@@ -2946,9 +2976,12 @@ ToolResult* tool_glob(const char* pattern, const char* path, int max_results) {
     for (size_t i = 0; i < gr.count && i < (size_t)max_results; i++) {
         size_t idx = indices[i];
         offset += (size_t)snprintf(output + offset, output_size - offset, "%s\n", gr.files[idx]);
-        free(gr.files[idx]);
     }
 
+    // Free all allocated file strings
+    for (size_t i = 0; i < gr.count; i++) {
+        free(gr.files[i]);
+    }
     free(gr.files);
     free(gr.mtimes);
     free(indices);
@@ -2996,52 +3029,51 @@ ToolResult* tool_grep(const char* pattern, const char* path, const char* glob_fi
     }
 
     int len;
+    (void)output_mode;  // TODO: implement output modes (content, files_with_matches, count)
+
     if (strcmp(grep_cmd, "rg") == 0) {
-        // ripgrep options
-        len = snprintf(cmd, sizeof(cmd),
-            "rg --no-heading --line-number %s %s %s %s -m %d '%s' '%s' 2>/dev/null",
-            ignore_case ? "-i" : "",
-            context_before > 0 ? "-B" : "", context_before > 0 ? "" : "",
-            context_after > 0 ? "-A" : "",
-            max_matches,
-            escaped_pattern,
-            resolved_path);
-
-        // Rebuild with proper context args
-        if (context_before > 0 || context_after > 0) {
-            char ctx_args[64] = "";
-            if (context_before > 0) snprintf(ctx_args + strlen(ctx_args), sizeof(ctx_args) - strlen(ctx_args), "-B %d ", context_before);
-            if (context_after > 0) snprintf(ctx_args + strlen(ctx_args), sizeof(ctx_args) - strlen(ctx_args), "-A %d ", context_after);
-
-            len = snprintf(cmd, sizeof(cmd),
-                "rg --no-heading --line-number %s %s -m %d '%s' '%s' 2>/dev/null",
-                ignore_case ? "-i" : "",
-                ctx_args,
-                max_matches,
-                escaped_pattern,
-                resolved_path);
-        } else {
-            len = snprintf(cmd, sizeof(cmd),
-                "rg --no-heading --line-number %s -m %d '%s' '%s' 2>/dev/null",
-                ignore_case ? "-i" : "",
-                max_matches,
-                escaped_pattern,
-                resolved_path);
+        // Build context args with proper offset tracking
+        char ctx_args[64] = "";
+        int ctx_offset = 0;
+        if (context_before > 0) {
+            int n = snprintf(ctx_args + ctx_offset, sizeof(ctx_args) - (size_t)ctx_offset, "-B %d ", context_before);
+            if (n > 0 && (size_t)n < sizeof(ctx_args) - (size_t)ctx_offset) ctx_offset += n;
+        }
+        if (context_after > 0) {
+            int n = snprintf(ctx_args + ctx_offset, sizeof(ctx_args) - (size_t)ctx_offset, "-A %d ", context_after);
+            if (n > 0 && (size_t)n < sizeof(ctx_args) - (size_t)ctx_offset) ctx_offset += n;
         }
 
-        // Add glob filter
+        // Build command with glob filter if provided
         if (glob_filter && strlen(glob_filter) > 0) {
             char* escaped_glob = shell_escape(glob_filter);
             if (escaped_glob) {
                 len = snprintf(cmd, sizeof(cmd),
-                    "rg --no-heading --line-number %s -g '%s' -m %d '%s' '%s' 2>/dev/null",
+                    "rg --no-heading --line-number %s %s-g '%s' -m %d '%s' '%s' 2>/dev/null",
                     ignore_case ? "-i" : "",
+                    ctx_args,
                     escaped_glob,
                     max_matches,
                     escaped_pattern,
                     resolved_path);
                 free(escaped_glob);
+            } else {
+                len = snprintf(cmd, sizeof(cmd),
+                    "rg --no-heading --line-number %s %s-m %d '%s' '%s' 2>/dev/null",
+                    ignore_case ? "-i" : "",
+                    ctx_args,
+                    max_matches,
+                    escaped_pattern,
+                    resolved_path);
             }
+        } else {
+            len = snprintf(cmd, sizeof(cmd),
+                "rg --no-heading --line-number %s %s-m %d '%s' '%s' 2>/dev/null",
+                ignore_case ? "-i" : "",
+                ctx_args,
+                max_matches,
+                escaped_pattern,
+                resolved_path);
         }
     } else {
         // grep fallback

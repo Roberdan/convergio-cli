@@ -55,7 +55,7 @@ Features:
     "context_after": "Lines after match (default: 0)",
     "ignore_case": "Case insensitive (default: false)",
     "output_mode": "content|files_with_matches|count",
-    "max_matches": "Max results (default: 100)"
+    "max_matches": "Max results (default: 50)"
   }
 }
 ```
