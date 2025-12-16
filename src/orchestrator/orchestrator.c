@@ -1005,6 +1005,7 @@ char* orchestrator_process(const char* user_input) {
     free(conversation);
 
     if (!final_response) {
+        free(effective_prompt);  // Prevent memory leak
         // Provide a more helpful error message
         if (iteration >= MAX_TOOL_ITERATIONS) {
             return strdup("Error: Too many tool iterations - AI may be stuck in a loop");
