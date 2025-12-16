@@ -167,6 +167,7 @@ typedef struct Task {
     uint64_t parent_task_id;
     time_t created_at;
     time_t completed_at;
+    char db_id[64];  // SQLite UUID for persistence (optional)
 } Task;
 
 typedef struct {
@@ -176,6 +177,7 @@ typedef struct {
     bool is_complete;
     char* final_result;
     time_t created_at;
+    char db_id[64];  // SQLite UUID for persistence (optional)
 } ExecutionPlan;
 
 // ============================================================================

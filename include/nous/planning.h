@@ -27,4 +27,7 @@ void orch_plan_add_task(ExecutionPlan* plan, Task* task);
 // Mark task as completed with result
 void orch_task_complete(Task* task, const char* result);
 
+// Get plan progress (uses SQLite if available, fallback to in-memory)
+bool orch_plan_get_progress(ExecutionPlan* plan, int* total, int* completed, float* percent);
+
 #endif // CONVERGIO_PLANNING_H
