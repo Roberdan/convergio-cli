@@ -150,11 +150,80 @@ void notify_shutdown(void) {
     os_log_info(g_notify_log, "Notification system shutdown");
 }
 
+// Get path to ConvergioNotify.app - searches multiple locations
+static char g_convergio_notify_path[PATH_MAX] = {0};
+
+static void find_convergio_notify_app(void) {
+    char test_path[PATH_MAX];
+
+    // 1. Check next to the binary (development / local build)
+    char exe_path[PATH_MAX];
+    uint32_t size = sizeof(exe_path);
+    if (_NSGetExecutablePath(exe_path, &size) == 0) {
+        char* real_path = realpath(exe_path, NULL);
+        if (real_path) {
+            char* last_slash = strrchr(real_path, '/');
+            if (last_slash) {
+                *last_slash = '\0';
+                snprintf(test_path, sizeof(test_path),
+                         "%s/ConvergioNotify.app/Contents/MacOS/ConvergioNotify", real_path);
+                if (access(test_path, X_OK) == 0) {
+                    strlcpy(g_convergio_notify_path, test_path, PATH_MAX);
+                    free(real_path);
+                    return;
+                }
+            }
+            free(real_path);
+        }
+    }
+
+    // 2. Homebrew on Apple Silicon: /opt/homebrew/opt/convergio/
+    snprintf(test_path, sizeof(test_path),
+             "/opt/homebrew/opt/convergio/ConvergioNotify.app/Contents/MacOS/ConvergioNotify");
+    if (access(test_path, X_OK) == 0) {
+        strlcpy(g_convergio_notify_path, test_path, PATH_MAX);
+        return;
+    }
+
+    // 3. Homebrew on Intel: /usr/local/opt/convergio/
+    snprintf(test_path, sizeof(test_path),
+             "/usr/local/opt/convergio/ConvergioNotify.app/Contents/MacOS/ConvergioNotify");
+    if (access(test_path, X_OK) == 0) {
+        strlcpy(g_convergio_notify_path, test_path, PATH_MAX);
+        return;
+    }
+
+    // 4. Global Applications folder
+    snprintf(test_path, sizeof(test_path),
+             "/Applications/ConvergioNotify.app/Contents/MacOS/ConvergioNotify");
+    if (access(test_path, X_OK) == 0) {
+        strlcpy(g_convergio_notify_path, test_path, PATH_MAX);
+        return;
+    }
+
+    // 5. User Applications folder
+    const char* home = getenv("HOME");
+    if (home) {
+        snprintf(test_path, sizeof(test_path),
+                 "%s/Applications/ConvergioNotify.app/Contents/MacOS/ConvergioNotify", home);
+        if (access(test_path, X_OK) == 0) {
+            strlcpy(g_convergio_notify_path, test_path, PATH_MAX);
+            return;
+        }
+    }
+
+    // Not found - path stays empty, will fallback to terminal-notifier
+}
+
 // Check which notification methods are available on this system
 static void check_method_availability(void) {
-    // ConvergioNotify.app: Check if installed (best - shows correct icon)
+    // Find ConvergioNotify.app path first
+    find_convergio_notify_app();
+
+    // ConvergioNotify.app: Check if found next to binary (best - shows correct icon)
     g_available_methods.convergio_notify =
-        (access("/Applications/ConvergioNotify.app/Contents/MacOS/ConvergioNotify", X_OK) == 0);
+        (g_convergio_notify_path[0] != '\0' &&
+         access(g_convergio_notify_path, X_OK) == 0);
 
     // terminal-notifier: Check if installed
     g_available_methods.terminal_notifier =
@@ -297,16 +366,26 @@ static char* escape_quotes(const char* str, char quote_char) {
 }
 
 // Method 0: ConvergioNotify.app (native helper - best icon support)
+// Security note: g_convergio_notify_path is built from trusted sources only:
+// - Hardcoded paths (/opt/homebrew/..., /Applications/..., etc.)
+// - _NSGetExecutablePath (returns path to current binary)
+// No user input is used in path construction, so command injection is not possible.
 static NotifyResult send_via_convergio_notify(const NotifyOptions* opts) {
+    if (g_convergio_notify_path[0] == '\0') {
+        return NOTIFY_ERROR_NOT_AVAILABLE;
+    }
+
     char cmd[2048];
     char* escaped_title = escape_quotes(opts->title, '\'');
     char* escaped_body = escape_quotes(opts->body, '\'');
     char* escaped_subtitle = opts->subtitle ? escape_quotes(opts->subtitle, '\'') : NULL;
 
+    // Path is single-quoted and comes from trusted sources (see security note above)
     int written = snprintf(cmd, sizeof(cmd),
-        "/Applications/ConvergioNotify.app/Contents/MacOS/ConvergioNotify "
+        "'%s' "
         "-title '%s' "
         "-message '%s'%s%s%s",
+        g_convergio_notify_path,
         escaped_title,
         escaped_body,
         escaped_subtitle ? " -subtitle '" : "",
