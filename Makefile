@@ -108,6 +108,7 @@ C_SOURCES = $(SRC_DIR)/core/fabric.c \
             $(SRC_DIR)/orchestrator/orchestrator.c \
             $(SRC_DIR)/orchestrator/delegation.c \
             $(SRC_DIR)/orchestrator/planning.c \
+            $(SRC_DIR)/orchestrator/plan_db.c \
             $(SRC_DIR)/orchestrator/convergence.c \
             $(SRC_DIR)/memory/persistence.c \
             $(SRC_DIR)/memory/semantic_persistence.c \
@@ -470,13 +471,26 @@ $(COMPACTION_TEST): $(COMPACTION_SOURCES) $(COMPACTION_OBJECTS)
 	@echo "Compiling compaction tests..."
 	@$(CC) $(CFLAGS) $(LDFLAGS) -o $(COMPACTION_TEST) $(COMPACTION_SOURCES) $(COMPACTION_OBJECTS) $(FRAMEWORKS) $(LIBS)
 
+# Plan database test target - tests SQLite-backed plan system
+PLAN_DB_TEST = $(BIN_DIR)/plan_db_test
+PLAN_DB_SOURCES = tests/test_plan_db.c
+PLAN_DB_OBJECTS = $(OBJ_DIR)/orchestrator/plan_db.o
+
+plan_db_test: dirs $(OBJ_DIR)/orchestrator/plan_db.o $(PLAN_DB_TEST)
+	@echo "Running plan database tests..."
+	@$(PLAN_DB_TEST)
+
+$(PLAN_DB_TEST): $(PLAN_DB_SOURCES) $(PLAN_DB_OBJECTS)
+	@echo "Compiling plan database tests..."
+	@$(CC) $(CFLAGS) $(LDFLAGS) -o $(PLAN_DB_TEST) $(PLAN_DB_SOURCES) $(PLAN_DB_OBJECTS) -lsqlite3 -lpthread
+
 # Check help documentation coverage
 check-docs:
 	@echo "Checking help documentation coverage..."
 	@./scripts/check_help_docs.sh
 
 # Run all tests
-test: fuzz_test unit_test anna_test compaction_test check-docs
+test: fuzz_test unit_test anna_test compaction_test plan_db_test check-docs
 	@echo "All tests completed!"
 
 # Help
@@ -495,6 +509,7 @@ help:
 	@echo "  fuzz_test  - Build and run fuzz tests"
 	@echo "  unit_test  - Build and run unit tests"
 	@echo "  anna_test  - Build and run Anna Executive Assistant tests"
+	@echo "  plan_db_test - Build and run plan database tests"
 	@echo "  check-docs - Verify all REPL commands are documented"
 	@echo "  hwinfo     - Show Apple Silicon hardware info"
 	@echo "  version    - Show version"
@@ -503,4 +518,4 @@ help:
 	@echo "Variables:"
 	@echo "  DEBUG=1   - Enable debug build"
 
-.PHONY: all dirs metal run clean debug install uninstall hwinfo help fuzz_test unit_test anna_test check-docs test version dist release
+.PHONY: all dirs metal run clean debug install uninstall hwinfo help fuzz_test unit_test anna_test plan_db_test check-docs test version dist release

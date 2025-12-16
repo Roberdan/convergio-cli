@@ -21,6 +21,7 @@
 #include "nous/projects.h"
 #include "nous/mlx.h"
 #include "nous/notify.h"
+#include "nous/plan_db.h"
 #include "../auth/oauth.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -496,6 +497,12 @@ int main(int argc, char** argv) {
         init_errors = true;
     }
 
+    // Initialize Plan Database for persistent execution plans
+    if (plan_db_init(NULL) != PLAN_DB_OK) {
+        fprintf(stderr, "  \033[33m⚠ Plan database initialization failed (non-critical)\033[0m\n");
+        // Non-critical: plans will work in-memory only
+    }
+
     // Set local MLX mode if requested
     if (g_use_local_mlx) {
         const char* model_id = g_mlx_model[0] ? g_mlx_model : "deepseek-r1-1.5b";
@@ -691,6 +698,9 @@ int main(int argc, char** argv) {
 
     // Shutdown projects
     projects_shutdown();
+
+    // Shutdown Plan Database
+    plan_db_shutdown();
 
     // Shutdown agent configs and orchestrator
     extern void agent_config_shutdown(void);
