@@ -114,6 +114,7 @@ C_SOURCES = $(SRC_DIR)/core/fabric.c \
             $(SRC_DIR)/memory/semantic_persistence.c \
             $(SRC_DIR)/context/compaction.c \
             $(SRC_DIR)/tools/tools.c \
+            $(SRC_DIR)/tools/output_service.c \
             $(SRC_DIR)/providers/provider.c \
             $(SRC_DIR)/providers/common.c \
             $(SRC_DIR)/providers/anthropic.c \
@@ -484,13 +485,26 @@ $(PLAN_DB_TEST): $(PLAN_DB_SOURCES) $(PLAN_DB_OBJECTS)
 	@echo "Compiling plan database tests..."
 	@$(CC) $(CFLAGS) $(LDFLAGS) -o $(PLAN_DB_TEST) $(PLAN_DB_SOURCES) $(PLAN_DB_OBJECTS) -lsqlite3 -lpthread
 
+# Output service test target - tests centralized document generation
+OUTPUT_SERVICE_TEST = $(BIN_DIR)/output_service_test
+OUTPUT_SERVICE_SOURCES = tests/test_output_service.c
+OUTPUT_SERVICE_OBJECTS = $(OBJ_DIR)/tools/output_service.o $(OBJ_DIR)/ui/hyperlink.o
+
+output_service_test: dirs $(OUTPUT_SERVICE_OBJECTS) $(OUTPUT_SERVICE_TEST)
+	@echo "Running output service tests..."
+	@$(OUTPUT_SERVICE_TEST)
+
+$(OUTPUT_SERVICE_TEST): $(OUTPUT_SERVICE_SOURCES) $(OUTPUT_SERVICE_OBJECTS)
+	@echo "Compiling output service tests..."
+	@$(CC) $(CFLAGS) $(LDFLAGS) -o $(OUTPUT_SERVICE_TEST) $(OUTPUT_SERVICE_SOURCES) $(OUTPUT_SERVICE_OBJECTS)
+
 # Check help documentation coverage
 check-docs:
 	@echo "Checking help documentation coverage..."
 	@./scripts/check_help_docs.sh
 
 # Run all tests
-test: fuzz_test unit_test anna_test compaction_test plan_db_test check-docs
+test: fuzz_test unit_test anna_test compaction_test plan_db_test output_service_test check-docs
 	@echo "All tests completed!"
 
 # Help
@@ -510,6 +524,7 @@ help:
 	@echo "  unit_test  - Build and run unit tests"
 	@echo "  anna_test  - Build and run Anna Executive Assistant tests"
 	@echo "  plan_db_test - Build and run plan database tests"
+	@echo "  output_service_test - Build and run output service tests"
 	@echo "  check-docs - Verify all REPL commands are documented"
 	@echo "  hwinfo     - Show Apple Silicon hardware info"
 	@echo "  version    - Show version"
@@ -518,4 +533,4 @@ help:
 	@echo "Variables:"
 	@echo "  DEBUG=1   - Enable debug build"
 
-.PHONY: all dirs metal run clean debug install uninstall hwinfo help fuzz_test unit_test anna_test plan_db_test check-docs test version dist release
+.PHONY: all dirs metal run clean debug install uninstall hwinfo help fuzz_test unit_test anna_test plan_db_test output_service_test check-docs test version dist release
