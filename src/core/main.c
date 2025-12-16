@@ -22,6 +22,7 @@
 #include "nous/mlx.h"
 #include "nous/notify.h"
 #include "nous/plan_db.h"
+#include "nous/output_service.h"
 #include "../auth/oauth.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -503,6 +504,12 @@ int main(int argc, char** argv) {
         // Non-critical: plans will work in-memory only
     }
 
+    // Initialize Output Service for structured document generation
+    if (output_service_init(NULL) != OUTPUT_OK) {
+        fprintf(stderr, "  \033[33m⚠ Output service initialization failed (non-critical)\033[0m\n");
+        // Non-critical: agents will output to terminal only
+    }
+
     // Set local MLX mode if requested
     if (g_use_local_mlx) {
         const char* model_id = g_mlx_model[0] ? g_mlx_model : "deepseek-r1-1.5b";
@@ -701,6 +708,9 @@ int main(int argc, char** argv) {
 
     // Shutdown Plan Database
     plan_db_shutdown();
+
+    // Shutdown Output Service
+    output_service_shutdown();
 
     // Shutdown agent configs and orchestrator
     extern void agent_config_shutdown(void);
