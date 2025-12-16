@@ -72,6 +72,7 @@ static os_log_t g_notify_log = NULL;
 
 // Available methods (detected at init)
 static struct {
+    bool convergio_notify;   // Native helper app (best - proper icon)
     bool terminal_notifier;
     bool osascript;
     bool terminal;
@@ -111,6 +112,7 @@ static NotificationBatch g_batch[MAX_BATCH_SIZE];
 // FORWARD DECLARATIONS
 // ============================================================================
 
+static NotifyResult send_via_convergio_notify(const NotifyOptions* opts);
 static NotifyResult send_via_terminal_notifier(const NotifyOptions* opts);
 static NotifyResult send_via_osascript(const NotifyOptions* opts);
 static NotifyResult send_via_terminal(const NotifyOptions* opts);
@@ -150,6 +152,10 @@ void notify_shutdown(void) {
 
 // Check which notification methods are available on this system
 static void check_method_availability(void) {
+    // ConvergioNotify.app: Check if installed (best - shows correct icon)
+    g_available_methods.convergio_notify =
+        (access("/Applications/ConvergioNotify.app/Contents/MacOS/ConvergioNotify", X_OK) == 0);
+
     // terminal-notifier: Check if installed
     g_available_methods.terminal_notifier =
         (system("which terminal-notifier > /dev/null 2>&1") == 0);
@@ -178,7 +184,16 @@ NotifyResult notify_send(const NotifyOptions* options) {
 
     NotifyResult result;
 
-    // Prefer terminal-notifier (supports Convergio icon via -sender and click actions)
+    // Prefer ConvergioNotify.app (native helper with proper icon)
+    if (g_available_methods.convergio_notify) {
+        result = send_via_convergio_notify(options);
+        if (result == NOTIFY_SUCCESS) {
+            os_log_debug(g_notify_log, "Sent via ConvergioNotify.app");
+            return result;
+        }
+    }
+
+    // Fallback to terminal-notifier
     if (g_available_methods.terminal_notifier) {
         result = send_via_terminal_notifier(options);
         if (result == NOTIFY_SUCCESS) {
@@ -279,6 +294,35 @@ static char* escape_quotes(const char* str, char quote_char) {
     escaped[j] = '\0';
 
     return escaped;
+}
+
+// Method 0: ConvergioNotify.app (native helper - best icon support)
+static NotifyResult send_via_convergio_notify(const NotifyOptions* opts) {
+    char cmd[2048];
+    char* escaped_title = escape_quotes(opts->title, '\'');
+    char* escaped_body = escape_quotes(opts->body, '\'');
+    char* escaped_subtitle = opts->subtitle ? escape_quotes(opts->subtitle, '\'') : NULL;
+
+    int written = snprintf(cmd, sizeof(cmd),
+        "/Applications/ConvergioNotify.app/Contents/MacOS/ConvergioNotify "
+        "-title '%s' "
+        "-message '%s'%s%s%s",
+        escaped_title,
+        escaped_body,
+        escaped_subtitle ? " -subtitle '" : "",
+        escaped_subtitle ? escaped_subtitle : "",
+        escaped_subtitle ? "'" : "");
+
+    free(escaped_title);
+    free(escaped_body);
+    free(escaped_subtitle);
+
+    if (written >= (int)sizeof(cmd)) {
+        return NOTIFY_ERROR_INVALID_ARGS;
+    }
+
+    int result = system(cmd);
+    return (result == 0) ? NOTIFY_SUCCESS : NOTIFY_ERROR_UNKNOWN;
 }
 
 // Method 1: terminal-notifier (supports actions and icons)
@@ -441,9 +485,12 @@ bool notify_is_available(NotifyMethod method) {
 }
 
 NotifyMethod notify_get_best_method(void) {
-    // Prefer osascript (shows "Convergio" as title)
-    if (g_available_methods.osascript) return NOTIFY_METHOD_OSASCRIPT;
+    // Prefer ConvergioNotify.app (native helper with proper icon)
+    if (g_available_methods.convergio_notify) return NOTIFY_METHOD_NATIVE;
+    // Fallback to terminal-notifier
     if (g_available_methods.terminal_notifier) return NOTIFY_METHOD_NATIVE;
+    // Fallback to osascript (no icon support, but always available)
+    if (g_available_methods.osascript) return NOTIFY_METHOD_OSASCRIPT;
     if (g_available_methods.terminal) return NOTIFY_METHOD_TERMINAL;
     if (g_available_methods.sound) return NOTIFY_METHOD_SOUND;
     return NOTIFY_METHOD_LOG;
@@ -1219,6 +1266,7 @@ void notify_print_health(void) {
 
     // Method availability
     printf("Available Methods:\n");
+    printf("  ConvergioNotify:   %s\n", g_available_methods.convergio_notify ? "yes" : "no");
     printf("  terminal-notifier: %s\n", g_available_methods.terminal_notifier ? "yes" : "no");
     printf("  osascript:         %s\n", g_available_methods.osascript ? "yes" : "no");
     printf("  terminal:          %s\n", g_available_methods.terminal ? "yes" : "no");

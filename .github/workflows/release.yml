@@ -74,19 +74,31 @@ jobs:
           # Allow codesign to access keychain
           security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
 
-      - name: Sign binary
+      - name: Sign binary and notification helper
         run: |
+          # Sign main binary
           codesign --force --options runtime --sign "$DEVELOPER_ID" \
             --timestamp ./build/bin/convergio
-
-          # Verify signature
           codesign --verify --verbose ./build/bin/convergio
+
+          # Sign notification helper app (if built)
+          if [ -d ./build/bin/ConvergioNotify.app ]; then
+            codesign --force --options runtime --deep --sign "$DEVELOPER_ID" \
+              --timestamp ./build/bin/ConvergioNotify.app
+            codesign --verify --verbose ./build/bin/ConvergioNotify.app
+            echo "✓ ConvergioNotify.app signed"
+          fi
 
       # --- Notarization ---
       - name: Create ZIP for notarization
         run: |
           cd build/bin
-          zip convergio.zip convergio
+          # Include both convergio and ConvergioNotify.app
+          if [ -d ConvergioNotify.app ]; then
+            zip -r convergio.zip convergio ConvergioNotify.app
+          else
+            zip convergio.zip convergio
+          fi
           cd ../..
 
       - name: Notarize binary
@@ -101,12 +113,22 @@ jobs:
             --team-id "$APPLE_TEAM_ID" \
             --wait
 
+          # Staple notarization to the helper app
+          if [ -d build/bin/ConvergioNotify.app ]; then
+            xcrun stapler staple build/bin/ConvergioNotify.app || echo "Stapling helper app failed (non-fatal)"
+          fi
+
       # --- Create Release Artifacts ---
       - name: Create tarball
         run: |
           mkdir -p dist
           cd build/bin
-          tar -czvf ../../dist/convergio-${{ steps.version.outputs.VERSION }}-arm64-apple-darwin.tar.gz convergio
+          # Include ConvergioNotify.app if available
+          if [ -d ConvergioNotify.app ]; then
+            tar -czvf ../../dist/convergio-${{ steps.version.outputs.VERSION }}-arm64-apple-darwin.tar.gz convergio ConvergioNotify.app
+          else
+            tar -czvf ../../dist/convergio-${{ steps.version.outputs.VERSION }}-arm64-apple-darwin.tar.gz convergio
+          fi
           cd ../..
 
       - name: Calculate SHA256
@@ -136,6 +158,8 @@ jobs:
             Or download the binary directly and run:
             ```bash
             tar -xzf convergio-${{ steps.version.outputs.VERSION }}-arm64-apple-darwin.tar.gz
+            # Install notification helper for proper icon display
+            cp -r ConvergioNotify.app /Applications/ 2>/dev/null || true
             ./convergio setup
             ```
 
