@@ -856,6 +856,7 @@ char* orchestrator_process(const char* user_input) {
 
     char* final_response = NULL;
     int iteration = 0;
+    const char* last_error_reason = NULL;  // Track what failed
 
     while (iteration < MAX_TOOL_ITERATIONS) {
         iteration++;
@@ -872,7 +873,13 @@ char* orchestrator_process(const char* user_input) {
         if (!response && !tool_calls_json) {
             free(conversation);
             free(effective_prompt);
-            return strdup("Error: Failed to get response from Ali");
+            // More specific error: API call failed completely
+            return strdup("Error: API call failed - check your connection and API key");
+        }
+
+        // Track if we got tool calls but no text response
+        if (!response && tool_calls_json) {
+            last_error_reason = "AI used tools but didn't provide a text response";
         }
 
         // Record cost
@@ -998,7 +1005,17 @@ char* orchestrator_process(const char* user_input) {
     free(conversation);
 
     if (!final_response) {
-        return strdup("Error: No response generated");
+        // Provide a more helpful error message
+        if (iteration >= MAX_TOOL_ITERATIONS) {
+            return strdup("Error: Too many tool iterations - AI may be stuck in a loop");
+        } else if (last_error_reason) {
+            char* error_msg = malloc(256);
+            if (error_msg) {
+                snprintf(error_msg, 256, "Error: %s", last_error_reason);
+                return error_msg;
+            }
+        }
+        return strdup("Error: AI response was empty - please try again");
     }
 
     // Check for delegation requests in final response (supports multiple)
