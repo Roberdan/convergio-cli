@@ -625,7 +625,7 @@ echo -e "${BLUE}└────────────────────�
 
 # Test todo command exists
 run_test "todo command shows list" "todo" "task"
-run_test "todo list command" "todo list" "task"
+run_test "todo list command" "todo list" "Task"
 
 # Unique prefix for test data (easily identifiable for cleanup)
 E2E_PREFIX="E2E_TEST_$$"
