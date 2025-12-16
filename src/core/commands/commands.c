@@ -21,6 +21,7 @@
 #include "nous/todo.h"
 #include "nous/notify.h"
 #include "nous/mcp_client.h"
+#include "nous/output_service.h"
 #include "../../auth/oauth.h"
 #include <cjson/cJSON.h>
 #include <stdio.h>
@@ -80,6 +81,9 @@ int cmd_mcp(int argc, char** argv);
 // Forward declaration for style command
 int cmd_style(int argc, char** argv);
 
+// Forward declaration for output command
+int cmd_output(int argc, char** argv);
+
 static const ReplCommand COMMANDS[] = {
     {"help",        "Show available commands",           cmd_help},
     {"agent",       "Manage agents",                     cmd_agent},
@@ -123,6 +127,8 @@ static const ReplCommand COMMANDS[] = {
     // Anna Executive Assistant - Daemon & MCP
     {"daemon",      "Manage notification daemon",        cmd_daemon},
     {"mcp",         "Manage MCP servers and tools",      cmd_mcp},
+    // Output Service
+    {"output",      "Manage generated outputs (list/open/delete)", cmd_output},
     {"quit",        "Exit Convergio",                    cmd_quit},
     {"exit",        "Exit Convergio",                    cmd_quit},
     {NULL, NULL, NULL}
@@ -761,6 +767,26 @@ static const CommandHelp DETAILED_HELP[] = {
         "/mcp connect filesystem      # Connect to server\n"
         "/mcp tools                   # List available tools\n"
         "/mcp call read_file '{\"path\":\"/tmp/test.txt\"}'"
+    },
+    {
+        "output",
+        "output <subcommand> [args]",
+        "Manage generated outputs",
+        "Browse, open, and manage generated output documents.\n"
+        "Outputs include reports, analyses, and diagrams created by agents.\n\n"
+        "Subcommands:\n"
+        "  list              List recent outputs\n"
+        "  latest            Show the most recent output\n"
+        "  open <path>       Open an output file in default app\n"
+        "  delete <path>     Delete an output file\n"
+        "  size              Show total storage used by outputs\n"
+        "  cleanup [days]    Clean up old outputs (default: 30 days)\n\n"
+        "Outputs are stored in ~/.convergio/outputs/",
+        "/output list                 # Show recent outputs\n"
+        "/output latest               # Show the latest output\n"
+        "/output open /path/to/file   # Open in default app\n"
+        "/output size                 # Show disk usage\n"
+        "/output cleanup 7            # Delete outputs older than 7 days"
     },
     {NULL, NULL, NULL, NULL, NULL}
 };
@@ -4107,5 +4133,167 @@ int cmd_mcp(int argc, char** argv) {
 
     printf("\033[31mUnknown MCP command: %s\033[0m\n", subcmd);
     printf("Use '/mcp' to see available commands.\n");
+    return -1;
+}
+
+// ============================================================================
+// OUTPUT COMMAND
+// ============================================================================
+
+/**
+ * /output - Output service management
+ *
+ * Subcommands:
+ *   list              List recent outputs
+ *   open <file>       Open an output file
+ *   delete <file>     Delete an output file
+ *   size              Show total size of outputs
+ *   cleanup [days]    Clean up old outputs (default: 30 days)
+ */
+int cmd_output(int argc, char** argv) {
+    if (!output_service_is_ready()) {
+        printf("\033[31m✗ Output service not initialized.\033[0m\n");
+        return -1;
+    }
+
+    if (argc < 2) {
+        printf("\n\033[1m📄 Output Service Manager\033[0m\n\n");
+        printf("Usage: output <subcommand> [args]\n\n");
+        printf("Subcommands:\n");
+        printf("  list              List recent outputs\n");
+        printf("  latest            Show latest output\n");
+        printf("  open <path>       Open an output file\n");
+        printf("  delete <path>     Delete an output file\n");
+        printf("  size              Show total size of outputs\n");
+        printf("  cleanup [days]    Clean up old outputs (default: 30)\n");
+        printf("\nOutputs are stored in ~/.convergio/outputs/\n\n");
+        return 0;
+    }
+
+    const char* subcmd = argv[1];
+
+    // --- output list ---
+    if (strcmp(subcmd, "list") == 0) {
+        printf("\n\033[1m📄 Recent Outputs\033[0m\n");
+        printf("──────────────────────────────────────────────────────────\n");
+
+        char* paths[20];
+        int count = 0;
+        OutputError err = output_list_recent(20, paths, &count);
+
+        if (err != OUTPUT_OK || count == 0) {
+            printf("  \033[90mNo outputs found.\033[0m\n\n");
+            return 0;
+        }
+
+        for (int i = 0; i < count; i++) {
+            // Extract filename from path
+            const char* filename = strrchr(paths[i], '/');
+            filename = filename ? filename + 1 : paths[i];
+
+            // Determine icon based on format
+            const char* icon = "📄";
+            if (strstr(filename, ".md")) icon = "📝";
+            else if (strstr(filename, ".json")) icon = "📊";
+            else if (strstr(filename, ".html")) icon = "🌐";
+
+            printf("  %s %s\n", icon, filename);
+            printf("     \033[90m%s\033[0m\n", paths[i]);
+
+            free(paths[i]);
+        }
+
+        printf("\n  Total: %d file(s)\n\n", count);
+        return 0;
+    }
+
+    // --- output latest ---
+    if (strcmp(subcmd, "latest") == 0) {
+        OutputResult result;
+        OutputError err = output_get_latest(&result);
+
+        if (err != OUTPUT_OK) {
+            printf("\033[31m✗ No recent outputs found.\033[0m\n");
+            return -1;
+        }
+
+        printf("\n\033[1m📄 Latest Output\033[0m\n");
+        printf("──────────────────────────────────────────────────────────\n");
+        printf("  Path: %s\n", result.filepath);
+        output_print_link(result.filepath, "Open in default app");
+        printf("\n");
+        return 0;
+    }
+
+    // --- output open ---
+    if (strcmp(subcmd, "open") == 0) {
+        if (argc < 3) {
+            printf("\033[31mUsage: output open <filepath>\033[0m\n");
+            printf("Use 'output list' to see available files.\n");
+            return -1;
+        }
+
+        const char* filepath = argv[2];
+
+        // Open with system default
+        char cmd[PATH_MAX + 16];
+        snprintf(cmd, sizeof(cmd), "open \"%s\"", filepath);
+        int ret = system(cmd);
+
+        if (ret == 0) {
+            printf("\033[32m✓ Opened: %s\033[0m\n", filepath);
+        } else {
+            printf("\033[31m✗ Failed to open file\033[0m\n");
+            return -1;
+        }
+        return 0;
+    }
+
+    // --- output delete ---
+    if (strcmp(subcmd, "delete") == 0) {
+        if (argc < 3) {
+            printf("\033[31mUsage: output delete <filepath>\033[0m\n");
+            return -1;
+        }
+
+        const char* filepath = argv[2];
+        OutputError err = output_delete(filepath);
+
+        if (err == OUTPUT_OK) {
+            printf("\033[32m✓ Deleted: %s\033[0m\n", filepath);
+        } else {
+            printf("\033[31m✗ Delete failed (file not found?)\033[0m\n");
+            return -1;
+        }
+        return 0;
+    }
+
+    // --- output size ---
+    if (strcmp(subcmd, "size") == 0) {
+        size_t total_size = output_get_total_size();
+        float size_mb = (float)total_size / (1024.0f * 1024.0f);
+
+        printf("\n\033[1m📊 Output Storage\033[0m\n");
+        printf("──────────────────────────────────────────────────────────\n");
+        printf("  Total size: %.2f MB\n", size_mb);
+        printf("  Location: ~/.convergio/outputs/\n\n");
+        return 0;
+    }
+
+    // --- output cleanup ---
+    if (strcmp(subcmd, "cleanup") == 0) {
+        int days = 30;
+        if (argc >= 3) {
+            days = atoi(argv[2]);
+            if (days <= 0) days = 30;
+        }
+
+        int deleted = output_cleanup(days);
+        printf("\033[32m✓ Cleaned up %d file(s) older than %d days\033[0m\n", deleted, days);
+        return 0;
+    }
+
+    printf("\033[31mUnknown output command: %s\033[0m\n", subcmd);
+    printf("Use '/output' to see available commands.\n");
     return -1;
 }
