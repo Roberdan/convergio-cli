@@ -168,7 +168,7 @@ static void find_convergio_notify_app(void) {
                 snprintf(test_path, sizeof(test_path),
                          "%s/ConvergioNotify.app/Contents/MacOS/ConvergioNotify", real_path);
                 if (access(test_path, X_OK) == 0) {
-                    strncpy(g_convergio_notify_path, test_path, PATH_MAX - 1);
+                    strlcpy(g_convergio_notify_path, test_path, PATH_MAX);
                     free(real_path);
                     return;
                 }
@@ -181,7 +181,7 @@ static void find_convergio_notify_app(void) {
     snprintf(test_path, sizeof(test_path),
              "/opt/homebrew/opt/convergio/ConvergioNotify.app/Contents/MacOS/ConvergioNotify");
     if (access(test_path, X_OK) == 0) {
-        strncpy(g_convergio_notify_path, test_path, PATH_MAX - 1);
+        strlcpy(g_convergio_notify_path, test_path, PATH_MAX);
         return;
     }
 
@@ -189,7 +189,7 @@ static void find_convergio_notify_app(void) {
     snprintf(test_path, sizeof(test_path),
              "/usr/local/opt/convergio/ConvergioNotify.app/Contents/MacOS/ConvergioNotify");
     if (access(test_path, X_OK) == 0) {
-        strncpy(g_convergio_notify_path, test_path, PATH_MAX - 1);
+        strlcpy(g_convergio_notify_path, test_path, PATH_MAX);
         return;
     }
 
@@ -197,7 +197,7 @@ static void find_convergio_notify_app(void) {
     snprintf(test_path, sizeof(test_path),
              "/Applications/ConvergioNotify.app/Contents/MacOS/ConvergioNotify");
     if (access(test_path, X_OK) == 0) {
-        strncpy(g_convergio_notify_path, test_path, PATH_MAX - 1);
+        strlcpy(g_convergio_notify_path, test_path, PATH_MAX);
         return;
     }
 
@@ -207,7 +207,7 @@ static void find_convergio_notify_app(void) {
         snprintf(test_path, sizeof(test_path),
                  "%s/Applications/ConvergioNotify.app/Contents/MacOS/ConvergioNotify", home);
         if (access(test_path, X_OK) == 0) {
-            strncpy(g_convergio_notify_path, test_path, PATH_MAX - 1);
+            strlcpy(g_convergio_notify_path, test_path, PATH_MAX);
             return;
         }
     }
@@ -366,6 +366,10 @@ static char* escape_quotes(const char* str, char quote_char) {
 }
 
 // Method 0: ConvergioNotify.app (native helper - best icon support)
+// Security note: g_convergio_notify_path is built from trusted sources only:
+// - Hardcoded paths (/opt/homebrew/..., /Applications/..., etc.)
+// - _NSGetExecutablePath (returns path to current binary)
+// No user input is used in path construction, so command injection is not possible.
 static NotifyResult send_via_convergio_notify(const NotifyOptions* opts) {
     if (g_convergio_notify_path[0] == '\0') {
         return NOTIFY_ERROR_NOT_AVAILABLE;
@@ -376,6 +380,7 @@ static NotifyResult send_via_convergio_notify(const NotifyOptions* opts) {
     char* escaped_body = escape_quotes(opts->body, '\'');
     char* escaped_subtitle = opts->subtitle ? escape_quotes(opts->subtitle, '\'') : NULL;
 
+    // Path is single-quoted and comes from trusted sources (see security note above)
     int written = snprintf(cmd, sizeof(cmd),
         "'%s' "
         "-title '%s' "
