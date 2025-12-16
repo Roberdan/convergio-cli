@@ -17,6 +17,22 @@ class Convergio < Formula
 
   def install
     bin.install "convergio"
+    # Install notification helper app if included in release
+    if File.directory?("ConvergioNotify.app")
+      prefix.install "ConvergioNotify.app"
+    end
+  end
+
+  def post_install
+    # Symlink notification helper to /Applications for system-wide access
+    notify_app = prefix/"ConvergioNotify.app"
+    if notify_app.exist?
+      target = Pathname.new("/Applications/ConvergioNotify.app")
+      target.rmtree if target.exist?
+      FileUtils.cp_r(notify_app, target)
+      # Register with Launch Services
+      system "/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister", "-f", target
+    end
   end
 
   def caveats
@@ -32,6 +48,11 @@ class Convergio < Formula
         convergio              # Start interactive session with Ali
         convergio --help       # Show all options
         convergio update       # Check for and install updates
+
+      Notifications:
+        The notification helper (ConvergioNotify.app) has been installed to
+        /Applications for reminder notifications with the Convergio icon.
+        You may need to allow notifications in System Settings > Notifications.
 
       Documentation: https://github.com/Roberdan/convergio-cli
     EOS

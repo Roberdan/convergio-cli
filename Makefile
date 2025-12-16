@@ -170,13 +170,18 @@ METAL_LIB = $(BUILD_DIR)/similarity.metallib
 # Target
 TARGET = $(BIN_DIR)/convergio
 
+# Notification helper app
+NOTIFY_HELPER_SRC = $(SRC_DIR)/notifications/helper/main.swift
+NOTIFY_HELPER_PLIST = $(SRC_DIR)/notifications/helper/Info.plist
+NOTIFY_HELPER_APP = $(BIN_DIR)/ConvergioNotify.app
+
 # Embedded agents (generated from .md files)
 EMBEDDED_AGENTS = $(SRC_DIR)/agents/embedded_agents.c
 
 # Default target - MUST be first target in file
 .DEFAULT_GOAL := all
 
-all: dirs metal swift $(TARGET)
+all: dirs metal swift $(TARGET) notify-helper
 	@echo ""
 	@echo "╔═══════════════════════════════════════════════════╗"
 	@echo "║          CONVERGIO KERNEL v$(VERSION)              "
@@ -250,6 +255,35 @@ $(SWIFT_LIB): Package.swift Sources/ConvergioMLX/MLXBridge.swift
 		mkdir -p $(SWIFT_BUILD_DIR); \
 		touch $(SWIFT_LIB); \
 	fi
+
+# Build notification helper app (for proper icon display)
+notify-helper: $(NOTIFY_HELPER_APP)
+
+$(NOTIFY_HELPER_APP): $(NOTIFY_HELPER_SRC) $(NOTIFY_HELPER_PLIST)
+	@echo "Building notification helper app..."
+	@mkdir -p $(NOTIFY_HELPER_APP)/Contents/MacOS $(NOTIFY_HELPER_APP)/Contents/Resources
+	@swiftc -o $(NOTIFY_HELPER_APP)/Contents/MacOS/ConvergioNotify \
+		$(NOTIFY_HELPER_SRC) -framework Cocoa -O -suppress-warnings 2>/dev/null || \
+		swiftc -o $(NOTIFY_HELPER_APP)/Contents/MacOS/ConvergioNotify \
+		$(NOTIFY_HELPER_SRC) -framework Cocoa 2>&1 | grep -v "was deprecated" || true
+	@cp $(NOTIFY_HELPER_PLIST) $(NOTIFY_HELPER_APP)/Contents/Info.plist
+	@if [ -f docs/logo/CovergioLogo.jpeg ]; then \
+		mkdir -p /tmp/ConvergioNotify.iconset; \
+		sips -z 16 16 docs/logo/CovergioLogo.jpeg --out /tmp/ConvergioNotify.iconset/icon_16x16.png -s format png >/dev/null 2>&1; \
+		sips -z 32 32 docs/logo/CovergioLogo.jpeg --out /tmp/ConvergioNotify.iconset/icon_16x16@2x.png -s format png >/dev/null 2>&1; \
+		sips -z 32 32 docs/logo/CovergioLogo.jpeg --out /tmp/ConvergioNotify.iconset/icon_32x32.png -s format png >/dev/null 2>&1; \
+		sips -z 64 64 docs/logo/CovergioLogo.jpeg --out /tmp/ConvergioNotify.iconset/icon_32x32@2x.png -s format png >/dev/null 2>&1; \
+		sips -z 128 128 docs/logo/CovergioLogo.jpeg --out /tmp/ConvergioNotify.iconset/icon_128x128.png -s format png >/dev/null 2>&1; \
+		sips -z 256 256 docs/logo/CovergioLogo.jpeg --out /tmp/ConvergioNotify.iconset/icon_128x128@2x.png -s format png >/dev/null 2>&1; \
+		sips -z 256 256 docs/logo/CovergioLogo.jpeg --out /tmp/ConvergioNotify.iconset/icon_256x256.png -s format png >/dev/null 2>&1; \
+		sips -z 512 512 docs/logo/CovergioLogo.jpeg --out /tmp/ConvergioNotify.iconset/icon_256x256@2x.png -s format png >/dev/null 2>&1; \
+		sips -z 512 512 docs/logo/CovergioLogo.jpeg --out /tmp/ConvergioNotify.iconset/icon_512x512.png -s format png >/dev/null 2>&1; \
+		sips -z 1024 1024 docs/logo/CovergioLogo.jpeg --out /tmp/ConvergioNotify.iconset/icon_512x512@2x.png -s format png >/dev/null 2>&1; \
+		iconutil -c icns /tmp/ConvergioNotify.iconset -o $(NOTIFY_HELPER_APP)/Contents/Resources/AppIcon.icns 2>/dev/null; \
+		rm -rf /tmp/ConvergioNotify.iconset; \
+	fi
+	@codesign --force --deep --sign - $(NOTIFY_HELPER_APP) 2>/dev/null || true
+	@echo "  Notification helper built: $(NOTIFY_HELPER_APP)"
 
 # Compile Metal shaders (optional - requires Metal Toolchain)
 metal: $(METAL_LIB)
@@ -364,6 +398,14 @@ install: all
 		rm -rf /tmp/Convergio.iconset /tmp/Convergio.icns; \
 		echo "  Convergio.app installed for notifications"; \
 	fi
+	@# Install ConvergioNotify.app for native notifications with proper icon
+	@if [ -d $(NOTIFY_HELPER_APP) ]; then \
+		echo "  Installing ConvergioNotify.app..."; \
+		rm -rf /Applications/ConvergioNotify.app; \
+		cp -r $(NOTIFY_HELPER_APP) /Applications/ConvergioNotify.app; \
+		/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister -f /Applications/ConvergioNotify.app 2>/dev/null || true; \
+		echo "  ConvergioNotify.app installed for native notifications"; \
+	fi
 	@echo "Installed."
 
 # Uninstall
@@ -376,6 +418,7 @@ uninstall:
 		sudo rm -f /usr/local/bin/convergio; \
 		sudo rm -rf /usr/local/lib/convergio; \
 	fi
+	@rm -rf /Applications/ConvergioNotify.app 2>/dev/null || true
 	@echo "Uninstalled."
 
 # Show hardware info
@@ -394,10 +437,12 @@ version:
 # Distribution tarball
 dist: all
 	@mkdir -p dist
-	@tar -czvf dist/convergio-$(VERSION)-darwin-arm64.tar.gz \
-		-C $(BIN_DIR) convergio \
-		-C $(BUILD_DIR) similarity.metallib 2>/dev/null || \
-		tar -czvf dist/convergio-$(VERSION)-darwin-arm64.tar.gz -C $(BIN_DIR) convergio
+	@cd $(BIN_DIR) && \
+	if [ -d ConvergioNotify.app ]; then \
+		tar -czvf ../../dist/convergio-$(VERSION)-darwin-arm64.tar.gz convergio ConvergioNotify.app; \
+	else \
+		tar -czvf ../../dist/convergio-$(VERSION)-darwin-arm64.tar.gz convergio; \
+	fi
 	@echo "Created dist/convergio-$(VERSION)-darwin-arm64.tar.gz"
 
 release: dist

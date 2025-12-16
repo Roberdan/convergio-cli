@@ -36,6 +36,8 @@ extern int persistence_init(const char* db_path);
 extern int todo_init(void);
 extern void todo_shutdown(void);
 extern void persistence_shutdown(void);
+extern int notify_daemon_start(void);
+extern void notify_daemon_stop(void);
 extern int msgbus_init(void);
 extern void msgbus_shutdown(void);
 extern char* persistence_create_session(const char* user_name);
@@ -407,6 +409,11 @@ int orchestrator_init(double budget_limit_usd) {
         LOG_WARN(LOG_CAT_SYSTEM, "todo manager init failed, continuing without todo");
     }
 
+    // Start notification daemon automatically for reminder delivery
+    if (notify_daemon_start() != 0) {
+        LOG_WARN(LOG_CAT_SYSTEM, "notification daemon failed to start, reminders may not be delivered");
+    }
+
     if (msgbus_init() != 0) {
         LOG_WARN(LOG_CAT_SYSTEM, "message bus init failed");
     }
@@ -524,6 +531,7 @@ void orchestrator_shutdown(void) {
     }
 
     // Shutdown subsystems
+    notify_daemon_stop();   // Stop notification daemon first
     todo_shutdown();        // Must be before persistence_shutdown
     compaction_shutdown();  // Must be before persistence_shutdown
     persistence_shutdown();

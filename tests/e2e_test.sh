@@ -627,10 +627,13 @@ echo -e "${BLUE}└────────────────────�
 run_test "todo command shows list" "todo" "task"
 run_test "todo list command" "todo list" "task"
 
+# Unique prefix for test data (easily identifiable for cleanup)
+E2E_PREFIX="E2E_TEST_$$"
+
 # Test todo add command
 echo -n "  Testing: todo add creates task... "
-output=$(echo -e "todo add Test E2E Task\ntodo list\nquit" | ${TIMEOUT_CMD:-cat} ${TIMEOUT_CMD:+30} $CONVERGIO -q 2>&1) || true
-if echo "$output" | grep -qi "Test E2E Task\|created\|added"; then
+output=$(echo -e "todo add ${E2E_PREFIX}_task\ntodo list\nquit" | ${TIMEOUT_CMD:-cat} ${TIMEOUT_CMD:+30} $CONVERGIO -q 2>&1) || true
+if echo "$output" | grep -qi "${E2E_PREFIX}_task\|created\|added"; then
     echo -e "${GREEN}PASS${NC}"
     ((PASSED++))
 else
@@ -641,8 +644,8 @@ fi
 
 # Test todo with due date
 echo -n "  Testing: todo add with due date... "
-output=$(echo -e "todo add \"Deadline task\" --due tomorrow\ntodo list\nquit" | ${TIMEOUT_CMD:-cat} ${TIMEOUT_CMD:+30} $CONVERGIO -q 2>&1) || true
-if echo "$output" | grep -qi "Deadline task\|created\|added"; then
+output=$(echo -e "todo add \"${E2E_PREFIX}_deadline\" --due tomorrow\ntodo list\nquit" | ${TIMEOUT_CMD:-cat} ${TIMEOUT_CMD:+30} $CONVERGIO -q 2>&1) || true
+if echo "$output" | grep -qi "${E2E_PREFIX}_deadline\|created\|added"; then
     echo -e "${GREEN}PASS${NC}"
     ((PASSED++))
 else
@@ -650,23 +653,17 @@ else
     ((SKIPPED++))
 fi
 
-# Test Anna with natural language task
+# Test Anna with natural language task (skipped in automated tests)
 echo -n "  Testing: @anna creates task via tool... "
-output=$(echo -e "@anna aggiungi un task per testare i tool\nquit" | timeout 90 $CONVERGIO -q 2>&1) || true
-if echo "$output" | grep -qi "task\|created\|creato\|aggiunto"; then
-    echo -e "${GREEN}PASS${NC}"
-    ((PASSED++))
-else
-    echo -e "${YELLOW}SKIP${NC} (requires API and tool execution)"
-    ((SKIPPED++))
-fi
+echo -e "${YELLOW}SKIP${NC} (requires API, creates non-deterministic data)"
+((SKIPPED++))
 
 # Test remind command
 run_test "remind command exists" "remind" "remind"
 
 # Test remind scheduling (don't actually wait for notification)
 echo -n "  Testing: remind command schedules... "
-output=$(echo -e "remind Test reminder in 1 hour\nquit" | ${TIMEOUT_CMD:-cat} ${TIMEOUT_CMD:+30} $CONVERGIO -q 2>&1) || true
+output=$(echo -e "remind ${E2E_PREFIX}_reminder in 1 hour\nquit" | ${TIMEOUT_CMD:-cat} ${TIMEOUT_CMD:+30} $CONVERGIO -q 2>&1) || true
 if echo "$output" | grep -qi "scheduled\|reminder\|notif\|ore\|hour"; then
     echo -e "${GREEN}PASS${NC}"
     ((PASSED++))
@@ -678,14 +675,20 @@ fi
 # Test reminders list
 run_test "reminders list command" "reminders" "reminder\|notif\|scheduled\|No"
 
-# Cleanup test tasks
+# Cleanup test tasks (DELETE not just mark done)
 echo -n "  Testing: cleanup test tasks... "
-# Get task IDs and delete them
-output=$(echo -e "todo list\nquit" | ${TIMEOUT_CMD:-cat} ${TIMEOUT_CMD:+15} $CONVERGIO -q 2>&1) || true
-# Extract task IDs containing "E2E" or "test" and mark as done
-for id in $(echo "$output" | grep -i "e2e\|test" | grep -oE '\[?[0-9]+\]?' | tr -d '[]' | head -5); do
-    echo -e "todo done $id\nquit" | ${TIMEOUT_CMD:-cat} ${TIMEOUT_CMD:+10} $CONVERGIO -q 2>&1 >/dev/null || true
+# Get all task IDs and delete test tasks with E2E_TEST_ prefix
+output=$(echo -e "todo list all\nquit" | ${TIMEOUT_CMD:-cat} ${TIMEOUT_CMD:+15} $CONVERGIO -q 2>&1) || true
+# Extract task IDs containing our E2E_TEST prefix and DELETE them
+for id in $(echo "$output" | grep -i "E2E_TEST" | grep -oE '\[?[0-9]+\]?' | tr -d '[]' | head -10); do
+    echo -e "todo delete $id\nquit" | ${TIMEOUT_CMD:-cat} ${TIMEOUT_CMD:+10} $CONVERGIO -q 2>&1 >/dev/null || true
 done
+# Fallback: Direct database cleanup for any E2E test data
+DB_PATH="$HOME/.convergio/convergio.db"
+if [ -f "$DB_PATH" ]; then
+    sqlite3 "$DB_PATH" "DELETE FROM tasks WHERE title LIKE 'E2E_TEST_%';" 2>/dev/null || true
+    sqlite3 "$DB_PATH" "DELETE FROM notification_queue WHERE task_id NOT IN (SELECT id FROM tasks);" 2>/dev/null || true
+fi
 echo -e "${GREEN}DONE${NC}"
 
 # =============================================================================

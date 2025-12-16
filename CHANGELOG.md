@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Native Notification Helper** (ConvergioNotify.app)
+  - Native Swift helper app for macOS notifications with proper Convergio icon
+  - Replaces terminal-notifier which has icon display bugs on recent macOS
+  - Uses NSUserNotification API for reliable notification delivery
+  - Auto-installed to /Applications during `make install` or Homebrew install
+  - Signed and notarized as part of release workflow
+
+- **Notification Daemon Auto-Start**
+  - Daemon now starts automatically on Convergio launch
+  - Stops cleanly on Convergio shutdown
+  - LaunchAgent support for persistent background operation
+
+### Fixed
+
+- **Notification Icon Display**
+  - Notifications now display Convergio logo instead of Terminal icon
+  - Works on all recent macOS versions
+
+- **E2E Test Cleanup**
+  - Test tasks now use `E2E_TEST_` prefix for identification
+  - Proper cleanup prevents test data pollution in user database
+
 ## [5.1.0] - 2025-12-16
 
 ### Added
