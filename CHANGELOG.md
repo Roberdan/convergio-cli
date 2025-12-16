@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [5.2.2] - 2025-12-16
+
+### Fixed
+
+- **Dynamic ConvergioNotify.app Path Resolution**
+  - Notification helper now searches for app in multiple locations (Applications, build/bin, user Applications)
+  - Fixes "ConvergioNotify.app not found" errors when installed in non-standard locations
+  - Improved error messages when notification helper is unavailable
+
+- **Orchestrator Error Messages**
+  - Enhanced error messages for better debugging when agent delegation fails
+  - Clearer feedback when API calls encounter issues
+
+- **Buffer Overflow in Compaction**
+  - Fixed global-buffer-overflow in `compaction_summarize()` caused by incorrect marker length calculation
+  - Now uses `sizeof()` instead of hardcoded length for compile-time safety
+
 ## [5.2.1] - 2025-12-16
 
 ### Fixed
@@ -878,7 +895,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-[Unreleased]: https://github.com/Roberdan/convergio-cli/compare/v5.1.0...HEAD
+[Unreleased]: https://github.com/Roberdan/convergio-cli/compare/v5.2.2...HEAD
+[5.2.2]: https://github.com/Roberdan/convergio-cli/compare/v5.2.1...v5.2.2
+[5.2.1]: https://github.com/Roberdan/convergio-cli/compare/v5.2.0...v5.2.1
+[5.2.0]: https://github.com/Roberdan/convergio-cli/compare/v5.1.0...v5.2.0
 [5.1.0]: https://github.com/Roberdan/convergio-cli/compare/v5.0.1...v5.1.0
 [5.0.1]: https://github.com/Roberdan/convergio-cli/compare/v5.0.0...v5.0.1
 [5.0.0]: https://github.com/Roberdan/convergio-cli/compare/v4.2.0...v5.0.0
