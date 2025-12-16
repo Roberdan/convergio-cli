@@ -5,6 +5,7 @@
  */
 
 #include "nous/plan_db.h"
+#include "nous/debug_mutex.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -28,7 +29,7 @@
 // ============================================================================
 
 static sqlite3* g_db = NULL;
-static pthread_mutex_t g_db_mutex = PTHREAD_MUTEX_INITIALIZER;
+CONVERGIO_MUTEX_DECLARE(g_db_mutex);
 static bool g_initialized = false;
 static char g_db_path[PATH_MAX] = {0};
 
@@ -88,6 +89,39 @@ static char* safe_strdup(const char* str) {
     return str ? strdup(str) : NULL;
 }
 
+static char* json_escape_string(const char* str) {
+    if (!str) return strdup("");
+
+    // Calculate needed size (worst case: every char needs escape)
+    size_t len = strlen(str);
+    size_t needed = len * 2 + 1;
+    char* escaped = malloc(needed);
+    if (!escaped) return strdup("");
+
+    char* out = escaped;
+    for (const char* p = str; *p; p++) {
+        switch (*p) {
+            case '"':  *out++ = '\\'; *out++ = '"'; break;
+            case '\\': *out++ = '\\'; *out++ = '\\'; break;
+            case '\n': *out++ = '\\'; *out++ = 'n'; break;
+            case '\r': *out++ = '\\'; *out++ = 'r'; break;
+            case '\t': *out++ = '\\'; *out++ = 't'; break;
+            case '\b': *out++ = '\\'; *out++ = 'b'; break;
+            case '\f': *out++ = '\\'; *out++ = 'f'; break;
+            default:
+                if ((unsigned char)*p < 32) {
+                    // Control character - use \u00XX format
+                    out += sprintf(out, "\\u%04x", (unsigned char)*p);
+                } else {
+                    *out++ = *p;
+                }
+                break;
+        }
+    }
+    *out = '\0';
+    return escaped;
+}
+
 // ============================================================================
 // SCHEMA
 // ============================================================================
@@ -141,10 +175,10 @@ static const char* SCHEMA_SQL =
 // ============================================================================
 
 PlanDbError plan_db_init(const char* db_path) {
-    pthread_mutex_lock(&g_db_mutex);
+    CONVERGIO_MUTEX_LOCK(&g_db_mutex);
 
     if (g_initialized) {
-        pthread_mutex_unlock(&g_db_mutex);
+        CONVERGIO_MUTEX_UNLOCK(&g_db_mutex);
         return PLAN_DB_OK;
     }
 
@@ -168,7 +202,7 @@ PlanDbError plan_db_init(const char* db_path) {
                               SQLITE_OPEN_FULLMUTEX, NULL);
     if (rc != SQLITE_OK) {
         fprintf(stderr, "[plan_db] Failed to open database: %s\n", sqlite3_errmsg(g_db));
-        pthread_mutex_unlock(&g_db_mutex);
+        CONVERGIO_MUTEX_UNLOCK(&g_db_mutex);
         return PLAN_DB_ERROR_INIT;
     }
 
@@ -183,23 +217,23 @@ PlanDbError plan_db_init(const char* db_path) {
         sqlite3_free(err_msg);
         sqlite3_close(g_db);
         g_db = NULL;
-        pthread_mutex_unlock(&g_db_mutex);
+        CONVERGIO_MUTEX_UNLOCK(&g_db_mutex);
         return PLAN_DB_ERROR_INIT;
     }
 
     g_initialized = true;
-    pthread_mutex_unlock(&g_db_mutex);
+    CONVERGIO_MUTEX_UNLOCK(&g_db_mutex);
     return PLAN_DB_OK;
 }
 
 void plan_db_shutdown(void) {
-    pthread_mutex_lock(&g_db_mutex);
+    CONVERGIO_MUTEX_LOCK(&g_db_mutex);
     if (g_db) {
         sqlite3_close(g_db);
         g_db = NULL;
     }
     g_initialized = false;
-    pthread_mutex_unlock(&g_db_mutex);
+    CONVERGIO_MUTEX_UNLOCK(&g_db_mutex);
 }
 
 bool plan_db_is_ready(void) {
@@ -965,6 +999,9 @@ PlanDbError plan_db_export_json(const char* plan_id, char** out_json) {
         return PLAN_DB_ERROR_IO;
     }
 
+    // Escape user-provided strings for JSON safety
+    char* escaped_desc = json_escape_string(plan.description);
+
     size_t pos = 0;
     pos += snprintf(buf + pos, buf_size - pos,
         "{\n"
@@ -979,17 +1016,22 @@ PlanDbError plan_db_export_json(const char* plan_id, char** out_json) {
         "  },\n"
         "  \"tasks\": [\n",
         plan.id,
-        plan.description ? plan.description : "",
+        escaped_desc,
         status_to_string(plan.status),
         plan.created_at,
         progress.total,
         progress.completed,
         progress.percent_complete);
 
+    free(escaped_desc);
+
     bool first = true;
     for (TaskRecord* t = tasks; t; t = t->next) {
         if (!first) pos += snprintf(buf + pos, buf_size - pos, ",\n");
         first = false;
+
+        char* task_desc = json_escape_string(t->description);
+        char* task_agent = json_escape_string(t->assigned_agent);
 
         pos += snprintf(buf + pos, buf_size - pos,
             "    {\n"
@@ -1000,10 +1042,13 @@ PlanDbError plan_db_export_json(const char* plan_id, char** out_json) {
             "      \"priority\": %d\n"
             "    }",
             t->id,
-            t->description ? t->description : "",
+            task_desc,
             task_status_to_string(t->status),
-            t->assigned_agent ? t->assigned_agent : "",
+            task_agent,
             t->priority);
+
+        free(task_desc);
+        free(task_agent);
     }
 
     pos += snprintf(buf + pos, buf_size - pos, "\n  ]\n}\n");
