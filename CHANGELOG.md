@@ -7,6 +7,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [5.3.0] - 2025-12-16
+
+### Added
+
+- **Advanced Filesystem Tools** (Claude Code-style)
+  - `glob` tool: Find files by pattern (e.g., `**/*.c`) with recursive `**` support
+  - `grep` tool: Search file contents with regex, uses ripgrep when available
+  - `edit` tool: Precise string replacement with automatic backups to `~/.convergio/backups/`
+  - `file_delete` tool: Safe file deletion that moves to Trash (macOS Finder integration or fallback to `~/.convergio/trash/`)
+  - ADR: `docs/adr/014-advanced-filesystem-tools.md`
+
+- **Direct Bash Prefix**
+  - Execute shell commands directly with `!command` or `$command` prefix
+  - Bypasses AI processing for immediate execution
+  - Safety checks still applied (blocked commands list)
+
+### Safety
+
+- **Automatic backup before file edits**: All `edit` operations create timestamped backups
+- **Trash-based deletion**: `file_delete` moves files to Trash instead of permanent deletion
+- **Path safety enforcement**: All new tools respect workspace boundaries
+- **Command safety blocklist**: Direct bash prefix uses same blocklist as shell_exec
+
+### Technical
+
+- New tool types: TOOL_GLOB, TOOL_GREP, TOOL_EDIT, TOOL_FILE_DELETE
+- Updated Ali system prompt with guidance to prefer new tools
+- Backup directory: `~/.convergio/backups/`
+- Trash directory: `~/.convergio/trash/` (fallback when Finder unavailable)
+
 ## [5.2.2] - 2025-12-16
 
 ### Fixed
@@ -895,7 +925,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-[Unreleased]: https://github.com/Roberdan/convergio-cli/compare/v5.2.2...HEAD
+[Unreleased]: https://github.com/Roberdan/convergio-cli/compare/v5.3.0...HEAD
+[5.3.0]: https://github.com/Roberdan/convergio-cli/compare/v5.2.2...v5.3.0
 [5.2.2]: https://github.com/Roberdan/convergio-cli/compare/v5.2.1...v5.2.2
 [5.2.1]: https://github.com/Roberdan/convergio-cli/compare/v5.2.0...v5.2.1
 [5.2.0]: https://github.com/Roberdan/convergio-cli/compare/v5.1.0...v5.2.0
