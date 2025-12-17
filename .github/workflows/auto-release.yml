@@ -41,12 +41,14 @@ jobs:
       - name: Create and push tag
         if: steps.check-tag.outputs.exists == 'false'
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Use TAP_GITHUB_TOKEN (PAT) to trigger downstream workflows
+          # GITHUB_TOKEN doesn't trigger workflows to prevent infinite loops
+          GITHUB_TOKEN: ${{ secrets.TAP_GITHUB_TOKEN }}
         run: |
           VERSION=${{ steps.version.outputs.VERSION }}
           git config user.name "GitHub Actions"
           git config user.email "actions@github.com"
           git tag -a "v$VERSION" -m "Release v$VERSION"
-          git push origin "v$VERSION"
+          git push https://x-access-token:${GITHUB_TOKEN}@github.com/Roberdan/convergio-cli.git "v$VERSION"
           echo "✅ Created and pushed tag v$VERSION"
           echo "Release workflow will be triggered automatically"
