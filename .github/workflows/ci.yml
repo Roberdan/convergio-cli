@@ -70,8 +70,7 @@ jobs:
 
       - name: Check warnings (zero tolerance)
         run: |
-          # Filter out known non-critical warnings from dependencies
-          if grep -i "warning:" build.log | grep -v "Metal Toolchain" | grep -v "Swift build failed" | grep -v "Metal shaders not compiled"; then
+          if grep -i "warning:" build.log | grep -v "Metal Toolchain" | grep -v "Swift build failed"; then
             echo "::error::Build produced warnings"
             exit 1
           fi
