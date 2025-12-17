@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [5.3.1] - 2025-12-17
+
+### Fixed
+
+- **MLX Swift Dependency**: Pinned mlx-swift-lm to v2.29.2 (fixes Jamba.swift syntax error on main branch)
+- **Metal Shaders**: Pre-compiled Metal library included for reliable GPU acceleration on CI
+- **CI Pipeline**: Optimized workflow structure - reduced CI time from ~22min to ~11min
+  - CI now runs only on PR (not duplicated on push to main)
+  - Auto-release workflow creates tag when VERSION changes
+  - Sanitizer tests moved to nightly schedule
+
+### Changed
+
+- **Release Workflow**: Removed failing push to protected main branch
+- **Build System**: Metal shaders fallback to pre-compiled bundle when xcodebuild unavailable
+
 ## [5.3.0] - 2025-12-16
 
 ### Added
