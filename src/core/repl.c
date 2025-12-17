@@ -14,12 +14,14 @@
 #include "nous/clipboard.h"
 #include "nous/projects.h"
 #include "nous/embedded_agents.h"
+#include "nous/tools.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <pthread.h>
 #include <unistd.h>
 #include <termios.h>
+#include <limits.h>
 #include <readline/readline.h>
 
 // ============================================================================
@@ -442,8 +444,50 @@ bool repl_handle_budget_exceeded(void) {
 // External markdown renderer
 extern void md_print(const char* markdown);
 
+// Handle direct bash prefix (! or $)
+static int repl_execute_direct_bash(const char* command) {
+    // Safety check
+    if (!tools_is_command_safe(command)) {
+        printf(ANSI_RED "⚠ Command blocked: potentially dangerous operation\n" ANSI_RESET);
+        printf("Blocked commands: rm -rf, dd, mkfs, etc.\n");
+        return 0;
+    }
+
+    // Get working directory
+    char cwd[PATH_MAX];
+    if (!getcwd(cwd, sizeof(cwd))) {
+        strlcpy(cwd, ".", sizeof(cwd));
+    }
+
+    // Execute with 60 second timeout
+    printf(ANSI_DIM "$ %s" ANSI_RESET "\n", command);
+    ToolResult* result = tool_shell_exec(command, cwd, 60);
+
+    if (result) {
+        if (result->success && result->output) {
+            printf("%s", result->output);
+            if (result->output[strlen(result->output) - 1] != '\n') {
+                printf("\n");
+            }
+        } else if (result->error) {
+            printf(ANSI_RED "Error: %s" ANSI_RESET "\n", result->error);
+        }
+        if (result->exit_code != 0) {
+            printf(ANSI_DIM "Exit code: %d" ANSI_RESET "\n", result->exit_code);
+        }
+        tools_free_result(result);
+    }
+
+    return 0;
+}
+
 int repl_process_natural_input(const char* input) {
     if (!input || strlen(input) == 0) return 0;
+
+    // Check for direct bash prefix (! or $)
+    if (input[0] == '!' || input[0] == '$') {
+        return repl_execute_direct_bash(input + 1);
+    }
 
     Orchestrator* orch = orchestrator_get();
     if (!orch || !orch->initialized) {

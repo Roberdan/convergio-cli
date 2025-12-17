@@ -24,6 +24,7 @@ typedef enum {
     TOOL_FILE_READ,       // Read file contents
     TOOL_FILE_WRITE,      // Write/append to file
     TOOL_FILE_LIST,       // List directory contents
+    TOOL_FILE_DELETE,     // Safe delete (moves to trash)
     TOOL_SHELL_EXEC,      // Execute shell command
     TOOL_WEB_FETCH,       // Fetch URL content
     TOOL_MEMORY_STORE,    // Store in semantic memory
@@ -42,6 +43,10 @@ typedef enum {
     TOOL_TODO_DELETE,     // Delete a task
     TOOL_NOTIFY_SCHEDULE, // Schedule a notification/reminder
     TOOL_NOTIFY_CANCEL,   // Cancel a scheduled notification
+    // Advanced Claude Code-style tools
+    TOOL_GLOB,            // Find files by glob pattern
+    TOOL_GREP,            // Search file contents with regex
+    TOOL_EDIT,            // Precise string replacement in file
 } ToolType;
 
 // Local tool definition (distinct from provider.h's ToolDefinition for API calls)
@@ -104,6 +109,24 @@ ToolResult* tool_file_write(const char* path, const char* content, const char* m
 
 // List directory
 ToolResult* tool_file_list(const char* path, bool recursive, const char* pattern);
+
+// Safe delete (moves to Trash on macOS, fallback to ~/.convergio/trash/)
+ToolResult* tool_file_delete(const char* path, bool permanent);
+
+// ============================================================================
+// ADVANCED FILE TOOLS (Claude Code-style)
+// ============================================================================
+
+// Find files matching glob pattern (e.g., "**/*.c")
+ToolResult* tool_glob(const char* pattern, const char* path, int max_results);
+
+// Search file contents with regex
+ToolResult* tool_grep(const char* pattern, const char* path, const char* glob_filter,
+                      int context_before, int context_after, bool ignore_case,
+                      const char* output_mode, int max_matches);
+
+// Precise string replacement in file (creates backup)
+ToolResult* tool_edit(const char* path, const char* old_string, const char* new_string);
 
 // ============================================================================
 // SHELL TOOL
