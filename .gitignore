@@ -6,6 +6,7 @@ build/
 *.dylib
 *.air
 *.metallib
+!resources/default.metallib
 dist/
 
 # Data files (user-specific)

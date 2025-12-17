@@ -240,20 +240,21 @@ $(SWIFT_LIB): Package.swift Sources/ConvergioMLX/MLXBridge.swift
 	@swift build -c release --product ConvergioMLX 2>&1 | grep -v "^$$" || true
 	@if [ -f "$(SWIFT_LIB)" ]; then \
 		echo "Swift library built: $(SWIFT_LIB)"; \
-		echo "Building Metal shaders via xcodebuild..."; \
+		mkdir -p $(BIN_DIR); \
+		echo "Setting up Metal shaders..."; \
 		xcodebuild build -scheme ConvergioMLX -configuration Release -destination 'platform=macOS' \
-			-derivedDataPath $(XCODE_BUILD_DIR) 2>&1 | grep -E "(BUILD SUCCEEDED|error:)" || true; \
+			-derivedDataPath $(XCODE_BUILD_DIR) >/dev/null 2>&1 || true; \
 		if [ -f "$(XCODE_RELEASE_DIR)/mlx-swift_Cmlx.bundle/Contents/Resources/default.metallib" ]; then \
-			mkdir -p $(BIN_DIR); \
 			cp "$(XCODE_RELEASE_DIR)/mlx-swift_Cmlx.bundle/Contents/Resources/default.metallib" "$(BIN_DIR)/"; \
-			echo "Metal library copied to $(BIN_DIR)/default.metallib"; \
+			echo "Metal library compiled and copied to $(BIN_DIR)/default.metallib"; \
+		elif [ -f "resources/default.metallib" ]; then \
+			cp "resources/default.metallib" "$(BIN_DIR)/"; \
+			echo "Metal library (pre-compiled) copied to $(BIN_DIR)/default.metallib"; \
 		else \
-			echo "Warning: Metal shaders not compiled, MLX GPU acceleration may fail"; \
+			echo "FATAL: Metal shaders not available - build cannot continue" >&2 && exit 1; \
 		fi; \
 	else \
-		echo "Warning: Swift build failed, MLX will be unavailable"; \
-		mkdir -p $(SWIFT_BUILD_DIR); \
-		touch $(SWIFT_LIB); \
+		echo "FATAL: Swift build failed - MLX unavailable" >&2 && exit 1; \
 	fi
 
 # Build notification helper app (for proper icon display)
