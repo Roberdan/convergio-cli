@@ -2386,7 +2386,7 @@ ToolResult* tools_execute(const LocalToolCall* call) {
             int context_after = json_get_int(args, "context_after", 0);
             bool ignore_case = json_get_bool(args, "ignore_case", false);
             char* output_mode = json_get_string(args, "output_mode");
-            int max_matches = json_get_int(args, "max_matches", 100);
+            int max_matches = json_get_int(args, "max_matches", 50);
             ToolResult* r = tool_grep(pattern, path, glob_filter, context_before,
                                       context_after, ignore_case, output_mode, max_matches);
             free(pattern);
