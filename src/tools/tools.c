@@ -360,6 +360,62 @@ static const char* TOOLS_JSON =
 "      },\n"
 "      \"required\": [\"notify_id\"]\n"
 "    }\n"
+"  },\n"
+"  {\n"
+"    \"name\": \"glob\",\n"
+"    \"description\": \"Find files matching a glob pattern. Supports ** for recursive, * for wildcard. Returns files sorted by modification time.\",\n"
+"    \"input_schema\": {\n"
+"      \"type\": \"object\",\n"
+"      \"properties\": {\n"
+"        \"pattern\": {\"type\": \"string\", \"description\": \"Glob pattern (e.g., '**/*.c', 'src/**/*.ts')\"},\n"
+"        \"path\": {\"type\": \"string\", \"description\": \"Starting directory (optional, defaults to workspace)\"},\n"
+"        \"max_results\": {\"type\": \"integer\", \"description\": \"Maximum files to return (default: 100)\"}\n"
+"      },\n"
+"      \"required\": [\"pattern\"]\n"
+"    }\n"
+"  },\n"
+"  {\n"
+"    \"name\": \"grep\",\n"
+"    \"description\": \"Search file contents using regex. Returns matching lines with optional context.\",\n"
+"    \"input_schema\": {\n"
+"      \"type\": \"object\",\n"
+"      \"properties\": {\n"
+"        \"pattern\": {\"type\": \"string\", \"description\": \"Regex pattern to search for\"},\n"
+"        \"path\": {\"type\": \"string\", \"description\": \"File or directory to search in (defaults to workspace)\"},\n"
+"        \"glob\": {\"type\": \"string\", \"description\": \"Filter files by glob pattern (e.g., '*.c')\"},\n"
+"        \"context_before\": {\"type\": \"integer\", \"description\": \"Lines before match (default: 0)\"},\n"
+"        \"context_after\": {\"type\": \"integer\", \"description\": \"Lines after match (default: 0)\"},\n"
+"        \"ignore_case\": {\"type\": \"boolean\", \"description\": \"Case-insensitive search (default: false)\"},\n"
+"        \"output_mode\": {\"type\": \"string\", \"enum\": [\"content\", \"files_with_matches\", \"count\"], \"description\": \"Output format (default: content)\"},\n"
+"        \"max_matches\": {\"type\": \"integer\", \"description\": \"Maximum matches to return (default: 50)\"}\n"
+"      },\n"
+"      \"required\": [\"pattern\"]\n"
+"    }\n"
+"  },\n"
+"  {\n"
+"    \"name\": \"edit\",\n"
+"    \"description\": \"Edit a file by replacing an exact string. Creates backup before modification. The old_string must be unique in the file.\",\n"
+"    \"input_schema\": {\n"
+"      \"type\": \"object\",\n"
+"      \"properties\": {\n"
+"        \"path\": {\"type\": \"string\", \"description\": \"File path to edit\"},\n"
+"        \"old_string\": {\"type\": \"string\", \"description\": \"Exact string to find and replace (must be unique)\"},\n"
+"        \"new_string\": {\"type\": \"string\", \"description\": \"Replacement string\"}\n"
+"      },\n"
+"      \"required\": [\"path\", \"old_string\", \"new_string\"]\n"
+"    }\n"
+"  },\n"
+"  {\n"
+"    \"name\": \"file_delete\",\n"
+"    \"description\": \"Safely delete a file by moving it to Trash. Use permanent=true only when absolutely necessary.\",\n"
+"    \"input_schema\": {\n"
+"      \"type\": \"object\",\n"
+"      \"properties\": {\n"
+"        \"path\": {\"type\": \"string\", \"description\": \"File path to delete\"},\n"
+"        \"permanent\": {\"type\": \"boolean\", \"description\": \"Skip trash and delete permanently (default: false, requires confirmation)\"}\n"
+"      },\n"
+"      \"required\": [\"path\"]\n"
+"    }\n"
 "  }\n"
 "]\n";
 
@@ -2103,6 +2159,14 @@ LocalToolCall* tools_parse_call(const char* tool_name, const char* arguments_jso
         call->type = TOOL_NOTIFY_SCHEDULE;
     } else if (strcmp(tool_name, "notify_cancel") == 0) {
         call->type = TOOL_NOTIFY_CANCEL;
+    } else if (strcmp(tool_name, "glob") == 0) {
+        call->type = TOOL_GLOB;
+    } else if (strcmp(tool_name, "grep") == 0) {
+        call->type = TOOL_GREP;
+    } else if (strcmp(tool_name, "edit") == 0) {
+        call->type = TOOL_EDIT;
+    } else if (strcmp(tool_name, "file_delete") == 0) {
+        call->type = TOOL_FILE_DELETE;
     } else {
         tools_free_call(call);
         return NULL;
@@ -2301,6 +2365,53 @@ ToolResult* tools_execute(const LocalToolCall* call) {
         case TOOL_NOTIFY_CANCEL: {
             int64_t notify_id = (int64_t)json_get_int(args, "notify_id", 0);
             ToolResult* r = tool_notify_cancel(notify_id);
+            return r;
+        }
+
+        case TOOL_GLOB: {
+            char* pattern = json_get_string(args, "pattern");
+            char* path = json_get_string(args, "path");
+            int max_results = json_get_int(args, "max_results", 100);
+            ToolResult* r = tool_glob(pattern, path, max_results);
+            free(pattern);
+            free(path);
+            return r;
+        }
+
+        case TOOL_GREP: {
+            char* pattern = json_get_string(args, "pattern");
+            char* path = json_get_string(args, "path");
+            char* glob_filter = json_get_string(args, "glob");
+            int context_before = json_get_int(args, "context_before", 0);
+            int context_after = json_get_int(args, "context_after", 0);
+            bool ignore_case = json_get_bool(args, "ignore_case", false);
+            char* output_mode = json_get_string(args, "output_mode");
+            int max_matches = json_get_int(args, "max_matches", 50);
+            ToolResult* r = tool_grep(pattern, path, glob_filter, context_before,
+                                      context_after, ignore_case, output_mode, max_matches);
+            free(pattern);
+            free(path);
+            free(glob_filter);
+            free(output_mode);
+            return r;
+        }
+
+        case TOOL_EDIT: {
+            char* path = json_get_string(args, "path");
+            char* old_string = json_get_string(args, "old_string");
+            char* new_string = json_get_string(args, "new_string");
+            ToolResult* r = tool_edit(path, old_string, new_string);
+            free(path);
+            free(old_string);
+            free(new_string);
+            return r;
+        }
+
+        case TOOL_FILE_DELETE: {
+            char* path = json_get_string(args, "path");
+            bool permanent = json_get_bool(args, "permanent", false);
+            ToolResult* r = tool_file_delete(path, permanent);
+            free(path);
             return r;
         }
 
@@ -2558,4 +2669,637 @@ ToolResult* tool_notify_cancel(int64_t notify_id) {
     char response[128];
     snprintf(response, sizeof(response), "Notification %lld cancelled successfully.", (long long)notify_id);
     return result_success(response);
+}
+
+// ============================================================================
+// ADVANCED FILE TOOLS (Claude Code-style)
+// ============================================================================
+
+// Helper: Move file to macOS Trash (or fallback to ~/.convergio/trash/)
+static int move_to_trash(const char* path) {
+    // Try macOS Finder Trash via AppleScript
+    char* escaped_path = shell_escape(path);
+    if (!escaped_path) return -1;
+
+    char cmd[PATH_MAX + 256];
+    snprintf(cmd, sizeof(cmd),
+        "osascript -e 'tell application \"Finder\" to delete POSIX file \"%s\"' 2>/dev/null",
+        escaped_path);
+
+    int result = system(cmd);
+    free(escaped_path);
+
+    if (result == 0) return 0;
+
+    // Fallback: move to ~/.convergio/trash/
+    const char* home = getenv("HOME");
+    if (!home) return -1;
+
+    char trash_dir[PATH_MAX];
+    snprintf(trash_dir, sizeof(trash_dir), "%s/.convergio/trash", home);
+    mkdir(trash_dir, 0755);
+
+    // Create unique filename with timestamp
+    time_t now = time(NULL);
+    const char* basename_ptr = strrchr(path, '/');
+    const char* filename = basename_ptr ? basename_ptr + 1 : path;
+
+    char trash_path[PATH_MAX];
+    snprintf(trash_path, sizeof(trash_path), "%s/%ld_%s", trash_dir, (long)now, filename);
+
+    // Move file
+    if (rename(path, trash_path) == 0) return 0;
+
+    // If rename fails (cross-device), try copy + delete
+    FILE* src = fopen(path, "rb");
+    if (!src) return -1;
+
+    FILE* dst = fopen(trash_path, "wb");
+    if (!dst) {
+        fclose(src);
+        return -1;
+    }
+
+    char buffer[8192];
+    size_t bytes;
+    while ((bytes = fread(buffer, 1, sizeof(buffer), src)) > 0) {
+        size_t written = fwrite(buffer, 1, bytes, dst);
+        if (written != bytes) {
+            fclose(src);
+            fclose(dst);
+            unlink(trash_path);
+            return -1;
+        }
+    }
+
+    fclose(src);
+    fclose(dst);
+    unlink(path);
+
+    return 0;
+}
+
+// Helper: Create backup before editing
+static char* backup_before_edit(const char* path) {
+    const char* home = getenv("HOME");
+    if (!home) return NULL;
+
+    char backup_dir[PATH_MAX];
+    snprintf(backup_dir, sizeof(backup_dir), "%s/.convergio/backups", home);
+    mkdir(backup_dir, 0755);
+
+    // Get just the filename
+    const char* basename_ptr = strrchr(path, '/');
+    const char* filename = basename_ptr ? basename_ptr + 1 : path;
+
+    time_t now = time(NULL);
+    char* backup_path = malloc(PATH_MAX);
+    if (!backup_path) return NULL;
+
+    snprintf(backup_path, PATH_MAX, "%s/%s.%ld.bak", backup_dir, filename, (long)now);
+
+    // Copy file to backup
+    FILE* src = fopen(path, "rb");
+    if (!src) {
+        free(backup_path);
+        return NULL;
+    }
+
+    FILE* dst = fopen(backup_path, "wb");
+    if (!dst) {
+        fclose(src);
+        free(backup_path);
+        return NULL;
+    }
+
+    char buffer[8192];
+    size_t bytes;
+    while ((bytes = fread(buffer, 1, sizeof(buffer), src)) > 0) {
+        size_t written = fwrite(buffer, 1, bytes, dst);
+        if (written != bytes) {
+            fclose(src);
+            fclose(dst);
+            remove(backup_path);
+            free(backup_path);
+            return NULL;
+        }
+    }
+
+    fclose(src);
+    fclose(dst);
+
+    return backup_path;
+}
+
+// Helper: Count occurrences of substring
+static int count_occurrences(const char* haystack, const char* needle) {
+    int count = 0;
+    size_t needle_len = strlen(needle);
+    const char* p = haystack;
+
+    while ((p = strstr(p, needle)) != NULL) {
+        count++;
+        p += needle_len;
+    }
+    return count;
+}
+
+// Helper: Replace first occurrence of substring
+static char* replace_first(const char* str, const char* old, const char* new_str) {
+    const char* pos = strstr(str, old);
+    if (!pos) return strdup(str);
+
+    size_t old_len = strlen(old);
+    size_t new_len = strlen(new_str);
+    size_t str_len = strlen(str);
+    size_t result_len = str_len - old_len + new_len;
+
+    char* result = malloc(result_len + 1);
+    if (!result) return NULL;
+
+    // Copy before
+    size_t before_len = (size_t)(pos - str);
+    memcpy(result, str, before_len);
+
+    // Copy new string
+    memcpy(result + before_len, new_str, new_len);
+
+    // Copy after
+    memcpy(result + before_len + new_len, pos + old_len, str_len - before_len - old_len + 1);
+
+    return result;
+}
+
+// Helper: Recursive glob with ** support
+typedef struct {
+    char** files;
+    size_t count;
+    size_t capacity;
+    time_t* mtimes;
+} GlobResult;
+
+static void glob_add(GlobResult* gr, const char* path, time_t mtime) {
+    if (gr->count >= gr->capacity) {
+        size_t new_capacity = gr->capacity ? gr->capacity * 2 : 64;
+        char** new_files = realloc(gr->files, new_capacity * sizeof(char*));
+        time_t* new_mtimes = realloc(gr->mtimes, new_capacity * sizeof(time_t));
+        if (!new_files || !new_mtimes) {
+            // Allocation failed, preserve original pointers
+            free(new_files);
+            free(new_mtimes);
+            return;
+        }
+        gr->files = new_files;
+        gr->mtimes = new_mtimes;
+        gr->capacity = new_capacity;
+    }
+    char* dup_path = strdup(path);
+    if (!dup_path) return;
+    gr->files[gr->count] = dup_path;
+    gr->mtimes[gr->count] = mtime;
+    gr->count++;
+}
+
+// macOS qsort_r: comparison function receives thunk as FIRST argument
+static int glob_compare_mtime(void* arg, const void* a, const void* b) {
+    time_t* mtimes = (time_t*)arg;
+    size_t ia = *(const size_t*)a;
+    size_t ib = *(const size_t*)b;
+    // Sort descending (newest first)
+    if (mtimes[ib] > mtimes[ia]) return 1;
+    if (mtimes[ib] < mtimes[ia]) return -1;
+    return 0;
+}
+
+static void glob_recursive(const char* base_path, const char* pattern, GlobResult* gr, int depth, int max_results) {
+    if (depth > 20 || (int)gr->count >= max_results) return;
+
+    DIR* dir = opendir(base_path);
+    if (!dir) return;
+
+    struct dirent* entry;
+    while ((entry = readdir(dir)) != NULL && (int)gr->count < max_results) {
+        if (entry->d_name[0] == '.') continue;  // Skip hidden files
+
+        char full_path[PATH_MAX];
+        snprintf(full_path, sizeof(full_path), "%s/%s", base_path, entry->d_name);
+
+        struct stat st;
+        if (stat(full_path, &st) != 0) continue;
+
+        if (S_ISDIR(st.st_mode)) {
+            // Recurse into directories if pattern has ** or we're still matching path
+            if (strstr(pattern, "**") || depth == 0) {
+                glob_recursive(full_path, pattern, gr, depth + 1, max_results);
+            }
+        } else if (S_ISREG(st.st_mode)) {
+            // Check if file matches pattern
+            const char* filename = entry->d_name;
+            const char* simple_pattern = pattern;
+
+            // Extract filename pattern (after last /)
+            const char* last_slash = strrchr(pattern, '/');
+            if (last_slash) simple_pattern = last_slash + 1;
+
+            // Remove ** prefix for matching
+            if (strncmp(simple_pattern, "**", 2) == 0) {
+                simple_pattern += 2;
+                if (*simple_pattern == '/') simple_pattern++;
+            }
+
+            if (fnmatch(simple_pattern, filename, 0) == 0) {
+                glob_add(gr, full_path, st.st_mtime);
+            }
+        }
+    }
+
+    closedir(dir);
+}
+
+// TOOL: glob - Find files by pattern
+ToolResult* tool_glob(const char* pattern, const char* path, int max_results) {
+    if (!pattern || strlen(pattern) == 0) {
+        return result_error("Pattern is required");
+    }
+
+    if (max_results <= 0) max_results = 100;
+    if (max_results > 1000) max_results = 1000;
+
+    // Resolve base path
+    char* base_path;
+    if (path && strlen(path) > 0) {
+        base_path = tools_resolve_path(path);
+    } else {
+        base_path = strdup(tools_get_workspace());
+    }
+
+    if (!base_path || !tools_is_path_safe(base_path)) {
+        free(base_path);
+        return result_error("Path not allowed");
+    }
+
+    // Collect matching files
+    GlobResult gr = {0};
+    glob_recursive(base_path, pattern, &gr, 0, max_results);
+    free(base_path);
+
+    if (gr.count == 0) {
+        return result_success("No files found matching pattern");
+    }
+
+    // Sort by mtime (newest first)
+    size_t* indices = malloc(gr.count * sizeof(size_t));
+    if (!indices) {
+        for (size_t i = 0; i < gr.count; i++) free(gr.files[i]);
+        free(gr.files);
+        free(gr.mtimes);
+        return result_error("Memory allocation failed");
+    }
+    for (size_t i = 0; i < gr.count; i++) indices[i] = i;
+    // macOS qsort_r: (base, nel, width, thunk, compar)
+    qsort_r(indices, gr.count, sizeof(size_t), gr.mtimes, glob_compare_mtime);
+
+    // Format output
+    size_t output_size = gr.count * (PATH_MAX + 32);
+    char* output = malloc(output_size);
+    if (!output) {
+        for (size_t i = 0; i < gr.count; i++) free(gr.files[i]);
+        free(gr.files);
+        free(gr.mtimes);
+        free(indices);
+        return result_error("Memory allocation failed");
+    }
+
+    size_t offset = 0;
+    offset += (size_t)snprintf(output + offset, output_size - offset, "Found %zu files:\n", gr.count);
+
+    for (size_t i = 0; i < gr.count && i < (size_t)max_results; i++) {
+        size_t idx = indices[i];
+        offset += (size_t)snprintf(output + offset, output_size - offset, "%s\n", gr.files[idx]);
+    }
+
+    // Free all allocated file strings
+    for (size_t i = 0; i < gr.count; i++) {
+        free(gr.files[i]);
+    }
+    free(gr.files);
+    free(gr.mtimes);
+    free(indices);
+
+    return result_success(output);
+}
+
+// TOOL: grep - Search file contents
+ToolResult* tool_grep(const char* pattern, const char* path, const char* glob_filter,
+                      int context_before, int context_after, bool ignore_case,
+                      const char* output_mode, int max_matches) {
+    if (!pattern || strlen(pattern) == 0) {
+        return result_error("Pattern is required");
+    }
+
+    if (max_matches <= 0) max_matches = 50;
+    if (context_before < 0) context_before = 0;
+    if (context_after < 0) context_after = 0;
+
+    // Use ripgrep if available (much faster), otherwise fallback to grep
+    char* resolved_path;
+    if (path && strlen(path) > 0) {
+        resolved_path = tools_resolve_path(path);
+    } else {
+        resolved_path = strdup(tools_get_workspace());
+    }
+
+    if (!resolved_path || !tools_is_path_safe(resolved_path)) {
+        free(resolved_path);
+        return result_error("Path not allowed");
+    }
+
+    // Build command
+    char cmd[4096];
+    char* escaped_pattern = shell_escape(pattern);
+    if (!escaped_pattern) {
+        free(resolved_path);
+        return result_error("Failed to escape pattern");
+    }
+
+    // Prefer ripgrep, fallback to grep
+    const char* grep_cmd = "rg";
+    if (system("which rg >/dev/null 2>&1") != 0) {
+        grep_cmd = "grep -r";
+    }
+
+    int len;
+    (void)output_mode;  // TODO: implement output modes (content, files_with_matches, count)
+
+    if (strcmp(grep_cmd, "rg") == 0) {
+        // Build context args with proper offset tracking
+        char ctx_args[64] = "";
+        int ctx_offset = 0;
+        if (context_before > 0) {
+            int n = snprintf(ctx_args + ctx_offset, sizeof(ctx_args) - (size_t)ctx_offset, "-B %d ", context_before);
+            if (n > 0 && (size_t)n < sizeof(ctx_args) - (size_t)ctx_offset) ctx_offset += n;
+        }
+        if (context_after > 0) {
+            int n = snprintf(ctx_args + ctx_offset, sizeof(ctx_args) - (size_t)ctx_offset, "-A %d ", context_after);
+            if (n > 0 && (size_t)n < sizeof(ctx_args) - (size_t)ctx_offset) ctx_offset += n;
+        }
+
+        // Build command with glob filter if provided
+        if (glob_filter && strlen(glob_filter) > 0) {
+            char* escaped_glob = shell_escape(glob_filter);
+            if (escaped_glob) {
+                len = snprintf(cmd, sizeof(cmd),
+                    "rg --no-heading --line-number %s %s-g '%s' -m %d '%s' '%s' 2>/dev/null",
+                    ignore_case ? "-i" : "",
+                    ctx_args,
+                    escaped_glob,
+                    max_matches,
+                    escaped_pattern,
+                    resolved_path);
+                free(escaped_glob);
+            } else {
+                len = snprintf(cmd, sizeof(cmd),
+                    "rg --no-heading --line-number %s %s-m %d '%s' '%s' 2>/dev/null",
+                    ignore_case ? "-i" : "",
+                    ctx_args,
+                    max_matches,
+                    escaped_pattern,
+                    resolved_path);
+            }
+        } else {
+            len = snprintf(cmd, sizeof(cmd),
+                "rg --no-heading --line-number %s %s-m %d '%s' '%s' 2>/dev/null",
+                ignore_case ? "-i" : "",
+                ctx_args,
+                max_matches,
+                escaped_pattern,
+                resolved_path);
+        }
+    } else {
+        // grep fallback
+        len = snprintf(cmd, sizeof(cmd),
+            "grep -rn %s '%s' '%s' 2>/dev/null | head -n %d",
+            ignore_case ? "-i" : "",
+            escaped_pattern,
+            resolved_path,
+            max_matches);
+    }
+
+    free(escaped_pattern);
+    free(resolved_path);
+
+    if (len >= (int)sizeof(cmd)) {
+        return result_error("Command too long");
+    }
+
+    // Execute
+    FILE* pipe = popen(cmd, "r");
+    if (!pipe) {
+        return result_error("Failed to execute search");
+    }
+
+    size_t output_capacity = 32768;
+    char* output = malloc(output_capacity);
+    if (!output) {
+        pclose(pipe);
+        return result_error("Memory allocation failed");
+    }
+    output[0] = '\0';
+    size_t output_len = 0;
+
+    char line[4096];
+    int match_count = 0;
+    while (fgets(line, sizeof(line), pipe) != NULL && match_count < max_matches) {
+        size_t line_len = strlen(line);
+        if (output_len + line_len + 1 >= output_capacity) {
+            output_capacity *= 2;
+            char* new_output = realloc(output, output_capacity);
+            if (!new_output) break;
+            output = new_output;
+        }
+        memcpy(output + output_len, line, line_len + 1);
+        output_len += line_len;
+        match_count++;
+    }
+
+    pclose(pipe);
+
+    if (output_len == 0) {
+        free(output);
+        return result_success("No matches found");
+    }
+
+    ToolResult* result = result_success(output);
+    free(output);
+    return result;
+}
+
+// TOOL: edit - Precise string replacement
+ToolResult* tool_edit(const char* path, const char* old_string, const char* new_string) {
+    if (!path || strlen(path) == 0) {
+        return result_error("Path is required");
+    }
+    if (!old_string || strlen(old_string) == 0) {
+        return result_error("old_string is required");
+    }
+    if (!new_string) {
+        return result_error("new_string is required (can be empty)");
+    }
+    if (strcmp(old_string, new_string) == 0) {
+        return result_error("old_string and new_string are identical");
+    }
+
+    // Resolve and check path
+    char* resolved_path = tools_resolve_path(path);
+    if (!resolved_path || !tools_is_path_safe(resolved_path)) {
+        free(resolved_path);
+        return result_error("Path not allowed");
+    }
+
+    // Read file content
+    FILE* f = fopen(resolved_path, "rb");
+    if (!f) {
+        free(resolved_path);
+        return result_error("Cannot open file for reading");
+    }
+
+    fseek(f, 0, SEEK_END);
+    long file_size = ftell(f);
+    fseek(f, 0, SEEK_SET);
+
+    if (file_size > 10 * 1024 * 1024) {  // 10MB limit
+        fclose(f);
+        free(resolved_path);
+        return result_error("File too large (max 10MB)");
+    }
+
+    char* content = malloc((size_t)file_size + 1);
+    if (!content) {
+        fclose(f);
+        free(resolved_path);
+        return result_error("Memory allocation failed");
+    }
+
+    size_t bytes_read = fread(content, 1, (size_t)file_size, f);
+    fclose(f);
+    content[bytes_read] = '\0';
+
+    // Count occurrences
+    int count = count_occurrences(content, old_string);
+    if (count == 0) {
+        free(content);
+        free(resolved_path);
+        return result_error("String not found in file");
+    }
+    if (count > 1) {
+        free(content);
+        free(resolved_path);
+        char error[256];
+        snprintf(error, sizeof(error), "Found %d occurrences - old_string must be unique. Provide more context.", count);
+        return result_error(error);
+    }
+
+    // Create backup BEFORE modification
+    char* backup_path = backup_before_edit(resolved_path);
+
+    // Replace
+    char* new_content = replace_first(content, old_string, new_string);
+    free(content);
+
+    if (!new_content) {
+        free(resolved_path);
+        free(backup_path);
+        return result_error("Failed to replace string");
+    }
+
+    // Write atomically (to temp file, then rename)
+    char temp_path[PATH_MAX];
+    snprintf(temp_path, sizeof(temp_path), "%s.tmp.%d", resolved_path, getpid());
+
+    f = fopen(temp_path, "wb");
+    if (!f) {
+        free(new_content);
+        free(resolved_path);
+        free(backup_path);
+        return result_error("Cannot create temp file");
+    }
+
+    size_t new_len = strlen(new_content);
+    size_t written = fwrite(new_content, 1, new_len, f);
+    fclose(f);
+    free(new_content);
+
+    if (written != new_len) {
+        unlink(temp_path);
+        free(resolved_path);
+        free(backup_path);
+        return result_error("Write failed");
+    }
+
+    // Atomic rename
+    if (rename(temp_path, resolved_path) != 0) {
+        unlink(temp_path);
+        free(resolved_path);
+        free(backup_path);
+        return result_error("Failed to rename temp file");
+    }
+
+    char response[512];
+    if (backup_path) {
+        snprintf(response, sizeof(response),
+            "File edited successfully.\nBackup: %s", backup_path);
+        free(backup_path);
+    } else {
+        snprintf(response, sizeof(response), "File edited successfully (no backup created).");
+    }
+
+    free(resolved_path);
+    return result_success(response);
+}
+
+// TOOL: file_delete - Safe deletion with Trash
+ToolResult* tool_file_delete(const char* path, bool permanent) {
+    if (!path || strlen(path) == 0) {
+        return result_error("Path is required");
+    }
+
+    // Resolve and check path
+    char* resolved_path = tools_resolve_path(path);
+    if (!resolved_path || !tools_is_path_safe(resolved_path)) {
+        free(resolved_path);
+        return result_error("Path not allowed");
+    }
+
+    // Check file exists
+    struct stat st;
+    if (stat(resolved_path, &st) != 0) {
+        free(resolved_path);
+        return result_error("File not found");
+    }
+
+    // Don't delete directories (safety)
+    if (S_ISDIR(st.st_mode)) {
+        free(resolved_path);
+        return result_error("Cannot delete directories - use shell for that");
+    }
+
+    if (permanent) {
+        // Permanent delete - actually unlink
+        if (unlink(resolved_path) != 0) {
+            free(resolved_path);
+            return result_error("Failed to delete file");
+        }
+        free(resolved_path);
+        return result_success("File permanently deleted");
+    } else {
+        // Move to Trash
+        int result = move_to_trash(resolved_path);
+        free(resolved_path);
+
+        if (result == 0) {
+            return result_success("File moved to Trash");
+        } else {
+            return result_error("Failed to move file to Trash");
+        }
+    }
 }
