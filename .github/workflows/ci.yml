@@ -5,6 +5,12 @@ on:
     branches: [main]
   push:
     branches: [main]
+    # Skip CI on push if only these files changed (already validated in PR)
+    paths-ignore:
+      - '*.md'
+      - 'docs/**'
+      - '.github/ISSUE_TEMPLATE/**'
+      - 'LICENSE'
 
 # Cancel in-progress runs for the same branch
 concurrency:
@@ -117,11 +123,6 @@ jobs:
             exit 1
           fi
 
-      - name: Build debug
-        run: |
-          export PATH="/opt/homebrew/opt/ccache/libexec:$PATH"
-          make debug CC="ccache clang" 2>&1
-
       - name: Build and run unit tests
         run: |
           export PATH="/opt/homebrew/opt/ccache/libexec:$PATH"
@@ -161,29 +162,44 @@ jobs:
 
       - name: Install dependencies
         run: |
-          brew install cjson
+          brew install cjson ccache
           brew link cjson --overwrite 2>/dev/null || true
+
+      - name: Cache ccache (sanitizers)
+        uses: actions/cache@v4
+        with:
+          path: ~/.ccache
+          key: ccache-sanitizer-${{ runner.os }}-${{ hashFiles('src/**/*.c', 'include/**/*.h') }}
+          restore-keys: |
+            ccache-sanitizer-${{ runner.os }}-
+            ccache-${{ runner.os }}-
+
+      - name: Configure ccache
+        run: |
+          ccache --set-config=max_size=300M
+          ccache --set-config=compression=true
+          ccache -z
 
       - name: Select Xcode
         run: sudo xcode-select -s ${{ env.XCODE_VERSION }}
 
       # Build with sanitizers enabled (AddressSanitizer + UndefinedBehaviorSanitizer)
-      # DEBUG=1 in Makefile enables: -fsanitize=address,undefined
       - name: Build with sanitizers
         run: |
+          export PATH="/opt/homebrew/opt/ccache/libexec:$PATH"
           echo "=== Building with AddressSanitizer and UBSan (DEBUG=1) ==="
           make clean
-          make unit_test DEBUG=1 2>&1
+          make unit_test DEBUG=1 CC="ccache clang" 2>&1
 
       - name: Run unit tests with sanitizers
         run: |
           echo "=== Running unit tests with sanitizers ==="
-          # ASAN_OPTIONS: detect memory issues, abort on error
-          # Note: detect_leaks not supported on macOS, only on Linux
-          # UBSAN_OPTIONS: print stack trace on UB detection
           export ASAN_OPTIONS="abort_on_error=1"
           export UBSAN_OPTIONS="print_stacktrace=1:halt_on_error=1"
           ./build/bin/unit_test
+
+      - name: Show ccache stats
+        run: ccache -s
 
   # ============================================================================
   # E2E TESTS - Removed from CI (requires API keys)
