@@ -16,8 +16,8 @@ let package = Package(
         )
     ],
     dependencies: [
-        // MLX Swift LM - contains MLXLLM, MLXLMCommon (use main branch for latest)
-        .package(url: "https://github.com/ml-explore/mlx-swift-lm.git", branch: "main"),
+        // MLX Swift LM - contains MLXLLM, MLXLMCommon (pinned to stable release)
+        .package(url: "https://github.com/ml-explore/mlx-swift-lm.git", exact: "2.29.2"),
     ],
     targets: [
         .target(
