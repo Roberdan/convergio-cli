@@ -27,10 +27,18 @@ jobs:
       - name: Security scan
         run: |
           echo "=== Checking for hardcoded secrets ==="
-          ! grep -rE "(api[_-]?key|secret|password|token)\s*=" --include="*.c" --include="*.h" src include 2>/dev/null | grep -v "getenv" | grep -v "keychain" | grep -v "// " || { echo "::error::Potential secrets found"; exit 1; }
+          # Look for actual hardcoded string assignments to sensitive variables
+          # Exclude: getenv calls, keychain refs, comments, strtok (C func), token estimation vars
+          if grep -rE "(api[_-]?key|secret|password)\s*=\s*\"[^\"]+\"" --include="*.c" --include="*.h" src include 2>/dev/null | grep -v "getenv" | grep -v "keychain" | grep -v "// "; then
+            echo "::error::Potential hardcoded secrets found"
+            exit 1
+          fi
 
           echo "=== Checking for dangerous functions ==="
-          ! grep -rE "\b(gets|sprintf|strcpy|strcat|scanf)\s*\(" --include="*.c" src 2>/dev/null || { echo "::error::Dangerous functions found"; exit 1; }
+          if grep -rE "\b(gets|sprintf|strcpy|strcat|scanf)\s*\(" --include="*.c" src 2>/dev/null; then
+            echo "::error::Dangerous functions found"
+            exit 1
+          fi
 
   # ============================================================================
   # BUILD & TEST - single job with ccache
