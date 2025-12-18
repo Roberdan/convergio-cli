@@ -37,6 +37,7 @@ typedef struct {
     int session_count;
     bool initialized;
     int protocol_version;
+    char selected_agent[64];  // --agent argument, empty = orchestrator (Ali)
 } ACPServer;
 
 // Streaming callback for sending updates to client

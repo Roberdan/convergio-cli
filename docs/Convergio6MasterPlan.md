@@ -1,9 +1,9 @@
 # Execution Plan: Convergio 6.0 - Zed Integration MVP
 
 **Created**: 2025-12-18
-**Last Updated**: 2025-12-18 20:30
-**Status**: ✅ MVP FUNZIONANTE IN ZED
-**Progress**: 5/8 tasks (62%)
+**Last Updated**: 2025-12-18 20:47
+**Status**: ✅ FASE 2 IN CORSO - Multi-Agent Panel
+**Progress**: 7/10 tasks (70%)
 **Branch**: `feature/acp-zed-integration`
 **Goal**: Convergio funzionante in Zed il prima possibile
 
@@ -44,9 +44,9 @@ FASE 3 (Publish): extension pubblica + a11y layer   → dopo validazione
 
 | ID | Task | Status | Effort | Note |
 |----|------|--------|--------|------|
-| P1 | Multi-agent servers (ogni agente = server separato) | ⬜ | 1 gg | Priorità ALTA - richiesta utente |
-| P2 | Arg --agent per selezionare agente specifico | ⬜ | 0.5 gg | convergio-acp --agent ali |
-| P3 | Generazione automatica settings.json | ⬜ | 0.5 gg | Script per generare config Zed |
+| P1 | Multi-agent servers (ogni agente = server separato) | ✅✅ | 1 gg | --agent flag implementato |
+| P2 | Arg --agent per selezionare agente specifico | ✅✅ | 0.5 gg | convergio-acp --agent ali |
+| P3 | Generazione automatica settings.json | ✅✅ | 0.5 gg | scripts/generate_zed_config.sh |
 | P4 | Agent packs (raggruppamento tematico) | ⬜ | 1 gg | Business, Dev, Design, etc. |
 | P5 | Accessibility layer | ⬜ | 3 gg | |
 | P6 | Extension manifest + pubblicazione | ⬜ | 1 gg | |
@@ -150,7 +150,24 @@ Una volta che il MVP funziona:
 | 2025-12-18 | 20:25 | Test locale OK: init, session/new, session/prompt funzionanti |
 | 2025-12-18 | 20:28 | Streaming funziona: orchestrator risponde token-by-token |
 | 2025-12-18 | 20:30 | ✅ **TEST IN ZED RIUSCITO** - Ali risponde, streaming OK |
+| 2025-12-18 | 20:45 | P1-P3 completati: --agent flag, routing, generate_zed_config.sh |
+| 2025-12-18 | 20:47 | 54 agenti disponibili via --list-agents |
 
 ---
 
-**Piano aggiornato**: 2025-12-18 20:30
+## USAGE
+
+```bash
+# List all available agents
+./build/bin/convergio-acp --list-agents
+
+# Generate Zed config for all agents
+./scripts/generate_zed_config.sh > zed_agents.json
+
+# Start ACP server for specific agent
+./build/bin/convergio-acp --agent amy-cfo
+```
+
+---
+
+**Piano aggiornato**: 2025-12-18 20:47
