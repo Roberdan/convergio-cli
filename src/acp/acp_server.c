@@ -151,15 +151,28 @@ void acp_handle_initialize(int request_id, const char* params_json) {
     g_server.initialized = true;
     g_server.protocol_version = ACP_PROTOCOL_VERSION;
 
+    // Determine agent name and title
+    const char* agent_name = "convergio";
+    char agent_title[128] = "Convergio AI Assistant";
+
+    if (g_server.selected_agent[0] != '\0') {
+        // Specific agent selected
+        ManagedAgent* agent = agent_find_by_name(g_server.selected_agent);
+        if (agent) {
+            agent_name = agent->name;
+            snprintf(agent_title, sizeof(agent_title), "Convergio: %s", agent->name);
+        }
+    }
+
     // Build response following exact ACP schema
     cJSON* result = cJSON_CreateObject();
     cJSON_AddNumberToObject(result, "protocolVersion", ACP_PROTOCOL_VERSION);
 
     // agentInfo (required fields: name, version; optional: title)
     cJSON* agent_info = cJSON_CreateObject();
-    cJSON_AddStringToObject(agent_info, "name", "convergio");
+    cJSON_AddStringToObject(agent_info, "name", agent_name);
     cJSON_AddStringToObject(agent_info, "version", convergio_get_version());
-    cJSON_AddStringToObject(agent_info, "title", "Convergio AI Assistant");
+    cJSON_AddStringToObject(agent_info, "title", agent_title);
     cJSON_AddItemToObject(result, "agentInfo", agent_info);
 
     // agentCapabilities (ACP schema format)
@@ -311,8 +324,26 @@ void acp_handle_session_prompt(int request_id, const char* params_json) {
     // Set current session for callback
     strncpy(g_current_session_id, session_id, sizeof(g_current_session_id) - 1);
 
-    // Process with orchestrator (streaming mode)
-    char* response = orchestrator_process_stream(prompt_text, stream_callback, NULL);
+    char* response = NULL;
+
+    // Route to specific agent or orchestrator
+    if (g_server.selected_agent[0] != '\0') {
+        // Specific agent selected - use direct agent chat (no streaming yet)
+        ManagedAgent* agent = agent_find_by_name(g_server.selected_agent);
+        if (agent) {
+            response = orchestrator_agent_chat(agent, prompt_text);
+            // Send full response as single chunk
+            if (response) {
+                stream_callback(response, NULL);
+            }
+        } else {
+            // Agent not found - fallback to orchestrator
+            response = orchestrator_process_stream(prompt_text, stream_callback, NULL);
+        }
+    } else {
+        // Default: orchestrator (Ali) with streaming
+        response = orchestrator_process_stream(prompt_text, stream_callback, NULL);
+    }
 
     // Send final response
     cJSON* result = cJSON_CreateObject();
@@ -477,9 +508,45 @@ void acp_server_shutdown(void) {
 // MAIN ENTRY POINT
 // ============================================================================
 
+static void print_usage(const char* prog) {
+    fprintf(stderr, "Usage: %s [--agent <name>] [--list-agents]\n", prog);
+    fprintf(stderr, "  --agent <name>   Route to specific agent (default: ali)\n");
+    fprintf(stderr, "  --list-agents    List available agents and exit\n");
+}
+
+static void list_agents(void) {
+    // Quick init just to load agents
+    convergio_config_init();
+    nous_init();
+    orchestrator_init(1.0);  // Minimal budget for listing
+
+    ManagedAgent* agents[64];
+    size_t count = agent_get_all(agents, 64);
+
+    fprintf(stdout, "Available agents (%zu):\n", count);
+    for (size_t i = 0; i < count; i++) {
+        fprintf(stdout, "  %-20s  %s\n", agents[i]->name,
+                agents[i]->description ? agents[i]->description : "");
+    }
+
+    orchestrator_shutdown();
+    nous_shutdown();
+    convergio_config_shutdown();
+}
+
 int main(int argc, char** argv) {
-    (void)argc;
-    (void)argv;
+    // Parse arguments
+    for (int i = 1; i < argc; i++) {
+        if (strcmp(argv[i], "--agent") == 0 && i + 1 < argc) {
+            strncpy(g_server.selected_agent, argv[++i], sizeof(g_server.selected_agent) - 1);
+        } else if (strcmp(argv[i], "--list-agents") == 0) {
+            list_agents();
+            return 0;
+        } else if (strcmp(argv[i], "--help") == 0 || strcmp(argv[i], "-h") == 0) {
+            print_usage(argv[0]);
+            return 0;
+        }
+    }
 
     // Disable buffering for real-time communication
     setvbuf(stdin, NULL, _IONBF, 0);
