@@ -1,11 +1,11 @@
 # Execution Plan: Convergio 6.0 - Zed Integration MVP
 
 **Created**: 2025-12-18
-**Last Updated**: 2025-12-18 20:47
-**Status**: ✅ FASE 2 IN CORSO - Multi-Agent Panel
-**Progress**: 7/10 tasks (70%)
+**Last Updated**: 2025-12-18 21:10
+**Status**: 🚀 FASE 3 - Convergio-Zed Fork
+**Progress**: 7/16 tasks (44%)
 **Branch**: `feature/acp-zed-integration`
-**Goal**: Convergio funzionante in Zed il prima possibile
+**Goal**: Editor AI-first con multi-agent panel integrato
 
 ---
 
@@ -17,15 +17,21 @@
 
 ## QUICK SUMMARY
 
-**Obiettivo**: Vedere Convergio dentro Zed con gli agenti esistenti.
+**Obiettivo**: Editor AI-first con 54 agenti accessibili da pannello visivo.
 
-**Approccio**: MVP minimale → test → iterate
+**Approccio**: Fork Zed → Custom multi-agent panel → Distribuzione
 
 ```
 FASE 1 (MVP):     convergio-acp + test locale        → ✅ COMPLETATO
-FASE 2 (Polish):  agent packs + UI miglioramenti     → dopo test
-FASE 3 (Publish): extension pubblica + a11y layer   → dopo validazione
+FASE 2 (ACP):     --agent flag + routing             → ✅ COMPLETATO
+FASE 3 (Fork):    Convergio-Zed custom editor        → 🚀 IN CORSO
+FASE 4 (Dist):    Build + distribuzione macOS/Linux  → dopo validazione
 ```
+
+**Repositories:**
+- ConvergioCLI: `/Users/roberdan/GitHub/ConvergioCLI`
+- Convergio-Zed: `/Users/roberdan/GitHub/convergio-zed` (fork di Zed)
+- GitHub: https://github.com/Roberdan/convergio-zed
 
 ---
 
@@ -47,9 +53,44 @@ FASE 3 (Publish): extension pubblica + a11y layer   → dopo validazione
 | P1 | Multi-agent servers (ogni agente = server separato) | ✅✅ | 1 gg | --agent flag implementato |
 | P2 | Arg --agent per selezionare agente specifico | ✅✅ | 0.5 gg | convergio-acp --agent ali |
 | P3 | Generazione automatica settings.json | ✅✅ | 0.5 gg | scripts/generate_zed_config.sh |
-| P4 | Agent packs (raggruppamento tematico) | ⬜ | 1 gg | Business, Dev, Design, etc. |
-| P5 | Accessibility layer | ⬜ | 3 gg | |
-| P6 | Extension manifest + pubblicazione | ⬜ | 1 gg | |
+| P4 | Agent packs (raggruppamento tematico) | ⏸️ | 1 gg | Sospeso - focus su Fase 3 |
+| P5 | Accessibility layer | ⏸️ | 3 gg | Sospeso - focus su Fase 3 |
+| P6 | Extension manifest + pubblicazione | ⏸️ | 1 gg | Sospeso - focus su Fase 3 |
+
+### FASE 3 - Convergio-Zed Fork 🚀
+
+| ID | Task | Status | Effort | Note |
+|----|------|--------|--------|------|
+| Z1 | Setup ambiente Rust + build Zed | ⬜ | 0.5 gg | rustup, cargo build |
+| Z2 | Creare crate `crates/convergio_panel` | ⬜ | 1 gg | Copiare struttura da collab_panel |
+| Z3 | Implementare `Panel` trait per ConvergioPanel | ⬜ | 1 gg | icon(), toggle_action(), render() |
+| Z4 | Aggiungere in `initialize_panels()` | ⬜ | 0.5 gg | zed.rs line 645 |
+| Z5 | UI lista 54 agenti | ⬜ | 1 gg | Lista scrollabile con icone |
+| Z6 | Click agente → apre chat ACP | ⬜ | 1 gg | Spawn convergio-acp --agent |
+| Z7 | Branding: logo Convergio | ⬜ | 0.5 gg | Assets, about dialog |
+| Z8 | Build macOS app bundle | ⬜ | 1 gg | .app firmata |
+| Z9 | Test E2E multi-agent | ⬜ | 1 gg | Workflow completo |
+
+**Crates Zed rilevanti (207 totali):**
+- `crates/collab_ui/src/collab_panel.rs` - Channels panel (**modello da seguire**)
+- `crates/workspace/src/dock.rs` - `Panel` trait definition
+- `crates/zed/src/zed.rs:645` - `initialize_panels()` dove aggiungere ConvergioPanel
+- `crates/agent` - Agent core logic
+- `crates/agent_ui` / `agent_ui_v2` - Agent panel UI
+
+**Pattern per aggiungere pannello bottom bar:**
+```rust
+// 1. Implementare Panel trait
+impl Panel for ConvergioPanel {
+    fn icon(&self, ...) -> Option<IconName> { Some(IconName::Bot) }
+    fn icon_tooltip(&self, ...) -> Option<&'static str> { Some("Convergio Agents") }
+    fn toggle_action(&self) -> Box<dyn Action> { Box::new(ToggleFocus) }
+}
+
+// 2. Aggiungere in zed.rs initialize_panels()
+let convergio_panel = convergio_panel::ConvergioPanel::load(...);
+add_panel_when_ready(convergio_panel, ...);
+```
 
 ---
 
@@ -152,6 +193,35 @@ Una volta che il MVP funziona:
 | 2025-12-18 | 20:30 | ✅ **TEST IN ZED RIUSCITO** - Ali risponde, streaming OK |
 | 2025-12-18 | 20:45 | P1-P3 completati: --agent flag, routing, generate_zed_config.sh |
 | 2025-12-18 | 20:47 | 54 agenti disponibili via --list-agents |
+| 2025-12-18 | 21:05 | Decisione: fork Zed per multi-agent panel |
+| 2025-12-18 | 21:05 | Fork creato: github.com/Roberdan/convergio-zed |
+| 2025-12-18 | 21:10 | Piano Fase 3 definito (9 task) |
+
+---
+
+## FASE 3 - ARCHITETTURA TARGET
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                      CONVERGIO-ZED                               │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────────────┐   │
+│  │   Editor     │  │   Channels   │  │   CONVERGIO PANEL    │   │
+│  │   (code)     │  │   (collab)   │  │   ┌──────────────┐   │   │
+│  │              │  │              │  │   │ 🤖 Ali       │   │   │
+│  │              │  │              │  │   │ 💼 amy-cfo   │   │   │
+│  │              │  │              │  │   │ 🏗️ baccio    │   │   │
+│  │              │  │              │  │   │ 🐛 dario     │   │   │
+│  │              │  │              │  │   │ ...54 agents │   │   │
+│  │              │  │              │  │   └──────────────┘   │   │
+│  └──────────────┘  └──────────────┘  └──────────┬───────────┘   │
+└─────────────────────────────────────────────────┼───────────────┘
+                                                  │ click
+                                                  ▼
+                              ┌───────────────────────────────────┐
+                              │         convergio-acp             │
+                              │         --agent <name>            │
+                              └───────────────────────────────────┘
+```
 
 ---
 
@@ -170,4 +240,4 @@ Una volta che il MVP funziona:
 
 ---
 
-**Piano aggiornato**: 2025-12-18 20:47
+**Piano aggiornato**: 2025-12-18 21:10
