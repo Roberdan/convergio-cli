@@ -1,8 +1,8 @@
 # Execution Plan: Convergio 6.0 - Zed Integration MVP
 
 **Created**: 2025-12-18
-**Last Updated**: 2025-12-18 19:09
-**Status**: MVP Complete - Ready for Testing
+**Last Updated**: 2025-12-18 20:28
+**Status**: MVP Tested Locally - Ready for Zed Testing
 **Progress**: 4/8 tasks (50%)
 **Branch**: `feature/acp-zed-integration`
 **Goal**: Convergio funzionante in Zed il prima possibile
@@ -121,6 +121,7 @@ File: `~/.config/zed/settings.json`
 
 1. `90d67f4` - feat(acp): Add Agent Client Protocol server for Zed integration
 2. `8dc2c31` - docs: Update master plan - MVP complete, ready for testing
+3. `f98b4c6` - fix(acp): Fix ACP protocol format and use-after-free bugs
 
 ---
 
@@ -142,7 +143,11 @@ Una volta che il MVP funziona:
 | 2025-12-18 | 19:05 | Build convergio-acp completato |
 | 2025-12-18 | 19:05 | Zed settings.json configurato |
 | 2025-12-18 | 19:09 | Commits pushati su feature branch |
+| 2025-12-18 | 20:00 | Debugging: SIGABRT in Zed, trovati bug use-after-free |
+| 2025-12-18 | 20:15 | Fix ACP schema format (sessionUpdate, content.text) |
+| 2025-12-18 | 20:25 | Test locale OK: init, session/new, session/prompt funzionanti |
+| 2025-12-18 | 20:28 | Streaming funziona: orchestrator risponde token-by-token |
 
 ---
 
-**Piano aggiornato**: 2025-12-18 19:09
+**Piano aggiornato**: 2025-12-18 20:28
