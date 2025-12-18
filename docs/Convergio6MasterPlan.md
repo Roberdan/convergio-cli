@@ -1,9 +1,9 @@
 # Execution Plan: Convergio 6.0 - Zed Integration MVP
 
 **Created**: 2025-12-18
-**Last Updated**: 2025-12-18 20:28
-**Status**: MVP Tested Locally - Ready for Zed Testing
-**Progress**: 4/8 tasks (50%)
+**Last Updated**: 2025-12-18 20:30
+**Status**: ✅ MVP FUNZIONANTE IN ZED
+**Progress**: 5/8 tasks (62%)
 **Branch**: `feature/acp-zed-integration`
 **Goal**: Convergio funzionante in Zed il prima possibile
 
@@ -108,12 +108,12 @@ File: `~/.config/zed/settings.json`
 
 - [x] `convergio-acp` compila senza errori
 - [x] Zed configurato con agent server custom
-- [ ] Zed riconosce Convergio nel pannello Agent
-- [ ] Si può chattare con Ali
-- [ ] Streaming funziona (token by token)
-- [ ] Tool calls visibili in Zed
+- [x] Zed riconosce Convergio nel pannello Agent
+- [x] Si può chattare con Ali
+- [x] Streaming funziona (token by token)
+- [ ] Tool calls visibili in Zed (da testare)
 
-**Prossimo passo**: Riavviare Zed e testare (cmd-? per Agent Panel)
+**MVP COMPLETATO** ✅ - 2025-12-18 20:30
 
 ---
 
@@ -147,7 +147,8 @@ Una volta che il MVP funziona:
 | 2025-12-18 | 20:15 | Fix ACP schema format (sessionUpdate, content.text) |
 | 2025-12-18 | 20:25 | Test locale OK: init, session/new, session/prompt funzionanti |
 | 2025-12-18 | 20:28 | Streaming funziona: orchestrator risponde token-by-token |
+| 2025-12-18 | 20:30 | ✅ **TEST IN ZED RIUSCITO** - Ali risponde, streaming OK |
 
 ---
 
-**Piano aggiornato**: 2025-12-18 20:28
+**Piano aggiornato**: 2025-12-18 20:30
