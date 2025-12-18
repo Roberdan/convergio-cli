@@ -52,7 +52,7 @@ jobs:
       - name: Build and run fuzz tests
         run: |
           export PATH="/opt/homebrew/opt/ccache/libexec:$PATH"
-          make fuzz_test CC="ccache clang"
+          make fuzz_test DEBUG=1 CC="ccache clang"
           timeout 60 ./build/bin/fuzz_test 2>&1 || true
 
       - name: Show ccache stats
