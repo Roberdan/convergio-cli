@@ -1,8 +1,8 @@
 # Execution Plan: Convergio 6.0 - Zed Integration MVP
 
 **Created**: 2025-12-18
-**Status**: In Progress
-**Progress**: 3/8 tasks (37.5%)
+**Status**: MVP Complete - Ready for Testing
+**Progress**: 4/8 tasks (50%)
 **Goal**: Convergio funzionante in Zed il prima possibile
 
 ---
@@ -36,7 +36,7 @@ FASE 3 (Publish): extension pubblica + a11y layer   → dopo validazione
 | M1 | ACP protocol handler (initialize, session/new) | ✅✅ | 1 gg | Completato 2025-12-18 |
 | M2 | ACP prompt handler (session/prompt + streaming) | ✅✅ | 1 gg | Completato 2025-12-18 |
 | M3 | Bridge a orchestrator esistente | ✅✅ | 1 gg | Completato 2025-12-18 |
-| M4 | Build + test locale in Zed | 🔄 | 0.5 gg | Build OK, Zed configurato |
+| M4 | Build + test locale in Zed | ✅✅ | 0.5 gg | Build OK, Zed configurato, pronto per test |
 
 ### FASE 2 - Polish (Post-MVP)
 
