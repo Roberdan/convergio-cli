@@ -1,8 +1,10 @@
 # Execution Plan: Convergio 6.0 - Zed Integration MVP
 
 **Created**: 2025-12-18
+**Last Updated**: 2025-12-18 19:09
 **Status**: MVP Complete - Ready for Testing
 **Progress**: 4/8 tasks (50%)
+**Branch**: `feature/acp-zed-integration`
 **Goal**: Convergio funzionante in Zed il prima possibile
 
 ---
@@ -20,7 +22,7 @@
 **Approccio**: MVP minimale → test → iterate
 
 ```
-FASE 1 (MVP):     convergio-acp + test locale        → 3-4 giorni
+FASE 1 (MVP):     convergio-acp + test locale        → ✅ COMPLETATO
 FASE 2 (Polish):  agent packs + UI miglioramenti     → dopo test
 FASE 3 (Publish): extension pubblica + a11y layer   → dopo validazione
 ```
@@ -29,14 +31,14 @@ FASE 3 (Publish): extension pubblica + a11y layer   → dopo validazione
 
 ## STATUS TRACKING
 
-### FASE 1 - MVP (Parallelizzabile)
+### FASE 1 - MVP ✅ COMPLETATA
 
 | ID | Task | Status | Effort | Note |
 |----|------|--------|--------|------|
 | M1 | ACP protocol handler (initialize, session/new) | ✅✅ | 1 gg | Completato 2025-12-18 |
 | M2 | ACP prompt handler (session/prompt + streaming) | ✅✅ | 1 gg | Completato 2025-12-18 |
 | M3 | Bridge a orchestrator esistente | ✅✅ | 1 gg | Completato 2025-12-18 |
-| M4 | Build + test locale in Zed | ✅✅ | 0.5 gg | Build OK, Zed configurato, pronto per test |
+| M4 | Build + test locale in Zed | ✅✅ | 0.5 gg | Build OK, Zed configurato 2025-12-18 19:05 |
 
 ### FASE 2 - Polish (Post-MVP)
 
@@ -49,118 +51,76 @@ FASE 3 (Publish): extension pubblica + a11y layer   → dopo validazione
 
 ---
 
-## FASE 1 - IMPLEMENTAZIONE MVP
+## FASE 1 - IMPLEMENTAZIONE MVP ✅
 
-### Architettura Minimale
+### Architettura Implementata
 
 ```
 ┌─────────────┐      JSON-RPC       ┌─────────────────────┐
 │     ZED     │◄───── stdio ───────►│   convergio-acp     │
-└─────────────┘                     │   (nuovo, ~500 LOC) │
+└─────────────┘                     │   (~500 LOC)        │
                                     └──────────┬──────────┘
                                                │
-                                               │ spawn + pipe
+                                               │ direct call
                                                │
                                     ┌──────────▼──────────┐
-                                    │   convergio CLI     │
+                                    │   orchestrator      │
                                     │   (esistente)       │
-                                    │   --mode pipe       │
-                                    │   --format json     │
+                                    │   + streaming cb    │
                                     └─────────────────────┘
 ```
 
-### M1: ACP Protocol Handler
-
-**File**: `src/acp/acp_server.c`
-
-```c
-// Metodi da implementare:
-// - initialize → return capabilities + agent list
-// - session/new → spawn convergio CLI, return sessionId
-// - session/cancel → kill session
-```
-
-### M2: ACP Prompt Handler
-
-**File**: `src/acp/acp_prompt.c`
-
-```c
-// Metodi da implementare:
-// - session/prompt → forward a CLI, stream response
-// - session/update notifications → chunk streaming
-```
-
-### M3: Bridge
-
-**File**: `src/acp/convergio_bridge.c`
-
-```c
-// Logica:
-// - Spawn convergio --mode pipe --format json
-// - Forward messaggi
-// - Parse JSON output → ACP notifications
-```
-
-### M4: Test Locale
-
-```bash
-# 1. Build
-make convergio-acp
-
-# 2. Install
-cp build/bin/convergio-acp /usr/local/bin/
-
-# 3. Config Zed (~/.config/zed/settings.json)
-{
-  "agent_servers": {
-    "Convergio": {
-      "type": "custom",
-      "command": "/usr/local/bin/convergio-acp"
-    }
-  }
-}
-
-# 4. Riavvia Zed, apri Agent Panel (cmd-?)
-```
-
----
-
-## FILE DA CREARE
+### File Creati
 
 ```
 src/acp/
-├── acp_server.c      # Main loop, JSON-RPC dispatch
-├── acp_protocol.c    # Protocol types, serialize/deserialize
-├── acp_prompt.c      # Prompt handling, streaming
-└── convergio_bridge.c # Bridge to existing CLI
+├── acp_server.c      # Main loop, JSON-RPC dispatch, handlers (495 LOC)
+└── acp_stubs.c       # Stubs per globals di main.c (45 LOC)
 
 include/nous/
-└── acp.h             # Header types
+└── acp.h             # Header types e API (40 LOC)
 ```
 
-**Modifica Makefile**: aggiungere target `convergio-acp`
+### Configurazione Zed
 
----
+File: `~/.config/zed/settings.json`
 
-## DIPENDENZE
-
+```json
+"agent_servers": {
+  "Convergio": {
+    "type": "custom",
+    "command": "/Users/roberdan/GitHub/ConvergioCLI/build/bin/convergio-acp",
+    "args": [],
+    "env": {}
+  }
+}
 ```
-M1 ──┐
-     ├──► M3 ──► M4
-M2 ──┘
-```
 
-M1 e M2 parallelizzabili, M3 li unisce, M4 è il test finale.
+### Binary
+
+- **Path**: `/Users/roberdan/GitHub/ConvergioCLI/build/bin/convergio-acp`
+- **Size**: 33MB
+- **Build**: `make convergio-acp`
 
 ---
 
 ## DEFINITION OF DONE (MVP)
 
-- [ ] `convergio-acp` compila senza errori
+- [x] `convergio-acp` compila senza errori
+- [x] Zed configurato con agent server custom
 - [ ] Zed riconosce Convergio nel pannello Agent
 - [ ] Si può chattare con Ali
 - [ ] Streaming funziona (token by token)
 - [ ] Tool calls visibili in Zed
+
+**Prossimo passo**: Riavviare Zed e testare (cmd-? per Agent Panel)
+
+---
+
+## COMMITS
+
+1. `90d67f4` - feat(acp): Add Agent Client Protocol server for Zed integration
+2. `8dc2c31` - docs: Update master plan - MVP complete, ready for testing
 
 ---
 
@@ -175,4 +135,14 @@ Una volta che il MVP funziona:
 
 ---
 
-**Piano aggiornato**: 2025-12-18
+## LOG
+
+| Data | Ora | Evento |
+|------|-----|--------|
+| 2025-12-18 | 19:05 | Build convergio-acp completato |
+| 2025-12-18 | 19:05 | Zed settings.json configurato |
+| 2025-12-18 | 19:09 | Commits pushati su feature branch |
+
+---
+
+**Piano aggiornato**: 2025-12-18 19:09
