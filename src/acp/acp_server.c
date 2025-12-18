@@ -17,6 +17,7 @@
 #include <unistd.h>
 #include <signal.h>
 #include <time.h>
+#include <errno.h>
 #include <cjson/cJSON.h>
 
 // Global server state
@@ -150,63 +151,38 @@ void acp_handle_initialize(int request_id, const char* params_json) {
     g_server.initialized = true;
     g_server.protocol_version = ACP_PROTOCOL_VERSION;
 
-    // Build capabilities
+    // Build response following exact ACP schema
     cJSON* result = cJSON_CreateObject();
     cJSON_AddNumberToObject(result, "protocolVersion", ACP_PROTOCOL_VERSION);
 
-    // Agent info
+    // agentInfo (required fields: name, version; optional: title)
     cJSON* agent_info = cJSON_CreateObject();
     cJSON_AddStringToObject(agent_info, "name", "convergio");
-    cJSON_AddStringToObject(agent_info, "title", "Convergio");
     cJSON_AddStringToObject(agent_info, "version", convergio_get_version());
+    cJSON_AddStringToObject(agent_info, "title", "Convergio AI Assistant");
     cJSON_AddItemToObject(result, "agentInfo", agent_info);
 
-    // Capabilities
+    // agentCapabilities (ACP schema format)
     cJSON* caps = cJSON_CreateObject();
-    cJSON_AddBoolToObject(caps, "streaming", true);
-    cJSON_AddBoolToObject(caps, "tools", true);
-    cJSON_AddBoolToObject(caps, "sessionLoad", false);  // Not implemented yet
+    cJSON_AddBoolToObject(caps, "loadSession", false);
+
+    cJSON* mcp_caps = cJSON_CreateObject();
+    cJSON_AddBoolToObject(mcp_caps, "http", false);
+    cJSON_AddBoolToObject(mcp_caps, "sse", false);
+    cJSON_AddItemToObject(caps, "mcpCapabilities", mcp_caps);
+
+    cJSON* prompt_caps = cJSON_CreateObject();
+    cJSON_AddBoolToObject(prompt_caps, "image", false);
+    cJSON_AddBoolToObject(prompt_caps, "audio", false);
+    cJSON_AddBoolToObject(prompt_caps, "embeddedContext", false);
+    cJSON_AddItemToObject(caps, "promptCapabilities", prompt_caps);
+
+    cJSON* session_caps = cJSON_CreateObject();
+    cJSON_AddItemToObject(caps, "sessionCapabilities", session_caps);
+
     cJSON_AddItemToObject(result, "agentCapabilities", caps);
 
-    // Available agents
-    cJSON* agents = cJSON_CreateArray();
-    size_t agent_count = 0;
-    const EmbeddedAgent* embedded = get_all_embedded_agents(&agent_count);
-
-    for (size_t i = 0; i < agent_count && i < 50; i++) {  // Limit to 50
-        cJSON* agent_obj = cJSON_CreateObject();
-
-        // Use filename (without .md) as ID
-        char agent_id[128] = {0};
-        strncpy(agent_id, embedded[i].filename, sizeof(agent_id) - 1);
-        char* dot = strrchr(agent_id, '.');
-        if (dot) *dot = '\0';
-
-        // Extract name from first line (# Agent Name)
-        char agent_name[128] = {0};
-        const char* content = embedded[i].content;
-        if (content && content[0] == '#') {
-            const char* start = content + 1;
-            while (*start == ' ') start++;
-            const char* end = strchr(start, '\n');
-            if (end) {
-                size_t len = (size_t)(end - start);
-                if (len > sizeof(agent_name) - 1) len = sizeof(agent_name) - 1;
-                strncpy(agent_name, start, len);
-            }
-        }
-        if (agent_name[0] == '\0') {
-            strncpy(agent_name, agent_id, sizeof(agent_name) - 1);
-        }
-
-        cJSON_AddStringToObject(agent_obj, "id", agent_id);
-        cJSON_AddStringToObject(agent_obj, "name", agent_name);
-        cJSON_AddStringToObject(agent_obj, "description", agent_name);  // Use name as description for now
-        cJSON_AddItemToArray(agents, agent_obj);
-    }
-    cJSON_AddItemToObject(result, "agents", agents);
-
-    // No auth required
+    // authMethods (empty array = no auth required)
     cJSON* auth = cJSON_CreateArray();
     cJSON_AddItemToObject(result, "authMethods", auth);
 
@@ -217,14 +193,14 @@ void acp_handle_initialize(int request_id, const char* params_json) {
 }
 
 void acp_handle_session_new(int request_id, const char* params_json) {
-    const char* cwd = ".";
+    char cwd[1024] = ".";
 
     if (params_json) {
         cJSON* params = cJSON_Parse(params_json);
         if (params) {
             cJSON* cwd_item = cJSON_GetObjectItem(params, "cwd");
             if (cwd_item && cJSON_IsString(cwd_item)) {
-                cwd = cwd_item->valuestring;
+                strncpy(cwd, cwd_item->valuestring, sizeof(cwd) - 1);
             }
             cJSON_Delete(params);
         }
@@ -255,13 +231,14 @@ static void stream_callback(const char* chunk, void* user_data) {
 
     if (!chunk || strlen(chunk) == 0) return;
 
-    // Build session/update notification with agent_message_chunk
+    // Build session/update notification (ACP schema format)
     cJSON* params = cJSON_CreateObject();
     cJSON_AddStringToObject(params, "sessionId", g_current_session_id);
 
     cJSON* update = cJSON_CreateObject();
-    cJSON_AddStringToObject(update, "type", "agent_message_chunk");
+    cJSON_AddStringToObject(update, "sessionUpdate", "agent_message_chunk");
 
+    // Content block: { "type": "text", "text": "..." }
     cJSON* content = cJSON_CreateObject();
     cJSON_AddStringToObject(content, "type", "text");
     cJSON_AddStringToObject(content, "text", chunk);
@@ -295,7 +272,10 @@ void acp_handle_session_prompt(int request_id, const char* params_json) {
         return;
     }
 
-    const char* session_id = session_id_item->valuestring;
+    // Copy session ID before freeing params (avoid use-after-free)
+    char session_id[64] = {0};
+    strncpy(session_id, session_id_item->valuestring, sizeof(session_id) - 1);
+
     ACPSession* session = find_session(session_id);
     if (!session) {
         cJSON_Delete(params);
@@ -303,7 +283,7 @@ void acp_handle_session_prompt(int request_id, const char* params_json) {
         return;
     }
 
-    // Extract prompt text
+    // Extract prompt text (ACP format: prompt[].text)
     cJSON* prompt_array = cJSON_GetObjectItem(params, "prompt");
     char prompt_text[8192] = {0};
 
@@ -312,6 +292,7 @@ void acp_handle_session_prompt(int request_id, const char* params_json) {
         cJSON_ArrayForEach(item, prompt_array) {
             cJSON* type = cJSON_GetObjectItem(item, "type");
             if (type && cJSON_IsString(type) && strcmp(type->valuestring, "text") == 0) {
+                // ACP format: { "type": "text", "text": "..." }
                 cJSON* text = cJSON_GetObjectItem(item, "text");
                 if (text && cJSON_IsString(text)) {
                     strncat(prompt_text, text->valuestring, sizeof(prompt_text) - strlen(prompt_text) - 1);
@@ -330,22 +311,21 @@ void acp_handle_session_prompt(int request_id, const char* params_json) {
     // Set current session for callback
     strncpy(g_current_session_id, session_id, sizeof(g_current_session_id) - 1);
 
-    // Process with streaming
+    // Process with orchestrator (streaming mode)
     char* response = orchestrator_process_stream(prompt_text, stream_callback, NULL);
 
     // Send final response
     cJSON* result = cJSON_CreateObject();
     cJSON_AddStringToObject(result, "stopReason", "end_turn");
 
-    if (response) {
-        // Note: response already streamed, just confirm completion
-        free(response);
-    }
-
     char* result_json = cJSON_PrintUnformatted(result);
     acp_send_response(request_id, result_json);
     free(result_json);
     cJSON_Delete(result);
+
+    if (response) {
+        free(response);
+    }
 
     g_current_session_id[0] = '\0';
 }
@@ -423,40 +403,65 @@ int acp_server_init(void) {
         return -1;
     }
 
-    // Initialize orchestrator with default budget
-    if (orchestrator_init(5.0) != 0) {
+    // Initialize orchestrator with generous budget for ACP sessions
+    if (orchestrator_init(100.0) != 0) {
         fprintf(stderr, "Failed to initialize orchestrator\n");
         return -1;
     }
+
+    // Reset session to clear any budget_exceeded state from previous runs
+    extern void cost_reset_session(void);
+    cost_reset_session();
 
     return 0;
 }
 
 int acp_server_run(void) {
     char line[ACP_MAX_LINE_LENGTH];
+    size_t line_pos = 0;
 
     // Setup signal handlers
     signal(SIGINT, handle_signal);
     signal(SIGTERM, handle_signal);
 
-    // Main loop - read JSON-RPC from stdin
-    while (g_running && fgets(line, sizeof(line), stdin)) {
-        // Skip empty lines
-        size_t len = strlen(line);
-        if (len == 0 || (len == 1 && line[0] == '\n')) {
+    // Main loop - read JSON-RPC from stdin byte by byte
+    while (g_running) {
+        char c;
+        ssize_t n = read(STDIN_FILENO, &c, 1);
+
+        if (n < 0) {
+            if (errno == EINTR) continue;
+            break;
+        }
+
+        if (n == 0) {
+            // EOF - wait a bit and retry (pipe might not be ready yet)
+            usleep(100000);
             continue;
         }
 
-        // Parse JSON
-        cJSON* request = cJSON_Parse(line);
-        if (!request) {
-            acp_send_error(-1, -32700, "Parse error");
-            continue;
-        }
+        // Build line
+        if (c == '\n') {
+            line[line_pos] = '\0';
 
-        // Dispatch
-        dispatch_request(request);
-        cJSON_Delete(request);
+            // Skip empty lines
+            if (line_pos == 0) {
+                continue;
+            }
+
+            // Parse JSON
+            cJSON* request = cJSON_Parse(line);
+            if (!request) {
+                acp_send_error(-1, -32700, "Parse error");
+            } else {
+                dispatch_request(request);
+                cJSON_Delete(request);
+            }
+
+            line_pos = 0;
+        } else if (line_pos < sizeof(line) - 1) {
+            line[line_pos++] = c;
+        }
     }
 
     return 0;
@@ -482,7 +487,6 @@ int main(int argc, char** argv) {
     setvbuf(stderr, NULL, _IONBF, 0);
 
     if (acp_server_init() != 0) {
-        fprintf(stderr, "Failed to initialize ACP server\n");
         return 1;
     }
 
