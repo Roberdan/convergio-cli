@@ -40,14 +40,16 @@ FASE 3 (Publish): extension pubblica + a11y layer   → dopo validazione
 | M3 | Bridge a orchestrator esistente | ✅✅ | 1 gg | Completato 2025-12-18 |
 | M4 | Build + test locale in Zed | ✅✅ | 0.5 gg | Build OK, Zed configurato 2025-12-18 19:05 |
 
-### FASE 2 - Polish (Post-MVP)
+### FASE 2 - Multi-Agent Panel
 
 | ID | Task | Status | Effort | Note |
 |----|------|--------|--------|------|
-| P1 | Agent packs (business, education) | ⬜ | 2 gg | |
-| P2 | Pack selection in config | ⬜ | 1 gg | |
-| P3 | Accessibility layer | ⬜ | 3 gg | |
-| P4 | Extension manifest + pubblicazione | ⬜ | 1 gg | |
+| P1 | Multi-agent servers (ogni agente = server separato) | ⬜ | 1 gg | Priorità ALTA - richiesta utente |
+| P2 | Arg --agent per selezionare agente specifico | ⬜ | 0.5 gg | convergio-acp --agent ali |
+| P3 | Generazione automatica settings.json | ⬜ | 0.5 gg | Script per generare config Zed |
+| P4 | Agent packs (raggruppamento tematico) | ⬜ | 1 gg | Business, Dev, Design, etc. |
+| P5 | Accessibility layer | ⬜ | 3 gg | |
+| P6 | Extension manifest + pubblicazione | ⬜ | 1 gg | |
 
 ---
 
