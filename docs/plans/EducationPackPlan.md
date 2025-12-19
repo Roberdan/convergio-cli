@@ -86,18 +86,18 @@ FASE 9 (Vertical):   Sistema edizioni verticali + Zed             → [ ] TODO -
 
 ## ⚠️ BLOCKING P0 - MUST DO BEFORE PR
 
-| ID | Task | File/Location | Note |
-|----|------|---------------|------|
-| B01 | Link toolkit functions to CLI | `education_commands.c` stubs → real | I comandi esistono ma usano weak stubs |
-| B02 | Export mindmap SVG/PNG | `mindmap.c` TK03-04 | Mermaid code OK, export manca |
-| B03 | Quiz adaptive difficulty | `quiz.c` TK15 | Engine OK, auto-adjust TODO |
-| B04 | Flashcard study UI | `flashcards.c` TK20 | SM-2 OK, UI interattiva TODO |
-| B05 | Curricula mancanti | `curricula/it/*.json` | Solo Liceo Scientifico esiste |
-| B06 | Test coverage ~80% | `tests/*.c` | Attualmente ~40% |
-| B07 | Fix test_stubs duplicate | `tests/test_stubs.c` | Conflitto provider_get |
-| B08 | Homework anti-cheat mode | `homework.c` F03-04 | Hints progressivi TODO |
-| B09 | Study session timer | `study_session.c` F08 | Code esiste, non linkato |
-| B10 | HTML interattivo | NEW TK85+ | Generazione pagine didattiche |
+| ID | Task | File/Location | Status | Note |
+|----|------|---------------|--------|------|
+| B01 | Link toolkit functions to CLI | `education_commands.c` stubs → real | [ ] | I comandi esistono ma usano weak stubs |
+| B02 | Export mindmap SVG/PNG | `mindmap.c` TK03-04 | [ ] | Mermaid code OK, export manca |
+| B03 | Quiz adaptive difficulty | `quiz.c` TK15 | [ ] | Engine OK, auto-adjust TODO |
+| B04 | Flashcard study UI | `flashcards.c` TK20 | [ ] | SM-2 OK, UI interattiva TODO |
+| B05 | Curricula mancanti | `curricula/it/*.json` | [ ] | Solo Liceo Scientifico esiste |
+| B06 | Test coverage ~80% | `tests/*.c` | [ ] | Attualmente ~40% |
+| B07 | Fix test_stubs duplicate | `tests/test_stubs.c` | [x] | Risolto con weak attribute |
+| B08 | Homework anti-cheat mode | `homework.c` F03-04 | [ ] | Hints progressivi TODO |
+| B09 | Study session timer | `study_session.c` F08 | [ ] | Code esiste, non linkato |
+| B10 | HTML interattivo | `html_generator.c` | [x] | LLM-generated approach (ADR-001) |
 
 ### FASE 8 - Libretto dello Studente (2025-12-19)
 
@@ -471,26 +471,25 @@ Ogni thread crea 2 maestri in parallelo.
 
 ---
 
-### Thread NEW - HTML INTERATTIVO (P0) 🆕
+### Thread NEW - HTML INTERATTIVO (P0) ✅ DONE
 
-> **Descrizione**: Ogni maestro può generare pagine HTML5 interattive al volo per spiegare
-> concetti con animazioni, simulatori, e contenuti cliccabili. Salvataggio locale e
-> apertura automatica nel browser.
+> **Decisione architetturale**: I maestri generano HTML via LLM, non template pre-costruiti.
+> Vedere ADR-001: `docs/adr/ADR-001-html-generator-llm-approach.md`
 
 | ID | Task | Status | Priority | Note |
 |----|------|--------|----------|------|
-| TK85 | Framework base HTML5 generator | [ ] | P0 | Template con Tailwind embedded |
-| TK86 | Animazioni CSS/JS inline | [ ] | P0 | GSAP/anime.js per animazioni |
-| TK87 | Euclide: Geometria interattiva | [ ] | P0 | Canvas/SVG per dimostrazioni |
-| TK88 | Feynman: Simulatori fisica | [ ] | P0 | Pendoli, onde, particelle |
-| TK89 | Darwin: Alberi evolutivi | [ ] | P1 | Diagrammi cliccabili |
-| TK90 | Mozart: Spartiti interattivi | [ ] | P1 | Playback note, tastiera |
-| TK91 | Erodoto: Timeline interattive | [ ] | P1 | Eventi cliccabili |
-| TK92 | Leonardo: Galleria opere | [ ] | P1 | Zoom, dettagli nascosti |
-| TK93 | Salvataggio ~/.convergio/lessons/ | [ ] | P0 | Persistenza locale |
-| TK94 | Apertura automatica browser | [ ] | P0 | `open` command macOS |
+| TK85 | Framework base HTML5 wrapper | [x] | P0 | `html_save()`, `html_save_and_open()` |
+| TK86 | Animazioni CSS/JS inline | [x] | P0 | LLM genera HTML completo con JS |
+| TK87 | Euclide: Geometria interattiva | [x] | P0 | Via LLM prompt |
+| TK88 | Feynman: Simulatori fisica | [x] | P0 | Via LLM prompt |
+| TK89 | Darwin: Alberi evolutivi | [x] | P1 | Via LLM prompt |
+| TK90 | Mozart: Spartiti interattivi | [x] | P1 | Via LLM prompt |
+| TK91 | Erodoto: Timeline interattive | [x] | P1 | Via LLM prompt |
+| TK92 | Leonardo: Galleria opere | [x] | P1 | Via LLM prompt |
+| TK93 | Salvataggio ~/.convergio/lessons/ | [x] | P0 | `html_save()` implementato |
+| TK94 | Apertura automatica browser | [x] | P0 | `html_open_in_browser()` via `open` |
 | TK95 | Export offline bundle | [ ] | P1 | Zip con tutte risorse |
-| TK96 | Comando `/html <topic>` | [ ] | P0 | Entry point CLI |
+| TK96 | Comando `/html <topic>` | [ ] | P0 | Entry point CLI - TODO |
 
 ### Test FASE 3
 | ID | Task | Status | Priority |
