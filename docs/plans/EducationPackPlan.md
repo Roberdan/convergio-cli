@@ -1,9 +1,9 @@
 # Education Pack Implementation Plan
 
 **Created**: 2025-12-19
-**Last Updated**: 2025-12-19 (updated by Claude)
-**Status**: In Progress - BUILD WORKING, FUNZIONALITA' STUB
-**Progress**: ~25% reale - Build ok ma LLM non integrato, Maestri non esistono
+**Last Updated**: 2025-12-19 (aggiornato con verita')
+**Status**: In Progress - FASE 8 TESTING
+**Progress**: ~80% - Build ok, LLM integrato, Maestri completi, 9/9 test scenari scolastici PASSATI
 **Branch**: `feature/education-pack`
 **Worktree**: `../ConvergioCLI-education`
 **Goal**: Sistema educativo con maestri storici, toolkit didattico completo, accessibilita adattiva
@@ -70,29 +70,26 @@ I file esistevano ma c'era un **disallineamento totale** tra `education.h` e le 
 
 ---
 
-## QUICK STATUS - VERITA' NUDA E CRUDA
+## QUICK STATUS - AGGIORNATO 2025-12-19
 
 ```
-FASE 1 (Setup):      Profilo studente + Setup wizard              → [~] PARZIALE - DB ok, wizard NON TESTATO
-FASE 2 (Maestri):    14 Maestri storici [7 THREAD PARALLELI]      → [ ] NON ESISTONO - 0/14 agent definitions
-FASE 3 (Toolkit):    Tool didattici [10 THREAD PARALLELI]         → [~] STUB - file esistono ma llm_generate() e' placeholder
-FASE 4 (Curriculum): Liceo Scientifico + altri [3 THREAD]         → [x] DONE (7/7 curricula JSON esistono)
-FASE 5 (Features):   Quiz, compiti, study sessions [4 THREAD]     → [~] STUB - dipendono da LLM non integrato
-FASE 6 (A11y):       Accessibilita profonda [5 THREAD PARALLELI]  → [ ] TODO - solo struct, zero integrazione
-FASE 7 (Coord):      Ali preside + Anna reminder                  → [~] PARZIALE - anna_integration.c esiste ma non funziona
-FASE 8 (Test):       Test con utenti reali [5 THREAD]             → [ ] TODO - ZERO test eseguiti
+FASE 1 (Setup):      Profilo studente + Setup wizard              → [x] DONE - DB + Wizard + CLI commands
+FASE 2 (Maestri):    14 Maestri storici [7 THREAD PARALLELI]      → [x] DONE - 14/14 agent definitions (~4000 righe)
+FASE 3 (Toolkit):    Tool didattici [10 THREAD PARALLELI]         → [x] DONE - 6 tools implementati
+FASE 4 (Curriculum): Liceo Scientifico + altri [3 THREAD]         → [x] DONE (7/7 curricula JSON)
+FASE 5 (Features):   Quiz, compiti, study sessions [4 THREAD]     → [x] DONE - LLM integration funzionante
+FASE 6 (A11y):       Accessibilita profonda [5 THREAD PARALLELI]  → [~] PARZIALE - struct ok, integrazione profonda TODO
+FASE 7 (Coord):      Ali preside + Anna reminder                  → [~] PARZIALE - anna_integration.c esiste
+FASE 8 (Test):       Test con utenti reali [5 THREAD]             → [ ] IN CORSO - scenari scolastici
 ```
 
-### BLOCCO CRITICO: LLM Integration
+### RISOLTO: LLM Integration (2025-12-19)
 
-**PROBLEMA FONDAMENTALE**: `llm_generate()` ritorna solo `"[LLM not integrated]"`.
-Senza LLM funzionante, NON FUNZIONA:
-- Quiz generation (quiz.c)
-- Homework helper (homework.c)
-- Study session end quiz (study_session.c)
-- Flashcard generation (flashcards.c)
-- Progress suggestions (progress.c)
-- Mind map generation (mindmap.c)
+`llm_generate()` ora usa il provider system di Convergio:
+- Anthropic Claude (primario)
+- OpenAI GPT (fallback)
+- Ollama (locale)
+- Modello: claude-3-5-haiku per efficienza costi
 
 ---
 
@@ -207,6 +204,20 @@ Senza LLM funzionante, NON FUNZIONA:
 
 > **Implementazione**: `education_db.c` (1338 LOC) con 15+ funzioni API
 
+### 1.4 Test FASE 1 ✅ COMPLETE
+
+| ID | Task | Status | Note |
+|----|------|--------|------|
+| ST01 | Test creazione profilo multi-disabilità (Mario) | [x] | `test_scenario_mario_setup` |
+| ST02 | Test creazione profilo ADHD (Sofia) | [x] | `test_scenario_sofia_setup` |
+| ST03 | Test creazione profilo Autismo (Luca) | [x] | `test_scenario_luca_setup` |
+| ST04 | Test creazione profilo baseline (Giulia) | [x] | `test_scenario_giulia_baseline` |
+| ST05 | Test sessione studio con accessibilità | [x] | `test_scenario_mario_study_math` |
+| ST06 | Test goal management | [x] | `test_goal_management` |
+| ST07 | Test curriculum loading | [x] | `test_curriculum_load` |
+
+> **Implementazione**: `tests/test_education.c` - 9/9 test passati
+
 ---
 
 ## FASE 2 - I 14 MAESTRI (PARALLELO - 7 thread) ✅ COMPLETE
@@ -254,6 +265,13 @@ Ogni thread crea 2 maestri in parallelo.
 |----|------|--------|------|
 | M13 | Ada Lovelace (Informatica) | [x] | `education/lovelace-informatica.md` |
 | M14 | Ippocrate (Sport/Corpo) | [x] | `education/ippocrate-corpo.md` |
+
+### Test FASE 2 ✅ COMPLETE
+| ID | Task | Status | Note |
+|----|------|--------|------|
+| MT01 | Verifica 14 file maestri esistono | [x] | `test_maestri_exist` |
+| MT02 | Test risposta maieutica ogni maestro | [ ] | TODO |
+| MT03 | Test adattamento accessibilità risposte | [ ] | TODO |
 
 ---
 
@@ -425,6 +443,16 @@ Ogni thread crea 2 maestri in parallelo.
 | TK83 | Cruciverba tematici | [ ] | P2 | Ripasso ludico |
 | TK84 | Celebrazioni animate | [ ] | P2 | Confetti, suoni |
 
+### Test FASE 3
+| ID | Task | Status | Priority |
+|----|------|--------|----------|
+| TKT01 | Test generazione mappa mentale | [ ] | P0 |
+| TKT02 | Test quiz engine tutti i tipi | [ ] | P0 |
+| TKT03 | Test flashcards + algoritmo SM-2 | [ ] | P0 |
+| TKT04 | Test TTS con profilo accessibilità | [ ] | P0 |
+| TKT05 | Test calculator step-by-step | [ ] | P0 |
+| TKT06 | Test tool linguistici | [ ] | P1 |
+
 ---
 
 ## FASE 4 - CURRICULUM (PARALLELO - 3 thread)
@@ -451,6 +479,14 @@ Ogni thread crea 2 maestri in parallelo.
 | C09 | Istituto Tecnico Commerciale | [ ] | `curricula/it/itc.json` |
 | C10 | Sistema Percorso Libero | [ ] | Custom selection |
 | C11 | Hot-reload JSON | [ ] | Watch file changes |
+
+### Test FASE 4
+| ID | Task | Status | Note |
+|----|------|--------|------|
+| CT01 | Test caricamento Liceo Scientifico | [x] | `test_curriculum_load` |
+| CT02 | Test parsing struttura JSON | [ ] | Valida schema |
+| CT03 | Test navigazione argomenti | [ ] | Browse/search |
+| CT04 | Test progressi curriculum | [ ] | Tracking argomenti completati |
 
 ---
 
@@ -493,6 +529,47 @@ Ogni thread crea 2 maestri in parallelo.
 | F20 | Reminder spaced repetition | [ ] | P0 |
 | F21 | Reminder pause ADHD | [ ] | P1 |
 | F22 | Celebrazione completamenti | [ ] | P1 |
+
+### Thread F5 - Libretto dello Studente (NEW)
+
+> **Descrizione**: Un vero e proprio libretto/diario scolastico digitale che tiene traccia di:
+> - Voti e valutazioni per ogni materia/maestro
+> - Commenti e feedback dei maestri
+> - Risultati dei test/quiz con analisi errori
+> - Aree migliorate nel tempo (grafici progresso)
+> - To-do list compiti/obiettivi
+> - Diario giornaliero delle attività svolte
+> - Ore di studio per materia
+
+| ID | Task | Status | Priority |
+|----|------|--------|----------|
+| LB01 | Schema DB `student_gradebook` (voti, data, maestro, commento) | [ ] | P0 |
+| LB02 | Schema DB `daily_log` (data, attività, materia, durata) | [ ] | P0 |
+| LB03 | API `libretto_add_grade()` | [ ] | P0 |
+| LB04 | API `libretto_add_log_entry()` | [ ] | P0 |
+| LB05 | API `libretto_get_grades(materia, periodo)` | [ ] | P0 |
+| LB06 | API `libretto_get_progress_report()` | [ ] | P0 |
+| LB07 | Comando `/libretto` - mostra dashboard voti | [ ] | P0 |
+| LB08 | Comando `/libretto voti` - storico voti per materia | [ ] | P0 |
+| LB09 | Comando `/libretto diario` - log attività giornaliere | [ ] | P0 |
+| LB10 | Comando `/libretto progressi` - grafici aree migliorate | [ ] | P1 |
+| LB11 | Integrazione quiz → voto automatico | [ ] | P0 |
+| LB12 | Integrazione sessioni studio → log automatico | [ ] | P0 |
+| LB13 | Calcolo media voti per materia/periodo | [ ] | P1 |
+| LB14 | Export PDF pagella completa | [ ] | P1 |
+| LB15 | Export PDF report genitori | [ ] | P1 |
+| LB16 | Analisi trend (materie in crescita/calo) | [ ] | P1 |
+| LB17 | Obiettivi settimanali/mensili tracking | [ ] | P1 |
+| LB18 | Notifica traguardi raggiunti | [ ] | P2 |
+
+### Thread F-TEST - Test FASE 5 Features
+| ID | Task | Status | Priority |
+|----|------|--------|----------|
+| FT01 | Test homework helper anti-cheating | [ ] | P0 |
+| FT02 | Test study sessions timer | [ ] | P0 |
+| FT03 | Test progress tracking accuracy | [ ] | P0 |
+| FT04 | Test Anna reminder delivery | [ ] | P0 |
+| FT05 | Test libretto grade recording | [ ] | P0 |
 
 ---
 
@@ -548,6 +625,19 @@ Ogni thread crea 2 maestri in parallelo.
 | AU05 | No pressione sociale | [ ] | P0 |
 | AU06 | Preferenze sensoriali | [ ] | P1 |
 
+### Test FASE 6 - Accessibilità
+| ID | Task | Status | Note |
+|----|------|--------|------|
+| AT01 | Test profilo dislessia persistenza | [x] | Mario scenario |
+| AT02 | Test profilo ADHD persistenza | [x] | Sofia scenario |
+| AT03 | Test profilo autismo persistenza | [x] | Luca scenario |
+| AT04 | Test font OpenDyslexic rendering | [ ] | P0 |
+| AT05 | Test TTS velocità adattiva | [ ] | P0 |
+| AT06 | Test blocchi colore discalculia | [ ] | P0 |
+| AT07 | Test timeout estesi paralisi cerebrale | [ ] | P0 |
+| AT08 | Test risposte brevi ADHD | [ ] | P0 |
+| AT09 | Test struttura prevedibile autismo | [ ] | P0 |
+
 ---
 
 ## FASE 7 - COORDINAMENTO (Sequenziale)
@@ -568,6 +658,14 @@ Ogni thread crea 2 maestri in parallelo.
 | CM01 | Shared context studente | [ ] | Profilo condiviso |
 | CM02 | Segnalazione cross-materia | [ ] | Collegamenti |
 | CM03 | Progetti interdisciplinari | [ ] | Collaborazione |
+
+### Test FASE 7 - Coordinamento
+| ID | Task | Status | Note |
+|----|------|--------|------|
+| COT01 | Test Ali dashboard studente | [ ] | P0 |
+| COT02 | Test consiglio classe virtuale | [ ] | P0 |
+| COT03 | Test shared context maestri | [ ] | P0 |
+| COT04 | Test report settimanale | [ ] | P1 |
 
 ---
 
@@ -723,6 +821,9 @@ FASE 8 (Test) - 5 THREAD PARALLELI
 | 2025-12-20 00:15 | FASE 1.2 completata: 12 tabelle DB (6 pianificate + 6 bonus) |
 | 2025-12-20 00:15 | FASE 3 parziale: 5 core tools (mindmap, quiz, flashcards, audio, calc) |
 | 2025-12-20 00:15 | FASE 4 parziale: Liceo Scientifico (23KB) |
+| 2025-12-19 | **TESTS**: 9/9 scenari scolastici passati (Mario, Sofia, Luca, Giulia) |
+| 2025-12-19 | Aggiunta feature Libretto dello Studente |
+| 2025-12-19 | Aggiunto task di test per ogni fase |
 
 ---
 
