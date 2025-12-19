@@ -771,6 +771,7 @@ int education_profile_update(int64_t student_id, const EducationUpdateOptions* o
     if (!g_edu_initialized || !options) return -1;
 
     // TODO: Implement dynamic update based on options
+    (void)student_id;  // Will be used in implementation
     return 0;
 }
 
@@ -1175,6 +1176,7 @@ int education_session_end(int64_t session_id, int xp_earned) {
 int education_xp_add(int64_t student_id, int xp_amount, const char* reason) {
     if (!g_edu_initialized || xp_amount <= 0) return -1;
 
+    (void)reason;  // Reserved for future XP history logging
     CONVERGIO_MUTEX_LOCK(&g_edu_db_mutex);
 
     // Update XP and check for level up
