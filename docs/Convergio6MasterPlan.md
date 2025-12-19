@@ -2,8 +2,8 @@
 
 **Created**: 2025-12-18
 **Last Updated**: 2025-12-19 18:30
-**Status**: ✅ FASE 5 COMPLETATA - Tutte le feature implementate
-**Progress**: 27/27 tasks (100%) - Progetto completato
+**Status**: 🚧 FASE 6 IN PROGRESS - File Interaction & Testing
+**Progress**: 29/35 tasks (83%) - Bug fix e nuove feature
 **Branch**: `feature/acp-zed-integration`
 **Goal**: Editor AI-first con multi-agent panel integrato
 
@@ -120,6 +120,18 @@ FASE 5 (Polish):  Icons, themes, onboarding          → ✅ COMPLETATO
 | U2 | Custom icon set per agenti | ✅✅ | 2 gg | Mapping agent_name → IconName dalla libreria Zed |
 | U3 | Themes e colori per categoria | ✅✅ | 1 gg | HSLA colors distintivi per ogni categoria |
 | U4 | Onboarding wizard | ✅✅ | 2 gg | Welcome screen con quick start guide |
+
+### FASE 6 - File Interaction & E2E Testing 🚧 IN PROGRESS
+
+| ID | Task | Status | Effort | Note |
+|----|------|--------|--------|------|
+| X1 | File read tool (ACP) | ⬜ | 1 gg | Agente può leggere file aperti in Zed |
+| X2 | File write tool (ACP) | ⬜ | 1 gg | Agente può modificare file aperti in Zed |
+| X3 | Editor context awareness | ⬜ | 1 gg | Agente vede file corrente, cursore, selezione |
+| X4 | E2E Test Suite per ACP | ✅✅ | 1 gg | 19/19 test passing - tests/test_acp_e2e.sh |
+| X5 | Ali panel Enter key fix | ✅✅ | 0.5 gg | Usa menu::Confirm invece di keybinding custom |
+| X6 | Persistence verification | 🔄 | 0.5 gg | Test salvataggio/ripristino sessioni |
+| X7 | Custom Convergio icons | ⬜ | 1 gg | Aggiungere icone SVG in assets/icons/ + IconName enum |
 
 **Implementazione** (2025-12-19):
 - **Icone migliorate**: ZedAgent per Ali, Debug per Dario, SwatchBook per UX, etc.
