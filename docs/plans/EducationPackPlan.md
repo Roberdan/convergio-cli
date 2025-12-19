@@ -3,7 +3,7 @@
 **Created**: 2025-12-19
 **Last Updated**: 2025-12-20 01:30
 **Status**: In Progress
-**Progress**: 95/156 tasks (61%)
+**Progress**: 106/156 tasks (68%)
 **Branch**: `feature/education-pack`
 **Worktree**: `../ConvergioCLI-education`
 **Goal**: Sistema educativo con maestri storici, toolkit didattico completo, accessibilita adattiva
@@ -119,19 +119,21 @@ FASE 8 (Test):       Test con utenti reali [5 THREAD]             → [ ] TODO
 
 ## FASE 1 - SETUP SISTEMA (Sequenziale)
 
-### 1.1 Setup Wizard
+### 1.1 Setup Wizard ✅ COMPLETE
 
 | ID | Task | Status | Note |
 |----|------|--------|------|
-| S01 | Comando `/education setup` | [ ] | Entry point |
-| S02 | Step 1: Nome e info base | [ ] | Nome, eta, genitore (opz) |
-| S03 | Step 2: Selezione curriculum | [ ] | Dropdown predefiniti |
-| S04 | Step 3: Assessment accessibilita | [ ] | Checklist condizioni |
-| S05 | Step 4: Preferenze input/output | [ ] | Voce, TTS, velocita |
-| S06 | Step 5: Metodo studio attuale | [ ] | Personalizzazione |
-| S07 | Step 6: Obiettivi personali | [ ] | Goals studente |
-| S08 | Generazione profilo | [ ] | Salvataggio DB |
-| S09 | Broadcast profilo a maestri | [ ] | Tutti caricano |
+| S01 | Comando `/education setup` | [x] | `education_commands.c` + `commands.c` |
+| S02 | Step 1: Nome e info base | [x] | `wizard_step1_basic_info()` |
+| S03 | Step 2: Selezione curriculum | [x] | `wizard_step2_curriculum()` |
+| S04 | Step 3: Assessment accessibilita | [x] | `wizard_step3_accessibility()` |
+| S05 | Step 4: Preferenze input/output | [x] | `wizard_step4_preferences()` |
+| S06 | Step 5: Metodo studio attuale | [x] | `wizard_step5_study_method()` |
+| S07 | Step 6: Obiettivi personali | [x] | `wizard_step6_goals()` |
+| S08 | Generazione profilo | [x] | `wizard_finalize_profile()` |
+| S09 | Broadcast profilo a maestri | [x] | `wizard_broadcast_profile()` |
+
+> **Implementazione**: `src/education/setup_wizard.c` (745 LOC)
 
 ### 1.2 Database Schema (PARALLELO - 3 thread) ✅ COMPLETE
 
@@ -146,13 +148,15 @@ FASE 8 (Test):       Test con utenti reali [5 THREAD]             → [ ] TODO
 
 > **BONUS**: Implementati anche: `flashcard_decks`, `flashcard_reviews`, `quiz_history`, `gamification`, `curriculum_progress`, `inbox` (12 tabelle totali in `education_db.c`)
 
-### 1.3 API Layer
+### 1.3 API Layer ✅ COMPLETE
 
 | ID | Task | Status | Note |
 |----|------|--------|------|
-| S16 | API CRUD profile | [ ] | load/save/update |
-| S17 | API profile broadcast | [ ] | Push a tutti i maestri |
-| S18 | API adaptive learning | [ ] | Impara da interazioni |
+| S16 | API CRUD profile | [x] | `education_profile_get/update/delete()` |
+| S17 | API profile broadcast | [x] | `education_profile_set_active()` |
+| S18 | API adaptive learning | [ ] | Impara da interazioni (TODO) |
+
+> **Implementazione**: `education_db.c` (1338 LOC) con 15+ funzioni API
 
 ---
 
