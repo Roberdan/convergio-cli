@@ -146,7 +146,20 @@ C_SOURCES = $(SRC_DIR)/core/fabric.c \
             $(SRC_DIR)/projects/projects.c \
             $(SRC_DIR)/todo/todo.c \
             $(SRC_DIR)/notifications/notify.c \
-            $(SRC_DIR)/mcp/mcp_client.c
+            $(SRC_DIR)/mcp/mcp_client.c \
+            $(SRC_DIR)/core/commands/education_commands.c \
+            $(SRC_DIR)/education/education_db.c \
+            $(SRC_DIR)/education/setup_wizard.c \
+            $(SRC_DIR)/education/anna_integration.c \
+            $(SRC_DIR)/education/features/study_session.c \
+            $(SRC_DIR)/education/features/homework.c \
+            $(SRC_DIR)/education/features/progress.c \
+            $(SRC_DIR)/education/tools/quiz.c \
+            $(SRC_DIR)/education/tools/flashcards.c \
+            $(SRC_DIR)/education/tools/mindmap.c \
+            $(SRC_DIR)/education/tools/calculator.c \
+            $(SRC_DIR)/education/tools/audio_tts.c \
+            $(SRC_DIR)/education/tools/linguistic_tools.c
 
 OBJC_SOURCES = $(SRC_DIR)/metal/gpu.m \
                $(SRC_DIR)/neural/mlx_embed.m \
@@ -224,6 +237,9 @@ dirs:
 	@mkdir -p $(OBJ_DIR)/todo
 	@mkdir -p $(OBJ_DIR)/notifications
 	@mkdir -p $(OBJ_DIR)/mcp
+	@mkdir -p $(OBJ_DIR)/education
+	@mkdir -p $(OBJ_DIR)/education/features
+	@mkdir -p $(OBJ_DIR)/education/tools
 	@mkdir -p $(BIN_DIR)
 	@mkdir -p data
 

@@ -32,8 +32,8 @@
 
 extern sqlite3* g_edu_db;
 extern char* llm_generate(const char* prompt, const char* system_prompt);
-extern int education_session_start(int64_t student_id, const char* session_type,
-                                   const char* subject, const char* topic);
+extern int64_t education_session_start(int64_t student_id, const char* session_type,
+                                       const char* subject, const char* topic);
 extern int education_session_end(int64_t session_id, int xp_earned);
 extern int education_xp_add(int64_t student_id, int xp_amount, const char* reason);
 

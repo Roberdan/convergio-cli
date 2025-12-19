@@ -151,6 +151,7 @@ typedef struct {
     EducationSeverity cerebral_palsy_severity;
     bool adhd;
     EducationAdhdType adhd_type;
+    EducationSeverity adhd_severity;
     bool autism;
     EducationSeverity autism_severity;
     bool visual_impairment;
@@ -161,6 +162,9 @@ typedef struct {
     EducationOutputMethod preferred_output;
     bool tts_enabled;
     float tts_speed;  // 0.5 - 2.0
+    char* tts_voice;  // Voice name for TTS (dynamically allocated)
+    bool high_contrast;
+    bool reduce_motion;
 } EducationAccessibility;
 
 /**

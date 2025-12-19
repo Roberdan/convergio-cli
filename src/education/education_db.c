@@ -39,7 +39,7 @@
 // GLOBAL STATE
 // ============================================================================
 
-static sqlite3* g_edu_db = NULL;
+sqlite3* g_edu_db = NULL;  // Exported for feature modules
 CONVERGIO_MUTEX_DECLARE(g_edu_db_mutex);
 static bool g_edu_initialized = false;
 static char g_edu_db_path[PATH_MAX] = {0};
@@ -1338,4 +1338,203 @@ char* education_profile_to_json(const EducationStudentProfile* profile) {
 
 sqlite3* education_get_db_handle(void) {
     return g_edu_db;
+}
+
+// ============================================================================
+// GOAL MANAGEMENT
+// ============================================================================
+
+int64_t education_goal_add(int64_t student_id, EducationGoalType goal_type,
+                           const char* description, time_t target_date) {
+    if (!g_edu_db || !description) return -1;
+
+    CONVERGIO_MUTEX_LOCK(&g_edu_db_mutex);
+
+    const char* sql =
+        "INSERT INTO student_goals (student_id, goal_type, description, target_date, status, created_at) "
+        "VALUES (?, ?, ?, ?, 'active', datetime('now'))";
+
+    sqlite3_stmt* stmt;
+    int rc = sqlite3_prepare_v2(g_edu_db, sql, -1, &stmt, NULL);
+    if (rc != SQLITE_OK) {
+        CONVERGIO_MUTEX_UNLOCK(&g_edu_db_mutex);
+        return -1;
+    }
+
+    const char* goal_type_str = "short_term";
+    switch (goal_type) {
+        case GOAL_SHORT_TERM: goal_type_str = "short_term"; break;
+        case GOAL_MEDIUM_TERM: goal_type_str = "medium_term"; break;
+        case GOAL_LONG_TERM: goal_type_str = "long_term"; break;
+    }
+
+    sqlite3_bind_int64(stmt, 1, student_id);
+    sqlite3_bind_text(stmt, 2, goal_type_str, -1, SQLITE_STATIC);
+    sqlite3_bind_text(stmt, 3, description, -1, SQLITE_STATIC);
+    sqlite3_bind_int64(stmt, 4, (int64_t)target_date);
+
+    rc = sqlite3_step(stmt);
+    int64_t goal_id = (rc == SQLITE_DONE) ? sqlite3_last_insert_rowid(g_edu_db) : -1;
+
+    sqlite3_finalize(stmt);
+    CONVERGIO_MUTEX_UNLOCK(&g_edu_db_mutex);
+
+    return goal_id;
+}
+
+EducationGoal** education_goal_list(int64_t student_id, int* count) {
+    if (!g_edu_db || !count) return NULL;
+    *count = 0;
+
+    CONVERGIO_MUTEX_LOCK(&g_edu_db_mutex);
+
+    const char* sql =
+        "SELECT id, goal_type, description, target_date, status, created_at "
+        "FROM student_goals WHERE student_id = ? AND status = 'active' ORDER BY created_at DESC";
+
+    sqlite3_stmt* stmt;
+    int rc = sqlite3_prepare_v2(g_edu_db, sql, -1, &stmt, NULL);
+    if (rc != SQLITE_OK) {
+        CONVERGIO_MUTEX_UNLOCK(&g_edu_db_mutex);
+        return NULL;
+    }
+
+    sqlite3_bind_int64(stmt, 1, student_id);
+
+    // Count rows first
+    int goal_count = 0;
+    while (sqlite3_step(stmt) == SQLITE_ROW) goal_count++;
+
+    if (goal_count == 0) {
+        sqlite3_finalize(stmt);
+        CONVERGIO_MUTEX_UNLOCK(&g_edu_db_mutex);
+        return NULL;
+    }
+
+    // Reset and allocate
+    sqlite3_reset(stmt);
+    EducationGoal** goals = calloc((size_t)goal_count, sizeof(EducationGoal*));
+    if (!goals) {
+        sqlite3_finalize(stmt);
+        CONVERGIO_MUTEX_UNLOCK(&g_edu_db_mutex);
+        return NULL;
+    }
+
+    int i = 0;
+    while (sqlite3_step(stmt) == SQLITE_ROW && i < goal_count) {
+        EducationGoal* goal = calloc(1, sizeof(EducationGoal));
+        if (!goal) continue;
+
+        goal->id = sqlite3_column_int64(stmt, 0);
+        goal->student_id = student_id;
+
+        const char* type_str = (const char*)sqlite3_column_text(stmt, 1);
+        if (type_str) {
+            if (strcmp(type_str, "medium_term") == 0) goal->goal_type = GOAL_MEDIUM_TERM;
+            else if (strcmp(type_str, "long_term") == 0) goal->goal_type = GOAL_LONG_TERM;
+            else goal->goal_type = GOAL_SHORT_TERM;
+        }
+
+        const char* desc = (const char*)sqlite3_column_text(stmt, 2);
+        if (desc) {
+            strncpy(goal->description, desc, EDUCATION_MAX_NOTES_LEN - 1);
+            goal->description[EDUCATION_MAX_NOTES_LEN - 1] = '\0';
+        }
+
+        goal->target_date = sqlite3_column_int64(stmt, 3);
+
+        const char* status_str = (const char*)sqlite3_column_text(stmt, 4);
+        if (status_str) {
+            if (strcmp(status_str, "achieved") == 0) goal->status = GOAL_ACHIEVED;
+            else if (strcmp(status_str, "abandoned") == 0) goal->status = GOAL_ABANDONED;
+            else goal->status = GOAL_ACTIVE;
+        }
+
+        goals[i++] = goal;
+    }
+
+    *count = i;
+    sqlite3_finalize(stmt);
+    CONVERGIO_MUTEX_UNLOCK(&g_edu_db_mutex);
+
+    return goals;
+}
+
+int education_goal_achieve(int64_t goal_id) {
+    if (!g_edu_db) return -1;
+
+    CONVERGIO_MUTEX_LOCK(&g_edu_db_mutex);
+
+    const char* sql = "UPDATE student_goals SET status = 'achieved' WHERE id = ?";
+    sqlite3_stmt* stmt;
+    int rc = sqlite3_prepare_v2(g_edu_db, sql, -1, &stmt, NULL);
+    if (rc != SQLITE_OK) {
+        CONVERGIO_MUTEX_UNLOCK(&g_edu_db_mutex);
+        return -1;
+    }
+
+    sqlite3_bind_int64(stmt, 1, goal_id);
+    rc = sqlite3_step(stmt);
+    sqlite3_finalize(stmt);
+
+    CONVERGIO_MUTEX_UNLOCK(&g_edu_db_mutex);
+    return (rc == SQLITE_DONE) ? 0 : -1;
+}
+
+int education_goal_delete(int64_t goal_id) {
+    if (!g_edu_db) return -1;
+
+    CONVERGIO_MUTEX_LOCK(&g_edu_db_mutex);
+
+    const char* sql = "DELETE FROM student_goals WHERE id = ?";
+    sqlite3_stmt* stmt;
+    int rc = sqlite3_prepare_v2(g_edu_db, sql, -1, &stmt, NULL);
+    if (rc != SQLITE_OK) {
+        CONVERGIO_MUTEX_UNLOCK(&g_edu_db_mutex);
+        return -1;
+    }
+
+    sqlite3_bind_int64(stmt, 1, goal_id);
+    rc = sqlite3_step(stmt);
+    sqlite3_finalize(stmt);
+
+    CONVERGIO_MUTEX_UNLOCK(&g_edu_db_mutex);
+    return (rc == SQLITE_DONE) ? 0 : -1;
+}
+
+void education_goal_list_free(EducationGoal** goals, int count) {
+    if (!goals) return;
+    for (int i = 0; i < count; i++) {
+        if (goals[i]) {
+            // description is a fixed array, no need to free
+            free(goals[i]);
+        }
+    }
+    free(goals);
+}
+
+// ============================================================================
+// MAESTRO BROADCAST (Ali Preside Integration)
+// ============================================================================
+
+int education_maestro_broadcast_profile(int64_t student_id) {
+    // This function notifies all maestri about a student profile
+    // For now, it's a stub that logs the broadcast
+    (void)student_id;
+    printf("[education] Profile broadcast to all maestri (stub implementation)\n");
+    return 0;
+}
+
+// ============================================================================
+// LLM GENERATION STUB (to be replaced by Claude API integration)
+// ============================================================================
+
+__attribute__((weak))
+char* llm_generate(const char* prompt, const char* system_prompt) {
+    // Stub implementation - returns a placeholder response
+    (void)system_prompt;
+    if (!prompt) return NULL;
+
+    // Return a simple placeholder indicating LLM not yet integrated
+    return strdup("[LLM generation not yet integrated - please configure Claude API]");
 }
