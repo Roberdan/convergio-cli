@@ -23,12 +23,26 @@
 // Maximum line length for JSON-RPC
 #define ACP_MAX_LINE_LENGTH 65536
 
+// Maximum messages per session history
+#define ACP_MAX_MESSAGES 100
+
+// Session message (for history)
+typedef struct {
+    char role[16];          // "user" or "assistant"
+    char* content;          // Message content (dynamically allocated)
+    long timestamp;         // Unix timestamp
+} ACPMessage;
+
 // Session state
 typedef struct {
     char session_id[64];
+    char agent_name[64];    // Agent server name (e.g., "Convergio-Ali")
     char cwd[1024];
     bool active;
-    void* orchestrator_ctx;  // Opaque pointer to orchestrator context
+    void* orchestrator_ctx; // Opaque pointer to orchestrator context
+    // Message history for session resume
+    ACPMessage messages[ACP_MAX_MESSAGES];
+    int message_count;
 } ACPSession;
 
 // Server state
@@ -69,5 +83,10 @@ void acp_handle_session_cancel(int request_id, const char* params_json);
 void acp_send_response(int id, const char* result_json);
 void acp_send_error(int id, int code, const char* message);
 void acp_send_notification(const char* method, const char* params_json);
+
+// Session persistence (for resume support)
+int acp_session_save(ACPSession* session);
+ACPSession* acp_session_load(const char* session_id);
+void acp_session_add_message(ACPSession* session, const char* role, const char* content);
 
 #endif // NOUS_ACP_H
