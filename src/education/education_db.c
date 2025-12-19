@@ -13,6 +13,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <inttypes.h>
 #include <unistd.h>
 #include <sys/stat.h>
 #include <sys/param.h>
@@ -837,7 +838,7 @@ int education_accessibility_update(int64_t student_id, const EducationAccessibil
     sqlite3_bind_int(stmt, 3, settings->dyscalculia);
     sqlite3_bind_int(stmt, 4, (int)settings->dyscalculia_severity);
     sqlite3_bind_int(stmt, 5, settings->cerebral_palsy);
-    sqlite3_bind_int(stmt, 6, (int)settings->cp_severity);
+    sqlite3_bind_int(stmt, 6, (int)settings->cerebral_palsy_severity);
     sqlite3_bind_int(stmt, 7, settings->adhd);
     sqlite3_bind_text(stmt, 8, adhd_type_to_string(settings->adhd_type), -1, SQLITE_STATIC);
     sqlite3_bind_int(stmt, 9, settings->autism);

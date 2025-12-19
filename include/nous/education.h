@@ -79,7 +79,10 @@ typedef enum {
 typedef enum {
     INPUT_KEYBOARD = 0,
     INPUT_VOICE = 1,
-    INPUT_BOTH = 2
+    INPUT_BOTH = 2,
+    INPUT_TOUCH = 3,
+    INPUT_SWITCH = 4,
+    INPUT_EYE_TRACKING = 5
 } EducationInputMethod;
 
 /**
@@ -88,7 +91,11 @@ typedef enum {
 typedef enum {
     OUTPUT_TEXT = 0,
     OUTPUT_TTS = 1,
-    OUTPUT_BOTH = 2
+    OUTPUT_BOTH = 2,
+    OUTPUT_VISUAL = 3,
+    OUTPUT_AUDIO = 4,
+    OUTPUT_BRAILLE = 5,
+    OUTPUT_HAPTIC = 6
 } EducationOutputMethod;
 
 /**
@@ -117,7 +124,12 @@ typedef enum {
     TOOLKIT_QUIZ = 1,
     TOOLKIT_FLASHCARD = 2,
     TOOLKIT_AUDIO = 3,
-    TOOLKIT_NOTE = 4
+    TOOLKIT_NOTE = 4,
+    TOOLKIT_SUMMARY = 5,
+    TOOLKIT_FORMULA = 6,
+    TOOLKIT_GRAPH = 7,
+    TOOLKIT_FLOWCHART = 8,
+    TOOLKIT_TIMELINE = 9
 } EducationToolkitType;
 
 // ============================================================================
@@ -126,49 +138,52 @@ typedef enum {
 
 /**
  * @brief Accessibility settings for a student
+ *
+ * All fields are dynamically managed by the database layer.
  */
 typedef struct {
-    // Conditions
+    // Conditions - severity levels and flags
     bool dyslexia;
     EducationSeverity dyslexia_severity;
     bool dyscalculia;
     EducationSeverity dyscalculia_severity;
     bool cerebral_palsy;
-    char cerebral_palsy_notes[EDUCATION_MAX_NOTES_LEN];
+    EducationSeverity cerebral_palsy_severity;
     bool adhd;
     EducationAdhdType adhd_type;
     bool autism;
-    char autism_notes[EDUCATION_MAX_NOTES_LEN];
+    EducationSeverity autism_severity;
     bool visual_impairment;
     bool hearing_impairment;
-    char other_conditions[EDUCATION_MAX_NOTES_LEN];
 
     // Preferences
     EducationInputMethod preferred_input;
     EducationOutputMethod preferred_output;
+    bool tts_enabled;
     float tts_speed;  // 0.5 - 2.0
-    char tts_voice[EDUCATION_MAX_NAME_LEN];
-    char font_family[EDUCATION_MAX_NAME_LEN];
-    int font_size;
-    bool high_contrast;
-    bool reduce_motion;
-    int session_duration_minutes;  // Pomodoro length
-    int break_duration_minutes;
 } EducationAccessibility;
 
 /**
  * @brief Student profile
+ *
+ * All string fields are dynamically allocated. Caller must use
+ * education_profile_free() to properly release memory.
  */
 typedef struct {
     int64_t id;
-    char name[EDUCATION_MAX_NAME_LEN];
+    char* name;                   // Dynamically allocated
     int age;
-    char curriculum_id[EDUCATION_MAX_CURRICULUM_LEN];
-    int curriculum_year;
-    char parent_contact[EDUCATION_MAX_NAME_LEN];
+    int grade_level;              // 1-13 (elementari through liceo)
+    char* curriculum_id;          // Dynamically allocated
+    char* parent_name;            // Dynamically allocated
+    char* parent_email;           // Dynamically allocated
+    char* preferred_language;     // Dynamically allocated (default: "it")
+    char* study_method;           // Dynamically allocated
+    EducationAccessibility* accessibility;  // Pointer to accessibility settings
+    bool is_active;
     time_t created_at;
-    time_t last_active;
-    EducationAccessibility accessibility;
+    time_t updated_at;
+    time_t last_session_at;
 } EducationStudentProfile;
 
 /**
@@ -186,18 +201,23 @@ typedef struct {
 
 /**
  * @brief Learning progress for a topic
+ *
+ * All string fields are dynamically allocated. Use education_progress_free()
+ * to release memory.
  */
 typedef struct {
     int64_t id;
     int64_t student_id;
-    char maestro_id[8];
-    char topic[EDUCATION_MAX_TOPIC_LEN];
-    float skill_level;  // 0.0 - 1.0
+    char* maestro_id;             // Dynamically allocated
+    char* subject;                // Dynamically allocated
+    char* topic;                  // Dynamically allocated
+    char* subtopic;               // Dynamically allocated
+    float skill_level;            // 0.0 - 1.0
+    float confidence;             // 0.0 - 1.0
+    int total_time_spent;         // Total time in minutes
+    int interaction_count;
+    float quiz_score_avg;
     time_t last_interaction;
-    int total_time_minutes;
-    int quiz_attempts;
-    int quiz_correct;
-    char notes[EDUCATION_MAX_NOTES_LEN];
 } EducationProgress;
 
 /**
@@ -273,11 +293,18 @@ typedef struct {
 typedef struct {
     const char* name;
     int age;
+    int grade_level;              // 1-13
     const char* curriculum_id;
-    int curriculum_year;
-    const char* parent_contact;
+    const char* parent_name;
+    const char* parent_email;
     EducationAccessibility* accessibility;
 } EducationCreateOptions;
+
+/**
+ * @brief Options for updating a student profile
+ * Same as EducationCreateOptions - NULL fields are not updated
+ */
+typedef EducationCreateOptions EducationUpdateOptions;
 
 /**
  * @brief Filter options for listing progress
@@ -486,8 +513,7 @@ int education_progress_record(int64_t student_id, const char* maestro_id,
  * @param topic Topic name
  * @return Progress or NULL if not found (caller must free)
  */
-EducationProgress* education_progress_get(int64_t student_id, const char* maestro_id,
-                                          const char* topic);
+EducationProgress* education_progress_get(int64_t student_id, const char* topic);
 
 /**
  * @brief List progress entries with filter
@@ -533,18 +559,16 @@ void education_progress_list_free(EducationProgress** progress, int count);
  * @param topic Topic name
  * @return Session ID on success, -1 on error
  */
-int64_t education_session_start(int64_t student_id, const char* maestro_id, const char* topic);
+int64_t education_session_start(int64_t student_id, const char* session_type,
+                                const char* subject, const char* topic);
 
 /**
  * @brief End a learning session
  * @param session_id Session ID
- * @param engagement_score Engagement score (0.0 - 1.0)
- * @param comprehension_score Comprehension score (0.0 - 1.0)
- * @param notes Session notes
+ * @param xp_earned XP earned during session
  * @return 0 on success, -1 on error
  */
-int education_session_end(int64_t session_id, float engagement_score,
-                          float comprehension_score, const char* notes);
+int education_session_end(int64_t session_id, int xp_earned);
 
 /**
  * @brief Get recent sessions for a student
