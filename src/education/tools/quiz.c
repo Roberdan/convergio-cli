@@ -340,8 +340,9 @@ Quiz* quiz_generate_from_llm(const char* topic, const char* content,
     Quiz* quiz = calloc(1, sizeof(Quiz));
     if (!quiz) return NULL;
 
-    quiz->title = malloc(strlen(topic) + 20);
-    sprintf(quiz->title, "Quiz: %s", topic);
+    size_t title_len = strlen(topic) + 20;
+    quiz->title = malloc(title_len);
+    snprintf(quiz->title, title_len, "Quiz: %s", topic);
     quiz->topic = strdup(topic);
     quiz->difficulty = difficulty;
     quiz->adaptive = (difficulty == DIFFICULTY_ADAPTIVE);
