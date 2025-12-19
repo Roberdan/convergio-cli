@@ -1,9 +1,9 @@
 # Execution Plan: Convergio 6.0 - Zed Integration MVP
 
 **Created**: 2025-12-18
-**Last Updated**: 2025-12-20
-**Status**: ✅ FASE 6 COMPLETATA - All tasks done
-**Progress**: 36/36 tasks (100%) - Convergio 6.0 MVP Complete
+**Last Updated**: 2025-12-20 02:00
+**Status**: 🚧 FASE 7 IN PROGRESS - Ali Historical Memory
+**Progress**: 36/42 tasks (86%) - Bug fix + memory feature
 **Branch**: `feature/acp-zed-integration`
 **Goal**: Editor AI-first con multi-agent panel integrato
 
@@ -147,6 +147,19 @@ FASE 6 (Files):   File tools + context + icons       → ✅ COMPLETATO
 - **IconName enum**: Aggiunto `Convergio` e `ConvergioAli` per utilizzo nelle UI
 - **File**: `crates/ali_panel/src/panel.rs` - Rewrite completo con AcpThreadView
 
+### FASE 7 - Ali Historical Memory 🚧 IN PROGRESS
+
+| ID | Task | Status | Effort | Note |
+|----|------|--------|--------|------|
+| H1 | Fix conversation resume for all agents | 🔄 | 1 gg | HistoryStore async loading race condition |
+| H2 | Ali icon visibility in dock | 🔄 | 0.5 gg | IconName::ConvergioAli deve apparire |
+| H3 | Cross-session memory summaries | ⬜ | 2 gg | Ali genera riassunto conversazioni passate |
+| H4 | Memory storage format | ⬜ | 1 gg | ~/.convergio/memory/ con summaries per agente |
+| H5 | Memory injection in prompts | ⬜ | 1 gg | Ali riceve context storico all'avvio |
+| H6 | Memory search/retrieval | ⬜ | 2 gg | Ali può cercare in memoria storica |
+
+**Obiettivo**: Ali diventa la memoria storica dell'utente. Non i dettagli, ma riassunti di tutte le conversazioni passate per mantenere continuità e contesto nel tempo.
+
 ---
 
 ## ARCHITETTURA ATTUALE
@@ -287,6 +300,10 @@ Ali deve poter:
 | 2025-12-19 | 15:10 | Release build completata: Zed-aarch64.dmg |
 | 2025-12-19 | 15:11 | ✅ **FASE 4 COMPLETATA** - Convergio Studio MVP ready |
 | 2025-12-19 | 15:20 | 🚨 BUG CRITICO: Click agente apre nuova chat invece di riprendere esistente |
+| 2025-12-20 | 00:30 | X8: Ali panel rewrite - AcpThreadView embedded (full chat) |
+| 2025-12-20 | 01:00 | X7: Custom icons aggiunti - convergio.svg, convergio_ali.svg |
+| 2025-12-20 | 01:15 | ✅ Release build completata con Ali full chat |
+| 2025-12-20 | 01:30 | Commits pushati: 86ef57f (icons), a724634 (AliPanel fix) |
 
 ---
 
@@ -305,4 +322,4 @@ Ali deve poter:
 
 ---
 
-**Piano aggiornato**: 2025-12-19 15:20
+**Piano aggiornato: 2025-12-20 01:30
