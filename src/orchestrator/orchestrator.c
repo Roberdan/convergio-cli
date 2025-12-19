@@ -1036,6 +1036,13 @@ char* orchestrator_process(const char* user_input) {
     // Check for delegation requests in final response (supports multiple)
     DelegationList* delegations = parse_all_delegations(final_response);
     if (delegations && delegations->count > 0) {
+        LOG_INFO(LOG_CAT_AGENT, "Found %zu delegation request(s) in Ali's response", delegations->count);
+        for (size_t i = 0; i < delegations->count; i++) {
+            LOG_INFO(LOG_CAT_AGENT, "  Delegation %zu: agent='%s' reason='%s'",
+                     i + 1,
+                     delegations->requests[i]->agent_name ? delegations->requests[i]->agent_name : "(null)",
+                     delegations->requests[i]->reason ? delegations->requests[i]->reason : "(null)");
+        }
         // Execute all delegations in parallel and get synthesized result
         char* synthesized = execute_delegations(delegations, user_input, final_response, g_orchestrator->ali);
         free_delegation_list(delegations);
@@ -1058,10 +1065,26 @@ char* orchestrator_process(const char* user_input) {
             return synthesized;
         }
 
-        // If delegation failed, fall through to return original response
-        // (already freed above, so this shouldn't happen - return error)
+        // If delegation failed, provide specific error message
         free(effective_prompt);
-        return strdup("Error: Delegation failed");
+
+        // Log the failure for debugging
+        LOG_ERROR(LOG_CAT_AGENT, "Delegation failed - execute_delegations returned NULL");
+
+        // Check what went wrong
+        Provider* check_provider = provider_get(PROVIDER_ANTHROPIC);
+        if (!check_provider) {
+            LOG_ERROR(LOG_CAT_AGENT, "Provider check: Anthropic provider is NULL");
+            return strdup("Error: Delegation failed - Anthropic provider not configured. Run /setup");
+        }
+        if (!check_provider->chat) {
+            LOG_ERROR(LOG_CAT_AGENT, "Provider check: chat function is NULL");
+            return strdup("Error: Delegation failed - Provider chat function not available");
+        }
+
+        LOG_ERROR(LOG_CAT_AGENT, "Provider exists but delegation still failed - check agent spawn/response");
+        // Generic failure - agent didn't respond or synthesis failed
+        return strdup("Error: Delegation failed - agent could not be spawned or did not respond. Enable /debug info for details.");
     }
 
     // Save assistant response to persistence and project history
