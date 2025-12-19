@@ -2,8 +2,8 @@
 
 **Created**: 2025-12-19
 **Last Updated**: 2025-12-19 (updated by Claude)
-**Status**: In Progress - BUILD WORKING
-**Progress**: 106/156 tasks (68%) - Build completo funzionante
+**Status**: In Progress - BUILD WORKING, FUNZIONALITA' STUB
+**Progress**: ~25% reale - Build ok ma LLM non integrato, Maestri non esistono
 **Branch**: `feature/education-pack`
 **Worktree**: `../ConvergioCLI-education`
 **Goal**: Sistema educativo con maestri storici, toolkit didattico completo, accessibilita adattiva
@@ -70,18 +70,29 @@ I file esistevano ma c'era un **disallineamento totale** tra `education.h` e le 
 
 ---
 
-## QUICK STATUS
+## QUICK STATUS - VERITA' NUDA E CRUDA
 
 ```
-FASE 1 (Setup):      Profilo studente + Setup wizard              → [x] DONE (DB + Wizard + CLI commands)
-FASE 2 (Maestri):    14 Maestri storici [7 THREAD PARALLELI]      → [x] DONE (14/14)
-FASE 3 (Toolkit):    Tool didattici [10 THREAD PARALLELI]         → [x] DONE (6 tools: mindmap, quiz, flashcards, audio, calculator, linguistic)
-FASE 4 (Curriculum): Liceo Scientifico + altri [3 THREAD]         → [x] DONE (7/7 curricula JSON)
-FASE 5 (Features):   Quiz, compiti, study sessions [4 THREAD]     → [x] DONE (homework.c, study_session.c, progress.c)
-FASE 6 (A11y):       Accessibilita profonda [5 THREAD PARALLELI]  → [ ] TODO (integration pending)
-FASE 7 (Coord):      Ali preside + Anna reminder                  → [~] IN PROGRESS (anna_integration.c done)
-FASE 8 (Test):       Test con utenti reali [5 THREAD]             → [ ] TODO
+FASE 1 (Setup):      Profilo studente + Setup wizard              → [~] PARZIALE - DB ok, wizard NON TESTATO
+FASE 2 (Maestri):    14 Maestri storici [7 THREAD PARALLELI]      → [ ] NON ESISTONO - 0/14 agent definitions
+FASE 3 (Toolkit):    Tool didattici [10 THREAD PARALLELI]         → [~] STUB - file esistono ma llm_generate() e' placeholder
+FASE 4 (Curriculum): Liceo Scientifico + altri [3 THREAD]         → [x] DONE (7/7 curricula JSON esistono)
+FASE 5 (Features):   Quiz, compiti, study sessions [4 THREAD]     → [~] STUB - dipendono da LLM non integrato
+FASE 6 (A11y):       Accessibilita profonda [5 THREAD PARALLELI]  → [ ] TODO - solo struct, zero integrazione
+FASE 7 (Coord):      Ali preside + Anna reminder                  → [~] PARZIALE - anna_integration.c esiste ma non funziona
+FASE 8 (Test):       Test con utenti reali [5 THREAD]             → [ ] TODO - ZERO test eseguiti
 ```
+
+### BLOCCO CRITICO: LLM Integration
+
+**PROBLEMA FONDAMENTALE**: `llm_generate()` ritorna solo `"[LLM not integrated]"`.
+Senza LLM funzionante, NON FUNZIONA:
+- Quiz generation (quiz.c)
+- Homework helper (homework.c)
+- Study session end quiz (study_session.c)
+- Flashcard generation (flashcards.c)
+- Progress suggestions (progress.c)
+- Mind map generation (mindmap.c)
 
 ---
 
