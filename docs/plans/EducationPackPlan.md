@@ -1,9 +1,9 @@
 # Education Pack Implementation Plan
 
 **Created**: 2025-12-19
-**Last Updated**: 2025-12-20 00:15
+**Last Updated**: 2025-12-20 01:30
 **Status**: In Progress
-**Progress**: 47/156 tasks (30%)
+**Progress**: 95/156 tasks (61%)
 **Branch**: `feature/education-pack`
 **Worktree**: `../ConvergioCLI-education`
 **Goal**: Sistema educativo con maestri storici, toolkit didattico completo, accessibilita adattiva
@@ -35,13 +35,13 @@
 ## QUICK STATUS
 
 ```
-FASE 1 (Setup):      Profilo studente + Setup wizard              → [~] IN PROGRESS (DB done, wizard TODO)
+FASE 1 (Setup):      Profilo studente + Setup wizard              → [x] DONE (DB + Wizard + CLI commands)
 FASE 2 (Maestri):    14 Maestri storici [7 THREAD PARALLELI]      → [x] DONE (14/14)
-FASE 3 (Toolkit):    Tool didattici [10 THREAD PARALLELI]         → [~] IN PROGRESS (5 core tools done)
-FASE 4 (Curriculum): Liceo Scientifico + altri [3 THREAD]         → [~] IN PROGRESS (1/7 curricula)
-FASE 5 (Features):   Quiz, compiti, study sessions [4 THREAD]     → [ ] TODO
-FASE 6 (A11y):       Accessibilita profonda [5 THREAD PARALLELI]  → [ ] TODO
-FASE 7 (Coord):      Ali preside + Anna reminder                  → [ ] TODO
+FASE 3 (Toolkit):    Tool didattici [10 THREAD PARALLELI]         → [x] DONE (6 tools: mindmap, quiz, flashcards, audio, calculator, linguistic)
+FASE 4 (Curriculum): Liceo Scientifico + altri [3 THREAD]         → [x] DONE (7/7 curricula JSON)
+FASE 5 (Features):   Quiz, compiti, study sessions [4 THREAD]     → [x] DONE (homework.c, study_session.c, progress.c)
+FASE 6 (A11y):       Accessibilita profonda [5 THREAD PARALLELI]  → [ ] TODO (integration pending)
+FASE 7 (Coord):      Ali preside + Anna reminder                  → [~] IN PROGRESS (anna_integration.c done)
 FASE 8 (Test):       Test con utenti reali [5 THREAD]             → [ ] TODO
 ```
 

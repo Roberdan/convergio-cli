@@ -1,0 +1,713 @@
+{
+  "$schema": "../../schemas/curriculum.schema.json",
+  "id": "liceo_artistico",
+  "name": "Liceo Artistico",
+  "country": "IT",
+  "description": "Curriculum del Liceo Artistico italiano - focus su discipline artistiche e progettuali",
+  "years": 5,
+  "age_range": {
+    "start": 14,
+    "end": 19
+  },
+  "version": "2024.1",
+  "last_updated": "2025-12-19",
+  "subjects": {
+    "italiano": {
+      "maestro": "manzoni-italiano",
+      "hours_per_week": 4,
+      "years": [1, 2, 3, 4, 5]
+    },
+    "inglese": {
+      "maestro": "shakespeare-inglese",
+      "hours_per_week": 3,
+      "years": [1, 2, 3, 4, 5]
+    },
+    "storia": {
+      "maestro": "erodoto-storia",
+      "hours_per_week": 2,
+      "years": [1, 2, 3, 4, 5]
+    },
+    "geografia": {
+      "maestro": "humboldt-geografia",
+      "hours_per_week": 2,
+      "years": [1],
+      "notes": "Only first year"
+    },
+    "filosofia": {
+      "maestro": "socrate-filosofia",
+      "hours_per_week": 2,
+      "years": [3, 4, 5],
+      "notes": "Starts from third year"
+    },
+    "matematica": {
+      "maestro": "euclide-matematica",
+      "hours_per_week": 3,
+      "years": [1, 2, 3, 4, 5]
+    },
+    "fisica": {
+      "maestro": "feynman-fisica",
+      "hours_per_week": 2,
+      "years": [1, 2, 3, 4, 5]
+    },
+    "scienze": {
+      "maestro": "darwin-scienze",
+      "hours_per_week": 2,
+      "years": [1, 2, 3, 4, 5],
+      "notes": "Chemistry focus for art materials"
+    },
+    "storia_arte": {
+      "maestro": "leonardo-arte",
+      "hours_per_week": 3,
+      "years": [1, 2, 3, 4, 5],
+      "notes": "Core theoretical subject"
+    },
+    "discipline_grafiche_pittoriche": {
+      "maestro": "michelangelo-pittura",
+      "hours_per_week": 4,
+      "years": [1, 2],
+      "notes": "First biennium common to all"
+    },
+    "discipline_plastiche_scultoree": {
+      "maestro": "donatello-scultura",
+      "hours_per_week": 3,
+      "years": [1, 2],
+      "notes": "First biennium common to all"
+    },
+    "discipline_geometriche": {
+      "maestro": "brunelleschi-geometria",
+      "hours_per_week": 3,
+      "years": [1, 2],
+      "notes": "Technical drawing and geometry"
+    },
+    "laboratorio_artistico": {
+      "maestro": "leonardo-arte",
+      "hours_per_week": 3,
+      "years": [1, 2],
+      "notes": "Experimental workshop"
+    },
+    "discipline_progettuali": {
+      "maestro": "palladio-architettura",
+      "hours_per_week": 6,
+      "years": [3, 4, 5],
+      "notes": "Specialization subject (varies by indirizzo)"
+    },
+    "laboratorio_indirizzo": {
+      "maestro": "leonardo-arte",
+      "hours_per_week": 6,
+      "years": [3, 4, 5],
+      "notes": "Practical lab for specialization"
+    },
+    "educazione_civica": {
+      "maestro": "cicerone-civica",
+      "hours_per_week": 1,
+      "years": [1, 2, 3, 4, 5],
+      "notes": "Transversal subject"
+    },
+    "educazione_fisica": {
+      "maestro": "ippocrate-corpo",
+      "hours_per_week": 2,
+      "years": [1, 2, 3, 4, 5]
+    }
+  },
+  "curriculum_by_year": {
+    "1": {
+      "year_name": "Primo Anno - Biennio Comune",
+      "total_hours": 34,
+      "subjects": {
+        "italiano": {
+          "units": [
+            {
+              "id": "IT1-01",
+              "title": "Tipologie testuali",
+              "topics": ["narrativo", "descrittivo", "testo visivo"],
+              "hours": 25
+            },
+            {
+              "id": "IT1-02",
+              "title": "Grammatica",
+              "topics": ["morfologia", "sintassi semplice"],
+              "hours": 25
+            },
+            {
+              "id": "IT1-03",
+              "title": "Epica e letteratura",
+              "topics": ["Iliade", "Odissea", "descrizioni epiche"],
+              "hours": 30
+            }
+          ]
+        },
+        "storia_arte": {
+          "units": [
+            {
+              "id": "SA1-01",
+              "title": "Preistoria e civilta antiche",
+              "topics": ["arte rupestre", "Mesopotamia", "Egitto"],
+              "hours": 20
+            },
+            {
+              "id": "SA1-02",
+              "title": "Arte greca",
+              "topics": ["architettura", "scultura arcaica", "ceramica", "ordini"],
+              "hours": 25
+            },
+            {
+              "id": "SA1-03",
+              "title": "Arte romana",
+              "topics": ["architettura", "ritratto", "pittura pompeiana"],
+              "hours": 20
+            }
+          ]
+        },
+        "discipline_grafiche_pittoriche": {
+          "units": [
+            {
+              "id": "DG1-01",
+              "title": "Elementi del disegno",
+              "topics": ["segno", "linea", "chiaroscuro", "textures"],
+              "hours": 30
+            },
+            {
+              "id": "DG1-02",
+              "title": "Teoria del colore",
+              "topics": ["colori primari", "secondari", "complementari", "temperatura"],
+              "hours": 30
+            },
+            {
+              "id": "DG1-03",
+              "title": "Tecniche grafiche",
+              "topics": ["matita", "carboncino", "penna", "acquarello"],
+              "hours": 35
+            },
+            {
+              "id": "DG1-04",
+              "title": "Composizione",
+              "topics": ["equilibrio", "peso visivo", "ritmo", "proporzioni"],
+              "hours": 30
+            }
+          ]
+        },
+        "discipline_plastiche_scultoree": {
+          "units": [
+            {
+              "id": "DP1-01",
+              "title": "Materiali plastici",
+              "topics": ["argilla", "das", "gesso", "proprieta materiali"],
+              "hours": 25
+            },
+            {
+              "id": "DP1-02",
+              "title": "Tecniche base",
+              "topics": ["modellazione", "stampi", "bassorilievo"],
+              "hours": 30
+            },
+            {
+              "id": "DP1-03",
+              "title": "Forme tridimensionali",
+              "topics": ["volume", "spazio", "vuoto e pieno"],
+              "hours": 25
+            }
+          ]
+        },
+        "discipline_geometriche": {
+          "units": [
+            {
+              "id": "DGE1-01",
+              "title": "Strumenti e convenzioni",
+              "topics": ["squadre", "compasso", "normativa", "scale"],
+              "hours": 25
+            },
+            {
+              "id": "DGE1-02",
+              "title": "Proiezioni ortogonali",
+              "topics": ["teoria", "solidi semplici", "gruppi"],
+              "hours": 35
+            },
+            {
+              "id": "DGE1-03",
+              "title": "Assonometrie",
+              "topics": ["isometrica", "cavaliera", "monometrica"],
+              "hours": 30
+            }
+          ]
+        },
+        "laboratorio_artistico": {
+          "units": [
+            {
+              "id": "LA1-01",
+              "title": "Sperimentazione materiali",
+              "topics": ["tecniche miste", "materiali poveri", "riciclo creativo"],
+              "hours": 35
+            },
+            {
+              "id": "LA1-02",
+              "title": "Metodologia progettuale",
+              "topics": ["idea", "bozzetto", "realizzazione", "presentazione"],
+              "hours": 40
+            }
+          ]
+        },
+        "matematica": {
+          "units": [
+            {
+              "id": "MA1-01",
+              "title": "Algebra base",
+              "topics": ["numeri", "calcolo letterale", "equazioni"],
+              "hours": 50
+            },
+            {
+              "id": "MA1-02",
+              "title": "Geometria",
+              "topics": ["piana", "triangoli", "proporzioni auree"],
+              "hours": 35
+            }
+          ]
+        }
+      }
+    },
+    "2": {
+      "year_name": "Secondo Anno - Biennio Comune",
+      "total_hours": 34,
+      "subjects": {
+        "italiano": {
+          "units": [
+            {
+              "id": "IT2-01",
+              "title": "Sintassi periodo",
+              "topics": ["subordinate", "analisi periodo"],
+              "hours": 25
+            },
+            {
+              "id": "IT2-02",
+              "title": "I Promessi Sposi",
+              "topics": ["Manzoni", "descrizioni visive", "ambientazione"],
+              "hours": 35
+            },
+            {
+              "id": "IT2-03",
+              "title": "Poesia e immagini",
+              "topics": ["metrica", "sinestesia", "poesia visiva"],
+              "hours": 25
+            }
+          ]
+        },
+        "storia_arte": {
+          "units": [
+            {
+              "id": "SA2-01",
+              "title": "Arte paleocristiana e bizantina",
+              "topics": ["catacombe", "basiliche", "mosaici", "icone"],
+              "hours": 20
+            },
+            {
+              "id": "SA2-02",
+              "title": "Romanico",
+              "topics": ["architettura", "scultura", "pittura", "chiese"],
+              "hours": 25
+            },
+            {
+              "id": "SA2-03",
+              "title": "Gotico",
+              "topics": ["cattedrali", "vetrate", "Giotto", "prospettiva"],
+              "hours": 25
+            }
+          ]
+        },
+        "discipline_grafiche_pittoriche": {
+          "units": [
+            {
+              "id": "DG2-01",
+              "title": "Disegno dal vero",
+              "topics": ["natura morta", "figura umana base", "prospettiva intuitiva"],
+              "hours": 40
+            },
+            {
+              "id": "DG2-02",
+              "title": "Pittura",
+              "topics": ["tempera", "acrilico", "stesure", "velature"],
+              "hours": 40
+            },
+            {
+              "id": "DG2-03",
+              "title": "Grafica",
+              "topics": ["illustrazione", "lettering base", "layout"],
+              "hours": 35
+            }
+          ]
+        },
+        "discipline_plastiche_scultoree": {
+          "units": [
+            {
+              "id": "DP2-01",
+              "title": "Scultura a tutto tondo",
+              "topics": ["modellazione figura", "anatomia artistica base"],
+              "hours": 35
+            },
+            {
+              "id": "DP2-02",
+              "title": "Tecniche avanzate",
+              "topics": ["calco", "patine", "formatura"],
+              "hours": 30
+            },
+            {
+              "id": "DP2-03",
+              "title": "Installazioni",
+              "topics": ["spazio", "relazione opera-ambiente"],
+              "hours": 25
+            }
+          ]
+        },
+        "discipline_geometriche": {
+          "units": [
+            {
+              "id": "DGE2-01",
+              "title": "Prospettiva",
+              "topics": ["centrale", "accidentale", "teoria ombre"],
+              "hours": 40
+            },
+            {
+              "id": "DGE2-02",
+              "title": "Sezioni e sviluppi",
+              "topics": ["sezioni piane", "sviluppi solidi"],
+              "hours": 30
+            },
+            {
+              "id": "DGE2-03",
+              "title": "CAD base",
+              "topics": ["AutoCAD", "disegno digitale 2D"],
+              "hours": 20
+            }
+          ]
+        }
+      }
+    },
+    "3": {
+      "year_name": "Terzo Anno - Triennio Indirizzo",
+      "total_hours": 35,
+      "subjects": {
+        "italiano": {
+          "units": [
+            {
+              "id": "IT3-01",
+              "title": "Letteratura origini",
+              "topics": ["scuola siciliana", "stil novo"],
+              "hours": 25
+            },
+            {
+              "id": "IT3-02",
+              "title": "Dante",
+              "topics": ["Inferno", "allegoria visiva"],
+              "hours": 45
+            },
+            {
+              "id": "IT3-03",
+              "title": "Petrarca e Boccaccio",
+              "topics": ["Canzoniere", "Decameron", "descrizioni"],
+              "hours": 30
+            }
+          ]
+        },
+        "storia_arte": {
+          "units": [
+            {
+              "id": "SA3-01",
+              "title": "Rinascimento",
+              "topics": ["Brunelleschi", "Donatello", "Masaccio", "prospettiva"],
+              "hours": 30
+            },
+            {
+              "id": "SA3-02",
+              "title": "Rinascimento maturo",
+              "topics": ["Leonardo", "Michelangelo", "Raffaello"],
+              "hours": 35
+            },
+            {
+              "id": "SA3-03",
+              "title": "Manierismo",
+              "topics": ["crisi rinascimentale", "Pontormo", "Parmigianino"],
+              "hours": 25
+            }
+          ]
+        },
+        "discipline_progettuali": {
+          "units": [
+            {
+              "id": "PR3-01",
+              "title": "Metodologia progettuale",
+              "topics": ["brief", "ricerca", "concept", "sviluppo"],
+              "hours": 50
+            },
+            {
+              "id": "PR3-02",
+              "title": "Progetto grafico (indirizzo grafica)",
+              "topics": ["logo", "marchio", "coordinate immagine", "manifesto"],
+              "hours": 60,
+              "notes": "Per indirizzo Grafica"
+            },
+            {
+              "id": "PR3-03",
+              "title": "Progetto architettura (indirizzo architettura)",
+              "topics": ["abitazione", "funzione", "struttura", "contesto"],
+              "hours": 60,
+              "notes": "Per indirizzo Architettura"
+            },
+            {
+              "id": "PR3-04",
+              "title": "Progetto design (indirizzo design)",
+              "topics": ["oggetto d'uso", "ergonomia", "materiali", "prototipo"],
+              "hours": 60,
+              "notes": "Per indirizzo Design"
+            }
+          ]
+        },
+        "laboratorio_indirizzo": {
+          "units": [
+            {
+              "id": "LI3-01",
+              "title": "Tecniche laboratorio",
+              "topics": ["stampa", "serigrafia", "digitale", "fotografia"],
+              "hours": 70,
+              "notes": "Varia per indirizzo"
+            },
+            {
+              "id": "LI3-02",
+              "title": "Realizzazione progetti",
+              "topics": ["esecutivi", "prototipi", "mockup", "presentazione"],
+              "hours": 80
+            }
+          ]
+        },
+        "filosofia": {
+          "units": [
+            {
+              "id": "FI3-01",
+              "title": "Filosofia antica",
+              "topics": ["presocratici", "Socrate", "Platone (teoria bellezza)", "Aristotele"],
+              "hours": 60
+            }
+          ]
+        }
+      }
+    },
+    "4": {
+      "year_name": "Quarto Anno - Triennio Indirizzo",
+      "total_hours": 35,
+      "subjects": {
+        "italiano": {
+          "units": [
+            {
+              "id": "IT4-01",
+              "title": "Rinascimento",
+              "topics": ["Ariosto", "Machiavelli", "trattatistica arte"],
+              "hours": 30
+            },
+            {
+              "id": "IT4-02",
+              "title": "Barocco e Illuminismo",
+              "topics": ["Marino", "Goldoni", "estetica"],
+              "hours": 30
+            },
+            {
+              "id": "IT4-03",
+              "title": "Dante Purgatorio",
+              "topics": ["seconda cantica", "purgatorio artistico"],
+              "hours": 25
+            }
+          ]
+        },
+        "storia_arte": {
+          "units": [
+            {
+              "id": "SA4-01",
+              "title": "Barocco",
+              "topics": ["Caravaggio", "Bernini", "Borromini", "illusionismo"],
+              "hours": 30
+            },
+            {
+              "id": "SA4-02",
+              "title": "Settecento",
+              "topics": ["Rococo", "Neoclassicismo", "Canova", "David"],
+              "hours": 30
+            },
+            {
+              "id": "SA4-03",
+              "title": "Romanticismo",
+              "topics": ["Friedrich", "Turner", "Delacroix", "Hayez"],
+              "hours": 30
+            }
+          ]
+        },
+        "discipline_progettuali": {
+          "units": [
+            {
+              "id": "PR4-01",
+              "title": "Progetti complessi",
+              "topics": ["campagne", "sistemi", "coordinato", "brand identity"],
+              "hours": 80
+            },
+            {
+              "id": "PR4-02",
+              "title": "Teoria progetto",
+              "topics": ["storia design", "movimenti", "maestri"],
+              "hours": 40
+            },
+            {
+              "id": "PR4-03",
+              "title": "Portfolio",
+              "topics": ["presentazione", "book", "digital portfolio"],
+              "hours": 30
+            }
+          ]
+        },
+        "laboratorio_indirizzo": {
+          "units": [
+            {
+              "id": "LI4-01",
+              "title": "Tecniche avanzate",
+              "topics": ["software professionale", "Adobe Suite", "rendering", "3D"],
+              "hours": 80
+            },
+            {
+              "id": "LI4-02",
+              "title": "Progetti completi",
+              "topics": ["dalla ideazione alla realizzazione finale"],
+              "hours": 70
+            }
+          ]
+        },
+        "filosofia": {
+          "units": [
+            {
+              "id": "FI4-01",
+              "title": "Filosofia moderna",
+              "topics": ["Umanesimo", "razionalismo", "empirismo", "Kant (estetica)"],
+              "hours": 60
+            }
+          ]
+        }
+      }
+    },
+    "5": {
+      "year_name": "Quinto Anno - Triennio Indirizzo",
+      "total_hours": 35,
+      "subjects": {
+        "italiano": {
+          "units": [
+            {
+              "id": "IT5-01",
+              "title": "Ottocento",
+              "topics": ["Foscolo", "Leopardi", "Verga", "naturalismo"],
+              "hours": 35
+            },
+            {
+              "id": "IT5-02",
+              "title": "Novecento",
+              "topics": ["Futurismo", "D'Annunzio", "Pirandello", "avanguardie"],
+              "hours": 40
+            },
+            {
+              "id": "IT5-03",
+              "title": "Dante Paradiso",
+              "topics": ["terza cantica", "luce e colore"],
+              "hours": 25
+            }
+          ]
+        },
+        "storia_arte": {
+          "units": [
+            {
+              "id": "SA5-01",
+              "title": "Ottocento",
+              "topics": ["Realismo", "Impressionismo", "Post-impressionismo"],
+              "hours": 35
+            },
+            {
+              "id": "SA5-02",
+              "title": "Primo Novecento",
+              "topics": ["Espressionismo", "Cubismo", "Futurismo", "Astrattismo"],
+              "hours": 35
+            },
+            {
+              "id": "SA5-03",
+              "title": "Secondo Novecento",
+              "topics": ["Pop Art", "Minimalismo", "Arte concettuale", "contemporanea"],
+              "hours": 30
+            }
+          ]
+        },
+        "discipline_progettuali": {
+          "units": [
+            {
+              "id": "PR5-01",
+              "title": "Progetto tesi",
+              "topics": ["tema", "ricerca", "sviluppo completo", "relazione"],
+              "hours": 100
+            },
+            {
+              "id": "PR5-02",
+              "title": "Professione e mercato",
+              "topics": ["freelance", "studio", "clienti", "preventivi"],
+              "hours": 30
+            },
+            {
+              "id": "PR5-03",
+              "title": "Tendenze contemporanee",
+              "topics": ["design thinking", "UX/UI", "sostenibilita"],
+              "hours": 20
+            }
+          ]
+        },
+        "laboratorio_indirizzo": {
+          "units": [
+            {
+              "id": "LI5-01",
+              "title": "Realizzazione tesi",
+              "topics": ["progetto finale", "esecuzione", "presentazione"],
+              "hours": 120
+            },
+            {
+              "id": "LI5-02",
+              "title": "Allestimento mostra",
+              "topics": ["curatela", "display", "comunicazione"],
+              "hours": 30
+            }
+          ]
+        },
+        "filosofia": {
+          "units": [
+            {
+              "id": "FI5-01",
+              "title": "Filosofia contemporanea",
+              "topics": ["idealismo", "Nietzsche", "estetica contemporanea", "Adorno", "Benjamin"],
+              "hours": 60
+            }
+          ]
+        }
+      }
+    }
+  },
+  "accessibility_notes": {
+    "dyslexia": "Visual learning emphasis, less text-heavy materials",
+    "dyscalculia": "Geometric concepts taught visually and practically",
+    "adhd": "Hands-on activities, frequent practical work",
+    "autism": "Clear visual instructions, structured creative process",
+    "cerebral_palsy": "Adaptive tools, digital alternatives to manual work"
+  },
+  "exam_preparation": {
+    "esame_di_stato": {
+      "year": 5,
+      "structure": {
+        "prima_prova": "Italian essay",
+        "seconda_prova": "Project design (24-48 hours)",
+        "oral": "Thesis project presentation and cross-disciplinary discussion"
+      }
+    }
+  },
+  "indirizzi_available": {
+    "arti_figurative": "Painting, sculpture, traditional arts",
+    "architettura_ambiente": "Architectural design, urban planning",
+    "design": "Industrial design, product design",
+    "grafica": "Graphic design, visual communication",
+    "scenografia": "Theatre, film, exhibition design",
+    "audiovisivo_multimediale": "Photography, video, digital media"
+  }
+}

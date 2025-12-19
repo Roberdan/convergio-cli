@@ -1,0 +1,777 @@
+{
+  "$schema": "../../schemas/curriculum.schema.json",
+  "id": "scuola_primaria",
+  "name": "Scuola Primaria",
+  "country": "IT",
+  "description": "Curriculum della Scuola Primaria italiana (elementari)",
+  "years": 5,
+  "age_range": {
+    "start": 6,
+    "end": 11
+  },
+  "version": "2024.1",
+  "last_updated": "2025-12-19",
+  "subjects": {
+    "italiano": {
+      "maestro": "maestro-elementare",
+      "hours_per_week": 7,
+      "years": [1, 2, 3, 4, 5],
+      "notes": "Lettura, scrittura, grammatica"
+    },
+    "matematica": {
+      "maestro": "maestro-elementare",
+      "hours_per_week": 6,
+      "years": [1, 2, 3, 4, 5]
+    },
+    "scienze": {
+      "maestro": "maestro-elementare",
+      "hours_per_week": 2,
+      "years": [1, 2, 3, 4, 5]
+    },
+    "storia": {
+      "maestro": "maestro-elementare",
+      "hours_per_week": 2,
+      "years": [1, 2, 3, 4, 5]
+    },
+    "geografia": {
+      "maestro": "maestro-elementare",
+      "hours_per_week": 2,
+      "years": [1, 2, 3, 4, 5]
+    },
+    "inglese": {
+      "maestro": "shakespeare-inglese",
+      "hours_per_week": 1,
+      "years": [1, 2],
+      "notes": "1 hour first two years"
+    },
+    "inglese_advanced": {
+      "maestro": "shakespeare-inglese",
+      "hours_per_week": 3,
+      "years": [3, 4, 5],
+      "notes": "3 hours years 3-5"
+    },
+    "arte": {
+      "maestro": "maestro-elementare",
+      "hours_per_week": 1,
+      "years": [1, 2, 3, 4, 5]
+    },
+    "musica": {
+      "maestro": "mozart-musica",
+      "hours_per_week": 1,
+      "years": [1, 2, 3, 4, 5]
+    },
+    "educazione_fisica": {
+      "maestro": "maestro-elementare",
+      "hours_per_week": 2,
+      "years": [1, 2, 3, 4, 5]
+    },
+    "tecnologia": {
+      "maestro": "maestro-elementare",
+      "hours_per_week": 1,
+      "years": [1, 2, 3, 4, 5]
+    },
+    "religione": {
+      "maestro": "generic",
+      "hours_per_week": 2,
+      "years": [1, 2, 3, 4, 5],
+      "notes": "Optional"
+    },
+    "educazione_civica": {
+      "maestro": "maestro-elementare",
+      "hours_per_week": 1,
+      "years": [1, 2, 3, 4, 5],
+      "notes": "Transversal, 33 hours/year"
+    }
+  },
+  "curriculum_by_year": {
+    "1": {
+      "year_name": "Prima Elementare",
+      "total_hours": 27,
+      "focus": "Alfabetizzazione, numeri fino a 20, socializzazione",
+      "subjects": {
+        "italiano": {
+          "units": [
+            {
+              "id": "IT1-01",
+              "title": "Pre-lettura e pre-scrittura",
+              "topics": ["vocali", "consonanti", "sillabe", "parole semplici"],
+              "hours": 60
+            },
+            {
+              "id": "IT1-02",
+              "title": "Lettura",
+              "topics": ["stampato maiuscolo", "parole", "frasi semplici", "comprensione"],
+              "hours": 50
+            },
+            {
+              "id": "IT1-03",
+              "title": "Scrittura",
+              "topics": ["pregrafismo", "lettere", "parole", "frasi"],
+              "hours": 50
+            },
+            {
+              "id": "IT1-04",
+              "title": "Ascolto e parlato",
+              "topics": ["racconti", "conversazione", "esposizione"],
+              "hours": 40
+            }
+          ]
+        },
+        "matematica": {
+          "units": [
+            {
+              "id": "MA1-01",
+              "title": "Numeri fino a 20",
+              "topics": ["conta", "confronto", "ordinamento", "quantita"],
+              "hours": 50
+            },
+            {
+              "id": "MA1-02",
+              "title": "Operazioni base",
+              "topics": ["addizione", "sottrazione", "problemi semplici"],
+              "hours": 50
+            },
+            {
+              "id": "MA1-03",
+              "title": "Forme e spazio",
+              "topics": ["figure geometriche", "sopra/sotto", "dentro/fuori"],
+              "hours": 30
+            },
+            {
+              "id": "MA1-04",
+              "title": "Misure",
+              "topics": ["lungo/corto", "grande/piccolo", "confronti"],
+              "hours": 20
+            }
+          ]
+        },
+        "scienze": {
+          "units": [
+            {
+              "id": "SC1-01",
+              "title": "I cinque sensi",
+              "topics": ["vista", "udito", "tatto", "gusto", "olfatto"],
+              "hours": 15
+            },
+            {
+              "id": "SC1-02",
+              "title": "Esseri viventi e non viventi",
+              "topics": ["animali", "piante", "oggetti", "differenze"],
+              "hours": 20
+            },
+            {
+              "id": "SC1-03",
+              "title": "Le stagioni",
+              "topics": ["autunno", "inverno", "primavera", "estate", "cambiamenti"],
+              "hours": 15
+            }
+          ]
+        },
+        "storia": {
+          "units": [
+            {
+              "id": "ST1-01",
+              "title": "Il tempo",
+              "topics": ["prima/dopo", "giorno/notte", "settimana", "mesi"],
+              "hours": 25
+            },
+            {
+              "id": "ST1-02",
+              "title": "La mia storia",
+              "topics": ["io oggi", "quando ero piccolo", "crescita"],
+              "hours": 20
+            }
+          ]
+        },
+        "geografia": {
+          "units": [
+            {
+              "id": "GE1-01",
+              "title": "Gli spazi",
+              "topics": ["casa", "scuola", "quartiere", "orientamento"],
+              "hours": 25
+            },
+            {
+              "id": "GE1-02",
+              "title": "Elementi del paesaggio",
+              "topics": ["montagna", "pianura", "mare", "fiume"],
+              "hours": 20
+            }
+          ]
+        },
+        "inglese": {
+          "units": [
+            {
+              "id": "EN1-01",
+              "title": "First English",
+              "topics": ["hello/goodbye", "colors", "numbers 1-10", "animals", "songs"],
+              "hours": 30
+            }
+          ]
+        },
+        "arte": {
+          "units": [
+            {
+              "id": "AR1-01",
+              "title": "Espressione artistica",
+              "topics": ["colori primari", "disegno libero", "collage", "manipolazione"],
+              "hours": 30
+            }
+          ]
+        },
+        "educazione_fisica": {
+          "units": [
+            {
+              "id": "EF1-01",
+              "title": "Schemi motori",
+              "topics": ["camminare", "correre", "saltare", "lanciare", "giochi"],
+              "hours": 60
+            }
+          ]
+        }
+      }
+    },
+    "2": {
+      "year_name": "Seconda Elementare",
+      "total_hours": 27,
+      "focus": "Consolidamento lettura/scrittura, numeri fino a 100",
+      "subjects": {
+        "italiano": {
+          "units": [
+            {
+              "id": "IT2-01",
+              "title": "Lettura fluente",
+              "topics": ["stampato minuscolo", "corsivo", "comprensione testi"],
+              "hours": 60
+            },
+            {
+              "id": "IT2-02",
+              "title": "Scrittura autonoma",
+              "topics": ["frasi", "brevi testi", "punteggiatura base"],
+              "hours": 55
+            },
+            {
+              "id": "IT2-03",
+              "title": "Grammatica base",
+              "topics": ["nome", "articolo", "aggettivo", "verbo (presente)"],
+              "hours": 45
+            },
+            {
+              "id": "IT2-04",
+              "title": "Tipologie testuali",
+              "topics": ["racconto", "descrizione", "filastrocca"],
+              "hours": 40
+            }
+          ]
+        },
+        "matematica": {
+          "units": [
+            {
+              "id": "MA2-01",
+              "title": "Numeri fino a 100",
+              "topics": ["decine e unita", "valore posizionale", "confronto"],
+              "hours": 50
+            },
+            {
+              "id": "MA2-02",
+              "title": "Operazioni",
+              "topics": ["addizioni e sottrazioni con riporto", "moltiplicazione intro"],
+              "hours": 55
+            },
+            {
+              "id": "MA2-03",
+              "title": "Problemi",
+              "topics": ["problemi con addizione", "problemi con sottrazione"],
+              "hours": 30
+            },
+            {
+              "id": "MA2-04",
+              "title": "Geometria",
+              "topics": ["linee", "angoli", "poligoni semplici"],
+              "hours": 25
+            }
+          ]
+        },
+        "scienze": {
+          "units": [
+            {
+              "id": "SC2-01",
+              "title": "Gli animali",
+              "topics": ["vertebrati", "invertebrati", "habitat", "nutrizione"],
+              "hours": 25
+            },
+            {
+              "id": "SC2-02",
+              "title": "Le piante",
+              "topics": ["parti pianta", "fotosintesi semplice", "ciclo vita"],
+              "hours": 25
+            }
+          ]
+        },
+        "storia": {
+          "units": [
+            {
+              "id": "ST2-01",
+              "title": "Tempo ciclico e lineare",
+              "topics": ["calendario", "orologio", "linea del tempo"],
+              "hours": 20
+            },
+            {
+              "id": "ST2-02",
+              "title": "Fonti storiche",
+              "topics": ["documenti", "oggetti", "testimonianze", "storia familiare"],
+              "hours": 25
+            }
+          ]
+        },
+        "geografia": {
+          "units": [
+            {
+              "id": "GE2-01",
+              "title": "La citta",
+              "topics": ["pianta", "servizi", "edifici", "funzioni"],
+              "hours": 25
+            },
+            {
+              "id": "GE2-02",
+              "title": "Ambienti naturali",
+              "topics": ["montagna", "collina", "pianura", "mare", "caratteristiche"],
+              "hours": 25
+            }
+          ]
+        },
+        "inglese": {
+          "units": [
+            {
+              "id": "EN2-01",
+              "title": "Basic English",
+              "topics": ["numbers to 20", "family", "body parts", "classroom objects", "simple phrases"],
+              "hours": 30
+            }
+          ]
+        }
+      }
+    },
+    "3": {
+      "year_name": "Terza Elementare",
+      "total_hours": 29,
+      "focus": "Numeri fino a 1000, testi complessi, storia antica",
+      "subjects": {
+        "italiano": {
+          "units": [
+            {
+              "id": "IT3-01",
+              "title": "Lettura espressiva",
+              "topics": ["testi narrativi", "testi informativi", "poesie"],
+              "hours": 55
+            },
+            {
+              "id": "IT3-02",
+              "title": "Produzione testi",
+              "topics": ["racconto", "descrizione", "lettera", "diario"],
+              "hours": 50
+            },
+            {
+              "id": "IT3-03",
+              "title": "Grammatica",
+              "topics": ["nome", "articolo", "aggettivo", "verbo (tutti tempi semplici)", "preposizione"],
+              "hours": 50
+            },
+            {
+              "id": "IT3-04",
+              "title": "Arricchimento lessicale",
+              "topics": ["sinonimi", "contrari", "campi semantici"],
+              "hours": 30
+            }
+          ]
+        },
+        "matematica": {
+          "units": [
+            {
+              "id": "MA3-01",
+              "title": "Numeri fino a 1000",
+              "topics": ["centinaia", "valore posizionale", "operazioni"],
+              "hours": 50
+            },
+            {
+              "id": "MA3-02",
+              "title": "Moltiplicazione e divisione",
+              "topics": ["tabelline", "moltiplicazione in colonna", "divisione"],
+              "hours": 55
+            },
+            {
+              "id": "MA3-03",
+              "title": "Frazioni",
+              "topics": ["meta", "terzi", "quarti", "rappresentazione"],
+              "hours": 30
+            },
+            {
+              "id": "MA3-04",
+              "title": "Geometria e misure",
+              "topics": ["perimetro", "area", "metro", "litro", "kilogrammo"],
+              "hours": 35
+            }
+          ]
+        },
+        "scienze": {
+          "units": [
+            {
+              "id": "SC3-01",
+              "title": "La materia",
+              "topics": ["stati", "proprieta", "trasformazioni"],
+              "hours": 20
+            },
+            {
+              "id": "SC3-02",
+              "title": "Acqua e aria",
+              "topics": ["ciclo acqua", "atmosfera", "fenomeni meteorologici"],
+              "hours": 20
+            },
+            {
+              "id": "SC3-03",
+              "title": "Ecosistemi",
+              "topics": ["catene alimentari", "habitat", "relazioni"],
+              "hours": 20
+            }
+          ]
+        },
+        "storia": {
+          "units": [
+            {
+              "id": "ST3-01",
+              "title": "Preistoria",
+              "topics": ["Paleolitico", "Neolitico", "eta dei metalli"],
+              "hours": 30
+            },
+            {
+              "id": "ST3-02",
+              "title": "Prime civilta",
+              "topics": ["Mesopotamia", "Egitto", "civilta fluviali"],
+              "hours": 30
+            }
+          ]
+        },
+        "geografia": {
+          "units": [
+            {
+              "id": "GE3-01",
+              "title": "Elementi territorio",
+              "topics": ["fiumi", "laghi", "mari", "montagne"],
+              "hours": 30
+            },
+            {
+              "id": "GE3-02",
+              "title": "Italia fisica",
+              "topics": ["regioni fisiche", "Alpi", "Appennini", "pianure"],
+              "hours": 30
+            }
+          ]
+        },
+        "inglese": {
+          "units": [
+            {
+              "id": "EN3-01",
+              "title": "English A1",
+              "topics": ["present simple", "possessives", "house", "food", "daily routine"],
+              "hours": 75
+            }
+          ]
+        }
+      }
+    },
+    "4": {
+      "year_name": "Quarta Elementare",
+      "total_hours": 29,
+      "focus": "Grandi numeri, civilta antiche, metodo di studio",
+      "subjects": {
+        "italiano": {
+          "units": [
+            {
+              "id": "IT4-01",
+              "title": "Comprensione avanzata",
+              "topics": ["testi complessi", "inferenze", "analisi"],
+              "hours": 55
+            },
+            {
+              "id": "IT4-02",
+              "title": "Scrittura elaborata",
+              "topics": ["testo narrativo", "descrittivo", "regolativo", "riassunto"],
+              "hours": 50
+            },
+            {
+              "id": "IT4-03",
+              "title": "Morfologia",
+              "topics": ["verbi tempi composti", "pronomi", "congiunzioni", "avverbi"],
+              "hours": 50
+            },
+            {
+              "id": "IT4-04",
+              "title": "Sintassi base",
+              "topics": ["soggetto", "predicato", "complemento oggetto"],
+              "hours": 30
+            }
+          ]
+        },
+        "matematica": {
+          "units": [
+            {
+              "id": "MA4-01",
+              "title": "Numeri grandi",
+              "topics": ["migliaia", "milioni", "numeri decimali"],
+              "hours": 50
+            },
+            {
+              "id": "MA4-02",
+              "title": "Operazioni complesse",
+              "topics": ["espressioni", "proprieta", "problemi con piu operazioni"],
+              "hours": 50
+            },
+            {
+              "id": "MA4-03",
+              "title": "Frazioni decimali",
+              "topics": ["numeri decimali", "equivalenze", "percentuali"],
+              "hours": 35
+            },
+            {
+              "id": "MA4-04",
+              "title": "Geometria",
+              "topics": ["triangoli", "quadrilateri", "perimetro", "area"],
+              "hours": 35
+            }
+          ]
+        },
+        "scienze": {
+          "units": [
+            {
+              "id": "SC4-01",
+              "title": "Energia",
+              "topics": ["fonti", "trasformazioni", "calore", "luce"],
+              "hours": 20
+            },
+            {
+              "id": "SC4-02",
+              "title": "Il corpo umano",
+              "topics": ["apparato digerente", "respiratorio", "circolatorio"],
+              "hours": 25
+            },
+            {
+              "id": "SC4-03",
+              "title": "La Terra",
+              "topics": ["struttura", "vulcani", "terremoti", "rocce"],
+              "hours": 20
+            }
+          ]
+        },
+        "storia": {
+          "units": [
+            {
+              "id": "ST4-01",
+              "title": "Civilta mediterranee",
+              "topics": ["Fenici", "Ebrei", "Cretesi", "Micenei"],
+              "hours": 25
+            },
+            {
+              "id": "ST4-02",
+              "title": "La Grecia",
+              "topics": ["poleis", "Atene", "Sparta", "cultura greca"],
+              "hours": 30
+            },
+            {
+              "id": "ST4-03",
+              "title": "Roma antica",
+              "topics": ["origini", "monarchia", "inizio repubblica"],
+              "hours": 25
+            }
+          ]
+        },
+        "geografia": {
+          "units": [
+            {
+              "id": "GE4-01",
+              "title": "Regioni italiane",
+              "topics": ["regioni Nord", "regioni Centro", "caratteristiche"],
+              "hours": 30
+            },
+            {
+              "id": "GE4-02",
+              "title": "Clima e ambiente",
+              "topics": ["fasce climatiche", "ambienti Italia"],
+              "hours": 30
+            }
+          ]
+        },
+        "inglese": {
+          "units": [
+            {
+              "id": "EN4-01",
+              "title": "English A1+",
+              "topics": ["past simple", "can/can't", "there is/are", "shops", "hobbies", "weather"],
+              "hours": 75
+            }
+          ]
+        }
+      }
+    },
+    "5": {
+      "year_name": "Quinta Elementare",
+      "total_hours": 29,
+      "focus": "Preparazione scuola media, storia completa, Italia",
+      "subjects": {
+        "italiano": {
+          "units": [
+            {
+              "id": "IT5-01",
+              "title": "Letteratura per ragazzi",
+              "topics": ["romanzi", "racconti", "poesia", "autori"],
+              "hours": 55
+            },
+            {
+              "id": "IT5-02",
+              "title": "Scrittura matura",
+              "topics": ["testo argomentativo", "tema", "relazione", "verbale"],
+              "hours": 50
+            },
+            {
+              "id": "IT5-03",
+              "title": "Analisi grammaticale completa",
+              "topics": ["tutte parti discorso", "analisi completa"],
+              "hours": 45
+            },
+            {
+              "id": "IT5-04",
+              "title": "Analisi logica",
+              "topics": ["soggetto", "predicati", "complementi principali"],
+              "hours": 35
+            }
+          ]
+        },
+        "matematica": {
+          "units": [
+            {
+              "id": "MA5-01",
+              "title": "Numeri e operazioni",
+              "topics": ["potenze", "multipli e divisori", "criteri divisibilita"],
+              "hours": 45
+            },
+            {
+              "id": "MA5-02",
+              "title": "Problemi complessi",
+              "topics": ["percentuali", "sconto", "interesse", "grafici"],
+              "hours": 40
+            },
+            {
+              "id": "MA5-03",
+              "title": "Geometria solida",
+              "topics": ["cubo", "parallelepipedo", "volume", "sviluppo"],
+              "hours": 40
+            },
+            {
+              "id": "MA5-04",
+              "title": "Statistica base",
+              "topics": ["media", "moda", "mediana", "probabilita"],
+              "hours": 30
+            }
+          ]
+        },
+        "scienze": {
+          "units": [
+            {
+              "id": "SC5-01",
+              "title": "Sistema solare",
+              "topics": ["pianeti", "movimenti Terra", "Luna", "eclissi"],
+              "hours": 20
+            },
+            {
+              "id": "SC5-02",
+              "title": "Corpo umano completo",
+              "topics": ["nervoso", "muscolare", "scheletrico", "riproduttivo"],
+              "hours": 25
+            },
+            {
+              "id": "SC5-03",
+              "title": "Educazione ambientale",
+              "topics": ["ecosistemi", "biodiversita", "sostenibilita"],
+              "hours": 20
+            }
+          ]
+        },
+        "storia": {
+          "units": [
+            {
+              "id": "ST5-01",
+              "title": "Roma imperiale",
+              "topics": ["impero", "Augusto", "cristianesimo", "caduta"],
+              "hours": 25
+            },
+            {
+              "id": "ST5-02",
+              "title": "Medioevo",
+              "topics": ["invasioni", "feudalesimo", "Comuni", "Signorie"],
+              "hours": 25
+            },
+            {
+              "id": "ST5-03",
+              "title": "Eta moderna",
+              "topics": ["scoperte geografiche", "Rinascimento", "Riforma"],
+              "hours": 20
+            }
+          ]
+        },
+        "geografia": {
+          "units": [
+            {
+              "id": "GE5-01",
+              "title": "Italia completa",
+              "topics": ["tutte regioni", "economia", "popolazione"],
+              "hours": 30
+            },
+            {
+              "id": "GE5-02",
+              "title": "Europa",
+              "topics": ["stati principali", "Unione Europea", "geografia fisica"],
+              "hours": 25
+            },
+            {
+              "id": "GE5-03",
+              "title": "Mondo",
+              "topics": ["continenti", "globalizzazione", "culture"],
+              "hours": 15
+            }
+          ]
+        },
+        "inglese": {
+          "units": [
+            {
+              "id": "EN5-01",
+              "title": "English A2",
+              "topics": ["present perfect", "comparatives", "superlatives", "travel", "technology"],
+              "hours": 75
+            }
+          ]
+        }
+      }
+    }
+  },
+  "accessibility_notes": {
+    "dyslexia": "Simplified fonts, audio support, visual aids, extended time",
+    "dyscalculia": "Concrete materials, visual math, calculators, number lines",
+    "adhd": "Frequent breaks, movement activities, clear routines, positive reinforcement",
+    "autism": "Visual schedules, quiet spaces, social stories, predictable environment",
+    "cerebral_palsy": "Accessible materials, adaptive writing tools, extra time"
+  },
+  "pedagogical_approaches": {
+    "didattica_laboratoriale": "Hands-on learning, experiments, projects",
+    "cooperative_learning": "Group work, peer learning, collaboration",
+    "didattica_inclusiva": "Universal Design for Learning, differentiation",
+    "outdoor_education": "Nature walks, outdoor lessons, environmental education",
+    "coding": "Scratch, Bee-Bot, computational thinking from age 6"
+  },
+  "competenze_chiave": {
+    "comunicazione_italiano": "Leggere, scrivere, parlare correttamente",
+    "matematica_scienze": "Problem solving, pensiero logico, metodo scientifico",
+    "digitale": "Uso consapevole tecnologie, coding base",
+    "imparare_imparare": "Metodo di studio, autonomia",
+    "sociali_civiche": "Collaborazione, rispetto regole, cittadinanza",
+    "creativita": "Espressione artistica e musicale"
+  }
+}

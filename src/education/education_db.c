@@ -353,6 +353,39 @@ static const char* EDUCATION_SCHEMA_SQL =
     "CREATE INDEX IF NOT EXISTS idx_inbox_unprocessed ON inbox(student_id, processed);\n"
     "\n"
     "-- =====================================================================\n"
+    "-- HOMEWORK LOGS TABLE (F05)\n"
+    "-- Transparent logging of homework assistance for parents\n"
+    "-- =====================================================================\n"
+    "CREATE TABLE IF NOT EXISTS homework_logs (\n"
+    "    id INTEGER PRIMARY KEY AUTOINCREMENT,\n"
+    "    student_id INTEGER NOT NULL REFERENCES student_profiles(id) ON DELETE CASCADE,\n"
+    "    subject TEXT NOT NULL,\n"
+    "    topic TEXT,\n"
+    "    question TEXT NOT NULL,\n"
+    "    guidance_provided TEXT,\n"
+    "    hints_used INTEGER DEFAULT 0,\n"
+    "    timestamp INTEGER NOT NULL,\n"
+    "    verification_completed INTEGER DEFAULT 0\n"
+    ");\n"
+    "\n"
+    "-- =====================================================================\n"
+    "-- SUBJECT TIME TRACKING TABLE (F10)\n"
+    "-- Track time spent per subject for analytics\n"
+    "-- =====================================================================\n"
+    "CREATE TABLE IF NOT EXISTS subject_time_tracking (\n"
+    "    id INTEGER PRIMARY KEY AUTOINCREMENT,\n"
+    "    student_id INTEGER NOT NULL REFERENCES student_profiles(id) ON DELETE CASCADE,\n"
+    "    subject TEXT NOT NULL,\n"
+    "    total_minutes INTEGER DEFAULT 0,\n"
+    "    last_studied INTEGER,\n"
+    "    UNIQUE(student_id, subject)\n"
+    ");\n"
+    "\n"
+    "CREATE INDEX IF NOT EXISTS idx_homework_student ON homework_logs(student_id);\n"
+    "CREATE INDEX IF NOT EXISTS idx_homework_timestamp ON homework_logs(timestamp);\n"
+    "CREATE INDEX IF NOT EXISTS idx_time_tracking_student ON subject_time_tracking(student_id);\n"
+    "\n"
+    "-- =====================================================================\n"
     "-- FTS5 FULL-TEXT SEARCH\n"
     "-- =====================================================================\n"
     "CREATE VIRTUAL TABLE IF NOT EXISTS toolkit_fts USING fts5(\n"
@@ -1294,4 +1327,12 @@ char* education_profile_to_json(const EducationStudentProfile* profile) {
     );
 
     return json;
+}
+
+// ============================================================================
+// DATABASE ACCESS FOR ANNA INTEGRATION
+// ============================================================================
+
+sqlite3* education_get_db_handle(void) {
+    return g_edu_db;
 }
