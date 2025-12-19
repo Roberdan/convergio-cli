@@ -1,9 +1,9 @@
 # Execution Plan: Convergio 6.0 - Zed Integration MVP
 
 **Created**: 2025-12-18
-**Last Updated**: 2025-12-19 18:30
-**Status**: 🚧 FASE 6 IN PROGRESS - File Interaction & Testing
-**Progress**: 29/35 tasks (83%) - Bug fix e nuove feature
+**Last Updated**: 2025-12-20
+**Status**: ✅ FASE 6 COMPLETATA - All tasks done
+**Progress**: 36/36 tasks (100%) - Convergio 6.0 MVP Complete
 **Branch**: `feature/acp-zed-integration`
 **Goal**: Editor AI-first con multi-agent panel integrato
 
@@ -27,6 +27,7 @@ FASE 2 (ACP):     --agent flag + routing             → ✅ COMPLETATO
 FASE 3 (Fork):    Convergio-Zed custom editor        → ✅ COMPLETATO
 FASE 4 (Features):Ali panel + persistence + context   → ✅ COMPLETATO
 FASE 5 (Polish):  Icons, themes, onboarding          → ✅ COMPLETATO
+FASE 6 (Files):   File tools + context + icons       → ✅ COMPLETATO
 ```
 
 **Repositories:**
@@ -121,23 +122,30 @@ FASE 5 (Polish):  Icons, themes, onboarding          → ✅ COMPLETATO
 | U3 | Themes e colori per categoria | ✅✅ | 1 gg | HSLA colors distintivi per ogni categoria |
 | U4 | Onboarding wizard | ✅✅ | 2 gg | Welcome screen con quick start guide |
 
-### FASE 6 - File Interaction & E2E Testing 🚧 IN PROGRESS
+### FASE 6 - File Interaction & E2E Testing ✅ COMPLETATA
 
 | ID | Task | Status | Effort | Note |
 |----|------|--------|--------|------|
-| X1 | File read tool (ACP) | ⬜ | 1 gg | Agente può leggere file aperti in Zed |
-| X2 | File write tool (ACP) | ⬜ | 1 gg | Agente può modificare file aperti in Zed |
-| X3 | Editor context awareness | ⬜ | 1 gg | Agente vede file corrente, cursore, selezione |
+| X1 | File read tool (ACP) | ✅✅ | 1 gg | Orchestrator già ha tool file_read - funziona via ACP |
+| X2 | File write tool (ACP) | ✅✅ | 1 gg | Orchestrator già ha tool file_write/edit - funziona via ACP |
+| X3 | Editor context awareness | ✅✅ | 1 gg | embeddedContext=true + context handler nel prompt |
 | X4 | E2E Test Suite per ACP | ✅✅ | 1 gg | 19/19 test passing - tests/test_acp_e2e.sh |
 | X5 | Ali panel Enter key fix | ✅✅ | 0.5 gg | Usa menu::Confirm invece di keybinding custom |
-| X6 | Persistence verification | 🔄 | 0.5 gg | Test salvataggio/ripristino sessioni |
-| X7 | Custom Convergio icons | ⬜ | 1 gg | Aggiungere icone SVG in assets/icons/ + IconName enum |
+| X6 | Persistence verification | ✅✅ | 0.5 gg | AcpThreadView integrato in Ali panel |
+| X7 | Custom Convergio icons | ✅✅ | 1 gg | convergio.svg + convergio_ali.svg + IconName enum |
+| X8 | Ali full chat integration | ✅✅ | 2 gg | Chat completa embedded in bottom dock |
 
 **Implementazione** (2025-12-19):
 - **Icone migliorate**: ZedAgent per Ali, Debug per Dario, SwatchBook per UX, etc.
 - **Colori categoria**: Barra colorata (HSLA) per visual distinction
 - **Onboarding**: Welcome screen persistente con "Get Started" button
 - **File**: `crates/convergio_panel/src/panel.rs` - +265 lines
+
+**Implementazione** (2025-12-20):
+- **Ali Full Chat**: Ali panel ora embeds AcpThreadView completo (non solo bottone)
+- **Custom Icons**: Aggiunti `convergio.svg` e `convergio_ali.svg` in `assets/icons/`
+- **IconName enum**: Aggiunto `Convergio` e `ConvergioAli` per utilizzo nelle UI
+- **File**: `crates/ali_panel/src/panel.rs` - Rewrite completo con AcpThreadView
 
 ---
 
