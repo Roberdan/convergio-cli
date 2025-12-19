@@ -37,6 +37,12 @@ extern int64_t education_session_start(int64_t student_id, const char* session_t
 extern int education_session_end(int64_t session_id, int xp_earned);
 extern int education_xp_add(int64_t student_id, int xp_amount, const char* reason);
 
+// Libretto integration for automatic activity logging
+extern int64_t libretto_add_log_entry(int64_t student_id, const char* maestro_id,
+                                      const char* activity_type, const char* subject,
+                                      const char* topic, int duration_minutes,
+                                      const char* notes);
+
 // ============================================================================
 // CONSTANTS
 // ============================================================================
@@ -346,6 +352,13 @@ int study_session_end(int64_t session_id, const StudySessionStats* stats) {
 
     // Track time
     session_track_time(student_id, subject, duration_minutes);
+
+    // Log to Libretto (LB12 - automatic study session logging)
+    char notes[256];
+    snprintf(notes, sizeof(notes), "%d pomodori completati, %d min focus",
+             g_active_session->pomodoro_count, duration_minutes);
+    libretto_add_log_entry(student_id, NULL, "study", subject,
+                           g_active_session->topic, duration_minutes, notes);
 
     // Calculate XP
     int xp_earned = g_active_session->pomodoro_count * XP_PER_POMODORO;

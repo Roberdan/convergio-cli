@@ -564,7 +564,7 @@ Ogni thread crea 2 maestri in parallelo.
 | LB09 | Comando `/libretto diario` - log attività giornaliere | [x] | P0 |
 | LB10 | Comando `/libretto progressi` - grafici aree migliorate | [x] | P1 |
 | LB11 | Integrazione quiz → voto automatico | [x] | P0 |
-| LB12 | Integrazione sessioni studio → log automatico | [ ] | P0 |
+| LB12 | Integrazione sessioni studio → log automatico | [x] | P0 |
 | LB13 | Calcolo media voti per materia/periodo | [x] | P1 |
 | LB14 | Export PDF pagella completa | [ ] | P1 |
 | LB15 | Export PDF report genitori | [ ] | P1 |
