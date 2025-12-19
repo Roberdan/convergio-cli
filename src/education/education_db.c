@@ -109,6 +109,7 @@ static const char* EDUCATION_SCHEMA_SQL =
     "    -- ADHD settings\n"
     "    adhd INTEGER DEFAULT 0,\n"
     "    adhd_type TEXT CHECK(adhd_type IN ('inattentive', 'hyperactive', 'combined', NULL)),\n"
+    "    adhd_severity INTEGER DEFAULT 0 CHECK(adhd_severity >= 0 AND adhd_severity <= 3),\n"
     "    use_short_responses INTEGER DEFAULT 0,\n"
     "    show_progress_bar INTEGER DEFAULT 1,\n"
     "    use_micro_celebrations INTEGER DEFAULT 0,\n"
@@ -654,13 +655,54 @@ int64_t education_profile_create(const EducationCreateOptions* options) {
 
     int64_t student_id = sqlite3_last_insert_rowid(g_edu_db);
 
-    // Create default accessibility settings
-    sql = "INSERT INTO student_accessibility (student_id) VALUES (?)";
-    rc = sqlite3_prepare_v2(g_edu_db, sql, -1, &stmt, NULL);
-    if (rc == SQLITE_OK) {
-        sqlite3_bind_int64(stmt, 1, student_id);
-        sqlite3_step(stmt);
-        sqlite3_finalize(stmt);
+    // Create accessibility settings (with provided values if available)
+    if (options->accessibility) {
+        const EducationAccessibility* a = options->accessibility;
+        sql = "INSERT INTO student_accessibility ("
+              "student_id, dyslexia, dyslexia_severity, dyscalculia, dyscalculia_severity, "
+              "cerebral_palsy, cp_severity, adhd, adhd_type, adhd_severity, "
+              "autism, autism_severity, preferred_input, preferred_output, "
+              "tts_enabled, tts_speed, high_contrast, reduce_animations"
+              ") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+        rc = sqlite3_prepare_v2(g_edu_db, sql, -1, &stmt, NULL);
+        if (rc == SQLITE_OK) {
+            sqlite3_bind_int64(stmt, 1, student_id);
+            sqlite3_bind_int(stmt, 2, a->dyslexia ? 1 : 0);
+            sqlite3_bind_int(stmt, 3, (int)a->dyslexia_severity);
+            sqlite3_bind_int(stmt, 4, a->dyscalculia ? 1 : 0);
+            sqlite3_bind_int(stmt, 5, (int)a->dyscalculia_severity);
+            sqlite3_bind_int(stmt, 6, a->cerebral_palsy ? 1 : 0);
+            sqlite3_bind_int(stmt, 7, (int)a->cerebral_palsy_severity);
+            sqlite3_bind_int(stmt, 8, a->adhd ? 1 : 0);
+            const char* adhd_type_str = adhd_type_to_string(a->adhd_type);
+            if (adhd_type_str) {
+                sqlite3_bind_text(stmt, 9, adhd_type_str, -1, SQLITE_STATIC);
+            } else {
+                sqlite3_bind_null(stmt, 9);
+            }
+            sqlite3_bind_int(stmt, 10, (int)a->adhd_severity);
+            sqlite3_bind_int(stmt, 11, a->autism ? 1 : 0);
+            sqlite3_bind_int(stmt, 12, (int)a->autism_severity);
+            const char* input_str = input_method_to_string(a->preferred_input);
+            sqlite3_bind_text(stmt, 13, input_str ? input_str : "keyboard", -1, SQLITE_STATIC);
+            const char* output_str = output_method_to_string(a->preferred_output);
+            sqlite3_bind_text(stmt, 14, output_str ? output_str : "visual", -1, SQLITE_STATIC);
+            sqlite3_bind_int(stmt, 15, a->tts_enabled ? 1 : 0);
+            sqlite3_bind_double(stmt, 16, a->tts_speed > 0 ? a->tts_speed : 1.0);
+            sqlite3_bind_int(stmt, 17, a->high_contrast ? 1 : 0);
+            sqlite3_bind_int(stmt, 18, a->reduce_motion ? 1 : 0);
+            sqlite3_step(stmt);
+            sqlite3_finalize(stmt);
+        }
+    } else {
+        // Create default accessibility settings
+        sql = "INSERT INTO student_accessibility (student_id) VALUES (?)";
+        rc = sqlite3_prepare_v2(g_edu_db, sql, -1, &stmt, NULL);
+        if (rc == SQLITE_OK) {
+            sqlite3_bind_int64(stmt, 1, student_id);
+            sqlite3_step(stmt);
+            sqlite3_finalize(stmt);
+        }
     }
 
     // Create default gamification entry
@@ -729,17 +771,27 @@ EducationStudentProfile* education_profile_get(int64_t student_id) {
             if (sqlite3_step(stmt) == SQLITE_ROW) {
                 EducationAccessibility* a = profile->accessibility;
                 // Load all fields (column indices based on schema order)
+                // Schema: id=0, student_id=1, dyslexia=2, dyslexia_severity=3, ...
+                // adhd_type=21, adhd_severity=22, autism=29, autism_severity=30
+                // preferred_input=36, preferred_output=37, tts_enabled=38, tts_speed=39
+                // high_contrast=41, reduce_animations=43
                 a->dyslexia = sqlite3_column_int(stmt, 2);
                 a->dyslexia_severity = string_to_severity(sqlite3_column_int(stmt, 3));
                 a->dyscalculia = sqlite3_column_int(stmt, 9);
+                a->dyscalculia_severity = string_to_severity(sqlite3_column_int(stmt, 10));
                 a->cerebral_palsy = sqlite3_column_int(stmt, 15);
-                a->adhd = sqlite3_column_int(stmt, 21);
-                a->adhd_type = string_to_adhd_type((const char*)sqlite3_column_text(stmt, 22));
+                a->cerebral_palsy_severity = string_to_severity(sqlite3_column_int(stmt, 16));
+                a->adhd = sqlite3_column_int(stmt, 20);
+                a->adhd_type = string_to_adhd_type((const char*)sqlite3_column_text(stmt, 21));
+                a->adhd_severity = string_to_severity(sqlite3_column_int(stmt, 22));
                 a->autism = sqlite3_column_int(stmt, 29);
-                a->preferred_input = string_to_input_method((const char*)sqlite3_column_text(stmt, 35));
-                a->preferred_output = string_to_output_method((const char*)sqlite3_column_text(stmt, 36));
-                a->tts_enabled = sqlite3_column_int(stmt, 37);
-                a->tts_speed = (float)sqlite3_column_double(stmt, 38);
+                a->autism_severity = string_to_severity(sqlite3_column_int(stmt, 30));
+                a->preferred_input = string_to_input_method((const char*)sqlite3_column_text(stmt, 36));
+                a->preferred_output = string_to_output_method((const char*)sqlite3_column_text(stmt, 37));
+                a->tts_enabled = sqlite3_column_int(stmt, 38);
+                a->tts_speed = (float)sqlite3_column_double(stmt, 39);
+                a->high_contrast = sqlite3_column_int(stmt, 41);
+                a->reduce_motion = sqlite3_column_int(stmt, 43);
             }
             sqlite3_finalize(stmt);
         }
@@ -1352,7 +1404,7 @@ int64_t education_goal_add(int64_t student_id, EducationGoalType goal_type,
 
     const char* sql =
         "INSERT INTO student_goals (student_id, goal_type, description, target_date, status, created_at) "
-        "VALUES (?, ?, ?, ?, 'active', datetime('now'))";
+        "VALUES (?, ?, ?, ?, 'active', strftime('%s','now'))";
 
     sqlite3_stmt* stmt;
     int rc = sqlite3_prepare_v2(g_edu_db, sql, -1, &stmt, NULL);
