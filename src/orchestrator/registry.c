@@ -555,6 +555,29 @@ ManagedAgent* agent_find_by_name(const char* name) {
     return found;
 }
 
+// Check if a name is a known/embedded agent (without spawning)
+bool agent_is_known_name(const char* name) {
+    if (!name) return false;
+
+    // Check CORE_AGENTS list
+    for (size_t i = 0; CORE_AGENTS[i].name != NULL; i++) {
+        // Match by full name or short name (first word before hyphen)
+        const char* agent_name = CORE_AGENTS[i].name;
+        if (strcasecmp(agent_name, name) == 0) {
+            return true;
+        }
+        // Also match short name (e.g., "amy" matches "amy-cfo")
+        const char* hyphen = strchr(agent_name, '-');
+        if (hyphen) {
+            size_t short_len = hyphen - agent_name;
+            if (strlen(name) == short_len && strncasecmp(agent_name, name, short_len) == 0) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
 // Get all active agents
 size_t agent_get_active(ManagedAgent** out_agents, size_t max_count) {
     Orchestrator* orch = orchestrator_get();

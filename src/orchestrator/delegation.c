@@ -141,8 +141,12 @@ void free_delegation_list(DelegationList* list) {
 char* execute_delegations(DelegationList* delegations, const char* user_input,
                           const char* ali_response, ManagedAgent* ali) {
     if (!delegations || delegations->count == 0 || !user_input || !ali) {
+        LOG_ERROR(LOG_CAT_AGENT, "execute_delegations: invalid params (delegations=%p, count=%zu, input=%p, ali=%p)",
+                  (void*)delegations, delegations ? delegations->count : 0, (void*)user_input, (void*)ali);
         return NULL;
     }
+
+    LOG_INFO(LOG_CAT_AGENT, "Starting delegation to %zu agents", delegations->count);
 
     // Prepare parallel execution
     AgentTask* tasks = calloc(delegations->count, sizeof(AgentTask));
@@ -153,78 +157,95 @@ char* execute_delegations(DelegationList* delegations, const char* user_input,
     for (size_t i = 0; i < delegations->count; i++) {
         DelegationRequest* req = delegations->requests[i];
 
-        // Check if agent is in current project team
+        // Check if agent is in current project team - warn but allow delegation
+        // Ali can delegate to anyone, project team is just a recommendation
         if (!project_has_agent(req->agent_name)) {
             ConvergioProject* proj = project_current();
-            LOG_WARN(LOG_CAT_AGENT, "Agent '%s' not in project team '%s', skipping",
+            LOG_INFO(LOG_CAT_AGENT, "Agent '%s' not in project team '%s', but allowing delegation",
                      req->agent_name, proj ? proj->name : "none");
-            tasks[i].agent = NULL;
-            tasks[i].completed = true;  // Mark as done (skipped)
-            continue;
+            // Don't skip - Ali can delegate to any agent
         }
 
         // Find or spawn the requested agent
         ManagedAgent* specialist = agent_find_by_name(req->agent_name);
         if (!specialist) {
+            LOG_INFO(LOG_CAT_AGENT, "Agent '%s' not found, spawning new instance", req->agent_name);
             specialist = agent_spawn(AGENT_ROLE_ANALYST, req->agent_name, NULL);
         }
 
-        if (specialist && specialist->system_prompt) {
-            tasks[i].agent = specialist;
-            tasks[i].user_input = user_input;
-            tasks[i].context = req->reason;
-            tasks[i].response = NULL;
-            tasks[i].completed = false;
+        if (!specialist) {
+            LOG_ERROR(LOG_CAT_AGENT, "Failed to find or spawn agent '%s'", req->agent_name);
+            continue;
+        }
 
-            // Create delegation message
-            Message* delegate_msg = message_create(MSG_TYPE_TASK_DELEGATE,
-                                                    ali->id,
-                                                    specialist->id,
-                                                    user_input);
-            if (delegate_msg) {
-                message_send(delegate_msg);
+        if (!specialist->system_prompt) {
+            LOG_ERROR(LOG_CAT_AGENT, "Agent '%s' has no system prompt", req->agent_name);
+            continue;
+        }
+
+        LOG_INFO(LOG_CAT_AGENT, "Delegating to agent '%s'", specialist->name);
+
+        // Agent is valid, set up task
+        tasks[i].agent = specialist;
+        tasks[i].user_input = user_input;
+        tasks[i].context = req->reason;
+        tasks[i].response = NULL;
+        tasks[i].completed = false;
+
+        // Create delegation message
+        Message* delegate_msg = message_create(MSG_TYPE_TASK_DELEGATE,
+                                                ali->id,
+                                                specialist->id,
+                                                user_input);
+        if (delegate_msg) {
+            message_send(delegate_msg);
+        }
+
+        // Execute in parallel
+        dispatch_group_async(group, queue, ^{
+            // Set agent as working
+            agent_set_working(tasks[i].agent, WORK_STATE_THINKING,
+                              tasks[i].context ? tasks[i].context : "Analyzing request");
+
+            size_t prompt_size = strlen(tasks[i].agent->system_prompt) +
+                                 (tasks[i].context ? strlen(tasks[i].context) : 0) + 256;
+            char* prompt_with_context = malloc(prompt_size);
+            if (prompt_with_context) {
+                snprintf(prompt_with_context, prompt_size, "%s\n\nContext from Ali: %s",
+                        tasks[i].agent->system_prompt,
+                        tasks[i].context ? tasks[i].context : "Please analyze and respond.");
+
+                // Use Provider interface for agent chat
+                Provider* provider = provider_get(PROVIDER_ANTHROPIC);
+                if (provider && provider->chat) {
+                    TokenUsage usage = {0};
+                    tasks[i].response = provider->chat(
+                        provider,
+                        DELEGATION_MODEL,
+                        prompt_with_context,
+                        tasks[i].user_input,
+                        &usage
+                    );
+                } else {
+                    LOG_ERROR(LOG_CAT_AGENT, "Provider not available for agent '%s'",
+                              tasks[i].agent->name);
+                }
+                free(prompt_with_context);
+
+                if (tasks[i].response) {
+                    cost_record_agent_usage(tasks[i].agent,
+                                            strlen(tasks[i].agent->system_prompt) / 4 + strlen(tasks[i].user_input) / 4,
+                                            strlen(tasks[i].response) / 4);
+                    tasks[i].completed = true;
+                    LOG_INFO(LOG_CAT_AGENT, "Agent '%s' completed response", tasks[i].agent->name);
+                } else {
+                    LOG_ERROR(LOG_CAT_AGENT, "Agent '%s' returned empty response", tasks[i].agent->name);
+                }
             }
 
-            // Execute in parallel
-            dispatch_group_async(group, queue, ^{
-                // Set agent as working
-                agent_set_working(tasks[i].agent, WORK_STATE_THINKING,
-                                  tasks[i].context ? tasks[i].context : "Analyzing request");
-
-                size_t prompt_size = strlen(tasks[i].agent->system_prompt) +
-                                     (tasks[i].context ? strlen(tasks[i].context) : 0) + 256;
-                char* prompt_with_context = malloc(prompt_size);
-                if (prompt_with_context) {
-                    snprintf(prompt_with_context, prompt_size, "%s\n\nContext from Ali: %s",
-                            tasks[i].agent->system_prompt,
-                            tasks[i].context ? tasks[i].context : "Please analyze and respond.");
-
-                    // Use Provider interface for agent chat
-                    Provider* provider = provider_get(PROVIDER_ANTHROPIC);
-                    if (provider && provider->chat) {
-                        TokenUsage usage = {0};
-                        tasks[i].response = provider->chat(
-                            provider,
-                            DELEGATION_MODEL,
-                            prompt_with_context,
-                            tasks[i].user_input,
-                            &usage
-                        );
-                    }
-                    free(prompt_with_context);
-
-                    if (tasks[i].response) {
-                        cost_record_agent_usage(tasks[i].agent,
-                                                strlen(tasks[i].agent->system_prompt) / 4 + strlen(tasks[i].user_input) / 4,
-                                                strlen(tasks[i].response) / 4);
-                        tasks[i].completed = true;
-                    }
-                }
-
-                // Set agent back to idle
-                agent_set_idle(tasks[i].agent);
-            });
-        }
+            // Set agent back to idle
+            agent_set_idle(tasks[i].agent);
+        });
     }
 
     // Wait for all agents to complete
