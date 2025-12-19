@@ -1,9 +1,9 @@
 # Execution Plan: Convergio 6.0 - Zed Integration MVP
 
 **Created**: 2025-12-18
-**Last Updated**: 2025-12-20 02:00
+**Last Updated**: 2025-12-19 (session resumed)
 **Status**: 🚧 FASE 7 IN PROGRESS - Ali Historical Memory
-**Progress**: 36/42 tasks (86%) - Bug fix + memory feature
+**Progress**: 37/42 tasks (88%) - H1 completed, tests passing
 **Branch**: `feature/acp-zed-integration`
 **Goal**: Editor AI-first con multi-agent panel integrato
 
@@ -151,7 +151,7 @@ FASE 6 (Files):   File tools + context + icons       → ✅ COMPLETATO
 
 | ID | Task | Status | Effort | Note |
 |----|------|--------|--------|------|
-| H1 | Fix conversation resume for all agents | 🔄 | 1 gg | HistoryStore async loading race condition |
+| H1 | Fix conversation resume for all agents | ✅✅ | 1 gg | Fixed with cx.observe + pending_resume pattern |
 | H2 | Ali icon visibility in dock | 🔄 | 0.5 gg | IconName::ConvergioAli deve apparire |
 | H3 | Cross-session memory summaries | ⬜ | 2 gg | Ali genera riassunto conversazioni passate |
 | H4 | Memory storage format | ⬜ | 1 gg | ~/.convergio/memory/ con summaries per agente |
@@ -304,6 +304,10 @@ Ali deve poter:
 | 2025-12-20 | 01:00 | X7: Custom icons aggiunti - convergio.svg, convergio_ali.svg |
 | 2025-12-20 | 01:15 | ✅ Release build completata con Ali full chat |
 | 2025-12-20 | 01:30 | Commits pushati: 86ef57f (icons), a724634 (AliPanel fix) |
+| 2025-12-19 | -- | H1: Fix conversation resume - cx.observe + pending_resume_thread |
+| 2025-12-19 | -- | All 35 phase tests passing |
+| 2025-12-19 | -- | Commit convergio-zed: 1db07e3989 (resume fix) |
+| 2025-12-19 | -- | Commit ConvergioCLI: 1274f42 (test suite) |
 
 ---
 
