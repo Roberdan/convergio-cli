@@ -764,7 +764,7 @@ void acp_handle_session_prompt(int request_id, const char* params_json) {
             const char* content = session->messages[i].content;
             if (content) {
                 // Truncate very long messages
-                int max_len = 500;
+                size_t max_len = 500;
                 ctx_len += snprintf(history_context + ctx_len, ctx_size - ctx_len,
                     "\n**%s**: %.500s%s\n",
                     strcmp(role, "user") == 0 ? "You" : "Assistant",
