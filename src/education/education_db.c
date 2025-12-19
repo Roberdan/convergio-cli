@@ -388,6 +388,51 @@ static const char* EDUCATION_SCHEMA_SQL =
     "CREATE INDEX IF NOT EXISTS idx_time_tracking_student ON subject_time_tracking(student_id);\n"
     "\n"
     "-- =====================================================================\n"
+    "-- LIBRETTO DELLO STUDENTE - GRADEBOOK TABLE (LB01)\n"
+    "-- Student grades with teacher feedback and analytics\n"
+    "-- =====================================================================\n"
+    "CREATE TABLE IF NOT EXISTS student_gradebook (\n"
+    "    id INTEGER PRIMARY KEY AUTOINCREMENT,\n"
+    "    student_id INTEGER NOT NULL REFERENCES student_profiles(id) ON DELETE CASCADE,\n"
+    "    maestro_id TEXT NOT NULL,\n"
+    "    subject TEXT NOT NULL,\n"
+    "    topic TEXT,\n"
+    "    grade_type TEXT NOT NULL CHECK(grade_type IN ('quiz', 'homework', 'oral', 'project', 'participation')),\n"
+    "    grade REAL NOT NULL CHECK(grade >= 1.0 AND grade <= 10.0),\n"
+    "    grade_percentage REAL CHECK(grade_percentage >= 0 AND grade_percentage <= 100),\n"
+    "    comment TEXT,\n"
+    "    questions_total INTEGER,\n"
+    "    questions_correct INTEGER,\n"
+    "    recorded_at INTEGER DEFAULT (strftime('%s','now'))\n"
+    ");\n"
+    "\n"
+    "-- =====================================================================\n"
+    "-- LIBRETTO DELLO STUDENTE - DAILY LOG TABLE (LB02)\n"
+    "-- Daily activity tracking for study analytics\n"
+    "-- =====================================================================\n"
+    "CREATE TABLE IF NOT EXISTS daily_log (\n"
+    "    id INTEGER PRIMARY KEY AUTOINCREMENT,\n"
+    "    student_id INTEGER NOT NULL REFERENCES student_profiles(id) ON DELETE CASCADE,\n"
+    "    maestro_id TEXT,\n"
+    "    subject TEXT,\n"
+    "    activity_type TEXT NOT NULL CHECK(activity_type IN ('study', 'quiz', 'homework', 'flashcards', 'review', 'project', 'exploration', 'break')),\n"
+    "    topic TEXT,\n"
+    "    notes TEXT,\n"
+    "    duration_minutes INTEGER DEFAULT 0,\n"
+    "    xp_earned INTEGER DEFAULT 0,\n"
+    "    started_at INTEGER DEFAULT (strftime('%s','now')),\n"
+    "    ended_at INTEGER\n"
+    ");\n"
+    "\n"
+    "CREATE INDEX IF NOT EXISTS idx_gradebook_student ON student_gradebook(student_id);\n"
+    "CREATE INDEX IF NOT EXISTS idx_gradebook_subject ON student_gradebook(subject);\n"
+    "CREATE INDEX IF NOT EXISTS idx_gradebook_date ON student_gradebook(recorded_at);\n"
+    "CREATE INDEX IF NOT EXISTS idx_gradebook_maestro ON student_gradebook(maestro_id);\n"
+    "CREATE INDEX IF NOT EXISTS idx_daily_log_student ON daily_log(student_id);\n"
+    "CREATE INDEX IF NOT EXISTS idx_daily_log_date ON daily_log(started_at);\n"
+    "CREATE INDEX IF NOT EXISTS idx_daily_log_subject ON daily_log(subject);\n"
+    "\n"
+    "-- =====================================================================\n"
     "-- FTS5 FULL-TEXT SEARCH\n"
     "-- =====================================================================\n"
     "CREATE VIRTUAL TABLE IF NOT EXISTS toolkit_fts USING fts5(\n"
@@ -1626,4 +1671,614 @@ char* llm_generate(const char* prompt, const char* system_prompt) {
     }
 
     return response;
+}
+
+// ============================================================================
+// LIBRETTO DELLO STUDENTE API (LB01-LB18)
+// ============================================================================
+
+static const char* grade_type_to_string(EducationGradeType type) {
+    switch (type) {
+        case GRADE_TYPE_QUIZ: return "quiz";
+        case GRADE_TYPE_HOMEWORK: return "homework";
+        case GRADE_TYPE_ORAL: return "oral";
+        case GRADE_TYPE_PROJECT: return "project";
+        case GRADE_TYPE_PARTICIPATION: return "participation";
+        default: return "quiz";
+    }
+}
+
+static EducationGradeType string_to_grade_type(const char* str) {
+    if (!str) return GRADE_TYPE_QUIZ;
+    if (strcmp(str, "homework") == 0) return GRADE_TYPE_HOMEWORK;
+    if (strcmp(str, "oral") == 0) return GRADE_TYPE_ORAL;
+    if (strcmp(str, "project") == 0) return GRADE_TYPE_PROJECT;
+    if (strcmp(str, "participation") == 0) return GRADE_TYPE_PARTICIPATION;
+    return GRADE_TYPE_QUIZ;
+}
+
+int64_t libretto_add_grade(int64_t student_id, const char* maestro_id,
+                           const char* subject, const char* topic,
+                           EducationGradeType grade_type, float grade,
+                           const char* comment) {
+    if (!g_edu_db || !subject || grade < 1.0f || grade > 10.0f) return -1;
+
+    CONVERGIO_MUTEX_LOCK(&g_edu_db_mutex);
+
+    const char* sql =
+        "INSERT INTO student_gradebook (student_id, maestro_id, subject, topic, grade_type, grade, comment) "
+        "VALUES (?, ?, ?, ?, ?, ?, ?)";
+
+    sqlite3_stmt* stmt;
+    int rc = sqlite3_prepare_v2(g_edu_db, sql, -1, &stmt, NULL);
+    if (rc != SQLITE_OK) {
+        CONVERGIO_MUTEX_UNLOCK(&g_edu_db_mutex);
+        return -1;
+    }
+
+    sqlite3_bind_int64(stmt, 1, student_id);
+    sqlite3_bind_text(stmt, 2, maestro_id ? maestro_id : "ED00", -1, SQLITE_STATIC);
+    sqlite3_bind_text(stmt, 3, subject, -1, SQLITE_STATIC);
+    if (topic) sqlite3_bind_text(stmt, 4, topic, -1, SQLITE_STATIC);
+    else sqlite3_bind_null(stmt, 4);
+    sqlite3_bind_text(stmt, 5, grade_type_to_string(grade_type), -1, SQLITE_STATIC);
+    sqlite3_bind_double(stmt, 6, grade);
+    if (comment) sqlite3_bind_text(stmt, 7, comment, -1, SQLITE_STATIC);
+    else sqlite3_bind_null(stmt, 7);
+
+    rc = sqlite3_step(stmt);
+    int64_t grade_id = (rc == SQLITE_DONE) ? sqlite3_last_insert_rowid(g_edu_db) : -1;
+    sqlite3_finalize(stmt);
+
+    CONVERGIO_MUTEX_UNLOCK(&g_edu_db_mutex);
+    return grade_id;
+}
+
+int64_t libretto_add_quiz_grade(int64_t student_id, const char* maestro_id,
+                                const char* subject, const char* topic,
+                                int correct, int total, const char* comment) {
+    if (!g_edu_db || !subject || total <= 0) return -1;
+
+    float percentage = (float)correct / (float)total * 100.0f;
+    // Convert percentage to Italian grade (1-10 scale)
+    // 0-49%: insufficiente (4-5), 50-59%: sufficiente (6), 60-69%: discreto (7)
+    // 70-79%: buono (8), 80-89%: ottimo (9), 90-100%: eccellente (10)
+    float grade;
+    if (percentage < 50.0f) grade = 4.0f + (percentage / 50.0f);
+    else if (percentage < 60.0f) grade = 6.0f;
+    else if (percentage < 70.0f) grade = 7.0f;
+    else if (percentage < 80.0f) grade = 8.0f;
+    else if (percentage < 90.0f) grade = 9.0f;
+    else grade = 10.0f;
+
+    CONVERGIO_MUTEX_LOCK(&g_edu_db_mutex);
+
+    const char* sql =
+        "INSERT INTO student_gradebook (student_id, maestro_id, subject, topic, grade_type, "
+        "grade, grade_percentage, questions_total, questions_correct, comment) "
+        "VALUES (?, ?, ?, ?, 'quiz', ?, ?, ?, ?, ?)";
+
+    sqlite3_stmt* stmt;
+    int rc = sqlite3_prepare_v2(g_edu_db, sql, -1, &stmt, NULL);
+    if (rc != SQLITE_OK) {
+        CONVERGIO_MUTEX_UNLOCK(&g_edu_db_mutex);
+        return -1;
+    }
+
+    sqlite3_bind_int64(stmt, 1, student_id);
+    sqlite3_bind_text(stmt, 2, maestro_id ? maestro_id : "ED00", -1, SQLITE_STATIC);
+    sqlite3_bind_text(stmt, 3, subject, -1, SQLITE_STATIC);
+    if (topic) sqlite3_bind_text(stmt, 4, topic, -1, SQLITE_STATIC);
+    else sqlite3_bind_null(stmt, 4);
+    sqlite3_bind_double(stmt, 5, grade);
+    sqlite3_bind_double(stmt, 6, percentage);
+    sqlite3_bind_int(stmt, 7, total);
+    sqlite3_bind_int(stmt, 8, correct);
+    if (comment) sqlite3_bind_text(stmt, 9, comment, -1, SQLITE_STATIC);
+    else sqlite3_bind_null(stmt, 9);
+
+    rc = sqlite3_step(stmt);
+    int64_t grade_id = (rc == SQLITE_DONE) ? sqlite3_last_insert_rowid(g_edu_db) : -1;
+    sqlite3_finalize(stmt);
+
+    CONVERGIO_MUTEX_UNLOCK(&g_edu_db_mutex);
+    return grade_id;
+}
+
+int64_t libretto_add_log_entry(int64_t student_id, const char* maestro_id,
+                               const char* activity_type, const char* subject,
+                               const char* topic, int duration_minutes,
+                               const char* notes) {
+    if (!g_edu_db || !activity_type) return -1;
+
+    CONVERGIO_MUTEX_LOCK(&g_edu_db_mutex);
+
+    time_t now = time(NULL);
+    time_t started_at = now - (duration_minutes * 60);
+
+    const char* sql =
+        "INSERT INTO daily_log (student_id, maestro_id, subject, activity_type, topic, "
+        "notes, duration_minutes, started_at, ended_at) "
+        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
+
+    sqlite3_stmt* stmt;
+    int rc = sqlite3_prepare_v2(g_edu_db, sql, -1, &stmt, NULL);
+    if (rc != SQLITE_OK) {
+        CONVERGIO_MUTEX_UNLOCK(&g_edu_db_mutex);
+        return -1;
+    }
+
+    sqlite3_bind_int64(stmt, 1, student_id);
+    if (maestro_id) sqlite3_bind_text(stmt, 2, maestro_id, -1, SQLITE_STATIC);
+    else sqlite3_bind_null(stmt, 2);
+    if (subject) sqlite3_bind_text(stmt, 3, subject, -1, SQLITE_STATIC);
+    else sqlite3_bind_null(stmt, 3);
+    sqlite3_bind_text(stmt, 4, activity_type, -1, SQLITE_STATIC);
+    if (topic) sqlite3_bind_text(stmt, 5, topic, -1, SQLITE_STATIC);
+    else sqlite3_bind_null(stmt, 5);
+    if (notes) sqlite3_bind_text(stmt, 6, notes, -1, SQLITE_STATIC);
+    else sqlite3_bind_null(stmt, 6);
+    sqlite3_bind_int(stmt, 7, duration_minutes);
+    sqlite3_bind_int64(stmt, 8, started_at);
+    sqlite3_bind_int64(stmt, 9, now);
+
+    rc = sqlite3_step(stmt);
+    int64_t log_id = (rc == SQLITE_DONE) ? sqlite3_last_insert_rowid(g_edu_db) : -1;
+    sqlite3_finalize(stmt);
+
+    CONVERGIO_MUTEX_UNLOCK(&g_edu_db_mutex);
+    return log_id;
+}
+
+EducationGrade** libretto_get_grades(int64_t student_id, const char* subject,
+                                     time_t from_date, time_t to_date, int* count) {
+    if (!g_edu_db || !count) return NULL;
+    *count = 0;
+
+    CONVERGIO_MUTEX_LOCK(&g_edu_db_mutex);
+
+    // Build dynamic query based on filters
+    char sql[1024];
+    snprintf(sql, sizeof(sql),
+        "SELECT id, maestro_id, subject, topic, grade_type, grade, grade_percentage, "
+        "comment, questions_total, questions_correct, recorded_at "
+        "FROM student_gradebook WHERE student_id = ?%s%s%s ORDER BY recorded_at DESC",
+        subject ? " AND subject = ?" : "",
+        from_date > 0 ? " AND recorded_at >= ?" : "",
+        to_date > 0 ? " AND recorded_at <= ?" : "");
+
+    sqlite3_stmt* stmt;
+    int rc = sqlite3_prepare_v2(g_edu_db, sql, -1, &stmt, NULL);
+    if (rc != SQLITE_OK) {
+        CONVERGIO_MUTEX_UNLOCK(&g_edu_db_mutex);
+        return NULL;
+    }
+
+    int param_idx = 1;
+    sqlite3_bind_int64(stmt, param_idx++, student_id);
+    if (subject) sqlite3_bind_text(stmt, param_idx++, subject, -1, SQLITE_STATIC);
+    if (from_date > 0) sqlite3_bind_int64(stmt, param_idx++, from_date);
+    if (to_date > 0) sqlite3_bind_int64(stmt, param_idx++, to_date);
+
+    // Count rows first
+    int grade_count = 0;
+    while (sqlite3_step(stmt) == SQLITE_ROW) grade_count++;
+
+    if (grade_count == 0) {
+        sqlite3_finalize(stmt);
+        CONVERGIO_MUTEX_UNLOCK(&g_edu_db_mutex);
+        return NULL;
+    }
+
+    // Reset and allocate
+    sqlite3_reset(stmt);
+    EducationGrade** grades = calloc((size_t)grade_count, sizeof(EducationGrade*));
+    if (!grades) {
+        sqlite3_finalize(stmt);
+        CONVERGIO_MUTEX_UNLOCK(&g_edu_db_mutex);
+        return NULL;
+    }
+
+    int i = 0;
+    while (sqlite3_step(stmt) == SQLITE_ROW && i < grade_count) {
+        EducationGrade* grade = calloc(1, sizeof(EducationGrade));
+        if (!grade) continue;
+
+        grade->id = sqlite3_column_int64(stmt, 0);
+        grade->student_id = student_id;
+
+        const char* maestro = (const char*)sqlite3_column_text(stmt, 1);
+        if (maestro) strncpy(grade->maestro_id, maestro, sizeof(grade->maestro_id) - 1);
+
+        const char* subj = (const char*)sqlite3_column_text(stmt, 2);
+        if (subj) strncpy(grade->subject, subj, sizeof(grade->subject) - 1);
+
+        const char* top = (const char*)sqlite3_column_text(stmt, 3);
+        if (top) strncpy(grade->topic, top, sizeof(grade->topic) - 1);
+
+        grade->grade_type = string_to_grade_type((const char*)sqlite3_column_text(stmt, 4));
+        grade->grade = (float)sqlite3_column_double(stmt, 5);
+        grade->grade_percentage = (float)sqlite3_column_double(stmt, 6);
+
+        const char* comm = (const char*)sqlite3_column_text(stmt, 7);
+        if (comm) strncpy(grade->comment, comm, sizeof(grade->comment) - 1);
+
+        grade->questions_total = sqlite3_column_int(stmt, 8);
+        grade->questions_correct = sqlite3_column_int(stmt, 9);
+        grade->recorded_at = sqlite3_column_int64(stmt, 10);
+
+        grades[i++] = grade;
+    }
+
+    *count = i;
+    sqlite3_finalize(stmt);
+    CONVERGIO_MUTEX_UNLOCK(&g_edu_db_mutex);
+
+    return grades;
+}
+
+EducationDailyLogEntry** libretto_get_daily_log(int64_t student_id,
+                                                 time_t from_date, time_t to_date,
+                                                 int* count) {
+    if (!g_edu_db || !count) return NULL;
+    *count = 0;
+
+    CONVERGIO_MUTEX_LOCK(&g_edu_db_mutex);
+
+    char sql[512];
+    snprintf(sql, sizeof(sql),
+        "SELECT id, maestro_id, subject, activity_type, topic, notes, "
+        "duration_minutes, xp_earned, started_at, ended_at "
+        "FROM daily_log WHERE student_id = ?%s%s ORDER BY started_at DESC",
+        from_date > 0 ? " AND started_at >= ?" : "",
+        to_date > 0 ? " AND started_at <= ?" : "");
+
+    sqlite3_stmt* stmt;
+    int rc = sqlite3_prepare_v2(g_edu_db, sql, -1, &stmt, NULL);
+    if (rc != SQLITE_OK) {
+        CONVERGIO_MUTEX_UNLOCK(&g_edu_db_mutex);
+        return NULL;
+    }
+
+    int param_idx = 1;
+    sqlite3_bind_int64(stmt, param_idx++, student_id);
+    if (from_date > 0) sqlite3_bind_int64(stmt, param_idx++, from_date);
+    if (to_date > 0) sqlite3_bind_int64(stmt, param_idx++, to_date);
+
+    // Count rows
+    int log_count = 0;
+    while (sqlite3_step(stmt) == SQLITE_ROW) log_count++;
+
+    if (log_count == 0) {
+        sqlite3_finalize(stmt);
+        CONVERGIO_MUTEX_UNLOCK(&g_edu_db_mutex);
+        return NULL;
+    }
+
+    sqlite3_reset(stmt);
+    EducationDailyLogEntry** logs = calloc((size_t)log_count, sizeof(EducationDailyLogEntry*));
+    if (!logs) {
+        sqlite3_finalize(stmt);
+        CONVERGIO_MUTEX_UNLOCK(&g_edu_db_mutex);
+        return NULL;
+    }
+
+    int i = 0;
+    while (sqlite3_step(stmt) == SQLITE_ROW && i < log_count) {
+        EducationDailyLogEntry* entry = calloc(1, sizeof(EducationDailyLogEntry));
+        if (!entry) continue;
+
+        entry->id = sqlite3_column_int64(stmt, 0);
+        entry->student_id = student_id;
+
+        const char* maestro = (const char*)sqlite3_column_text(stmt, 1);
+        if (maestro) strncpy(entry->maestro_id, maestro, sizeof(entry->maestro_id) - 1);
+
+        const char* subj = (const char*)sqlite3_column_text(stmt, 2);
+        if (subj) strncpy(entry->subject, subj, sizeof(entry->subject) - 1);
+
+        const char* act = (const char*)sqlite3_column_text(stmt, 3);
+        if (act) strncpy(entry->activity_type, act, sizeof(entry->activity_type) - 1);
+
+        const char* top = (const char*)sqlite3_column_text(stmt, 4);
+        if (top) strncpy(entry->topic, top, sizeof(entry->topic) - 1);
+
+        const char* notes = (const char*)sqlite3_column_text(stmt, 5);
+        if (notes) strncpy(entry->notes, notes, sizeof(entry->notes) - 1);
+
+        entry->duration_minutes = sqlite3_column_int(stmt, 6);
+        entry->xp_earned = sqlite3_column_int(stmt, 7);
+        entry->started_at = sqlite3_column_int64(stmt, 8);
+        entry->ended_at = sqlite3_column_int64(stmt, 9);
+
+        logs[i++] = entry;
+    }
+
+    *count = i;
+    sqlite3_finalize(stmt);
+    CONVERGIO_MUTEX_UNLOCK(&g_edu_db_mutex);
+
+    return logs;
+}
+
+float libretto_get_average(int64_t student_id, const char* subject,
+                           time_t from_date, time_t to_date) {
+    if (!g_edu_db) return -1.0f;
+
+    CONVERGIO_MUTEX_LOCK(&g_edu_db_mutex);
+
+    char sql[512];
+    snprintf(sql, sizeof(sql),
+        "SELECT AVG(grade) FROM student_gradebook WHERE student_id = ?%s%s%s",
+        subject ? " AND subject = ?" : "",
+        from_date > 0 ? " AND recorded_at >= ?" : "",
+        to_date > 0 ? " AND recorded_at <= ?" : "");
+
+    sqlite3_stmt* stmt;
+    int rc = sqlite3_prepare_v2(g_edu_db, sql, -1, &stmt, NULL);
+    if (rc != SQLITE_OK) {
+        CONVERGIO_MUTEX_UNLOCK(&g_edu_db_mutex);
+        return -1.0f;
+    }
+
+    int param_idx = 1;
+    sqlite3_bind_int64(stmt, param_idx++, student_id);
+    if (subject) sqlite3_bind_text(stmt, param_idx++, subject, -1, SQLITE_STATIC);
+    if (from_date > 0) sqlite3_bind_int64(stmt, param_idx++, from_date);
+    if (to_date > 0) sqlite3_bind_int64(stmt, param_idx++, to_date);
+
+    float avg = -1.0f;
+    if (sqlite3_step(stmt) == SQLITE_ROW) {
+        avg = (float)sqlite3_column_double(stmt, 0);
+    }
+
+    sqlite3_finalize(stmt);
+    CONVERGIO_MUTEX_UNLOCK(&g_edu_db_mutex);
+
+    return avg;
+}
+
+EducationProgressReport* libretto_get_progress_report(int64_t student_id,
+                                                       time_t from_date,
+                                                       time_t to_date) {
+    if (!g_edu_db) return NULL;
+
+    // Default to last 30 days
+    time_t now = time(NULL);
+    if (to_date == 0) to_date = now;
+    if (from_date == 0) from_date = now - (30 * 24 * 60 * 60);
+
+    EducationProgressReport* report = calloc(1, sizeof(EducationProgressReport));
+    if (!report) return NULL;
+
+    report->student_id = student_id;
+    report->period_start = from_date;
+    report->period_end = to_date;
+
+    CONVERGIO_MUTEX_LOCK(&g_edu_db_mutex);
+
+    // Get student name
+    sqlite3_stmt* stmt;
+    int rc = sqlite3_prepare_v2(g_edu_db, "SELECT name FROM student_profiles WHERE id = ?", -1, &stmt, NULL);
+    if (rc == SQLITE_OK) {
+        sqlite3_bind_int64(stmt, 1, student_id);
+        if (sqlite3_step(stmt) == SQLITE_ROW) {
+            const char* name = (const char*)sqlite3_column_text(stmt, 0);
+            if (name) strncpy(report->student_name, name, sizeof(report->student_name) - 1);
+        }
+        sqlite3_finalize(stmt);
+    }
+
+    // Get overall average
+    rc = sqlite3_prepare_v2(g_edu_db,
+        "SELECT AVG(grade) FROM student_gradebook WHERE student_id = ? AND recorded_at BETWEEN ? AND ?",
+        -1, &stmt, NULL);
+    if (rc == SQLITE_OK) {
+        sqlite3_bind_int64(stmt, 1, student_id);
+        sqlite3_bind_int64(stmt, 2, from_date);
+        sqlite3_bind_int64(stmt, 3, to_date);
+        if (sqlite3_step(stmt) == SQLITE_ROW) {
+            report->overall_average = (float)sqlite3_column_double(stmt, 0);
+        }
+        sqlite3_finalize(stmt);
+    }
+
+    // Get total study hours
+    rc = sqlite3_prepare_v2(g_edu_db,
+        "SELECT SUM(duration_minutes) / 60, COUNT(*) FROM daily_log "
+        "WHERE student_id = ? AND started_at BETWEEN ? AND ?",
+        -1, &stmt, NULL);
+    if (rc == SQLITE_OK) {
+        sqlite3_bind_int64(stmt, 1, student_id);
+        sqlite3_bind_int64(stmt, 2, from_date);
+        sqlite3_bind_int64(stmt, 3, to_date);
+        if (sqlite3_step(stmt) == SQLITE_ROW) {
+            report->total_study_hours = sqlite3_column_int(stmt, 0);
+            report->total_sessions = sqlite3_column_int(stmt, 1);
+        }
+        sqlite3_finalize(stmt);
+    }
+
+    // Get quizzes taken
+    rc = sqlite3_prepare_v2(g_edu_db,
+        "SELECT COUNT(*) FROM student_gradebook "
+        "WHERE student_id = ? AND grade_type = 'quiz' AND recorded_at BETWEEN ? AND ?",
+        -1, &stmt, NULL);
+    if (rc == SQLITE_OK) {
+        sqlite3_bind_int64(stmt, 1, student_id);
+        sqlite3_bind_int64(stmt, 2, from_date);
+        sqlite3_bind_int64(stmt, 3, to_date);
+        if (sqlite3_step(stmt) == SQLITE_ROW) {
+            report->quizzes_taken = sqlite3_column_int(stmt, 0);
+        }
+        sqlite3_finalize(stmt);
+    }
+
+    // Get goals achieved
+    rc = sqlite3_prepare_v2(g_edu_db,
+        "SELECT COUNT(*) FROM student_goals "
+        "WHERE student_id = ? AND status = 'achieved' AND completed_at BETWEEN ? AND ?",
+        -1, &stmt, NULL);
+    if (rc == SQLITE_OK) {
+        sqlite3_bind_int64(stmt, 1, student_id);
+        sqlite3_bind_int64(stmt, 2, from_date);
+        sqlite3_bind_int64(stmt, 3, to_date);
+        if (sqlite3_step(stmt) == SQLITE_ROW) {
+            report->goals_achieved = sqlite3_column_int(stmt, 0);
+        }
+        sqlite3_finalize(stmt);
+    }
+
+    // Get current streak
+    rc = sqlite3_prepare_v2(g_edu_db,
+        "SELECT current_streak FROM gamification WHERE student_id = ?",
+        -1, &stmt, NULL);
+    if (rc == SQLITE_OK) {
+        sqlite3_bind_int64(stmt, 1, student_id);
+        if (sqlite3_step(stmt) == SQLITE_ROW) {
+            report->current_streak = sqlite3_column_int(stmt, 0);
+        }
+        sqlite3_finalize(stmt);
+    }
+
+    // Get subject stats
+    rc = sqlite3_prepare_v2(g_edu_db,
+        "SELECT subject, maestro_id, AVG(grade), COUNT(*) "
+        "FROM student_gradebook "
+        "WHERE student_id = ? AND recorded_at BETWEEN ? AND ? "
+        "GROUP BY subject ORDER BY AVG(grade) DESC",
+        -1, &stmt, NULL);
+    if (rc == SQLITE_OK) {
+        sqlite3_bind_int64(stmt, 1, student_id);
+        sqlite3_bind_int64(stmt, 2, from_date);
+        sqlite3_bind_int64(stmt, 3, to_date);
+
+        // Count subjects
+        int subject_count = 0;
+        while (sqlite3_step(stmt) == SQLITE_ROW) subject_count++;
+
+        if (subject_count > 0) {
+            sqlite3_reset(stmt);
+            report->subjects = calloc((size_t)subject_count, sizeof(EducationSubjectStats));
+            if (report->subjects) {
+                int i = 0;
+                while (sqlite3_step(stmt) == SQLITE_ROW && i < subject_count) {
+                    const char* subj = (const char*)sqlite3_column_text(stmt, 0);
+                    if (subj) strncpy(report->subjects[i].subject, subj, sizeof(report->subjects[i].subject) - 1);
+
+                    const char* maestro = (const char*)sqlite3_column_text(stmt, 1);
+                    if (maestro) strncpy(report->subjects[i].maestro_id, maestro, sizeof(report->subjects[i].maestro_id) - 1);
+
+                    report->subjects[i].average_grade = (float)sqlite3_column_double(stmt, 2);
+                    report->subjects[i].grade_count = sqlite3_column_int(stmt, 3);
+                    i++;
+                }
+                report->subject_count = i;
+            }
+        }
+        sqlite3_finalize(stmt);
+    }
+
+    CONVERGIO_MUTEX_UNLOCK(&g_edu_db_mutex);
+    return report;
+}
+
+EducationSubjectStats** libretto_get_study_stats(int64_t student_id,
+                                                  time_t from_date, time_t to_date,
+                                                  int* count) {
+    if (!g_edu_db || !count) return NULL;
+    *count = 0;
+
+    CONVERGIO_MUTEX_LOCK(&g_edu_db_mutex);
+
+    char sql[512];
+    snprintf(sql, sizeof(sql),
+        "SELECT subject, maestro_id, SUM(duration_minutes), COUNT(*) "
+        "FROM daily_log WHERE student_id = ?%s%s AND subject IS NOT NULL "
+        "GROUP BY subject ORDER BY SUM(duration_minutes) DESC",
+        from_date > 0 ? " AND started_at >= ?" : "",
+        to_date > 0 ? " AND started_at <= ?" : "");
+
+    sqlite3_stmt* stmt;
+    int rc = sqlite3_prepare_v2(g_edu_db, sql, -1, &stmt, NULL);
+    if (rc != SQLITE_OK) {
+        CONVERGIO_MUTEX_UNLOCK(&g_edu_db_mutex);
+        return NULL;
+    }
+
+    int param_idx = 1;
+    sqlite3_bind_int64(stmt, param_idx++, student_id);
+    if (from_date > 0) sqlite3_bind_int64(stmt, param_idx++, from_date);
+    if (to_date > 0) sqlite3_bind_int64(stmt, param_idx++, to_date);
+
+    // Count rows
+    int stats_count = 0;
+    while (sqlite3_step(stmt) == SQLITE_ROW) stats_count++;
+
+    if (stats_count == 0) {
+        sqlite3_finalize(stmt);
+        CONVERGIO_MUTEX_UNLOCK(&g_edu_db_mutex);
+        return NULL;
+    }
+
+    sqlite3_reset(stmt);
+    EducationSubjectStats** stats = calloc((size_t)stats_count, sizeof(EducationSubjectStats*));
+    if (!stats) {
+        sqlite3_finalize(stmt);
+        CONVERGIO_MUTEX_UNLOCK(&g_edu_db_mutex);
+        return NULL;
+    }
+
+    int i = 0;
+    while (sqlite3_step(stmt) == SQLITE_ROW && i < stats_count) {
+        EducationSubjectStats* stat = calloc(1, sizeof(EducationSubjectStats));
+        if (!stat) continue;
+
+        const char* subj = (const char*)sqlite3_column_text(stmt, 0);
+        if (subj) strncpy(stat->subject, subj, sizeof(stat->subject) - 1);
+
+        const char* maestro = (const char*)sqlite3_column_text(stmt, 1);
+        if (maestro) strncpy(stat->maestro_id, maestro, sizeof(stat->maestro_id) - 1);
+
+        stat->total_study_minutes = sqlite3_column_int(stmt, 2);
+        stat->grade_count = sqlite3_column_int(stmt, 3);
+
+        stats[i++] = stat;
+    }
+
+    *count = i;
+    sqlite3_finalize(stmt);
+    CONVERGIO_MUTEX_UNLOCK(&g_edu_db_mutex);
+
+    return stats;
+}
+
+void libretto_grades_free(EducationGrade** grades, int count) {
+    if (!grades) return;
+    for (int i = 0; i < count; i++) {
+        free(grades[i]);
+    }
+    free(grades);
+}
+
+void libretto_logs_free(EducationDailyLogEntry** logs, int count) {
+    if (!logs) return;
+    for (int i = 0; i < count; i++) {
+        free(logs[i]);
+    }
+    free(logs);
+}
+
+void libretto_report_free(EducationProgressReport* report) {
+    if (!report) return;
+    free(report->subjects);
+    free(report);
+}
+
+void libretto_stats_free(EducationSubjectStats** stats, int count) {
+    if (!stats) return;
+    for (int i = 0; i < count; i++) {
+        free(stats[i]);
+    }
+    free(stats);
 }

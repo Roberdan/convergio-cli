@@ -268,6 +268,88 @@ typedef struct {
     int last_quality;  // 0-5 quality rating
 } EducationFlashcardReview;
 
+// ============================================================================
+// LIBRETTO DELLO STUDENTE - STRUCTURES
+// ============================================================================
+
+/**
+ * @brief Grade type
+ */
+typedef enum {
+    GRADE_TYPE_QUIZ = 0,        // Quiz/test result
+    GRADE_TYPE_HOMEWORK = 1,    // Homework evaluation
+    GRADE_TYPE_ORAL = 2,        // Oral examination
+    GRADE_TYPE_PROJECT = 3,     // Project evaluation
+    GRADE_TYPE_PARTICIPATION = 4 // Class participation
+} EducationGradeType;
+
+/**
+ * @brief A grade entry in the student gradebook
+ */
+typedef struct {
+    int64_t id;
+    int64_t student_id;
+    char maestro_id[8];         // ED01-ED14
+    char subject[64];           // Subject name
+    char topic[EDUCATION_MAX_TOPIC_LEN];
+    EducationGradeType grade_type;
+    float grade;                // 1.0 - 10.0 (Italian system)
+    float grade_percentage;     // 0-100 for quizzes
+    char comment[EDUCATION_MAX_NOTES_LEN];  // Teacher feedback
+    int questions_total;        // For quiz: total questions
+    int questions_correct;      // For quiz: correct answers
+    time_t recorded_at;
+} EducationGrade;
+
+/**
+ * @brief Daily log entry for activity tracking
+ */
+typedef struct {
+    int64_t id;
+    int64_t student_id;
+    char maestro_id[8];
+    char subject[64];
+    char activity_type[32];     // "study", "quiz", "homework", "flashcards", etc.
+    char topic[EDUCATION_MAX_TOPIC_LEN];
+    char notes[EDUCATION_MAX_NOTES_LEN];
+    int duration_minutes;
+    int xp_earned;
+    time_t started_at;
+    time_t ended_at;
+} EducationDailyLogEntry;
+
+/**
+ * @brief Subject average with trend
+ */
+typedef struct {
+    char subject[64];
+    char maestro_id[8];
+    float average_grade;
+    int grade_count;
+    int total_study_minutes;
+    float trend;                // Positive = improving, negative = declining
+    float last_30_days_avg;
+    float previous_30_days_avg;
+} EducationSubjectStats;
+
+/**
+ * @brief Progress report summary
+ */
+typedef struct {
+    int64_t student_id;
+    char student_name[EDUCATION_MAX_NAME_LEN];
+    time_t period_start;
+    time_t period_end;
+    float overall_average;
+    int total_study_hours;
+    int total_sessions;
+    int quizzes_taken;
+    int goals_achieved;
+    int current_streak;
+    int subject_count;
+    EducationSubjectStats* subjects;  // Array of subject stats
+} EducationProgressReport;
+
 /**
  * @brief Curriculum subject definition
  */
@@ -765,6 +847,142 @@ int education_setup_start(void);
  * @return true if a student profile exists
  */
 bool education_setup_is_complete(void);
+
+// ============================================================================
+// LIBRETTO DELLO STUDENTE API
+// ============================================================================
+
+/**
+ * @brief Add a grade to the student gradebook
+ * @param student_id Student profile ID
+ * @param maestro_id Maestro ID (ED01-ED14)
+ * @param subject Subject name
+ * @param topic Topic name
+ * @param grade_type Type of grade (quiz, homework, oral, etc.)
+ * @param grade Grade value (1.0-10.0 Italian system)
+ * @param comment Teacher feedback/comment
+ * @return Grade ID on success, -1 on error
+ */
+int64_t libretto_add_grade(int64_t student_id, const char* maestro_id,
+                           const char* subject, const char* topic,
+                           EducationGradeType grade_type, float grade,
+                           const char* comment);
+
+/**
+ * @brief Add a grade from a quiz result
+ * @param student_id Student profile ID
+ * @param maestro_id Maestro ID
+ * @param subject Subject name
+ * @param topic Topic name
+ * @param correct Number of correct answers
+ * @param total Total number of questions
+ * @param comment Optional comment
+ * @return Grade ID on success, -1 on error
+ */
+int64_t libretto_add_quiz_grade(int64_t student_id, const char* maestro_id,
+                                const char* subject, const char* topic,
+                                int correct, int total, const char* comment);
+
+/**
+ * @brief Add a daily log entry
+ * @param student_id Student profile ID
+ * @param maestro_id Maestro ID (or NULL for general activity)
+ * @param activity_type Activity type ("study", "quiz", "homework", etc.)
+ * @param subject Subject name (or NULL)
+ * @param topic Topic name (or NULL)
+ * @param duration_minutes Duration in minutes
+ * @param notes Optional notes
+ * @return Log entry ID on success, -1 on error
+ */
+int64_t libretto_add_log_entry(int64_t student_id, const char* maestro_id,
+                               const char* activity_type, const char* subject,
+                               const char* topic, int duration_minutes,
+                               const char* notes);
+
+/**
+ * @brief Get grades for a student, optionally filtered by subject and period
+ * @param student_id Student profile ID
+ * @param subject Subject name filter (NULL for all subjects)
+ * @param from_date Start date filter (0 for no limit)
+ * @param to_date End date filter (0 for no limit)
+ * @param count Output: number of grades
+ * @return Array of grades (caller must free with libretto_grades_free)
+ */
+EducationGrade** libretto_get_grades(int64_t student_id, const char* subject,
+                                     time_t from_date, time_t to_date, int* count);
+
+/**
+ * @brief Get daily log entries for a student
+ * @param student_id Student profile ID
+ * @param from_date Start date filter (0 for no limit)
+ * @param to_date End date filter (0 for no limit)
+ * @param count Output: number of entries
+ * @return Array of log entries (caller must free with libretto_logs_free)
+ */
+EducationDailyLogEntry** libretto_get_daily_log(int64_t student_id,
+                                                 time_t from_date, time_t to_date,
+                                                 int* count);
+
+/**
+ * @brief Get average grade for a subject
+ * @param student_id Student profile ID
+ * @param subject Subject name (NULL for overall average)
+ * @param from_date Start date filter (0 for no limit)
+ * @param to_date End date filter (0 for no limit)
+ * @return Average grade, or -1 on error
+ */
+float libretto_get_average(int64_t student_id, const char* subject,
+                           time_t from_date, time_t to_date);
+
+/**
+ * @brief Get comprehensive progress report
+ * @param student_id Student profile ID
+ * @param from_date Period start (0 for last 30 days)
+ * @param to_date Period end (0 for now)
+ * @return Progress report (caller must free with libretto_report_free)
+ */
+EducationProgressReport* libretto_get_progress_report(int64_t student_id,
+                                                       time_t from_date,
+                                                       time_t to_date);
+
+/**
+ * @brief Get study time statistics per subject
+ * @param student_id Student profile ID
+ * @param from_date Start date (0 for all time)
+ * @param to_date End date (0 for now)
+ * @param count Output: number of subjects
+ * @return Array of subject stats (caller must free)
+ */
+EducationSubjectStats** libretto_get_study_stats(int64_t student_id,
+                                                  time_t from_date, time_t to_date,
+                                                  int* count);
+
+/**
+ * @brief Free a grades array
+ * @param grades Array of grades
+ * @param count Number of grades
+ */
+void libretto_grades_free(EducationGrade** grades, int count);
+
+/**
+ * @brief Free a daily log array
+ * @param logs Array of log entries
+ * @param count Number of entries
+ */
+void libretto_logs_free(EducationDailyLogEntry** logs, int count);
+
+/**
+ * @brief Free a progress report
+ * @param report Report to free
+ */
+void libretto_report_free(EducationProgressReport* report);
+
+/**
+ * @brief Free a subject stats array
+ * @param stats Array of stats
+ * @param count Number of stats
+ */
+void libretto_stats_free(EducationSubjectStats** stats, int count);
 
 // ============================================================================
 // INTERNAL API (FOR ANNA INTEGRATION)
