@@ -11,6 +11,7 @@
 #include "nous/embedded_agents.h"
 #include "nous/nous.h"
 #include "nous/updater.h"
+#include "nous/memory.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -851,19 +852,45 @@ void acp_handle_session_prompt(int request_id, const char* params_json) {
         // Default: orchestrator (Ali) with streaming
         // F2: Load context from other agent conversations
         char* agent_contexts = load_all_agent_contexts();
-        if (agent_contexts) {
-            // Prepend context info to the prompt for Ali
-            size_t enhanced_len = strlen(prompt_text) + strlen(agent_contexts) + 256;
-            char* enhanced_prompt = malloc(enhanced_len);
-            snprintf(enhanced_prompt, enhanced_len,
-                "%s\n\n---\n[Context: Recent conversations with other agents]\n%s\n---\n",
-                prompt_text, agent_contexts);
-            free(agent_contexts);
-            response = orchestrator_process_stream(enhanced_prompt, stream_callback, NULL);
-            free(enhanced_prompt);
-        } else {
-            response = orchestrator_process_stream(prompt_text, stream_callback, NULL);
+
+        // H5: Load historical memory for Ali
+        char* historical_memory = NULL;
+        MemorySearchResult memory_result = {0};
+        if (memory_load_recent(10, &memory_result) == 0 && memory_result.count > 0) {
+            historical_memory = memory_build_context(&memory_result, 8192);
+            memory_free_result(&memory_result);
         }
+
+        // Build enhanced prompt with all context
+        size_t enhanced_len = strlen(prompt_text) + 1024;
+        if (agent_contexts) enhanced_len += strlen(agent_contexts);
+        if (historical_memory) enhanced_len += strlen(historical_memory);
+
+        char* enhanced_prompt = malloc(enhanced_len);
+        size_t pos = 0;
+
+        // Add historical memory first (long-term context)
+        if (historical_memory) {
+            pos += snprintf(enhanced_prompt + pos, enhanced_len - pos,
+                "[Historical Memory - Cross-Session Context]\n%s\n---\n\n",
+                historical_memory);
+            free(historical_memory);
+        }
+
+        // Add recent agent conversations (short-term context)
+        if (agent_contexts) {
+            pos += snprintf(enhanced_prompt + pos, enhanced_len - pos,
+                "[Recent Agent Conversations]\n%s\n---\n\n",
+                agent_contexts);
+            free(agent_contexts);
+        }
+
+        // Add the actual user prompt
+        pos += snprintf(enhanced_prompt + pos, enhanced_len - pos,
+            "[User Message]\n%s", prompt_text);
+
+        response = orchestrator_process_stream(enhanced_prompt, stream_callback, NULL);
+        free(enhanced_prompt);
     }
 
     // Save messages to session history for resume support
@@ -874,6 +901,23 @@ void acp_handle_session_prompt(int request_id, const char* params_json) {
 
     // Persist session to disk
     acp_session_save(session);
+
+    // H3: Generate memory summary for significant conversations (4+ messages = 2+ exchanges)
+    if (session->message_count >= 4 && session->message_count % 4 == 0) {
+        // Prepare messages for summary generation
+        const char* messages[ACP_MAX_MESSAGES];
+        const char* roles[ACP_MAX_MESSAGES];
+        for (int i = 0; i < session->message_count; i++) {
+            messages[i] = session->messages[i].content;
+            roles[i] = session->messages[i].role;
+        }
+
+        MemoryEntry mem_entry;
+        if (memory_generate_summary(session->agent_name, messages, roles,
+                                    session->message_count, &mem_entry) == 0) {
+            memory_save(&mem_entry);
+        }
+    }
 
     // Cleanup history context
     if (history_context) {
@@ -975,6 +1019,12 @@ int acp_server_init(void) {
         return -1;
     }
 
+    // Initialize memory system for Ali's historical memory
+    if (memory_init() != 0) {
+        fprintf(stderr, "Warning: Failed to initialize memory system\n");
+        // Non-fatal, continue without memory
+    }
+
     // Reset session to clear any budget_exceeded state from previous runs
     extern void cost_reset_session(void);
     cost_reset_session();
@@ -1034,6 +1084,7 @@ int acp_server_run(void) {
 }
 
 void acp_server_shutdown(void) {
+    memory_shutdown();
     orchestrator_shutdown();
     nous_shutdown();
     convergio_config_shutdown();
