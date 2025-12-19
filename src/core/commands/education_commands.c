@@ -496,3 +496,268 @@ int cmd_mindmap(int argc, char** argv) {
         return 1;
     }
 }
+
+// ============================================================================
+// COMMAND: /libretto
+// ============================================================================
+
+/**
+ * /libretto - Student gradebook and activity log
+ *
+ * Subcommands:
+ *   (none)      - Show dashboard summary
+ *   voti        - Show grade history
+ *   diario      - Show daily activity log
+ *   progressi   - Show progress graphs
+ *   media       - Show grade averages
+ */
+int cmd_libretto(int argc, char** argv) {
+    if (education_init() != 0) {
+        fprintf(stderr, "Error: Education system not initialized\n");
+        return 1;
+    }
+
+    EducationStudentProfile* profile = education_profile_get_active();
+    if (profile == NULL) {
+        printf("No student profile found. Run /education setup first.\n");
+        return 1;
+    }
+
+    // Get progress report for dashboard
+    EducationProgressReport* report = libretto_get_progress_report(profile->id, 0, 0);
+
+    if (argc < 2) {
+        // Dashboard view
+        printf("\n");
+        printf("╔═══════════════════════════════════════════════════════════════╗\n");
+        printf("║               📚 LIBRETTO DELLO STUDENTE                     ║\n");
+        printf("╠═══════════════════════════════════════════════════════════════╣\n");
+        printf("║  👤 Studente: %-46s ║\n", profile->name);
+        printf("╠═══════════════════════════════════════════════════════════════╣\n");
+
+        if (report) {
+            printf("║  📊 Ultimi 30 giorni:                                         ║\n");
+            printf("║     • Media voti: %.1f/10                                     ║\n", report->overall_average > 0 ? report->overall_average : 0.0f);
+            printf("║     • Ore di studio: %d                                        ║\n", report->total_study_hours);
+            printf("║     • Quiz completati: %d                                      ║\n", report->quizzes_taken);
+            printf("║     • Obiettivi raggiunti: %d                                  ║\n", report->goals_achieved);
+            printf("║     • Streak attuale: %d giorni                                ║\n", report->current_streak);
+        } else {
+            printf("║  📊 Nessun dato disponibile ancora                            ║\n");
+        }
+
+        printf("╠═══════════════════════════════════════════════════════════════╣\n");
+        printf("║  Comandi:                                                     ║\n");
+        printf("║    /libretto voti     - Storico voti per materia              ║\n");
+        printf("║    /libretto diario   - Log attivita giornaliere              ║\n");
+        printf("║    /libretto progressi - Grafici aree migliorate              ║\n");
+        printf("║    /libretto media    - Medie per materia                     ║\n");
+        printf("╚═══════════════════════════════════════════════════════════════╝\n\n");
+
+        if (report) libretto_report_free(report);
+        return 0;
+    }
+
+    const char* subcommand = argv[1];
+
+    // -------------------------------------------------------------------------
+    // /libretto voti [materia]
+    // -------------------------------------------------------------------------
+    if (strcmp(subcommand, "voti") == 0) {
+        const char* subject_filter = (argc >= 3) ? argv[2] : NULL;
+
+        int count = 0;
+        EducationGrade** grades = libretto_get_grades(profile->id, subject_filter, 0, 0, &count);
+
+        printf("\n📝 STORICO VOTI");
+        if (subject_filter) printf(" - %s", subject_filter);
+        printf("\n");
+        printf("─────────────────────────────────────────────────────────────────\n");
+
+        if (grades && count > 0) {
+            printf("%-12s %-20s %-8s %-10s %s\n", "Data", "Materia", "Tipo", "Voto", "Commento");
+            printf("─────────────────────────────────────────────────────────────────\n");
+
+            for (int i = 0; i < count && i < 20; i++) {  // Limit to 20 most recent
+                EducationGrade* g = grades[i];
+
+                // Format date
+                char date_str[12];
+                struct tm* tm_info = localtime(&g->recorded_at);
+                strftime(date_str, sizeof(date_str), "%d/%m/%Y", tm_info);
+
+                // Grade type abbreviation
+                const char* type_str = "?";
+                switch (g->grade_type) {
+                    case GRADE_TYPE_QUIZ: type_str = "Quiz"; break;
+                    case GRADE_TYPE_HOMEWORK: type_str = "Compito"; break;
+                    case GRADE_TYPE_ORAL: type_str = "Orale"; break;
+                    case GRADE_TYPE_PROJECT: type_str = "Progetto"; break;
+                    case GRADE_TYPE_PARTICIPATION: type_str = "Partecip."; break;
+                }
+
+                // Truncate comment
+                char comment_short[30] = "";
+                if (g->comment[0]) {
+                    strncpy(comment_short, g->comment, 25);
+                    if (strlen(g->comment) > 25) strcat(comment_short, "...");
+                }
+
+                printf("%-12s %-20s %-8s %5.1f     %s\n",
+                       date_str, g->subject, type_str, g->grade, comment_short);
+            }
+
+            if (count > 20) {
+                printf("\n... e altri %d voti\n", count - 20);
+            }
+
+            libretto_grades_free(grades, count);
+        } else {
+            printf("Nessun voto registrato ancora.\n");
+        }
+
+        printf("─────────────────────────────────────────────────────────────────\n\n");
+
+        if (report) libretto_report_free(report);
+        return 0;
+    }
+
+    // -------------------------------------------------------------------------
+    // /libretto diario [giorni]
+    // -------------------------------------------------------------------------
+    if (strcmp(subcommand, "diario") == 0) {
+        int days = 7;  // Default to last 7 days
+        if (argc >= 3) {
+            days = atoi(argv[2]);
+            if (days < 1) days = 1;
+            if (days > 30) days = 30;
+        }
+
+        time_t now = time(NULL);
+        time_t from = now - (days * 24 * 60 * 60);
+
+        int count = 0;
+        EducationDailyLogEntry** logs = libretto_get_daily_log(profile->id, from, now, &count);
+
+        printf("\n📖 DIARIO ATTIVITA - Ultimi %d giorni\n", days);
+        printf("─────────────────────────────────────────────────────────────────\n");
+
+        if (logs && count > 0) {
+            printf("%-12s %-12s %-15s %-8s %s\n", "Data", "Attivita", "Materia", "Durata", "Note");
+            printf("─────────────────────────────────────────────────────────────────\n");
+
+            for (int i = 0; i < count && i < 30; i++) {
+                EducationDailyLogEntry* e = logs[i];
+
+                char date_str[12];
+                struct tm* tm_info = localtime(&e->started_at);
+                strftime(date_str, sizeof(date_str), "%d/%m/%Y", tm_info);
+
+                char duration_str[10];
+                snprintf(duration_str, sizeof(duration_str), "%dmin", e->duration_minutes);
+
+                char notes_short[25] = "";
+                if (e->notes[0]) {
+                    strncpy(notes_short, e->notes, 20);
+                    if (strlen(e->notes) > 20) strcat(notes_short, "...");
+                }
+
+                printf("%-12s %-12s %-15s %-8s %s\n",
+                       date_str, e->activity_type,
+                       e->subject[0] ? e->subject : "-",
+                       duration_str, notes_short);
+            }
+
+            libretto_logs_free(logs, count);
+        } else {
+            printf("Nessuna attivita registrata in questo periodo.\n");
+        }
+
+        printf("─────────────────────────────────────────────────────────────────\n\n");
+
+        if (report) libretto_report_free(report);
+        return 0;
+    }
+
+    // -------------------------------------------------------------------------
+    // /libretto progressi
+    // -------------------------------------------------------------------------
+    if (strcmp(subcommand, "progressi") == 0) {
+        printf("\n📈 PROGRESSI E TREND\n");
+        printf("─────────────────────────────────────────────────────────────────\n");
+
+        if (report && report->subject_count > 0) {
+            printf("%-20s %-10s %-10s %s\n", "Materia", "Media", "N.Voti", "Grafico");
+            printf("─────────────────────────────────────────────────────────────────\n");
+
+            for (int i = 0; i < report->subject_count; i++) {
+                EducationSubjectStats* s = &report->subjects[i];
+
+                // Simple ASCII bar chart
+                int bar_len = (int)(s->average_grade * 2);
+                if (bar_len > 20) bar_len = 20;
+                char bar[25] = "";
+                for (int j = 0; j < bar_len; j++) bar[j] = '#';
+                bar[bar_len] = '\0';
+
+                printf("%-20s %5.1f     %-10d %s\n",
+                       s->subject, s->average_grade, s->grade_count, bar);
+            }
+        } else {
+            printf("Non ci sono ancora abbastanza dati per i progressi.\n");
+            printf("Continua a studiare e fare quiz per vedere i tuoi trend!\n");
+        }
+
+        printf("─────────────────────────────────────────────────────────────────\n\n");
+
+        if (report) libretto_report_free(report);
+        return 0;
+    }
+
+    // -------------------------------------------------------------------------
+    // /libretto media [materia]
+    // -------------------------------------------------------------------------
+    if (strcmp(subcommand, "media") == 0) {
+        const char* subject_filter = (argc >= 3) ? argv[2] : NULL;
+
+        printf("\n📊 MEDIE VOTI\n");
+        printf("─────────────────────────────────────────────────────────────────\n");
+
+        if (subject_filter) {
+            float avg = libretto_get_average(profile->id, subject_filter, 0, 0);
+            if (avg >= 0) {
+                printf("Media in %s: %.2f/10\n", subject_filter, avg);
+            } else {
+                printf("Nessun voto in %s\n", subject_filter);
+            }
+        } else {
+            // Show all subject averages
+            if (report && report->subject_count > 0) {
+                printf("%-25s %s\n", "Materia", "Media");
+                printf("─────────────────────────────────────────────────────────────────\n");
+
+                for (int i = 0; i < report->subject_count; i++) {
+                    printf("%-25s %.2f/10\n",
+                           report->subjects[i].subject,
+                           report->subjects[i].average_grade);
+                }
+
+                printf("─────────────────────────────────────────────────────────────────\n");
+                printf("%-25s %.2f/10\n", "MEDIA GENERALE", report->overall_average);
+            } else {
+                printf("Nessun voto registrato ancora.\n");
+            }
+        }
+
+        printf("─────────────────────────────────────────────────────────────────\n\n");
+
+        if (report) libretto_report_free(report);
+        return 0;
+    }
+
+    fprintf(stderr, "Sottocomando sconosciuto: %s\n", subcommand);
+    fprintf(stderr, "Uso: /libretto [voti|diario|progressi|media]\n");
+
+    if (report) libretto_report_free(report);
+    return 1;
+}
