@@ -21,31 +21,81 @@
 extern bool education_setup_wizard(void);
 extern bool education_quick_setup(const char* name, const char* curriculum, int grade);
 
-// From education_db.c
-extern bool education_init(const char* db_path);
-extern void education_shutdown(void);
-extern EducationStudentProfile* education_get_active_profile(void);
-extern bool education_set_active_profile(int64_t profile_id);
+// From features/study_session.c (stub declarations)
+bool study_session_start(const char* subject, int duration_minutes);
+bool study_session_pause(void);
+bool study_session_resume(void);
+bool study_session_end(void);
 
-// From features/study_session.c
-extern bool study_session_start(const char* subject, int duration_minutes);
-extern bool study_session_pause(void);
-extern bool study_session_resume(void);
-extern bool study_session_end(void);
+// From features/homework.c (stub declarations)
+bool homework_start(const char* description);
+bool homework_add_hint(void);
 
-// From features/homework.c
-extern bool homework_start(const char* description);
-extern bool homework_add_hint(void);
+// From tools/quiz.c (stub declarations)
+char* quiz_generate(const char* topic, int num_questions);
 
-// From tools/quiz.c
-extern char* quiz_generate(const char* topic, int num_questions);
+// From tools/flashcards.c (stub declarations)
+bool flashcards_create_deck(const char* name, const char* topic);
+bool flashcards_study(const char* deck_name);
 
-// From tools/flashcards.c
-extern bool flashcards_create_deck(const char* name, const char* topic);
-extern bool flashcards_study(const char* deck_name);
+// From tools/mindmap.c (stub declarations)
+char* mindmap_generate_mermaid(const char* topic, int max_depth);
 
-// From tools/mindmap.c
-extern char* mindmap_generate_mermaid(const char* topic, int max_depth);
+// ============================================================================
+// STUB IMPLEMENTATIONS (until feature modules are linked)
+// ============================================================================
+
+__attribute__((weak))
+bool study_session_start(const char* subject, int duration_minutes) {
+    (void)subject; (void)duration_minutes;
+    printf("[Study session would start here - feature module not linked]\n");
+    return true;
+}
+
+__attribute__((weak))
+bool study_session_pause(void) { return true; }
+
+__attribute__((weak))
+bool study_session_resume(void) { return true; }
+
+__attribute__((weak))
+bool study_session_end(void) { return true; }
+
+__attribute__((weak))
+bool homework_start(const char* description) {
+    (void)description;
+    printf("[Homework helper would start here - feature module not linked]\n");
+    return true;
+}
+
+__attribute__((weak))
+bool homework_add_hint(void) { return true; }
+
+__attribute__((weak))
+char* quiz_generate(const char* topic, int num_questions) {
+    (void)topic; (void)num_questions;
+    return strdup("[Quiz generator not yet linked]");
+}
+
+__attribute__((weak))
+bool flashcards_create_deck(const char* name, const char* topic) {
+    (void)name; (void)topic;
+    printf("[Flashcard deck would be created here - feature module not linked]\n");
+    return true;
+}
+
+__attribute__((weak))
+bool flashcards_study(const char* deck_name) {
+    (void)deck_name;
+    printf("[Flashcard study would start here - feature module not linked]\n");
+    return true;
+}
+
+__attribute__((weak))
+char* mindmap_generate_mermaid(const char* topic, int max_depth) {
+    (void)topic; (void)max_depth;
+    return strdup("mindmap\n  root((Topic))\n    Branch1\n    Branch2\n");
+}
 
 // ============================================================================
 // COMMAND: /education
@@ -62,14 +112,14 @@ extern char* mindmap_generate_mermaid(const char* topic, int max_depth);
  */
 int cmd_education(int argc, char** argv) {
     // Initialize education system
-    if (!education_init(NULL)) {
+    if (education_init() != 0) {
         fprintf(stderr, "Error: Failed to initialize education system\n");
         return 1;
     }
 
     if (argc < 2) {
         // Show current profile or prompt for setup
-        EducationStudentProfile* profile = education_get_active_profile();
+        EducationStudentProfile* profile = education_profile_get_active();
         if (profile == NULL) {
             printf("\n🎓 Welcome to Convergio Education Pack!\n\n");
             printf("No student profile found. Let's set one up!\n");
@@ -82,7 +132,6 @@ int cmd_education(int argc, char** argv) {
         // Show current profile summary
         printf("\n🎓 Current Profile: %s\n", profile->name);
         printf("   Curriculum: %s (Year %d)\n", profile->curriculum_id, profile->grade_level);
-        printf("   Learning style: %s\n", profile->learning_style);
         printf("\nCommands:\n");
         printf("   /study <subject>  - Start a study session\n");
         printf("   /homework <desc>  - Get help with homework\n");
@@ -131,7 +180,7 @@ int cmd_education(int argc, char** argv) {
     }
 
     if (strcmp(subcommand, "profile") == 0) {
-        EducationStudentProfile* profile = education_get_active_profile();
+        EducationStudentProfile* profile = education_profile_get_active();
         if (profile == NULL) {
             printf("No active profile. Run /education setup first.\n");
             return 1;
@@ -143,27 +192,28 @@ int cmd_education(int argc, char** argv) {
         printf("👤 Name: %s", profile->name);
         if (profile->age > 0) printf(" (%d years old)", profile->age);
         printf("\n");
-        printf("📚 Curriculum: %s\n", profile->curriculum_id);
+        printf("📚 Curriculum: %s\n", profile->curriculum_id ? profile->curriculum_id : "Not set");
         printf("📅 Year: %d\n", profile->grade_level);
-        printf("🎯 Learning style: %s\n", profile->learning_style);
-        printf("⏱️ Sessions: %d min study, %d min break\n",
-               profile->preferences.session_duration,
-               profile->preferences.break_duration);
 
-        // Accessibility
-        printf("\n♿ Accessibility:\n");
-        if (profile->accessibility.dyslexia) printf("   • Dyslexia support enabled\n");
-        if (profile->accessibility.dyscalculia) printf("   • Dyscalculia support enabled\n");
-        if (profile->accessibility.adhd) printf("   • ADHD support enabled\n");
-        if (profile->accessibility.autism) printf("   • Autism support enabled\n");
-        if (profile->accessibility.cerebral_palsy) printf("   • Cerebral palsy support enabled\n");
+        // Accessibility (check if pointer is valid)
+        if (profile->accessibility) {
+            printf("\n♿ Accessibility:\n");
+            if (profile->accessibility->dyslexia) printf("   • Dyslexia support enabled\n");
+            if (profile->accessibility->dyscalculia) printf("   • Dyscalculia support enabled\n");
+            if (profile->accessibility->adhd) printf("   • ADHD support enabled\n");
+            if (profile->accessibility->autism) printf("   • Autism support enabled\n");
+            if (profile->accessibility->cerebral_palsy) printf("   • Cerebral palsy support enabled\n");
+        }
 
-        // Goals
-        if (profile->goals_count > 0) {
+        // Goals (fetch from API)
+        int goals_count = 0;
+        EducationGoal** goals = education_goal_list(profile->id, &goals_count);
+        if (goals_count > 0 && goals != NULL) {
             printf("\n🎯 Goals:\n");
-            for (int i = 0; i < profile->goals_count; i++) {
-                printf("   %d. %s\n", i + 1, profile->goals[i]);
+            for (int i = 0; i < goals_count; i++) {
+                printf("   %d. %s\n", i + 1, goals[i]->description);
             }
+            education_goal_list_free(goals, goals_count);
         }
 
         printf("\n═══════════════════════════════════════════\n\n");
@@ -192,12 +242,12 @@ int cmd_education(int argc, char** argv) {
  * Example: /study matematica 30
  */
 int cmd_study(int argc, char** argv) {
-    if (!education_init(NULL)) {
+    if (education_init() != 0) {
         fprintf(stderr, "Error: Education system not initialized\n");
         return 1;
     }
 
-    EducationStudentProfile* profile = education_get_active_profile();
+    EducationStudentProfile* profile = education_profile_get_active();
     if (profile == NULL) {
         printf("No student profile found. Run /education setup first.\n");
         return 1;
@@ -214,7 +264,7 @@ int cmd_study(int argc, char** argv) {
     }
 
     const char* subject = argv[1];
-    int duration = profile->preferences.session_duration; // Default from profile
+    int duration = 25; // Default Pomodoro duration
 
     if (argc >= 3) {
         duration = atoi(argv[2]);
@@ -246,12 +296,12 @@ int cmd_study(int argc, char** argv) {
  * Usage: /homework <description>
  */
 int cmd_homework(int argc, char** argv) {
-    if (!education_init(NULL)) {
+    if (education_init() != 0) {
         fprintf(stderr, "Error: Education system not initialized\n");
         return 1;
     }
 
-    EducationStudentProfile* profile = education_get_active_profile();
+    EducationStudentProfile* profile = education_profile_get_active();
     if (profile == NULL) {
         printf("No student profile found. Run /education setup first.\n");
         return 1;
@@ -295,7 +345,7 @@ int cmd_homework(int argc, char** argv) {
  * Usage: /quiz <topic> [num_questions]
  */
 int cmd_quiz(int argc, char** argv) {
-    if (!education_init(NULL)) {
+    if (education_init() != 0) {
         fprintf(stderr, "Error: Education system not initialized\n");
         return 1;
     }
@@ -342,7 +392,7 @@ int cmd_quiz(int argc, char** argv) {
  *   list                  - List all decks
  */
 int cmd_flashcards(int argc, char** argv) {
-    if (!education_init(NULL)) {
+    if (education_init() != 0) {
         fprintf(stderr, "Error: Education system not initialized\n");
         return 1;
     }
@@ -392,7 +442,7 @@ int cmd_flashcards(int argc, char** argv) {
     }
 
     if (strcmp(subcommand, "list") == 0) {
-        // TODO: List decks
+        // TODO: List decks from database
         printf("\n📚 Your flashcard decks:\n\n");
         printf("(No decks yet. Create one with /flashcards create)\n\n");
         return 0;
@@ -412,7 +462,7 @@ int cmd_flashcards(int argc, char** argv) {
  * Usage: /mindmap <concept> [depth]
  */
 int cmd_mindmap(int argc, char** argv) {
-    if (!education_init(NULL)) {
+    if (education_init() != 0) {
         fprintf(stderr, "Error: Education system not initialized\n");
         return 1;
     }
