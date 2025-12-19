@@ -274,6 +274,9 @@ RouterResult intent_router_route(const char* user_input) {
     // 3. Need LLM for complex routing
     LOG_DEBUG(LOG_CAT_AGENT, "Router using LLM for: %.50s...", user_input);
 
+    // Ensure provider registry is initialized
+    provider_registry_init();
+
     // Try providers in order: Anthropic (Haiku - best quality) -> OpenAI -> Gemini -> Local
     Provider* provider = NULL;
     const char* model = NULL;
