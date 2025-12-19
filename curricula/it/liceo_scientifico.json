@@ -1,0 +1,748 @@
+{
+  "$schema": "../../schemas/curriculum.schema.json",
+  "id": "liceo_scientifico",
+  "name": "Liceo Scientifico",
+  "country": "IT",
+  "description": "Curriculum del Liceo Scientifico italiano - indirizzo tradizionale",
+  "years": 5,
+  "age_range": {
+    "start": 14,
+    "end": 19
+  },
+  "version": "2024.1",
+  "last_updated": "2025-12-19",
+  "subjects": {
+    "italiano": {
+      "maestro": "manzoni-italiano",
+      "hours_per_week": 4,
+      "years": [1, 2, 3, 4, 5]
+    },
+    "latino": {
+      "maestro": "manzoni-italiano",
+      "hours_per_week": 3,
+      "years": [1, 2, 3, 4, 5],
+      "notes": "Latin taught by Manzoni with Italian coordination"
+    },
+    "inglese": {
+      "maestro": "shakespeare-inglese",
+      "hours_per_week": 3,
+      "years": [1, 2, 3, 4, 5]
+    },
+    "storia": {
+      "maestro": "erodoto-storia",
+      "hours_per_week": 2,
+      "years": [1, 2, 3, 4, 5]
+    },
+    "geografia": {
+      "maestro": "humboldt-geografia",
+      "hours_per_week": 2,
+      "years": [1],
+      "notes": "Only first year in Liceo Scientifico"
+    },
+    "filosofia": {
+      "maestro": "socrate-filosofia",
+      "hours_per_week": 3,
+      "years": [3, 4, 5],
+      "notes": "Starts from third year"
+    },
+    "matematica": {
+      "maestro": "euclide-matematica",
+      "hours_per_week": 5,
+      "years": [1, 2, 3, 4, 5]
+    },
+    "fisica": {
+      "maestro": "feynman-fisica",
+      "hours_per_week": 3,
+      "years": [1, 2, 3, 4, 5]
+    },
+    "scienze": {
+      "maestro": "darwin-scienze",
+      "hours_per_week": 3,
+      "years": [1, 2, 3, 4, 5],
+      "notes": "Includes biology, chemistry, earth sciences"
+    },
+    "arte": {
+      "maestro": "leonardo-arte",
+      "hours_per_week": 2,
+      "years": [1, 2, 3, 4, 5]
+    },
+    "educazione_civica": {
+      "maestro": "cicerone-civica",
+      "hours_per_week": 1,
+      "years": [1, 2, 3, 4, 5],
+      "notes": "Transversal subject, integrated with other disciplines"
+    },
+    "educazione_fisica": {
+      "maestro": "ippocrate-corpo",
+      "hours_per_week": 2,
+      "years": [1, 2, 3, 4, 5]
+    },
+    "informatica": {
+      "maestro": "lovelace-informatica",
+      "hours_per_week": 2,
+      "years": [1, 2],
+      "notes": "Optional in some schools, mandatory in opzione scienze applicate"
+    }
+  },
+  "curriculum_by_year": {
+    "1": {
+      "year_name": "Primo Anno",
+      "total_hours": 27,
+      "subjects": {
+        "italiano": {
+          "units": [
+            {
+              "id": "IT1-01",
+              "title": "Le tipologie testuali",
+              "topics": ["testo narrativo", "testo descrittivo", "testo espositivo", "testo argomentativo"],
+              "hours": 20
+            },
+            {
+              "id": "IT1-02",
+              "title": "Grammatica italiana",
+              "topics": ["fonologia", "morfologia", "analisi grammaticale", "sintassi della frase semplice"],
+              "hours": 30
+            },
+            {
+              "id": "IT1-03",
+              "title": "Epica classica",
+              "topics": ["Iliade", "Odissea", "Eneide", "mito e storia"],
+              "hours": 25
+            },
+            {
+              "id": "IT1-04",
+              "title": "Introduzione alla letteratura",
+              "topics": ["generi letterari", "figure retoriche", "analisi del testo"],
+              "hours": 20
+            },
+            {
+              "id": "IT1-05",
+              "title": "Produzione scritta",
+              "topics": ["tema", "riassunto", "parafrasi", "scrittura creativa"],
+              "hours": 25
+            }
+          ]
+        },
+        "matematica": {
+          "units": [
+            {
+              "id": "MA1-01",
+              "title": "Numeri e operazioni",
+              "topics": ["insiemi numerici", "operazioni", "potenze", "MCD e mcm"],
+              "hours": 25,
+              "priority": "P0"
+            },
+            {
+              "id": "MA1-02",
+              "title": "Calcolo letterale",
+              "topics": ["monomi", "polinomi", "prodotti notevoli", "scomposizione"],
+              "hours": 30,
+              "priority": "P0"
+            },
+            {
+              "id": "MA1-03",
+              "title": "Equazioni e disequazioni",
+              "topics": ["equazioni primo grado", "disequazioni primo grado", "problemi"],
+              "hours": 25,
+              "priority": "P0"
+            },
+            {
+              "id": "MA1-04",
+              "title": "Geometria euclidea",
+              "topics": ["enti primitivi", "triangoli", "congruenza", "rette parallele"],
+              "hours": 30,
+              "priority": "P0"
+            },
+            {
+              "id": "MA1-05",
+              "title": "Introduzione ai dati",
+              "topics": ["statistica descrittiva", "grafici", "media", "moda", "mediana"],
+              "hours": 15
+            }
+          ]
+        },
+        "fisica": {
+          "units": [
+            {
+              "id": "FI1-01",
+              "title": "Grandezze e misure",
+              "topics": ["grandezze fisiche", "unita di misura", "errori", "notazione scientifica"],
+              "hours": 15
+            },
+            {
+              "id": "FI1-02",
+              "title": "Cinematica",
+              "topics": ["moto rettilineo uniforme", "moto uniformemente accelerato", "grafici"],
+              "hours": 25
+            },
+            {
+              "id": "FI1-03",
+              "title": "Forze e vettori",
+              "topics": ["vettori", "forze", "equilibrio", "baricentro"],
+              "hours": 20
+            },
+            {
+              "id": "FI1-04",
+              "title": "Statica dei fluidi",
+              "topics": ["pressione", "leggi dei fluidi", "galleggiamento"],
+              "hours": 15
+            }
+          ]
+        },
+        "scienze": {
+          "units": [
+            {
+              "id": "SC1-01",
+              "title": "Il metodo scientifico",
+              "topics": ["osservazione", "ipotesi", "esperimento", "teoria"],
+              "hours": 10
+            },
+            {
+              "id": "SC1-02",
+              "title": "La materia",
+              "topics": ["stati della materia", "trasformazioni", "miscugli e soluzioni"],
+              "hours": 20
+            },
+            {
+              "id": "SC1-03",
+              "title": "L'atomo",
+              "topics": ["struttura atomica", "tavola periodica", "legami chimici"],
+              "hours": 25
+            },
+            {
+              "id": "SC1-04",
+              "title": "La Terra",
+              "topics": ["minerali", "rocce", "vulcani", "terremoti"],
+              "hours": 20
+            }
+          ]
+        },
+        "storia": {
+          "units": [
+            {
+              "id": "ST1-01",
+              "title": "La preistoria",
+              "topics": ["evoluzione umana", "paleolitico", "neolitico", "eta dei metalli"],
+              "hours": 10
+            },
+            {
+              "id": "ST1-02",
+              "title": "Le civilta antiche",
+              "topics": ["Mesopotamia", "Egitto", "Fenici", "Ebrei"],
+              "hours": 15
+            },
+            {
+              "id": "ST1-03",
+              "title": "La Grecia",
+              "topics": ["poleis", "Atene e Sparta", "guerre persiane", "Alessandro Magno"],
+              "hours": 20
+            },
+            {
+              "id": "ST1-04",
+              "title": "Roma antica",
+              "topics": ["monarchia", "repubblica", "guerre puniche"],
+              "hours": 20
+            }
+          ]
+        },
+        "geografia": {
+          "units": [
+            {
+              "id": "GE1-01",
+              "title": "Gli strumenti della geografia",
+              "topics": ["carte geografiche", "coordinate", "scale", "orientamento"],
+              "hours": 10
+            },
+            {
+              "id": "GE1-02",
+              "title": "L'Italia fisica",
+              "topics": ["rilievi", "pianure", "fiumi", "mari", "clima"],
+              "hours": 15
+            },
+            {
+              "id": "GE1-03",
+              "title": "L'Italia umana",
+              "topics": ["popolazione", "citta", "economia", "regioni"],
+              "hours": 15
+            },
+            {
+              "id": "GE1-04",
+              "title": "L'Europa",
+              "topics": ["geografia fisica", "stati europei", "Unione Europea"],
+              "hours": 20
+            }
+          ]
+        },
+        "inglese": {
+          "units": [
+            {
+              "id": "EN1-01",
+              "title": "Basic communication",
+              "topics": ["greetings", "introductions", "personal information", "daily routines"],
+              "hours": 20
+            },
+            {
+              "id": "EN1-02",
+              "title": "Grammar foundations",
+              "topics": ["present simple", "present continuous", "articles", "plurals"],
+              "hours": 30
+            },
+            {
+              "id": "EN1-03",
+              "title": "Vocabulary building",
+              "topics": ["family", "house", "school", "food", "hobbies"],
+              "hours": 25
+            },
+            {
+              "id": "EN1-04",
+              "title": "Reading and listening",
+              "topics": ["short texts", "dialogues", "comprehension strategies"],
+              "hours": 20
+            }
+          ]
+        },
+        "arte": {
+          "units": [
+            {
+              "id": "AR1-01",
+              "title": "Introduzione all'arte",
+              "topics": ["linguaggio visivo", "tecniche artistiche", "analisi dell'opera"],
+              "hours": 10
+            },
+            {
+              "id": "AR1-02",
+              "title": "Arte preistorica e antica",
+              "topics": ["pitture rupestri", "arte egizia", "arte mesopotamica"],
+              "hours": 15
+            },
+            {
+              "id": "AR1-03",
+              "title": "Arte greca",
+              "topics": ["architettura", "scultura", "ceramica", "ordini architettonici"],
+              "hours": 20
+            },
+            {
+              "id": "AR1-04",
+              "title": "Arte romana",
+              "topics": ["architettura", "ingegneria", "pittura", "mosaico"],
+              "hours": 15
+            }
+          ]
+        },
+        "educazione_civica": {
+          "units": [
+            {
+              "id": "EC1-01",
+              "title": "La Costituzione italiana",
+              "topics": ["principi fondamentali", "diritti e doveri", "struttura"],
+              "hours": 10
+            },
+            {
+              "id": "EC1-02",
+              "title": "Le istituzioni",
+              "topics": ["Parlamento", "Governo", "Presidente", "Magistratura"],
+              "hours": 10
+            },
+            {
+              "id": "EC1-03",
+              "title": "Cittadinanza digitale",
+              "topics": ["netiquette", "privacy", "sicurezza online"],
+              "hours": 8
+            }
+          ]
+        },
+        "educazione_fisica": {
+          "units": [
+            {
+              "id": "EF1-01",
+              "title": "Capacita motorie",
+              "topics": ["forza", "velocita", "resistenza", "flessibilita"],
+              "hours": 30
+            },
+            {
+              "id": "EF1-02",
+              "title": "Sport individuali",
+              "topics": ["atletica leggera", "ginnastica", "nuoto"],
+              "hours": 20
+            },
+            {
+              "id": "EF1-03",
+              "title": "Sport di squadra",
+              "topics": ["pallavolo", "basket", "calcio"],
+              "hours": 20
+            },
+            {
+              "id": "EF1-04",
+              "title": "Salute e benessere",
+              "topics": ["alimentazione", "igiene", "prevenzione"],
+              "hours": 10
+            }
+          ]
+        },
+        "informatica": {
+          "units": [
+            {
+              "id": "IN1-01",
+              "title": "Fondamenti",
+              "topics": ["hardware", "software", "sistemi operativi", "file system"],
+              "hours": 15
+            },
+            {
+              "id": "IN1-02",
+              "title": "Elaborazione testi e dati",
+              "topics": ["word processing", "fogli di calcolo", "presentazioni"],
+              "hours": 20
+            },
+            {
+              "id": "IN1-03",
+              "title": "Pensiero computazionale",
+              "topics": ["algoritmi", "flowchart", "problem solving"],
+              "hours": 20
+            },
+            {
+              "id": "IN1-04",
+              "title": "Introduzione alla programmazione",
+              "topics": ["Scratch", "variabili", "cicli", "condizioni"],
+              "hours": 20
+            }
+          ]
+        }
+      }
+    },
+    "2": {
+      "year_name": "Secondo Anno",
+      "total_hours": 27,
+      "subjects": {
+        "italiano": {
+          "units": [
+            {
+              "id": "IT2-01",
+              "title": "Sintassi del periodo",
+              "topics": ["proposizioni principali e subordinate", "analisi del periodo"],
+              "hours": 25
+            },
+            {
+              "id": "IT2-02",
+              "title": "I Promessi Sposi",
+              "topics": ["lettura integrale", "analisi", "contesto storico"],
+              "hours": 40
+            },
+            {
+              "id": "IT2-03",
+              "title": "Poesia",
+              "topics": ["metrica", "figure retoriche", "analisi poetica"],
+              "hours": 25
+            }
+          ]
+        },
+        "matematica": {
+          "units": [
+            {
+              "id": "MA2-01",
+              "title": "Sistemi di equazioni",
+              "topics": ["metodo grafico", "sostituzione", "confronto", "riduzione"],
+              "hours": 25
+            },
+            {
+              "id": "MA2-02",
+              "title": "Radicali",
+              "topics": ["proprieta", "operazioni", "razionalizzazione"],
+              "hours": 20
+            },
+            {
+              "id": "MA2-03",
+              "title": "Equazioni di secondo grado",
+              "topics": ["formula risolutiva", "relazioni tra soluzioni", "problemi"],
+              "hours": 30
+            },
+            {
+              "id": "MA2-04",
+              "title": "Geometria avanzata",
+              "topics": ["quadrilateri", "circonferenza", "equivalenza", "Pitagora"],
+              "hours": 30
+            }
+          ]
+        },
+        "fisica": {
+          "units": [
+            {
+              "id": "FI2-01",
+              "title": "Dinamica",
+              "topics": ["principi della dinamica", "forza peso", "piano inclinato", "attrito"],
+              "hours": 30
+            },
+            {
+              "id": "FI2-02",
+              "title": "Energia",
+              "topics": ["lavoro", "energia cinetica", "energia potenziale", "conservazione"],
+              "hours": 25
+            },
+            {
+              "id": "FI2-03",
+              "title": "Termologia",
+              "topics": ["temperatura", "calore", "dilatazione", "cambiamenti di stato"],
+              "hours": 20
+            }
+          ]
+        },
+        "scienze": {
+          "units": [
+            {
+              "id": "SC2-01",
+              "title": "Reazioni chimiche",
+              "topics": ["bilanciamento", "stechiometria", "tipi di reazioni"],
+              "hours": 25
+            },
+            {
+              "id": "SC2-02",
+              "title": "La cellula",
+              "topics": ["struttura", "organuli", "membrana", "nucleo"],
+              "hours": 25
+            },
+            {
+              "id": "SC2-03",
+              "title": "Genetica base",
+              "topics": ["DNA", "cromosomi", "mitosi", "meiosi"],
+              "hours": 25
+            }
+          ]
+        }
+      }
+    },
+    "3": {
+      "year_name": "Terzo Anno",
+      "total_hours": 30,
+      "subjects": {
+        "filosofia": {
+          "units": [
+            {
+              "id": "FI3-01",
+              "title": "Le origini della filosofia",
+              "topics": ["presocratici", "ricerca dell'arche", "Pitagora", "Eraclito", "Parmenide"],
+              "hours": 20
+            },
+            {
+              "id": "FI3-02",
+              "title": "I sofisti e Socrate",
+              "topics": ["sofistica", "relativismo", "maieutica", "il demone"],
+              "hours": 20
+            },
+            {
+              "id": "FI3-03",
+              "title": "Platone",
+              "topics": ["teoria delle idee", "mito della caverna", "Repubblica", "anima"],
+              "hours": 25
+            },
+            {
+              "id": "FI3-04",
+              "title": "Aristotele",
+              "topics": ["metafisica", "logica", "etica", "politica", "fisica"],
+              "hours": 25
+            }
+          ]
+        },
+        "italiano": {
+          "units": [
+            {
+              "id": "IT3-01",
+              "title": "Le origini della letteratura italiana",
+              "topics": ["letteratura delle origini", "poesia religiosa", "scuola siciliana"],
+              "hours": 25
+            },
+            {
+              "id": "IT3-02",
+              "title": "Dante",
+              "topics": ["Vita Nova", "Divina Commedia - Inferno", "poetica"],
+              "hours": 40
+            },
+            {
+              "id": "IT3-03",
+              "title": "Petrarca e Boccaccio",
+              "topics": ["Canzoniere", "Decameron", "Umanesimo"],
+              "hours": 30
+            }
+          ]
+        },
+        "matematica": {
+          "units": [
+            {
+              "id": "MA3-01",
+              "title": "Disequazioni",
+              "topics": ["disequazioni secondo grado", "sistemi", "fratte"],
+              "hours": 25
+            },
+            {
+              "id": "MA3-02",
+              "title": "Funzioni",
+              "topics": ["definizione", "dominio", "grafico", "proprieta"],
+              "hours": 30
+            },
+            {
+              "id": "MA3-03",
+              "title": "Geometria analitica",
+              "topics": ["piano cartesiano", "retta", "parabola"],
+              "hours": 35
+            }
+          ]
+        }
+      }
+    },
+    "4": {
+      "year_name": "Quarto Anno",
+      "total_hours": 30,
+      "subjects": {
+        "filosofia": {
+          "units": [
+            {
+              "id": "FI4-01",
+              "title": "Filosofia medievale",
+              "topics": ["patristica", "Agostino", "scolastica", "Tommaso"],
+              "hours": 20
+            },
+            {
+              "id": "FI4-02",
+              "title": "Rinascimento e rivoluzione scientifica",
+              "topics": ["Umanesimo", "Machiavelli", "Galileo", "Bacone"],
+              "hours": 25
+            },
+            {
+              "id": "FI4-03",
+              "title": "Razionalismo ed empirismo",
+              "topics": ["Cartesio", "Spinoza", "Leibniz", "Locke", "Hume"],
+              "hours": 30
+            },
+            {
+              "id": "FI4-04",
+              "title": "Kant",
+              "topics": ["criticismo", "Critica della ragion pura", "etica kantiana"],
+              "hours": 20
+            }
+          ]
+        },
+        "matematica": {
+          "units": [
+            {
+              "id": "MA4-01",
+              "title": "Geometria analitica avanzata",
+              "topics": ["circonferenza", "ellisse", "iperbole"],
+              "hours": 30
+            },
+            {
+              "id": "MA4-02",
+              "title": "Goniometria",
+              "topics": ["funzioni goniometriche", "formule", "equazioni"],
+              "hours": 30
+            },
+            {
+              "id": "MA4-03",
+              "title": "Trigonometria",
+              "topics": ["triangoli rettangoli", "teoremi", "applicazioni"],
+              "hours": 25
+            }
+          ]
+        }
+      }
+    },
+    "5": {
+      "year_name": "Quinto Anno",
+      "total_hours": 30,
+      "subjects": {
+        "filosofia": {
+          "units": [
+            {
+              "id": "FI5-01",
+              "title": "L'Idealismo tedesco",
+              "topics": ["Fichte", "Schelling", "Hegel"],
+              "hours": 25
+            },
+            {
+              "id": "FI5-02",
+              "title": "Critica dell'hegelismo",
+              "topics": ["Schopenhauer", "Kierkegaard", "Feuerbach", "Marx"],
+              "hours": 25
+            },
+            {
+              "id": "FI5-03",
+              "title": "Positivismo e Nietzsche",
+              "topics": ["Comte", "evoluzionismo", "Nietzsche"],
+              "hours": 20
+            },
+            {
+              "id": "FI5-04",
+              "title": "Novecento",
+              "topics": ["Freud", "fenomenologia", "esistenzialismo", "filosofia contemporanea"],
+              "hours": 25
+            }
+          ]
+        },
+        "matematica": {
+          "units": [
+            {
+              "id": "MA5-01",
+              "title": "Limiti",
+              "topics": ["definizione", "calcolo", "forme indeterminate"],
+              "hours": 30
+            },
+            {
+              "id": "MA5-02",
+              "title": "Derivate",
+              "topics": ["definizione", "regole", "applicazioni"],
+              "hours": 35
+            },
+            {
+              "id": "MA5-03",
+              "title": "Studio di funzione",
+              "topics": ["analisi completa", "grafici", "punti notevoli"],
+              "hours": 25
+            },
+            {
+              "id": "MA5-04",
+              "title": "Integrali",
+              "topics": ["integrali indefiniti", "integrali definiti", "applicazioni"],
+              "hours": 30
+            }
+          ]
+        },
+        "fisica": {
+          "units": [
+            {
+              "id": "FI5-01",
+              "title": "Elettromagnetismo",
+              "topics": ["campo elettrico", "potenziale", "corrente", "magnetismo"],
+              "hours": 40
+            },
+            {
+              "id": "FI5-02",
+              "title": "Onde elettromagnetiche",
+              "topics": ["equazioni di Maxwell", "onde EM", "luce"],
+              "hours": 20
+            },
+            {
+              "id": "FI5-03",
+              "title": "Fisica moderna",
+              "topics": ["relativita", "meccanica quantistica", "atomo"],
+              "hours": 30
+            }
+          ]
+        }
+      }
+    }
+  },
+  "accessibility_notes": {
+    "dyslexia": "All texts available in dyslexic-friendly formats with TTS support",
+    "dyscalculia": "Math concepts always presented visually first, with step-by-step solutions",
+    "adhd": "Units broken into 15-25 minute segments with frequent breaks suggested",
+    "autism": "Clear structure, predictable format, detailed explanations available",
+    "cerebral_palsy": "Voice input supported, extended time for all activities"
+  },
+  "exam_preparation": {
+    "esame_di_stato": {
+      "year": 5,
+      "structure": {
+        "prima_prova": "Italian essay (all types)",
+        "seconda_prova": "Mathematics or Physics (rotates)",
+        "oral": "Cross-disciplinary discussion"
+      }
+    }
+  }
+}
