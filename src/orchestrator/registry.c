@@ -613,7 +613,7 @@ bool agent_is_known_name(const char* name) {
         // Also match short name (e.g., "amy" matches "amy-cfo")
         const char* hyphen = strchr(agent_name, '-');
         if (hyphen) {
-            size_t short_len = hyphen - agent_name;
+            size_t short_len = (size_t)(hyphen - agent_name);
             if (strlen(name) == short_len && strncasecmp(agent_name, name, short_len) == 0) {
                 return true;
             }
