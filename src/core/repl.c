@@ -893,7 +893,7 @@ int repl_parse_and_execute(char* line) {
     // Handle INTENT_SWITCH: user wants to switch to a different agent
     if (route.type == INTENT_SWITCH && route.confidence >= 0.8f) {
         LOG_INFO(LOG_CAT_AGENT, "Router: switch to %s (%.0f%%)",
-                 route.agent, route.confidence * 100);
+                 route.agent, (double)(route.confidence * 100));
 
         // Find or spawn the target agent
         ManagedAgent* target = agent_find_by_name(route.agent);
@@ -926,7 +926,7 @@ int repl_parse_and_execute(char* line) {
     // If router is confident about a specific agent (not Ali), go directly to that agent
     if (strcmp(route.agent, "ali") != 0 && route.confidence >= 0.7f) {
         LOG_INFO(LOG_CAT_AGENT, "Router: %s (%.0f%%) - %s",
-                 route.agent, route.confidence * 100, route.intent);
+                 route.agent, (double)(route.confidence * 100), route.intent);
         int res = repl_direct_agent_communication(route.agent, original_input);
         free(original_input);
         return res;

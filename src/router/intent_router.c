@@ -64,7 +64,7 @@ static unsigned long simple_hash(const char* str) {
     unsigned long hash = 5381;
     int c;
     while ((c = *str++)) {
-        hash = ((hash << 5) + hash) + tolower(c);
+        hash = ((hash << 5) + hash) + (unsigned long)tolower(c);
     }
     return hash;
 }
@@ -112,7 +112,7 @@ static const char* check_switch_intent(const char* input) {
     size_t len = strlen(input);
     if (len >= sizeof(lower)) len = sizeof(lower) - 1;
     for (size_t i = 0; i < len; i++) {
-        lower[i] = tolower((unsigned char)input[i]);
+        lower[i] = (char)tolower((unsigned char)input[i]);
     }
     lower[len] = '\0';
 
@@ -157,7 +157,7 @@ static const char* quick_pattern_route(const char* input) {
     size_t len = strlen(input);
     if (len >= sizeof(lower)) len = sizeof(lower) - 1;
     for (size_t i = 0; i < len; i++) {
-        lower[i] = tolower((unsigned char)input[i]);
+        lower[i] = (char)tolower((unsigned char)input[i]);
     }
     lower[len] = '\0';
 
@@ -255,7 +255,7 @@ RouterResult intent_router_route(const char* user_input) {
     float cached_conf;
     const char* cached = cache_lookup(user_input, &cached_conf);
     if (cached) {
-        LOG_DEBUG(LOG_CAT_AGENT, "Router cache hit: %s (%.2f)", cached, cached_conf);
+        LOG_DEBUG(LOG_CAT_AGENT, "Router cache hit: %s (%.2f)", cached, (double)cached_conf);
         strncpy(result.agent, cached, sizeof(result.agent) - 1);
         result.confidence = cached_conf;
         return result;
@@ -321,7 +321,7 @@ RouterResult intent_router_route(const char* user_input) {
             result.confidence = confidence;
             strncpy(result.intent, intent, sizeof(result.intent) - 1);
 
-            LOG_INFO(LOG_CAT_AGENT, "Router LLM: %s (%.2f) - %s", agent, confidence, intent);
+            LOG_INFO(LOG_CAT_AGENT, "Router LLM: %s (%.2f) - %s", agent, (double)confidence, intent);
             cache_add(user_input, agent, confidence);
         }
 
