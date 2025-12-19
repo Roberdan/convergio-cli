@@ -317,9 +317,16 @@ int cmd_homework(int argc, char** argv) {
 
     // Concatenate all arguments as the homework description
     char description[1024] = {0};
+    size_t remaining = sizeof(description) - 1;
     for (int i = 1; i < argc; i++) {
-        if (i > 1) strcat(description, " ");
-        strncat(description, argv[i], sizeof(description) - strlen(description) - 1);
+        if (i > 1 && remaining > 0) {
+            strncat(description, " ", remaining);
+            remaining = sizeof(description) - strlen(description) - 1;
+        }
+        if (remaining > 0) {
+            strncat(description, argv[i], remaining);
+            remaining = sizeof(description) - strlen(description) - 1;
+        }
     }
 
     printf("\n📝 Homework Helper\n");
@@ -600,7 +607,8 @@ int cmd_libretto(int argc, char** argv) {
                 char comment_short[30] = "";
                 if (g->comment[0]) {
                     strncpy(comment_short, g->comment, 25);
-                    if (strlen(g->comment) > 25) strcat(comment_short, "...");
+                    comment_short[25] = '\0';
+                    if (strlen(g->comment) > 25) strncat(comment_short, "...", sizeof(comment_short) - strlen(comment_short) - 1);
                 }
 
                 printf("%-12s %-20s %-8s %5.1f     %s\n",
@@ -659,7 +667,8 @@ int cmd_libretto(int argc, char** argv) {
                 char notes_short[25] = "";
                 if (e->notes[0]) {
                     strncpy(notes_short, e->notes, 20);
-                    if (strlen(e->notes) > 20) strcat(notes_short, "...");
+                    notes_short[20] = '\0';
+                    if (strlen(e->notes) > 20) strncat(notes_short, "...", sizeof(notes_short) - strlen(notes_short) - 1);
                 }
 
                 printf("%-12s %-12s %-15s %-8s %s\n",

@@ -473,12 +473,13 @@ static bool wizard_step5_study_method(WizardState* state) {
 
     int style_choice = read_int_choice(1, 5);
     switch (style_choice) {
-        case 1: strcpy(state->learning_style, "visual"); break;
-        case 2: strcpy(state->learning_style, "auditory"); break;
-        case 3: strcpy(state->learning_style, "kinesthetic"); break;
-        case 4: strcpy(state->learning_style, "reading"); break;
-        case 5: strcpy(state->learning_style, "mixed"); break;
+        case 1: strncpy(state->learning_style, "visual", sizeof(state->learning_style) - 1); break;
+        case 2: strncpy(state->learning_style, "auditory", sizeof(state->learning_style) - 1); break;
+        case 3: strncpy(state->learning_style, "kinesthetic", sizeof(state->learning_style) - 1); break;
+        case 4: strncpy(state->learning_style, "reading", sizeof(state->learning_style) - 1); break;
+        case 5: strncpy(state->learning_style, "mixed", sizeof(state->learning_style) - 1); break;
     }
+    state->learning_style[sizeof(state->learning_style) - 1] = '\0';
 
     // Current study method
     printf("\n  " ANSI_BOLD "Come studi di solito?" ANSI_RESET "\n");
@@ -562,7 +563,8 @@ static bool wizard_step6_goals(WizardState* state) {
     }
 
     if (state->goals_count == 0) {
-        strcpy(state->goals[0], "Studiare e imparare");
+        strncpy(state->goals[0], "Studiare e imparare", MAX_GOAL_LEN - 1);
+        state->goals[0][MAX_GOAL_LEN - 1] = '\0';
         state->goals_count = 1;
     }
 

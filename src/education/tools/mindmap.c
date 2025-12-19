@@ -275,11 +275,13 @@ char* mindmap_generate_from_llm(const char* topic, const char* content,
 
     // Build accessibility requirements for prompt
     char access_req[256] = "";
+    size_t access_req_remaining = sizeof(access_req) - 1;
     if (ma.simplified) {
-        strcat(access_req, "- Keep structure very simple and clear\n");
+        strncat(access_req, "- Keep structure very simple and clear\n", access_req_remaining);
+        access_req_remaining = sizeof(access_req) - strlen(access_req) - 1;
     }
     if (ma.large_font) {
-        strcat(access_req, "- Use short labels (max 4 words)\n");
+        strncat(access_req, "- Use short labels (max 4 words)\n", access_req_remaining);
     }
 
     // Build full prompt

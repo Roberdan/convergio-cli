@@ -259,14 +259,18 @@ FlashcardDeck* flashcard_generate_from_llm(int64_t student_id,
 
     // Accessibility adjustments
     char access_req[256] = "";
+    size_t remaining = sizeof(access_req) - 1;
     if (access) {
         if (access->dyslexia) {
-            strcat(access_req, "- Use simple, clear language\n");
-            strcat(access_req, "- Keep fronts and backs short\n");
+            strncat(access_req, "- Use simple, clear language\n", remaining);
+            remaining = sizeof(access_req) - strlen(access_req) - 1;
+            strncat(access_req, "- Keep fronts and backs short\n", remaining);
+            remaining = sizeof(access_req) - strlen(access_req) - 1;
         }
         if (access->autism) {
-            strcat(access_req, "- Be explicit and literal\n");
-            strcat(access_req, "- Avoid ambiguity\n");
+            strncat(access_req, "- Be explicit and literal\n", remaining);
+            remaining = sizeof(access_req) - strlen(access_req) - 1;
+            strncat(access_req, "- Avoid ambiguity\n", remaining);
         }
     }
 

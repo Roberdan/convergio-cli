@@ -319,15 +319,19 @@ Quiz* quiz_generate_from_llm(const char* topic, const char* content,
 
     // Accessibility requirements for prompt
     char access_req[512] = "";
+    size_t remaining = sizeof(access_req) - 1;
     if (qa.simplified_options) {
-        strcat(access_req, "- Use maximum 3 options per question\n");
+        strncat(access_req, "- Use maximum 3 options per question\n", remaining);
+        remaining = sizeof(access_req) - strlen(access_req) - 1;
     }
     if (qa.show_hints_always) {
-        strcat(access_req, "- Include a helpful hint for each question\n");
+        strncat(access_req, "- Include a helpful hint for each question\n", remaining);
+        remaining = sizeof(access_req) - strlen(access_req) - 1;
     }
     if (access && access->dyslexia) {
-        strcat(access_req, "- Use simple, clear language\n");
-        strcat(access_req, "- Keep questions short (max 2 sentences)\n");
+        strncat(access_req, "- Use simple, clear language\n", remaining);
+        remaining = sizeof(access_req) - strlen(access_req) - 1;
+        strncat(access_req, "- Keep questions short (max 2 sentences)\n", remaining);
     }
 
     // Build prompt (in real implementation, send to LLM)
