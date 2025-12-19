@@ -132,6 +132,58 @@ static const char* get_model_api_id(const char* model) {
     return model;
 }
 
+// Check if web_search tool is in the tools list
+static bool has_web_search_tool(ToolDefinition* tools, size_t tool_count) {
+    for (size_t i = 0; i < tool_count; i++) {
+        if (tools[i].name && strcmp(tools[i].name, "web_search") == 0) {
+            return true;
+        }
+    }
+    return false;
+}
+
+// Build tools JSON excluding web_search (for native search)
+static char* build_tools_json_excluding_web_search(ToolDefinition* tools, size_t count) {
+    if (!tools || count == 0) return strdup("[]");
+
+    // Count non-web_search tools
+    size_t non_ws_count = 0;
+    for (size_t i = 0; i < count; i++) {
+        if (!tools[i].name || strcmp(tools[i].name, "web_search") != 0) {
+            non_ws_count++;
+        }
+    }
+
+    if (non_ws_count == 0) return strdup("[]");
+
+    size_t size = 256 + non_ws_count * 2048;
+    char* json = malloc(size);
+    if (!json) return NULL;
+
+    size_t offset = (size_t)snprintf(json, size, "[");
+    bool first = true;
+
+    for (size_t i = 0; i < count; i++) {
+        if (tools[i].name && strcmp(tools[i].name, "web_search") == 0) {
+            continue;  // Skip web_search
+        }
+        if (!first) {
+            offset += (size_t)snprintf(json + offset, size - offset, ",");
+        }
+        offset += (size_t)snprintf(json + offset, size - offset,
+            "{\"type\":\"function\",\"function\":{\"name\":\"%s\",\"description\":\"%s\",\"parameters\":%s}}",
+            tools[i].name, tools[i].description,
+            tools[i].parameters_json ? tools[i].parameters_json : "{\"type\":\"object\",\"properties\":{}}");
+        first = false;
+    }
+
+    snprintf(json + offset, size - offset, "]");
+    return json;
+}
+
+// OpenAI search model - use for native web search
+#define OPENAI_SEARCH_MODEL "gpt-4o-search-preview"
+
 // Check if model is GPT-5.x series (requires max_completion_tokens instead of max_tokens)
 static bool is_gpt5_model(const char* model) {
     if (!model) return false;
@@ -472,8 +524,13 @@ static char* openai_chat_with_tools(Provider* self, const char* model, const cha
         return NULL;
     }
 
-    // Build tools JSON
-    char* tools_json = build_openai_tools_json(tools, tool_count);
+    // Check if web_search is requested - use OpenAI native search
+    bool use_native_search = has_web_search_tool(tools, tool_count);
+
+    // Build tools JSON (excluding web_search if using native search)
+    char* tools_json = use_native_search
+        ? build_tools_json_excluding_web_search(tools, tool_count)
+        : build_openai_tools_json(tools, tool_count);
     if (!tools_json) {
         curl_easy_cleanup(curl);
         return NULL;
@@ -491,7 +548,8 @@ static char* openai_chat_with_tools(Provider* self, const char* model, const cha
         return NULL;
     }
 
-    const char* api_model = get_model_api_id(model);
+    // Use search model if native web search is enabled
+    const char* api_model = use_native_search ? OPENAI_SEARCH_MODEL : get_model_api_id(model);
 
     size_t json_size = strlen(escaped_system) + strlen(escaped_user) + strlen(tools_json) + 2048;
     char* json_body = malloc(json_size);
@@ -504,18 +562,37 @@ static char* openai_chat_with_tools(Provider* self, const char* model, const cha
     }
 
     StyleSettings style = convergio_get_style_settings();
-    snprintf(json_body, json_size,
-        "{"
-        "\"model\": \"%s\","
-        "\"%s\": %d,"
-        "\"temperature\": %.2f,"
-        "\"tools\": %s,"
-        "\"messages\": ["
-        "{\"role\": \"system\", \"content\": \"%s\"},"
-        "{\"role\": \"user\", \"content\": \"%s\"}"
-        "]"
-        "}",
-        api_model, get_token_param_name(api_model), style.max_tokens, style.temperature, tools_json, escaped_system, escaped_user);
+
+    // Add web_search_options if using native search
+    if (use_native_search) {
+        LOG_INFO(LOG_CAT_API, "OpenAI: Using native web search with %s", OPENAI_SEARCH_MODEL);
+        snprintf(json_body, json_size,
+            "{"
+            "\"model\": \"%s\","
+            "\"%s\": %d,"
+            "\"temperature\": %.2f,"
+            "\"web_search_options\": {\"search_context_size\": \"medium\"},"
+            "\"tools\": %s,"
+            "\"messages\": ["
+            "{\"role\": \"system\", \"content\": \"%s\"},"
+            "{\"role\": \"user\", \"content\": \"%s\"}"
+            "]"
+            "}",
+            api_model, get_token_param_name(api_model), style.max_tokens, style.temperature, tools_json, escaped_system, escaped_user);
+    } else {
+        snprintf(json_body, json_size,
+            "{"
+            "\"model\": \"%s\","
+            "\"%s\": %d,"
+            "\"temperature\": %.2f,"
+            "\"tools\": %s,"
+            "\"messages\": ["
+            "{\"role\": \"system\", \"content\": \"%s\"},"
+            "{\"role\": \"user\", \"content\": \"%s\"}"
+            "]"
+            "}",
+            api_model, get_token_param_name(api_model), style.max_tokens, style.temperature, tools_json, escaped_system, escaped_user);
+    }
 
     free(escaped_system);
     free(escaped_user);

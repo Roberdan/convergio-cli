@@ -27,6 +27,7 @@ typedef enum {
     TOOL_FILE_DELETE,     // Safe delete (moves to trash)
     TOOL_SHELL_EXEC,      // Execute shell command
     TOOL_WEB_FETCH,       // Fetch URL content
+    TOOL_WEB_SEARCH,      // Search the web (local fallback for non-Anthropic)
     TOOL_MEMORY_STORE,    // Store in semantic memory
     TOOL_MEMORY_SEARCH,   // Search semantic memory (RAG)
     TOOL_NOTE_WRITE,      // Write markdown note
