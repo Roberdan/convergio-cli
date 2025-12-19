@@ -579,7 +579,7 @@ Ogni thread crea 2 maestri in parallelo.
 | FT02 | Test study sessions timer | [ ] | P0 |
 | FT03 | Test progress tracking accuracy | [ ] | P0 |
 | FT04 | Test Anna reminder delivery | [ ] | P0 |
-| FT05 | Test libretto grade recording | [ ] | P0 |
+| FT05 | Test libretto grade recording | [x] | P0 |
 
 ---
 
@@ -836,13 +836,14 @@ FASE 8 (Test) - 5 THREAD PARALLELI
 | 2025-12-19 | Aggiunto task di test per ogni fase |
 | 2025-12-19 23:00 | **LIBRETTO**: Implementato completo (LB01-LB13) - Schema DB, API, CLI, Quiz integration |
 | 2025-12-19 23:00 | Merge da main completato - sincronizzazione con ACP e test suites |
+| 2025-12-19 23:30 | **TEST**: Aggiunti 5 test libretto (FT05) - 14/14 test education passati |
 
 ---
 
 **Piano creato**: 2025-12-19
-**Ultimo aggiornamento**: 2025-12-19 23:00
+**Ultimo aggiornamento**: 2025-12-19 23:30
 **Task totali**: 156
-**Task completati**: 59
+**Task completati**: 60
 **Percentuale**: 38%
 **Thread paralleli max**: 10
 **Autore**: Roberto con supporto team agenti AI
