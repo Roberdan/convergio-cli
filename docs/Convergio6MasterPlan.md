@@ -1,9 +1,9 @@
 # Execution Plan: Convergio 6.0 - Zed Integration MVP
 
 **Created**: 2025-12-18
-**Last Updated**: 2025-12-19 00:30
-**Status**: 🚀 FASE 3 - Convergio-Zed Fork
-**Progress**: 15/16 tasks (94%)
+**Last Updated**: 2025-12-19 17:30
+**Status**: 🔧 Chat Persistence parzialmente risolto - richiede ACP resume
+**Progress**: 20/21 tasks (95%) - ACP resume in backlog
 **Branch**: `feature/acp-zed-integration`
 **Goal**: Editor AI-first con multi-agent panel integrato
 
@@ -24,8 +24,9 @@
 ```
 FASE 1 (MVP):     convergio-acp + test locale        → ✅ COMPLETATO
 FASE 2 (ACP):     --agent flag + routing             → ✅ COMPLETATO
-FASE 3 (Fork):    Convergio-Zed custom editor        → 🚀 IN CORSO (94%)
-FASE 4 (Dist):    Build + distribuzione macOS/Linux  → dopo validazione
+FASE 3 (Fork):    Convergio-Zed custom editor        → ✅ COMPLETATO
+FASE 4 (Features):Ali panel + persistence + context   → ✅ COMPLETATO
+FASE 5 (Polish):  Icons, themes, onboarding          → ⏸️ FUTURE
 ```
 
 **Repositories:**
@@ -57,7 +58,7 @@ FASE 4 (Dist):    Build + distribuzione macOS/Linux  → dopo validazione
 | P5 | Accessibility layer | ⏸️ | 3 gg | Sospeso - focus su Fase 3 |
 | P6 | Extension manifest + pubblicazione | ⏸️ | 1 gg | Sospeso - focus su Fase 3 |
 
-### FASE 3 - Convergio-Zed Fork 🚀
+### FASE 3 - Convergio-Zed Fork ✅
 
 | ID | Task | Status | Effort | Note |
 |----|------|--------|--------|------|
@@ -69,16 +70,53 @@ FASE 4 (Dist):    Build + distribuzione macOS/Linux  → dopo validazione
 | Z6 | Click agente → apre chat ACP | ✅✅ | 1 gg | NewExternalAgentThread dispatch |
 | Z7 | 54 agenti + Categorie + Search | ✅✅ | 1 gg | 14 categorie collassabili + search per nome/skills |
 | Z8 | settings.json 54 agenti | ✅✅ | 0.5 gg | ~/.config/zed/settings.json aggiornato |
-| Z9 | Build + Test E2E | 🚀 | 1 gg | Release build in corso |
+| Z9 | Build + Test E2E | ✅✅ | 1 gg | Release build completata 2025-12-19 |
 
-### FASE 4 - Feature Avanzate 🚀
+### FASE 4 - Feature Avanzate ✅
 
 | ID | Task | Status | Effort | Note |
 |----|------|--------|--------|------|
 | F1 | Super chat Ali (bottom panel) | ✅✅ | 2 gg | Ali bottom panel + Enter key + Open Chat button |
 | F2 | Ali consapevole di tutte le conversazioni | ✅✅ | 3 gg | ACP salva context, Ali carica da ~/.convergio/agent_context/ |
-| F3 | Persistenza conversazioni per agente | ✅✅ | 2 gg | KEY_VALUE_STORE per sessions + resume_session_id |
+| F3 | Persistenza conversazioni per agente | ✅✅ | 2 gg | HistoryStore.save_acp_thread + thread_by_agent_name |
 | F4 | Branding: icon Convergio Panel | ✅✅ | 0.5 gg | UserGroup icon per Convergio, Ai per Ali |
+
+### 🔧 Chat Persistence - PARZIALMENTE RISOLTO
+
+| ID | Task | Status | Effort | Note |
+|----|------|--------|--------|------|
+| BUG1a | DB: Aggiungere campo agent_name | ✅✅ | 0.5 gg | DbThreadMetadata + DbThread + colonna DB |
+| BUG1b | Ricerca: thread_by_agent_name usa agent_name | ✅✅ | 0.5 gg | Cerca per agent_name invece che title |
+| BUG1c | Salvataggio: agent_name in save_thread_metadata | ✅✅ | 0.5 gg | Convergio threads salvano agent server name |
+| BUG1d | ACP Resume: Supporto session resume | ⏸️ | 2 gg | Richiede modifica protocollo ACP |
+
+**Stato attuale**:
+- ✅ I thread vengono salvati con agent_name
+- ✅ La ricerca trova il thread esistente per agente
+- ⚠️ **LIMITAZIONE**: Il protocollo ACP non supporta il resume delle sessioni
+- ⚠️ Quando si clicca sull'agente, viene trovato il thread ma comunque creata una nuova sessione ACP
+
+**Per completare il resume servono modifiche lato server (convergio-acp)**:
+1. Aggiungere `resume_session_id` opzionale a `session/new`
+2. Il server deve mantenere lo stato della sessione
+3. Se `resume_session_id` è presente, caricare i messaggi precedenti
+
+**File modificati** (2025-12-19):
+- `crates/agent/src/db.rs` - agent_name in DbThreadMetadata + DbThread + query
+- `crates/agent/src/history_store.rs` - thread_by_agent_name migliorato
+- `crates/agent_ui/src/agent_panel.rs` - ricerca per full agent name
+- `crates/agent_ui/src/acp/thread_view.rs` - salva agent_name + log per ACP resume
+
+---
+
+### FASE 5 - Polish & UX (FUTURE)
+
+| ID | Task | Status | Effort | Note |
+|----|------|--------|--------|------|
+| U1 | LLM-based icon resolution | ⏸️ | 1 gg | Usare LLM per suggerire icone appropriate per ogni agente |
+| U2 | Custom icon set per agenti | ⏸️ | 2 gg | Implementare mapping agent_name → icon dalla libreria scelta |
+| U3 | Themes e colori per categoria | ⏸️ | 1 gg | Colori distintivi per ogni categoria di agenti |
+| U4 | Onboarding wizard | ⏸️ | 2 gg | Prima esperienza utente guidata |
 
 ---
 
@@ -216,6 +254,10 @@ Ali deve poter:
 | 2025-12-19 | 02:00 | F3: Conversation persistence completato (KEY_VALUE_STORE) |
 | 2025-12-19 | 02:00 | Commit convergio-zed: d19c1100e4 (Convergio Panel + Ali) |
 | 2025-12-19 | 02:00 | Commit ConvergioCLI: d6bb014 (Context sharing ACP) |
+| 2025-12-19 | 15:00 | F3: Fix persistenza - HistoryStore.save_acp_thread + thread_by_agent_name |
+| 2025-12-19 | 15:10 | Release build completata: Zed-aarch64.dmg |
+| 2025-12-19 | 15:11 | ✅ **FASE 4 COMPLETATA** - Convergio Studio MVP ready |
+| 2025-12-19 | 15:20 | 🚨 BUG CRITICO: Click agente apre nuova chat invece di riprendere esistente |
 
 ---
 
@@ -234,4 +276,4 @@ Ali deve poter:
 
 ---
 
-**Piano aggiornato**: 2025-12-19 00:30
+**Piano aggiornato**: 2025-12-19 15:20
