@@ -42,8 +42,9 @@ const char* nous_log_level_name(LogLevel level) {
     return "INFO";
 }
 
-// Provider stubs for education tests
+// Provider stubs for education tests - use weak symbol to avoid duplicate
 typedef struct Provider Provider;
+__attribute__((weak))
 Provider* provider_get(int provider_type) {
     (void)provider_type;
     return NULL;  // Return NULL so llm_generate uses fallback

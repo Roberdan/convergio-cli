@@ -1029,6 +1029,161 @@ void libretto_report_free(EducationProgressReport* report);
 void libretto_stats_free(EducationSubjectStats** stats, int count);
 
 // ============================================================================
+// ALI PRESIDE API (FASE 7 - School Principal Coordination)
+// ============================================================================
+
+/**
+ * @brief Statistics for a single maestro/subject
+ */
+typedef struct {
+    char maestro_id[8];
+    char maestro_name[32];
+    char subject[32];
+    float average_grade;
+    int grade_count;
+    float trend;
+    int study_minutes;
+    int session_count;
+} PresideMaestroStats;
+
+/**
+ * @brief Complete student dashboard for the preside
+ */
+typedef struct {
+    int64_t student_id;
+    char student_name[64];
+    float overall_average;
+    int total_study_hours;
+    int total_sessions;
+    int goals_achieved;
+    int goals_pending;
+    int current_streak;
+    PresideMaestroStats* maestro_stats;
+    int maestro_count;
+    char* concerns;
+    char* strengths;
+} PresideStudentDashboard;
+
+/**
+ * @brief Types of student concerns
+ */
+typedef enum {
+    PRESIDE_CONCERN_LOW_GRADE = 0,
+    PRESIDE_CONCERN_DECLINING_TREND = 1,
+    PRESIDE_CONCERN_LOW_ENGAGEMENT = 2,
+    PRESIDE_CONCERN_MISSED_GOALS = 3,
+    PRESIDE_CONCERN_BREAK_STREAK = 4
+} PresideConcernType;
+
+/**
+ * @brief A specific student concern
+ */
+typedef struct {
+    PresideConcernType type;
+    char subject[32];
+    char description[256];
+    int severity;
+    time_t detected_at;
+} PresideStudentConcern;
+
+/**
+ * @brief A difficult case requiring escalation
+ */
+typedef struct {
+    int64_t student_id;
+    char student_name[64];
+    PresideStudentConcern* concerns;
+    int concern_count;
+} PresideDifficultCase;
+
+/**
+ * @brief Virtual class council session
+ */
+typedef struct {
+    int64_t student_id;
+    char student_name[64];
+    char* agenda;
+    char* discussion_points;
+    char* recommendations;
+    time_t scheduled_at;
+} PresideClassCouncil;
+
+/**
+ * @brief Get comprehensive student dashboard for preside (AL02)
+ * @param student_id Student profile ID
+ * @return Dashboard or NULL (caller must free with preside_dashboard_free)
+ */
+PresideStudentDashboard* preside_get_dashboard(int64_t student_id);
+
+/**
+ * @brief Free a student dashboard
+ * @param dashboard Dashboard to free
+ */
+void preside_dashboard_free(PresideStudentDashboard* dashboard);
+
+/**
+ * @brief Print dashboard to console (ASCII format)
+ * @param dashboard Dashboard to print
+ */
+void preside_print_dashboard(const PresideStudentDashboard* dashboard);
+
+/**
+ * @brief Prepare virtual class council for student (AL03)
+ * @param student_id Student profile ID
+ * @return Council or NULL (caller must free with preside_class_council_free)
+ */
+PresideClassCouncil* preside_prepare_class_council(int64_t student_id);
+
+/**
+ * @brief Free a class council
+ * @param council Council to free
+ */
+void preside_class_council_free(PresideClassCouncil* council);
+
+/**
+ * @brief Generate automatic weekly report (AL04)
+ * @param student_id Student profile ID
+ * @return Report string (caller must free)
+ */
+char* preside_generate_weekly_report(int64_t student_id);
+
+/**
+ * @brief Detect difficult cases requiring escalation (AL05)
+ * @param student_id Student profile ID
+ * @return Difficult case or NULL if no concerns (caller must free)
+ */
+PresideDifficultCase* preside_detect_difficult_case(int64_t student_id);
+
+/**
+ * @brief Free a difficult case
+ * @param dc Difficult case to free
+ */
+void preside_difficult_case_free(PresideDifficultCase* dc);
+
+/**
+ * @brief Generate parent communication message (AL06)
+ * @param student_id Student profile ID
+ * @param include_concerns Whether to include concerns in message
+ * @return Message string (caller must free)
+ */
+char* preside_generate_parent_message(int64_t student_id, bool include_concerns);
+
+/**
+ * @brief Get shared context for maestri about student (CM01)
+ * @param student_id Student profile ID
+ * @return Context string (caller must free)
+ */
+char* preside_get_shared_context(int64_t student_id);
+
+/**
+ * @brief Suggest interdisciplinary connections for topic (CM02-03)
+ * @param student_id Student profile ID
+ * @param topic Topic to analyze
+ * @return Suggestion string (caller must free)
+ */
+char* preside_suggest_interdisciplinary(int64_t student_id, const char* topic);
+
+// ============================================================================
 // INTERNAL API (FOR ANNA INTEGRATION)
 // ============================================================================
 
