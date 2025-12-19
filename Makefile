@@ -253,6 +253,7 @@ C_SOURCES = $(SRC_DIR)/core/fabric.c \
             $(SRC_DIR)/education/education_db.c \
             $(SRC_DIR)/education/setup_wizard.c \
             $(SRC_DIR)/education/anna_integration.c \
+            $(SRC_DIR)/education/accessibility_runtime.c \
             $(SRC_DIR)/education/features/study_session.c \
             $(SRC_DIR)/education/features/homework.c \
             $(SRC_DIR)/education/features/progress.c \

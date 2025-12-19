@@ -533,6 +533,50 @@ bool education_accessibility_wants_tts(int64_t student_id);
 int education_accessibility_get_font(int64_t student_id, char* font_family, int* font_size);
 
 // ============================================================================
+// ACCESSIBILITY RUNTIME ADAPTATIONS
+// ============================================================================
+
+// Dyslexia (DY01-07)
+const char* a11y_get_font(const EducationAccessibility* access);
+float a11y_get_line_spacing(const EducationAccessibility* access);
+int a11y_get_max_line_width(const EducationAccessibility* access);
+char* a11y_wrap_text(const char* text, int max_width);
+const char* a11y_get_background_color(const EducationAccessibility* access);
+const char* a11y_get_background_ansi(const EducationAccessibility* access);
+bool a11y_wants_tts_highlight(const EducationAccessibility* access);
+char* a11y_syllabify_word(const char* word);
+char* a11y_syllabify_text(const char* text);
+
+// Dyscalculia (DC01-06)
+char* a11y_format_number_colored(double number, bool use_colors);
+char* a11y_generate_place_value_blocks(int number);
+bool a11y_disable_math_timer(const EducationAccessibility* access);
+
+// Cerebral Palsy (CP01-05)
+bool a11y_prefers_voice_input(const EducationAccessibility* access);
+int a11y_get_timeout_multiplier(const EducationAccessibility* access);
+int a11y_get_adjusted_timeout(const EducationAccessibility* access, int base_timeout);
+bool a11y_suggest_break(const EducationAccessibility* access, int minutes_elapsed);
+
+// ADHD (AD01-06)
+int a11y_get_max_bullets(const EducationAccessibility* access);
+char* a11y_limit_bullets(const char* text, int max_bullets);
+char* a11y_generate_progress_bar(int current, int total, int width);
+const char* a11y_get_celebration_message(int achievement_level);
+bool a11y_enhance_gamification(const EducationAccessibility* access);
+
+// Autism (AU01-06)
+bool a11y_avoid_metaphors(const EducationAccessibility* access);
+bool a11y_contains_metaphors(const char* text);
+const char* a11y_get_structure_prefix(const char* section_type);
+char* a11y_get_topic_change_warning(const char* old_topic, const char* new_topic);
+bool a11y_avoid_social_pressure(const EducationAccessibility* access);
+bool a11y_reduce_motion(const EducationAccessibility* access);
+
+// Combined
+char* a11y_adapt_text_full(const char* text, const EducationAccessibility* access);
+
+// ============================================================================
 // GOALS API
 // ============================================================================
 
