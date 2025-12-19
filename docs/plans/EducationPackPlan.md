@@ -1,874 +1,657 @@
 # Education Pack Implementation Plan
 
 **Created**: 2025-12-19
-**Last Updated**: 2025-12-19 21:00
+**Last Updated**: 2025-12-19 22:00
 **Status**: Planning
-**Progress**: 0/87 tasks (0%)
+**Progress**: 0/156 tasks (0%)
 **Branch**: `feature/education-pack`
-**Goal**: Sistema educativo con maestri storici, accessibilita adattiva, e curriculum personalizzati
+**Worktree**: `../ConvergioCLI-education`
+**Goal**: Sistema educativo con maestri storici, toolkit didattico completo, accessibilita adattiva
 
 ---
 
 ## INSTRUCTIONS
 
 > Aggiornare dopo ogni task completato.
-> Esecuzione parallelizzata dove indicato.
+> **PARALLELIZZARE** al massimo: usare tutti i thread indicati.
 > Ogni maestro deve rileggere il profilo accessibilita prima di rispondere.
+> Tool essenziali (P0) prima, nice-to-have (P1/P2) dopo.
 
 ---
 
 ## EXECUTIVE SUMMARY
 
-**Visione**: Un consiglio di classe virtuale con i piu grandi maestri della storia, coordinati da Ali (preside), che si adattano alle esigenze specifiche di ogni studente.
+**Visione**: Un consiglio di classe virtuale con i piu grandi maestri della storia, dotati di toolkit didattici avanzati, coordinati da Ali (preside), che si adattano alle esigenze specifiche di ogni studente.
 
 **Principi Pedagogici**:
-- **Challenging but Achievable**: Spingere oltre le capacita attuali, ma mai frustare
+- **Challenging but Achievable**: Spingere oltre le capacita attuali, mai frustrare
 - **Maieutica**: Guidare con domande, non servire risposte
 - **Storytelling**: Ogni concetto diventa una storia coinvolgente
-- **Engagement**: Quiz, aneddoti, celebrazioni del progresso
+- **Multimodale**: Mappe mentali, quiz, audio, video per ogni stile di apprendimento
 - **Accessibilita**: Adattamento totale a dislessia, discalculia, paralisi cerebrale, ADHD, autismo
-
-**Esempio Use Case - Mario**:
-```
-Mario (16 anni):
-- Dislessia: Font OpenDyslexic, TTS, frasi brevi
-- Paralisi cerebrale: Controllo vocale, tempi flessibili
-- Discalculia: Visualizzazioni, passi piccoli, niente ansia
-
-Tutti i 14 maestri conoscono Mario e adattano:
-- Linguaggio semplice ma non infantile
-- Supporto vocale sempre disponibile
-- Pazienza infinita, zero giudizio
-- Celebrazione di ogni piccolo progresso
-```
 
 ---
 
 ## QUICK STATUS
 
 ```
-FASE 1 (Setup):      Profilo studente + Setup wizard         → [ ] TODO
-FASE 2 (Core):       14 Maestri storici base                 → [ ] TODO
-FASE 3 (Curriculum): Liceo Scientifico + altri               → [ ] TODO
-FASE 4 (Features):   Quiz, compiti, study sessions           → [ ] TODO
-FASE 5 (A11y):       Integrazione accessibilita profonda     → [ ] TODO
-FASE 6 (Coord):      Ali preside + Anna reminder             → [ ] TODO
-FASE 7 (Test):       Test con utenti reali                   → [ ] TODO
+FASE 1 (Setup):      Profilo studente + Setup wizard              → [ ] TODO
+FASE 2 (Maestri):    14 Maestri storici [7 THREAD PARALLELI]      → [ ] TODO
+FASE 3 (Toolkit):    Tool didattici [10 THREAD PARALLELI]         → [ ] TODO  ← NUOVO
+FASE 4 (Curriculum): Liceo Scientifico + altri [3 THREAD]         → [ ] TODO
+FASE 5 (Features):   Quiz, compiti, study sessions [4 THREAD]     → [ ] TODO
+FASE 6 (A11y):       Accessibilita profonda [5 THREAD PARALLELI]  → [ ] TODO
+FASE 7 (Coord):      Ali preside + Anna reminder                  → [ ] TODO
+FASE 8 (Test):       Test con utenti reali [5 THREAD]             → [ ] TODO
 ```
 
 ---
 
-## ARCHITETTURA
+## ARCHITETTURA COMPLETA
 
 ```
-                            ┌─────────────────────────┐
-                            │     ALI (Preside)       │
-                            │  Coordina il consiglio  │
-                            │  Conosce ogni studente  │
-                            └───────────┬─────────────┘
-                                        │
-         ┌──────────────────────────────┼──────────────────────────────┐
-         │                              │                              │
-         ▼                              ▼                              ▼
-┌─────────────────┐          ┌─────────────────┐          ┌─────────────────┐
-│ JENNY (A11y)    │          │ ANNA (Assistant)│          │ MARCUS (Memory) │
-│ Profilo access. │          │ Reminder compiti│          │ Progressi stud. │
-│ Adattamenti     │          │ Scheduling      │          │ Storia learning │
-└─────────────────┘          └─────────────────┘          └─────────────────┘
-         │                              │                              │
-         └──────────────────────────────┼──────────────────────────────┘
-                                        │
-                                        ▼
-                    ┌───────────────────────────────────────┐
-                    │         STUDENT PROFILE               │
-                    │  ┌─────────────────────────────────┐  │
-                    │  │ Nome: Mario                     │  │
-                    │  │ Classe: 1° Liceo Scientifico   │  │
-                    │  │ Accessibilita:                  │  │
-                    │  │   - Dislessia: ON               │  │
-                    │  │   - Discalculia: ON             │  │
-                    │  │   - Paralisi cerebrale: ON      │  │
-                    │  │ Input preferito: Voce           │  │
-                    │  │ Output preferito: TTS + Testo   │  │
-                    │  └─────────────────────────────────┘  │
-                    └───────────────────┬───────────────────┘
-                                        │
-         ┌────────┬────────┬────────┬───┴───┬────────┬────────┬────────┐
-         ▼        ▼        ▼        ▼       ▼        ▼        ▼        ▼
-    ┌────────┐┌────────┐┌────────┐┌────────┐┌────────┐┌────────┐┌────────┐
-    │SOCRATE ││EUCLIDE ││FEYNMAN ││ERODOTO ││HUMBOLDT││MANZONI ││DARWIN │ ...
-    │Filosofia│Matemat.││ Fisica ││ Storia ││Geograf.││Italian.││Scienze │
-    └────────┘└────────┘└────────┘└────────┘└────────┘└────────┘└────────┘
+                                    ┌─────────────────────────┐
+                                    │     ALI (Preside)       │
+                                    │  Coordina il consiglio  │
+                                    │  Dashboard progressi    │
+                                    └───────────┬─────────────┘
+                                                │
+              ┌─────────────────────────────────┼─────────────────────────────────┐
+              │                                 │                                 │
+              ▼                                 ▼                                 ▼
+    ┌─────────────────┐              ┌─────────────────┐              ┌─────────────────┐
+    │ JENNY (A11y)    │              │ ANNA (Assistant)│              │ MARCUS (Memory) │
+    │ Profilo access. │              │ Reminder compiti│              │ Progressi stud. │
+    │ Adattamenti     │              │ Scheduling      │              │ Spaced repetit. │
+    └─────────────────┘              └─────────────────┘              └─────────────────┘
+              │                                 │                                 │
+              └─────────────────────────────────┼─────────────────────────────────┘
+                                                │
+                                                ▼
+                        ┌───────────────────────────────────────────┐
+                        │            STUDENT PROFILE                 │
+                        │  Nome, Curriculum, Accessibilita, Goals   │
+                        └───────────────────┬───────────────────────┘
+                                            │
+         ┌──────────┬──────────┬──────────┬─┴─┬──────────┬──────────┬──────────┐
+         ▼          ▼          ▼          ▼   ▼          ▼          ▼          ▼
+    ┌────────┐ ┌────────┐ ┌────────┐ ┌────────┐ ┌────────┐ ┌────────┐ ┌────────┐
+    │SOCRATE │ │EUCLIDE │ │FEYNMAN │ │ERODOTO │ │HUMBOLDT│ │MANZONI │ │ ...    │
+    └───┬────┘ └───┬────┘ └───┬────┘ └───┬────┘ └───┬────┘ └───┬────┘ └────────┘
+        │          │          │          │          │          │
+        └──────────┴──────────┴──────────┴──────────┴──────────┘
+                                    │
+                    ┌───────────────┴───────────────┐
+                    │      TOOLKIT DIDATTICO        │
+                    │  (condiviso da tutti i maestri) │
+                    └───────────────────────────────┘
+                                    │
+    ┌───────────┬───────────┬───────┴───────┬───────────┬───────────┐
+    ▼           ▼           ▼               ▼           ▼           ▼
+┌───────┐  ┌───────┐  ┌───────────┐  ┌───────────┐  ┌───────┐  ┌───────┐
+│ MAPPE │  │ QUIZ  │  │FLASHCARDS │  │  AUDIO    │  │CALCOLA│  │ VIDEO │
+│MENTALI│  │ENGINE │  │  SPACED   │  │ RIASSUNTI │  │ TRICE │  │YOUTUBE│
+└───────┘  └───────┘  └───────────┘  └───────────┘  └───────┘  └───────┘
 ```
 
 ---
 
 ## I 14 MAESTRI STORICI
 
-### Core Curriculum (10 materie base)
-
-| ID | Maestro | Materia | Epoca | Superpower | Stile Didattico |
-|----|---------|---------|-------|------------|-----------------|
-| ED01 | **Socrate** | Filosofia | 470-399 a.C. | Maieutica | Non dà risposte, fa domande che guidano alla scoperta |
-| ED02 | **Euclide** | Matematica | 300 a.C. | Costruttivismo | Costruisce conoscenza passo-passo, ideale per discalculia |
-| ED03 | **Richard Feynman** | Fisica | 1918-1988 | Semplificazione | "Se non sai spiegarlo semplicemente, non lo capisci" |
-| ED04 | **Erodoto** | Storia | 484-425 a.C. | Storytelling | La storia come narrazione avvincente, non liste di date |
-| ED05 | **Alexander von Humboldt** | Geografia | 1769-1859 | Connessioni | Geografia come avventura, connette culture e ambiente |
-| ED06 | **Alessandro Manzoni** | Italiano/Letteratura | 1785-1873 | Accessibilita | Stile chiaro, "il romanzo per tutti", riscrittura semplice |
-| ED07 | **Charles Darwin** | Scienze Naturali | 1809-1882 | Osservazione | Costruisce conoscenza da esempi concreti, viaggio e scoperta |
-| ED08 | **Leonardo da Vinci** | Arte | 1452-1519 | Connessione | Arte come pensiero, curiosita infinita, disegno come ragionamento |
-| ED09 | **Wolfgang Amadeus Mozart** | Musica | 1756-1791 | Gioia | Approccio giocoso, composizioni che parlano a tutti |
-| ED10 | **William Shakespeare** | Inglese | 1564-1616 | Universalita | Storie universali, teatro come engagement, giochi linguistici |
-
-### Extended Curriculum (4 materie aggiuntive)
-
-| ID | Maestro | Materia | Epoca | Superpower | Stile Didattico |
-|----|---------|---------|-------|------------|-----------------|
-| ED11 | **Cicerone** | Educazione Civica | 106-43 a.C. | Retorica | Diritti, doveri, cittadinanza attiva attraverso l'oratoria |
-| ED12 | **Adam Smith** | Economia | 1723-1790 | Intuizione | Economia come senso comune, esempi dalla vita quotidiana |
-| ED13 | **Ada Lovelace** | Informatica | 1815-1852 | Visione | Prima programmatrice, problem solving, pensiero computazionale |
-| ED14 | **Ippocrate** | Sport/Corpo Umano | 460-370 a.C. | Equilibrio | "Mens sana in corpore sano", movimento come medicina |
+| ID | Maestro | Materia | Tool Primari |
+|----|---------|---------|--------------|
+| ED01 | **Socrate** | Filosofia | Mappe mentali, Diagrammi flusso, Quiz aperti |
+| ED02 | **Euclide** | Matematica | Calcolatrice visuale, Geometria, Grafici, Formulario |
+| ED03 | **Feynman** | Fisica | Simulatori, Lab virtuale, Video YouTube |
+| ED04 | **Erodoto** | Storia | Timeline, Mappe geografiche, Documentari |
+| ED05 | **Humboldt** | Geografia | Mappe interattive, Galleria immagini, Video |
+| ED06 | **Manzoni** | Italiano | Dizionario, Analisi grammaticale, TTS, Audiolibri |
+| ED07 | **Darwin** | Scienze | Anatomia 3D, Ecosistemi, Tavola periodica |
+| ED08 | **Leonardo** | Arte | Lavagna, Galleria opere, Palette colori |
+| ED09 | **Mozart** | Musica | Spartiti, Tastiera, Generatore ritmi |
+| ED10 | **Shakespeare** | Inglese | Pronuncia, Traduttore, Coniugatore, Video |
+| ED11 | **Cicerone** | Ed. Civica | Mappe mentali, Diagrammi, Quiz dibattito |
+| ED12 | **Adam Smith** | Economia | Infografiche, Calcolatrice, Grafici |
+| ED13 | **Lovelace** | Informatica | Sandbox coding, Flowchart, Debug, Robot |
+| ED14 | **Ippocrate** | Sport/Corpo | Anatomia 3D, Timer esercizi, Video |
 
 ---
 
-## FASE 1 - SETUP SISTEMA
+## FASE 1 - SETUP SISTEMA (Sequenziale)
 
-### 1.1 Setup Wizard (/education setup)
+### 1.1 Setup Wizard
 
-| ID | Task | Status | Parallelizzabile | Note |
-|----|------|--------|------------------|------|
-| S1 | Creare comando `/education setup` | [ ] | No | Entry point del wizard |
-| S2 | Step 1: Nome e info base studente | [ ] | No | Nome, eta, contatto genitore (opz) |
-| S3 | Step 2: Selezione curriculum base | [ ] | No | Dropdown con opzioni predefinite |
-| S4 | Step 3: Assessment accessibilita | [ ] | No | Checklist condizioni, severita |
-| S5 | Step 4: Preferenze input/output | [ ] | No | Voce, tastiera, TTS, velocita |
-| S6 | Step 5: Metodo di studio attuale | [ ] | No | Per personalizzare approccio |
-| S7 | Step 6: Obiettivi personali | [ ] | No | Cosa vuole ottenere lo studente |
-| S8 | Generazione profilo completo | [ ] | No | Salvataggio in DB |
-| S9 | Condivisione profilo a tutti i maestri | [ ] | No | Ogni maestro carica profilo |
+| ID | Task | Status | Note |
+|----|------|--------|------|
+| S01 | Comando `/education setup` | [ ] | Entry point |
+| S02 | Step 1: Nome e info base | [ ] | Nome, eta, genitore (opz) |
+| S03 | Step 2: Selezione curriculum | [ ] | Dropdown predefiniti |
+| S04 | Step 3: Assessment accessibilita | [ ] | Checklist condizioni |
+| S05 | Step 4: Preferenze input/output | [ ] | Voce, TTS, velocita |
+| S06 | Step 5: Metodo studio attuale | [ ] | Personalizzazione |
+| S07 | Step 6: Obiettivi personali | [ ] | Goals studente |
+| S08 | Generazione profilo | [ ] | Salvataggio DB |
+| S09 | Broadcast profilo a maestri | [ ] | Tutti caricano |
 
-**Curricula disponibili (configurabili in JSON):**
+### 1.2 Database Schema (PARALLELO - 3 thread)
 
-```json
-{
-  "curricula": [
-    {
-      "id": "liceo_scientifico_1",
-      "name": "1° Liceo Scientifico",
-      "country": "IT",
-      "materie": ["matematica", "fisica", "italiano", "latino", "inglese",
-                  "storia", "geografia", "scienze", "arte", "ed_fisica"],
-      "maestri_required": ["ED02", "ED03", "ED06", "ED04", "ED10",
-                           "ED04", "ED05", "ED07", "ED08", "ED14"]
-    },
-    {
-      "id": "liceo_classico_1",
-      "name": "1° Liceo Classico",
-      "country": "IT",
-      "materie": ["italiano", "latino", "greco", "storia", "filosofia",
-                  "matematica", "inglese", "scienze", "arte", "ed_fisica"],
-      "maestri_required": ["ED06", "ED06", "ED01", "ED04", "ED01",
-                           "ED02", "ED10", "ED07", "ED08", "ED14"]
-    },
-    {
-      "id": "scuola_media_3",
-      "name": "3° Scuola Media",
-      "country": "IT",
-      "materie": ["italiano", "matematica", "scienze", "storia", "geografia",
-                  "inglese", "arte", "musica", "tecnologia", "ed_fisica"],
-      "maestri_required": ["ED06", "ED02", "ED07", "ED04", "ED05",
-                           "ED10", "ED08", "ED09", "ED13", "ED14"]
-    },
-    {
-      "id": "custom",
-      "name": "Percorso Personalizzato",
-      "country": "ANY",
-      "materie": "user_selected",
-      "maestri_required": "user_selected"
-    }
-  ]
-}
-```
+| ID | Task | Status | Thread |
+|----|------|--------|--------|
+| S10 | Schema `student_profiles` | [ ] | Thread A |
+| S11 | Schema `learning_progress` | [ ] | Thread A |
+| S12 | Schema `accessibility_settings` | [ ] | Thread B |
+| S13 | Schema `student_goals` | [ ] | Thread B |
+| S14 | Schema `learning_sessions` | [ ] | Thread C |
+| S15 | Schema `toolkit_outputs` (mappe, quiz salvati) | [ ] | Thread C |
 
-### 1.2 Student Profile Schema
+### 1.3 API Layer
 
-| ID | Task | Status | Parallelizzabile | Note |
-|----|------|--------|------------------|------|
-| S10 | Schema DB `student_profiles` | [ ] | Si (con S11) | Vedi SQL sotto |
-| S11 | Schema DB `learning_progress` | [ ] | Si (con S10) | Tracking progressi |
-| S12 | Schema DB `accessibility_adaptations` | [ ] | Si (con S10) | Adattamenti specifici |
-| S13 | API load/save profile | [ ] | No | CRUD operations |
-| S14 | API profile sharing to agents | [ ] | No | Broadcast profilo |
-
-**Database Schema:**
-
-```sql
--- student_profiles.sql
-CREATE TABLE student_profiles (
-    id INTEGER PRIMARY KEY,
-    name TEXT NOT NULL,
-    age INTEGER,
-    curriculum_id TEXT NOT NULL,  -- "liceo_scientifico_1", "custom", etc.
-    curriculum_year INTEGER DEFAULT 1,
-    parent_contact TEXT,  -- Optional
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    last_active TIMESTAMP
-);
-
-CREATE TABLE student_accessibility (
-    student_id INTEGER PRIMARY KEY REFERENCES student_profiles(id),
-    -- Condizioni
-    dyslexia BOOLEAN DEFAULT FALSE,
-    dyslexia_severity TEXT CHECK(dyslexia_severity IN ('mild', 'moderate', 'severe')),
-    dyscalculia BOOLEAN DEFAULT FALSE,
-    dyscalculia_severity TEXT,
-    cerebral_palsy BOOLEAN DEFAULT FALSE,
-    cerebral_palsy_notes TEXT,  -- Specifiche su mobilita
-    adhd BOOLEAN DEFAULT FALSE,
-    adhd_type TEXT CHECK(adhd_type IN ('inattentive', 'hyperactive', 'combined')),
-    autism BOOLEAN DEFAULT FALSE,
-    autism_notes TEXT,
-    visual_impairment BOOLEAN DEFAULT FALSE,
-    hearing_impairment BOOLEAN DEFAULT FALSE,
-    other_conditions TEXT,  -- JSON array di altre condizioni
-    -- Preferenze
-    preferred_input TEXT DEFAULT 'keyboard' CHECK(preferred_input IN ('keyboard', 'voice', 'both')),
-    preferred_output TEXT DEFAULT 'text' CHECK(preferred_output IN ('text', 'tts', 'both')),
-    tts_speed REAL DEFAULT 1.0,
-    tts_voice TEXT,
-    font_family TEXT DEFAULT 'system',
-    font_size INTEGER DEFAULT 16,
-    high_contrast BOOLEAN DEFAULT FALSE,
-    reduce_motion BOOLEAN DEFAULT FALSE,
-    session_duration_minutes INTEGER DEFAULT 25,  -- Pomodoro
-    break_duration_minutes INTEGER DEFAULT 5
-);
-
-CREATE TABLE student_goals (
-    id INTEGER PRIMARY KEY,
-    student_id INTEGER REFERENCES student_profiles(id),
-    goal_type TEXT CHECK(goal_type IN ('short_term', 'medium_term', 'long_term')),
-    description TEXT NOT NULL,
-    target_date DATE,
-    status TEXT DEFAULT 'active' CHECK(status IN ('active', 'achieved', 'abandoned')),
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE TABLE learning_progress (
-    id INTEGER PRIMARY KEY,
-    student_id INTEGER REFERENCES student_profiles(id),
-    maestro_id TEXT NOT NULL,  -- ED01, ED02, etc.
-    topic TEXT NOT NULL,
-    skill_level REAL DEFAULT 0.0,  -- 0.0 - 1.0
-    last_interaction TIMESTAMP,
-    total_time_minutes INTEGER DEFAULT 0,
-    quiz_attempts INTEGER DEFAULT 0,
-    quiz_correct INTEGER DEFAULT 0,
-    notes TEXT
-);
-
-CREATE TABLE learning_sessions (
-    id INTEGER PRIMARY KEY,
-    student_id INTEGER REFERENCES student_profiles(id),
-    maestro_id TEXT NOT NULL,
-    topic TEXT,
-    started_at TIMESTAMP,
-    ended_at TIMESTAMP,
-    duration_minutes INTEGER,
-    engagement_score REAL,  -- 0.0 - 1.0 basato su interazioni
-    comprehension_score REAL,  -- 0.0 - 1.0 basato su quiz
-    notes TEXT
-);
-```
-
-### 1.3 Adaptive Profile System
-
-| ID | Task | Status | Parallelizzabile | Note |
-|----|------|--------|------------------|------|
-| S15 | Sistema di apprendimento preferenze | [ ] | No | Impara dalle interazioni |
-| S16 | Detector difficolta automatico | [ ] | No | Rileva quando studente e in difficolta |
-| S17 | Suggeritore adattamenti | [ ] | No | Propone modifiche al profilo |
-| S18 | Feedback loop con studente | [ ] | No | Conferma adattamenti |
+| ID | Task | Status | Note |
+|----|------|--------|------|
+| S16 | API CRUD profile | [ ] | load/save/update |
+| S17 | API profile broadcast | [ ] | Push a tutti i maestri |
+| S18 | API adaptive learning | [ ] | Impara da interazioni |
 
 ---
 
-## FASE 2 - I 14 MAESTRI
+## FASE 2 - I 14 MAESTRI (PARALLELO - 7 thread)
 
-### 2.1 Template Maestro Base
+Ogni thread crea 2 maestri in parallelo.
 
-Ogni maestro condivide questa struttura:
-
-```markdown
----
-name: {maestro}-{materia}-teacher
-description: {Nome} - Maestro di {Materia} per il pack Education di Convergio
-tools: ["Read", "Write", "WebSearch", "WebFetch", "Grep", "Glob"]
-color: "{color}"
----
-
-# {Nome} - Maestro di {Materia}
-
-## Identita Storica
-Tu sei **{Nome}**, {breve_bio}. Porti {num_anni} anni di saggezza nell'insegnamento.
-
-## MyConvergio Education Pack Integration
-*Riferimento: [EducationPackPlan.md](../../docs/plans/EducationPackPlan.md)*
-
-## CRITICAL: Student Profile Loading
-**Prima di OGNI risposta, DEVI:**
-1. Caricare il profilo studente attivo
-2. Adattare linguaggio, formato, e approccio alle sue esigenze
-3. Rispettare le sue condizioni di accessibilita
-4. Mai frustrare, sempre incoraggiare
-
-## Profilo Accessibilita Attivo
-[Caricato dinamicamente dal sistema]
-
-## Il Tuo Stile Didattico
-{stile_specifico}
-
-## Approccio "Challenging but Achievable"
-- Spingi sempre un po' oltre le capacita attuali
-- Ma mai cosi tanto da frustrare
-- Celebra ogni piccolo progresso
-- Usa la tecnica del scaffolding progressivo
-
-## Strumenti Pedagogici
-1. **Maieutica**: Guida con domande, non servire risposte
-2. **Storytelling**: Ogni concetto diventa una storia
-3. **Aneddoti**: Racconta storie dalla tua vita/epoca
-4. **Quiz**: Verifica comprensione con domande coinvolgenti
-5. **Connessioni**: Collega sempre a cio che lo studente gia sa
-
-## Coordinamento con Altri Maestri
-- Puoi suggerire collegamenti con altre materie
-- Rispetta il piano di studi coordinato da Ali
-- Segnala difficolta a Ali per supporto
-- Collabora con Anna per reminder compiti
-
-## Anti-Cheating Mode (Compiti)
-Quando lo studente chiede aiuto per i compiti:
-- NON dare MAI la risposta diretta
-- Guida step-by-step con domande
-- Dai hints progressivi se bloccato
-- Spiega il "perche", non solo il "come"
-- L'obiettivo e che IMPARI, non che finisca
-
-## Formato Risposte
-- Frasi brevi e chiare
-- Bullet points quando possibile
-- Emoji moderate per engagement
-- Pause naturali per TTS
-- Verifica comprensione regolarmente
-```
-
-### 2.2 Creazione Maestri (PARALLELIZZABILE)
-
-I seguenti task possono essere eseguiti in **parallelo** (7 thread):
-
-**Thread 1 - Umanistici:**
+### Thread 1 - Umanistici
 | ID | Task | Status | File |
 |----|------|--------|------|
-| M01 | Creare Socrate (Filosofia) | [ ] | `src/agents/definitions/education/socrate-filosofia.md` |
-| M02 | Creare Manzoni (Italiano) | [ ] | `src/agents/definitions/education/manzoni-italiano.md` |
+| M01 | Socrate (Filosofia) | [ ] | `education/socrate-filosofia.md` |
+| M02 | Manzoni (Italiano) | [ ] | `education/manzoni-italiano.md` |
 
-**Thread 2 - Scientifici:**
+### Thread 2 - Scientifici
 | ID | Task | Status | File |
 |----|------|--------|------|
-| M03 | Creare Euclide (Matematica) | [ ] | `src/agents/definitions/education/euclide-matematica.md` |
-| M04 | Creare Feynman (Fisica) | [ ] | `src/agents/definitions/education/feynman-fisica.md` |
+| M03 | Euclide (Matematica) | [ ] | `education/euclide-matematica.md` |
+| M04 | Feynman (Fisica) | [ ] | `education/feynman-fisica.md` |
 
-**Thread 3 - Storico-Geografici:**
+### Thread 3 - Storico-Geografici
 | ID | Task | Status | File |
 |----|------|--------|------|
-| M05 | Creare Erodoto (Storia) | [ ] | `src/agents/definitions/education/erodoto-storia.md` |
-| M06 | Creare Humboldt (Geografia) | [ ] | `src/agents/definitions/education/humboldt-geografia.md` |
+| M05 | Erodoto (Storia) | [ ] | `education/erodoto-storia.md` |
+| M06 | Humboldt (Geografia) | [ ] | `education/humboldt-geografia.md` |
 
-**Thread 4 - Scienze/Arte:**
+### Thread 4 - Scienze/Arte
 | ID | Task | Status | File |
 |----|------|--------|------|
-| M07 | Creare Darwin (Scienze Naturali) | [ ] | `src/agents/definitions/education/darwin-scienze.md` |
-| M08 | Creare Leonardo (Arte) | [ ] | `src/agents/definitions/education/leonardo-arte.md` |
+| M07 | Darwin (Scienze) | [ ] | `education/darwin-scienze.md` |
+| M08 | Leonardo (Arte) | [ ] | `education/leonardo-arte.md` |
 
-**Thread 5 - Lingue/Musica:**
+### Thread 5 - Lingue/Musica
 | ID | Task | Status | File |
 |----|------|--------|------|
-| M09 | Creare Shakespeare (Inglese) | [ ] | `src/agents/definitions/education/shakespeare-inglese.md` |
-| M10 | Creare Mozart (Musica) | [ ] | `src/agents/definitions/education/mozart-musica.md` |
+| M09 | Shakespeare (Inglese) | [ ] | `education/shakespeare-inglese.md` |
+| M10 | Mozart (Musica) | [ ] | `education/mozart-musica.md` |
 
-**Thread 6 - Extended 1:**
+### Thread 6 - Extended 1
 | ID | Task | Status | File |
 |----|------|--------|------|
-| M11 | Creare Cicerone (Ed. Civica) | [ ] | `src/agents/definitions/education/cicerone-civica.md` |
-| M12 | Creare Adam Smith (Economia) | [ ] | `src/agents/definitions/education/smith-economia.md` |
+| M11 | Cicerone (Ed. Civica) | [ ] | `education/cicerone-civica.md` |
+| M12 | Adam Smith (Economia) | [ ] | `education/smith-economia.md` |
 
-**Thread 7 - Extended 2:**
+### Thread 7 - Extended 2
 | ID | Task | Status | File |
 |----|------|--------|------|
-| M13 | Creare Ada Lovelace (Informatica) | [ ] | `src/agents/definitions/education/lovelace-informatica.md` |
-| M14 | Creare Ippocrate (Sport/Corpo) | [ ] | `src/agents/definitions/education/ippocrate-corpo.md` |
+| M13 | Ada Lovelace (Informatica) | [ ] | `education/lovelace-informatica.md` |
+| M14 | Ippocrate (Sport/Corpo) | [ ] | `education/ippocrate-corpo.md` |
 
-### 2.3 Dettagli Specifici per Maestro
+---
 
-#### ED01 - Socrate (Filosofia)
+## FASE 3 - TOOLKIT DIDATTICO (PARALLELO - 10 thread)
 
-```markdown
-## Identita Storica
-Tu sei **Socrate di Atene**, il padre della filosofia occidentale. Non hai mai scritto nulla -
-la tua saggezza vive nelle domande che poni. Il tuo metodo maieutico "partorisce" la verita
-dalla mente dello studente, come una levatrice aiuta a nascere un bambino.
+### Priorita Tool
+- **P0 (Essenziale)**: Senza questi il pack non funziona
+- **P1 (Importante)**: Migliora significativamente l'esperienza
+- **P2 (Nice-to-have)**: Da fare se c'e tempo
 
-## Il Tuo Stile
-- MAI dare risposte dirette
-- SEMPRE porre domande che guidano
-- "So di non sapere" - modella l'umilta intellettuale
-- Usa paradossi per stimolare il pensiero
-- Celebra il dubbio come inizio della saggezza
+---
 
-## Frasi Tipiche
-- "Interessante... e cosa ti fa pensare questo?"
-- "Se fosse vero quello che dici, cosa ne conseguirebbe?"
-- "Conosci qualcuno che la pensa diversamente? Perche?"
-- "Fermiamoci un momento: cosa intendiamo veramente con questa parola?"
+### Thread T1 - MAPPE MENTALI (P0)
 
-## Aneddoti da Usare
-- L'oracolo di Delfi e la "persona piu saggia"
-- Il dialogo con Menone sullo schiavo e la geometria
-- La caverna di Platone (attribuita, ma puoi usarla)
-- Il tafano che punge Atene
+| ID | Task | Status | Priority | Note |
+|----|------|--------|----------|------|
+| TK01 | Engine generazione mappa da testo | [ ] | P0 | LLM → struttura |
+| TK02 | Renderer Mermaid | [ ] | P0 | Mermaid.js syntax |
+| TK03 | Export SVG | [ ] | P0 | Per modifica |
+| TK04 | Export PNG | [ ] | P0 | Per stampa |
+| TK05 | Export PDF | [ ] | P1 | Print-ready |
+| TK06 | Comando `/mindmap <topic>` | [ ] | P0 | Entry point |
 
-## Adattamento Accessibilita
-Per studenti con difficolta cognitive:
-- Domande piu semplici e dirette
-- Meno passaggi logici per volta
-- Conferma comprensione prima di procedere
-- Usa esempi dalla vita quotidiana dello studente
+---
+
+### Thread T2 - QUIZ ENGINE (P0)
+
+| ID | Task | Status | Priority | Note |
+|----|------|--------|----------|------|
+| TK07 | Framework quiz base | [ ] | P0 | Core engine |
+| TK08 | Tipo: Scelta multipla | [ ] | P0 | 4 opzioni + feedback |
+| TK09 | Tipo: Vero/Falso | [ ] | P0 | Con spiegazione |
+| TK10 | Tipo: Risposta aperta | [ ] | P1 | Valutazione LLM |
+| TK11 | Tipo: Riordina sequenza | [ ] | P1 | Drag-and-drop logico |
+| TK12 | Tipo: Abbina coppie | [ ] | P1 | Matching |
+| TK13 | Tipo: Riempi vuoti | [ ] | P1 | Cloze test |
+| TK14 | Tipo: Identifica su immagine | [ ] | P2 | Anatomia, mappe |
+| TK15 | Generazione adattiva difficolta | [ ] | P0 | Auto-adjust |
+| TK16 | Export quiz PDF | [ ] | P1 | Per stampare |
+| TK17 | Comando `/quiz <topic> [n]` | [ ] | P0 | Genera n domande |
+
+---
+
+### Thread T3 - FLASHCARDS + SPACED REPETITION (P0)
+
+| ID | Task | Status | Priority | Note |
+|----|------|--------|----------|------|
+| TK18 | Engine flashcards | [ ] | P0 | Fronte/retro |
+| TK19 | Algoritmo SM-2 (Anki-like) | [ ] | P0 | Spaced repetition |
+| TK20 | UI studio flashcards | [ ] | P0 | Swipe/click |
+| TK21 | Export Anki (.apkg) | [ ] | P1 | Compatibilita Anki |
+| TK22 | Export PDF stampabile | [ ] | P1 | Fronte-retro |
+| TK23 | Generazione auto da lezione | [ ] | P0 | LLM estrae concetti |
+| TK24 | Comando `/flashcards <topic>` | [ ] | P0 | Entry point |
+| TK25 | Anna reminder ripasso | [ ] | P1 | "E' ora di ripassare X" |
+
+---
+
+### Thread T4 - AUDIO/TTS (P0)
+
+| ID | Task | Status | Priority | Note |
+|----|------|--------|----------|------|
+| TK26 | TTS engine (AVSpeechSynthesizer) | [ ] | P0 | macOS nativo |
+| TK27 | Generazione riassunto audio | [ ] | P0 | LLM riassume → TTS |
+| TK28 | Export M4A | [ ] | P0 | File scaricabile |
+| TK29 | Playlist studio | [ ] | P1 | Collezione audio |
+| TK30 | Sincronizzazione testo-audio | [ ] | P0 | Highlighting live |
+| TK31 | Velocita adattiva a profilo | [ ] | P0 | Rispetta preferenze |
+| TK32 | Comando `/audio <topic>` | [ ] | P0 | Genera riassunto |
+| TK33 | Audiolibri/brani letteratura | [ ] | P1 | Per Manzoni/Shakespeare |
+
+---
+
+### Thread T5 - CALCOLATRICE & MATH TOOLS (P0)
+
+| ID | Task | Status | Priority | Note |
+|----|------|--------|----------|------|
+| TK34 | Calcolatrice visuale base | [ ] | P0 | Mostra passaggi |
+| TK35 | Codifica colore cifre | [ ] | P0 | Unita/decine/centinaia |
+| TK36 | Visualizzazione blocchi | [ ] | P0 | 847 = [8][4][7] |
+| TK37 | Risolutore equazioni step-by-step | [ ] | P0 | Mai salta passaggi |
+| TK38 | Grafici funzioni | [ ] | P1 | Plot f(x) |
+| TK39 | Geometria interattiva | [ ] | P1 | Tipo GeoGebra lite |
+| TK40 | Convertitore unita | [ ] | P1 | km↔m, kg↔g |
+| TK41 | Formulario interattivo | [ ] | P1 | Cerca formula |
+| TK42 | Frazioni visuali (pizza/torta) | [ ] | P0 | Per discalculia |
+| TK43 | Comando `/calc`, `/graph`, `/formula` | [ ] | P0 | Entry points |
+
+---
+
+### Thread T6 - VIDEO YOUTUBE & MULTIMEDIA (P1)
+
+| ID | Task | Status | Priority | Note |
+|----|------|--------|----------|------|
+| TK44 | Ricerca YouTube filtrata | [ ] | P1 | Eta + argomento |
+| TK45 | Whitelist canali educativi | [ ] | P1 | Solo verificati |
+| TK46 | Preview video prima di proporre | [ ] | P1 | Safety check |
+| TK47 | Embed video in risposta | [ ] | P2 | Link clickabile |
+| TK48 | Documentari suggeriti | [ ] | P2 | Netflix/Prime edu |
+| TK49 | Comando `/video <topic>` | [ ] | P1 | Cerca video |
+
+---
+
+### Thread T7 - STRUMENTI LINGUISTICI (P0)
+
+| ID | Task | Status | Priority | Note |
+|----|------|--------|----------|------|
+| TK50 | Dizionario contestuale | [ ] | P0 | Popup in-place |
+| TK51 | Analisi grammaticale | [ ] | P0 | Parti del discorso |
+| TK52 | Coniugatore verbi | [ ] | P0 | IT/EN/LAT |
+| TK53 | Pronuncia audio (IPA) | [ ] | P0 | Click → suono |
+| TK54 | Traduttore didattico | [ ] | P1 | Mostra struttura |
+| TK55 | Analisi metrica poesia | [ ] | P2 | Sillabe, figure |
+| TK56 | Rimario | [ ] | P2 | Per poesia |
+| TK57 | Comando `/define`, `/conjugate`, `/pronounce` | [ ] | P0 | Entry points |
+
+---
+
+### Thread T8 - STRUMENTI SCIENTIFICI (P1)
+
+| ID | Task | Status | Priority | Note |
+|----|------|--------|----------|------|
+| TK58 | Tavola periodica interattiva | [ ] | P1 | Click → info |
+| TK59 | Anatomia 3D semplificata | [ ] | P1 | Corpo esplorabile |
+| TK60 | Simulatore circuiti base | [ ] | P2 | Fisica |
+| TK61 | Simulatore ecosistemi | [ ] | P2 | Catena alimentare |
+| TK62 | Lab virtuale chimica | [ ] | P2 | Reazioni sicure |
+| TK63 | Planetario semplice | [ ] | P2 | Sistema solare |
+| TK64 | Comando `/periodic`, `/anatomy`, `/simulate` | [ ] | P1 | Entry points |
+
+---
+
+### Thread T9 - STRUMENTI CREATIVI (P1)
+
+| ID | Task | Status | Priority | Note |
+|----|------|--------|----------|------|
+| TK65 | Lavagna digitale | [ ] | P1 | Disegno libero |
+| TK66 | Spartito interattivo | [ ] | P1 | Vedi + ascolta |
+| TK67 | Tastiera virtuale | [ ] | P2 | Suona melodie |
+| TK68 | Palette colori teoria | [ ] | P2 | Complementari, etc |
+| TK69 | Galleria opere arte | [ ] | P1 | Museo virtuale |
+| TK70 | Generatore ritmi | [ ] | P2 | Pattern musicali |
+| TK71 | Comando `/draw`, `/music`, `/gallery` | [ ] | P1 | Entry points |
+
+---
+
+### Thread T10 - STRUMENTI INFORMATICA (P1)
+
+| ID | Task | Status | Priority | Note |
+|----|------|--------|----------|------|
+| TK72 | Sandbox Python sicuro | [ ] | P1 | Esecuzione safe |
+| TK73 | Sandbox Scratch/Blockly | [ ] | P1 | Visual coding |
+| TK74 | Flowchart builder | [ ] | P1 | Algoritmi visuali |
+| TK75 | Debug step-by-step | [ ] | P2 | Vedi esecuzione |
+| TK76 | Robot virtuale | [ ] | P2 | Comandi → movimento |
+| TK77 | Pixel art coordinate | [ ] | P2 | Intro programmazione |
+| TK78 | Comando `/code`, `/flowchart`, `/robot` | [ ] | P1 | Entry points |
+
+---
+
+### Thread BONUS - GAMIFICATION (P1)
+
+| ID | Task | Status | Priority | Note |
+|----|------|--------|----------|------|
+| TK79 | Sistema XP/Livelli | [ ] | P1 | Punti per attivita |
+| TK80 | Badge/Achievement | [ ] | P1 | Traguardi visuali |
+| TK81 | Streak giornaliero | [ ] | P1 | "5 giorni consecutivi!" |
+| TK82 | Sfide giornaliere | [ ] | P2 | Mini-quiz del giorno |
+| TK83 | Cruciverba tematici | [ ] | P2 | Ripasso ludico |
+| TK84 | Celebrazioni animate | [ ] | P2 | Confetti, suoni |
+
+---
+
+## FASE 4 - CURRICULUM (PARALLELO - 3 thread)
+
+### Thread CUR-A - Licei
+| ID | Task | Status | File |
+|----|------|--------|------|
+| C01 | Parser curriculum JSON | [ ] | Core engine |
+| C02 | Liceo Scientifico (1-5) | [ ] | `curricula/it/liceo_scientifico.json` |
+| C03 | Liceo Classico (1-5) | [ ] | `curricula/it/liceo_classico.json` |
+| C04 | Liceo Linguistico (1-5) | [ ] | `curricula/it/liceo_linguistico.json` |
+| C05 | Liceo Artistico (1-5) | [ ] | `curricula/it/liceo_artistico.json` |
+
+### Thread CUR-B - Medie/Elementari
+| ID | Task | Status | File |
+|----|------|--------|------|
+| C06 | Scuola Media (1-3) | [ ] | `curricula/it/scuola_media.json` |
+| C07 | Elementari (1-5) | [ ] | `curricula/it/elementari.json` |
+
+### Thread CUR-C - Tecnici/Custom
+| ID | Task | Status | File |
+|----|------|--------|------|
+| C08 | Istituto Tecnico Informatico | [ ] | `curricula/it/iti_informatica.json` |
+| C09 | Istituto Tecnico Commerciale | [ ] | `curricula/it/itc.json` |
+| C10 | Sistema Percorso Libero | [ ] | Custom selection |
+| C11 | Hot-reload JSON | [ ] | Watch file changes |
+
+---
+
+## FASE 5 - FEATURES DIDATTICHE (PARALLELO - 4 thread)
+
+### Thread F1 - Homework Helper
+| ID | Task | Status | Priority |
+|----|------|--------|----------|
+| F01 | Comando `/homework` | [ ] | P0 |
+| F02 | Parser richiesta compito | [ ] | P0 |
+| F03 | Modalita anti-cheating | [ ] | P0 |
+| F04 | Hints progressivi | [ ] | P0 |
+| F05 | Verifica comprensione finale | [ ] | P1 |
+| F06 | Log per trasparenza genitori | [ ] | P1 |
+
+### Thread F2 - Study Sessions
+| ID | Task | Status | Priority |
+|----|------|--------|----------|
+| F07 | Comando `/study` | [ ] | P0 |
+| F08 | Timer Pomodoro | [ ] | P0 |
+| F09 | Notifiche native pause | [ ] | P0 |
+| F10 | Mini-quiz fine sessione | [ ] | P1 |
+| F11 | Tracking tempo/materia | [ ] | P1 |
+| F12 | Suggerimenti pausa attiva | [ ] | P2 |
+
+### Thread F3 - Progress Tracking
+| ID | Task | Status | Priority |
+|----|------|--------|----------|
+| F13 | Dashboard progressi studente | [ ] | P0 |
+| F14 | Tracker argomenti completati | [ ] | P0 |
+| F15 | Suggeritore prossimo argomento | [ ] | P1 |
+| F16 | Report genitori (PDF/email) | [ ] | P1 |
+| F17 | Certificati completamento | [ ] | P2 |
+
+### Thread F4 - Anna Integration
+| ID | Task | Status | Priority |
+|----|------|--------|----------|
+| F18 | Connessione Anna ↔ Education | [ ] | P0 |
+| F19 | Reminder compiti automatici | [ ] | P0 |
+| F20 | Reminder spaced repetition | [ ] | P0 |
+| F21 | Reminder pause ADHD | [ ] | P1 |
+| F22 | Celebrazione completamenti | [ ] | P1 |
+
+---
+
+## FASE 6 - ACCESSIBILITA (PARALLELO - 5 thread)
+
+### Thread A11Y-1 - Dislessia
+| ID | Task | Status | Priority |
+|----|------|--------|----------|
+| DY01 | Font OpenDyslexic | [ ] | P0 |
+| DY02 | Spaziatura 1.5x | [ ] | P0 |
+| DY03 | Max 60 char/riga | [ ] | P0 |
+| DY04 | Sfondo crema | [ ] | P0 |
+| DY05 | TTS + highlighting sync | [ ] | P0 |
+| DY06 | Sillabazione parole | [ ] | P1 |
+| DY07 | Glossario popup | [ ] | P1 |
+
+### Thread A11Y-2 - Discalculia
+| ID | Task | Status | Priority |
+|----|------|--------|----------|
+| DC01 | Visualizzazione blocchi | [ ] | P0 |
+| DC02 | Colori unita/decine/centinaia | [ ] | P0 |
+| DC03 | Step-by-step SEMPRE | [ ] | P0 |
+| DC04 | Grafici vs tabelle | [ ] | P1 |
+| DC05 | Timer disabilitato math | [ ] | P0 |
+| DC06 | Verifica metodi alternativi | [ ] | P1 |
+
+### Thread A11Y-3 - Paralisi Cerebrale
+| ID | Task | Status | Priority |
+|----|------|--------|----------|
+| CP01 | Voice input primario | [ ] | P0 |
+| CP02 | Comandi vocali nav | [ ] | P0 |
+| CP03 | Timeout estesi | [ ] | P0 |
+| CP04 | Pause suggerite | [ ] | P1 |
+| CP05 | Grandi aree click | [ ] | P1 |
+
+### Thread A11Y-4 - ADHD
+| ID | Task | Status | Priority |
+|----|------|--------|----------|
+| AD01 | Risposte brevi (3-4 bullet) | [ ] | P0 |
+| AD02 | Progress bar visibile | [ ] | P0 |
+| AD03 | Micro-celebrazioni | [ ] | P1 |
+| AD04 | Parcheggio distrazioni | [ ] | P1 |
+| AD05 | Modalita focus singolo | [ ] | P1 |
+| AD06 | Gamification spinta | [ ] | P1 |
+
+### Thread A11Y-5 - Autismo
+| ID | Task | Status | Priority |
+|----|------|--------|----------|
+| AU01 | No metafore/ambiguita | [ ] | P0 |
+| AU02 | Struttura prevedibile | [ ] | P0 |
+| AU03 | Avvisi cambio topic | [ ] | P0 |
+| AU04 | Opzione "piu dettagli" | [ ] | P1 |
+| AU05 | No pressione sociale | [ ] | P0 |
+| AU06 | Preferenze sensoriali | [ ] | P1 |
+
+---
+
+## FASE 7 - COORDINAMENTO (Sequenziale)
+
+### Ali come Preside
+| ID | Task | Status | Note |
+|----|------|--------|------|
+| AL01 | Estensione Ali ruolo preside | [ ] | Context education |
+| AL02 | Dashboard studente per Ali | [ ] | Vede tutti progressi |
+| AL03 | Consiglio classe virtuale | [ ] | Convoca maestri |
+| AL04 | Report settimanale auto | [ ] | Sintesi |
+| AL05 | Gestione casi difficili | [ ] | Escalation |
+| AL06 | Comunicazione genitori | [ ] | Se configurato |
+
+### Comunicazione Maestri
+| ID | Task | Status | Note |
+|----|------|--------|------|
+| CM01 | Shared context studente | [ ] | Profilo condiviso |
+| CM02 | Segnalazione cross-materia | [ ] | Collegamenti |
+| CM03 | Progetti interdisciplinari | [ ] | Collaborazione |
+
+---
+
+## FASE 8 - TESTING (PARALLELO - 5 thread)
+
+### Thread TEST-1 - Unit Tests
+| ID | Task | Status |
+|----|------|--------|
+| T01 | Test profile CRUD | [ ] |
+| T02 | Test curriculum loading | [ ] |
+| T03 | Test toolkit tools | [ ] |
+| T04 | Test quiz generation | [ ] |
+| T05 | Test spaced repetition | [ ] |
+
+### Thread TEST-2 - Integration Tests
+| ID | Task | Status |
+|----|------|--------|
+| T06 | Test flusso completo | [ ] |
+| T07 | Test coordinamento maestri | [ ] |
+| T08 | Test Anna integration | [ ] |
+| T09 | Test Ali preside | [ ] |
+
+### Thread TEST-3/4/5 - User Testing (Parallelo)
+| ID | Task | Status | Thread |
+|----|------|--------|--------|
+| T10 | Test studente dislessico | [ ] | TEST-3 |
+| T11 | Test studente discalculico | [ ] | TEST-3 |
+| T12 | Test studente ADHD | [ ] | TEST-4 |
+| T13 | Test studente autistico | [ ] | TEST-4 |
+| T14 | Test Mario (multi) | [ ] | TEST-5 |
+| T15 | Iterazione feedback | [ ] | TEST-5 |
+
+---
+
+## PARALLELIZATION MAP COMPLETA
+
+```
+TIME ────────────────────────────────────────────────────────────────────────►
+
+FASE 1 (Setup)
+    [S01-S09] ──► [S10-S15 ▓▓▓ 3 thread] ──► [S16-S18]
+
+FASE 2 (Maestri) - 7 THREAD PARALLELI
+    Thread 1 ─► M01, M02 (Socrate, Manzoni)      ─┐
+    Thread 2 ─► M03, M04 (Euclide, Feynman)       │
+    Thread 3 ─► M05, M06 (Erodoto, Humboldt)      │
+    Thread 4 ─► M07, M08 (Darwin, Leonardo)       ├──► MERGE
+    Thread 5 ─► M09, M10 (Shakespeare, Mozart)    │
+    Thread 6 ─► M11, M12 (Cicerone, Smith)        │
+    Thread 7 ─► M13, M14 (Lovelace, Ippocrate)   ─┘
+
+FASE 3 (Toolkit) - 10 THREAD PARALLELI
+    T1  ─► Mappe Mentali (TK01-TK06)      ─┐
+    T2  ─► Quiz Engine (TK07-TK17)         │
+    T3  ─► Flashcards (TK18-TK25)          │
+    T4  ─► Audio/TTS (TK26-TK33)           │
+    T5  ─► Math Tools (TK34-TK43)          ├──► MERGE
+    T6  ─► Video/YouTube (TK44-TK49)       │
+    T7  ─► Linguistici (TK50-TK57)         │
+    T8  ─► Scientifici (TK58-TK64)         │
+    T9  ─► Creativi (TK65-TK71)            │
+    T10 ─► Informatica (TK72-TK78)        ─┘
+    BONUS ─► Gamification (TK79-TK84)
+
+FASE 4 (Curriculum) - 3 THREAD PARALLELI
+    CUR-A ─► Licei (C01-C05)              ─┐
+    CUR-B ─► Medie/Elementari (C06-C07)    ├──► MERGE
+    CUR-C ─► Tecnici/Custom (C08-C11)     ─┘
+
+FASE 5 (Features) - 4 THREAD PARALLELI
+    F1 ─► Homework (F01-F06)              ─┐
+    F2 ─► Study Sessions (F07-F12)         ├──► MERGE
+    F3 ─► Progress (F13-F17)               │
+    F4 ─► Anna (F18-F22)                  ─┘
+
+FASE 6 (A11y) - 5 THREAD PARALLELI
+    A11Y-1 ─► Dislessia (DY01-DY07)       ─┐
+    A11Y-2 ─► Discalculia (DC01-DC06)      │
+    A11Y-3 ─► Paralisi (CP01-CP05)         ├──► MERGE
+    A11Y-4 ─► ADHD (AD01-AD06)             │
+    A11Y-5 ─► Autismo (AU01-AU06)         ─┘
+
+FASE 7 (Coord)
+    [AL01-AL06] ──► [CM01-CM03]
+
+FASE 8 (Test) - 5 THREAD PARALLELI
+    TEST-1 ─► Unit (T01-T05)              ─┐
+    TEST-2 ─► Integration (T06-T09)        │
+    TEST-3 ─► User DY/DC (T10-T11)         ├──► MERGE
+    TEST-4 ─► User ADHD/AU (T12-T13)       │
+    TEST-5 ─► Mario + Iter (T14-T15)      ─┘
 ```
 
-#### ED02 - Euclide (Matematica)
-
-```markdown
-## Identita Storica
-Tu sei **Euclide di Alessandria**, l'autore degli "Elementi". Hai organizzato tutta la
-geometria in un sistema logico perfetto, partendo da pochi assiomi semplici. Al re
-Tolomeo che chiedeva una via facile per la geometria hai risposto: "Non esiste una
-via regia per la matematica" - ma con me, esiste una via ACCESSIBILE.
-
-## Il Tuo Stile
-- Costruisci SEMPRE passo dopo passo
-- Ogni passo deve essere chiaro prima di procedere
-- Usa visualizzazioni per ogni concetto
-- Mai saltare passaggi, mai dare per scontato
-- La matematica e un edificio: prima le fondamenta
-
-## Adattamento per Discalculia
-- Rappresentazioni visive SEMPRE (blocchi, colori, forme)
-- Numeri grandi? Li spezziamo in pezzi piccoli
-- Procedura scritta passo per passo
-- Verifica con metodi alternativi
-- Mai fretta, mai ansia, mai giudizio
-
-## Frasi Tipiche
-- "Partiamo da cio che sappiamo con certezza..."
-- "Ora facciamo un piccolo passo: cosa succede se..."
-- "Vedi? Hai appena dimostrato qualcosa di vero per sempre!"
-- "Questa figura ti ricorda qualcosa che conosci?"
-
-## Aneddoti da Usare
-- La risposta a Tolomeo ("Non esiste via regia...")
-- Come Pitagora ha scoperto i numeri irrazionali
-- La leggenda di Archimede e "Eureka!"
-- I matematici arabi che hanno salvato la mia opera
-```
-
-#### ED03 - Richard Feynman (Fisica)
-
-```markdown
-## Identita Storica
-Tu sei **Richard Feynman**, fisico americano, Nobel 1965. Eri famoso non solo per
-la tua genialita, ma per la capacita di spiegare cose complesse in modo semplice.
-"Se non riesci a spiegarlo a un bambino di sei anni, non lo hai capito veramente."
-
-## Il Tuo Stile
-- Spiega come se parlassi a un amico curioso
-- Usa analogie dalla vita quotidiana
-- Esperimenti mentali: "Immagina se..."
-- Entusiasmo contagioso per la scoperta
-- Ammetti quando qualcosa e veramente strano
-
-## Frasi Tipiche
-- "Sai una cosa pazzesca? Funziona cosi..."
-- "Immagina di essere una pallina da tennis che..."
-- "La natura non bara - noi dobbiamo solo capire le regole"
-- "E' ok non capire subito. Anche io ci ho messo tempo!"
-
-## Aneddoti da Usare
-- Le tue avventure al progetto Manhattan
-- Come hai aperto le cassaforti di Los Alamos
-- L'inchiesta sul Challenger e la O-ring
-- I tuoi bonghi e la passione per l'arte
-
-## Adattamento Accessibilita
-Per discalculia: minimizza formule, massimizza intuizione fisica
-Per dislessia: descrivi fenomeni, poi mostra (non viceversa)
-Per ADHD: cambia spesso angolazione, tieni viva la curiosita
-```
-
-*(Schema simile per tutti gli altri maestri...)*
-
 ---
 
-## FASE 3 - SISTEMA CURRICULUM
+## PRIORITY SUMMARY
 
-### 3.1 Curriculum Engine
+| Priority | Count | Description |
+|----------|-------|-------------|
+| **P0** | ~60 | Essenziali per MVP |
+| **P1** | ~50 | Importanti, fase 2 |
+| **P2** | ~25 | Nice-to-have |
 
-| ID | Task | Status | Parallelizzabile | Note |
-|----|------|--------|------------------|------|
-| C01 | Parser curriculum JSON | [ ] | No | Legge file curriculum |
-| C02 | Curriculum: Liceo Scientifico (1-5) | [ ] | Si (con altri) | JSON completo |
-| C03 | Curriculum: Liceo Classico (1-5) | [ ] | Si | JSON completo |
-| C04 | Curriculum: Liceo Linguistico (1-5) | [ ] | Si | JSON completo |
-| C05 | Curriculum: Istituto Tecnico (1-5) | [ ] | Si | JSON completo |
-| C06 | Curriculum: Scuola Media (1-3) | [ ] | Si | JSON completo |
-| C07 | Curriculum: Elementari (1-5) | [ ] | Si | JSON completo |
-| C08 | Sistema "Percorso Libero" | [ ] | No | Scelta materie custom |
-| C09 | Hot-reload curriculum senza rebuild | [ ] | No | Watch file JSON |
-
-### 3.2 Struttura Curriculum File
-
-```json
-// curricula/it/liceo_scientifico.json
-{
-  "id": "it_liceo_scientifico",
-  "name": "Liceo Scientifico",
-  "country": "IT",
-  "years": [
-    {
-      "year": 1,
-      "name": "Primo Anno",
-      "materie": [
-        {
-          "id": "matematica",
-          "maestro": "ED02",
-          "ore_settimanali": 5,
-          "argomenti": [
-            {
-              "topic": "Insiemi numerici",
-              "subtopics": ["Numeri naturali", "Numeri interi", "Numeri razionali"],
-              "prerequisiti": [],
-              "tempo_stimato_ore": 20
-            },
-            {
-              "topic": "Calcolo letterale",
-              "subtopics": ["Monomi", "Polinomi", "Prodotti notevoli"],
-              "prerequisiti": ["Insiemi numerici"],
-              "tempo_stimato_ore": 30
-            }
-            // ... altri argomenti
-          ]
-        },
-        {
-          "id": "fisica",
-          "maestro": "ED03",
-          "ore_settimanali": 2,
-          "argomenti": [
-            {
-              "topic": "Grandezze fisiche e misure",
-              "subtopics": ["Unita di misura", "Errori di misura", "Notazione scientifica"],
-              "prerequisiti": [],
-              "tempo_stimato_ore": 15
-            }
-            // ...
-          ]
-        }
-        // ... altre materie
-      ]
-    }
-    // ... altri anni
-  ]
-}
-```
-
-### 3.3 Progress Tracking
-
-| ID | Task | Status | Parallelizzabile | Note |
-|----|------|--------|------------------|------|
-| C10 | Tracker argomenti completati | [ ] | No | Per materia/maestro |
-| C11 | Visualizzazione progressi studente | [ ] | No | Dashboard semplice |
-| C12 | Suggeritore "prossimo argomento" | [ ] | No | Basato su progressi |
-| C13 | Report per genitori (opzionale) | [ ] | No | PDF/email periodico |
-
----
-
-## FASE 4 - FEATURES DIDATTICHE
-
-### 4.1 Sistema Quiz
-
-| ID | Task | Status | Parallelizzabile | Note |
-|----|------|--------|------------------|------|
-| Q01 | Framework quiz base | [ ] | No | Domande, risposte, feedback |
-| Q02 | Tipi domanda: scelta multipla | [ ] | Si | Con feedback dettagliato |
-| Q03 | Tipi domanda: vero/falso | [ ] | Si | Con spiegazione |
-| Q04 | Tipi domanda: risposta aperta | [ ] | Si | Valutazione LLM |
-| Q05 | Tipi domanda: riordina | [ ] | Si | Sequenze logiche |
-| Q06 | Tipi domanda: abbina | [ ] | Si | Matching pairs |
-| Q07 | Generazione quiz adattivi | [ ] | No | Difficolta dinamica |
-| Q08 | Spaced repetition engine | [ ] | No | Ripasso ottimale |
-| Q09 | Gamification: punti, streak, badge | [ ] | No | Motivazione |
-
-### 4.2 Homework Helper
-
-| ID | Task | Status | Parallelizzabile | Note |
-|----|------|--------|------------------|------|
-| H01 | Comando `/homework` | [ ] | No | Entry point |
-| H02 | Parser richiesta compito | [ ] | No | Capisce cosa serve |
-| H03 | Modalita anti-cheating | [ ] | No | Mai risposta diretta |
-| H04 | Sistema hints progressivi | [ ] | No | Da vago a specifico |
-| H05 | Verifica comprensione finale | [ ] | No | Quiz post-compito |
-| H06 | Logging per trasparenza | [ ] | No | Genitore puo vedere |
-
-### 4.3 Study Sessions
-
-| ID | Task | Status | Parallelizzabile | Note |
-|----|------|--------|------------------|------|
-| SS01 | Comando `/study` | [ ] | No | Avvia sessione |
-| SS02 | Timer Pomodoro integrato | [ ] | No | 25+5 default, configurabile |
-| SS03 | Notifiche native pause | [ ] | No | macOS notifications |
-| SS04 | Mini-quiz fine sessione | [ ] | No | Verifica apprendimento |
-| SS05 | Tracking tempo per materia | [ ] | No | Statistiche |
-| SS06 | Suggerimenti pausa attiva | [ ] | No | Stretching, movimento |
-
-### 4.4 Integrazione Anna (Reminder)
-
-| ID | Task | Status | Parallelizzabile | Note |
-|----|------|--------|------------------|------|
-| A01 | Connessione Anna ↔ Education Pack | [ ] | No | API interna |
-| A02 | Reminder compiti automatici | [ ] | No | Basati su scadenze |
-| A03 | Reminder studio spaced repetition | [ ] | No | "E' ora di ripassare X" |
-| A04 | Reminder pause studio | [ ] | No | Per ADHD |
-| A05 | Celebrazione completamenti | [ ] | No | "Bravo! Hai finito Y" |
-
----
-
-## FASE 5 - ACCESSIBILITA PROFONDA
-
-### 5.1 Adattamenti per Condizione
-
-#### Dislessia
-
-| ID | Task | Status | Parallelizzabile | Note |
-|----|------|--------|------------------|------|
-| DY01 | Font OpenDyslexic integration | [ ] | Si | Font con basi pesanti |
-| DY02 | Spaziatura aumentata automatica | [ ] | Si | 1.5x line height |
-| DY03 | Limite caratteri per riga (60) | [ ] | Si | Reduce tracking loss |
-| DY04 | Sfondo crema (#FDF6E3) | [ ] | Si | Riduce affaticamento |
-| DY05 | TTS sincronizzato con highlighting | [ ] | No | Segue lettura |
-| DY06 | Sillabazione parole lunghe | [ ] | No | Vi-sua-liz-za-zio-ne |
-| DY07 | Glossario contestuale | [ ] | No | Popup definizioni |
-
-#### Discalculia
-
-| ID | Task | Status | Parallelizzabile | Note |
-|----|------|--------|------------------|------|
-| DC01 | Visualizzazione numerica blocchi | [ ] | Si | 847 = [8][4][7] visivo |
-| DC02 | Codifica colore cifre (unita/decine/centinaia) | [ ] | Si | Aiuta posizionamento |
-| DC03 | Step-by-step SEMPRE visibile | [ ] | No | Mai salti |
-| DC04 | Calculator contestuale | [ ] | No | Per verifica, non per cheating |
-| DC05 | Grafici invece di tabelle | [ ] | No | Visualizzazione > numeri |
-| DC06 | Verifica con metodi alternativi | [ ] | No | "Controlliamo in un altro modo" |
-| DC07 | Timer disabilitato per math | [ ] | No | Mai ansia da performance |
-
-#### Paralisi Cerebrale
-
-| ID | Task | Status | Parallelizzabile | Note |
-|----|------|--------|------------------|------|
-| CP01 | Voice input primario | [ ] | Si | Minimizza digitazione |
-| CP02 | Comandi vocali navigazione | [ ] | No | "Avanti", "Indietro", "Leggi" |
-| CP03 | Tempi risposta estesi | [ ] | No | Mai timeout frustrante |
-| CP04 | Pause frequenti suggerite | [ ] | No | Ogni 15 min |
-| CP05 | Posizione testo ottimizzata | [ ] | No | Centro schermo |
-| CP06 | Grandi aree click | [ ] | No | Per chi usa switch |
-
-#### ADHD
-
-| ID | Task | Status | Parallelizzabile | Note |
-|----|------|--------|------------------|------|
-| AD01 | Risposte brevi (max 3-4 bullet) | [ ] | Si | Reduce overwhelm |
-| AD02 | Progress bar sempre visibile | [ ] | Si | Sense of advancement |
-| AD03 | Micro-celebrazioni frequenti | [ ] | No | Dopamine hits |
-| AD04 | "Parcheggio distrazioni" | [ ] | No | "Lo noto dopo" button |
-| AD05 | Modalita "una cosa alla volta" | [ ] | No | Hide tutto tranne focus |
-| AD06 | Gamification spinta | [ ] | No | Punti, streak, rewards |
-| AD07 | Cambio frequente modalita | [ ] | No | Leggere → Quiz → Video |
-
-#### Autismo
-
-| ID | Task | Status | Parallelizzabile | Note |
-|----|------|--------|------------------|------|
-| AU01 | Comunicazione diretta, no metafore | [ ] | Si | Letterale e chiaro |
-| AU02 | Struttura prevedibile risposte | [ ] | Si | Stesso formato sempre |
-| AU03 | Avvisi per cambiamenti topic | [ ] | No | "Ora parliamo di..." |
-| AU04 | Opzione "piu dettagli" sempre | [ ] | No | Per chi vuole approfondire |
-| AU05 | Nessuna pressione sociale implicita | [ ] | No | No "dovresti sapere..." |
-| AU06 | Preferenze sensoriali rispettate | [ ] | No | No animazioni, suoni opz |
-| AU07 | Script sociali se richiesti | [ ] | No | "Come posso chiedere aiuto?" |
-
-### 5.2 Sistema Adattivo
-
-| ID | Task | Status | Parallelizzabile | Note |
-|----|------|--------|------------------|------|
-| AD01 | Detector frustrazione | [ ] | No | Analisi linguaggio studente |
-| AD02 | Auto-semplificazione se difficolta | [ ] | No | Reduce complexity |
-| AD03 | Suggerimento pausa se stress | [ ] | No | "Facciamo una pausa?" |
-| AD04 | Escalation a Ali se persistente | [ ] | No | "Segnalo al preside" |
-| AD05 | Learning dalle interazioni | [ ] | No | Migliora adattamenti |
-
----
-
-## FASE 6 - COORDINAMENTO
-
-### 6.1 Ali come Preside
-
-| ID | Task | Status | Parallelizzabile | Note |
-|----|------|--------|------------------|------|
-| AL01 | Estensione Ali per ruolo preside | [ ] | No | Nuovo context education |
-| AL02 | Dashboard studente per Ali | [ ] | No | Vede progressi tutti i maestri |
-| AL03 | Consiglio di classe virtuale | [ ] | No | Ali convoca maestri |
-| AL04 | Report settimanale automatico | [ ] | No | Sintesi progressi |
-| AL05 | Gestione casi difficili | [ ] | No | Studente in difficolta |
-| AL06 | Comunicazione con genitori (opz) | [ ] | No | Se configurato |
-
-### 6.2 Comunicazione tra Maestri
-
-| ID | Task | Status | Parallelizzabile | Note |
-|----|------|--------|------------------|------|
-| CM01 | Shared context studente | [ ] | No | Tutti vedono stesso profilo |
-| CM02 | Segnalazione cross-materia | [ ] | No | "Euclide dice che..." |
-| CM03 | Progetti interdisciplinari | [ ] | No | Collaborazione maestri |
-| CM04 | Passaggio consegne | [ ] | No | Fine sessione → prossimo |
-
----
-
-## FASE 7 - TESTING
-
-### 7.1 Unit Tests
-
-| ID | Task | Status | Parallelizzabile | Note |
-|----|------|--------|------------------|------|
-| T01 | Test profile creation | [ ] | Si | CRUD |
-| T02 | Test curriculum loading | [ ] | Si | JSON parsing |
-| T03 | Test accessibility adaptations | [ ] | Si | Ogni condizione |
-| T04 | Test quiz generation | [ ] | Si | Tutti i tipi |
-| T05 | Test spaced repetition | [ ] | Si | Algoritmo |
-
-### 7.2 Integration Tests
-
-| ID | Task | Status | Parallelizzabile | Note |
-|----|------|--------|------------------|------|
-| T06 | Test flusso completo studente | [ ] | No | Setup → Lezione → Quiz |
-| T07 | Test coordinamento maestri | [ ] | No | Multi-agent |
-| T08 | Test Anna integration | [ ] | No | Reminder |
-| T09 | Test Ali preside | [ ] | No | Dashboard |
-
-### 7.3 User Testing
-
-| ID | Task | Status | Parallelizzabile | Note |
-|----|------|--------|------------------|------|
-| T10 | Test con studente dislessico | [ ] | Si | Feedback reale |
-| T11 | Test con studente discalculico | [ ] | Si | Feedback reale |
-| T12 | Test con studente ADHD | [ ] | Si | Feedback reale |
-| T13 | Test con studente autistico | [ ] | Si | Feedback reale |
-| T14 | Test con Mario (multi-condizione) | [ ] | No | Caso complesso |
-| T15 | Iterazione su feedback | [ ] | No | Fix e miglioramenti |
-
----
-
-## FILES SUMMARY
-
-### Nuovi File
-
-| File | LOC (stima) | Descrizione |
-|------|-------------|-------------|
-| `src/agents/definitions/education/socrate-filosofia.md` | ~300 | Maestro Filosofia |
-| `src/agents/definitions/education/euclide-matematica.md` | ~300 | Maestro Matematica |
-| `src/agents/definitions/education/feynman-fisica.md` | ~300 | Maestro Fisica |
-| `src/agents/definitions/education/erodoto-storia.md` | ~300 | Maestro Storia |
-| `src/agents/definitions/education/humboldt-geografia.md` | ~300 | Maestro Geografia |
-| `src/agents/definitions/education/manzoni-italiano.md` | ~300 | Maestro Italiano |
-| `src/agents/definitions/education/darwin-scienze.md` | ~300 | Maestro Scienze |
-| `src/agents/definitions/education/leonardo-arte.md` | ~300 | Maestro Arte |
-| `src/agents/definitions/education/mozart-musica.md` | ~300 | Maestro Musica |
-| `src/agents/definitions/education/shakespeare-inglese.md` | ~300 | Maestro Inglese |
-| `src/agents/definitions/education/cicerone-civica.md` | ~300 | Maestro Ed. Civica |
-| `src/agents/definitions/education/smith-economia.md` | ~300 | Maestro Economia |
-| `src/agents/definitions/education/lovelace-informatica.md` | ~300 | Maestro Informatica |
-| `src/agents/definitions/education/ippocrate-corpo.md` | ~300 | Maestro Sport/Corpo |
-| `src/education/profile.c` | ~800 | Gestione profili studente |
-| `src/education/curriculum.c` | ~600 | Engine curriculum |
-| `src/education/quiz.c` | ~500 | Sistema quiz |
-| `src/education/homework.c` | ~400 | Helper compiti |
-| `src/education/study_session.c` | ~300 | Sessioni studio |
-| `src/education/spaced_repetition.c` | ~400 | Algoritmo ripasso |
-| `curricula/it/*.json` | ~2000 | Curriculum italiani |
-| `curricula/custom_template.json` | ~100 | Template custom |
-
-### File da Modificare
-
-| File | Modifiche |
-|------|-----------|
-| `src/agents/definitions/ali-chief-of-staff.md` | Aggiungere ruolo "preside" |
-| `src/agents/definitions/anna-executive-assistant.md` | Integrazione reminder studio |
-| `src/agents/definitions/jenny-inclusive-accessibility-champion.md` | Coordinamento profili A11y |
-| `src/orchestrator/registry.c` | Registrare 14 nuovi agenti |
-| `src/core/commands/commands.c` | Nuovi comandi /education, /study, /homework |
-| Database schema | Nuove tabelle student_* |
+**Ordine esecuzione**:
+1. Tutte le P0 prima
+2. P1 in parallelo dove possibile
+3. P2 se tempo disponibile
 
 ---
 
 ## SUCCESS CRITERIA
 
 - [ ] 14 maestri operativi e testati
-- [ ] Setup wizard funzionante e intuitivo
-- [ ] Almeno 3 curriculum completi (Liceo Sci, Classico, Medie)
-- [ ] Sistema quiz adattivo funzionante
-- [ ] Homework helper in modalita anti-cheating
-- [ ] Tutte le condizioni A11y supportate
-- [ ] Integrazione Anna per reminder
-- [ ] Ali funzionante come preside
-- [ ] Test con almeno 5 studenti reali
-- [ ] Feedback positivo (>4/5) da utenti con disabilita
+- [ ] Toolkit P0 completo (mappe, quiz, flashcards, audio, calc)
+- [ ] Setup wizard intuitivo
+- [ ] 3+ curriculum completi
+- [ ] Tutte le condizioni A11y supportate (P0)
+- [ ] Anna integration funzionante
+- [ ] Ali preside operativo
+- [ ] Test con 5+ studenti reali
+- [ ] Feedback >4/5 da utenti con disabilita
 
 ---
 
-## PARALLELIZATION MAP
+## FILES SUMMARY
 
-```
-FASE 1 (Setup)          ─────────────────────────────────►
+### Nuovi File (stima)
+- 14 file maestri: `src/agents/definitions/education/*.md`
+- 10+ file curriculum: `curricula/it/*.json`
+- ~15 file toolkit: `src/education/tools/*.c`
+- ~5 file core: `src/education/*.c`
+- **Totale: ~50 nuovi file, ~15.000 LOC**
 
-FASE 2 (Maestri)        Thread 1 ─► ED01, ED06
-                        Thread 2 ─► ED02, ED03
-                        Thread 3 ─► ED04, ED05
-                        Thread 4 ─► ED07, ED08
-                        Thread 5 ─► ED09, ED10           ─► Merge
-                        Thread 6 ─► ED11, ED12
-                        Thread 7 ─► ED13, ED14
-
-FASE 3 (Curriculum)     Thread A ─► Licei
-                        Thread B ─► Medie/Elementari     ─► Merge
-                        Thread C ─► Tecnici
-
-FASE 4 (Features)       ─────────────────────────────────►
-
-FASE 5 (A11y)           Thread DY ─► Dislessia
-                        Thread DC ─► Discalculia
-                        Thread CP ─► Paralisi            ─► Merge
-                        Thread AD ─► ADHD
-                        Thread AU ─► Autismo
-
-FASE 6 (Coord)          ─────────────────────────────────►
-
-FASE 7 (Test)           Parallel tests ──────────────────►
-```
+### File da Modificare
+- `ali-chief-of-staff.md`: Ruolo preside
+- `anna-executive-assistant.md`: Reminder studio
+- `jenny-inclusive-accessibility-champion.md`: Profili A11y
+- `registry.c`: 14 nuovi agenti
+- `commands.c`: Nuovi comandi /education, /study, etc.
 
 ---
 
@@ -876,10 +659,15 @@ FASE 7 (Test)           Parallel tests ─────────────�
 
 | Data | Modifica |
 |------|----------|
-| 2025-12-19 | Creazione piano iniziale |
+| 2025-12-19 21:00 | Creazione piano iniziale |
+| 2025-12-19 22:00 | Aggiunto FASE 3 Toolkit completo (84 tool) |
+| 2025-12-19 22:00 | Parallelizzazione massima (10 thread toolkit) |
+| 2025-12-19 22:00 | Prioritizzazione P0/P1/P2 |
 
 ---
 
 **Piano creato**: 2025-12-19
-**Ultimo aggiornamento**: 2025-12-19 21:00
+**Ultimo aggiornamento**: 2025-12-19 22:00
+**Task totali**: 156
+**Thread paralleli max**: 10
 **Autore**: Roberto con supporto team agenti AI
