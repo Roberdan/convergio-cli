@@ -230,14 +230,18 @@ AudioOutput* audio_generate_summary(const char* content,
 
     // Accessibility requirements
     char access_req[256] = "";
+    size_t remaining = sizeof(access_req) - 1;
     if (access) {
         if (access->dyslexia) {
-            strcat(access_req, "- Use simple, clear language\n");
-            strcat(access_req, "- Short sentences\n");
+            strncat(access_req, "- Use simple, clear language\n", remaining);
+            remaining = sizeof(access_req) - strlen(access_req) - 1;
+            strncat(access_req, "- Short sentences\n", remaining);
+            remaining = sizeof(access_req) - strlen(access_req) - 1;
         }
         if (access->adhd) {
-            strcat(access_req, "- Keep it engaging and dynamic\n");
-            strcat(access_req, "- Vary the pace\n");
+            strncat(access_req, "- Keep it engaging and dynamic\n", remaining);
+            remaining = sizeof(access_req) - strlen(access_req) - 1;
+            strncat(access_req, "- Vary the pace\n", remaining);
         }
     }
 
