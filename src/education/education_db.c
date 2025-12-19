@@ -1526,15 +1526,52 @@ int education_maestro_broadcast_profile(int64_t student_id) {
 }
 
 // ============================================================================
-// LLM GENERATION STUB (to be replaced by Claude API integration)
+// LLM GENERATION (Uses Convergio Provider System)
 // ============================================================================
+
+#include "nous/provider.h"
+
+// Default model for education - use a cost-effective model
+#define EDUCATION_DEFAULT_MODEL "claude-3-5-haiku-20241022"
 
 __attribute__((weak))
 char* llm_generate(const char* prompt, const char* system_prompt) {
-    // Stub implementation - returns a placeholder response
-    (void)system_prompt;
     if (!prompt) return NULL;
 
-    // Return a simple placeholder indicating LLM not yet integrated
-    return strdup("[LLM generation not yet integrated - please configure Claude API]");
+    // Get Claude provider
+    Provider* provider = provider_get(PROVIDER_ANTHROPIC);
+    if (!provider) {
+        // Try OpenAI as fallback
+        provider = provider_get(PROVIDER_OPENAI);
+    }
+    if (!provider) {
+        // Try Ollama for local models
+        provider = provider_get(PROVIDER_OLLAMA);
+    }
+
+    if (!provider || !provider->initialized) {
+        return strdup("[Errore: Nessun provider LLM configurato. Configura ANTHROPIC_API_KEY o OPENAI_API_KEY]");
+    }
+
+    // Use the chat function
+    TokenUsage usage = {0};
+    char* response = provider->chat(
+        provider,
+        EDUCATION_DEFAULT_MODEL,
+        system_prompt ? system_prompt : "Sei un assistente educativo italiano. Rispondi in modo chiaro e pedagogico.",
+        prompt,
+        &usage
+    );
+
+    if (!response) {
+        ProviderErrorInfo* err = provider->get_last_error(provider);
+        if (err && err->message) {
+            char error_msg[512];
+            snprintf(error_msg, sizeof(error_msg), "[Errore LLM: %s]", err->message);
+            return strdup(error_msg);
+        }
+        return strdup("[Errore: Generazione LLM fallita]");
+    }
+
+    return response;
 }
