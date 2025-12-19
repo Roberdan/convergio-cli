@@ -241,6 +241,7 @@ ManagedAgent* agent_spawn(AgentRole role, const char* name, const char* context)
 void agent_despawn(ManagedAgent* agent);
 ManagedAgent* agent_find_by_role(AgentRole role);
 ManagedAgent* agent_find_by_name(const char* name);
+bool agent_is_known_name(const char* name);
 
 // Messaging
 Message* message_create(MessageType type, SemanticID sender,

@@ -15,9 +15,11 @@
 #include "nous/projects.h"
 #include "nous/embedded_agents.h"
 #include "nous/tools.h"
+#include "nous/intent_router.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <ctype.h>
 #include <pthread.h>
 #include <unistd.h>
 #include <termios.h>
@@ -117,6 +119,8 @@ static char* extract_agent_name(const char* filename) {
 }
 
 // Generator function for @agent completions
+static bool g_completion_with_at = true;  // Whether to prefix with @
+
 static char* agent_name_generator(const char* text, int state) {
     static size_t list_index;
     static size_t agent_count;
@@ -141,13 +145,19 @@ static char* agent_name_generator(const char* text, int state) {
             if (name) {
                 // Check if agent name starts with the partial text (case-insensitive)
                 if (strncasecmp(name, partial, partial_len) == 0) {
-                    // Return @name format
-                    char* match = malloc(strlen(name) + 2);
-                    if (match) {
-                        snprintf(match, strlen(name) + 2, "@%s", name);
-                        free(name);
-                        return match;
+                    char* match;
+                    if (g_completion_with_at) {
+                        // Return @name format
+                        match = malloc(strlen(name) + 2);
+                        if (match) {
+                            snprintf(match, strlen(name) + 2, "@%s", name);
+                        }
+                    } else {
+                        // Return name without @
+                        match = strdup(name);
                     }
+                    free(name);
+                    return match;
                 }
                 free(name);
             }
@@ -163,6 +173,7 @@ char** repl_agent_completion(const char* text, int start, int end) {
 
     // Complete @agent names anywhere in the line if text starts with @
     if (text[0] == '@') {
+        g_completion_with_at = true;
         rl_attempted_completion_over = 1;  // Don't fall back to filename completion
         return rl_completion_matches(text, agent_name_generator);
     }
@@ -173,12 +184,14 @@ char** repl_agent_completion(const char* text, int start, int end) {
         // Look for @ at current position
         char* at_pos = strchr(rl_line_buffer + start, '@');
         if (at_pos && at_pos == rl_line_buffer + start) {
+            g_completion_with_at = true;
             rl_attempted_completion_over = 1;
             return rl_completion_matches(text, agent_name_generator);
         }
     }
 
     // For other cases, disable completion (no filename completion)
+    // Autocomplete only works with @ prefix
     rl_attempted_completion_over = 1;
     return NULL;
 }
@@ -597,8 +610,12 @@ int repl_direct_agent_communication(const char* agent_name, const char* message)
         return 0;
     }
 
-    // Find the agent
+    // Find or spawn the agent
     ManagedAgent* agent = agent_find_by_name(agent_name);
+    if (!agent) {
+        // Try to spawn the agent (it might exist as embedded but not yet spawned)
+        agent = agent_spawn(AGENT_ROLE_ANALYST, agent_name, NULL);
+    }
     if (!agent) {
         printf(ANSI_DIM "Agent '%s' not found. Use 'agents' to see available agents." ANSI_RESET "\n", agent_name);
         return 0;
@@ -681,6 +698,10 @@ int repl_parse_and_execute(char* line) {
     // Skip empty lines
     if (!line || strlen(line) == 0) return 0;
 
+    // Save original input before tokenization (which modifies line in-place)
+    char* original_input = strdup(line);
+    if (!original_input) return -1;
+
     // Check for direct agent communication: @agent_name [message]
     // - @agent_name message -> send message to agent
     // - @agent_name        -> switch to agent mode (continue conversation with that agent)
@@ -714,20 +735,28 @@ int repl_parse_and_execute(char* line) {
             printf("  @baccio            Switch to talk with Baccio\n");
             printf("  @baccio ciao!      Send message to Baccio\n");
             printf("Type 'agents' to see available agents.\n");
+            free(original_input);
             return 0;
         }
 
-        // Find the agent
+        // Find or spawn the agent
         ManagedAgent* agent = agent_find_by_name(agent_name);
+        if (!agent) {
+            // Try to spawn the agent (it might exist as embedded but not yet spawned)
+            agent = agent_spawn(AGENT_ROLE_ANALYST, agent_name, NULL);
+        }
         if (!agent) {
             printf(ANSI_YELLOW "Agent '%s' not found." ANSI_RESET "\n", agent_name);
             printf("Type 'agents' to see available agents, or try Tab completion.\n");
+            free(original_input);
             return 0;
         }
 
         // If message provided, send to agent
         if (msg_start && strlen(msg_start) > 0) {
-            return repl_direct_agent_communication(agent_name, msg_start);
+            int res = repl_direct_agent_communication(agent_name, msg_start);
+            free(original_input);
+            return res;
         }
 
         // No message - switch to this agent
@@ -737,6 +766,7 @@ int repl_parse_and_execute(char* line) {
             printf(ANSI_DIM "%s" ANSI_RESET "\n", agent->description);
         }
         printf(ANSI_DIM "All your messages will now go to %s. Type 'ali' or 'back' to return to Ali." ANSI_RESET "\n", agent->name);
+        free(original_input);
         return 0;
     }
 
@@ -775,7 +805,10 @@ int repl_parse_and_execute(char* line) {
         }
     }
 
-    if (argc == 0) return 0;
+    if (argc == 0) {
+        free(original_input);
+        return 0;
+    }
 
     // Look for built-in command (support both "quit" and "/quit" syntax)
     const char* cmd_name = argv[0];
@@ -783,33 +816,124 @@ int repl_parse_and_execute(char* line) {
         cmd_name++;  // Skip leading slash
     }
 
-    // Check for special commands to switch agents
-    if (strcmp(cmd_name, "ali") == 0 || strcmp(cmd_name, "back") == 0) {
+    // =========================================================================
+    // NATURAL LANGUAGE AGENT ADDRESSING
+    // Handle human-style conversation: "amy come stai?" "baccio aiutami"
+    // =========================================================================
+
+    // Special case: "back" alone returns to Ali (it's not an agent name)
+    if (argc == 1 && strcasecmp(cmd_name, "back") == 0) {
         if (g_current_agent) {
             printf(ANSI_DIM "Returning to Ali..." ANSI_RESET "\n");
             repl_clear_current_agent();
         } else {
             printf(ANSI_DIM "Already talking to Ali." ANSI_RESET "\n");
         }
+        free(original_input);
         return 0;
+    }
+
+    // Check if first word is a KNOWN agent name (natural language addressing)
+    // Examples: "ali come stai?" "amy puoi aiutarmi?" "baccio rivedi questo"
+    // IMPORTANT: Skip if it starts with "/" - those are commands, not agent names
+    // IMPORTANT: Only match known agents, don't spawn generic agents for random words
+    ManagedAgent* addressed_agent = NULL;
+    if (argv[0][0] != '/') {
+        // Only find existing agents or known embedded agents
+        addressed_agent = agent_find_by_name(argv[0]);
+        if (!addressed_agent && agent_is_known_name(argv[0])) {
+            // It's a known agent that just needs spawning
+            addressed_agent = agent_spawn(AGENT_ROLE_ANALYST, argv[0], NULL);
+        }
+    }
+
+    if (addressed_agent) {
+        if (argc == 1) {
+            // Just agent name alone: switch to that agent
+            // "amy" -> switch to Amy
+            repl_set_current_agent(addressed_agent);
+            printf(ANSI_GREEN "Switched to " ANSI_BOLD "%s" ANSI_RESET ANSI_GREEN "." ANSI_RESET "\n", addressed_agent->name);
+            if (addressed_agent->description) {
+                printf(ANSI_DIM "%s" ANSI_RESET "\n", addressed_agent->description);
+            }
+            printf(ANSI_DIM "Type 'back' to return to Ali." ANSI_RESET "\n");
+            free(original_input);
+            return 0;
+        } else {
+            // Agent name + message: send message to that agent
+            // "amy come stai?" -> send "come stai?" to Amy
+            // Use original_input because line is corrupted by tokenization
+            const char* msg_start = original_input;
+            while (*msg_start && !isspace((unsigned char)*msg_start)) msg_start++;
+            while (*msg_start && isspace((unsigned char)*msg_start)) msg_start++;
+
+            if (*msg_start) {
+                int res = repl_direct_agent_communication(addressed_agent->name, msg_start);
+                free(original_input);
+                return res;
+            }
+        }
     }
 
     const ReplCommand* commands = commands_get_table();
     for (const ReplCommand* cmd = commands; cmd->name != NULL; cmd++) {
         if (strcmp(cmd_name, cmd->name) == 0) {
-            return cmd->handler(argc, argv);
+            int res = cmd->handler(argc, argv);
+            free(original_input);
+            return res;
         }
     }
 
     // Not a command, treat as natural language intent
-    // If we have a current agent, continue with that agent
-    if (g_current_agent) {
-        return repl_direct_agent_communication(g_current_agent->name, line);
+    // Use intelligent router to decide which agent should handle this
+    // Check BEFORE continuing with current agent to catch switch intents like "passami amy"
+    // IMPORTANT: Use original_input because line has been corrupted by tokenization
+    RouterResult route = intent_router_route(original_input);
+
+    // Handle INTENT_SWITCH: user wants to switch to a different agent
+    if (route.type == INTENT_SWITCH && route.confidence >= 0.8f) {
+        LOG_INFO(LOG_CAT_AGENT, "Router: switch to %s (%.0f%%)",
+                 route.agent, route.confidence * 100);
+
+        // Find or spawn the target agent
+        ManagedAgent* target = agent_find_by_name(route.agent);
+        if (!target) {
+            target = agent_spawn(AGENT_ROLE_ANALYST, route.agent, NULL);
+        }
+
+        if (target) {
+            repl_set_current_agent(target);
+            printf(ANSI_GREEN "Switched to " ANSI_BOLD "%s" ANSI_RESET ANSI_GREEN "." ANSI_RESET "\n", target->name);
+            if (target->description) {
+                printf(ANSI_DIM "%s" ANSI_RESET "\n", target->description);
+            }
+            free(original_input);
+            return 0;
+        } else {
+            printf(ANSI_YELLOW "Could not find agent '%s'." ANSI_RESET "\n", route.agent);
+            free(original_input);
+            return -1;
+        }
     }
 
-    // Otherwise, go to Ali via orchestrator
-    char* original = strdup(rl_line_buffer);
-    int result = repl_process_natural_input(original);
-    free(original);
+    // If we have a current agent and no switch intent, continue with that agent
+    if (g_current_agent) {
+        int res = repl_direct_agent_communication(g_current_agent->name, original_input);
+        free(original_input);
+        return res;
+    }
+
+    // If router is confident about a specific agent (not Ali), go directly to that agent
+    if (strcmp(route.agent, "ali") != 0 && route.confidence >= 0.7f) {
+        LOG_INFO(LOG_CAT_AGENT, "Router: %s (%.0f%%) - %s",
+                 route.agent, route.confidence * 100, route.intent);
+        int res = repl_direct_agent_communication(route.agent, original_input);
+        free(original_input);
+        return res;
+    }
+
+    // Otherwise, go to Ali via orchestrator (Ali can still delegate if needed)
+    int result = repl_process_natural_input(original_input);
+    free(original_input);
     return result;
 }

@@ -48,6 +48,12 @@ else
     LDFLAGS +=
 endif
 
+# Coverage mode flags
+ifeq ($(COVERAGE),1)
+    CFLAGS += --coverage -fprofile-arcs -ftest-coverage
+    LDFLAGS += --coverage
+endif
+
 # Frameworks
 # Note: This project is macOS-only (Apple Silicon optimized)
 # Framework usage:
@@ -129,6 +135,7 @@ C_SOURCES = $(SRC_DIR)/core/fabric.c \
             $(SRC_DIR)/providers/model_loader.c \
             $(SRC_DIR)/router/model_router.c \
             $(SRC_DIR)/router/cost_optimizer.c \
+            $(SRC_DIR)/router/intent_router.c \
             $(SRC_DIR)/sync/file_lock.c \
             $(SRC_DIR)/ui/statusbar.c \
             $(SRC_DIR)/ui/terminal.c \
@@ -197,7 +204,7 @@ EMBEDDED_AGENTS = $(SRC_DIR)/agents/embedded_agents.c
 all: dirs metal swift $(TARGET) notify-helper
 	@echo ""
 	@echo "╔═══════════════════════════════════════════════════╗"
-	@echo "║          CONVERGIO KERNEL v$(VERSION)              "
+	@echo "║          CONVERGIO KERNEL v$(VERSION)             ║"
 	@echo "║  Build complete!                                  ║"
 	@echo "║  Run with: $(TARGET)                              ║"
 	@echo "╚═══════════════════════════════════════════════════╝"
@@ -240,6 +247,7 @@ dirs:
 	@mkdir -p $(OBJ_DIR)/education
 	@mkdir -p $(OBJ_DIR)/education/features
 	@mkdir -p $(OBJ_DIR)/education/tools
+	@mkdir -p $(OBJ_DIR)/acp
 	@mkdir -p $(BIN_DIR)
 	@mkdir -p data
 
@@ -554,14 +562,72 @@ $(EDUCATION_TEST): $(EDUCATION_SOURCES) $(EDUCATION_OBJECTS)
 	@echo "Compiling Education Pack tests..."
 	@$(CC) $(CFLAGS) $(LDFLAGS) -o $(EDUCATION_TEST) $(EDUCATION_SOURCES) $(EDUCATION_OBJECTS) -lsqlite3 -lpthread
 
+# Tools test target - tests tools module including web search
+TOOLS_TEST = $(BIN_DIR)/tools_test
+TOOLS_SOURCES = tests/test_tools.c $(TEST_STUBS)
+# Need most objects for full tools testing
+TOOLS_OBJECTS = $(filter-out $(OBJ_DIR)/core/main.o,$(OBJECTS))
+
+tools_test: dirs swift $(OBJECTS) $(MLX_STUBS_OBJ) $(TOOLS_TEST)
+	@echo "Running tools tests..."
+	@$(TOOLS_TEST)
+
+$(TOOLS_TEST): $(TOOLS_SOURCES) $(TOOLS_OBJECTS) $(SWIFT_LIB) $(MLX_STUBS_OBJ)
+	@echo "Compiling tools tests..."
+	@if [ -s "$(SWIFT_LIB)" ]; then \
+		$(CC) $(CFLAGS) $(LDFLAGS) -o $(TOOLS_TEST) $(TOOLS_SOURCES) $(TOOLS_OBJECTS) $(SWIFT_LIB) $(FRAMEWORKS) $(LIBS) $(SWIFT_RUNTIME_LIBS); \
+	else \
+		$(CC) $(CFLAGS) $(LDFLAGS) -o $(TOOLS_TEST) $(TOOLS_SOURCES) $(TOOLS_OBJECTS) $(MLX_STUBS_OBJ) $(FRAMEWORKS) $(LIBS); \
+	fi
+
+# Web search test target - tests web search across providers
+WEBSEARCH_TEST = $(BIN_DIR)/websearch_test
+WEBSEARCH_SOURCES = tests/test_websearch.c $(TEST_STUBS)
+WEBSEARCH_OBJECTS = $(filter-out $(OBJ_DIR)/core/main.o,$(OBJECTS))
+
+websearch_test: dirs swift $(OBJECTS) $(MLX_STUBS_OBJ) $(WEBSEARCH_TEST)
+	@echo "Running web search tests..."
+	@$(WEBSEARCH_TEST)
+
+$(WEBSEARCH_TEST): $(WEBSEARCH_SOURCES) $(WEBSEARCH_OBJECTS) $(SWIFT_LIB) $(MLX_STUBS_OBJ)
+	@echo "Compiling web search tests..."
+	@if [ -s "$(SWIFT_LIB)" ]; then \
+		$(CC) $(CFLAGS) $(LDFLAGS) -o $(WEBSEARCH_TEST) $(WEBSEARCH_SOURCES) $(WEBSEARCH_OBJECTS) $(SWIFT_LIB) $(FRAMEWORKS) $(LIBS) $(SWIFT_RUNTIME_LIBS); \
+	else \
+		$(CC) $(CFLAGS) $(LDFLAGS) -o $(WEBSEARCH_TEST) $(WEBSEARCH_SOURCES) $(WEBSEARCH_OBJECTS) $(MLX_STUBS_OBJ) $(FRAMEWORKS) $(LIBS); \
+	fi
+
 # Check help documentation coverage
 check-docs:
 	@echo "Checking help documentation coverage..."
 	@./scripts/check_help_docs.sh
 
 # Run all tests
-test: fuzz_test unit_test anna_test compaction_test plan_db_test output_service_test education_test check-docs
+test: fuzz_test unit_test anna_test compaction_test plan_db_test output_service_test education_test tools_test websearch_test check-docs
 	@echo "All tests completed!"
+
+# Coverage target - builds with coverage and runs tests
+coverage: clean
+	@echo "Building with coverage instrumentation..."
+	@$(MAKE) COVERAGE=1 all
+	@$(MAKE) COVERAGE=1 fuzz_test unit_test anna_test compaction_test plan_db_test output_service_test tools_test websearch_test
+	@echo "Generating coverage report..."
+	@mkdir -p coverage
+	@echo "Capturing coverage data from $(BUILD_DIR)..."
+	@lcov --capture --directory $(BUILD_DIR) --output-file coverage/coverage.info --ignore-errors source,gcov 2>&1 | grep -v "^geninfo"
+	@if [ -f coverage/coverage.info ]; then \
+		lcov --remove coverage/coverage.info '/usr/*' '/opt/*' '*/tests/*' '.build/*' --output-file coverage/coverage.info 2>/dev/null; \
+		genhtml coverage/coverage.info --output-directory coverage/html 2>/dev/null; \
+		echo ""; \
+		echo "========================================"; \
+		echo "CODE COVERAGE SUMMARY"; \
+		echo "========================================"; \
+		lcov --summary coverage/coverage.info 2>/dev/null; \
+		echo "========================================"; \
+		echo "Run 'open coverage/html/index.html' to view detailed report"; \
+	else \
+		echo "Coverage data not generated. Run 'make coverage' after running tests."; \
+	fi
 
 # Help
 help:
@@ -589,4 +655,43 @@ help:
 	@echo "Variables:"
 	@echo "  DEBUG=1   - Enable debug build"
 
-.PHONY: all dirs metal run clean debug install uninstall hwinfo help fuzz_test unit_test anna_test plan_db_test output_service_test check-docs test version dist release
+# ACP Server target - for Zed integration
+ACP_TARGET = $(BIN_DIR)/convergio-acp
+ACP_SOURCES = $(SRC_DIR)/acp/acp_server.c $(SRC_DIR)/acp/acp_stubs.c
+ACP_SERVER_OBJ = $(OBJ_DIR)/acp/acp_server.o
+ACP_STUBS_OBJ = $(OBJ_DIR)/acp/acp_stubs.o
+ACP_OBJ = $(ACP_SERVER_OBJ) $(ACP_STUBS_OBJ)
+# Exclude main.o since ACP server has its own main() and stubs
+ACP_LINK_OBJECTS = $(filter-out $(OBJ_DIR)/core/main.o,$(OBJECTS))
+
+$(OBJ_DIR)/acp/acp_server.o: $(SRC_DIR)/acp/acp_server.c
+	@echo "Compiling ACP server..."
+	@$(CC) $(CFLAGS) -c $< -o $@
+
+$(OBJ_DIR)/acp/acp_stubs.o: $(SRC_DIR)/acp/acp_stubs.c
+	@echo "Compiling ACP stubs..."
+	@$(CC) $(CFLAGS) -c $< -o $@
+
+convergio-acp: dirs swift $(OBJECTS) $(MLX_STUBS_OBJ) $(ACP_OBJ) $(ACP_TARGET)
+	@echo "ACP server built: $(ACP_TARGET)"
+
+$(ACP_TARGET): $(ACP_OBJ) $(ACP_LINK_OBJECTS) $(SWIFT_LIB) $(MLX_STUBS_OBJ)
+	@echo "Linking convergio-acp..."
+	@if [ -s "$(SWIFT_LIB)" ]; then \
+		$(CC) $(LDFLAGS) -o $(ACP_TARGET) $(ACP_OBJ) $(ACP_LINK_OBJECTS) $(SWIFT_LIB) $(FRAMEWORKS) $(LIBS) $(SWIFT_RUNTIME_LIBS); \
+	else \
+		$(CC) $(LDFLAGS) -o $(ACP_TARGET) $(ACP_OBJ) $(ACP_LINK_OBJECTS) $(MLX_STUBS_OBJ) $(FRAMEWORKS) $(LIBS); \
+	fi
+
+# Install ACP server for Zed
+install-acp: convergio-acp
+	@echo "Installing convergio-acp to /usr/local/bin..."
+	@if [ -w /usr/local/bin ]; then \
+		cp $(ACP_TARGET) /usr/local/bin/; \
+	else \
+		sudo cp $(ACP_TARGET) /usr/local/bin/; \
+	fi
+	@echo "Installed. Configure Zed with:"
+	@echo '  {"agent_servers": {"Convergio": {"type": "custom", "command": "/usr/local/bin/convergio-acp"}}}'
+
+.PHONY: all dirs metal run clean debug install uninstall hwinfo help fuzz_test unit_test anna_test plan_db_test output_service_test check-docs test version dist release convergio-acp install-acp

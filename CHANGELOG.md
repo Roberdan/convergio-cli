@@ -7,6 +7,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Web Search Tool** - Multi-provider web search support
+  - Anthropic: Native `web_search_20250305` tool with citations
+  - OpenAI: Native search via `gpt-4o-search-preview` model with `web_search_options`
+  - Gemini/Ollama/MLX: Local fallback using DuckDuckGo Lite
+  - ADR: `docs/adr/015-web-search-architecture.md`
+
+- **ACP Multi-Agent Support**
+  - New `--agent` flag to specify agent directly (e.g., `--agent amy-cfo`)
+  - Context sharing between agents via `acp/context/share` endpoint
+  - Session persistence with auto-resume on reconnection
+  - History context injection for better conversation continuity
+
+- **Date/Time Context for Agents**
+  - Agents now receive current date/time in system prompt
+  - Enables time-aware responses and scheduling tasks
+
+### Fixed
+
+- **Router Provider Initialization** - Fixed "No router provider available" warning when using `--agent` flag
+- **ACP Session Persistence** - New sessions now saved immediately for reliable persistence
+- **Sign Comparison Warning** - Fixed compiler warning in ACP history context
+
+### Technical
+
+- New tool type: `TOOL_WEB_SEARCH` for local web search fallback
+- OpenAI provider auto-detects `web_search` tool and switches to search model
+- DuckDuckGo Lite HTML parser with proper URL encoding and buffer limits
+
 ## [5.3.1] - 2025-12-17
 
 ### Fixed

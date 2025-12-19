@@ -11,10 +11,19 @@
 
 <p align="center">
   <a href="https://github.com/Roberdan/convergio-cli/actions/workflows/ci.yml"><img src="https://github.com/Roberdan/convergio-cli/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
-  <a href="https://github.com/Roberdan/convergio-cli/releases/latest"><img src="https://img.shields.io/badge/version-5.1.0-blue" alt="Version 5.1.0"></a>
+  <a href="https://github.com/Roberdan/convergio-cli/releases/latest"><img src="https://img.shields.io/badge/version-5.3.1-blue" alt="Version 5.3.1"></a>
   <a href="https://github.com/Roberdan/convergio-cli/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-green.svg" alt="License"></a>
   <a href="https://github.com/Roberdan/convergio-cli"><img src="https://img.shields.io/badge/platform-macOS%20(Apple%20Silicon)-black" alt="Platform"></a>
   <a href="https://github.com/Roberdan/convergio-cli/stargazers"><img src="https://img.shields.io/github/stars/Roberdan/convergio-cli?style=social" alt="Stars"></a>
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/coverage-96%25-brightgreen" alt="Coverage 96%">
+  <img src="https://img.shields.io/badge/tests-306%20passing-success" alt="306 Tests">
+  <img src="https://img.shields.io/badge/agents-54%20specialists-purple" alt="54 AI Agents">
+  <img src="https://img.shields.io/badge/C17-Standard-blue" alt="C17">
+  <img src="https://img.shields.io/badge/Swift-5.9-orange" alt="Swift 5.9">
+  <img src="https://img.shields.io/badge/Metal-GPU%20Accelerated-gray" alt="Metal GPU">
 </p>
 
 <p align="center">

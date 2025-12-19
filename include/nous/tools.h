@@ -27,6 +27,7 @@ typedef enum {
     TOOL_FILE_DELETE,     // Safe delete (moves to trash)
     TOOL_SHELL_EXEC,      // Execute shell command
     TOOL_WEB_FETCH,       // Fetch URL content
+    TOOL_WEB_SEARCH,      // Search the web (local fallback for non-Anthropic)
     TOOL_MEMORY_STORE,    // Store in semantic memory
     TOOL_MEMORY_SEARCH,   // Search semantic memory (RAG)
     TOOL_NOTE_WRITE,      // Write markdown note
@@ -136,11 +137,14 @@ ToolResult* tool_edit(const char* path, const char* old_string, const char* new_
 ToolResult* tool_shell_exec(const char* command, const char* working_dir, int timeout_sec);
 
 // ============================================================================
-// WEB TOOL
+// WEB TOOLS
 // ============================================================================
 
 // Fetch URL content (extracts text, handles HTML)
 ToolResult* tool_web_fetch(const char* url, const char* method, const char* headers_json);
+
+// Search the web using DuckDuckGo Lite (local fallback for non-native providers)
+ToolResult* tool_web_search(const char* query, int max_results);
 
 // ============================================================================
 // MEMORY/RAG TOOLS
