@@ -18,7 +18,149 @@
 #include <signal.h>
 #include <time.h>
 #include <errno.h>
+#include <sys/stat.h>
+#include <dirent.h>
 #include <cjson/cJSON.h>
+
+// ============================================================================
+// CONTEXT SHARING (F2: Ali consapevole di tutte le conversazioni)
+// ============================================================================
+
+#define CONTEXT_DIR "~/.convergio/agent_context"
+#define MAX_CONTEXT_SIZE 2048
+
+// Expand ~ to home directory
+static char* expand_path(const char* path) {
+    if (path[0] != '~') {
+        return strdup(path);
+    }
+    const char* home = getenv("HOME");
+    if (!home) home = "/tmp";
+    size_t len = strlen(home) + strlen(path);
+    char* expanded = malloc(len);
+    snprintf(expanded, len, "%s%s", home, path + 1);
+    return expanded;
+}
+
+// Ensure context directory exists
+static void ensure_context_dir(void) {
+    char* dir = expand_path(CONTEXT_DIR);
+    mkdir(dir, 0755);
+    free(dir);
+}
+
+// Save agent conversation context (summary of last interaction)
+static void save_agent_context(const char* agent_name, const char* user_prompt, const char* agent_response) {
+    if (!agent_name || !user_prompt || !agent_response) return;
+
+    ensure_context_dir();
+
+    char* dir = expand_path(CONTEXT_DIR);
+    char filepath[512];
+    snprintf(filepath, sizeof(filepath), "%s/%s.json", dir, agent_name);
+    free(dir);
+
+    // Create JSON with context
+    cJSON* ctx = cJSON_CreateObject();
+    cJSON_AddStringToObject(ctx, "agent", agent_name);
+    cJSON_AddNumberToObject(ctx, "timestamp", (double)time(NULL));
+
+    // Truncate to reasonable size
+    char user_summary[MAX_CONTEXT_SIZE];
+    char agent_summary[MAX_CONTEXT_SIZE];
+    strncpy(user_summary, user_prompt, MAX_CONTEXT_SIZE - 1);
+    user_summary[MAX_CONTEXT_SIZE - 1] = '\0';
+    strncpy(agent_summary, agent_response, MAX_CONTEXT_SIZE - 1);
+    agent_summary[MAX_CONTEXT_SIZE - 1] = '\0';
+
+    cJSON_AddStringToObject(ctx, "last_user_message", user_summary);
+    cJSON_AddStringToObject(ctx, "last_agent_response", agent_summary);
+
+    char* json = cJSON_Print(ctx);
+    cJSON_Delete(ctx);
+
+    FILE* f = fopen(filepath, "w");
+    if (f) {
+        fputs(json, f);
+        fclose(f);
+    }
+    free(json);
+}
+
+// Load all agent contexts for Ali to be aware of other conversations
+static char* load_all_agent_contexts(void) {
+    char* dir = expand_path(CONTEXT_DIR);
+    DIR* d = opendir(dir);
+    if (!d) {
+        free(dir);
+        return NULL;
+    }
+
+    // Build context summary
+    size_t capacity = 8192;
+    char* summary = malloc(capacity);
+    size_t len = 0;
+    len += snprintf(summary + len, capacity - len,
+        "\n## Recent Agent Conversations (Context for Ali)\n\n");
+
+    struct dirent* entry;
+    int count = 0;
+
+    while ((entry = readdir(d)) != NULL) {
+        if (strstr(entry->d_name, ".json") == NULL) continue;
+
+        char filepath[512];
+        snprintf(filepath, sizeof(filepath), "%s/%s", dir, entry->d_name);
+
+        FILE* f = fopen(filepath, "r");
+        if (!f) continue;
+
+        fseek(f, 0, SEEK_END);
+        long fsize = ftell(f);
+        fseek(f, 0, SEEK_SET);
+
+        char* content = malloc(fsize + 1);
+        fread(content, 1, fsize, f);
+        content[fsize] = '\0';
+        fclose(f);
+
+        cJSON* ctx = cJSON_Parse(content);
+        free(content);
+        if (!ctx) continue;
+
+        cJSON* agent = cJSON_GetObjectItem(ctx, "agent");
+        cJSON* user_msg = cJSON_GetObjectItem(ctx, "last_user_message");
+        cJSON* agent_resp = cJSON_GetObjectItem(ctx, "last_agent_response");
+
+        if (agent && user_msg && agent_resp &&
+            cJSON_IsString(agent) && cJSON_IsString(user_msg) && cJSON_IsString(agent_resp)) {
+            len += snprintf(summary + len, capacity - len,
+                "### %s\n"
+                "**User asked**: %.200s%s\n"
+                "**Agent replied**: %.300s%s\n\n",
+                agent->valuestring,
+                user_msg->valuestring,
+                strlen(user_msg->valuestring) > 200 ? "..." : "",
+                agent_resp->valuestring,
+                strlen(agent_resp->valuestring) > 300 ? "..." : "");
+            count++;
+        }
+
+        cJSON_Delete(ctx);
+
+        if (len > capacity - 1024) break;  // Prevent overflow
+    }
+
+    closedir(d);
+    free(dir);
+
+    if (count == 0) {
+        free(summary);
+        return NULL;
+    }
+
+    return summary;
+}
 
 // Global server state
 static ACPServer g_server = {0};
@@ -335,6 +477,8 @@ void acp_handle_session_prompt(int request_id, const char* params_json) {
             // Send full response as single chunk
             if (response) {
                 stream_callback(response, NULL);
+                // Save context for other agents to see (F2: context sharing)
+                save_agent_context(g_server.selected_agent, prompt_text, response);
             }
         } else {
             // Agent not found - fallback to orchestrator
@@ -342,7 +486,21 @@ void acp_handle_session_prompt(int request_id, const char* params_json) {
         }
     } else {
         // Default: orchestrator (Ali) with streaming
-        response = orchestrator_process_stream(prompt_text, stream_callback, NULL);
+        // F2: Load context from other agent conversations
+        char* agent_contexts = load_all_agent_contexts();
+        if (agent_contexts) {
+            // Prepend context info to the prompt for Ali
+            size_t enhanced_len = strlen(prompt_text) + strlen(agent_contexts) + 256;
+            char* enhanced_prompt = malloc(enhanced_len);
+            snprintf(enhanced_prompt, enhanced_len,
+                "%s\n\n---\n[Context: Recent conversations with other agents]\n%s\n---\n",
+                prompt_text, agent_contexts);
+            free(agent_contexts);
+            response = orchestrator_process_stream(enhanced_prompt, stream_callback, NULL);
+            free(enhanced_prompt);
+        } else {
+            response = orchestrator_process_stream(prompt_text, stream_callback, NULL);
+        }
     }
 
     // Send final response

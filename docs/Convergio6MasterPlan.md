@@ -1,9 +1,9 @@
 # Execution Plan: Convergio 6.0 - Zed Integration MVP
 
 **Created**: 2025-12-18
-**Last Updated**: 2025-12-18 21:10
+**Last Updated**: 2025-12-19 00:30
 **Status**: 🚀 FASE 3 - Convergio-Zed Fork
-**Progress**: 7/16 tasks (44%)
+**Progress**: 15/16 tasks (94%)
 **Branch**: `feature/acp-zed-integration`
 **Goal**: Editor AI-first con multi-agent panel integrato
 
@@ -24,7 +24,7 @@
 ```
 FASE 1 (MVP):     convergio-acp + test locale        → ✅ COMPLETATO
 FASE 2 (ACP):     --agent flag + routing             → ✅ COMPLETATO
-FASE 3 (Fork):    Convergio-Zed custom editor        → 🚀 IN CORSO
+FASE 3 (Fork):    Convergio-Zed custom editor        → 🚀 IN CORSO (94%)
 FASE 4 (Dist):    Build + distribuzione macOS/Linux  → dopo validazione
 ```
 
@@ -61,89 +61,103 @@ FASE 4 (Dist):    Build + distribuzione macOS/Linux  → dopo validazione
 
 | ID | Task | Status | Effort | Note |
 |----|------|--------|--------|------|
-| Z1 | Setup ambiente Rust + build Zed | ⬜ | 0.5 gg | rustup, cargo build |
-| Z2 | Creare crate `crates/convergio_panel` | ⬜ | 1 gg | Copiare struttura da collab_panel |
-| Z3 | Implementare `Panel` trait per ConvergioPanel | ⬜ | 1 gg | icon(), toggle_action(), render() |
-| Z4 | Aggiungere in `initialize_panels()` | ⬜ | 0.5 gg | zed.rs line 645 |
-| Z5 | UI lista 54 agenti | ⬜ | 1 gg | Lista scrollabile con icone |
-| Z6 | Click agente → apre chat ACP | ⬜ | 1 gg | Spawn convergio-acp --agent |
-| Z7 | Branding: logo Convergio | ⬜ | 0.5 gg | Assets, about dialog |
-| Z8 | Build macOS app bundle | ⬜ | 1 gg | .app firmata |
-| Z9 | Test E2E multi-agent | ⬜ | 1 gg | Workflow completo |
+| Z1 | Setup ambiente Rust + build Zed | ✅✅ | 0.5 gg | Release build OK |
+| Z2 | Creare crate `crates/convergio_panel` | ✅✅ | 1 gg | Cargo.toml, convergio_panel.rs, settings.rs, panel.rs |
+| Z3 | Implementare `Panel` trait per ConvergioPanel | ✅✅ | 1 gg | icon(), toggle_action(), render() funzionanti |
+| Z4 | Aggiungere in `initialize_panels()` | ✅✅ | 0.5 gg | zed.rs + main.rs integrati |
+| Z5 | UI lista agenti | ✅✅ | 1 gg | 54 agenti con icone, descrizioni, selezione |
+| Z6 | Click agente → apre chat ACP | ✅✅ | 1 gg | NewExternalAgentThread dispatch |
+| Z7 | 54 agenti + Categorie + Search | ✅✅ | 1 gg | 14 categorie collassabili + search per nome/skills |
+| Z8 | settings.json 54 agenti | ✅✅ | 0.5 gg | ~/.config/zed/settings.json aggiornato |
+| Z9 | Build + Test E2E | 🚀 | 1 gg | Release build in corso |
 
-**Crates Zed rilevanti (207 totali):**
-- `crates/collab_ui/src/collab_panel.rs` - Channels panel (**modello da seguire**)
-- `crates/workspace/src/dock.rs` - `Panel` trait definition
-- `crates/zed/src/zed.rs:645` - `initialize_panels()` dove aggiungere ConvergioPanel
-- `crates/agent` - Agent core logic
-- `crates/agent_ui` / `agent_ui_v2` - Agent panel UI
+### FASE 4 - Feature Avanzate 🚀
 
-**Pattern per aggiungere pannello bottom bar:**
-```rust
-// 1. Implementare Panel trait
-impl Panel for ConvergioPanel {
-    fn icon(&self, ...) -> Option<IconName> { Some(IconName::Bot) }
-    fn icon_tooltip(&self, ...) -> Option<&'static str> { Some("Convergio Agents") }
-    fn toggle_action(&self) -> Box<dyn Action> { Box::new(ToggleFocus) }
-}
+| ID | Task | Status | Effort | Note |
+|----|------|--------|--------|------|
+| F1 | Super chat Ali (bottom panel) | ✅✅ | 2 gg | Ali bottom panel + Enter key + Open Chat button |
+| F2 | Ali consapevole di tutte le conversazioni | ✅✅ | 3 gg | ACP salva context, Ali carica da ~/.convergio/agent_context/ |
+| F3 | Persistenza conversazioni per agente | ✅✅ | 2 gg | KEY_VALUE_STORE per sessions + resume_session_id |
+| F4 | Branding: icon Convergio Panel | ✅✅ | 0.5 gg | UserGroup icon per Convergio, Ai per Ali |
 
-// 2. Aggiungere in zed.rs initialize_panels()
-let convergio_panel = convergio_panel::ConvergioPanel::load(...);
-add_panel_when_ready(convergio_panel, ...);
+---
+
+## ARCHITETTURA ATTUALE
+
+```
+┌────────────────────────────────────────────────────────────────────────┐
+│                        CONVERGIO-ZED                                   │
+├──────────────────┬─────────────────────────────────────────────────────┤
+│                  │                                                      │
+│  CONVERGIO       │              ZED AGENT PANEL                         │
+│  PANEL           │              (existing UI)                           │
+│  ──────────────  │                                                      │
+│  🔍 Search...    │  ┌────────────────────────────────────────────────┐ │
+│  ──────────────  │  │ Chat with: Baccio - Architect                  │ │
+│                  │  │                                                │ │
+│  ▼ Leadership (2)│  │ YOU: Help me design the system architecture    │ │
+│    ● Ali         │  │                                                │ │
+│    ○ Satya       │  │ BACCIO: Based on your requirements, I suggest  │ │
+│  ▼ Technology (7)│  │ a microservices approach with...               │ │
+│    ● Baccio ◄────┼──│                                                │ │
+│    ○ Dario       │  │                                                │ │
+│    ○ Rex         │  └────────────────────────────────────────────────┘ │
+│    ...           │                                                      │
+│  ▶ Finance (4)   │                                                      │
+│  ▶ Security (5)  │                                                      │
+│  ...             │                                                      │
+│  [54 agents]     │                                                      │
+│  [14 categories] │                                                      │
+│                  │                                                      │
+└──────────────────┴─────────────────────────────────────────────────────┘
+
+Features:
+- 54 agenti organizzati in 14 categorie collassabili
+- Search per nome, descrizione e skills
+- Click agente → apre chat con agent server specifico
+- Ogni agente ha icona, nome e descrizione
 ```
 
 ---
 
-## FASE 1 - IMPLEMENTAZIONE MVP ✅
+## FEATURE RICHIESTE (FASE 4)
 
-### Architettura Implementata
-
-```
-┌─────────────┐      JSON-RPC       ┌─────────────────────┐
-│     ZED     │◄───── stdio ───────►│   convergio-acp     │
-└─────────────┘                     │   (~500 LOC)        │
-                                    └──────────┬──────────┘
-                                               │
-                                               │ direct call
-                                               │
-                                    ┌──────────▼──────────┐
-                                    │   orchestrator      │
-                                    │   (esistente)       │
-                                    │   + streaming cb    │
-                                    └─────────────────────┘
-```
-
-### File Creati
+### F1: Super Chat Ali (Bottom Panel)
 
 ```
-src/acp/
-├── acp_server.c      # Main loop, JSON-RPC dispatch, handlers (495 LOC)
-└── acp_stubs.c       # Stubs per globals di main.c (45 LOC)
-
-include/nous/
-└── acp.h             # Header types e API (40 LOC)
+┌─────────────────────────────────────────────────────────────────────┐
+│                      CODE EDITOR                                     │
+│  function calculate() {                                             │
+│    // ...                                                           │
+│  }                                                                  │
+├─────────────────────────────────────────────────────────────────────┤
+│  ALI - CHIEF OF STAFF (sempre visibile, come il terminale)         │
+│  ───────────────────────────────────────────────────────────────── │
+│  YOU: What's the status of the project?                            │
+│  ALI: Based on conversations with other agents:                     │
+│       - Baccio suggests microservices architecture                  │
+│       - Dario found 3 bugs in the auth module                       │
+│       - Rex reviewed PR #42, approved with minor changes            │
+└─────────────────────────────────────────────────────────────────────┘
 ```
 
-### Configurazione Zed
+### F2: Context Sharing tra Agenti
 
-File: `~/.config/zed/settings.json`
+Ali deve poter:
+- Vedere summary delle conversazioni recenti con altri agenti
+- Aggregare insights da multiple conversazioni
+- Fornire overview strategica del progetto
 
-```json
-"agent_servers": {
-  "Convergio": {
-    "type": "custom",
-    "command": "/Users/roberdan/GitHub/ConvergioCLI/build/bin/convergio-acp",
-    "args": [],
-    "env": {}
-  }
-}
-```
+**Implementazione proposta:**
+- File JSON locale con summary delle conversazioni
+- Ali legge questo file al startup
+- Ogni agente scrive summary quando la conversazione finisce
 
-### Binary
+### F3: Persistenza Conversazioni
 
-- **Path**: `/Users/roberdan/GitHub/ConvergioCLI/build/bin/convergio-acp`
-- **Size**: 33MB
-- **Build**: `make convergio-acp`
+- Click su agente → se esiste conversazione precedente, la riprende
+- Opzione "Nuova conversazione" per iniziare da zero
+- History delle conversazioni per agente nel pannello
 
 ---
 
@@ -154,9 +168,10 @@ File: `~/.config/zed/settings.json`
 - [x] Zed riconosce Convergio nel pannello Agent
 - [x] Si può chattare con Ali
 - [x] Streaming funziona (token by token)
-- [ ] Tool calls visibili in Zed (da testare)
-
-**MVP COMPLETATO** ✅ - 2025-12-18 20:30
+- [x] 54 agenti disponibili nel pannello
+- [x] Categorie collassabili
+- [x] Search per nome/skills
+- [ ] Test E2E completo (build in corso)
 
 ---
 
@@ -165,17 +180,6 @@ File: `~/.config/zed/settings.json`
 1. `90d67f4` - feat(acp): Add Agent Client Protocol server for Zed integration
 2. `8dc2c31` - docs: Update master plan - MVP complete, ready for testing
 3. `f98b4c6` - fix(acp): Fix ACP protocol format and use-after-free bugs
-
----
-
-## NEXT STEPS AFTER MVP
-
-Una volta che il MVP funziona:
-
-1. **Feedback**: cosa manca? cosa non funziona?
-2. **Agent Packs**: aggiungere business/education agents
-3. **A11y Layer**: implementare come post-processing
-4. **Publish**: creare extension.toml per distribuzione
 
 ---
 
@@ -196,32 +200,22 @@ Una volta che il MVP funziona:
 | 2025-12-18 | 21:05 | Decisione: fork Zed per multi-agent panel |
 | 2025-12-18 | 21:05 | Fork creato: github.com/Roberdan/convergio-zed |
 | 2025-12-18 | 21:10 | Piano Fase 3 definito (9 task) |
-
----
-
-## FASE 3 - ARCHITETTURA TARGET
-
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                      CONVERGIO-ZED                               │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────────────┐   │
-│  │   Editor     │  │   Channels   │  │   CONVERGIO PANEL    │   │
-│  │   (code)     │  │   (collab)   │  │   ┌──────────────┐   │   │
-│  │              │  │              │  │   │ 🤖 Ali       │   │   │
-│  │              │  │              │  │   │ 💼 amy-cfo   │   │   │
-│  │              │  │              │  │   │ 🏗️ baccio    │   │   │
-│  │              │  │              │  │   │ 🐛 dario     │   │   │
-│  │              │  │              │  │   │ ...54 agents │   │   │
-│  │              │  │              │  │   └──────────────┘   │   │
-│  └──────────────┘  └──────────────┘  └──────────┬───────────┘   │
-└─────────────────────────────────────────────────┼───────────────┘
-                                                  │ click
-                                                  ▼
-                              ┌───────────────────────────────────┐
-                              │         convergio-acp             │
-                              │         --agent <name>            │
-                              └───────────────────────────────────┘
-```
+| 2025-12-18 | 21:30 | Z2: Crate convergio_panel creato |
+| 2025-12-18 | 21:45 | Z3: Panel trait implementato (icon, toggle_action, render) |
+| 2025-12-18 | 21:50 | Z4: Integrazione in initialize_panels() e main.rs |
+| 2025-12-18 | 22:00 | Z5: ✅ **CONVERGIO PANEL FUNZIONANTE** - 12 agenti visibili |
+| 2025-12-18 | 23:30 | Z6: Click handler con NewExternalAgentThread |
+| 2025-12-18 | 23:45 | Z7: 54 agenti + 14 categorie + search field |
+| 2025-12-19 | 00:00 | Z8: settings.json aggiornato con tutti 54 agenti |
+| 2025-12-19 | 00:30 | Z9: Release build avviata |
+| 2025-12-19 | 01:30 | F1: Ali bottom panel implementato (Enter key, Open Chat button) |
+| 2025-12-19 | 01:30 | F4: Icons aggiornate (UserGroup per Convergio, Ai per Ali) |
+| 2025-12-19 | 01:30 | Fix: Rimossi mock Baccio/Dario da Ali panel |
+| 2025-12-19 | 01:30 | F3: Infrastruttura persistenza aggiunta (resume_session_id) |
+| 2025-12-19 | 02:00 | F2: Context sharing implementato (ACP salva/carica agent_context) |
+| 2025-12-19 | 02:00 | F3: Conversation persistence completato (KEY_VALUE_STORE) |
+| 2025-12-19 | 02:00 | Commit convergio-zed: d19c1100e4 (Convergio Panel + Ali) |
+| 2025-12-19 | 02:00 | Commit ConvergioCLI: d6bb014 (Context sharing ACP) |
 
 ---
 
@@ -240,4 +234,4 @@ Una volta che il MVP funziona:
 
 ---
 
-**Piano aggiornato**: 2025-12-18 21:10
+**Piano aggiornato**: 2025-12-19 00:30
