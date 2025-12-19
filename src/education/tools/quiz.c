@@ -420,7 +420,7 @@ bool quiz_submit_answer(QuizSession* session, int question_index,
 }
 
 /**
- * Complete the quiz session
+ * Complete the quiz session and save grade to libretto
  */
 void quiz_session_complete(QuizSession* session) {
     if (!session) return;
@@ -428,6 +428,59 @@ void quiz_session_complete(QuizSession* session) {
     session->completed_at = time(NULL);
     session->percentage = (float)session->correct_count /
                           (float)session->quiz->question_count * 100.0f;
+}
+
+/**
+ * Complete quiz and save to student's libretto
+ */
+void quiz_session_complete_with_grade(QuizSession* session, int64_t student_id,
+                                       const char* maestro_id) {
+    if (!session) return;
+
+    // Complete the session first
+    quiz_session_complete(session);
+
+    // Generate grade comment based on performance
+    char comment[256] = "";
+    if (session->percentage >= 90.0f) {
+        snprintf(comment, sizeof(comment), "Eccellente! %d/%d corrette.",
+                 session->correct_count, session->quiz->question_count);
+    } else if (session->percentage >= 70.0f) {
+        snprintf(comment, sizeof(comment), "Buon lavoro! %d/%d corrette.",
+                 session->correct_count, session->quiz->question_count);
+    } else if (session->percentage >= 50.0f) {
+        snprintf(comment, sizeof(comment), "Sufficiente. %d/%d corrette. Ripassare il materiale.",
+                 session->correct_count, session->quiz->question_count);
+    } else {
+        snprintf(comment, sizeof(comment), "Da rivedere. %d/%d corrette. Consiglio ripasso approfondito.",
+                 session->correct_count, session->quiz->question_count);
+    }
+
+    // Save to libretto using the API
+    int64_t grade_id = libretto_add_quiz_grade(
+        student_id,
+        maestro_id ? maestro_id : "ED00",
+        session->quiz->subject ? session->quiz->subject : "Generale",
+        session->quiz->topic,
+        session->correct_count,
+        session->quiz->question_count,
+        comment
+    );
+
+    if (grade_id > 0) {
+        printf("\n✅ Voto salvato nel libretto (ID: %lld)\n", (long long)grade_id);
+    }
+
+    // Also log the activity
+    libretto_add_log_entry(
+        student_id,
+        maestro_id,
+        "quiz",
+        session->quiz->subject,
+        session->quiz->topic,
+        (int)(session->completed_at - session->started_at) / 60,  // duration in minutes
+        comment
+    );
 }
 
 /**

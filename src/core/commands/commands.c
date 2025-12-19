@@ -95,6 +95,7 @@ int cmd_homework(int argc, char** argv);
 int cmd_quiz(int argc, char** argv);
 int cmd_flashcards(int argc, char** argv);
 int cmd_mindmap(int argc, char** argv);
+int cmd_libretto(int argc, char** argv);
 
 static const ReplCommand COMMANDS[] = {
     {"help",        "Show available commands",           cmd_help},
@@ -150,6 +151,7 @@ static const ReplCommand COMMANDS[] = {
     {"quiz",        "Generate adaptive quizzes",         cmd_quiz},
     {"flashcards",  "Create and review flashcards",      cmd_flashcards},
     {"mindmap",     "Generate visual mind maps",         cmd_mindmap},
+    {"libretto",    "Student gradebook and activity log", cmd_libretto},
     {"quit",        "Exit Convergio",                    cmd_quit},
     {"exit",        "Exit Convergio",                    cmd_quit},
     {NULL, NULL, NULL}

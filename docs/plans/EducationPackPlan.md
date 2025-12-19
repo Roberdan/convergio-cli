@@ -70,18 +70,28 @@ I file esistevano ma c'era un **disallineamento totale** tra `education.h` e le 
 
 ---
 
-## QUICK STATUS - AGGIORNATO 2025-12-19
+## QUICK STATUS - AGGIORNATO 2025-12-19 23:00
 
 ```
 FASE 1 (Setup):      Profilo studente + Setup wizard              → [x] DONE - DB + Wizard + CLI commands
 FASE 2 (Maestri):    14 Maestri storici [7 THREAD PARALLELI]      → [x] DONE - 14/14 agent definitions (~4000 righe)
 FASE 3 (Toolkit):    Tool didattici [10 THREAD PARALLELI]         → [x] DONE - 6 tools implementati
 FASE 4 (Curriculum): Liceo Scientifico + altri [3 THREAD]         → [x] DONE (7/7 curricula JSON)
-FASE 5 (Features):   Quiz, compiti, study sessions [4 THREAD]     → [x] DONE - LLM integration funzionante
+FASE 5 (Features):   Quiz, compiti, study sessions [4 THREAD]     → [x] DONE - LLM + Libretto dello Studente
 FASE 6 (A11y):       Accessibilita profonda [5 THREAD PARALLELI]  → [~] PARZIALE - struct ok, integrazione profonda TODO
 FASE 7 (Coord):      Ali preside + Anna reminder                  → [~] PARZIALE - anna_integration.c esiste
-FASE 8 (Test):       Test con utenti reali [5 THREAD]             → [ ] IN CORSO - scenari scolastici
+FASE 8 (Test):       Test con utenti reali [5 THREAD]             → [ ] IN CORSO - 9/9 scenari passati
 ```
+
+### FASE 8 - Libretto dello Studente (2025-12-19)
+
+Implementato il Libretto dello Studente completo:
+- Schema DB `student_gradebook` + `daily_log` con indici
+- API complete: `libretto_add_grade()`, `libretto_add_quiz_grade()`, `libretto_add_log_entry()`
+- API query: `libretto_get_grades()`, `libretto_get_daily_log()`, `libretto_get_average()`, `libretto_get_progress_report()`
+- Comando `/libretto` con sottocomandi: voti, diario, progressi, media
+- Integrazione automatica quiz → voto con conversione percentuale → voto italiano (1-10)
+- Dashboard ASCII con statistiche ultimi 30 giorni
 
 ### RISOLTO: LLM Integration (2025-12-19)
 
@@ -530,7 +540,7 @@ Ogni thread crea 2 maestri in parallelo.
 | F21 | Reminder pause ADHD | [ ] | P1 |
 | F22 | Celebrazione completamenti | [ ] | P1 |
 
-### Thread F5 - Libretto dello Studente (NEW)
+### Thread F5 - Libretto dello Studente ✅ CORE COMPLETE
 
 > **Descrizione**: Un vero e proprio libretto/diario scolastico digitale che tiene traccia di:
 > - Voti e valutazioni per ogni materia/maestro
@@ -543,19 +553,19 @@ Ogni thread crea 2 maestri in parallelo.
 
 | ID | Task | Status | Priority |
 |----|------|--------|----------|
-| LB01 | Schema DB `student_gradebook` (voti, data, maestro, commento) | [ ] | P0 |
-| LB02 | Schema DB `daily_log` (data, attività, materia, durata) | [ ] | P0 |
-| LB03 | API `libretto_add_grade()` | [ ] | P0 |
-| LB04 | API `libretto_add_log_entry()` | [ ] | P0 |
-| LB05 | API `libretto_get_grades(materia, periodo)` | [ ] | P0 |
-| LB06 | API `libretto_get_progress_report()` | [ ] | P0 |
-| LB07 | Comando `/libretto` - mostra dashboard voti | [ ] | P0 |
-| LB08 | Comando `/libretto voti` - storico voti per materia | [ ] | P0 |
-| LB09 | Comando `/libretto diario` - log attività giornaliere | [ ] | P0 |
-| LB10 | Comando `/libretto progressi` - grafici aree migliorate | [ ] | P1 |
-| LB11 | Integrazione quiz → voto automatico | [ ] | P0 |
+| LB01 | Schema DB `student_gradebook` (voti, data, maestro, commento) | [x] | P0 |
+| LB02 | Schema DB `daily_log` (data, attività, materia, durata) | [x] | P0 |
+| LB03 | API `libretto_add_grade()` | [x] | P0 |
+| LB04 | API `libretto_add_log_entry()` | [x] | P0 |
+| LB05 | API `libretto_get_grades(materia, periodo)` | [x] | P0 |
+| LB06 | API `libretto_get_progress_report()` | [x] | P0 |
+| LB07 | Comando `/libretto` - mostra dashboard voti | [x] | P0 |
+| LB08 | Comando `/libretto voti` - storico voti per materia | [x] | P0 |
+| LB09 | Comando `/libretto diario` - log attività giornaliere | [x] | P0 |
+| LB10 | Comando `/libretto progressi` - grafici aree migliorate | [x] | P1 |
+| LB11 | Integrazione quiz → voto automatico | [x] | P0 |
 | LB12 | Integrazione sessioni studio → log automatico | [ ] | P0 |
-| LB13 | Calcolo media voti per materia/periodo | [ ] | P1 |
+| LB13 | Calcolo media voti per materia/periodo | [x] | P1 |
 | LB14 | Export PDF pagella completa | [ ] | P1 |
 | LB15 | Export PDF report genitori | [ ] | P1 |
 | LB16 | Analisi trend (materie in crescita/calo) | [ ] | P1 |
@@ -824,13 +834,15 @@ FASE 8 (Test) - 5 THREAD PARALLELI
 | 2025-12-19 | **TESTS**: 9/9 scenari scolastici passati (Mario, Sofia, Luca, Giulia) |
 | 2025-12-19 | Aggiunta feature Libretto dello Studente |
 | 2025-12-19 | Aggiunto task di test per ogni fase |
+| 2025-12-19 23:00 | **LIBRETTO**: Implementato completo (LB01-LB13) - Schema DB, API, CLI, Quiz integration |
+| 2025-12-19 23:00 | Merge da main completato - sincronizzazione con ACP e test suites |
 
 ---
 
 **Piano creato**: 2025-12-19
-**Ultimo aggiornamento**: 2025-12-20 00:15
+**Ultimo aggiornamento**: 2025-12-19 23:00
 **Task totali**: 156
-**Task completati**: 47
-**Percentuale**: 30%
+**Task completati**: 59
+**Percentuale**: 38%
 **Thread paralleli max**: 10
 **Autore**: Roberto con supporto team agenti AI
