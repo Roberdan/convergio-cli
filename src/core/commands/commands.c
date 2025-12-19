@@ -88,6 +88,14 @@ int cmd_plan(int argc, char** argv);
 // Forward declaration for output command
 int cmd_output(int argc, char** argv);
 
+// Forward declarations for Education Pack commands
+int cmd_education(int argc, char** argv);
+int cmd_study(int argc, char** argv);
+int cmd_homework(int argc, char** argv);
+int cmd_quiz(int argc, char** argv);
+int cmd_flashcards(int argc, char** argv);
+int cmd_mindmap(int argc, char** argv);
+
 static const ReplCommand COMMANDS[] = {
     {"help",        "Show available commands",           cmd_help},
     {"agent",       "Manage agents",                     cmd_agent},
@@ -135,6 +143,13 @@ static const ReplCommand COMMANDS[] = {
     {"plan",        "Manage execution plans (list/status/export)", cmd_plan},
     // Output Service
     {"output",      "Manage generated outputs (list/open/delete)", cmd_output},
+    // Education Pack commands
+    {"education",   "Education setup and management",    cmd_education},
+    {"study",       "Start a study session with a maestro", cmd_study},
+    {"homework",    "Get help with homework (anti-cheating)", cmd_homework},
+    {"quiz",        "Generate adaptive quizzes",         cmd_quiz},
+    {"flashcards",  "Create and review flashcards",      cmd_flashcards},
+    {"mindmap",     "Generate visual mind maps",         cmd_mindmap},
     {"quit",        "Exit Convergio",                    cmd_quit},
     {"exit",        "Exit Convergio",                    cmd_quit},
     {NULL, NULL, NULL}

@@ -738,6 +738,20 @@ int education_setup_start(void);
  */
 bool education_setup_is_complete(void);
 
+// ============================================================================
+// INTERNAL API (FOR ANNA INTEGRATION)
+// ============================================================================
+
+/**
+ * @brief Get direct access to education database handle
+ *
+ * INTERNAL USE ONLY - Used by Anna integration to access inbox table.
+ *
+ * @return sqlite3 database handle or NULL if not initialized
+ */
+struct sqlite3;
+struct sqlite3* education_get_db_handle(void);
+
 #ifdef __cplusplus
 }
 #endif

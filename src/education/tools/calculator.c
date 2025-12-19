@@ -422,6 +422,67 @@ void calc_compare_fractions(int num1, int den1, int num2, int den2) {
 // ============================================================================
 
 /**
+ * Parse and solve equation string
+ * Supports: ax + b = c, ax = c, x + b = c
+ */
+int calc_solve_equation(const char* equation,
+                        const CalculatorAccessibility* access) {
+    if (!equation) return -1;
+
+    // Simple parser for linear equations
+    // Format: "2x + 3 = 7" or "x - 5 = 10"
+    double a = 0, b = 0, c = 0;
+    char eq_copy[256];
+    strncpy(eq_copy, equation, sizeof(eq_copy) - 1);
+
+    // Find the equals sign
+    char* equals = strchr(eq_copy, '=');
+    if (!equals) {
+        printf("Error: No equals sign found in equation\n");
+        return -1;
+    }
+
+    *equals = '\0';
+    char* left_side = eq_copy;
+    char* right_side = equals + 1;
+
+    // Parse right side (should be a number)
+    c = atof(right_side);
+
+    // Parse left side (ax + b format)
+    char* x_pos = strchr(left_side, 'x');
+    if (!x_pos) {
+        printf("Error: No variable 'x' found\n");
+        return -1;
+    }
+
+    // Get coefficient of x
+    char* ptr = left_side;
+    while (*ptr == ' ') ptr++;  // Skip whitespace
+
+    if (ptr == x_pos) {
+        a = 1.0;  // Just 'x'
+    } else if (ptr + 1 == x_pos && *ptr == '-') {
+        a = -1.0;  // '-x'
+    } else {
+        a = atof(ptr);
+    }
+
+    // Get constant term (after x)
+    char* after_x = x_pos + 1;
+    while (*after_x == ' ') after_x++;
+
+    if (*after_x == '+' || *after_x == '-') {
+        b = atof(after_x);
+    }
+
+    // Solve using calc_solve_linear
+    calc_solve_linear(a, b, c, access);
+
+    return 0;
+}
+
+/**
  * Solve linear equation ax + b = c with steps
  */
 void calc_solve_linear(double a, double b, double c,

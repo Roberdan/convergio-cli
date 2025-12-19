@@ -1,0 +1,788 @@
+{
+  "$schema": "../../schemas/curriculum.schema.json",
+  "id": "iti_informatica",
+  "name": "Istituto Tecnico Tecnologico - Informatica e Telecomunicazioni",
+  "country": "IT",
+  "description": "Curriculum ITI Informatica - focus su programmazione, sistemi, reti e telecomunicazioni",
+  "years": 5,
+  "age_range": {
+    "start": 14,
+    "end": 19
+  },
+  "version": "2024.1",
+  "last_updated": "2025-12-19",
+  "subjects": {
+    "italiano": {
+      "maestro": "manzoni-italiano",
+      "hours_per_week": 4,
+      "years": [1, 2, 3, 4, 5]
+    },
+    "inglese": {
+      "maestro": "shakespeare-inglese",
+      "hours_per_week": 3,
+      "years": [1, 2, 3, 4, 5],
+      "notes": "Technical English from year 3"
+    },
+    "storia": {
+      "maestro": "erodoto-storia",
+      "hours_per_week": 2,
+      "years": [1, 2, 3, 4, 5]
+    },
+    "geografia": {
+      "maestro": "humboldt-geografia",
+      "hours_per_week": 1,
+      "years": [1],
+      "notes": "Only first year"
+    },
+    "matematica": {
+      "maestro": "euclide-matematica",
+      "hours_per_week": 4,
+      "years": [1, 2, 3, 4, 5]
+    },
+    "diritto_economia": {
+      "maestro": "generic",
+      "hours_per_week": 2,
+      "years": [1, 2],
+      "notes": "First two years only"
+    },
+    "scienze_terra_biologia": {
+      "maestro": "darwin-scienze",
+      "hours_per_week": 2,
+      "years": [1, 2],
+      "notes": "First two years only"
+    },
+    "fisica": {
+      "maestro": "feynman-fisica",
+      "hours_per_week": 3,
+      "years": [1, 2],
+      "notes": "First two years, then integrated in technology"
+    },
+    "chimica": {
+      "maestro": "lavoisier-chimica",
+      "hours_per_week": 3,
+      "years": [1, 2],
+      "notes": "First two years only"
+    },
+    "tecnologie_tecniche_rappresentazione_grafica": {
+      "maestro": "lovelace-informatica",
+      "hours_per_week": 3,
+      "years": [1, 2],
+      "notes": "CAD, technical drawing"
+    },
+    "tecnologie_informatiche": {
+      "maestro": "lovelace-informatica",
+      "hours_per_week": 3,
+      "years": [1],
+      "notes": "Introduction to IT"
+    },
+    "scienze_tecnologie_applicate": {
+      "maestro": "lovelace-informatica",
+      "hours_per_week": 3,
+      "years": [2],
+      "notes": "Applied technology"
+    },
+    "informatica": {
+      "maestro": "lovelace-informatica",
+      "hours_per_week": 6,
+      "years": [3, 4, 5],
+      "notes": "Core programming subject"
+    },
+    "telecomunicazioni": {
+      "maestro": "turing-informatica",
+      "hours_per_week": 3,
+      "years": [3, 4],
+      "notes": "Networks and communications"
+    },
+    "sistemi_reti": {
+      "maestro": "turing-informatica",
+      "hours_per_week": 4,
+      "years": [3, 4, 5],
+      "notes": "Operating systems and networks"
+    },
+    "tecnologie_progettazione_sistemi": {
+      "maestro": "lovelace-informatica",
+      "hours_per_week": 3,
+      "years": [3],
+      "notes": "Systems design"
+    },
+    "tpsit": {
+      "maestro": "lovelace-informatica",
+      "hours_per_week": 4,
+      "years": [4, 5],
+      "notes": "Tecnologie e Progettazione di Sistemi Informatici e di Telecomunicazioni"
+    },
+    "gestione_progetto": {
+      "maestro": "generic",
+      "hours_per_week": 3,
+      "years": [5],
+      "notes": "Project management"
+    },
+    "educazione_civica": {
+      "maestro": "cicerone-civica",
+      "hours_per_week": 1,
+      "years": [1, 2, 3, 4, 5],
+      "notes": "Transversal, includes digital citizenship"
+    },
+    "educazione_fisica": {
+      "maestro": "ippocrate-corpo",
+      "hours_per_week": 2,
+      "years": [1, 2, 3, 4, 5]
+    },
+    "religione": {
+      "maestro": "generic",
+      "hours_per_week": 1,
+      "years": [1, 2, 3, 4, 5],
+      "notes": "Optional"
+    }
+  },
+  "curriculum_by_year": {
+    "1": {
+      "year_name": "Primo Anno - Biennio Comune",
+      "total_hours": 33,
+      "subjects": {
+        "italiano": {
+          "units": [
+            {
+              "id": "IT1-01",
+              "title": "Comunicazione tecnica",
+              "topics": ["testi tecnici", "manuali", "relazioni"],
+              "hours": 30
+            },
+            {
+              "id": "IT1-02",
+              "title": "Grammatica",
+              "topics": ["morfologia", "sintassi"],
+              "hours": 30
+            },
+            {
+              "id": "IT1-03",
+              "title": "Letteratura e epica",
+              "topics": ["Iliade", "Odissea", "tecnologia antica"],
+              "hours": 25
+            }
+          ]
+        },
+        "matematica": {
+          "units": [
+            {
+              "id": "MA1-01",
+              "title": "Algebra",
+              "topics": ["numeri", "calcolo letterale", "equazioni primo grado"],
+              "hours": 50
+            },
+            {
+              "id": "MA1-02",
+              "title": "Geometria euclidea",
+              "topics": ["triangoli", "congruenza", "teoremi"],
+              "hours": 40
+            },
+            {
+              "id": "MA1-03",
+              "title": "Statistica base",
+              "topics": ["dati", "grafici", "media"],
+              "hours": 20
+            }
+          ]
+        },
+        "inglese": {
+          "units": [
+            {
+              "id": "EN1-01",
+              "title": "General English A2-B1",
+              "topics": ["grammar", "vocabulary", "conversation"],
+              "hours": 50
+            },
+            {
+              "id": "EN1-02",
+              "title": "Technical vocabulary intro",
+              "topics": ["IT terms", "hardware", "software"],
+              "hours": 25
+            }
+          ]
+        },
+        "tecnologie_informatiche": {
+          "units": [
+            {
+              "id": "TI1-01",
+              "title": "Architettura computer",
+              "topics": ["hardware", "CPU", "memoria", "periferiche"],
+              "hours": 20,
+              "priority": "P0"
+            },
+            {
+              "id": "TI1-02",
+              "title": "Sistemi operativi base",
+              "topics": ["Windows", "Linux intro", "file system"],
+              "hours": 20,
+              "priority": "P0"
+            },
+            {
+              "id": "TI1-03",
+              "title": "Programmazione base",
+              "topics": ["algoritmi", "flowchart", "Scratch", "Python intro"],
+              "hours": 30,
+              "priority": "P0"
+            },
+            {
+              "id": "TI1-04",
+              "title": "Applicazioni",
+              "topics": ["Office", "presentazioni", "fogli calcolo"],
+              "hours": 20
+            }
+          ]
+        },
+        "fisica": {
+          "units": [
+            {
+              "id": "FI1-01",
+              "title": "Grandezze e misure",
+              "topics": ["unita misura", "errori", "notazione scientifica"],
+              "hours": 15
+            },
+            {
+              "id": "FI1-02",
+              "title": "Cinematica",
+              "topics": ["moto rettilineo", "moto accelerato"],
+              "hours": 25
+            },
+            {
+              "id": "FI1-03",
+              "title": "Dinamica",
+              "topics": ["forze", "leggi Newton", "vettori"],
+              "hours": 25
+            }
+          ]
+        },
+        "chimica": {
+          "units": [
+            {
+              "id": "CH1-01",
+              "title": "Materia e trasformazioni",
+              "topics": ["stati materia", "miscugli", "soluzioni"],
+              "hours": 20
+            },
+            {
+              "id": "CH1-02",
+              "title": "Atomo e tavola periodica",
+              "topics": ["struttura atomica", "elementi", "proprieta"],
+              "hours": 25
+            },
+            {
+              "id": "CH1-03",
+              "title": "Legami chimici",
+              "topics": ["ionico", "covalente", "metallico"],
+              "hours": 20
+            }
+          ]
+        },
+        "tecnologie_grafiche": {
+          "units": [
+            {
+              "id": "TG1-01",
+              "title": "Disegno tecnico",
+              "topics": ["strumenti", "proiezioni ortogonali", "assonometrie"],
+              "hours": 30
+            },
+            {
+              "id": "TG1-02",
+              "title": "CAD 2D",
+              "topics": ["AutoCAD", "comandi base", "quotature"],
+              "hours": 35
+            }
+          ]
+        }
+      }
+    },
+    "2": {
+      "year_name": "Secondo Anno - Biennio Comune",
+      "total_hours": 33,
+      "subjects": {
+        "italiano": {
+          "units": [
+            {
+              "id": "IT2-01",
+              "title": "Sintassi periodo",
+              "topics": ["subordinate", "analisi periodo"],
+              "hours": 30
+            },
+            {
+              "id": "IT2-02",
+              "title": "Documentazione tecnica",
+              "topics": ["relazioni tecniche", "manuali utente"],
+              "hours": 30
+            },
+            {
+              "id": "IT2-03",
+              "title": "I Promessi Sposi",
+              "topics": ["Manzoni", "analisi"],
+              "hours": 25
+            }
+          ]
+        },
+        "matematica": {
+          "units": [
+            {
+              "id": "MA2-01",
+              "title": "Equazioni secondo grado",
+              "topics": ["formula risolutiva", "parabola", "problemi"],
+              "hours": 40
+            },
+            {
+              "id": "MA2-02",
+              "title": "Radicali",
+              "topics": ["proprieta", "operazioni", "razionalizzazione"],
+              "hours": 30
+            },
+            {
+              "id": "MA2-03",
+              "title": "Geometria analitica intro",
+              "topics": ["piano cartesiano", "distanza", "punto medio"],
+              "hours": 30
+            }
+          ]
+        },
+        "scienze_tecnologie_applicate": {
+          "units": [
+            {
+              "id": "STA2-01",
+              "title": "Programmazione strutturata",
+              "topics": ["Python", "variabili", "cicli", "condizioni", "funzioni"],
+              "hours": 40,
+              "priority": "P0"
+            },
+            {
+              "id": "STA2-02",
+              "title": "Database intro",
+              "topics": ["dati", "tabelle", "query SQL base"],
+              "hours": 30,
+              "priority": "P0"
+            },
+            {
+              "id": "STA2-03",
+              "title": "Reti base",
+              "topics": ["LAN", "protocolli", "indirizzamento IP"],
+              "hours": 25
+            }
+          ]
+        },
+        "fisica": {
+          "units": [
+            {
+              "id": "FI2-01",
+              "title": "Energia",
+              "topics": ["lavoro", "energia cinetica", "potenziale"],
+              "hours": 30
+            },
+            {
+              "id": "FI2-02",
+              "title": "Elettricita",
+              "topics": ["carica", "corrente", "legge Ohm", "circuiti"],
+              "hours": 35
+            }
+          ]
+        },
+        "tecnologie_grafiche": {
+          "units": [
+            {
+              "id": "TG2-01",
+              "title": "Prospettiva",
+              "topics": ["centrale", "accidentale"],
+              "hours": 25
+            },
+            {
+              "id": "TG2-02",
+              "title": "CAD 3D intro",
+              "topics": ["modellazione solidi", "rendering base"],
+              "hours": 40
+            }
+          ]
+        }
+      }
+    },
+    "3": {
+      "year_name": "Terzo Anno - Specializzazione Informatica",
+      "total_hours": 32,
+      "subjects": {
+        "informatica": {
+          "units": [
+            {
+              "id": "INF3-01",
+              "title": "Programmazione OOP",
+              "topics": ["Java", "classi", "oggetti", "ereditarieta", "polimorfismo"],
+              "hours": 80,
+              "priority": "P0"
+            },
+            {
+              "id": "INF3-02",
+              "title": "Strutture dati",
+              "topics": ["array", "liste", "stack", "queue", "alberi base"],
+              "hours": 50,
+              "priority": "P0"
+            },
+            {
+              "id": "INF3-03",
+              "title": "Algoritmi",
+              "topics": ["ricerca", "ordinamento", "complessita"],
+              "hours": 40,
+              "priority": "P0"
+            }
+          ]
+        },
+        "sistemi_reti": {
+          "units": [
+            {
+              "id": "SR3-01",
+              "title": "Sistemi operativi",
+              "topics": ["processi", "thread", "scheduling", "memoria"],
+              "hours": 50,
+              "priority": "P0"
+            },
+            {
+              "id": "SR3-02",
+              "title": "Linux amministrazione",
+              "topics": ["comandi shell", "permessi", "utenti", "script bash"],
+              "hours": 45,
+              "priority": "P0"
+            },
+            {
+              "id": "SR3-03",
+              "title": "Reti LAN",
+              "topics": ["topologie", "Ethernet", "switch", "VLAN"],
+              "hours": 35
+            }
+          ]
+        },
+        "telecomunicazioni": {
+          "units": [
+            {
+              "id": "TC3-01",
+              "title": "Segnali",
+              "topics": ["analogico", "digitale", "campionamento", "modulazione"],
+              "hours": 35
+            },
+            {
+              "id": "TC3-02",
+              "title": "Trasmissione dati",
+              "topics": ["mezzi trasmissivi", "codifica", "protocolli"],
+              "hours": 40
+            }
+          ]
+        },
+        "tpsit": {
+          "units": [
+            {
+              "id": "TP3-01",
+              "title": "Metodologie sviluppo",
+              "topics": ["ciclo vita software", "analisi", "progettazione"],
+              "hours": 35
+            },
+            {
+              "id": "TP3-02",
+              "title": "UML",
+              "topics": ["use case", "class diagram", "sequence diagram"],
+              "hours": 30
+            }
+          ]
+        },
+        "matematica": {
+          "units": [
+            {
+              "id": "MA3-01",
+              "title": "Geometria analitica",
+              "topics": ["retta", "parabola", "circonferenza"],
+              "hours": 50
+            },
+            {
+              "id": "MA3-02",
+              "title": "Goniometria",
+              "topics": ["funzioni goniometriche", "formule"],
+              "hours": 45
+            },
+            {
+              "id": "MA3-03",
+              "title": "Logica booleana",
+              "topics": ["algebra booleana", "porte logiche", "circuiti"],
+              "hours": 25
+            }
+          ]
+        }
+      }
+    },
+    "4": {
+      "year_name": "Quarto Anno - Specializzazione Informatica",
+      "total_hours": 32,
+      "subjects": {
+        "informatica": {
+          "units": [
+            {
+              "id": "INF4-01",
+              "title": "Database relazionali",
+              "topics": ["modello ER", "normalizzazione", "SQL avanzato", "MySQL/PostgreSQL"],
+              "hours": 70,
+              "priority": "P0"
+            },
+            {
+              "id": "INF4-02",
+              "title": "Programmazione web",
+              "topics": ["HTML5", "CSS3", "JavaScript", "PHP", "form"],
+              "hours": 60,
+              "priority": "P0"
+            },
+            {
+              "id": "INF4-03",
+              "title": "GUI programming",
+              "topics": ["JavaFX", "Swing", "eventi", "MVC pattern"],
+              "hours": 40
+            }
+          ]
+        },
+        "sistemi_reti": {
+          "units": [
+            {
+              "id": "SR4-01",
+              "title": "Networking avanzato",
+              "topics": ["TCP/IP", "routing", "subnetting", "IPv6"],
+              "hours": 55,
+              "priority": "P0"
+            },
+            {
+              "id": "SR4-02",
+              "title": "Servizi di rete",
+              "topics": ["DNS", "DHCP", "web server", "FTP"],
+              "hours": 45,
+              "priority": "P0"
+            },
+            {
+              "id": "SR4-03",
+              "title": "Virtualizzazione",
+              "topics": ["VM", "container", "Docker intro"],
+              "hours": 30
+            }
+          ]
+        },
+        "tpsit": {
+          "units": [
+            {
+              "id": "TP4-01",
+              "title": "Architetture software",
+              "topics": ["client-server", "3-tier", "microservizi", "API"],
+              "hours": 50,
+              "priority": "P0"
+            },
+            {
+              "id": "TP4-02",
+              "title": "Sicurezza informatica",
+              "topics": ["crittografia", "autenticazione", "HTTPS", "vulnerabilita"],
+              "hours": 45
+            },
+            {
+              "id": "TP4-03",
+              "title": "Testing",
+              "topics": ["unit test", "integration test", "debugging"],
+              "hours": 30
+            }
+          ]
+        },
+        "telecomunicazioni": {
+          "units": [
+            {
+              "id": "TC4-01",
+              "title": "Reti wireless",
+              "topics": ["WiFi", "Bluetooth", "mobile networks"],
+              "hours": 40
+            },
+            {
+              "id": "TC4-02",
+              "title": "Protocolli applicativi",
+              "topics": ["HTTP", "SMTP", "POP3", "IMAP"],
+              "hours": 35
+            }
+          ]
+        },
+        "matematica": {
+          "units": [
+            {
+              "id": "MA4-01",
+              "title": "Trigonometria",
+              "topics": ["triangoli", "teoremi", "applicazioni"],
+              "hours": 40
+            },
+            {
+              "id": "MA4-02",
+              "title": "Funzioni",
+              "topics": ["esponenziali", "logaritmi", "grafici"],
+              "hours": 50
+            },
+            {
+              "id": "MA4-03",
+              "title": "Combinatoria",
+              "topics": ["permutazioni", "combinazioni", "probabilita"],
+              "hours": 30
+            }
+          ]
+        }
+      }
+    },
+    "5": {
+      "year_name": "Quinto Anno - Specializzazione Informatica",
+      "total_hours": 32,
+      "subjects": {
+        "informatica": {
+          "units": [
+            {
+              "id": "INF5-01",
+              "title": "Framework web moderni",
+              "topics": ["React", "Node.js", "Express", "REST API"],
+              "hours": 70,
+              "priority": "P0"
+            },
+            {
+              "id": "INF5-02",
+              "title": "Mobile development",
+              "topics": ["Android", "Kotlin", "app development"],
+              "hours": 50,
+              "priority": "P0"
+            },
+            {
+              "id": "INF5-03",
+              "title": "Intelligenza artificiale intro",
+              "topics": ["machine learning", "Python ML", "neural networks base"],
+              "hours": 40
+            },
+            {
+              "id": "INF5-04",
+              "title": "Progetto finale",
+              "topics": ["analisi", "sviluppo", "testing", "documentazione"],
+              "hours": 30,
+              "priority": "P0"
+            }
+          ]
+        },
+        "sistemi_reti": {
+          "units": [
+            {
+              "id": "SR5-01",
+              "title": "Cloud computing",
+              "topics": ["IaaS", "PaaS", "SaaS", "AWS/Azure intro"],
+              "hours": 50,
+              "priority": "P0"
+            },
+            {
+              "id": "SR5-02",
+              "title": "Cybersecurity",
+              "topics": ["firewall", "IDS/IPS", "penetration testing", "ethical hacking"],
+              "hours": 45,
+              "priority": "P0"
+            },
+            {
+              "id": "SR5-03",
+              "title": "Amministrazione avanzata",
+              "topics": ["clustering", "load balancing", "backup"],
+              "hours": 35
+            }
+          ]
+        },
+        "tpsit": {
+          "units": [
+            {
+              "id": "TP5-01",
+              "title": "DevOps",
+              "topics": ["CI/CD", "Git", "GitHub Actions", "Jenkins"],
+              "hours": 50,
+              "priority": "P0"
+            },
+            {
+              "id": "TP5-02",
+              "title": "Agile e Scrum",
+              "topics": ["metodologie agile", "sprint", "retrospettive"],
+              "hours": 40
+            },
+            {
+              "id": "TP5-03",
+              "title": "IoT",
+              "topics": ["Arduino", "Raspberry Pi", "sensori", "MQTT"],
+              "hours": 35
+            }
+          ]
+        },
+        "gestione_progetto": {
+          "units": [
+            {
+              "id": "GP5-01",
+              "title": "Project management",
+              "topics": ["pianificazione", "Gantt", "risorse", "budget"],
+              "hours": 35
+            },
+            {
+              "id": "GP5-02",
+              "title": "Economia aziendale",
+              "topics": ["business plan", "marketing", "startup"],
+              "hours": 30
+            },
+            {
+              "id": "GP5-03",
+              "title": "Diritto informatico",
+              "topics": ["privacy", "GDPR", "copyright", "licenze software"],
+              "hours": 25
+            }
+          ]
+        },
+        "matematica": {
+          "units": [
+            {
+              "id": "MA5-01",
+              "title": "Analisi matematica",
+              "topics": ["limiti", "derivate", "studio funzione"],
+              "hours": 70
+            },
+            {
+              "id": "MA5-02",
+              "title": "Integrali",
+              "topics": ["integrali indefiniti", "definiti", "applicazioni"],
+              "hours": 50
+            }
+          ]
+        }
+      }
+    }
+  },
+  "accessibility_notes": {
+    "dyslexia": "Code with syntax highlighting, screen readers, extended time",
+    "dyscalculia": "Visual programming tools, calculators, formula sheets",
+    "adhd": "Hands-on coding, frequent breaks, project-based learning",
+    "autism": "Clear specifications, logical structures, pair programming",
+    "cerebral_palsy": "Voice coding tools, adaptive keyboards, extended time"
+  },
+  "exam_preparation": {
+    "esame_di_stato": {
+      "year": 5,
+      "structure": {
+        "prima_prova": "Italian essay",
+        "seconda_prova": "Informatica (programming + systems)",
+        "oral": "Project presentation and cross-disciplinary discussion"
+      }
+    }
+  },
+  "certifications": {
+    "cisco": ["CCNA preparation available"],
+    "microsoft": ["Azure fundamentals", "MTA"],
+    "oracle": ["Java certification preparation"],
+    "comptia": ["A+", "Network+", "Security+ preparation"],
+    "ec_council": ["CEH preparation"]
+  },
+  "career_paths": {
+    "software_developer": "Full-stack, mobile, web development",
+    "network_engineer": "System administration, cybersecurity",
+    "database_administrator": "Data management, DBA",
+    "devops_engineer": "CI/CD, cloud, automation",
+    "it_consultant": "Business analysis, IT strategy",
+    "university": "Computer Science, Engineering degrees"
+  },
+  "programming_languages": {
+    "year_1": ["Scratch", "Python"],
+    "year_2": ["Python"],
+    "year_3": ["Java"],
+    "year_4": ["Java", "JavaScript", "PHP", "SQL"],
+    "year_5": ["JavaScript/TypeScript", "React", "Node.js", "Kotlin", "Python ML"]
+  }
+}

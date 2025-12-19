@@ -552,6 +552,157 @@ int flashcard_generate_audio(Flashcard* card, bool front_only, float speed) {
 }
 
 // ============================================================================
+// TERMINAL UI FOR STUDY SESSION
+// ============================================================================
+
+/**
+ * Terminal UI for flashcard study session
+ * Displays cards one at a time with front/back reveal
+ */
+int flashcards_ui_study(FlashcardSession* session,
+                        const EducationAccessibility* access) {
+    if (!session) return -1;
+
+    // Terminal control codes
+    const char* CLEAR_SCREEN = "\033[2J\033[H";
+    const char* BOLD = "\033[1m";
+    const char* RESET = "\033[0m";
+    const char* GREEN = "\033[32m";
+    const char* YELLOW = "\033[33m";
+    const char* RED = "\033[31m";
+    const char* CYAN = "\033[36m";
+
+    printf("%s", CLEAR_SCREEN);
+    printf("%s=== Flashcard Study Session ===%s\n", BOLD, RESET);
+    printf("Deck: %s\n", session->deck->title);
+    printf("Cards to review: %d\n\n", session->due_count);
+    printf("Press ENTER to continue...\n");
+    getchar();
+
+    while (!flashcard_session_complete(session)) {
+        Flashcard* card = flashcard_session_current(session);
+        if (!card) break;
+
+        // Clear screen and show front
+        printf("%s", CLEAR_SCREEN);
+        printf("%s=== Card %d/%d ===%s\n\n",
+               BOLD, session->current_index + 1, session->due_count, RESET);
+
+        printf("%sFRONT:%s\n", CYAN, RESET);
+        printf("%s\n\n", card->front);
+
+        // Show hint if available and requested
+        if (card->hint && access && access->dyscalculia) {
+            printf("%sHint:%s %s\n\n", YELLOW, RESET, card->hint);
+        }
+
+        printf("Press ENTER to reveal answer...\n");
+        getchar();
+
+        // Show back
+        printf("\n%sBACK:%s\n", CYAN, RESET);
+        printf("%s\n\n", card->back);
+
+        // Show mnemonic if available
+        if (card->mnemonic) {
+            printf("%sMnemonic:%s %s\n\n", YELLOW, RESET, card->mnemonic);
+        }
+
+        // Ask for quality rating
+        printf("\nHow well did you remember?\n");
+        printf("0 - Complete blackout\n");
+        printf("1 - Wrong, but recognized\n");
+        printf("2 - Wrong, but easy after seeing\n");
+        printf("3 - Correct with difficulty\n");
+        printf("4 - Correct with hesitation\n");
+        printf("5 - Perfect recall\n\n");
+        printf("Enter rating (0-5): ");
+
+        char input[10];
+        if (fgets(input, sizeof(input), stdin)) {
+            int quality = atoi(input);
+            if (quality >= 0 && quality <= 5) {
+                flashcard_session_rate(session, quality);
+
+                // Show feedback
+                if (quality >= 3) {
+                    printf("\n%sGreat!%s ", GREEN, RESET);
+                } else if (quality >= 1) {
+                    printf("\n%sKeep practicing!%s ", YELLOW, RESET);
+                } else {
+                    printf("\n%sDon't worry, you'll get it!%s ", RED, RESET);
+                }
+
+                // Show next interval
+                printf("Next review in %d days.\n", card->interval_days);
+            }
+        }
+
+        printf("\nPress ENTER for next card...\n");
+        getchar();
+    }
+
+    // Show session summary
+    printf("%s", CLEAR_SCREEN);
+    printf("%s=== Session Complete ===%s\n\n", BOLD, RESET);
+
+    int reviewed, correct;
+    float accuracy;
+    flashcard_session_stats(session, &reviewed, &correct, &accuracy);
+
+    printf("Cards reviewed: %d\n", reviewed);
+    printf("Correct (3+): %d\n", correct);
+    printf("Accuracy: %.1f%%\n", accuracy);
+    printf("\n%sGreat work! Keep up the practice!%s\n", GREEN, RESET);
+
+    return 0;
+}
+
+/**
+ * Auto-generate flashcards from lesson text using LLM
+ */
+FlashcardDeck* flashcards_auto_generate(int64_t student_id,
+                                         const char* topic,
+                                         const char* lesson_text,
+                                         int target_count,
+                                         const EducationAccessibility* access) {
+    if (!topic || !lesson_text) return NULL;
+
+    // Build prompt for LLM to extract key concepts
+    char prompt[4096];
+    snprintf(prompt, sizeof(prompt),
+             "Analyze this lesson text and generate %d flashcards.\n\n"
+             "Lesson text:\n%s\n\n"
+             "For each flashcard:\n"
+             "- Front: A question or term to remember\n"
+             "- Back: The answer or definition\n"
+             "- Hint: A helpful hint (optional)\n"
+             "- Mnemonic: A memory aid (optional)\n\n"
+             "Focus on:\n"
+             "- Key concepts and definitions\n"
+             "- Important facts and dates\n"
+             "- Cause and effect relationships\n"
+             "- Critical thinking questions\n\n"
+             "%s"
+             "Output as JSON array.",
+             target_count > 0 ? target_count : 10,
+             lesson_text,
+             (access && access->dyslexia) ? "- Use simple, clear language\n" : "");
+
+    // TODO: Send prompt to LLM and parse response
+    // For now, create a basic deck structure
+
+    FlashcardDeck* deck = flashcard_deck_create(student_id, topic, NULL, topic);
+    if (!deck) return NULL;
+
+    // In real implementation, parse LLM JSON response and add cards
+    // Example:
+    // flashcard_add(deck, "What is X?", "X is...", "Think about Y", "XYZ mnemonic");
+
+    return deck;
+}
+
+// ============================================================================
 // CLEANUP
 // ============================================================================
 
