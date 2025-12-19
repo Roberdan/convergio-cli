@@ -442,6 +442,192 @@ void test_maestri_exist(void) {
 }
 
 // ============================================================================
+// TEST LIBRETTO DELLO STUDENTE
+// ============================================================================
+
+void test_libretto_grade_recording(void) {
+    TEST("Libretto - Registrazione voti");
+
+    EducationStudentProfile* profile = education_profile_get_active();
+    if (!profile) {
+        FAIL("No active profile");
+        return;
+    }
+
+    // Aggiungi un voto manuale
+    int64_t grade_id = libretto_add_grade(
+        profile->id,
+        "ED02",                    // Euclide (Matematica)
+        "Matematica",
+        "Equazioni di primo grado",
+        GRADE_TYPE_ORAL,
+        8.5f,                      // Voto
+        "Ottima comprensione dei passaggi, qualche errore di calcolo"
+    );
+    ASSERT_TRUE(grade_id > 0, "Failed to add grade");
+
+    // Verifica che il voto sia stato salvato (ultimi 30 giorni)
+    int count = 0;
+    time_t now = time(NULL);
+    time_t from_date = now - (30 * 24 * 60 * 60);  // 30 days ago
+    EducationGrade** grades = libretto_get_grades(profile->id, "Matematica", from_date, now, &count);
+    ASSERT_TRUE(count >= 1, "Should have at least 1 grade");
+    ASSERT_NOT_NULL(grades, "Grades array is NULL");
+
+    // Verifica il voto
+    bool found = false;
+    for (int i = 0; i < count; i++) {
+        if (grades[i]->id == grade_id) {
+            found = true;
+            ASSERT_TRUE(grades[i]->grade >= 8.0f && grades[i]->grade <= 9.0f, "Grade value mismatch");
+            ASSERT_EQ(grades[i]->grade_type, GRADE_TYPE_ORAL, "Grade type mismatch");
+        }
+    }
+    ASSERT_TRUE(found, "Grade not found in list");
+
+    // Cleanup
+    libretto_grades_free(grades, count);
+    PASS();
+}
+
+void test_libretto_quiz_grade_conversion(void) {
+    TEST("Libretto - Conversione percentuale to voto italiano");
+
+    EducationStudentProfile* profile = education_profile_get_active();
+    if (!profile) {
+        FAIL("No active profile");
+        return;
+    }
+
+    // Test: 8 correct out of 10 = 80% = voto 9 (scala: 80-89% = 9)
+    int64_t grade_id = libretto_add_quiz_grade(
+        profile->id,
+        "ED03",                    // Feynman (Fisica)
+        "Fisica",
+        "Cinematica",
+        8,                         // correct
+        10,                        // total
+        "Quiz completato con successo"
+    );
+    ASSERT_TRUE(grade_id > 0, "Failed to add quiz grade");
+
+    // Recupera e verifica la conversione (ultimi 30 giorni)
+    int count = 0;
+    time_t now = time(NULL);
+    time_t from_date = now - (30 * 24 * 60 * 60);  // 30 days ago
+    EducationGrade** grades = libretto_get_grades(profile->id, "Fisica", from_date, now, &count);
+    ASSERT_TRUE(count >= 1, "Should have at least 1 grade");
+
+    // Verifica che la percentuale 80% sia stata convertita in voto 9
+    // (scala: 80-89% = 9, 90-100% = 10)
+    bool found = false;
+    for (int i = 0; i < count; i++) {
+        if (grades[i]->id == grade_id) {
+            found = true;
+            ASSERT_TRUE(grades[i]->grade >= 8.5f && grades[i]->grade <= 9.5f,
+                        "80% should convert to approximately 9");
+            ASSERT_EQ(grades[i]->grade_type, GRADE_TYPE_QUIZ, "Should be quiz type");
+            ASSERT_EQ(grades[i]->questions_correct, 8, "Correct count mismatch");
+            ASSERT_EQ(grades[i]->questions_total, 10, "Total count mismatch");
+        }
+    }
+    ASSERT_TRUE(found, "Quiz grade not found");
+
+    libretto_grades_free(grades, count);
+    PASS();
+}
+
+void test_libretto_daily_log(void) {
+    TEST("Libretto - Diario attivita giornaliere");
+
+    EducationStudentProfile* profile = education_profile_get_active();
+    if (!profile) {
+        FAIL("No active profile");
+        return;
+    }
+
+    // Aggiungi entry nel diario
+    int64_t log_id = libretto_add_log_entry(
+        profile->id,
+        "ED06",                    // Manzoni (Italiano)
+        "study",
+        "Italiano",
+        "I Promessi Sposi - Capitolo 8",
+        45,                        // 45 minuti
+        "Letto e analizzato il capitolo dell'Addio ai monti"
+    );
+    ASSERT_TRUE(log_id > 0, "Failed to add log entry");
+
+    // Recupera log entries (ultimi 7 giorni)
+    int count = 0;
+    time_t now = time(NULL);
+    time_t from_date = now - (7 * 24 * 60 * 60);  // 7 days ago
+    EducationDailyLogEntry** logs = libretto_get_daily_log(profile->id, from_date, now, &count);
+    ASSERT_TRUE(count >= 1, "Should have at least 1 log entry");
+    ASSERT_NOT_NULL(logs, "Logs array is NULL");
+
+    // Verifica la entry
+    bool found = false;
+    for (int i = 0; i < count; i++) {
+        if (logs[i]->id == log_id) {
+            found = true;
+            ASSERT_EQ(logs[i]->duration_minutes, 45, "Duration mismatch");
+            ASSERT_STR_EQ(logs[i]->subject, "Italiano", "Subject mismatch");
+        }
+    }
+    ASSERT_TRUE(found, "Log entry not found");
+
+    libretto_logs_free(logs, count);
+    PASS();
+}
+
+void test_libretto_average_calculation(void) {
+    TEST("Libretto - Calcolo media voti");
+
+    EducationStudentProfile* profile = education_profile_get_active();
+    if (!profile) {
+        FAIL("No active profile");
+        return;
+    }
+
+    // Aggiungi altri voti per avere una media significativa
+    libretto_add_grade(profile->id, "ED02", "Matematica", "Disequazioni", GRADE_TYPE_HOMEWORK, 7.0f, "");
+    libretto_add_grade(profile->id, "ED02", "Matematica", "Sistemi", GRADE_TYPE_QUIZ, 9.0f, "");
+
+    // Calcola media (ultimi 30 giorni)
+    time_t now = time(NULL);
+    time_t from_date = now - (30 * 24 * 60 * 60);  // 30 days ago
+    float average = libretto_get_average(profile->id, "Matematica", from_date, now);
+    ASSERT_TRUE(average > 0.0f, "Average should be positive");
+    ASSERT_TRUE(average >= 1.0f && average <= 10.0f, "Average should be in Italian scale 1-10");
+
+    PASS();
+}
+
+void test_libretto_progress_report(void) {
+    TEST("Libretto - Report progressi");
+
+    EducationStudentProfile* profile = education_profile_get_active();
+    if (!profile) {
+        FAIL("No active profile");
+        return;
+    }
+
+    // Genera report progressi (ultimi 30 giorni)
+    time_t now = time(NULL);
+    time_t from_date = now - (30 * 24 * 60 * 60);  // 30 days ago
+    EducationProgressReport* report = libretto_get_progress_report(profile->id, from_date, now);
+    ASSERT_NOT_NULL(report, "Failed to generate progress report");
+
+    // Verifica contenuti base del report
+    ASSERT_TRUE(report->total_sessions >= 0, "Sessions count should be non-negative");
+    ASSERT_TRUE(report->total_study_hours >= 0, "Study hours should be non-negative");
+
+    libretto_report_free(report);
+    PASS();
+}
+
+// ============================================================================
 // MAIN
 // ============================================================================
 
@@ -478,6 +664,14 @@ int main(void) {
     test_goal_management();
     test_curriculum_load();
     test_maestri_exist();
+
+    // Test Libretto dello Studente
+    printf("\n=== LIBRETTO DELLO STUDENTE ===\n");
+    test_libretto_grade_recording();
+    test_libretto_quiz_grade_conversion();
+    test_libretto_daily_log();
+    test_libretto_average_calculation();
+    test_libretto_progress_report();
 
     // Cleanup
     education_shutdown();
