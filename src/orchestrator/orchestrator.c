@@ -1237,17 +1237,20 @@ char* orchestrator_agent_chat(ManagedAgent* agent, const char* user_message) {
     snprintf(conversation, conv_capacity, "%s", user_message);
 
     char* final_response = NULL;
+    char* last_error_reason = NULL;  // Track error context
     int max_iterations = 5;  // Max tool loop iterations
     int iteration = 0;
+    bool was_cancelled = false;
 
     while (iteration < max_iterations) {
         iteration++;
 
         // Check if cancelled
         if (claude_is_cancelled()) {
+            was_cancelled = true;
             free(conversation);
             free(enhanced_prompt);
-            return NULL;
+            return strdup("Operation cancelled by user");
         }
 
         // Call Claude with tools (using enhanced prompt with tools instructions)
@@ -1262,7 +1265,12 @@ char* orchestrator_agent_chat(ManagedAgent* agent, const char* user_message) {
         if (!response && !tool_calls_json) {
             free(conversation);
             free(enhanced_prompt);
-            return strdup("Error: Failed to get response from agent");
+            // Provide more context about the failure
+            char error_msg[256];
+            snprintf(error_msg, sizeof(error_msg),
+                "Error: Agent '%s' failed to respond (iteration %d). Check API connectivity and authentication.",
+                agent->name, iteration);
+            return strdup(error_msg);
         }
 
         // Record cost
@@ -1370,11 +1378,27 @@ char* orchestrator_agent_chat(ManagedAgent* agent, const char* user_message) {
 
     free(conversation);
     free(enhanced_prompt);
+    (void)was_cancelled;  // Suppress unused warning when not cancelled
 
     if (!final_response) {
-        return strdup("Error: No response generated");
+        // Provide detailed error context
+        char error_msg[256];
+        if (iteration >= max_iterations) {
+            snprintf(error_msg, sizeof(error_msg),
+                "Error: Agent '%s' exceeded maximum iterations (%d) without producing a final response. "
+                "The task may be too complex or tools may be returning unexpected results.",
+                agent->name, max_iterations);
+        } else {
+            snprintf(error_msg, sizeof(error_msg),
+                "Error: Agent '%s' completed but produced no response. "
+                "The model may have returned only tool calls without text.",
+                agent->name);
+        }
+        free(last_error_reason);
+        return strdup(error_msg);
     }
 
+    free(last_error_reason);
     return final_response;
 }
 
