@@ -260,8 +260,9 @@ static char* get_session_filepath(const char* session_id) {
     char* dir = expand_path(SESSIONS_DIR);
     mkdir(dir, 0755);
 
-    char* filepath = malloc(strlen(dir) + strlen(session_id) + 10);
-    sprintf(filepath, "%s/%s.json", dir, session_id);
+    size_t filepath_len = strlen(dir) + strlen(session_id) + 10;
+    char* filepath = malloc(filepath_len);
+    snprintf(filepath, filepath_len, "%s/%s.json", dir, session_id);
     free(dir);
     return filepath;
 }
