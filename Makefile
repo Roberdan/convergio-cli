@@ -575,15 +575,11 @@ check-docs:
 test: fuzz_test unit_test anna_test compaction_test plan_db_test output_service_test tools_test websearch_test check-docs
 	@echo "All tests completed!"
 
-# Coverage build flags
-COVERAGE_CFLAGS = --coverage -fprofile-arcs -ftest-coverage
-COVERAGE_LDFLAGS = --coverage
-
 # Coverage target - builds with coverage and runs tests
 coverage: clean
 	@echo "Building with coverage instrumentation..."
 	@$(MAKE) COVERAGE=1 all
-	@$(MAKE) COVERAGE=1 fuzz_test unit_test anna_test tools_test websearch_test
+	@$(MAKE) COVERAGE=1 fuzz_test unit_test anna_test compaction_test plan_db_test output_service_test tools_test websearch_test
 	@echo "Generating coverage report..."
 	@mkdir -p coverage
 	@echo "Capturing coverage data from $(BUILD_DIR)..."
