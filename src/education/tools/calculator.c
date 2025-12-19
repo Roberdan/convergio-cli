@@ -68,6 +68,13 @@ typedef struct {
 } Calculation;
 
 // ============================================================================
+// FORWARD DECLARATIONS
+// ============================================================================
+
+static void calc_solve_linear(double a, double b, double c,
+                              const CalculatorAccessibility* access);
+
+// ============================================================================
 // ACCESSIBILITY SETTINGS
 // ============================================================================
 
@@ -485,8 +492,8 @@ int calc_solve_equation(const char* equation,
 /**
  * Solve linear equation ax + b = c with steps
  */
-void calc_solve_linear(double a, double b, double c,
-                        const CalculatorAccessibility* access) {
+static void calc_solve_linear(double a, double b, double c,
+                              const CalculatorAccessibility* access) {
     printf("\nRisolviamo: %.2fx + %.2f = %.2f\n\n", a, b, c);
 
     if (a == 0) {

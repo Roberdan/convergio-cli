@@ -14,6 +14,7 @@
 #include <string.h>
 #include <time.h>
 #include <math.h>
+#include <unistd.h>
 
 // ============================================================================
 // SM-2 ALGORITHM CONSTANTS

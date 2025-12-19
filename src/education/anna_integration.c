@@ -699,9 +699,9 @@ int anna_get_break_interval(int64_t student_id) {
             case ADHD_INATTENTIVE:
             case ADHD_COMBINED:
                 // Adjust based on severity
-                if (accessibility->adhd == 3) {  // Severe
+                if (accessibility->adhd_severity == SEVERITY_SEVERE) {
                     interval = ANNA_EDU_ADHD_SEVERE_INTERVAL;
-                } else if (accessibility->adhd == 2) {  // Moderate
+                } else if (accessibility->adhd_severity == SEVERITY_MODERATE) {
                     interval = ANNA_EDU_ADHD_MODERATE_INTERVAL;
                 } else {  // Mild
                     interval = ANNA_EDU_ADHD_MILD_INTERVAL;
@@ -709,9 +709,9 @@ int anna_get_break_interval(int64_t student_id) {
                 break;
             case ADHD_HYPERACTIVE:
                 // Hyperactive type benefits from even more frequent breaks
-                if (accessibility->adhd == 3) {
+                if (accessibility->adhd_severity == SEVERITY_SEVERE) {
                     interval = 8;
-                } else if (accessibility->adhd == 2) {
+                } else if (accessibility->adhd_severity == SEVERITY_MODERATE) {
                     interval = 12;
                 } else {
                     interval = 20;

@@ -14,6 +14,7 @@
 #include <string.h>
 #include <time.h>
 #include <stdbool.h>
+#include <unistd.h>
 
 // ============================================================================
 // TYPES AND STRUCTURES
@@ -145,7 +146,7 @@ static QuizAccessibility get_quiz_accessibility(const EducationAccessibility* a)
     if (a->cerebral_palsy) {
         qa.extended_time = true;
         qa.time_multiplier = 2.0f;
-        qa.no_timed_questions = a->cp_severity >= SEVERITY_MODERATE;
+        qa.no_timed_questions = a->cerebral_palsy_severity >= SEVERITY_MODERATE;
     }
 
     // Autism adaptations
