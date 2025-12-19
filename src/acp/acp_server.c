@@ -253,6 +253,213 @@ void acp_send_notification(const char* method, const char* params_json) {
 // SESSION MANAGEMENT
 // ============================================================================
 
+#define SESSIONS_DIR "~/.convergio/sessions"
+
+// Get session file path
+static char* get_session_filepath(const char* session_id) {
+    char* dir = expand_path(SESSIONS_DIR);
+    mkdir(dir, 0755);
+
+    char* filepath = malloc(strlen(dir) + strlen(session_id) + 10);
+    sprintf(filepath, "%s/%s.json", dir, session_id);
+    free(dir);
+    return filepath;
+}
+
+// Find most recent session file for an agent name
+static char* find_session_by_agent_name(const char* agent_name) {
+    char* dir = expand_path(SESSIONS_DIR);
+    DIR* d = opendir(dir);
+    if (!d) {
+        free(dir);
+        return NULL;
+    }
+
+    char* best_session_id = NULL;
+    long best_timestamp = 0;
+
+    struct dirent* entry;
+    while ((entry = readdir(d)) != NULL) {
+        if (strstr(entry->d_name, ".json") == NULL) continue;
+
+        char filepath[512];
+        snprintf(filepath, sizeof(filepath), "%s/%s", dir, entry->d_name);
+
+        FILE* f = fopen(filepath, "r");
+        if (!f) continue;
+
+        fseek(f, 0, SEEK_END);
+        long fsize = ftell(f);
+        fseek(f, 0, SEEK_SET);
+
+        char* content = malloc(fsize + 1);
+        fread(content, 1, fsize, f);
+        content[fsize] = '\0';
+        fclose(f);
+
+        cJSON* root = cJSON_Parse(content);
+        free(content);
+        if (!root) continue;
+
+        cJSON* saved_agent = cJSON_GetObjectItem(root, "agent_name");
+        cJSON* timestamp = cJSON_GetObjectItem(root, "timestamp");
+        cJSON* session_id = cJSON_GetObjectItem(root, "session_id");
+
+        if (saved_agent && cJSON_IsString(saved_agent) &&
+            session_id && cJSON_IsString(session_id) &&
+            strcmp(saved_agent->valuestring, agent_name) == 0) {
+
+            long ts = timestamp && cJSON_IsNumber(timestamp) ? (long)timestamp->valuedouble : 0;
+            if (ts > best_timestamp) {
+                best_timestamp = ts;
+                if (best_session_id) free(best_session_id);
+                best_session_id = strdup(session_id->valuestring);
+            }
+        }
+
+        cJSON_Delete(root);
+    }
+
+    closedir(d);
+    free(dir);
+    return best_session_id;
+}
+
+// Save session to disk
+int acp_session_save(ACPSession* session) {
+    if (!session || !session->active) return -1;
+
+    char* filepath = get_session_filepath(session->session_id);
+
+    cJSON* root = cJSON_CreateObject();
+    cJSON_AddStringToObject(root, "session_id", session->session_id);
+    cJSON_AddStringToObject(root, "agent_name", session->agent_name);
+    cJSON_AddStringToObject(root, "cwd", session->cwd);
+    cJSON_AddNumberToObject(root, "timestamp", (double)time(NULL));
+
+    // Save message history
+    cJSON* messages = cJSON_CreateArray();
+    for (int i = 0; i < session->message_count; i++) {
+        cJSON* msg = cJSON_CreateObject();
+        cJSON_AddStringToObject(msg, "role", session->messages[i].role);
+        cJSON_AddStringToObject(msg, "content", session->messages[i].content ? session->messages[i].content : "");
+        cJSON_AddNumberToObject(msg, "timestamp", (double)session->messages[i].timestamp);
+        cJSON_AddItemToArray(messages, msg);
+    }
+    cJSON_AddItemToObject(root, "messages", messages);
+
+    char* json = cJSON_Print(root);
+    cJSON_Delete(root);
+
+    FILE* f = fopen(filepath, "w");
+    if (f) {
+        fputs(json, f);
+        fclose(f);
+        free(json);
+        free(filepath);
+        return 0;
+    }
+
+    free(json);
+    free(filepath);
+    return -1;
+}
+
+// Load session from disk
+ACPSession* acp_session_load(const char* session_id) {
+    char* filepath = get_session_filepath(session_id);
+
+    FILE* f = fopen(filepath, "r");
+    if (!f) {
+        free(filepath);
+        return NULL;
+    }
+
+    fseek(f, 0, SEEK_END);
+    long fsize = ftell(f);
+    fseek(f, 0, SEEK_SET);
+
+    char* content = malloc(fsize + 1);
+    fread(content, 1, fsize, f);
+    content[fsize] = '\0';
+    fclose(f);
+    free(filepath);
+
+    cJSON* root = cJSON_Parse(content);
+    free(content);
+    if (!root) return NULL;
+
+    // Create new session slot
+    if (g_server.session_count >= ACP_MAX_SESSIONS) {
+        cJSON_Delete(root);
+        return NULL;
+    }
+
+    ACPSession* session = &g_server.sessions[g_server.session_count++];
+    memset(session, 0, sizeof(ACPSession));
+
+    // Load basic info
+    cJSON* item = cJSON_GetObjectItem(root, "session_id");
+    if (item && cJSON_IsString(item)) {
+        strncpy(session->session_id, item->valuestring, sizeof(session->session_id) - 1);
+    }
+
+    item = cJSON_GetObjectItem(root, "agent_name");
+    if (item && cJSON_IsString(item)) {
+        strncpy(session->agent_name, item->valuestring, sizeof(session->agent_name) - 1);
+    }
+
+    item = cJSON_GetObjectItem(root, "cwd");
+    if (item && cJSON_IsString(item)) {
+        strncpy(session->cwd, item->valuestring, sizeof(session->cwd) - 1);
+    }
+
+    // Load message history
+    cJSON* messages = cJSON_GetObjectItem(root, "messages");
+    if (messages && cJSON_IsArray(messages)) {
+        cJSON* msg;
+        cJSON_ArrayForEach(msg, messages) {
+            if (session->message_count >= ACP_MAX_MESSAGES) break;
+
+            cJSON* role = cJSON_GetObjectItem(msg, "role");
+            cJSON* content_item = cJSON_GetObjectItem(msg, "content");
+            cJSON* ts = cJSON_GetObjectItem(msg, "timestamp");
+
+            if (role && cJSON_IsString(role) && content_item && cJSON_IsString(content_item)) {
+                strncpy(session->messages[session->message_count].role,
+                        role->valuestring, sizeof(session->messages[0].role) - 1);
+                session->messages[session->message_count].content = strdup(content_item->valuestring);
+                session->messages[session->message_count].timestamp =
+                    ts && cJSON_IsNumber(ts) ? (long)ts->valuedouble : time(NULL);
+                session->message_count++;
+            }
+        }
+    }
+
+    session->active = true;
+    session->orchestrator_ctx = NULL;
+
+    cJSON_Delete(root);
+    return session;
+}
+
+// Add message to session history
+void acp_session_add_message(ACPSession* session, const char* role, const char* content) {
+    if (!session || !role || !content) return;
+    if (session->message_count >= ACP_MAX_MESSAGES) {
+        // Shift messages to make room (remove oldest)
+        if (session->messages[0].content) free(session->messages[0].content);
+        memmove(&session->messages[0], &session->messages[1],
+                sizeof(ACPMessage) * (ACP_MAX_MESSAGES - 1));
+        session->message_count--;
+    }
+
+    int idx = session->message_count++;
+    strncpy(session->messages[idx].role, role, sizeof(session->messages[0].role) - 1);
+    session->messages[idx].content = strdup(content);
+    session->messages[idx].timestamp = time(NULL);
+}
+
 static char* generate_session_id(void) {
     static char id[64];
     snprintf(id, sizeof(id), "sess_%d_%ld", g_server.session_count + 1, time(NULL));
@@ -269,16 +476,24 @@ static ACPSession* find_session(const char* session_id) {
     return NULL;
 }
 
-static ACPSession* create_session(const char* cwd) {
+static ACPSession* create_session(const char* cwd, const char* agent_name) {
     if (g_server.session_count >= ACP_MAX_SESSIONS) {
         return NULL;
     }
 
     ACPSession* session = &g_server.sessions[g_server.session_count++];
+    memset(session, 0, sizeof(ACPSession));
     strncpy(session->session_id, generate_session_id(), sizeof(session->session_id) - 1);
     strncpy(session->cwd, cwd ? cwd : ".", sizeof(session->cwd) - 1);
+    if (agent_name) {
+        strncpy(session->agent_name, agent_name, sizeof(session->agent_name) - 1);
+    } else if (g_server.selected_agent[0] != '\0') {
+        // Use server's selected agent as default
+        snprintf(session->agent_name, sizeof(session->agent_name), "Convergio-%s", g_server.selected_agent);
+    }
     session->active = true;
     session->orchestrator_ctx = NULL;
+    session->message_count = 0;
 
     return session;
 }
@@ -349,6 +564,7 @@ void acp_handle_initialize(int request_id, const char* params_json) {
 
 void acp_handle_session_new(int request_id, const char* params_json) {
     char cwd[1024] = ".";
+    char resume_session_id[64] = {0};
 
     if (params_json) {
         cJSON* params = cJSON_Parse(params_json);
@@ -357,11 +573,59 @@ void acp_handle_session_new(int request_id, const char* params_json) {
             if (cwd_item && cJSON_IsString(cwd_item)) {
                 strncpy(cwd, cwd_item->valuestring, sizeof(cwd) - 1);
             }
+            // Check for resume session ID (optional, for explicit resume)
+            cJSON* resume_item = cJSON_GetObjectItem(params, "resumeSessionId");
+            if (resume_item && cJSON_IsString(resume_item)) {
+                strncpy(resume_session_id, resume_item->valuestring, sizeof(resume_session_id) - 1);
+            }
             cJSON_Delete(params);
         }
     }
 
-    ACPSession* session = create_session(cwd);
+    ACPSession* session = NULL;
+    bool resumed = false;
+
+    // Try to resume existing session by explicit ID
+    if (resume_session_id[0] != '\0') {
+        session = find_session(resume_session_id);
+        if (!session) {
+            session = acp_session_load(resume_session_id);
+        }
+        if (session) {
+            resumed = true;
+            if (cwd[0] != '.' || cwd[1] != '\0') {
+                strncpy(session->cwd, cwd, sizeof(session->cwd) - 1);
+            }
+        }
+    }
+
+    // If no explicit session ID, try to auto-resume by agent name
+    if (!session && g_server.selected_agent[0] != '\0') {
+        char agent_name[128];
+        snprintf(agent_name, sizeof(agent_name), "Convergio-%s", g_server.selected_agent);
+
+        char* found_session_id = find_session_by_agent_name(agent_name);
+        if (found_session_id) {
+            // Check if already in memory
+            session = find_session(found_session_id);
+            if (!session) {
+                session = acp_session_load(found_session_id);
+            }
+            if (session) {
+                resumed = true;
+                if (cwd[0] != '.' || cwd[1] != '\0') {
+                    strncpy(session->cwd, cwd, sizeof(session->cwd) - 1);
+                }
+            }
+            free(found_session_id);
+        }
+    }
+
+    // Create new session if not resuming
+    if (!session) {
+        session = create_session(cwd, NULL);
+    }
+
     if (!session) {
         acp_send_error(request_id, -32000, "Max sessions reached");
         return;
@@ -371,8 +635,23 @@ void acp_handle_session_new(int request_id, const char* params_json) {
     extern void tools_init_workspace(const char* path);
     tools_init_workspace(session->cwd);
 
+    // Build response
     cJSON* result = cJSON_CreateObject();
     cJSON_AddStringToObject(result, "sessionId", session->session_id);
+
+    // If resumed, send previous messages as context
+    if (resumed && session->message_count > 0) {
+        cJSON* history = cJSON_CreateArray();
+        for (int i = 0; i < session->message_count; i++) {
+            cJSON* msg = cJSON_CreateObject();
+            cJSON_AddStringToObject(msg, "role", session->messages[i].role);
+            cJSON_AddStringToObject(msg, "content", session->messages[i].content ? session->messages[i].content : "");
+            cJSON_AddItemToArray(history, msg);
+        }
+        cJSON_AddItemToObject(result, "history", history);
+        cJSON_AddBoolToObject(result, "resumed", true);
+        cJSON_AddNumberToObject(result, "messageCount", session->message_count);
+    }
 
     char* result_json = cJSON_PrintUnformatted(result);
     acp_send_response(request_id, result_json);
@@ -468,12 +747,52 @@ void acp_handle_session_prompt(int request_id, const char* params_json) {
 
     char* response = NULL;
 
+    // Build conversation history context from session (for resume support)
+    char* history_context = NULL;
+    if (session->message_count > 0) {
+        size_t ctx_size = 16384;
+        history_context = malloc(ctx_size);
+        size_t ctx_len = 0;
+        ctx_len += snprintf(history_context + ctx_len, ctx_size - ctx_len,
+            "\n[Previous conversation history - continue from where we left off]\n");
+
+        // Include recent messages (limit to last 10 for context window)
+        int start = session->message_count > 10 ? session->message_count - 10 : 0;
+        for (int i = start; i < session->message_count; i++) {
+            const char* role = session->messages[i].role;
+            const char* content = session->messages[i].content;
+            if (content) {
+                // Truncate very long messages
+                int max_len = 500;
+                ctx_len += snprintf(history_context + ctx_len, ctx_size - ctx_len,
+                    "\n**%s**: %.500s%s\n",
+                    strcmp(role, "user") == 0 ? "You" : "Assistant",
+                    content,
+                    strlen(content) > max_len ? "..." : "");
+            }
+            if (ctx_len > ctx_size - 1024) break;
+        }
+        ctx_len += snprintf(history_context + ctx_len, ctx_size - ctx_len,
+            "\n[End of history - now responding to new message]\n\n");
+    }
+
     // Route to specific agent or orchestrator
     if (g_server.selected_agent[0] != '\0') {
         // Specific agent selected - use direct agent chat (no streaming yet)
         ManagedAgent* agent = agent_find_by_name(g_server.selected_agent);
         if (agent) {
-            response = orchestrator_agent_chat(agent, prompt_text);
+            // Build enhanced prompt with history context if available
+            char* enhanced_prompt = prompt_text;
+            if (history_context) {
+                size_t ep_len = strlen(prompt_text) + strlen(history_context) + 64;
+                enhanced_prompt = malloc(ep_len);
+                snprintf(enhanced_prompt, ep_len, "%s%s", history_context, prompt_text);
+            }
+
+            response = orchestrator_agent_chat(agent, enhanced_prompt);
+
+            if (enhanced_prompt != prompt_text) free(enhanced_prompt);
+
             // Send full response as single chunk
             if (response) {
                 stream_callback(response, NULL);
@@ -501,6 +820,20 @@ void acp_handle_session_prompt(int request_id, const char* params_json) {
         } else {
             response = orchestrator_process_stream(prompt_text, stream_callback, NULL);
         }
+    }
+
+    // Save messages to session history for resume support
+    acp_session_add_message(session, "user", prompt_text);
+    if (response) {
+        acp_session_add_message(session, "assistant", response);
+    }
+
+    // Persist session to disk
+    acp_session_save(session);
+
+    // Cleanup history context
+    if (history_context) {
+        free(history_context);
     }
 
     // Send final response

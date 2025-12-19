@@ -129,6 +129,7 @@ C_SOURCES = $(SRC_DIR)/core/fabric.c \
             $(SRC_DIR)/providers/model_loader.c \
             $(SRC_DIR)/router/model_router.c \
             $(SRC_DIR)/router/cost_optimizer.c \
+            $(SRC_DIR)/router/intent_router.c \
             $(SRC_DIR)/sync/file_lock.c \
             $(SRC_DIR)/ui/statusbar.c \
             $(SRC_DIR)/ui/terminal.c \
