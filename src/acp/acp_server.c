@@ -625,6 +625,10 @@ void acp_handle_session_new(int request_id, const char* params_json) {
     // Create new session if not resuming
     if (!session) {
         session = create_session(cwd, NULL);
+        if (session) {
+            // Save new session immediately so it persists even if no prompts are sent
+            acp_session_save(session);
+        }
     }
 
     if (!session) {

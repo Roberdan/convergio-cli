@@ -1413,6 +1413,164 @@ ToolResult* tool_web_fetch(const char* url, const char* method, const char* head
 }
 
 // ============================================================================
+// WEB SEARCH IMPLEMENTATION (Local fallback for non-Anthropic providers)
+// ============================================================================
+
+/**
+ * Extract search results from DuckDuckGo HTML response
+ * Returns a formatted string with search results
+ */
+static char* parse_duckduckgo_results(const char* html, size_t max_results) {
+    if (!html) return NULL;
+
+    size_t result_size = 16384;
+    char* results = malloc(result_size);
+    if (!results) return NULL;
+    results[0] = '\0';
+    size_t offset = 0;
+    size_t count = 0;
+
+    // DuckDuckGo lite HTML structure:
+    // <a rel="nofollow" class="result-link" href="URL">Title</a>
+    // <td class="result-snippet">Snippet...</td>
+
+    const char* pos = html;
+    while (count < max_results && (pos = strstr(pos, "class=\"result-link\"")) != NULL) {
+        // Find href
+        const char* href_start = strstr(pos, "href=\"");
+        if (!href_start) break;
+        href_start += 6;
+        const char* href_end = strchr(href_start, '"');
+        if (!href_end) break;
+
+        // Extract URL
+        size_t url_len = (size_t)(href_end - href_start);
+        if (url_len > 2000) url_len = 2000;
+        char url[2048];
+        strncpy(url, href_start, url_len);
+        url[url_len] = '\0';
+
+        // Find title (between > and </a>)
+        const char* title_start = strchr(href_end, '>');
+        if (!title_start) break;
+        title_start++;
+        const char* title_end = strstr(title_start, "</a>");
+        if (!title_end) break;
+
+        size_t title_len = (size_t)(title_end - title_start);
+        if (title_len > 500) title_len = 500;
+        char title[512];
+        strncpy(title, title_start, title_len);
+        title[title_len] = '\0';
+
+        // Try to find snippet
+        char snippet[1024] = "";
+        const char* snippet_pos = strstr(title_end, "result-snippet");
+        if (snippet_pos) {
+            const char* snip_start = strchr(snippet_pos, '>');
+            if (snip_start) {
+                snip_start++;
+                const char* snip_end = strstr(snip_start, "</td>");
+                if (snip_end) {
+                    size_t snip_len = (size_t)(snip_end - snip_start);
+                    if (snip_len > 1000) snip_len = 1000;
+                    strncpy(snippet, snip_start, snip_len);
+                    snippet[snip_len] = '\0';
+                }
+            }
+        }
+
+        // Add to results
+        offset += (size_t)snprintf(results + offset, result_size - offset,
+            "\n[%zu] %s\n    URL: %s\n    %s\n",
+            count + 1, title, url, snippet);
+
+        count++;
+        pos = title_end;
+    }
+
+    if (count == 0) {
+        free(results);
+        return NULL;
+    }
+
+    // Prepend header
+    char* final = malloc(result_size + 256);
+    if (final) {
+        snprintf(final, result_size + 256, "Web Search Results (%zu found):\n%s", count, results);
+    }
+    free(results);
+
+    return final;
+}
+
+ToolResult* tool_web_search(const char* query, int max_results) {
+    clock_t start = clock();
+
+    if (!query || strlen(query) == 0) {
+        return result_error("Search query cannot be empty");
+    }
+
+    if (max_results <= 0) max_results = 5;
+    if (max_results > 20) max_results = 20;
+
+    // URL encode the query
+    CURL* curl = curl_easy_init();
+    if (!curl) {
+        return result_error("Failed to initialize curl");
+    }
+
+    char* encoded_query = curl_easy_escape(curl, query, 0);
+    if (!encoded_query) {
+        curl_easy_cleanup(curl);
+        return result_error("Failed to encode query");
+    }
+
+    // Use DuckDuckGo Lite (simpler HTML, no JavaScript)
+    char url[2048];
+    snprintf(url, sizeof(url), "https://lite.duckduckgo.com/lite/?q=%s", encoded_query);
+    curl_free(encoded_query);
+
+    struct MemoryStruct chunk = {0};
+    chunk.memory = malloc(1);
+    chunk.size = 0;
+
+    curl_easy_setopt(curl, CURLOPT_URL, url);
+    curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_callback);
+    curl_easy_setopt(curl, CURLOPT_WRITEDATA, (void*)&chunk);
+    curl_easy_setopt(curl, CURLOPT_USERAGENT, "Mozilla/5.0 (compatible; Convergio/1.0)");
+    curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
+    curl_easy_setopt(curl, CURLOPT_TIMEOUT, 15L);
+    curl_easy_setopt(curl, CURLOPT_MAXREDIRS, 3L);
+
+    CURLcode res = curl_easy_perform(curl);
+
+    ToolResult* r;
+    if (res != CURLE_OK) {
+        char err[256];
+        snprintf(err, sizeof(err), "Web search failed: %s", curl_easy_strerror(res));
+        r = result_error(err);
+    } else {
+        // Parse the HTML results
+        char* results = parse_duckduckgo_results(chunk.memory, (size_t)max_results);
+        if (results) {
+            r = result_success(results);
+            r->bytes_read = strlen(results);
+            free(results);
+        } else {
+            r = result_error("No search results found or failed to parse results");
+        }
+    }
+
+    r->execution_time = (double)(clock() - start) / CLOCKS_PER_SEC;
+
+    curl_easy_cleanup(curl);
+    free(chunk.memory);
+
+    return r;
+}
+
+// ============================================================================
 // MEMORY/RAG TOOLS IMPLEMENTATION
 // ============================================================================
 
@@ -2142,6 +2300,8 @@ LocalToolCall* tools_parse_call(const char* tool_name, const char* arguments_jso
         call->type = TOOL_SHELL_EXEC;
     } else if (strcmp(tool_name, "web_fetch") == 0) {
         call->type = TOOL_WEB_FETCH;
+    } else if (strcmp(tool_name, "web_search") == 0) {
+        call->type = TOOL_WEB_SEARCH;
     } else if (strcmp(tool_name, "memory_store") == 0) {
         call->type = TOOL_MEMORY_STORE;
     } else if (strcmp(tool_name, "memory_search") == 0) {
@@ -2242,6 +2402,14 @@ ToolResult* tools_execute(const LocalToolCall* call) {
             ToolResult* r = tool_web_fetch(url, method, NULL);
             free(url);
             free(method);
+            return r;
+        }
+
+        case TOOL_WEB_SEARCH: {
+            char* query = json_get_string(args, "query");
+            int max_results = json_get_int(args, "max_results", 5);
+            ToolResult* r = tool_web_search(query, max_results);
+            free(query);
             return r;
         }
 
