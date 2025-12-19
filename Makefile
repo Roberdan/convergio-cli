@@ -118,6 +118,7 @@ C_SOURCES = $(SRC_DIR)/core/fabric.c \
             $(SRC_DIR)/orchestrator/convergence.c \
             $(SRC_DIR)/memory/persistence.c \
             $(SRC_DIR)/memory/semantic_persistence.c \
+            $(SRC_DIR)/memory/memory.c \
             $(SRC_DIR)/context/compaction.c \
             $(SRC_DIR)/tools/tools.c \
             $(SRC_DIR)/tools/output_service.c \

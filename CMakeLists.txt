@@ -102,6 +102,7 @@ set(NOUS_SOURCES
     src/orchestrator/convergence.c
     src/memory/persistence.c
     src/memory/semantic_persistence.c
+    src/memory/memory.c
     src/context/compaction.c
     src/tools/tools.c
     # Multi-provider support
