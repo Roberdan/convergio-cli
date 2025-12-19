@@ -761,7 +761,18 @@ ToolCall* parse_gemini_tool_calls(const char* response, size_t* count) {
 // ============================================================================
 
 /**
+ * Check if a tool name is Anthropic's native web search tool
+ */
+static bool is_anthropic_web_search(const char* name) {
+    return (strcasecmp(name, "WebSearch") == 0 ||
+            strcasecmp(name, "web_search") == 0 ||
+            strcasecmp(name, "WebFetch") == 0 ||
+            strcasecmp(name, "web_fetch") == 0);
+}
+
+/**
  * Build tools JSON array for Anthropic API
+ * Handles special Anthropic-native tools like web_search
  */
 char* build_anthropic_tools_json(ToolDefinition* tools, size_t count) {
     if (!tools || count == 0) return strdup("[]");
@@ -771,15 +782,35 @@ char* build_anthropic_tools_json(ToolDefinition* tools, size_t count) {
     if (!json) return NULL;
 
     size_t offset = (size_t)snprintf(json, size, "[");
+    bool first = true;
+    bool web_search_added = false;
 
     for (size_t i = 0; i < count; i++) {
-        if (i > 0) {
+        // Check for Anthropic native web search tool
+        if (is_anthropic_web_search(tools[i].name)) {
+            // Only add web_search once, even if both WebSearch and WebFetch are listed
+            if (!web_search_added) {
+                if (!first) {
+                    offset += (size_t)snprintf(json + offset, size - offset, ",");
+                }
+                // Use Anthropic's native web search tool format
+                offset += (size_t)snprintf(json + offset, size - offset,
+                    "{\"type\":\"web_search_20250305\",\"name\":\"web_search\",\"max_uses\":10}");
+                web_search_added = true;
+                first = false;
+            }
+            continue;  // Skip standard formatting for web search tools
+        }
+
+        // Standard tool format
+        if (!first) {
             offset += (size_t)snprintf(json + offset, size - offset, ",");
         }
         offset += (size_t)snprintf(json + offset, size - offset,
             "{\"name\":\"%s\",\"description\":\"%s\",\"input_schema\":%s}",
             tools[i].name, tools[i].description,
             tools[i].parameters_json ? tools[i].parameters_json : "{\"type\":\"object\",\"properties\":{}}");
+        first = false;
     }
 
     snprintf(json + offset, size - offset, "]");

@@ -336,6 +336,32 @@ static SemanticID generate_agent_id(void) {
     return (SemanticID)__sync_fetch_and_add(&g_next_agent_id, 1);
 }
 
+/**
+ * Generate current context header with date/time
+ * Format: ## Current Context\n- Date: YYYY-MM-DD\n- Time: HH:MM:SS (timezone)\n\n
+ */
+static char* generate_context_header(void) {
+    time_t now = time(NULL);
+    struct tm* tm_info = localtime(&now);
+
+    char* header = malloc(256);
+    if (!header) return NULL;
+
+    char date_str[32];
+    char time_str[32];
+    strftime(date_str, sizeof(date_str), "%Y-%m-%d", tm_info);
+    strftime(time_str, sizeof(time_str), "%H:%M:%S %Z", tm_info);
+
+    snprintf(header, 256,
+        "## Current Context\n"
+        "- **Date**: %s\n"
+        "- **Time**: %s\n"
+        "- **Important**: When searching the web, use the current year (%d) for up-to-date results.\n\n",
+        date_str, time_str, tm_info->tm_year + 1900);
+
+    return header;
+}
+
 ManagedAgent* agent_create(const char* name, AgentRole role, const char* system_prompt) {
     ManagedAgent* agent = calloc(1, sizeof(ManagedAgent));
     if (!agent) return NULL;
@@ -344,17 +370,33 @@ ManagedAgent* agent_create(const char* name, AgentRole role, const char* system_
     agent->name = strdup(name);
     agent->role = role;
 
+    // Generate current context header with date/time
+    char* context_header = generate_context_header();
+    size_t context_len = context_header ? strlen(context_header) : 0;
+
     // CRITICAL: Prepend the anti-hallucination constitution to ALL agent prompts
     // This ensures every agent is bound by brutal honesty requirements
     size_t constitution_len = strlen(AGENT_CONSTITUTION);
     size_t prompt_len = system_prompt ? strlen(system_prompt) : 0;
-    size_t total_len = constitution_len + prompt_len + 1;
+    size_t total_len = context_len + constitution_len + prompt_len + 1;
 
     char* full_prompt = malloc(total_len);
     if (full_prompt) {
-        memcpy(full_prompt, AGENT_CONSTITUTION, constitution_len);
+        size_t offset = 0;
+
+        // 1. Current context (date/time)
+        if (context_header) {
+            memcpy(full_prompt, context_header, context_len);
+            offset = context_len;
+        }
+
+        // 2. Constitution
+        memcpy(full_prompt + offset, AGENT_CONSTITUTION, constitution_len);
+        offset += constitution_len;
+
+        // 3. Agent-specific prompt
         if (system_prompt) {
-            memcpy(full_prompt + constitution_len, system_prompt, prompt_len);
+            memcpy(full_prompt + offset, system_prompt, prompt_len);
         }
         full_prompt[total_len - 1] = '\0';
         agent->system_prompt = full_prompt;
@@ -362,6 +404,8 @@ ManagedAgent* agent_create(const char* name, AgentRole role, const char* system_
         // Fallback: just use original prompt if allocation fails
         agent->system_prompt = system_prompt ? strdup(system_prompt) : NULL;
     }
+
+    free(context_header);
 
     agent->is_active = true;
     agent->created_at = time(NULL);
