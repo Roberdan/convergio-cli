@@ -137,11 +137,14 @@ ToolResult* tool_edit(const char* path, const char* old_string, const char* new_
 ToolResult* tool_shell_exec(const char* command, const char* working_dir, int timeout_sec);
 
 // ============================================================================
-// WEB TOOL
+// WEB TOOLS
 // ============================================================================
 
 // Fetch URL content (extracts text, handles HTML)
 ToolResult* tool_web_fetch(const char* url, const char* method, const char* headers_json);
+
+// Search the web using DuckDuckGo Lite (local fallback for non-native providers)
+ToolResult* tool_web_search(const char* query, int max_results);
 
 // ============================================================================
 // MEMORY/RAG TOOLS

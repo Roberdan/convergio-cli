@@ -1,0 +1,698 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+
+<html lang="en">
+
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+  <title>LCOV - coverage.info - tests/test_anna.c</title>
+  <link rel="stylesheet" type="text/css" href="../gcov.css">
+</head>
+
+<body>
+
+          <table width="100%" border=0 cellspacing=0 cellpadding=0>
+            <tr><td class="title">LCOV - code coverage report</td></tr>
+            <tr><td class="ruler"><img src="../glass.png" width=3 height=3 alt=""></td></tr>
+
+            <tr>
+              <td width="100%">
+                <table cellpadding=1 border=0 width="100%">
+          <tr>
+            <td width="10%" class="headerItem">Current view:</td>
+            <td width="10%" class="headerValue"><a href="../index.html" title="Click to go to top-level">top level</a> - <a href="index.html" title="Click to go to directory tests">tests</a> - test_anna.c<span style="font-size: 80%;"> (source / <a href="test_anna.c.func-c.html" title="Click to go to function table">functions</a>)</span></td>
+            <td width="5%"></td>
+            <td width="5%"></td>
+            <td width="5%" class="headerCovTableHead">Coverage</td>
+            <td width="5%" class="headerCovTableHead" title="Covered + Uncovered code">Total</td>
+            <td width="5%" class="headerCovTableHead" title="Exercised code only">Hit</td>
+          </tr>
+          <tr>
+            <td class="headerItem">Test:</td>
+            <td class="headerValue">coverage.info</td>
+            <td></td>
+            <td class="headerItem">Lines:</td>
+            <td class="headerCovTableEntryHi">96.2&nbsp;%</td>
+            <td class="headerCovTableEntry">346</td>
+            <td class="headerCovTableEntry">333</td>
+          </tr>
+          <tr>
+            <td class="headerItem">Test Date:</td>
+            <td class="headerValue">2025-12-19 20:30:24</td>
+            <td></td>
+            <td class="headerItem">Functions:</td>
+            <td class="headerCovTableEntryMed">76.5&nbsp;%</td>
+            <td class="headerCovTableEntry">17</td>
+            <td class="headerCovTableEntry">13</td>
+          </tr>
+                  <tr><td><img src="../glass.png" width=3 height=3 alt=""></td></tr>
+                </table>
+              </td>
+            </tr>
+
+            <tr><td class="ruler"><img src="../glass.png" width=3 height=3 alt=""></td></tr>
+          </table>
+
+          <table cellpadding=0 cellspacing=0 border=0>
+            <tr>
+              <td><br></td>
+            </tr>
+            <tr>
+              <td>
+<pre class="sourceHeading">            Line data    Source code</pre>
+<pre class="source">
+<span id="L1"><span class="lineNum">       1</span>              : /**</span>
+<span id="L2"><span class="lineNum">       2</span>              :  * Unit Tests for Anna Executive Assistant Components</span>
+<span id="L3"><span class="lineNum">       3</span>              :  *</span>
+<span id="L4"><span class="lineNum">       4</span>              :  * Tests todo.c, notify.c, and mcp_client.c</span>
+<span id="L5"><span class="lineNum">       5</span>              :  * Run with: make anna_test &amp;&amp; ./build/bin/anna_test</span>
+<span id="L6"><span class="lineNum">       6</span>              :  */</span>
+<span id="L7"><span class="lineNum">       7</span>              : </span>
+<span id="L8"><span class="lineNum">       8</span>              : #include &lt;stdio.h&gt;</span>
+<span id="L9"><span class="lineNum">       9</span>              : #include &lt;stdlib.h&gt;</span>
+<span id="L10"><span class="lineNum">      10</span>              : #include &lt;string.h&gt;</span>
+<span id="L11"><span class="lineNum">      11</span>              : #include &lt;assert.h&gt;</span>
+<span id="L12"><span class="lineNum">      12</span>              : #include &lt;unistd.h&gt;</span>
+<span id="L13"><span class="lineNum">      13</span>              : #include &lt;sys/stat.h&gt;</span>
+<span id="L14"><span class="lineNum">      14</span>              : #include &lt;limits.h&gt;</span>
+<span id="L15"><span class="lineNum">      15</span>              : #include &lt;stdarg.h&gt;</span>
+<span id="L16"><span class="lineNum">      16</span>              : #include &lt;time.h&gt;</span>
+<span id="L17"><span class="lineNum">      17</span>              : #include &lt;sqlite3.h&gt;</span>
+<span id="L18"><span class="lineNum">      18</span>              : #include &lt;pthread.h&gt;</span>
+<span id="L19"><span class="lineNum">      19</span>              : </span>
+<span id="L20"><span class="lineNum">      20</span>              : #include &quot;nous/todo.h&quot;</span>
+<span id="L21"><span class="lineNum">      21</span>              : #include &quot;nous/notify.h&quot;</span>
+<span id="L22"><span class="lineNum">      22</span>              : #include &quot;nous/mcp_client.h&quot;</span>
+<span id="L23"><span class="lineNum">      23</span>              : </span>
+<span id="L24"><span class="lineNum">      24</span>              : // Stub for nous_log</span>
+<span id="L25"><span class="lineNum">      25</span>              : typedef enum { LOG_LEVEL_ERROR = 0 } LogLevel;</span>
+<span id="L26"><span class="lineNum">      26</span>              : typedef enum { LOG_CAT_GENERAL = 0 } LogCategory;</span>
+<span id="L27"><span class="lineNum">      27</span>              : LogLevel g_log_level = LOG_LEVEL_ERROR;</span>
+<span id="L28"><span class="lineNum">      28</span>              : </span>
+<span id="L29"><span class="lineNum">      29</span> <span class="tlaUNC">           0 : void nous_log(LogLevel level, LogCategory cat, const char* fmt, ...) {</span></span>
+<span id="L30"><span class="lineNum">      30</span> <span class="tlaUNC">           0 :     (void)level; (void)cat; (void)fmt;</span></span>
+<span id="L31"><span class="lineNum">      31</span> <span class="tlaUNC">           0 : }</span></span>
+<span id="L32"><span class="lineNum">      32</span>              : </span>
+<span id="L33"><span class="lineNum">      33</span> <span class="tlaUNC">           0 : void nous_log_set_level(LogLevel level) { g_log_level = level; }</span></span>
+<span id="L34"><span class="lineNum">      34</span> <span class="tlaUNC">           0 : LogLevel nous_log_get_level(void) { return g_log_level; }</span></span>
+<span id="L35"><span class="lineNum">      35</span> <span class="tlaUNC">           0 : const char* nous_log_level_name(LogLevel level) { (void)level; return &quot;&quot;; }</span></span>
+<span id="L36"><span class="lineNum">      36</span>              : </span>
+<span id="L37"><span class="lineNum">      37</span>              : // External references to global database (defined in persistence.c)</span>
+<span id="L38"><span class="lineNum">      38</span>              : // Using extern to avoid duplicate symbol errors when linking with persistence.o</span>
+<span id="L39"><span class="lineNum">      39</span>              : extern sqlite3* g_db;</span>
+<span id="L40"><span class="lineNum">      40</span>              : extern pthread_mutex_t g_db_mutex;</span>
+<span id="L41"><span class="lineNum">      41</span>              : </span>
+<span id="L42"><span class="lineNum">      42</span>              : // Test counters</span>
+<span id="L43"><span class="lineNum">      43</span>              : static int tests_run = 0;</span>
+<span id="L44"><span class="lineNum">      44</span>              : static int tests_passed = 0;</span>
+<span id="L45"><span class="lineNum">      45</span>              : static int tests_failed = 0;</span>
+<span id="L46"><span class="lineNum">      46</span>              : </span>
+<span id="L47"><span class="lineNum">      47</span>              : #define TEST(name, condition) do { \</span>
+<span id="L48"><span class="lineNum">      48</span>              :     tests_run++; \</span>
+<span id="L49"><span class="lineNum">      49</span>              :     if (condition) { \</span>
+<span id="L50"><span class="lineNum">      50</span>              :         tests_passed++; \</span>
+<span id="L51"><span class="lineNum">      51</span>              :         printf(&quot;  \033[32m✓\033[0m %s\n&quot;, name); \</span>
+<span id="L52"><span class="lineNum">      52</span>              :     } else { \</span>
+<span id="L53"><span class="lineNum">      53</span>              :         tests_failed++; \</span>
+<span id="L54"><span class="lineNum">      54</span>              :         printf(&quot;  \033[31m✗\033[0m %s FAILED\n&quot;, name); \</span>
+<span id="L55"><span class="lineNum">      55</span>              :     } \</span>
+<span id="L56"><span class="lineNum">      56</span>              : } while(0)</span>
+<span id="L57"><span class="lineNum">      57</span>              : </span>
+<span id="L58"><span class="lineNum">      58</span>              : #define TEST_SECTION(name) printf(&quot;\n\033[1m=== %s ===\033[0m\n&quot;, name)</span>
+<span id="L59"><span class="lineNum">      59</span>              : </span>
+<span id="L60"><span class="lineNum">      60</span>              : // ============================================================================</span>
+<span id="L61"><span class="lineNum">      61</span>              : // TEST DATABASE SETUP</span>
+<span id="L62"><span class="lineNum">      62</span>              : // ============================================================================</span>
+<span id="L63"><span class="lineNum">      63</span>              : </span>
+<span id="L64"><span class="lineNum">      64</span> <span class="tlaGNC">           1 : static int setup_test_db(void) {</span></span>
+<span id="L65"><span class="lineNum">      65</span> <span class="tlaGNC">           1 :     int rc = sqlite3_open(&quot;:memory:&quot;, &amp;g_db);</span></span>
+<span id="L66"><span class="lineNum">      66</span> <span class="tlaGNC">           1 :     if (rc != SQLITE_OK) {</span></span>
+<span id="L67"><span class="lineNum">      67</span> <span class="tlaUNC">           0 :         fprintf(stderr, &quot;Failed to create test database: %s\n&quot;, sqlite3_errmsg(g_db));</span></span>
+<span id="L68"><span class="lineNum">      68</span> <span class="tlaUNC">           0 :         return -1;</span></span>
+<span id="L69"><span class="lineNum">      69</span>              :     }</span>
+<span id="L70"><span class="lineNum">      70</span>              : </span>
+<span id="L71"><span class="lineNum">      71</span> <span class="tlaGNC">           1 :     const char* schema =</span></span>
+<span id="L72"><span class="lineNum">      72</span>              :         &quot;CREATE TABLE IF NOT EXISTS tasks (&quot;</span>
+<span id="L73"><span class="lineNum">      73</span>              :         &quot;  id INTEGER PRIMARY KEY AUTOINCREMENT,&quot;</span>
+<span id="L74"><span class="lineNum">      74</span>              :         &quot;  title TEXT NOT NULL,&quot;</span>
+<span id="L75"><span class="lineNum">      75</span>              :         &quot;  description TEXT,&quot;</span>
+<span id="L76"><span class="lineNum">      76</span>              :         &quot;  priority INTEGER DEFAULT 2,&quot;</span>
+<span id="L77"><span class="lineNum">      77</span>              :         &quot;  status INTEGER DEFAULT 0,&quot;</span>
+<span id="L78"><span class="lineNum">      78</span>              :         &quot;  due_date TEXT,&quot;</span>
+<span id="L79"><span class="lineNum">      79</span>              :         &quot;  reminder_at TEXT,&quot;</span>
+<span id="L80"><span class="lineNum">      80</span>              :         &quot;  recurrence INTEGER DEFAULT 0,&quot;</span>
+<span id="L81"><span class="lineNum">      81</span>              :         &quot;  recurrence_rule TEXT,&quot;</span>
+<span id="L82"><span class="lineNum">      82</span>              :         &quot;  tags TEXT,&quot;</span>
+<span id="L83"><span class="lineNum">      83</span>              :         &quot;  context TEXT,&quot;</span>
+<span id="L84"><span class="lineNum">      84</span>              :         &quot;  parent_id INTEGER,&quot;</span>
+<span id="L85"><span class="lineNum">      85</span>              :         &quot;  source TEXT DEFAULT 'cli',&quot;</span>
+<span id="L86"><span class="lineNum">      86</span>              :         &quot;  external_id TEXT,&quot;</span>
+<span id="L87"><span class="lineNum">      87</span>              :         &quot;  created_at TEXT DEFAULT (datetime('now')),&quot;</span>
+<span id="L88"><span class="lineNum">      88</span>              :         &quot;  updated_at TEXT DEFAULT (datetime('now')),&quot;</span>
+<span id="L89"><span class="lineNum">      89</span>              :         &quot;  completed_at TEXT&quot;</span>
+<span id="L90"><span class="lineNum">      90</span>              :         &quot;);&quot;</span>
+<span id="L91"><span class="lineNum">      91</span>              :         &quot;CREATE TABLE IF NOT EXISTS inbox (&quot;</span>
+<span id="L92"><span class="lineNum">      92</span>              :         &quot;  id INTEGER PRIMARY KEY AUTOINCREMENT,&quot;</span>
+<span id="L93"><span class="lineNum">      93</span>              :         &quot;  content TEXT NOT NULL,&quot;</span>
+<span id="L94"><span class="lineNum">      94</span>              :         &quot;  captured_at TEXT DEFAULT (datetime('now')),&quot;</span>
+<span id="L95"><span class="lineNum">      95</span>              :         &quot;  processed INTEGER DEFAULT 0,&quot;</span>
+<span id="L96"><span class="lineNum">      96</span>              :         &quot;  processed_task_id INTEGER,&quot;</span>
+<span id="L97"><span class="lineNum">      97</span>              :         &quot;  source TEXT DEFAULT 'cli'&quot;</span>
+<span id="L98"><span class="lineNum">      98</span>              :         &quot;);&quot;</span>
+<span id="L99"><span class="lineNum">      99</span>              :         &quot;CREATE TABLE IF NOT EXISTS notification_queue (&quot;</span>
+<span id="L100"><span class="lineNum">     100</span>              :         &quot;  id INTEGER PRIMARY KEY AUTOINCREMENT,&quot;</span>
+<span id="L101"><span class="lineNum">     101</span>              :         &quot;  task_id INTEGER,&quot;</span>
+<span id="L102"><span class="lineNum">     102</span>              :         &quot;  scheduled_at TEXT NOT NULL,&quot;</span>
+<span id="L103"><span class="lineNum">     103</span>              :         &quot;  method INTEGER DEFAULT 0,&quot;</span>
+<span id="L104"><span class="lineNum">     104</span>              :         &quot;  status INTEGER DEFAULT 0,&quot;</span>
+<span id="L105"><span class="lineNum">     105</span>              :         &quot;  retry_count INTEGER DEFAULT 0,&quot;</span>
+<span id="L106"><span class="lineNum">     106</span>              :         &quot;  max_retries INTEGER DEFAULT 3,&quot;</span>
+<span id="L107"><span class="lineNum">     107</span>              :         &quot;  last_error TEXT,&quot;</span>
+<span id="L108"><span class="lineNum">     108</span>              :         &quot;  sent_at TEXT,&quot;</span>
+<span id="L109"><span class="lineNum">     109</span>              :         &quot;  acknowledged_at TEXT&quot;</span>
+<span id="L110"><span class="lineNum">     110</span>              :         &quot;);&quot;</span>
+<span id="L111"><span class="lineNum">     111</span>              :         &quot;CREATE VIRTUAL TABLE IF NOT EXISTS tasks_fts USING fts5(&quot;</span>
+<span id="L112"><span class="lineNum">     112</span>              :         &quot;  title, description, tags, context, content='tasks', content_rowid='id'&quot;</span>
+<span id="L113"><span class="lineNum">     113</span>              :         &quot;);&quot;</span>
+<span id="L114"><span class="lineNum">     114</span>              :         &quot;CREATE TRIGGER IF NOT EXISTS tasks_fts_insert AFTER INSERT ON tasks BEGIN &quot;</span>
+<span id="L115"><span class="lineNum">     115</span>              :         &quot;  INSERT INTO tasks_fts(rowid, title, description, tags, context) &quot;</span>
+<span id="L116"><span class="lineNum">     116</span>              :         &quot;  VALUES (new.id, new.title, new.description, new.tags, new.context); &quot;</span>
+<span id="L117"><span class="lineNum">     117</span>              :         &quot;END;&quot;</span>
+<span id="L118"><span class="lineNum">     118</span>              :         &quot;CREATE TRIGGER IF NOT EXISTS tasks_fts_delete AFTER DELETE ON tasks BEGIN &quot;</span>
+<span id="L119"><span class="lineNum">     119</span>              :         &quot;  INSERT INTO tasks_fts(tasks_fts, rowid, title, description, tags, context) &quot;</span>
+<span id="L120"><span class="lineNum">     120</span>              :         &quot;  VALUES('delete', old.id, old.title, old.description, old.tags, old.context); &quot;</span>
+<span id="L121"><span class="lineNum">     121</span>              :         &quot;END;&quot;</span>
+<span id="L122"><span class="lineNum">     122</span>              :         &quot;CREATE TRIGGER IF NOT EXISTS tasks_fts_update AFTER UPDATE ON tasks BEGIN &quot;</span>
+<span id="L123"><span class="lineNum">     123</span>              :         &quot;  INSERT INTO tasks_fts(tasks_fts, rowid, title, description, tags, context) &quot;</span>
+<span id="L124"><span class="lineNum">     124</span>              :         &quot;  VALUES('delete', old.id, old.title, old.description, old.tags, old.context); &quot;</span>
+<span id="L125"><span class="lineNum">     125</span>              :         &quot;  INSERT INTO tasks_fts(rowid, title, description, tags, context) &quot;</span>
+<span id="L126"><span class="lineNum">     126</span>              :         &quot;  VALUES (new.id, new.title, new.description, new.tags, new.context); &quot;</span>
+<span id="L127"><span class="lineNum">     127</span>              :         &quot;END;&quot;;</span>
+<span id="L128"><span class="lineNum">     128</span>              : </span>
+<span id="L129"><span class="lineNum">     129</span> <span class="tlaGNC">           1 :     char* err_msg = NULL;</span></span>
+<span id="L130"><span class="lineNum">     130</span> <span class="tlaGNC">           1 :     rc = sqlite3_exec(g_db, schema, NULL, NULL, &amp;err_msg);</span></span>
+<span id="L131"><span class="lineNum">     131</span> <span class="tlaGNC">           1 :     if (rc != SQLITE_OK) {</span></span>
+<span id="L132"><span class="lineNum">     132</span> <span class="tlaUNC">           0 :         fprintf(stderr, &quot;Failed to create schema: %s\n&quot;, err_msg);</span></span>
+<span id="L133"><span class="lineNum">     133</span> <span class="tlaUNC">           0 :         sqlite3_free(err_msg);</span></span>
+<span id="L134"><span class="lineNum">     134</span> <span class="tlaUNC">           0 :         return -1;</span></span>
+<span id="L135"><span class="lineNum">     135</span>              :     }</span>
+<span id="L136"><span class="lineNum">     136</span>              : </span>
+<span id="L137"><span class="lineNum">     137</span> <span class="tlaGNC">           1 :     return 0;</span></span>
+<span id="L138"><span class="lineNum">     138</span> <span class="tlaGNC">           1 : }</span></span>
+<span id="L139"><span class="lineNum">     139</span>              : </span>
+<span id="L140"><span class="lineNum">     140</span> <span class="tlaGNC">           1 : static void teardown_test_db(void) {</span></span>
+<span id="L141"><span class="lineNum">     141</span> <span class="tlaGNC">           1 :     if (g_db) {</span></span>
+<span id="L142"><span class="lineNum">     142</span> <span class="tlaGNC">           1 :         sqlite3_close(g_db);</span></span>
+<span id="L143"><span class="lineNum">     143</span> <span class="tlaGNC">           1 :         g_db = NULL;</span></span>
+<span id="L144"><span class="lineNum">     144</span> <span class="tlaGNC">           1 :     }</span></span>
+<span id="L145"><span class="lineNum">     145</span> <span class="tlaGNC">           1 : }</span></span>
+<span id="L146"><span class="lineNum">     146</span>              : </span>
+<span id="L147"><span class="lineNum">     147</span> <span class="tlaGNC">           4 : static void reset_tables(void) {</span></span>
+<span id="L148"><span class="lineNum">     148</span> <span class="tlaGNC">           4 :     const char* reset_sql =</span></span>
+<span id="L149"><span class="lineNum">     149</span>              :         &quot;DELETE FROM tasks; DELETE FROM tasks_fts; DELETE FROM inbox; DELETE FROM notification_queue;&quot;;</span>
+<span id="L150"><span class="lineNum">     150</span> <span class="tlaGNC">           4 :     sqlite3_exec(g_db, reset_sql, NULL, NULL, NULL);</span></span>
+<span id="L151"><span class="lineNum">     151</span> <span class="tlaGNC">           4 :     todo_shutdown();</span></span>
+<span id="L152"><span class="lineNum">     152</span> <span class="tlaGNC">           4 :     todo_init();</span></span>
+<span id="L153"><span class="lineNum">     153</span> <span class="tlaGNC">           4 : }</span></span>
+<span id="L154"><span class="lineNum">     154</span>              : </span>
+<span id="L155"><span class="lineNum">     155</span>              : // ============================================================================</span>
+<span id="L156"><span class="lineNum">     156</span>              : // TODO DATE PARSING TESTS</span>
+<span id="L157"><span class="lineNum">     157</span>              : // ============================================================================</span>
+<span id="L158"><span class="lineNum">     158</span>              : </span>
+<span id="L159"><span class="lineNum">     159</span> <span class="tlaGNC">           1 : void test_todo_date_parsing(void) {</span></span>
+<span id="L160"><span class="lineNum">     160</span> <span class="tlaGNC">           1 :     TEST_SECTION(&quot;Todo Date Parsing Tests&quot;);</span></span>
+<span id="L161"><span class="lineNum">     161</span>              : </span>
+<span id="L162"><span class="lineNum">     162</span> <span class="tlaGNC">           1 :     time_t now = time(NULL);</span></span>
+<span id="L163"><span class="lineNum">     163</span> <span class="tlaGNC">           1 :     time_t parsed;</span></span>
+<span id="L164"><span class="lineNum">     164</span>              : </span>
+<span id="L165"><span class="lineNum">     165</span>              :     // Test relative dates</span>
+<span id="L166"><span class="lineNum">     166</span> <span class="tlaGNC">           1 :     parsed = todo_parse_date(&quot;tomorrow&quot;, now);</span></span>
+<span id="L167"><span class="lineNum">     167</span> <span class="tlaGNC">           1 :     TEST(&quot;Parse 'tomorrow'&quot;, parsed &gt; now &amp;&amp; parsed &lt; now + 86400 * 2);</span></span>
+<span id="L168"><span class="lineNum">     168</span>              : </span>
+<span id="L169"><span class="lineNum">     169</span> <span class="tlaGNC">           1 :     parsed = todo_parse_date(&quot;today&quot;, now);</span></span>
+<span id="L170"><span class="lineNum">     170</span> <span class="tlaGNC">           1 :     TEST(&quot;Parse 'today'&quot;, parsed &gt;= now - 86400 &amp;&amp; parsed &lt;= now + 86400);</span></span>
+<span id="L171"><span class="lineNum">     171</span>              : </span>
+<span id="L172"><span class="lineNum">     172</span>              :     // Test Italian dates</span>
+<span id="L173"><span class="lineNum">     173</span> <span class="tlaGNC">           1 :     parsed = todo_parse_date(&quot;domani&quot;, now);</span></span>
+<span id="L174"><span class="lineNum">     174</span> <span class="tlaGNC">           1 :     TEST(&quot;Parse 'domani' (Italian tomorrow)&quot;, parsed &gt; now &amp;&amp; parsed &lt; now + 86400 * 2);</span></span>
+<span id="L175"><span class="lineNum">     175</span>              : </span>
+<span id="L176"><span class="lineNum">     176</span>              :     // Test weekdays</span>
+<span id="L177"><span class="lineNum">     177</span> <span class="tlaGNC">           1 :     parsed = todo_parse_date(&quot;next monday&quot;, now);</span></span>
+<span id="L178"><span class="lineNum">     178</span> <span class="tlaGNC">           1 :     TEST(&quot;Parse 'next monday'&quot;, parsed &gt; now);</span></span>
+<span id="L179"><span class="lineNum">     179</span>              : </span>
+<span id="L180"><span class="lineNum">     180</span>              :     // Test invalid input</span>
+<span id="L181"><span class="lineNum">     181</span> <span class="tlaGNC">           1 :     parsed = todo_parse_date(NULL, now);</span></span>
+<span id="L182"><span class="lineNum">     182</span> <span class="tlaGNC">           1 :     TEST(&quot;Handle NULL input&quot;, parsed == 0);</span></span>
+<span id="L183"><span class="lineNum">     183</span>              : </span>
+<span id="L184"><span class="lineNum">     184</span> <span class="tlaGNC">           1 :     parsed = todo_parse_date(&quot;&quot;, now);</span></span>
+<span id="L185"><span class="lineNum">     185</span> <span class="tlaGNC">           1 :     TEST(&quot;Handle empty string&quot;, parsed == 0);</span></span>
+<span id="L186"><span class="lineNum">     186</span> <span class="tlaGNC">           1 : }</span></span>
+<span id="L187"><span class="lineNum">     187</span>              : </span>
+<span id="L188"><span class="lineNum">     188</span> <span class="tlaGNC">           1 : void test_iso8601_parsing(void) {</span></span>
+<span id="L189"><span class="lineNum">     189</span> <span class="tlaGNC">           1 :     TEST_SECTION(&quot;ISO8601 Parsing Tests&quot;);</span></span>
+<span id="L190"><span class="lineNum">     190</span>              : </span>
+<span id="L191"><span class="lineNum">     191</span> <span class="tlaGNC">           1 :     struct tm tm = {0};</span></span>
+<span id="L192"><span class="lineNum">     192</span> <span class="tlaGNC">           1 :     time_t parsed = 0;</span></span>
+<span id="L193"><span class="lineNum">     193</span>              : </span>
+<span id="L194"><span class="lineNum">     194</span> <span class="tlaGNC">           1 :     tm.tm_year = 2024 - 1900;</span></span>
+<span id="L195"><span class="lineNum">     195</span> <span class="tlaGNC">           1 :     tm.tm_mon = 4;</span></span>
+<span id="L196"><span class="lineNum">     196</span> <span class="tlaGNC">           1 :     tm.tm_mday = 10;</span></span>
+<span id="L197"><span class="lineNum">     197</span> <span class="tlaGNC">           1 :     tm.tm_hour = 12;</span></span>
+<span id="L198"><span class="lineNum">     198</span> <span class="tlaGNC">           1 :     tm.tm_min = 30;</span></span>
+<span id="L199"><span class="lineNum">     199</span> <span class="tlaGNC">           1 :     tm.tm_sec = 45;</span></span>
+<span id="L200"><span class="lineNum">     200</span> <span class="tlaGNC">           1 :     time_t expected_utc = timegm(&amp;tm);</span></span>
+<span id="L201"><span class="lineNum">     201</span>              : </span>
+<span id="L202"><span class="lineNum">     202</span> <span class="tlaGNC">           1 :     TEST(&quot;Parse full timestamp with 'T' and Z&quot;, todo_parse_iso8601(&quot;2024-05-10T12:30:45Z&quot;, &amp;parsed) == TODO_ISO8601_OK &amp;&amp; parsed == expected_utc);</span></span>
+<span id="L203"><span class="lineNum">     203</span>              : </span>
+<span id="L204"><span class="lineNum">     204</span> <span class="tlaGNC">           1 :     tm.tm_hour = 10;</span></span>
+<span id="L205"><span class="lineNum">     205</span> <span class="tlaGNC">           1 :     tm.tm_min = 30;</span></span>
+<span id="L206"><span class="lineNum">     206</span> <span class="tlaGNC">           1 :     tm.tm_sec = 45;</span></span>
+<span id="L207"><span class="lineNum">     207</span> <span class="tlaGNC">           1 :     time_t expected_offset = timegm(&amp;tm);</span></span>
+<span id="L208"><span class="lineNum">     208</span> <span class="tlaGNC">           1 :     TEST(&quot;Parse timestamp with timezone offset&quot;, todo_parse_iso8601(&quot;2024-05-10 12:30:45+02:00&quot;, &amp;parsed) == TODO_ISO8601_OK &amp;&amp; parsed == expected_offset);</span></span>
+<span id="L209"><span class="lineNum">     209</span>              : </span>
+<span id="L210"><span class="lineNum">     210</span> <span class="tlaGNC">           1 :     tm.tm_hour = 0;</span></span>
+<span id="L211"><span class="lineNum">     211</span> <span class="tlaGNC">           1 :     tm.tm_min = 0;</span></span>
+<span id="L212"><span class="lineNum">     212</span> <span class="tlaGNC">           1 :     tm.tm_sec = 0;</span></span>
+<span id="L213"><span class="lineNum">     213</span> <span class="tlaGNC">           1 :     time_t expected_date_only = timegm(&amp;tm);</span></span>
+<span id="L214"><span class="lineNum">     214</span> <span class="tlaGNC">           1 :     TEST(&quot;Parse date-only input&quot;, todo_parse_iso8601(&quot;2024-05-10&quot;, &amp;parsed) == TODO_ISO8601_OK &amp;&amp; parsed == expected_date_only);</span></span>
+<span id="L215"><span class="lineNum">     215</span>              : </span>
+<span id="L216"><span class="lineNum">     216</span> <span class="tlaGNC">           1 :     parsed = 123;</span></span>
+<span id="L217"><span class="lineNum">     217</span> <span class="tlaGNC">           1 :     TEST(&quot;Reject invalid timestamp&quot;, todo_parse_iso8601(&quot;2024-99-99T00:00:00&quot;, &amp;parsed) == TODO_ISO8601_INVALID &amp;&amp; parsed == 0);</span></span>
+<span id="L218"><span class="lineNum">     218</span>              : </span>
+<span id="L219"><span class="lineNum">     219</span> <span class="tlaGNC">           1 :     parsed = 123;</span></span>
+<span id="L220"><span class="lineNum">     220</span> <span class="tlaGNC">           1 :     TEST(&quot;Handle empty input gracefully&quot;, todo_parse_iso8601(&quot;&quot;, &amp;parsed) == TODO_ISO8601_EMPTY &amp;&amp; parsed == 0);</span></span>
+<span id="L221"><span class="lineNum">     221</span> <span class="tlaGNC">           1 : }</span></span>
+<span id="L222"><span class="lineNum">     222</span>              : </span>
+<span id="L223"><span class="lineNum">     223</span>              : // ============================================================================</span>
+<span id="L224"><span class="lineNum">     224</span>              : // TODO PRIORITY PARSING TESTS</span>
+<span id="L225"><span class="lineNum">     225</span>              : // ============================================================================</span>
+<span id="L226"><span class="lineNum">     226</span>              : </span>
+<span id="L227"><span class="lineNum">     227</span> <span class="tlaGNC">           1 : void test_todo_priority_parsing(void) {</span></span>
+<span id="L228"><span class="lineNum">     228</span> <span class="tlaGNC">           1 :     TEST_SECTION(&quot;Todo Priority Parsing Tests&quot;);</span></span>
+<span id="L229"><span class="lineNum">     229</span>              : </span>
+<span id="L230"><span class="lineNum">     230</span> <span class="tlaGNC">           1 :     TEST(&quot;Parse 'urgent' priority&quot;, todo_priority_from_string(&quot;urgent&quot;) == TODO_PRIORITY_URGENT);</span></span>
+<span id="L231"><span class="lineNum">     231</span> <span class="tlaGNC">           1 :     TEST(&quot;Parse 'normal' priority&quot;, todo_priority_from_string(&quot;normal&quot;) == TODO_PRIORITY_NORMAL);</span></span>
+<span id="L232"><span class="lineNum">     232</span> <span class="tlaGNC">           1 :     TEST(&quot;Parse 'low' priority&quot;, todo_priority_from_string(&quot;low&quot;) == TODO_PRIORITY_LOW);</span></span>
+<span id="L233"><span class="lineNum">     233</span>              : </span>
+<span id="L234"><span class="lineNum">     234</span>              :     // Numeric</span>
+<span id="L235"><span class="lineNum">     235</span> <span class="tlaGNC">           1 :     TEST(&quot;Parse '1' as urgent&quot;, todo_priority_from_string(&quot;1&quot;) == TODO_PRIORITY_URGENT);</span></span>
+<span id="L236"><span class="lineNum">     236</span> <span class="tlaGNC">           1 :     TEST(&quot;Parse '2' as normal&quot;, todo_priority_from_string(&quot;2&quot;) == TODO_PRIORITY_NORMAL);</span></span>
+<span id="L237"><span class="lineNum">     237</span> <span class="tlaGNC">           1 :     TEST(&quot;Parse '3' as low&quot;, todo_priority_from_string(&quot;3&quot;) == TODO_PRIORITY_LOW);</span></span>
+<span id="L238"><span class="lineNum">     238</span>              : </span>
+<span id="L239"><span class="lineNum">     239</span>              :     // Default</span>
+<span id="L240"><span class="lineNum">     240</span> <span class="tlaGNC">           1 :     TEST(&quot;Default for unknown&quot;, todo_priority_from_string(&quot;unknown&quot;) == TODO_PRIORITY_NORMAL);</span></span>
+<span id="L241"><span class="lineNum">     241</span> <span class="tlaGNC">           1 :     TEST(&quot;Handle NULL&quot;, todo_priority_from_string(NULL) == TODO_PRIORITY_NORMAL);</span></span>
+<span id="L242"><span class="lineNum">     242</span> <span class="tlaGNC">           1 : }</span></span>
+<span id="L243"><span class="lineNum">     243</span>              : </span>
+<span id="L244"><span class="lineNum">     244</span>              : // ============================================================================</span>
+<span id="L245"><span class="lineNum">     245</span>              : // TODO CRUD OPERATIONS TESTS</span>
+<span id="L246"><span class="lineNum">     246</span>              : // ============================================================================</span>
+<span id="L247"><span class="lineNum">     247</span>              : </span>
+<span id="L248"><span class="lineNum">     248</span> <span class="tlaGNC">           1 : void test_todo_crud_operations(void) {</span></span>
+<span id="L249"><span class="lineNum">     249</span> <span class="tlaGNC">           1 :     TEST_SECTION(&quot;Todo CRUD Operations Tests&quot;);</span></span>
+<span id="L250"><span class="lineNum">     250</span>              : </span>
+<span id="L251"><span class="lineNum">     251</span>              :     // Initialize todo system</span>
+<span id="L252"><span class="lineNum">     252</span> <span class="tlaGNC">           1 :     int rc = todo_init();</span></span>
+<span id="L253"><span class="lineNum">     253</span> <span class="tlaGNC">           1 :     TEST(&quot;Initialize todo system&quot;, rc == 0);</span></span>
+<span id="L254"><span class="lineNum">     254</span>              : </span>
+<span id="L255"><span class="lineNum">     255</span>              :     // Create a task</span>
+<span id="L256"><span class="lineNum">     256</span> <span class="tlaGNC">           1 :     TodoCreateOptions opts = {0};</span></span>
+<span id="L257"><span class="lineNum">     257</span> <span class="tlaGNC">           1 :     opts.title = &quot;Test Task&quot;;</span></span>
+<span id="L258"><span class="lineNum">     258</span> <span class="tlaGNC">           1 :     opts.description = &quot;Test Description&quot;;</span></span>
+<span id="L259"><span class="lineNum">     259</span> <span class="tlaGNC">           1 :     opts.priority = TODO_PRIORITY_URGENT;</span></span>
+<span id="L260"><span class="lineNum">     260</span> <span class="tlaGNC">           1 :     opts.context = &quot;@work&quot;;</span></span>
+<span id="L261"><span class="lineNum">     261</span> <span class="tlaGNC">           1 :     opts.tags = &quot;test,unit&quot;;</span></span>
+<span id="L262"><span class="lineNum">     262</span>              : </span>
+<span id="L263"><span class="lineNum">     263</span> <span class="tlaGNC">           1 :     int64_t task_id = todo_create(&amp;opts);</span></span>
+<span id="L264"><span class="lineNum">     264</span> <span class="tlaGNC">           1 :     TEST(&quot;Create task&quot;, task_id &gt; 0);</span></span>
+<span id="L265"><span class="lineNum">     265</span>              : </span>
+<span id="L266"><span class="lineNum">     266</span>              :     // Get the task</span>
+<span id="L267"><span class="lineNum">     267</span> <span class="tlaGNC">           1 :     TodoTask* task = todo_get(task_id);</span></span>
+<span id="L268"><span class="lineNum">     268</span> <span class="tlaGNC">           1 :     TEST(&quot;Get task by ID&quot;, task != NULL);</span></span>
+<span id="L269"><span class="lineNum">     269</span> <span class="tlaGNC">           1 :     if (task) {</span></span>
+<span id="L270"><span class="lineNum">     270</span> <span class="tlaGNC">           1 :         TEST(&quot;Task title matches&quot;, strcmp(task-&gt;title, &quot;Test Task&quot;) == 0);</span></span>
+<span id="L271"><span class="lineNum">     271</span> <span class="tlaGNC">           1 :         TEST(&quot;Task description matches&quot;, task-&gt;description &amp;&amp; strcmp(task-&gt;description, &quot;Test Description&quot;) == 0);</span></span>
+<span id="L272"><span class="lineNum">     272</span> <span class="tlaGNC">           1 :         TEST(&quot;Task priority matches&quot;, task-&gt;priority == TODO_PRIORITY_URGENT);</span></span>
+<span id="L273"><span class="lineNum">     273</span> <span class="tlaGNC">           1 :         TEST(&quot;Task status is pending&quot;, task-&gt;status == TODO_STATUS_PENDING);</span></span>
+<span id="L274"><span class="lineNum">     274</span> <span class="tlaGNC">           1 :         todo_free_task(task);</span></span>
+<span id="L275"><span class="lineNum">     275</span> <span class="tlaGNC">           1 :     }</span></span>
+<span id="L276"><span class="lineNum">     276</span>              : </span>
+<span id="L277"><span class="lineNum">     277</span>              :     // Update the task</span>
+<span id="L278"><span class="lineNum">     278</span> <span class="tlaGNC">           1 :     TodoCreateOptions update_opts = {0};</span></span>
+<span id="L279"><span class="lineNum">     279</span> <span class="tlaGNC">           1 :     update_opts.title = &quot;Updated Task&quot;;</span></span>
+<span id="L280"><span class="lineNum">     280</span> <span class="tlaGNC">           1 :     update_opts.priority = TODO_PRIORITY_LOW;</span></span>
+<span id="L281"><span class="lineNum">     281</span> <span class="tlaGNC">           1 :     rc = todo_update(task_id, &amp;update_opts);</span></span>
+<span id="L282"><span class="lineNum">     282</span> <span class="tlaGNC">           1 :     TEST(&quot;Update task&quot;, rc == 0);</span></span>
+<span id="L283"><span class="lineNum">     283</span>              : </span>
+<span id="L284"><span class="lineNum">     284</span> <span class="tlaGNC">           1 :     task = todo_get(task_id);</span></span>
+<span id="L285"><span class="lineNum">     285</span> <span class="tlaGNC">           1 :     if (task) {</span></span>
+<span id="L286"><span class="lineNum">     286</span> <span class="tlaGNC">           1 :         TEST(&quot;Updated title matches&quot;, strcmp(task-&gt;title, &quot;Updated Task&quot;) == 0);</span></span>
+<span id="L287"><span class="lineNum">     287</span> <span class="tlaGNC">           1 :         TEST(&quot;Updated priority matches&quot;, task-&gt;priority == TODO_PRIORITY_LOW);</span></span>
+<span id="L288"><span class="lineNum">     288</span> <span class="tlaGNC">           1 :         todo_free_task(task);</span></span>
+<span id="L289"><span class="lineNum">     289</span> <span class="tlaGNC">           1 :     }</span></span>
+<span id="L290"><span class="lineNum">     290</span>              : </span>
+<span id="L291"><span class="lineNum">     291</span>              :     // Start the task</span>
+<span id="L292"><span class="lineNum">     292</span> <span class="tlaGNC">           1 :     rc = todo_start(task_id);</span></span>
+<span id="L293"><span class="lineNum">     293</span> <span class="tlaGNC">           1 :     TEST(&quot;Start task&quot;, rc == 0);</span></span>
+<span id="L294"><span class="lineNum">     294</span>              : </span>
+<span id="L295"><span class="lineNum">     295</span> <span class="tlaGNC">           1 :     task = todo_get(task_id);</span></span>
+<span id="L296"><span class="lineNum">     296</span> <span class="tlaGNC">           1 :     if (task) {</span></span>
+<span id="L297"><span class="lineNum">     297</span> <span class="tlaGNC">           1 :         TEST(&quot;Task status is in_progress&quot;, task-&gt;status == TODO_STATUS_IN_PROGRESS);</span></span>
+<span id="L298"><span class="lineNum">     298</span> <span class="tlaGNC">           1 :         todo_free_task(task);</span></span>
+<span id="L299"><span class="lineNum">     299</span> <span class="tlaGNC">           1 :     }</span></span>
+<span id="L300"><span class="lineNum">     300</span>              : </span>
+<span id="L301"><span class="lineNum">     301</span>              :     // Complete the task</span>
+<span id="L302"><span class="lineNum">     302</span> <span class="tlaGNC">           1 :     rc = todo_complete(task_id);</span></span>
+<span id="L303"><span class="lineNum">     303</span> <span class="tlaGNC">           1 :     TEST(&quot;Complete task&quot;, rc == 0);</span></span>
+<span id="L304"><span class="lineNum">     304</span>              : </span>
+<span id="L305"><span class="lineNum">     305</span> <span class="tlaGNC">           1 :     task = todo_get(task_id);</span></span>
+<span id="L306"><span class="lineNum">     306</span> <span class="tlaGNC">           1 :     if (task) {</span></span>
+<span id="L307"><span class="lineNum">     307</span> <span class="tlaGNC">           1 :         TEST(&quot;Task status is completed&quot;, task-&gt;status == TODO_STATUS_COMPLETED);</span></span>
+<span id="L308"><span class="lineNum">     308</span> <span class="tlaGNC">           1 :         todo_free_task(task);</span></span>
+<span id="L309"><span class="lineNum">     309</span> <span class="tlaGNC">           1 :     }</span></span>
+<span id="L310"><span class="lineNum">     310</span>              : </span>
+<span id="L311"><span class="lineNum">     311</span>              :     // Delete the task</span>
+<span id="L312"><span class="lineNum">     312</span> <span class="tlaGNC">           1 :     rc = todo_delete(task_id);</span></span>
+<span id="L313"><span class="lineNum">     313</span> <span class="tlaGNC">           1 :     TEST(&quot;Delete task&quot;, rc == 0);</span></span>
+<span id="L314"><span class="lineNum">     314</span>              : </span>
+<span id="L315"><span class="lineNum">     315</span> <span class="tlaGNC">           1 :     task = todo_get(task_id);</span></span>
+<span id="L316"><span class="lineNum">     316</span> <span class="tlaGNC">           1 :     TEST(&quot;Task is deleted&quot;, task == NULL);</span></span>
+<span id="L317"><span class="lineNum">     317</span>              : </span>
+<span id="L318"><span class="lineNum">     318</span> <span class="tlaGNC">           1 :     todo_shutdown();</span></span>
+<span id="L319"><span class="lineNum">     319</span> <span class="tlaGNC">           1 : }</span></span>
+<span id="L320"><span class="lineNum">     320</span>              : </span>
+<span id="L321"><span class="lineNum">     321</span>              : // ============================================================================</span>
+<span id="L322"><span class="lineNum">     322</span>              : // TODO LIST OPERATIONS TESTS</span>
+<span id="L323"><span class="lineNum">     323</span>              : // ============================================================================</span>
+<span id="L324"><span class="lineNum">     324</span>              : </span>
+<span id="L325"><span class="lineNum">     325</span> <span class="tlaGNC">           1 : void test_todo_list_operations(void) {</span></span>
+<span id="L326"><span class="lineNum">     326</span> <span class="tlaGNC">           1 :     TEST_SECTION(&quot;Todo List Operations Tests&quot;);</span></span>
+<span id="L327"><span class="lineNum">     327</span>              : </span>
+<span id="L328"><span class="lineNum">     328</span> <span class="tlaGNC">           1 :     todo_init();</span></span>
+<span id="L329"><span class="lineNum">     329</span>              : </span>
+<span id="L330"><span class="lineNum">     330</span>              :     // Create multiple tasks</span>
+<span id="L331"><span class="lineNum">     331</span> <span class="tlaGNC">           1 :     TodoCreateOptions opts = {0};</span></span>
+<span id="L332"><span class="lineNum">     332</span>              : </span>
+<span id="L333"><span class="lineNum">     333</span> <span class="tlaGNC">           1 :     opts.title = &quot;Task 1&quot;;</span></span>
+<span id="L334"><span class="lineNum">     334</span> <span class="tlaGNC">           1 :     opts.priority = TODO_PRIORITY_URGENT;</span></span>
+<span id="L335"><span class="lineNum">     335</span> <span class="tlaGNC">           1 :     todo_create(&amp;opts);</span></span>
+<span id="L336"><span class="lineNum">     336</span>              : </span>
+<span id="L337"><span class="lineNum">     337</span> <span class="tlaGNC">           1 :     opts.title = &quot;Task 2&quot;;</span></span>
+<span id="L338"><span class="lineNum">     338</span> <span class="tlaGNC">           1 :     opts.priority = TODO_PRIORITY_LOW;</span></span>
+<span id="L339"><span class="lineNum">     339</span> <span class="tlaGNC">           1 :     todo_create(&amp;opts);</span></span>
+<span id="L340"><span class="lineNum">     340</span>              : </span>
+<span id="L341"><span class="lineNum">     341</span> <span class="tlaGNC">           1 :     opts.title = &quot;Task 3&quot;;</span></span>
+<span id="L342"><span class="lineNum">     342</span> <span class="tlaGNC">           1 :     opts.priority = TODO_PRIORITY_NORMAL;</span></span>
+<span id="L343"><span class="lineNum">     343</span> <span class="tlaGNC">           1 :     todo_create(&amp;opts);</span></span>
+<span id="L344"><span class="lineNum">     344</span>              : </span>
+<span id="L345"><span class="lineNum">     345</span>              :     // List all tasks</span>
+<span id="L346"><span class="lineNum">     346</span> <span class="tlaGNC">           1 :     int count = 0;</span></span>
+<span id="L347"><span class="lineNum">     347</span> <span class="tlaGNC">           1 :     TodoTask** tasks = todo_list(NULL, &amp;count);</span></span>
+<span id="L348"><span class="lineNum">     348</span> <span class="tlaGNC">           1 :     TEST(&quot;List returns tasks&quot;, tasks != NULL);</span></span>
+<span id="L349"><span class="lineNum">     349</span> <span class="tlaGNC">           1 :     TEST(&quot;List count is 3&quot;, count == 3);</span></span>
+<span id="L350"><span class="lineNum">     350</span>              : </span>
+<span id="L351"><span class="lineNum">     351</span> <span class="tlaGNC">           1 :     if (tasks) {</span></span>
+<span id="L352"><span class="lineNum">     352</span>              :         // Check ordering by priority (urgent first)</span>
+<span id="L353"><span class="lineNum">     353</span> <span class="tlaGNC">           1 :         TEST(&quot;Tasks ordered by priority (first is urgent)&quot;,</span></span>
+<span id="L354"><span class="lineNum">     354</span>              :              tasks[0]-&gt;priority == TODO_PRIORITY_URGENT);</span>
+<span id="L355"><span class="lineNum">     355</span> <span class="tlaGNC">           1 :         todo_free_tasks(tasks, count);</span></span>
+<span id="L356"><span class="lineNum">     356</span> <span class="tlaGNC">           1 :     }</span></span>
+<span id="L357"><span class="lineNum">     357</span>              : </span>
+<span id="L358"><span class="lineNum">     358</span> <span class="tlaGNC">           1 :     todo_shutdown();</span></span>
+<span id="L359"><span class="lineNum">     359</span> <span class="tlaGNC">           1 : }</span></span>
+<span id="L360"><span class="lineNum">     360</span>              : </span>
+<span id="L361"><span class="lineNum">     361</span>              : // ============================================================================</span>
+<span id="L362"><span class="lineNum">     362</span>              : // TODO INBOX TESTS</span>
+<span id="L363"><span class="lineNum">     363</span>              : // ============================================================================</span>
+<span id="L364"><span class="lineNum">     364</span>              : </span>
+<span id="L365"><span class="lineNum">     365</span> <span class="tlaGNC">           1 : void test_todo_inbox(void) {</span></span>
+<span id="L366"><span class="lineNum">     366</span> <span class="tlaGNC">           1 :     TEST_SECTION(&quot;Todo Inbox Tests&quot;);</span></span>
+<span id="L367"><span class="lineNum">     367</span>              : </span>
+<span id="L368"><span class="lineNum">     368</span> <span class="tlaGNC">           1 :     todo_init();</span></span>
+<span id="L369"><span class="lineNum">     369</span>              : </span>
+<span id="L370"><span class="lineNum">     370</span>              :     // Capture to inbox</span>
+<span id="L371"><span class="lineNum">     371</span> <span class="tlaGNC">           1 :     int64_t inbox_id = inbox_capture(&quot;Quick thought to process later&quot;, &quot;cli&quot;);</span></span>
+<span id="L372"><span class="lineNum">     372</span> <span class="tlaGNC">           1 :     TEST(&quot;Capture to inbox&quot;, inbox_id &gt; 0);</span></span>
+<span id="L373"><span class="lineNum">     373</span>              : </span>
+<span id="L374"><span class="lineNum">     374</span>              :     // List unprocessed</span>
+<span id="L375"><span class="lineNum">     375</span> <span class="tlaGNC">           1 :     int count = 0;</span></span>
+<span id="L376"><span class="lineNum">     376</span> <span class="tlaGNC">           1 :     TodoInboxItem** items = inbox_list_unprocessed(&amp;count);</span></span>
+<span id="L377"><span class="lineNum">     377</span> <span class="tlaGNC">           1 :     TEST(&quot;List unprocessed inbox items&quot;, items != NULL);</span></span>
+<span id="L378"><span class="lineNum">     378</span> <span class="tlaGNC">           1 :     TEST(&quot;Inbox count is 1&quot;, count == 1);</span></span>
+<span id="L379"><span class="lineNum">     379</span>              : </span>
+<span id="L380"><span class="lineNum">     380</span> <span class="tlaGNC">           1 :     if (items &amp;&amp; count &gt; 0) {</span></span>
+<span id="L381"><span class="lineNum">     381</span> <span class="tlaGNC">           1 :         TEST(&quot;Inbox content matches&quot;, strcmp(items[0]-&gt;content, &quot;Quick thought to process later&quot;) == 0);</span></span>
+<span id="L382"><span class="lineNum">     382</span> <span class="tlaGNC">           1 :         TEST(&quot;Inbox item not processed&quot;, items[0]-&gt;processed == 0);</span></span>
+<span id="L383"><span class="lineNum">     383</span> <span class="tlaGNC">           1 :         todo_free_inbox_items(items, count);</span></span>
+<span id="L384"><span class="lineNum">     384</span> <span class="tlaGNC">           1 :     }</span></span>
+<span id="L385"><span class="lineNum">     385</span>              : </span>
+<span id="L386"><span class="lineNum">     386</span>              :     // Process inbox item</span>
+<span id="L387"><span class="lineNum">     387</span> <span class="tlaGNC">           1 :     TodoCreateOptions opts = {0};</span></span>
+<span id="L388"><span class="lineNum">     388</span> <span class="tlaGNC">           1 :     opts.title = &quot;Processed from inbox&quot;;</span></span>
+<span id="L389"><span class="lineNum">     389</span> <span class="tlaGNC">           1 :     int64_t task_id = todo_create(&amp;opts);</span></span>
+<span id="L390"><span class="lineNum">     390</span>              : </span>
+<span id="L391"><span class="lineNum">     391</span> <span class="tlaGNC">           1 :     int rc = inbox_process(inbox_id, task_id);</span></span>
+<span id="L392"><span class="lineNum">     392</span> <span class="tlaGNC">           1 :     TEST(&quot;Process inbox item&quot;, rc == 0);</span></span>
+<span id="L393"><span class="lineNum">     393</span>              : </span>
+<span id="L394"><span class="lineNum">     394</span>              :     // Verify processed</span>
+<span id="L395"><span class="lineNum">     395</span> <span class="tlaGNC">           1 :     items = inbox_list_unprocessed(&amp;count);</span></span>
+<span id="L396"><span class="lineNum">     396</span> <span class="tlaGNC">           1 :     TEST(&quot;No unprocessed items after processing&quot;, count == 0);</span></span>
+<span id="L397"><span class="lineNum">     397</span> <span class="tlaGNC">           1 :     if (items) {</span></span>
+<span id="L398"><span class="lineNum">     398</span> <span class="tlaGNC">           1 :         todo_free_inbox_items(items, count);</span></span>
+<span id="L399"><span class="lineNum">     399</span> <span class="tlaGNC">           1 :     }</span></span>
+<span id="L400"><span class="lineNum">     400</span>              : </span>
+<span id="L401"><span class="lineNum">     401</span> <span class="tlaGNC">           1 :     todo_shutdown();</span></span>
+<span id="L402"><span class="lineNum">     402</span> <span class="tlaGNC">           1 : }</span></span>
+<span id="L403"><span class="lineNum">     403</span>              : </span>
+<span id="L404"><span class="lineNum">     404</span> <span class="tlaGNC">           1 : void test_todo_queries_and_search(void) {</span></span>
+<span id="L405"><span class="lineNum">     405</span> <span class="tlaGNC">           1 :     TEST_SECTION(&quot;Todo List/FTS Query Tests&quot;);</span></span>
+<span id="L406"><span class="lineNum">     406</span>              : </span>
+<span id="L407"><span class="lineNum">     407</span> <span class="tlaGNC">           1 :     reset_tables();</span></span>
+<span id="L408"><span class="lineNum">     408</span>              : </span>
+<span id="L409"><span class="lineNum">     409</span> <span class="tlaGNC">           1 :     time_t now = time(NULL);</span></span>
+<span id="L410"><span class="lineNum">     410</span>              : </span>
+<span id="L411"><span class="lineNum">     411</span> <span class="tlaGNC">           1 :     TodoCreateOptions opts = {0};</span></span>
+<span id="L412"><span class="lineNum">     412</span> <span class="tlaGNC">           1 :     opts.title = &quot;Urgent Today&quot;;</span></span>
+<span id="L413"><span class="lineNum">     413</span> <span class="tlaGNC">           1 :     opts.priority = TODO_PRIORITY_URGENT;</span></span>
+<span id="L414"><span class="lineNum">     414</span> <span class="tlaGNC">           1 :     opts.due_date = now;</span></span>
+<span id="L415"><span class="lineNum">     415</span> <span class="tlaGNC">           1 :     todo_create(&amp;opts);</span></span>
+<span id="L416"><span class="lineNum">     416</span>              : </span>
+<span id="L417"><span class="lineNum">     417</span> <span class="tlaGNC">           1 :     opts.title = &quot;Normal No Due&quot;;</span></span>
+<span id="L418"><span class="lineNum">     418</span> <span class="tlaGNC">           1 :     opts.priority = TODO_PRIORITY_NORMAL;</span></span>
+<span id="L419"><span class="lineNum">     419</span> <span class="tlaGNC">           1 :     opts.due_date = 0;</span></span>
+<span id="L420"><span class="lineNum">     420</span> <span class="tlaGNC">           1 :     todo_create(&amp;opts);</span></span>
+<span id="L421"><span class="lineNum">     421</span>              : </span>
+<span id="L422"><span class="lineNum">     422</span> <span class="tlaGNC">           1 :     opts.title = &quot;Low Overdue&quot;;</span></span>
+<span id="L423"><span class="lineNum">     423</span> <span class="tlaGNC">           1 :     opts.priority = TODO_PRIORITY_LOW;</span></span>
+<span id="L424"><span class="lineNum">     424</span> <span class="tlaGNC">           1 :     opts.due_date = now - 86400;</span></span>
+<span id="L425"><span class="lineNum">     425</span> <span class="tlaGNC">           1 :     todo_create(&amp;opts);</span></span>
+<span id="L426"><span class="lineNum">     426</span>              : </span>
+<span id="L427"><span class="lineNum">     427</span> <span class="tlaGNC">           1 :     opts.title = &quot;Future Task&quot;;</span></span>
+<span id="L428"><span class="lineNum">     428</span> <span class="tlaGNC">           1 :     opts.priority = TODO_PRIORITY_NORMAL;</span></span>
+<span id="L429"><span class="lineNum">     429</span> <span class="tlaGNC">           1 :     opts.due_date = now + 86400;</span></span>
+<span id="L430"><span class="lineNum">     430</span> <span class="tlaGNC">           1 :     todo_create(&amp;opts);</span></span>
+<span id="L431"><span class="lineNum">     431</span>              : </span>
+<span id="L432"><span class="lineNum">     432</span> <span class="tlaGNC">           1 :     int count = 0;</span></span>
+<span id="L433"><span class="lineNum">     433</span> <span class="tlaGNC">           1 :     TodoTask** today = todo_list_today(&amp;count);</span></span>
+<span id="L434"><span class="lineNum">     434</span> <span class="tlaGNC">           1 :     TEST(&quot;list_today returns only current tasks&quot;, today &amp;&amp; count == 3);</span></span>
+<span id="L435"><span class="lineNum">     435</span> <span class="tlaGNC">           1 :     if (today &amp;&amp; count == 3) {</span></span>
+<span id="L436"><span class="lineNum">     436</span> <span class="tlaGNC">           1 :         TEST(&quot;list_today orders by priority then due&quot;, today[0]-&gt;priority == TODO_PRIORITY_URGENT &amp;&amp;</span></span>
+<span id="L437"><span class="lineNum">     437</span>              :              today[1]-&gt;priority == TODO_PRIORITY_NORMAL &amp;&amp; today[2]-&gt;priority == TODO_PRIORITY_LOW &amp;&amp;</span>
+<span id="L438"><span class="lineNum">     438</span>              :              today[2]-&gt;due_date &lt; now);</span>
+<span id="L439"><span class="lineNum">     439</span> <span class="tlaGNC">           1 :         todo_free_tasks(today, count);</span></span>
+<span id="L440"><span class="lineNum">     440</span> <span class="tlaGNC">           1 :     }</span></span>
+<span id="L441"><span class="lineNum">     441</span>              : </span>
+<span id="L442"><span class="lineNum">     442</span> <span class="tlaGNC">           1 :     TodoTask** overdue = todo_list_overdue(&amp;count);</span></span>
+<span id="L443"><span class="lineNum">     443</span> <span class="tlaGNC">           1 :     TEST(&quot;list_overdue surfaces past-due tasks&quot;, overdue &amp;&amp; count == 1);</span></span>
+<span id="L444"><span class="lineNum">     444</span> <span class="tlaGNC">           1 :     if (overdue &amp;&amp; count == 1) {</span></span>
+<span id="L445"><span class="lineNum">     445</span> <span class="tlaGNC">           1 :         TEST(&quot;overdue task is older than now&quot;, overdue[0]-&gt;due_date &lt; now);</span></span>
+<span id="L446"><span class="lineNum">     446</span> <span class="tlaGNC">           1 :         todo_free_tasks(overdue, count);</span></span>
+<span id="L447"><span class="lineNum">     447</span> <span class="tlaGNC">           1 :     }</span></span>
+<span id="L448"><span class="lineNum">     448</span>              : </span>
+<span id="L449"><span class="lineNum">     449</span>              :     // Limit enforcement for list_today (LIMIT 100)</span>
+<span id="L450"><span class="lineNum">     450</span> <span class="tlaGNC">         121 :     for (int i = 0; i &lt; 120; i++) {</span></span>
+<span id="L451"><span class="lineNum">     451</span> <span class="tlaGNC">         120 :         char title[32];</span></span>
+<span id="L452"><span class="lineNum">     452</span> <span class="tlaGNC">         120 :         snprintf(title, sizeof(title), &quot;Limit Task %d&quot;, i);</span></span>
+<span id="L453"><span class="lineNum">     453</span> <span class="tlaGNC">         120 :         opts.title = title;</span></span>
+<span id="L454"><span class="lineNum">     454</span> <span class="tlaGNC">         120 :         opts.priority = TODO_PRIORITY_NORMAL;</span></span>
+<span id="L455"><span class="lineNum">     455</span> <span class="tlaGNC">         120 :         opts.due_date = now;</span></span>
+<span id="L456"><span class="lineNum">     456</span> <span class="tlaGNC">         120 :         todo_create(&amp;opts);</span></span>
+<span id="L457"><span class="lineNum">     457</span> <span class="tlaGNC">         120 :     }</span></span>
+<span id="L458"><span class="lineNum">     458</span>              : </span>
+<span id="L459"><span class="lineNum">     459</span> <span class="tlaGNC">           1 :     TodoTask** limited = todo_list_today(&amp;count);</span></span>
+<span id="L460"><span class="lineNum">     460</span> <span class="tlaGNC">           1 :     TEST(&quot;list_today respects 100 row cap&quot;, limited &amp;&amp; count == 100);</span></span>
+<span id="L461"><span class="lineNum">     461</span> <span class="tlaGNC">           1 :     if (limited) {</span></span>
+<span id="L462"><span class="lineNum">     462</span> <span class="tlaGNC">           1 :         todo_free_tasks(limited, count);</span></span>
+<span id="L463"><span class="lineNum">     463</span> <span class="tlaGNC">           1 :     }</span></span>
+<span id="L464"><span class="lineNum">     464</span>              : </span>
+<span id="L465"><span class="lineNum">     465</span>              :     // FTS search ordering/limit</span>
+<span id="L466"><span class="lineNum">     466</span> <span class="tlaGNC">           1 :     reset_tables();</span></span>
+<span id="L467"><span class="lineNum">     467</span> <span class="tlaGNC">          61 :     for (int i = 0; i &lt; 60; i++) {</span></span>
+<span id="L468"><span class="lineNum">     468</span> <span class="tlaGNC">          60 :         char title[48];</span></span>
+<span id="L469"><span class="lineNum">     469</span> <span class="tlaGNC">          60 :         snprintf(title, sizeof(title), &quot;Searchable Task %d&quot;, i);</span></span>
+<span id="L470"><span class="lineNum">     470</span> <span class="tlaGNC">          60 :         opts.title = title;</span></span>
+<span id="L471"><span class="lineNum">     471</span> <span class="tlaGNC">          60 :         opts.description = &quot;needle in haystack&quot;;</span></span>
+<span id="L472"><span class="lineNum">     472</span> <span class="tlaGNC">          60 :         opts.priority = TODO_PRIORITY_NORMAL;</span></span>
+<span id="L473"><span class="lineNum">     473</span> <span class="tlaGNC">          60 :         opts.due_date = now;</span></span>
+<span id="L474"><span class="lineNum">     474</span> <span class="tlaGNC">          60 :         todo_create(&amp;opts);</span></span>
+<span id="L475"><span class="lineNum">     475</span> <span class="tlaGNC">          60 :     }</span></span>
+<span id="L476"><span class="lineNum">     476</span>              : </span>
+<span id="L477"><span class="lineNum">     477</span> <span class="tlaGNC">           1 :     TodoTask** search_results = todo_search(&quot;needle&quot;, &amp;count);</span></span>
+<span id="L478"><span class="lineNum">     478</span> <span class="tlaGNC">           1 :     TEST(&quot;FTS search returns capped results&quot;, search_results &amp;&amp; count == 50);</span></span>
+<span id="L479"><span class="lineNum">     479</span> <span class="tlaGNC">           1 :     if (search_results) {</span></span>
+<span id="L480"><span class="lineNum">     480</span> <span class="tlaGNC">           1 :         TEST(&quot;FTS search keeps pending status only&quot;, search_results[0]-&gt;status == TODO_STATUS_PENDING);</span></span>
+<span id="L481"><span class="lineNum">     481</span> <span class="tlaGNC">           1 :         todo_free_tasks(search_results, count);</span></span>
+<span id="L482"><span class="lineNum">     482</span> <span class="tlaGNC">           1 :     }</span></span>
+<span id="L483"><span class="lineNum">     483</span>              : </span>
+<span id="L484"><span class="lineNum">     484</span> <span class="tlaGNC">           1 :     todo_shutdown();</span></span>
+<span id="L485"><span class="lineNum">     485</span> <span class="tlaGNC">           1 : }</span></span>
+<span id="L486"><span class="lineNum">     486</span>              : </span>
+<span id="L487"><span class="lineNum">     487</span> <span class="tlaGNC">           1 : void test_todo_stats_and_error_handling(void) {</span></span>
+<span id="L488"><span class="lineNum">     488</span> <span class="tlaGNC">           1 :     TEST_SECTION(&quot;Todo Stats and SQLite Error Handling&quot;);</span></span>
+<span id="L489"><span class="lineNum">     489</span>              : </span>
+<span id="L490"><span class="lineNum">     490</span> <span class="tlaGNC">           1 :     reset_tables();</span></span>
+<span id="L491"><span class="lineNum">     491</span>              : </span>
+<span id="L492"><span class="lineNum">     492</span> <span class="tlaGNC">           1 :     time_t now = time(NULL);</span></span>
+<span id="L493"><span class="lineNum">     493</span>              : </span>
+<span id="L494"><span class="lineNum">     494</span> <span class="tlaGNC">           1 :     TodoCreateOptions opts = {0};</span></span>
+<span id="L495"><span class="lineNum">     495</span> <span class="tlaGNC">           1 :     opts.title = &quot;Pending&quot;;</span></span>
+<span id="L496"><span class="lineNum">     496</span> <span class="tlaGNC">           1 :     opts.priority = TODO_PRIORITY_NORMAL;</span></span>
+<span id="L497"><span class="lineNum">     497</span> <span class="tlaGNC">           1 :     opts.due_date = now - 3600;</span></span>
+<span id="L498"><span class="lineNum">     498</span> <span class="tlaGNC">           1 :     todo_create(&amp;opts);</span></span>
+<span id="L499"><span class="lineNum">     499</span>              : </span>
+<span id="L500"><span class="lineNum">     500</span> <span class="tlaGNC">           1 :     opts.title = &quot;In Progress&quot;;</span></span>
+<span id="L501"><span class="lineNum">     501</span> <span class="tlaGNC">           1 :     int64_t in_progress_id = todo_create(&amp;opts);</span></span>
+<span id="L502"><span class="lineNum">     502</span> <span class="tlaGNC">           1 :     todo_start(in_progress_id);</span></span>
+<span id="L503"><span class="lineNum">     503</span>              : </span>
+<span id="L504"><span class="lineNum">     504</span> <span class="tlaGNC">           1 :     opts.title = &quot;Completed&quot;;</span></span>
+<span id="L505"><span class="lineNum">     505</span> <span class="tlaGNC">           1 :     int64_t completed_id = todo_create(&amp;opts);</span></span>
+<span id="L506"><span class="lineNum">     506</span> <span class="tlaGNC">           1 :     todo_complete(completed_id);</span></span>
+<span id="L507"><span class="lineNum">     507</span>              : </span>
+<span id="L508"><span class="lineNum">     508</span> <span class="tlaGNC">           1 :     inbox_capture(&quot;Process me&quot;, &quot;cli&quot;);</span></span>
+<span id="L509"><span class="lineNum">     509</span>              : </span>
+<span id="L510"><span class="lineNum">     510</span> <span class="tlaGNC">           1 :     TodoStats stats = todo_get_stats();</span></span>
+<span id="L511"><span class="lineNum">     511</span> <span class="tlaGNC">           1 :     TEST(&quot;Stats counts pending&quot;, stats.total_pending == 1);</span></span>
+<span id="L512"><span class="lineNum">     512</span> <span class="tlaGNC">           1 :     TEST(&quot;Stats counts in-progress&quot;, stats.total_in_progress == 1);</span></span>
+<span id="L513"><span class="lineNum">     513</span> <span class="tlaGNC">           1 :     TEST(&quot;Stats counts completed today&quot;, stats.total_completed_today &gt;= 1);</span></span>
+<span id="L514"><span class="lineNum">     514</span> <span class="tlaGNC">           1 :     TEST(&quot;Stats counts overdue&quot;, stats.total_overdue == 2);</span></span>
+<span id="L515"><span class="lineNum">     515</span> <span class="tlaGNC">           1 :     TEST(&quot;Stats counts inbox backlog&quot;, stats.inbox_unprocessed == 1);</span></span>
+<span id="L516"><span class="lineNum">     516</span>              : </span>
+<span id="L517"><span class="lineNum">     517</span>              :     // Simulate missing prepared statement and ensure graceful recovery</span>
+<span id="L518"><span class="lineNum">     518</span> <span class="tlaGNC">           1 :     todo_invalidate_stats_statement();</span></span>
+<span id="L519"><span class="lineNum">     519</span> <span class="tlaGNC">           1 :     TodoStats stats_after = todo_get_stats();</span></span>
+<span id="L520"><span class="lineNum">     520</span> <span class="tlaGNC">           1 :     TEST(&quot;Stats recompute after invalidation&quot;, stats_after.total_pending == stats.total_pending);</span></span>
+<span id="L521"><span class="lineNum">     521</span> <span class="tlaGNC">           1 :     TEST(&quot;Stats overdue persists after reprepare&quot;, stats_after.total_overdue == stats.total_overdue);</span></span>
+<span id="L522"><span class="lineNum">     522</span>              : </span>
+<span id="L523"><span class="lineNum">     523</span> <span class="tlaGNC">           1 :     todo_shutdown();</span></span>
+<span id="L524"><span class="lineNum">     524</span> <span class="tlaGNC">           1 : }</span></span>
+<span id="L525"><span class="lineNum">     525</span>              : </span>
+<span id="L526"><span class="lineNum">     526</span> <span class="tlaGNC">           1 : void test_notifications_and_mcp_integration(void) {</span></span>
+<span id="L527"><span class="lineNum">     527</span> <span class="tlaGNC">           1 :     TEST_SECTION(&quot;Notification Queue and MCP Integration&quot;);</span></span>
+<span id="L528"><span class="lineNum">     528</span>              : </span>
+<span id="L529"><span class="lineNum">     529</span> <span class="tlaGNC">           1 :     reset_tables();</span></span>
+<span id="L530"><span class="lineNum">     530</span>              : </span>
+<span id="L531"><span class="lineNum">     531</span> <span class="tlaGNC">           1 :     time_t now = time(NULL);</span></span>
+<span id="L532"><span class="lineNum">     532</span> <span class="tlaGNC">           1 :     int64_t notif1 = notify_schedule(1, now + 60, NOTIFY_METHOD_TERMINAL);</span></span>
+<span id="L533"><span class="lineNum">     533</span> <span class="tlaGNC">           1 :     int64_t notif2 = notify_schedule(2, now + 120, NOTIFY_METHOD_LOG);</span></span>
+<span id="L534"><span class="lineNum">     534</span>              : </span>
+<span id="L535"><span class="lineNum">     535</span> <span class="tlaGNC">           1 :     TEST(&quot;Notification scheduling returns IDs&quot;, notif1 &gt; 0 &amp;&amp; notif2 &gt; 0);</span></span>
+<span id="L536"><span class="lineNum">     536</span>              : </span>
+<span id="L537"><span class="lineNum">     537</span> <span class="tlaGNC">           1 :     int ncount = 0;</span></span>
+<span id="L538"><span class="lineNum">     538</span> <span class="tlaGNC">           1 :     ScheduledNotification** pending = notify_list_pending(&amp;ncount);</span></span>
+<span id="L539"><span class="lineNum">     539</span> <span class="tlaGNC">           1 :     TEST(&quot;Pending notification list populated&quot;, pending &amp;&amp; ncount == 2);</span></span>
+<span id="L540"><span class="lineNum">     540</span> <span class="tlaGNC">           1 :     if (pending &amp;&amp; ncount == 2) {</span></span>
+<span id="L541"><span class="lineNum">     541</span> <span class="tlaGNC">           1 :         TEST(&quot;Notifications ordered by schedule&quot;, pending[0]-&gt;scheduled_at &lt;= pending[1]-&gt;scheduled_at);</span></span>
+<span id="L542"><span class="lineNum">     542</span> <span class="tlaGNC">           1 :     }</span></span>
+<span id="L543"><span class="lineNum">     543</span>              : </span>
+<span id="L544"><span class="lineNum">     544</span> <span class="tlaGNC">           1 :     notify_snooze_for(notif1, 5);</span></span>
+<span id="L545"><span class="lineNum">     545</span> <span class="tlaGNC">           1 :     ScheduledNotification* snoozed = notify_get(notif1);</span></span>
+<span id="L546"><span class="lineNum">     546</span> <span class="tlaGNC">           1 :     TEST(&quot;Snoozed notification updates status&quot;, snoozed &amp;&amp; snoozed-&gt;status == NOTIFY_STATUS_SNOOZED);</span></span>
+<span id="L547"><span class="lineNum">     547</span> <span class="tlaGNC">           1 :     notify_free(snoozed);</span></span>
+<span id="L548"><span class="lineNum">     548</span>              : </span>
+<span id="L549"><span class="lineNum">     549</span> <span class="tlaGNC">           1 :     notify_cancel(notif2);</span></span>
+<span id="L550"><span class="lineNum">     550</span> <span class="tlaGNC">           1 :     ScheduledNotification* cancelled = notify_get(notif2);</span></span>
+<span id="L551"><span class="lineNum">     551</span> <span class="tlaGNC">           1 :     TEST(&quot;Cancelled notification removed&quot;, cancelled == NULL);</span></span>
+<span id="L552"><span class="lineNum">     552</span>              : </span>
+<span id="L553"><span class="lineNum">     553</span> <span class="tlaGNC">           1 :     if (pending) {</span></span>
+<span id="L554"><span class="lineNum">     554</span> <span class="tlaGNC">           1 :         notify_free_list(pending, ncount);</span></span>
+<span id="L555"><span class="lineNum">     555</span> <span class="tlaGNC">           1 :     }</span></span>
+<span id="L556"><span class="lineNum">     556</span>              : </span>
+<span id="L557"><span class="lineNum">     557</span>              :     // MCP network failure simulation</span>
+<span id="L558"><span class="lineNum">     558</span> <span class="tlaGNC">           1 :     mcp_init();</span></span>
+<span id="L559"><span class="lineNum">     559</span> <span class="tlaGNC">           1 :     MCPServerConfig cfg = {0};</span></span>
+<span id="L560"><span class="lineNum">     560</span> <span class="tlaGNC">           1 :     cfg.name = &quot;netfail&quot;;</span></span>
+<span id="L561"><span class="lineNum">     561</span> <span class="tlaGNC">           1 :     cfg.enabled = true;</span></span>
+<span id="L562"><span class="lineNum">     562</span> <span class="tlaGNC">           1 :     cfg.transport = MCP_TRANSPORT_HTTP;</span></span>
+<span id="L563"><span class="lineNum">     563</span> <span class="tlaGNC">           1 :     cfg.url = &quot;http://127.0.0.1:9&quot;;  // closed port to force connection failure</span></span>
+<span id="L564"><span class="lineNum">     564</span> <span class="tlaGNC">           1 :     cfg.timeout_ms = 200;</span></span>
+<span id="L565"><span class="lineNum">     565</span>              : </span>
+<span id="L566"><span class="lineNum">     566</span> <span class="tlaGNC">           1 :     int add_rc = mcp_add_server(&amp;cfg);</span></span>
+<span id="L567"><span class="lineNum">     567</span> <span class="tlaGNC">           1 :     TEST(&quot;Added MCP server config&quot;, add_rc == 0);</span></span>
+<span id="L568"><span class="lineNum">     568</span>              : </span>
+<span id="L569"><span class="lineNum">     569</span> <span class="tlaGNC">           1 :     int connect_rc = mcp_connect(&quot;netfail&quot;);</span></span>
+<span id="L570"><span class="lineNum">     570</span> <span class="tlaGNC">           1 :     TEST(&quot;MCP connect fails fast on network error&quot;, connect_rc != MCP_OK);</span></span>
+<span id="L571"><span class="lineNum">     571</span>              : </span>
+<span id="L572"><span class="lineNum">     572</span> <span class="tlaGNC">           1 :     const char* last_err = mcp_get_last_error(&quot;netfail&quot;);</span></span>
+<span id="L573"><span class="lineNum">     573</span> <span class="tlaGNC">           1 :     TEST(&quot;MCP records last error&quot;, last_err != NULL &amp;&amp; strlen(last_err) &gt; 0);</span></span>
+<span id="L574"><span class="lineNum">     574</span>              : </span>
+<span id="L575"><span class="lineNum">     575</span> <span class="tlaGNC">           1 :     mcp_shutdown();</span></span>
+<span id="L576"><span class="lineNum">     576</span> <span class="tlaGNC">           1 : }</span></span>
+<span id="L577"><span class="lineNum">     577</span>              : </span>
+<span id="L578"><span class="lineNum">     578</span>              : // Note: Notification and MCP tests are now integrated in test_notifications_and_mcp_integration()</span>
+<span id="L579"><span class="lineNum">     579</span>              : // Phase 2 (Notifications) and Phase 3 (MCP Client) are fully implemented in v4.2.0</span>
+<span id="L580"><span class="lineNum">     580</span>              : </span>
+<span id="L581"><span class="lineNum">     581</span>              : // ============================================================================</span>
+<span id="L582"><span class="lineNum">     582</span>              : // MAIN</span>
+<span id="L583"><span class="lineNum">     583</span>              : // ============================================================================</span>
+<span id="L584"><span class="lineNum">     584</span>              : </span>
+<span id="L585"><span class="lineNum">     585</span> <span class="tlaGNC">           1 : int main(int argc, char* argv[]) {</span></span>
+<span id="L586"><span class="lineNum">     586</span> <span class="tlaGNC">           1 :     (void)argc; (void)argv;</span></span>
+<span id="L587"><span class="lineNum">     587</span>              : </span>
+<span id="L588"><span class="lineNum">     588</span> <span class="tlaGNC">           1 :     printf(&quot;\n&quot;);</span></span>
+<span id="L589"><span class="lineNum">     589</span> <span class="tlaGNC">           1 :     printf(&quot;╔═══════════════════════════════════════════════════════════════╗\n&quot;);</span></span>
+<span id="L590"><span class="lineNum">     590</span> <span class="tlaGNC">           1 :     printf(&quot;║         ANNA EXECUTIVE ASSISTANT UNIT TESTS                    ║\n&quot;);</span></span>
+<span id="L591"><span class="lineNum">     591</span> <span class="tlaGNC">           1 :     printf(&quot;╚═══════════════════════════════════════════════════════════════╝\n&quot;);</span></span>
+<span id="L592"><span class="lineNum">     592</span>              : </span>
+<span id="L593"><span class="lineNum">     593</span>              :     // Setup test database</span>
+<span id="L594"><span class="lineNum">     594</span> <span class="tlaGNC">           1 :     if (setup_test_db() != 0) {</span></span>
+<span id="L595"><span class="lineNum">     595</span> <span class="tlaUNC">           0 :         fprintf(stderr, &quot;Failed to setup test database\n&quot;);</span></span>
+<span id="L596"><span class="lineNum">     596</span> <span class="tlaUNC">           0 :         return 1;</span></span>
+<span id="L597"><span class="lineNum">     597</span>              :     }</span>
+<span id="L598"><span class="lineNum">     598</span>              : </span>
+<span id="L599"><span class="lineNum">     599</span>              :     // Run todo tests</span>
+<span id="L600"><span class="lineNum">     600</span> <span class="tlaGNC">           1 :     test_todo_date_parsing();</span></span>
+<span id="L601"><span class="lineNum">     601</span> <span class="tlaGNC">           1 :     test_iso8601_parsing();</span></span>
+<span id="L602"><span class="lineNum">     602</span> <span class="tlaGNC">           1 :     test_todo_priority_parsing();</span></span>
+<span id="L603"><span class="lineNum">     603</span> <span class="tlaGNC">           1 :     test_todo_crud_operations();</span></span>
+<span id="L604"><span class="lineNum">     604</span> <span class="tlaGNC">           1 :     test_todo_list_operations();</span></span>
+<span id="L605"><span class="lineNum">     605</span> <span class="tlaGNC">           1 :     test_todo_inbox();</span></span>
+<span id="L606"><span class="lineNum">     606</span> <span class="tlaGNC">           1 :     test_todo_queries_and_search();</span></span>
+<span id="L607"><span class="lineNum">     607</span> <span class="tlaGNC">           1 :     test_todo_stats_and_error_handling();</span></span>
+<span id="L608"><span class="lineNum">     608</span> <span class="tlaGNC">           1 :     test_notifications_and_mcp_integration();</span></span>
+<span id="L609"><span class="lineNum">     609</span>              : </span>
+<span id="L610"><span class="lineNum">     610</span>              :     // Cleanup</span>
+<span id="L611"><span class="lineNum">     611</span> <span class="tlaGNC">           1 :     teardown_test_db();</span></span>
+<span id="L612"><span class="lineNum">     612</span>              : </span>
+<span id="L613"><span class="lineNum">     613</span>              :     // Summary</span>
+<span id="L614"><span class="lineNum">     614</span> <span class="tlaGNC">           1 :     printf(&quot;\n&quot;);</span></span>
+<span id="L615"><span class="lineNum">     615</span> <span class="tlaGNC">           1 :     printf(&quot;═══════════════════════════════════════════════════════════════\n&quot;);</span></span>
+<span id="L616"><span class="lineNum">     616</span> <span class="tlaGNC">           1 :     printf(&quot;  Tests Run:    %d\n&quot;, tests_run);</span></span>
+<span id="L617"><span class="lineNum">     617</span> <span class="tlaGNC">           1 :     printf(&quot;  Tests Passed: \033[32m%d\033[0m\n&quot;, tests_passed);</span></span>
+<span id="L618"><span class="lineNum">     618</span> <span class="tlaGNC">           1 :     printf(&quot;  Tests Failed: \033[31m%d\033[0m\n&quot;, tests_failed);</span></span>
+<span id="L619"><span class="lineNum">     619</span> <span class="tlaGNC">           1 :     printf(&quot;═══════════════════════════════════════════════════════════════\n&quot;);</span></span>
+<span id="L620"><span class="lineNum">     620</span>              : </span>
+<span id="L621"><span class="lineNum">     621</span> <span class="tlaGNC">           1 :     return tests_failed &gt; 0 ? 1 : 0;</span></span>
+<span id="L622"><span class="lineNum">     622</span> <span class="tlaGNC">           1 : }</span></span>
+        </pre>
+              </td>
+            </tr>
+          </table>
+          <br>
+
+          <table width="100%" border=0 cellspacing=0 cellpadding=0>
+            <tr><td class="ruler"><img src="../glass.png" width=3 height=3 alt=""></td></tr>
+            <tr><td class="versionInfo">Generated by: <a href="https://github.com//linux-test-project/lcov" target="_parent">LCOV version 2.3.2-1</a></td></tr>
+          </table>
+          <br>
+
+</body>
+</html>
