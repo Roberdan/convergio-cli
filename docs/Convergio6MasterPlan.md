@@ -1,9 +1,9 @@
 # Execution Plan: Convergio 6.0 - Zed Integration MVP
 
 **Created**: 2025-12-18
-**Last Updated**: 2025-12-19 17:30
-**Status**: 🔧 Chat Persistence parzialmente risolto - richiede ACP resume
-**Progress**: 20/21 tasks (95%) - ACP resume in backlog
+**Last Updated**: 2025-12-19 18:30
+**Status**: ✅ MVP COMPLETATO - Chat Persistence funzionante
+**Progress**: 23/23 tasks (100%) - Tutte le feature implementate
 **Branch**: `feature/acp-zed-integration`
 **Goal**: Editor AI-first con multi-agent panel integrato
 
@@ -81,31 +81,34 @@ FASE 5 (Polish):  Icons, themes, onboarding          → ⏸️ FUTURE
 | F3 | Persistenza conversazioni per agente | ✅✅ | 2 gg | HistoryStore.save_acp_thread + thread_by_agent_name |
 | F4 | Branding: icon Convergio Panel | ✅✅ | 0.5 gg | UserGroup icon per Convergio, Ai per Ali |
 
-### 🔧 Chat Persistence - PARZIALMENTE RISOLTO
+### ✅ Chat Persistence - COMPLETATO
 
 | ID | Task | Status | Effort | Note |
 |----|------|--------|--------|------|
-| BUG1a | DB: Aggiungere campo agent_name | ✅✅ | 0.5 gg | DbThreadMetadata + DbThread + colonna DB |
+| BUG1a | DB: Aggiungere campo agent_name (Zed) | ✅✅ | 0.5 gg | DbThreadMetadata + DbThread + colonna DB |
 | BUG1b | Ricerca: thread_by_agent_name usa agent_name | ✅✅ | 0.5 gg | Cerca per agent_name invece che title |
 | BUG1c | Salvataggio: agent_name in save_thread_metadata | ✅✅ | 0.5 gg | Convergio threads salvano agent server name |
-| BUG1d | ACP Resume: Supporto session resume | ⏸️ | 2 gg | Richiede modifica protocollo ACP |
+| BUG1d | ACP Resume: Persistenza sessioni su disco | ✅✅ | 1 gg | ~/.convergio/sessions/ con JSON |
+| BUG1e | ACP Resume: Auto-resume per agent_name | ✅✅ | 0.5 gg | Server cerca automaticamente sessioni precedenti |
+| BUG1f | ACP Resume: History context nel prompt | ✅✅ | 0.5 gg | Messaggi precedenti inclusi come contesto |
 
-**Stato attuale**:
-- ✅ I thread vengono salvati con agent_name
-- ✅ La ricerca trova il thread esistente per agente
-- ⚠️ **LIMITAZIONE**: Il protocollo ACP non supporta il resume delle sessioni
-- ⚠️ Quando si clicca sull'agente, viene trovato il thread ma comunque creata una nuova sessione ACP
-
-**Per completare il resume servono modifiche lato server (convergio-acp)**:
-1. Aggiungere `resume_session_id` opzionale a `session/new`
-2. Il server deve mantenere lo stato della sessione
-3. Se `resume_session_id` è presente, caricare i messaggi precedenti
+**Implementazione completa**:
+1. ✅ **Lato Zed**: I thread vengono salvati con `agent_name`
+2. ✅ **Lato convergio-acp**:
+   - Sessioni salvate su disco in `~/.convergio/sessions/`
+   - Auto-resume per agent_name quando si apre una nuova sessione
+   - History dei messaggi inclusa come contesto nel prompt
+   - L'agente "ricorda" le conversazioni precedenti
 
 **File modificati** (2025-12-19):
-- `crates/agent/src/db.rs` - agent_name in DbThreadMetadata + DbThread + query
-- `crates/agent/src/history_store.rs` - thread_by_agent_name migliorato
-- `crates/agent_ui/src/agent_panel.rs` - ricerca per full agent name
-- `crates/agent_ui/src/acp/thread_view.rs` - salva agent_name + log per ACP resume
+- **convergio-zed**:
+  - `crates/agent/src/db.rs` - agent_name in DbThreadMetadata + DbThread + query
+  - `crates/agent/src/history_store.rs` - thread_by_agent_name migliorato
+  - `crates/agent_ui/src/agent_panel.rs` - ricerca per full agent name
+  - `crates/agent_ui/src/acp/thread_view.rs` - salva agent_name + log per ACP resume
+- **ConvergioCLI**:
+  - `include/nous/acp.h` - ACPSession con message history
+  - `src/acp/acp_server.c` - persistenza sessioni, auto-resume, history context
 
 ---
 
