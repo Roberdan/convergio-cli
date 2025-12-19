@@ -1,9 +1,9 @@
 # Education Pack Implementation Plan
 
 **Created**: 2025-12-19
-**Last Updated**: 2025-12-19 22:00
-**Status**: Planning
-**Progress**: 0/156 tasks (0%)
+**Last Updated**: 2025-12-20 00:15
+**Status**: In Progress
+**Progress**: 47/156 tasks (30%)
 **Branch**: `feature/education-pack`
 **Worktree**: `../ConvergioCLI-education`
 **Goal**: Sistema educativo con maestri storici, toolkit didattico completo, accessibilita adattiva
@@ -35,10 +35,10 @@
 ## QUICK STATUS
 
 ```
-FASE 1 (Setup):      Profilo studente + Setup wizard              → [ ] TODO
-FASE 2 (Maestri):    14 Maestri storici [7 THREAD PARALLELI]      → [ ] TODO
-FASE 3 (Toolkit):    Tool didattici [10 THREAD PARALLELI]         → [ ] TODO  ← NUOVO
-FASE 4 (Curriculum): Liceo Scientifico + altri [3 THREAD]         → [ ] TODO
+FASE 1 (Setup):      Profilo studente + Setup wizard              → [~] IN PROGRESS (DB done, wizard TODO)
+FASE 2 (Maestri):    14 Maestri storici [7 THREAD PARALLELI]      → [x] DONE (14/14)
+FASE 3 (Toolkit):    Tool didattici [10 THREAD PARALLELI]         → [~] IN PROGRESS (5 core tools done)
+FASE 4 (Curriculum): Liceo Scientifico + altri [3 THREAD]         → [~] IN PROGRESS (1/7 curricula)
 FASE 5 (Features):   Quiz, compiti, study sessions [4 THREAD]     → [ ] TODO
 FASE 6 (A11y):       Accessibilita profonda [5 THREAD PARALLELI]  → [ ] TODO
 FASE 7 (Coord):      Ali preside + Anna reminder                  → [ ] TODO
@@ -133,16 +133,18 @@ FASE 8 (Test):       Test con utenti reali [5 THREAD]             → [ ] TODO
 | S08 | Generazione profilo | [ ] | Salvataggio DB |
 | S09 | Broadcast profilo a maestri | [ ] | Tutti caricano |
 
-### 1.2 Database Schema (PARALLELO - 3 thread)
+### 1.2 Database Schema (PARALLELO - 3 thread) ✅ COMPLETE
 
 | ID | Task | Status | Thread |
 |----|------|--------|--------|
-| S10 | Schema `student_profiles` | [ ] | Thread A |
-| S11 | Schema `learning_progress` | [ ] | Thread A |
-| S12 | Schema `accessibility_settings` | [ ] | Thread B |
-| S13 | Schema `student_goals` | [ ] | Thread B |
-| S14 | Schema `learning_sessions` | [ ] | Thread C |
-| S15 | Schema `toolkit_outputs` (mappe, quiz salvati) | [ ] | Thread C |
+| S10 | Schema `student_profiles` | [x] | Thread A |
+| S11 | Schema `learning_progress` | [x] | Thread A |
+| S12 | Schema `accessibility_settings` | [x] | Thread B |
+| S13 | Schema `student_goals` | [x] | Thread B |
+| S14 | Schema `learning_sessions` | [x] | Thread C |
+| S15 | Schema `toolkit_outputs` (mappe, quiz salvati) | [x] | Thread C |
+
+> **BONUS**: Implementati anche: `flashcard_decks`, `flashcard_reviews`, `quiz_history`, `gamification`, `curriculum_progress`, `inbox` (12 tabelle totali in `education_db.c`)
 
 ### 1.3 API Layer
 
@@ -154,51 +156,51 @@ FASE 8 (Test):       Test con utenti reali [5 THREAD]             → [ ] TODO
 
 ---
 
-## FASE 2 - I 14 MAESTRI (PARALLELO - 7 thread)
+## FASE 2 - I 14 MAESTRI (PARALLELO - 7 thread) ✅ COMPLETE
 
 Ogni thread crea 2 maestri in parallelo.
 
-### Thread 1 - Umanistici
+### Thread 1 - Umanistici ✅
 | ID | Task | Status | File |
 |----|------|--------|------|
-| M01 | Socrate (Filosofia) | [ ] | `education/socrate-filosofia.md` |
-| M02 | Manzoni (Italiano) | [ ] | `education/manzoni-italiano.md` |
+| M01 | Socrate (Filosofia) | [x] | `education/socrate-filosofia.md` |
+| M02 | Manzoni (Italiano) | [x] | `education/manzoni-italiano.md` |
 
-### Thread 2 - Scientifici
+### Thread 2 - Scientifici ✅
 | ID | Task | Status | File |
 |----|------|--------|------|
-| M03 | Euclide (Matematica) | [ ] | `education/euclide-matematica.md` |
-| M04 | Feynman (Fisica) | [ ] | `education/feynman-fisica.md` |
+| M03 | Euclide (Matematica) | [x] | `education/euclide-matematica.md` |
+| M04 | Feynman (Fisica) | [x] | `education/feynman-fisica.md` |
 
-### Thread 3 - Storico-Geografici
+### Thread 3 - Storico-Geografici ✅
 | ID | Task | Status | File |
 |----|------|--------|------|
-| M05 | Erodoto (Storia) | [ ] | `education/erodoto-storia.md` |
-| M06 | Humboldt (Geografia) | [ ] | `education/humboldt-geografia.md` |
+| M05 | Erodoto (Storia) | [x] | `education/erodoto-storia.md` |
+| M06 | Humboldt (Geografia) | [x] | `education/humboldt-geografia.md` |
 
-### Thread 4 - Scienze/Arte
+### Thread 4 - Scienze/Arte ✅
 | ID | Task | Status | File |
 |----|------|--------|------|
-| M07 | Darwin (Scienze) | [ ] | `education/darwin-scienze.md` |
-| M08 | Leonardo (Arte) | [ ] | `education/leonardo-arte.md` |
+| M07 | Darwin (Scienze) | [x] | `education/darwin-scienze.md` |
+| M08 | Leonardo (Arte) | [x] | `education/leonardo-arte.md` |
 
-### Thread 5 - Lingue/Musica
+### Thread 5 - Lingue/Musica ✅
 | ID | Task | Status | File |
 |----|------|--------|------|
-| M09 | Shakespeare (Inglese) | [ ] | `education/shakespeare-inglese.md` |
-| M10 | Mozart (Musica) | [ ] | `education/mozart-musica.md` |
+| M09 | Shakespeare (Inglese) | [x] | `education/shakespeare-inglese.md` |
+| M10 | Mozart (Musica) | [x] | `education/mozart-musica.md` |
 
-### Thread 6 - Extended 1
+### Thread 6 - Extended 1 ✅
 | ID | Task | Status | File |
 |----|------|--------|------|
-| M11 | Cicerone (Ed. Civica) | [ ] | `education/cicerone-civica.md` |
-| M12 | Adam Smith (Economia) | [ ] | `education/smith-economia.md` |
+| M11 | Cicerone (Ed. Civica) | [x] | `education/cicerone-civica.md` |
+| M12 | Adam Smith (Economia) | [x] | `education/smith-economia.md` |
 
-### Thread 7 - Extended 2
+### Thread 7 - Extended 2 ✅
 | ID | Task | Status | File |
 |----|------|--------|------|
-| M13 | Ada Lovelace (Informatica) | [ ] | `education/lovelace-informatica.md` |
-| M14 | Ippocrate (Sport/Corpo) | [ ] | `education/ippocrate-corpo.md` |
+| M13 | Ada Lovelace (Informatica) | [x] | `education/lovelace-informatica.md` |
+| M14 | Ippocrate (Sport/Corpo) | [x] | `education/ippocrate-corpo.md` |
 
 ---
 
@@ -211,12 +213,12 @@ Ogni thread crea 2 maestri in parallelo.
 
 ---
 
-### Thread T1 - MAPPE MENTALI (P0)
+### Thread T1 - MAPPE MENTALI (P0) - `mindmap.c` (378 LOC)
 
 | ID | Task | Status | Priority | Note |
 |----|------|--------|----------|------|
-| TK01 | Engine generazione mappa da testo | [ ] | P0 | LLM → struttura |
-| TK02 | Renderer Mermaid | [ ] | P0 | Mermaid.js syntax |
+| TK01 | Engine generazione mappa da testo | [x] | P0 | `mindmap_generate_mermaid()` |
+| TK02 | Renderer Mermaid | [x] | P0 | Templates Mermaid inclusi |
 | TK03 | Export SVG | [ ] | P0 | Per modifica |
 | TK04 | Export PNG | [ ] | P0 | Per stampa |
 | TK05 | Export PDF | [ ] | P1 | Print-ready |
@@ -224,30 +226,30 @@ Ogni thread crea 2 maestri in parallelo.
 
 ---
 
-### Thread T2 - QUIZ ENGINE (P0)
+### Thread T2 - QUIZ ENGINE (P0) - `quiz.c` (682 LOC) ✅ CORE COMPLETE
 
 | ID | Task | Status | Priority | Note |
 |----|------|--------|----------|------|
-| TK07 | Framework quiz base | [ ] | P0 | Core engine |
-| TK08 | Tipo: Scelta multipla | [ ] | P0 | 4 opzioni + feedback |
-| TK09 | Tipo: Vero/Falso | [ ] | P0 | Con spiegazione |
-| TK10 | Tipo: Risposta aperta | [ ] | P1 | Valutazione LLM |
-| TK11 | Tipo: Riordina sequenza | [ ] | P1 | Drag-and-drop logico |
-| TK12 | Tipo: Abbina coppie | [ ] | P1 | Matching |
-| TK13 | Tipo: Riempi vuoti | [ ] | P1 | Cloze test |
-| TK14 | Tipo: Identifica su immagine | [ ] | P2 | Anatomia, mappe |
+| TK07 | Framework quiz base | [x] | P0 | Core engine completo |
+| TK08 | Tipo: Scelta multipla | [x] | P0 | `QUIZ_MULTIPLE_CHOICE` |
+| TK09 | Tipo: Vero/Falso | [x] | P0 | `QUIZ_TRUE_FALSE` |
+| TK10 | Tipo: Risposta aperta | [x] | P1 | `QUIZ_OPEN_ANSWER` |
+| TK11 | Tipo: Riordina sequenza | [x] | P1 | `QUIZ_SEQUENCE` |
+| TK12 | Tipo: Abbina coppie | [x] | P1 | `QUIZ_MATCHING` |
+| TK13 | Tipo: Riempi vuoti | [x] | P1 | `QUIZ_CLOZE` |
+| TK14 | Tipo: Identifica su immagine | [x] | P2 | `QUIZ_IMAGE_IDENTIFY` |
 | TK15 | Generazione adattiva difficolta | [ ] | P0 | Auto-adjust |
 | TK16 | Export quiz PDF | [ ] | P1 | Per stampare |
 | TK17 | Comando `/quiz <topic> [n]` | [ ] | P0 | Genera n domande |
 
 ---
 
-### Thread T3 - FLASHCARDS + SPACED REPETITION (P0)
+### Thread T3 - FLASHCARDS + SPACED REPETITION (P0) - `flashcards.c` (638 LOC)
 
 | ID | Task | Status | Priority | Note |
 |----|------|--------|----------|------|
-| TK18 | Engine flashcards | [ ] | P0 | Fronte/retro |
-| TK19 | Algoritmo SM-2 (Anki-like) | [ ] | P0 | Spaced repetition |
+| TK18 | Engine flashcards | [x] | P0 | Fronte/retro completo |
+| TK19 | Algoritmo SM-2 (Anki-like) | [x] | P0 | `sm2_calculate_next_review()` |
 | TK20 | UI studio flashcards | [ ] | P0 | Swipe/click |
 | TK21 | Export Anki (.apkg) | [ ] | P1 | Compatibilita Anki |
 | TK22 | Export PDF stampabile | [ ] | P1 | Fronte-retro |
@@ -257,34 +259,34 @@ Ogni thread crea 2 maestri in parallelo.
 
 ---
 
-### Thread T4 - AUDIO/TTS (P0)
+### Thread T4 - AUDIO/TTS (P0) - `audio_tts.c` (494 LOC)
 
 | ID | Task | Status | Priority | Note |
 |----|------|--------|----------|------|
-| TK26 | TTS engine (AVSpeechSynthesizer) | [ ] | P0 | macOS nativo |
-| TK27 | Generazione riassunto audio | [ ] | P0 | LLM riassume → TTS |
-| TK28 | Export M4A | [ ] | P0 | File scaricabile |
+| TK26 | TTS engine (AVSpeechSynthesizer) | [x] | P0 | `tts_speak()` |
+| TK27 | Generazione riassunto audio | [x] | P0 | `tts_generate_audio()` |
+| TK28 | Export M4A | [x] | P0 | `audio_path` output |
 | TK29 | Playlist studio | [ ] | P1 | Collezione audio |
-| TK30 | Sincronizzazione testo-audio | [ ] | P0 | Highlighting live |
-| TK31 | Velocita adattiva a profilo | [ ] | P0 | Rispetta preferenze |
-| TK32 | Comando `/audio <topic>` | [ ] | P0 | Genera riassunto |
-| TK33 | Audiolibri/brani letteratura | [ ] | P1 | Per Manzoni/Shakespeare |
+| TK30 | Sincronizzazione testo-audio | [x] | P0 | `tts_generate_synced_text()` |
+| TK31 | Velocita adattiva a profilo | [x] | P0 | `TTSSettings` da profilo |
+| TK32 | Comando `/audio <topic>` | [x] | P0 | `/audio speak` implementato |
+| TK33 | Audiolibri/brani letteratura | [x] | P1 | `chapter_audio[]` per libri |
 
 ---
 
-### Thread T5 - CALCOLATRICE & MATH TOOLS (P0)
+### Thread T5 - CALCOLATRICE & MATH TOOLS (P0) - `calculator.c` (559 LOC)
 
 | ID | Task | Status | Priority | Note |
 |----|------|--------|----------|------|
-| TK34 | Calcolatrice visuale base | [ ] | P0 | Mostra passaggi |
-| TK35 | Codifica colore cifre | [ ] | P0 | Unita/decine/centinaia |
-| TK36 | Visualizzazione blocchi | [ ] | P0 | 847 = [8][4][7] |
+| TK34 | Calcolatrice visuale base | [x] | P0 | Step-by-step completo |
+| TK35 | Codifica colore cifre | [x] | P0 | `COLOR_UNITS/TENS/HUNDREDS` |
+| TK36 | Visualizzazione blocchi | [x] | P0 | Place value blocks |
 | TK37 | Risolutore equazioni step-by-step | [ ] | P0 | Mai salta passaggi |
 | TK38 | Grafici funzioni | [ ] | P1 | Plot f(x) |
 | TK39 | Geometria interattiva | [ ] | P1 | Tipo GeoGebra lite |
 | TK40 | Convertitore unita | [ ] | P1 | km↔m, kg↔g |
 | TK41 | Formulario interattivo | [ ] | P1 | Cerca formula |
-| TK42 | Frazioni visuali (pizza/torta) | [ ] | P0 | Per discalculia |
+| TK42 | Frazioni visuali (pizza/torta) | [x] | P0 | `use_visual_fractions` |
 | TK43 | Comando `/calc`, `/graph`, `/formula` | [ ] | P0 | Entry points |
 
 ---
@@ -377,8 +379,8 @@ Ogni thread crea 2 maestri in parallelo.
 ### Thread CUR-A - Licei
 | ID | Task | Status | File |
 |----|------|--------|------|
-| C01 | Parser curriculum JSON | [ ] | Core engine |
-| C02 | Liceo Scientifico (1-5) | [ ] | `curricula/it/liceo_scientifico.json` |
+| C01 | Parser curriculum JSON | [x] | In `education_db.c` |
+| C02 | Liceo Scientifico (1-5) | [x] | `curricula/it/liceo_scientifico.json` (23KB) |
 | C03 | Liceo Classico (1-5) | [ ] | `curricula/it/liceo_classico.json` |
 | C04 | Liceo Linguistico (1-5) | [ ] | `curricula/it/liceo_linguistico.json` |
 | C05 | Liceo Artistico (1-5) | [ ] | `curricula/it/liceo_artistico.json` |
@@ -625,10 +627,10 @@ FASE 8 (Test) - 5 THREAD PARALLELI
 
 ## SUCCESS CRITERIA
 
-- [ ] 14 maestri operativi e testati
-- [ ] Toolkit P0 completo (mappe, quiz, flashcards, audio, calc)
+- [x] 14 maestri operativi e testati
+- [~] Toolkit P0 completo (mappe, quiz, flashcards, audio, calc) - Core done, comandi TODO
 - [ ] Setup wizard intuitivo
-- [ ] 3+ curriculum completi
+- [~] 3+ curriculum completi - 1/7 done
 - [ ] Tutte le condizioni A11y supportate (P0)
 - [ ] Anna integration funzionante
 - [ ] Ali preside operativo
@@ -663,11 +665,18 @@ FASE 8 (Test) - 5 THREAD PARALLELI
 | 2025-12-19 22:00 | Aggiunto FASE 3 Toolkit completo (84 tool) |
 | 2025-12-19 22:00 | Parallelizzazione massima (10 thread toolkit) |
 | 2025-12-19 22:00 | Prioritizzazione P0/P1/P2 |
+| 2025-12-20 00:15 | **SYNC**: Aggiornato stato reale implementazione (47/156 = 30%) |
+| 2025-12-20 00:15 | FASE 2 completata: tutti 14 maestri implementati |
+| 2025-12-20 00:15 | FASE 1.2 completata: 12 tabelle DB (6 pianificate + 6 bonus) |
+| 2025-12-20 00:15 | FASE 3 parziale: 5 core tools (mindmap, quiz, flashcards, audio, calc) |
+| 2025-12-20 00:15 | FASE 4 parziale: Liceo Scientifico (23KB) |
 
 ---
 
 **Piano creato**: 2025-12-19
-**Ultimo aggiornamento**: 2025-12-19 22:00
+**Ultimo aggiornamento**: 2025-12-20 00:15
 **Task totali**: 156
+**Task completati**: 47
+**Percentuale**: 30%
 **Thread paralleli max**: 10
 **Autore**: Roberto con supporto team agenti AI
