@@ -2,6 +2,7 @@
  * CONVERGIO KERNEL - Education Pack Commands
  *
  * CLI commands for the Education Pack: /education, /study, /homework, etc.
+ * Properly linked to feature modules in src/education/
  *
  * Copyright (c) 2025 Convergio.io
  */
@@ -9,6 +10,10 @@
 #include "nous/commands.h"
 #include "nous/education.h"
 #include "nous/nous.h"
+
+// Include education features header from src/education/features/
+// This provides HomeworkRequest, HomeworkResponse, StudySession, etc.
+#include "../../education/features/education_features.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -21,81 +26,22 @@
 extern bool education_setup_wizard(void);
 extern bool education_quick_setup(const char* name, const char* curriculum, int grade);
 
-// From features/study_session.c (stub declarations)
-bool study_session_start(const char* subject, int duration_minutes);
-bool study_session_pause(void);
-bool study_session_resume(void);
-bool study_session_end(void);
+// From tools/mindmap.c
+extern char* mindmap_generate_from_llm(const char* topic, const char* content,
+                                        const EducationAccessibility* access);
+extern int mindmap_command_handler(int argc, char** argv,
+                                    const EducationStudentProfile* profile);
 
-// From features/homework.c (stub declarations)
-bool homework_start(const char* description);
-bool homework_add_hint(void);
+// From tools/quiz.c
+extern int quiz_command_handler(int argc, char** argv,
+                                 const EducationStudentProfile* profile);
 
-// From tools/quiz.c (stub declarations)
-char* quiz_generate(const char* topic, int num_questions);
+// From tools/flashcards.c
+extern int flashcard_command_handler(int argc, char** argv,
+                                      const EducationStudentProfile* profile);
 
-// From tools/flashcards.c (stub declarations)
-bool flashcards_create_deck(const char* name, const char* topic);
-bool flashcards_study(const char* deck_name);
-
-// From tools/mindmap.c (stub declarations)
-char* mindmap_generate_mermaid(const char* topic, int max_depth);
-
-// ============================================================================
-// STUB IMPLEMENTATIONS (until feature modules are linked)
-// ============================================================================
-
-__attribute__((weak))
-bool study_session_start(const char* subject, int duration_minutes) {
-    (void)subject; (void)duration_minutes;
-    printf("[Study session would start here - feature module not linked]\n");
-    return true;
-}
-
-__attribute__((weak))
-bool study_session_pause(void) { return true; }
-
-__attribute__((weak))
-bool study_session_resume(void) { return true; }
-
-__attribute__((weak))
-bool study_session_end(void) { return true; }
-
-__attribute__((weak))
-bool homework_start(const char* description) {
-    (void)description;
-    printf("[Homework helper would start here - feature module not linked]\n");
-    return true;
-}
-
-__attribute__((weak))
-bool homework_add_hint(void) { return true; }
-
-__attribute__((weak))
-char* quiz_generate(const char* topic, int num_questions) {
-    (void)topic; (void)num_questions;
-    return strdup("[Quiz generator not yet linked]");
-}
-
-__attribute__((weak))
-bool flashcards_create_deck(const char* name, const char* topic) {
-    (void)name; (void)topic;
-    printf("[Flashcard deck would be created here - feature module not linked]\n");
-    return true;
-}
-
-__attribute__((weak))
-bool flashcards_study(const char* deck_name) {
-    (void)deck_name;
-    printf("[Flashcard study would start here - feature module not linked]\n");
-    return true;
-}
-
-__attribute__((weak))
-char* mindmap_generate_mermaid(const char* topic, int max_depth) {
-    (void)topic; (void)max_depth;
-    return strdup("mindmap\n  root((Topic))\n    Branch1\n    Branch2\n");
-}
+// From tools/html_generator.c
+extern char* html_save_and_open(const char* html_content, const char* topic);
 
 // ============================================================================
 // COMMAND: /education
@@ -238,8 +184,8 @@ int cmd_education(int argc, char** argv) {
 /**
  * /study - Start a study session
  *
- * Usage: /study <subject> [duration]
- * Example: /study matematica 30
+ * Usage: /study <subject> [topic]
+ * Example: /study matematica "equazioni di primo grado"
  */
 int cmd_study(int argc, char** argv) {
     if (education_init() != 0) {
@@ -254,31 +200,31 @@ int cmd_study(int argc, char** argv) {
     }
 
     if (argc < 2) {
-        printf("\n📖 Study Session\n\n");
-        printf("Usage: /study <subject> [duration_minutes]\n");
-        printf("Example: /study matematica 25\n\n");
+        printf("\n📖 Study Session (Pomodoro Timer)\n\n");
+        printf("Usage: /study <subject> [topic]\n");
+        printf("Example: /study matematica \"equazioni di primo grado\"\n\n");
+        printf("Features:\n");
+        printf("  • 25-minute focused work sessions\n");
+        printf("  • 5-minute breaks (15 min after 4 pomodoros)\n");
+        printf("  • Native macOS notifications\n");
+        printf("  • End-of-session review quiz\n");
+        printf("  • Automatic time tracking\n\n");
         printf("Available subjects based on your curriculum:\n");
-        // TODO: List subjects from curriculum
         printf("  matematica, fisica, italiano, storia, inglese...\n\n");
         return 0;
     }
 
     const char* subject = argv[1];
-    int duration = 25; // Default Pomodoro duration
-
-    if (argc >= 3) {
-        duration = atoi(argv[2]);
-        if (duration < 5) duration = 5;
-        if (duration > 120) duration = 120;
-    }
+    const char* topic = (argc >= 3) ? argv[2] : subject;
 
     printf("\n📖 Starting study session...\n");
     printf("   Subject: %s\n", subject);
-    printf("   Duration: %d minutes\n", duration);
+    printf("   Topic: %s\n", topic);
     printf("   Student: %s\n\n", profile->name);
 
-    if (study_session_start(subject, duration)) {
-        printf("✓ Session started! The appropriate maestro will guide you.\n\n");
+    // Use the actual study_command_handler from study_session.c
+    int64_t session_id = study_command_handler(profile->id, subject, topic);
+    if (session_id >= 0) {
         return 0;
     } else {
         fprintf(stderr, "Failed to start study session.\n");
@@ -292,6 +238,9 @@ int cmd_study(int argc, char** argv) {
 
 /**
  * /homework - Get help with homework (anti-cheating mode)
+ *
+ * Uses Socratic method - guides understanding without providing answers.
+ * Features progressive hints and parental transparency logging.
  *
  * Usage: /homework <description>
  */
@@ -310,8 +259,13 @@ int cmd_homework(int argc, char** argv) {
     if (argc < 2) {
         printf("\n📝 Homework Helper (Anti-Cheating Mode)\n\n");
         printf("I'll help you UNDERSTAND your homework, not do it for you!\n\n");
+        printf("Features:\n");
+        printf("  • Socratic method - guiding questions only\n");
+        printf("  • 5-level progressive hint system\n");
+        printf("  • Understanding verification quiz\n");
+        printf("  • Parental transparency log\n\n");
         printf("Usage: /homework <describe your homework>\n");
-        printf("Example: /homework risolvere l'equazione 3x + 5 = 14\n\n");
+        printf("Example: /homework Matematica: risolvere l'equazione 3x + 5 = 14\n\n");
         return 0;
     }
 
@@ -331,12 +285,30 @@ int cmd_homework(int argc, char** argv) {
 
     printf("\n📝 Homework Helper\n");
     printf("   Task: %s\n", description);
-    printf("   Mode: Anti-cheating (guided learning)\n\n");
+    printf("   Mode: Anti-cheating (Socratic guidance)\n\n");
 
-    if (homework_start(description)) {
-        printf("The appropriate maestro will guide you step by step.\n\n");
+    // Use the actual homework command handler
+    HomeworkRequest* request = homework_parse_request(profile->id, description);
+    if (!request) {
+        fprintf(stderr, "Failed to parse homework request.\n");
+        return 1;
+    }
+
+    HomeworkResponse* response = homework_command_handler(request);
+    if (response) {
+        // Display Socratic guidance
+        if (response->guidance) {
+            printf("🧠 Guidance:\n%s\n\n", response->guidance);
+        }
+
+        printf("💡 Need more help? Hints are available (0=subtle to 4=detailed).\n");
+        printf("   Use /homework-hint <level> to get a progressive hint.\n\n");
+
+        homework_response_free(response);
+        homework_request_free(request);
         return 0;
     } else {
+        homework_request_free(request);
         fprintf(stderr, "Failed to start homework session.\n");
         return 1;
     }
@@ -349,7 +321,10 @@ int cmd_homework(int argc, char** argv) {
 /**
  * /quiz - Generate adaptive quizzes
  *
- * Usage: /quiz <topic> [num_questions]
+ * Features accessibility support, multiple question types,
+ * and automatic grade saving to libretto.
+ *
+ * Usage: /quiz <topic> [--count n] [--difficulty easy|medium|hard]
  */
 int cmd_quiz(int argc, char** argv) {
     if (education_init() != 0) {
@@ -357,33 +332,22 @@ int cmd_quiz(int argc, char** argv) {
         return 1;
     }
 
+    EducationStudentProfile* profile = education_profile_get_active();
+
     if (argc < 2) {
         printf("\n🧠 Quiz Generator\n\n");
-        printf("Usage: /quiz <topic> [num_questions]\n");
-        printf("Example: /quiz \"equazioni di primo grado\" 5\n\n");
+        printf("Features:\n");
+        printf("  • Multiple question types (MC, T/F, cloze, sequence)\n");
+        printf("  • Adaptive difficulty\n");
+        printf("  • Accessibility support\n");
+        printf("  • Automatic grade saving to libretto\n\n");
+        printf("Usage: /quiz <topic> [--count n] [--difficulty easy|medium|hard]\n");
+        printf("Example: /quiz \"equazioni di primo grado\" --count 5\n\n");
         return 0;
     }
 
-    const char* topic = argv[1];
-    int num_questions = 5; // Default
-
-    if (argc >= 3) {
-        num_questions = atoi(argv[2]);
-        if (num_questions < 1) num_questions = 1;
-        if (num_questions > 20) num_questions = 20;
-    }
-
-    printf("\n🧠 Generating %d questions on: %s\n\n", num_questions, topic);
-
-    char* quiz = quiz_generate(topic, num_questions);
-    if (quiz != NULL) {
-        printf("%s\n", quiz);
-        free(quiz);
-        return 0;
-    } else {
-        fprintf(stderr, "Failed to generate quiz.\n");
-        return 1;
-    }
+    // Use the actual quiz command handler from quiz.c
+    return quiz_command_handler(argc, argv, profile);
 }
 
 // ============================================================================
@@ -393,10 +357,10 @@ int cmd_quiz(int argc, char** argv) {
 /**
  * /flashcards - Create and review flashcards
  *
- * Subcommands:
- *   create <name> <topic> - Create a new deck
- *   study <name>          - Study a deck
- *   list                  - List all decks
+ * Uses SM-2 spaced repetition algorithm for optimal learning.
+ * Supports TTS, Anki export, and PDF export.
+ *
+ * Usage: /flashcards <topic> [--count n] [--export anki|pdf]
  */
 int cmd_flashcards(int argc, char** argv) {
     if (education_init() != 0) {
@@ -404,59 +368,22 @@ int cmd_flashcards(int argc, char** argv) {
         return 1;
     }
 
+    EducationStudentProfile* profile = education_profile_get_active();
+
     if (argc < 2) {
-        printf("\n📚 Flashcards (Spaced Repetition)\n\n");
-        printf("Usage:\n");
-        printf("  /flashcards create <name> <topic>  - Create new deck\n");
-        printf("  /flashcards study <name>           - Study a deck\n");
-        printf("  /flashcards list                   - List all decks\n\n");
-        printf("Example: /flashcards create verbi_latini \"coniugazioni latine\"\n\n");
+        printf("\n📚 Flashcards (SM-2 Spaced Repetition)\n\n");
+        printf("Features:\n");
+        printf("  • SM-2 algorithm for optimal spacing\n");
+        printf("  • Text-to-speech support\n");
+        printf("  • Terminal UI for study sessions\n");
+        printf("  • Export to Anki or PDF\n\n");
+        printf("Usage: /flashcards <topic> [--count n] [--export anki|pdf]\n");
+        printf("Example: /flashcards \"verbi latini\" --count 20\n\n");
         return 0;
     }
 
-    const char* subcommand = argv[1];
-
-    if (strcmp(subcommand, "create") == 0) {
-        if (argc < 4) {
-            fprintf(stderr, "Usage: /flashcards create <name> <topic>\n");
-            return 1;
-        }
-        const char* name = argv[2];
-        const char* topic = argv[3];
-
-        if (flashcards_create_deck(name, topic)) {
-            printf("✓ Deck '%s' created!\n", name);
-            return 0;
-        } else {
-            fprintf(stderr, "Failed to create deck.\n");
-            return 1;
-        }
-    }
-
-    if (strcmp(subcommand, "study") == 0) {
-        if (argc < 3) {
-            fprintf(stderr, "Usage: /flashcards study <name>\n");
-            return 1;
-        }
-        const char* name = argv[2];
-
-        if (flashcards_study(name)) {
-            return 0;
-        } else {
-            fprintf(stderr, "Failed to start study session.\n");
-            return 1;
-        }
-    }
-
-    if (strcmp(subcommand, "list") == 0) {
-        // TODO: List decks from database
-        printf("\n📚 Your flashcard decks:\n\n");
-        printf("(No decks yet. Create one with /flashcards create)\n\n");
-        return 0;
-    }
-
-    fprintf(stderr, "Unknown subcommand: %s\n", subcommand);
-    return 1;
+    // Use the actual flashcard command handler from flashcards.c
+    return flashcard_command_handler(argc, argv, profile);
 }
 
 // ============================================================================
@@ -466,7 +393,10 @@ int cmd_flashcards(int argc, char** argv) {
 /**
  * /mindmap - Generate visual mind maps
  *
- * Usage: /mindmap <concept> [depth]
+ * Generates Mermaid.js mind maps with export to SVG, PNG, and PDF.
+ * Supports accessibility adaptations (simplified, high contrast).
+ *
+ * Usage: /mindmap <concept> [--format svg|png|pdf] [--output path]
  */
 int cmd_mindmap(int argc, char** argv) {
     if (education_init() != 0) {
@@ -474,34 +404,22 @@ int cmd_mindmap(int argc, char** argv) {
         return 1;
     }
 
+    EducationStudentProfile* profile = education_profile_get_active();
+
     if (argc < 2) {
         printf("\n🗺️ Mind Map Generator\n\n");
-        printf("Usage: /mindmap <concept> [depth]\n");
-        printf("Example: /mindmap \"Rivoluzione Francese\" 3\n\n");
+        printf("Features:\n");
+        printf("  • Mermaid.js diagram generation\n");
+        printf("  • Export to SVG, PNG, or PDF\n");
+        printf("  • Accessibility adaptations\n");
+        printf("  • LLM-powered content generation\n\n");
+        printf("Usage: /mindmap <concept> [--format svg|png|pdf] [--output path]\n");
+        printf("Example: /mindmap \"Rivoluzione Francese\" --format svg\n\n");
         return 0;
     }
 
-    const char* topic = argv[1];
-    int depth = 3; // Default
-
-    if (argc >= 3) {
-        depth = atoi(argv[2]);
-        if (depth < 1) depth = 1;
-        if (depth > 5) depth = 5;
-    }
-
-    printf("\n🗺️ Generating mind map for: %s (depth: %d)\n\n", topic, depth);
-
-    char* mermaid = mindmap_generate_mermaid(topic, depth);
-    if (mermaid != NULL) {
-        printf("```mermaid\n%s\n```\n\n", mermaid);
-        free(mermaid);
-        printf("Copy this Mermaid code to visualize the mind map.\n\n");
-        return 0;
-    } else {
-        fprintf(stderr, "Failed to generate mind map.\n");
-        return 1;
-    }
+    // Use the actual mindmap command handler from mindmap.c
+    return mindmap_command_handler(argc, argv, profile);
 }
 
 // ============================================================================
@@ -768,5 +686,137 @@ int cmd_libretto(int argc, char** argv) {
     fprintf(stderr, "Uso: /libretto [voti|diario|progressi|media]\n");
 
     if (report) libretto_report_free(report);
+    return 1;
+}
+
+// ============================================================================
+// COMMAND: /html
+// ============================================================================
+
+/**
+ * /html - Save and open LLM-generated HTML interactive visualizations
+ *
+ * This command is used by maestri to create custom interactive
+ * HTML pages to support lessons. The HTML content is generated
+ * by the LLM and saved/opened with this wrapper.
+ *
+ * Usage: /html <topic>
+ *
+ * Note: In practice, the maestri generate the HTML content via LLM
+ * and call html_save_and_open() directly from their agent code.
+ * This command is for manual testing and listing saved lessons.
+ */
+int cmd_html(int argc, char** argv) {
+    if (education_init() != 0) {
+        fprintf(stderr, "Error: Education system not initialized\n");
+        return 1;
+    }
+
+    if (argc < 2) {
+        printf("\n🌐 HTML Interactive Visualizations\n\n");
+        printf("This feature allows maestri to create custom interactive\n");
+        printf("HTML pages (visualizations, simulations, diagrams) to\n");
+        printf("support their lessons.\n\n");
+        printf("How it works:\n");
+        printf("  1. The maestro generates HTML via LLM prompt\n");
+        printf("  2. HTML is saved to ~/.convergio/education/lessons/\n");
+        printf("  3. Browser opens automatically with the visualization\n\n");
+        printf("Usage: /html list                - List saved lessons\n");
+        printf("       /html open <filename>     - Open a saved lesson\n");
+        printf("       /html test <topic>        - Test with sample HTML\n\n");
+        return 0;
+    }
+
+    const char* subcommand = argv[1];
+
+    if (strcmp(subcommand, "list") == 0) {
+        // List saved HTML lessons
+        const char* home = getenv("HOME");
+        if (!home) {
+            fprintf(stderr, "Error: HOME not set\n");
+            return 1;
+        }
+
+        char lessons_dir[512];
+        snprintf(lessons_dir, sizeof(lessons_dir),
+                 "%s/.convergio/education/lessons", home);
+
+        printf("\n📂 Saved lessons in %s:\n\n", lessons_dir);
+
+        // Use system command to list files
+        char cmd[1024];
+        snprintf(cmd, sizeof(cmd), "ls -la \"%s\" 2>/dev/null || echo '  (No lessons yet)'", lessons_dir);
+        system(cmd);
+        printf("\n");
+        return 0;
+    }
+
+    if (strcmp(subcommand, "open") == 0) {
+        if (argc < 3) {
+            fprintf(stderr, "Usage: /html open <filename>\n");
+            return 1;
+        }
+
+        const char* home = getenv("HOME");
+        if (!home) {
+            fprintf(stderr, "Error: HOME not set\n");
+            return 1;
+        }
+
+        char filepath[512];
+        snprintf(filepath, sizeof(filepath),
+                 "%s/.convergio/education/lessons/%s", home, argv[2]);
+
+        printf("Opening: %s\n", filepath);
+        char cmd[1024];
+        snprintf(cmd, sizeof(cmd), "open \"%s\"", filepath);
+        return system(cmd) == 0 ? 0 : 1;
+    }
+
+    if (strcmp(subcommand, "test") == 0) {
+        const char* topic = (argc >= 3) ? argv[2] : "Convergio Test";
+
+        // Generate sample HTML to test the system
+        const char* test_html =
+            "<!DOCTYPE html>\n"
+            "<html lang=\"it\">\n"
+            "<head>\n"
+            "  <meta charset=\"UTF-8\">\n"
+            "  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n"
+            "  <title>Test - Convergio Education</title>\n"
+            "  <style>\n"
+            "    body { font-family: -apple-system, sans-serif;\n"
+            "           background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);\n"
+            "           min-height: 100vh; display: flex; align-items: center;\n"
+            "           justify-content: center; margin: 0; }\n"
+            "    .card { background: white; padding: 3rem; border-radius: 1rem;\n"
+            "            box-shadow: 0 20px 40px rgba(0,0,0,0.2); text-align: center; }\n"
+            "    h1 { color: #667eea; margin-bottom: 1rem; }\n"
+            "    p { color: #666; }\n"
+            "    .check { font-size: 4rem; color: #22c55e; }\n"
+            "  </style>\n"
+            "</head>\n"
+            "<body>\n"
+            "  <div class=\"card\">\n"
+            "    <div class=\"check\">✓</div>\n"
+            "    <h1>HTML Generator Works!</h1>\n"
+            "    <p>The maestri can now create interactive visualizations.</p>\n"
+            "  </div>\n"
+            "</body>\n"
+            "</html>\n";
+
+        char* path = html_save_and_open(test_html, topic);
+        if (path) {
+            printf("✓ Test HTML saved and opened: %s\n", path);
+            free(path);
+            return 0;
+        } else {
+            fprintf(stderr, "Failed to save test HTML.\n");
+            return 1;
+        }
+    }
+
+    fprintf(stderr, "Unknown subcommand: %s\n", subcommand);
+    fprintf(stderr, "Usage: /html [list|open|test]\n");
     return 1;
 }

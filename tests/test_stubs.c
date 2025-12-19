@@ -19,24 +19,26 @@ void* g_current_space = NULL;
 void* g_assistant = NULL;
 bool g_streaming_enabled = false;
 
-// Logging stubs (normally defined in main.c)
+// Log level for stub (global, matches extern in nous.h)
+// Use weak symbols to avoid conflicts with other test files
+__attribute__((weak))
 LogLevel g_log_level = LOG_LEVEL_INFO;
 
+// nous_log stub - required by many modules
+// Use weak symbols so test files can override with their own implementations
+__attribute__((weak))
 void nous_log(LogLevel level, LogCategory cat, const char* fmt, ...) {
-    (void)level;
-    (void)cat;
-    (void)fmt;
-    // Silent stub for tests
+    (void)level; (void)cat; (void)fmt;
+    // Silent in tests
 }
 
-void nous_log_set_level(LogLevel level) {
-    g_log_level = level;
-}
+__attribute__((weak))
+void nous_log_set_level(LogLevel level) { g_log_level = level; }
 
-LogLevel nous_log_get_level(void) {
-    return g_log_level;
-}
+__attribute__((weak))
+LogLevel nous_log_get_level(void) { return g_log_level; }
 
+__attribute__((weak))
 const char* nous_log_level_name(LogLevel level) {
     (void)level;
     return "INFO";

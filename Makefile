@@ -746,6 +746,24 @@ $(OUTPUT_SERVICE_TEST): $(OUTPUT_SERVICE_SOURCES) $(OUTPUT_SERVICE_OBJECTS)
 	@echo "Compiling output service tests..."
 	@$(CC) $(CFLAGS) $(LDFLAGS) -o $(OUTPUT_SERVICE_TEST) $(OUTPUT_SERVICE_SOURCES) $(OUTPUT_SERVICE_OBJECTS)
 
+# Education Pack test target - tests school scenarios and accessibility
+EDUCATION_TEST = $(BIN_DIR)/education_test
+EDUCATION_SOURCES = tests/test_education.c $(TEST_STUBS)
+# Use all objects except main.o for full test coverage (like unit_test)
+EDUCATION_OBJECTS = $(filter-out $(OBJ_DIR)/core/main.o,$(OBJECTS))
+
+education_test: dirs swift $(OBJECTS) $(MLX_STUBS_OBJ) $(EDUCATION_TEST)
+	@echo "Running Education Pack tests..."
+	@$(EDUCATION_TEST)
+
+$(EDUCATION_TEST): $(EDUCATION_SOURCES) $(EDUCATION_OBJECTS) $(SWIFT_LIB) $(MLX_STUBS_OBJ)
+	@echo "Compiling Education Pack tests..."
+	@if [ -s "$(SWIFT_LIB)" ]; then \
+		$(CC) $(CFLAGS) $(LDFLAGS) -o $(EDUCATION_TEST) $(EDUCATION_SOURCES) $(EDUCATION_OBJECTS) $(SWIFT_LIB) $(FRAMEWORKS) $(LIBS) $(SWIFT_RUNTIME_LIBS); \
+	else \
+		$(CC) $(CFLAGS) $(LDFLAGS) -o $(EDUCATION_TEST) $(EDUCATION_SOURCES) $(EDUCATION_OBJECTS) $(MLX_STUBS_OBJ) $(FRAMEWORKS) $(LIBS); \
+	fi
+
 # Tools test target - tests tools module including web search
 TOOLS_TEST = $(BIN_DIR)/tools_test
 TOOLS_SOURCES = tests/test_tools.c $(TEST_STUBS)

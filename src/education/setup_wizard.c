@@ -82,14 +82,30 @@ typedef struct {
 } CurriculumInfo;
 
 static const CurriculumInfo AVAILABLE_CURRICULA[] = {
-    {"elementari", "Scuola Elementare", "Classi 1-5 elementare", 1, 5},
-    {"scuola_media", "Scuola Media", "Classi 1-3 media", 6, 8},
-    {"liceo_scientifico", "Liceo Scientifico", "5 anni di liceo scientifico", 9, 13},
-    {"liceo_classico", "Liceo Classico", "5 anni di liceo classico", 9, 13},
-    {"liceo_linguistico", "Liceo Linguistico", "5 anni di liceo linguistico", 9, 13},
-    {"liceo_artistico", "Liceo Artistico", "5 anni di liceo artistico", 9, 13},
-    {"iti_informatica", "ITI Informatica", "Istituto Tecnico Informatico", 9, 13},
-    {"custom", "Percorso Personalizzato", "Scegli tu le materie", 1, 13},
+    // Scuola dell'Obbligo
+    {"elementari", "Scuola Elementare", "Classi 1-5 elementare (Primaria)", 1, 5},
+    {"scuola_media", "Scuola Media", "Classi 1-3 media (Secondaria I grado)", 6, 8},
+
+    // Licei
+    {"liceo_scientifico", "Liceo Scientifico", "5 anni con focus su matematica e scienze", 9, 13},
+    {"liceo_classico", "Liceo Classico", "5 anni con latino, greco e filosofia", 9, 13},
+    {"liceo_linguistico", "Liceo Linguistico", "5 anni con 3 lingue straniere", 9, 13},
+    {"liceo_artistico", "Liceo Artistico", "5 anni con focus su arti visive e design", 9, 13},
+    {"liceo_scienze_umane", "Liceo Scienze Umane", "5 anni con pedagogia, psicologia e sociologia", 9, 13},
+    {"liceo_musicale", "Liceo Musicale e Coreutico", "5 anni con musica o danza", 9, 13},
+
+    // Istituti Tecnici
+    {"iti_informatica", "ITI Informatica", "Istituto Tecnico - Informatica e Telecomunicazioni", 9, 13},
+    {"iti_elettronica", "ITI Elettronica", "Istituto Tecnico - Elettronica ed Elettrotecnica", 9, 13},
+    {"iti_meccanica", "ITI Meccanica", "Istituto Tecnico - Meccanica, Meccatronica ed Energia", 9, 13},
+    {"iti_chimica", "ITI Chimica", "Istituto Tecnico - Chimica, Materiali e Biotecnologie", 9, 13},
+
+    // Istituti Professionali
+    {"ipsia", "IPSIA", "Istituto Professionale - Industria e Artigianato", 9, 13},
+    {"alberghiero", "Istituto Alberghiero", "Istituto Professionale - Enogastronomia e Ospitalità", 9, 13},
+
+    // Personalizzato
+    {"custom", "Percorso Personalizzato", "Scegli tu le materie (homeschooling, esigenze speciali)", 1, 13},
     {NULL, NULL, NULL, 0, 0}
 };
 
