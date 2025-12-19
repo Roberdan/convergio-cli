@@ -640,6 +640,80 @@ static char* extract_tool_input(const char* tool_json) {
     return input;
 }
 
+/**
+ * Transform tools JSON to use Anthropic's native web_search format
+ * Replaces standard web_search tool definition with Anthropic's native format:
+ * {"type": "web_search_20250305", "name": "web_search", "max_uses": 10}
+ */
+static char* transform_tools_for_anthropic(const char* tools_json) {
+    if (!tools_json || !strstr(tools_json, "\"web_search\"")) {
+        return strdup(tools_json ? tools_json : "[]");
+    }
+
+    // Parse and rebuild tools array with native web_search
+    size_t result_size = strlen(tools_json) + 256;
+    char* result = malloc(result_size);
+    if (!result) return strdup(tools_json);
+
+    size_t offset = (size_t)snprintf(result, result_size, "[");
+    bool first = true;
+    bool web_search_added = false;
+
+    // Simple parser: look for each tool object
+    const char* pos = strchr(tools_json, '[');
+    if (!pos) {
+        free(result);
+        return strdup(tools_json);
+    }
+    pos++;
+
+    while (*pos) {
+        // Skip whitespace
+        while (*pos && (*pos == ' ' || *pos == '\n' || *pos == '\t' || *pos == ',')) pos++;
+
+        if (*pos == ']') break;
+        if (*pos != '{') { pos++; continue; }
+
+        // Find end of this tool object
+        const char* obj_start = pos;
+        int depth = 1;
+        pos++;
+        while (*pos && depth > 0) {
+            if (*pos == '{') depth++;
+            else if (*pos == '}') depth--;
+            pos++;
+        }
+
+        // Extract the tool object
+        size_t obj_len = (size_t)(pos - obj_start);
+        char* tool_obj = malloc(obj_len + 1);
+        if (!tool_obj) continue;
+        memcpy(tool_obj, obj_start, obj_len);
+        tool_obj[obj_len] = '\0';
+
+        // Check if this is the web_search tool
+        if (strstr(tool_obj, "\"web_search\"") && strstr(tool_obj, "\"name\"")) {
+            if (!web_search_added) {
+                if (!first) offset += (size_t)snprintf(result + offset, result_size - offset, ",");
+                offset += (size_t)snprintf(result + offset, result_size - offset,
+                    "{\"type\":\"web_search_20250305\",\"name\":\"web_search\",\"max_uses\":10}");
+                web_search_added = true;
+                first = false;
+            }
+        } else {
+            // Keep other tools as-is
+            if (!first) offset += (size_t)snprintf(result + offset, result_size - offset, ",");
+            offset += (size_t)snprintf(result + offset, result_size - offset, "%s", tool_obj);
+            first = false;
+        }
+
+        free(tool_obj);
+    }
+
+    snprintf(result + offset, result_size - offset, "]");
+    return result;
+}
+
 char* nous_claude_chat_with_tools(const char* system_prompt, const char* user_message,
                                    const char* tools_json, char** out_tool_calls) {
     if (!g_initialized || !user_message) return NULL;
@@ -662,18 +736,20 @@ char* nous_claude_chat_with_tools(const char* system_prompt, const char* user_me
         return NULL;
     }
 
-    // Calculate buffer size
-    size_t tools_len = tools_json ? strlen(tools_json) : 2;
+    // Transform tools to use Anthropic's native web_search format
+    char* transformed_tools = transform_tools_for_anthropic(tools_json);
+    size_t tools_len = transformed_tools ? strlen(transformed_tools) : 2;
     size_t json_size = strlen(escaped_system) + strlen(escaped_user) + tools_len + 1024;
     char* json_body = malloc(json_size);
     if (!json_body) {
         free(escaped_system);
         free(escaped_user);
+        free(transformed_tools);
         curl_easy_cleanup(curl);
         return NULL;
     }
 
-    if (tools_json && strlen(tools_json) > 0) {
+    if (transformed_tools && strlen(transformed_tools) > 0) {
         snprintf(json_body, json_size,
             "{"
             "\"model\": \"%s\","
@@ -683,7 +759,7 @@ char* nous_claude_chat_with_tools(const char* system_prompt, const char* user_me
             "\"tool_choice\": {\"type\": \"auto\"},"
             "\"messages\": [{\"role\": \"user\", \"content\": \"%s\"}]"
             "}",
-            CLAUDE_MODEL, escaped_system, tools_json, escaped_user);
+            CLAUDE_MODEL, escaped_system, transformed_tools, escaped_user);
     } else {
         snprintf(json_body, json_size,
             "{"
@@ -697,6 +773,7 @@ char* nous_claude_chat_with_tools(const char* system_prompt, const char* user_me
 
     free(escaped_system);
     free(escaped_user);
+    free(transformed_tools);
 
     // Setup response buffer
     ResponseBuffer response = {
@@ -725,7 +802,7 @@ char* nous_claude_chat_with_tools(const char* system_prompt, const char* user_me
     curl_easy_setopt(curl, CURLOPT_POSTFIELDS, json_body);
     curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_callback);
     curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response);
-    curl_easy_setopt(curl, CURLOPT_TIMEOUT, 120L);  // Override: longer timeout for tool use
+    curl_easy_setopt(curl, CURLOPT_TIMEOUT, 120L);  // Override: longer timeout for web search
 
     // Execute
     CURLcode res = curl_easy_perform(curl);
