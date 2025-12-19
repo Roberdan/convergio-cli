@@ -263,6 +263,7 @@ C_SOURCES = $(SRC_DIR)/core/fabric.c \
             $(SRC_DIR)/education/tools/calculator.c \
             $(SRC_DIR)/education/tools/audio_tts.c \
             $(SRC_DIR)/education/tools/linguistic_tools.c \
+            $(SRC_DIR)/education/tools/html_generator.c \
             $(SRC_DIR)/education/ali_preside.c
 
 OBJC_SOURCES = $(SRC_DIR)/metal/gpu.m \

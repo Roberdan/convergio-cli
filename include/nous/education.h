@@ -1184,6 +1184,115 @@ char* preside_get_shared_context(int64_t student_id);
 char* preside_suggest_interdisciplinary(int64_t student_id, const char* topic);
 
 // ============================================================================
+// HTML INTERACTIVE GENERATOR API (TK85-TK96)
+// ============================================================================
+
+/**
+ * @brief Types of HTML content that can be generated
+ */
+typedef enum {
+    HTML_CONTENT_GENERIC = 0,     /**< Generic lesson page */
+    HTML_CONTENT_GEOMETRY = 1,    /**< Euclide: Interactive geometry (Canvas/SVG) */
+    HTML_CONTENT_PHYSICS = 2,     /**< Feynman: Physics simulations */
+    HTML_CONTENT_TIMELINE = 3,    /**< Erodoto: Interactive timelines */
+    HTML_CONTENT_MUSIC = 4,       /**< Mozart: Sheet music with playback */
+    HTML_CONTENT_ART = 5,         /**< Leonardo: Art gallery with zoom */
+    HTML_CONTENT_EVOLUTION = 6    /**< Darwin: Interactive evolution trees */
+} HtmlContentType;
+
+/**
+ * @brief Save LLM-generated HTML to a file
+ *
+ * The maestri generate HTML/CSS/JS via LLM and use this to save it.
+ * Files are saved to ~/.convergio/education/lessons/
+ *
+ * @param html_content Complete HTML document string from LLM
+ * @param topic Topic name for filename
+ * @return Path to saved file (caller must free), or NULL on error
+ */
+char* html_save(const char* html_content, const char* topic);
+
+/**
+ * @brief Save HTML and open in browser (main workflow for maestri)
+ *
+ * @param html_content Complete HTML document string from LLM
+ * @param topic Topic name for filename
+ * @return Path to saved file (caller must free), or NULL on error
+ */
+char* html_save_and_open(const char* html_content, const char* topic);
+
+/**
+ * @brief Generate an interactive HTML page for a topic (LEGACY)
+ *
+ * Prefer using html_save() with LLM-generated content.
+ *
+ * @param topic Topic to explain
+ * @param type Type of content to generate
+ * @return Path to generated HTML file (caller must free), or NULL on error
+ */
+char* html_generate(const char* topic, HtmlContentType type);
+
+/**
+ * @brief Open generated HTML file in default browser
+ *
+ * @param filepath Path to HTML file
+ * @return 0 on success, -1 on error
+ */
+int html_open_in_browser(const char* filepath);
+
+/**
+ * @brief Generate and immediately open in browser (convenience function)
+ *
+ * @param topic Topic to explain
+ * @param type Type of content
+ * @return Path to generated file (caller must free), or NULL on error
+ */
+char* html_generate_and_open(const char* topic, HtmlContentType type);
+
+/**
+ * @brief Generate geometry visualization (TK87 - Euclide)
+ *
+ * Creates interactive Canvas-based geometry demonstrations.
+ * Examples: Pythagorean theorem, circle properties, polygons.
+ *
+ * @param topic Geometry topic
+ * @return HTML string (caller must free)
+ */
+char* html_generate_geometry(const char* topic);
+
+/**
+ * @brief Generate physics simulation (TK88 - Feynman)
+ *
+ * Creates animated physics simulations.
+ * Examples: pendulum, waves, projectile motion.
+ *
+ * @param topic Physics topic
+ * @return HTML string (caller must free)
+ */
+char* html_generate_physics(const char* topic);
+
+/**
+ * @brief Generate interactive timeline (TK91 - Erodoto)
+ *
+ * Creates scrollable, clickable historical timelines.
+ *
+ * @param topic Historical period
+ * @return HTML string (caller must free)
+ */
+char* html_generate_timeline(const char* topic);
+
+/**
+ * @brief Generate generic lesson page
+ *
+ * Creates a simple lesson page with embedded content.
+ *
+ * @param topic Lesson topic
+ * @param content_html HTML content to embed
+ * @return HTML string (caller must free)
+ */
+char* html_generate_lesson(const char* topic, const char* content_html);
+
+// ============================================================================
 // INTERNAL API (FOR ANNA INTEGRATION)
 // ============================================================================
 
