@@ -974,6 +974,11 @@ ToolResult* tool_file_read(const char* path, int start_line, int end_line) {
 ToolResult* tool_file_write(const char* path, const char* content, const char* mode) {
     clock_t start = clock();
 
+    // Validate inputs
+    if (!content) {
+        return result_error("Content cannot be NULL");
+    }
+
     // Resolve relative paths to workspace
     char* resolved_path = tools_resolve_path(path);
     if (!resolved_path) {

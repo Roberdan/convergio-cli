@@ -48,6 +48,12 @@ else
     LDFLAGS +=
 endif
 
+# Coverage mode flags
+ifeq ($(COVERAGE),1)
+    CFLAGS += --coverage -fprofile-arcs -ftest-coverage
+    LDFLAGS += --coverage
+endif
+
 # Frameworks
 # Note: This project is macOS-only (Apple Silicon optimized)
 # Framework usage:
@@ -185,7 +191,7 @@ EMBEDDED_AGENTS = $(SRC_DIR)/agents/embedded_agents.c
 all: dirs metal swift $(TARGET) notify-helper
 	@echo ""
 	@echo "╔═══════════════════════════════════════════════════╗"
-	@echo "║          CONVERGIO KERNEL v$(VERSION)              "
+	@echo "║          CONVERGIO KERNEL v$(VERSION)             ║"
 	@echo "║  Build complete!                                  ║"
 	@echo "║  Run with: $(TARGET)                              ║"
 	@echo "╚═══════════════════════════════════════════════════╝"
@@ -525,14 +531,76 @@ $(OUTPUT_SERVICE_TEST): $(OUTPUT_SERVICE_SOURCES) $(OUTPUT_SERVICE_OBJECTS)
 	@echo "Compiling output service tests..."
 	@$(CC) $(CFLAGS) $(LDFLAGS) -o $(OUTPUT_SERVICE_TEST) $(OUTPUT_SERVICE_SOURCES) $(OUTPUT_SERVICE_OBJECTS)
 
+# Tools test target - tests tools module including web search
+TOOLS_TEST = $(BIN_DIR)/tools_test
+TOOLS_SOURCES = tests/test_tools.c $(TEST_STUBS)
+# Need most objects for full tools testing
+TOOLS_OBJECTS = $(filter-out $(OBJ_DIR)/core/main.o,$(OBJECTS))
+
+tools_test: dirs swift $(OBJECTS) $(MLX_STUBS_OBJ) $(TOOLS_TEST)
+	@echo "Running tools tests..."
+	@$(TOOLS_TEST)
+
+$(TOOLS_TEST): $(TOOLS_SOURCES) $(TOOLS_OBJECTS) $(SWIFT_LIB) $(MLX_STUBS_OBJ)
+	@echo "Compiling tools tests..."
+	@if [ -s "$(SWIFT_LIB)" ]; then \
+		$(CC) $(CFLAGS) $(LDFLAGS) -o $(TOOLS_TEST) $(TOOLS_SOURCES) $(TOOLS_OBJECTS) $(SWIFT_LIB) $(FRAMEWORKS) $(LIBS) $(SWIFT_RUNTIME_LIBS); \
+	else \
+		$(CC) $(CFLAGS) $(LDFLAGS) -o $(TOOLS_TEST) $(TOOLS_SOURCES) $(TOOLS_OBJECTS) $(MLX_STUBS_OBJ) $(FRAMEWORKS) $(LIBS); \
+	fi
+
+# Web search test target - tests web search across providers
+WEBSEARCH_TEST = $(BIN_DIR)/websearch_test
+WEBSEARCH_SOURCES = tests/test_websearch.c $(TEST_STUBS)
+WEBSEARCH_OBJECTS = $(filter-out $(OBJ_DIR)/core/main.o,$(OBJECTS))
+
+websearch_test: dirs swift $(OBJECTS) $(MLX_STUBS_OBJ) $(WEBSEARCH_TEST)
+	@echo "Running web search tests..."
+	@$(WEBSEARCH_TEST)
+
+$(WEBSEARCH_TEST): $(WEBSEARCH_SOURCES) $(WEBSEARCH_OBJECTS) $(SWIFT_LIB) $(MLX_STUBS_OBJ)
+	@echo "Compiling web search tests..."
+	@if [ -s "$(SWIFT_LIB)" ]; then \
+		$(CC) $(CFLAGS) $(LDFLAGS) -o $(WEBSEARCH_TEST) $(WEBSEARCH_SOURCES) $(WEBSEARCH_OBJECTS) $(SWIFT_LIB) $(FRAMEWORKS) $(LIBS) $(SWIFT_RUNTIME_LIBS); \
+	else \
+		$(CC) $(CFLAGS) $(LDFLAGS) -o $(WEBSEARCH_TEST) $(WEBSEARCH_SOURCES) $(WEBSEARCH_OBJECTS) $(MLX_STUBS_OBJ) $(FRAMEWORKS) $(LIBS); \
+	fi
+
 # Check help documentation coverage
 check-docs:
 	@echo "Checking help documentation coverage..."
 	@./scripts/check_help_docs.sh
 
 # Run all tests
-test: fuzz_test unit_test anna_test compaction_test plan_db_test output_service_test check-docs
+test: fuzz_test unit_test anna_test compaction_test plan_db_test output_service_test tools_test websearch_test check-docs
 	@echo "All tests completed!"
+
+# Coverage build flags
+COVERAGE_CFLAGS = --coverage -fprofile-arcs -ftest-coverage
+COVERAGE_LDFLAGS = --coverage
+
+# Coverage target - builds with coverage and runs tests
+coverage: clean
+	@echo "Building with coverage instrumentation..."
+	@$(MAKE) COVERAGE=1 all
+	@$(MAKE) COVERAGE=1 fuzz_test unit_test anna_test tools_test websearch_test
+	@echo "Generating coverage report..."
+	@mkdir -p coverage
+	@echo "Capturing coverage data from $(BUILD_DIR)..."
+	@lcov --capture --directory $(BUILD_DIR) --output-file coverage/coverage.info --ignore-errors source,gcov 2>&1 | grep -v "^geninfo"
+	@if [ -f coverage/coverage.info ]; then \
+		lcov --remove coverage/coverage.info '/usr/*' '/opt/*' '*/tests/*' '.build/*' --output-file coverage/coverage.info 2>/dev/null; \
+		genhtml coverage/coverage.info --output-directory coverage/html 2>/dev/null; \
+		echo ""; \
+		echo "========================================"; \
+		echo "CODE COVERAGE SUMMARY"; \
+		echo "========================================"; \
+		lcov --summary coverage/coverage.info 2>/dev/null; \
+		echo "========================================"; \
+		echo "Run 'open coverage/html/index.html' to view detailed report"; \
+	else \
+		echo "Coverage data not generated. Run 'make coverage' after running tests."; \
+	fi
 
 # Help
 help:
