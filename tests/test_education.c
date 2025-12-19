@@ -219,6 +219,7 @@ void test_scenario_sofia_homework(void) {
 
     // Simula richiesta compiti
     const char* homework_desc = "Riassumi le cause della Rivoluzione Francese";
+    (void)homework_desc;  // Used in future test expansion
 
     // In un test reale, verificheremmo che:
     // 1. La risposta sia breve (max 3-4 bullet points per ADHD)
