@@ -811,14 +811,22 @@ char* nous_claude_chat_with_tools(const char* system_prompt, const char* user_me
     free(json_body);
 
     if (!claude_handle_result(curl, res, response.data)) {
+        // Debug: Log API error response
+        LOG_ERROR(LOG_CAT_API, "Claude API error response: %.500s", response.data ? response.data : "(null)");
         free(response.data);
         curl_easy_cleanup(curl);
         return NULL;
     }
 
+    // Debug: Log successful response for web_search debugging
+    LOG_DEBUG(LOG_CAT_API, "Claude API response (first 1000 chars): %.1000s", response.data ? response.data : "(null)");
+
     // Check for tool calls
     if (out_tool_calls) {
         *out_tool_calls = extract_tool_calls(response.data);
+        if (*out_tool_calls) {
+            LOG_DEBUG(LOG_CAT_API, "Extracted tool calls: %.500s", *out_tool_calls);
+        }
     }
 
     // Extract text from response
