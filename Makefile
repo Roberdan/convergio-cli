@@ -102,6 +102,23 @@ CFLAGS = $(ARCH_FLAGS) \
 
 OBJCFLAGS = $(CFLAGS) -fobjc-arc
 
+# ============================================================================
+# EDITION SELECTION
+# Build with: make EDITION=education (or business, developer)
+# ============================================================================
+ifeq ($(EDITION),education)
+    CFLAGS += -DCONVERGIO_EDITION_EDUCATION
+    EDITION_SUFFIX = -edu
+else ifeq ($(EDITION),business)
+    CFLAGS += -DCONVERGIO_EDITION_BUSINESS
+    EDITION_SUFFIX = -biz
+else ifeq ($(EDITION),developer)
+    CFLAGS += -DCONVERGIO_EDITION_DEVELOPER
+    EDITION_SUFFIX = -dev
+else
+    EDITION_SUFFIX =
+endif
+
 # Release/Debug flags
 ifeq ($(DEBUG),1)
     # Debug mode: extra warnings and sanitizers
@@ -188,13 +205,13 @@ C_SOURCES = $(SRC_DIR)/core/fabric.c \
             $(SRC_DIR)/core/main.c \
             $(SRC_DIR)/core/signals.c \
             $(SRC_DIR)/core/repl.c \
+            $(SRC_DIR)/core/edition.c \
             $(SRC_DIR)/core/commands/commands.c \
             $(SRC_DIR)/core/commands/setup_wizard.c \
             $(SRC_DIR)/core/ansi_md.c \
             $(SRC_DIR)/core/stream_md.c \
             $(SRC_DIR)/core/theme.c \
             $(SRC_DIR)/core/config.c \
-            $(SRC_DIR)/core/edition.c \
             $(SRC_DIR)/core/updater.c \
             $(SRC_DIR)/core/safe_path.c \
             $(SRC_DIR)/intent/parser.c \
@@ -272,6 +289,9 @@ C_SOURCES = $(SRC_DIR)/core/fabric.c \
             $(SRC_DIR)/education/setup_wizard.c \
             $(SRC_DIR)/education/anna_integration.c \
             $(SRC_DIR)/education/accessibility_runtime.c \
+            $(SRC_DIR)/education/fsrs.c \
+            $(SRC_DIR)/education/mastery.c \
+            $(SRC_DIR)/education/storytelling.c \
             $(SRC_DIR)/education/features/study_session.c \
             $(SRC_DIR)/education/features/homework.c \
             $(SRC_DIR)/education/features/progress.c \
@@ -1428,6 +1448,7 @@ help:
 	@echo "Variables:"
 	@echo "  DEBUG=1   - Enable debug build"
 	@echo "  VOICE=1   - Enable voice mode (requires libwebsockets)"
+	@echo "  EDITION=X - Build specific edition (education/business/developer)"
 	@echo ""
 	@echo "Build Optimization (M3 Max):"
 	@echo "  CPU: $(CPU_CORES) cores ($(P_CORES)P+4E)"

@@ -45,6 +45,10 @@ static bool g_edu_initialized = false;
 static char g_edu_db_path[PATH_MAX] = {0};
 static EducationStudentProfile* g_active_profile = NULL;
 
+// External init functions from learning science modules
+extern int fsrs_init_db(void);
+extern int mastery_init_db(void);
+
 // ============================================================================
 // DATABASE SCHEMA
 // ============================================================================
@@ -129,6 +133,7 @@ static const char* EDUCATION_SCHEMA_SQL =
     "    preferred_output TEXT DEFAULT 'visual' CHECK(preferred_output IN ('visual', 'audio', 'braille', 'haptic')),\n"
     "    tts_enabled INTEGER DEFAULT 0,\n"
     "    tts_speed REAL DEFAULT 1.0 CHECK(tts_speed >= 0.5 AND tts_speed <= 2.0),\n"
+    "    tts_pitch REAL DEFAULT 0.0 CHECK(tts_pitch >= -1.0 AND tts_pitch <= 1.0),\n"
     "    tts_voice TEXT,\n"
     "    high_contrast INTEGER DEFAULT 0,\n"
     "    font_size_multiplier REAL DEFAULT 1.0,\n"
@@ -623,6 +628,11 @@ int education_init(void) {
 
     g_edu_initialized = true;
     CONVERGIO_MUTEX_UNLOCK(&g_edu_db_mutex);
+
+    // Initialize learning science modules (FSRS + Mastery)
+    fsrs_init_db();
+    mastery_init_db();
+
     return 0;
 }
 
@@ -707,8 +717,8 @@ int64_t education_profile_create(const EducationCreateOptions* options) {
               "student_id, dyslexia, dyslexia_severity, dyscalculia, dyscalculia_severity, "
               "cerebral_palsy, cp_severity, adhd, adhd_type, adhd_severity, "
               "autism, autism_severity, preferred_input, preferred_output, "
-              "tts_enabled, tts_speed, high_contrast, reduce_animations"
-              ") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+              "tts_enabled, tts_speed, tts_pitch, high_contrast, reduce_animations"
+              ") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
         rc = sqlite3_prepare_v2(g_edu_db, sql, -1, &stmt, NULL);
         if (rc == SQLITE_OK) {
             sqlite3_bind_int64(stmt, 1, student_id);
@@ -734,8 +744,9 @@ int64_t education_profile_create(const EducationCreateOptions* options) {
             sqlite3_bind_text(stmt, 14, output_str ? output_str : "visual", -1, SQLITE_STATIC);
             sqlite3_bind_int(stmt, 15, a->tts_enabled ? 1 : 0);
             sqlite3_bind_double(stmt, 16, a->tts_speed > 0 ? a->tts_speed : 1.0);
-            sqlite3_bind_int(stmt, 17, a->high_contrast ? 1 : 0);
-            sqlite3_bind_int(stmt, 18, a->reduce_motion ? 1 : 0);
+            sqlite3_bind_double(stmt, 17, a->tts_pitch);
+            sqlite3_bind_int(stmt, 18, a->high_contrast ? 1 : 0);
+            sqlite3_bind_int(stmt, 19, a->reduce_motion ? 1 : 0);
             sqlite3_step(stmt);
             sqlite3_finalize(stmt);
         }
@@ -807,36 +818,38 @@ EducationStudentProfile* education_profile_get(int64_t student_id) {
     }
     sqlite3_finalize(stmt);
 
-    // Load accessibility settings
+    // Load accessibility settings with explicit column names (robust against schema changes)
     if (profile && profile->accessibility) {
-        sql = "SELECT * FROM student_accessibility WHERE student_id = ?";
+        sql = "SELECT "
+              "dyslexia, dyslexia_severity, dyscalculia, dyscalculia_severity, "
+              "cerebral_palsy, cp_severity, adhd, adhd_type, adhd_severity, "
+              "autism, autism_severity, preferred_input, preferred_output, "
+              "tts_enabled, tts_speed, tts_pitch, high_contrast, reduce_animations "
+              "FROM student_accessibility WHERE student_id = ?";
         rc = sqlite3_prepare_v2(g_edu_db, sql, -1, &stmt, NULL);
         if (rc == SQLITE_OK) {
             sqlite3_bind_int64(stmt, 1, student_id);
             if (sqlite3_step(stmt) == SQLITE_ROW) {
                 EducationAccessibility* a = profile->accessibility;
-                // Load all fields (column indices based on schema order)
-                // Schema: id=0, student_id=1, dyslexia=2, dyslexia_severity=3, ...
-                // adhd_type=21, adhd_severity=22, autism=29, autism_severity=30
-                // preferred_input=36, preferred_output=37, tts_enabled=38, tts_speed=39
-                // high_contrast=41, reduce_animations=43
-                a->dyslexia = sqlite3_column_int(stmt, 2);
-                a->dyslexia_severity = string_to_severity(sqlite3_column_int(stmt, 3));
-                a->dyscalculia = sqlite3_column_int(stmt, 9);
-                a->dyscalculia_severity = string_to_severity(sqlite3_column_int(stmt, 10));
-                a->cerebral_palsy = sqlite3_column_int(stmt, 15);
-                a->cerebral_palsy_severity = string_to_severity(sqlite3_column_int(stmt, 16));
-                a->adhd = sqlite3_column_int(stmt, 20);
-                a->adhd_type = string_to_adhd_type((const char*)sqlite3_column_text(stmt, 21));
-                a->adhd_severity = string_to_severity(sqlite3_column_int(stmt, 22));
-                a->autism = sqlite3_column_int(stmt, 29);
-                a->autism_severity = string_to_severity(sqlite3_column_int(stmt, 30));
-                a->preferred_input = string_to_input_method((const char*)sqlite3_column_text(stmt, 36));
-                a->preferred_output = string_to_output_method((const char*)sqlite3_column_text(stmt, 37));
-                a->tts_enabled = sqlite3_column_int(stmt, 38);
-                a->tts_speed = (float)sqlite3_column_double(stmt, 39);
-                a->high_contrast = sqlite3_column_int(stmt, 41);
-                a->reduce_motion = sqlite3_column_int(stmt, 43);
+                // Column indices now match SELECT order (0-indexed)
+                a->dyslexia = sqlite3_column_int(stmt, 0);
+                a->dyslexia_severity = string_to_severity(sqlite3_column_int(stmt, 1));
+                a->dyscalculia = sqlite3_column_int(stmt, 2);
+                a->dyscalculia_severity = string_to_severity(sqlite3_column_int(stmt, 3));
+                a->cerebral_palsy = sqlite3_column_int(stmt, 4);
+                a->cerebral_palsy_severity = string_to_severity(sqlite3_column_int(stmt, 5));
+                a->adhd = sqlite3_column_int(stmt, 6);
+                a->adhd_type = string_to_adhd_type((const char*)sqlite3_column_text(stmt, 7));
+                a->adhd_severity = string_to_severity(sqlite3_column_int(stmt, 8));
+                a->autism = sqlite3_column_int(stmt, 9);
+                a->autism_severity = string_to_severity(sqlite3_column_int(stmt, 10));
+                a->preferred_input = string_to_input_method((const char*)sqlite3_column_text(stmt, 11));
+                a->preferred_output = string_to_output_method((const char*)sqlite3_column_text(stmt, 12));
+                a->tts_enabled = sqlite3_column_int(stmt, 13);
+                a->tts_speed = (float)sqlite3_column_double(stmt, 14);
+                a->tts_pitch = (float)sqlite3_column_double(stmt, 15);
+                a->high_contrast = sqlite3_column_int(stmt, 16);
+                a->reduce_motion = sqlite3_column_int(stmt, 17);
             }
             sqlite3_finalize(stmt);
         }

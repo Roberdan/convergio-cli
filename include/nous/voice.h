@@ -179,6 +179,7 @@ typedef struct {
     bool enable_barge_in;
     bool enable_transcription;
     float speech_rate;             // User preference: 0.5 - 2.0
+    float pitch_offset;            // User preference: -1.0 to 1.0
     const char* language;          // "it", "en", "es", "fr", "de"
     VoiceEventCallback callback;
     void* callback_user_data;
@@ -324,9 +325,9 @@ bool voice_audio_init_output(void);
 
 /**
  * Start capturing microphone audio
- * @param callback Called with each audio chunk
+ * @param callback Called with each audio chunk (16-bit PCM samples)
  */
-bool voice_audio_start_capture(void (*callback)(const uint8_t* data, size_t length, void* user_data), void* user_data);
+bool voice_audio_start_capture(void (*callback)(const int16_t* samples, size_t count, void* user_data), void* user_data);
 
 /**
  * Stop capturing microphone audio
@@ -335,8 +336,10 @@ void voice_audio_stop_capture(void);
 
 /**
  * Play audio chunk through speaker
+ * @param samples 16-bit PCM audio samples
+ * @param count Number of samples
  */
-void voice_audio_play(const uint8_t* data, size_t length);
+void voice_audio_play(const int16_t* samples, size_t count);
 
 /**
  * Stop audio playback

@@ -162,6 +162,7 @@ typedef struct {
     EducationOutputMethod preferred_output;
     bool tts_enabled;
     float tts_speed;  // 0.5 - 2.0
+    float tts_pitch;  // -1.0 to 1.0 (0.0 = default)
     char* tts_voice;  // Voice name for TTS (dynamically allocated)
     bool high_contrast;
     bool reduce_motion;

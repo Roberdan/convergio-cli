@@ -645,6 +645,52 @@ char* a11y_adapt_text_full(const char* text, const EducationAccessibility* acces
     return result;
 }
 
+// ============================================================================
+// VOICE ACCESSIBILITY (FASE 10)
+// ============================================================================
+
+/**
+ * Get effective speech rate combining maestro default and user preference
+ * @param access User accessibility settings
+ * @param maestro_default Maestro's base speech rate (typically 0.9-1.1)
+ * @return Final speech rate clamped to 0.5-2.0
+ */
+float a11y_get_speech_rate(const EducationAccessibility* access, float maestro_default) {
+    float rate = maestro_default > 0 ? maestro_default : 1.0f;
+
+    if (access && access->tts_speed > 0) {
+        // User preference modifies maestro's default
+        rate = rate * access->tts_speed;
+    }
+
+    // Clamp to valid range
+    if (rate < 0.5f) rate = 0.5f;
+    if (rate > 2.0f) rate = 2.0f;
+
+    return rate;
+}
+
+/**
+ * Get effective pitch offset combining maestro default and user preference
+ * @param access User accessibility settings
+ * @param maestro_default Maestro's pitch offset (-1.0 to 1.0)
+ * @return Final pitch offset clamped to -1.0 to 1.0
+ */
+float a11y_get_pitch_offset(const EducationAccessibility* access, float maestro_default) {
+    float pitch = maestro_default;
+
+    if (access) {
+        // Add user's preference to maestro's default
+        pitch = pitch + access->tts_pitch;
+    }
+
+    // Clamp to valid range
+    if (pitch < -1.0f) pitch = -1.0f;
+    if (pitch > 1.0f) pitch = 1.0f;
+
+    return pitch;
+}
+
 /**
  * Get all accessibility adaptations as a struct
  */
@@ -657,10 +703,11 @@ typedef struct {
     const char* ansi_bg;
     bool reduce_motion;
 
-    // Audio
+    // Audio/Voice
     bool use_tts;
     bool tts_highlight;
     float tts_speed;
+    float tts_pitch;
 
     // Math
     bool show_place_blocks;
@@ -692,6 +739,7 @@ A11ySettings a11y_get_all_settings(const EducationAccessibility* access) {
         .use_tts = access ? access->tts_enabled : false,
         .tts_highlight = a11y_wants_tts_highlight(access),
         .tts_speed = access ? access->tts_speed : 1.0f,
+        .tts_pitch = access ? access->tts_pitch : 0.0f,
         .show_place_blocks = access ? access->dyscalculia : false,
         .color_numbers = access ? access->dyscalculia : false,
         .disable_timer = a11y_disable_math_timer(access),
