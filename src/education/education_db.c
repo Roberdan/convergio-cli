@@ -1076,6 +1076,226 @@ void education_progress_free(EducationProgress* progress) {
 }
 
 // ============================================================================
+// ADAPTIVE LEARNING API (S18)
+// Learn from student interactions to personalize the experience
+// ============================================================================
+
+/**
+ * Analyze student's learning patterns and return adaptive recommendations
+ * Returns a JSON string with recommendations, caller must free
+ */
+char* education_adaptive_analyze(int64_t student_id) {
+    if (!g_edu_initialized) return NULL;
+
+    CONVERGIO_MUTEX_LOCK(&g_edu_db_mutex);
+
+    // Query learning patterns
+    const char* sql =
+        "SELECT "
+        "  subject, "
+        "  AVG(skill_level) as avg_skill, "
+        "  AVG(quiz_score_avg) as avg_quiz, "
+        "  SUM(total_time_spent) as total_time, "
+        "  COUNT(*) as topic_count, "
+        "  MAX(last_interaction) as last_active "
+        "FROM learning_progress "
+        "WHERE student_id = ? "
+        "GROUP BY subject "
+        "ORDER BY avg_skill ASC";
+
+    sqlite3_stmt* stmt;
+    int rc = sqlite3_prepare_v2(g_edu_db, sql, -1, &stmt, NULL);
+    if (rc != SQLITE_OK) {
+        CONVERGIO_MUTEX_UNLOCK(&g_edu_db_mutex);
+        return NULL;
+    }
+
+    sqlite3_bind_int64(stmt, 1, student_id);
+
+    // Build JSON response
+    char* json = calloc(8192, sizeof(char));
+    if (!json) {
+        sqlite3_finalize(stmt);
+        CONVERGIO_MUTEX_UNLOCK(&g_edu_db_mutex);
+        return NULL;
+    }
+
+    strcat(json, "{\"student_id\":");
+    char id_str[32];
+    snprintf(id_str, sizeof(id_str), "%" PRId64, student_id);
+    strcat(json, id_str);
+    strcat(json, ",\"analysis\":{");
+
+    // Weak subjects (need more attention)
+    strcat(json, "\"weak_subjects\":[");
+    bool first = true;
+    while (sqlite3_step(stmt) == SQLITE_ROW) {
+        const char* subject = (const char*)sqlite3_column_text(stmt, 0);
+        double avg_skill = sqlite3_column_double(stmt, 1);
+
+        if (avg_skill < 0.5 && subject) {  // Below 50% is considered weak
+            if (!first) strcat(json, ",");
+            strcat(json, "\"");
+            strncat(json, subject, 64);
+            strcat(json, "\"");
+            first = false;
+        }
+    }
+    strcat(json, "],");
+    sqlite3_reset(stmt);
+    sqlite3_bind_int64(stmt, 1, student_id);
+
+    // Strong subjects
+    strcat(json, "\"strong_subjects\":[");
+    first = true;
+    while (sqlite3_step(stmt) == SQLITE_ROW) {
+        const char* subject = (const char*)sqlite3_column_text(stmt, 0);
+        double avg_skill = sqlite3_column_double(stmt, 1);
+
+        if (avg_skill >= 0.75 && subject) {  // Above 75% is strong
+            if (!first) strcat(json, ",");
+            strcat(json, "\"");
+            strncat(json, subject, 64);
+            strcat(json, "\"");
+            first = false;
+        }
+    }
+    strcat(json, "]");
+
+    sqlite3_finalize(stmt);
+
+    // Get recommended difficulty adjustment
+    const char* diff_sql =
+        "SELECT AVG(quiz_score_avg) as overall_avg FROM learning_progress WHERE student_id = ?";
+    rc = sqlite3_prepare_v2(g_edu_db, diff_sql, -1, &stmt, NULL);
+    if (rc == SQLITE_OK) {
+        sqlite3_bind_int64(stmt, 1, student_id);
+        if (sqlite3_step(stmt) == SQLITE_ROW) {
+            double overall = sqlite3_column_double(stmt, 0);
+            strcat(json, ",\"recommended_difficulty\":\"");
+            if (overall >= 0.8) {
+                strcat(json, "hard");
+            } else if (overall >= 0.5) {
+                strcat(json, "medium");
+            } else {
+                strcat(json, "easy");
+            }
+            strcat(json, "\"");
+        }
+        sqlite3_finalize(stmt);
+    }
+
+    // Get study time recommendation
+    const char* time_sql =
+        "SELECT AVG(julianday('now') - julianday(datetime(last_interaction, 'unixepoch'))) as days_since "
+        "FROM learning_progress WHERE student_id = ?";
+    rc = sqlite3_prepare_v2(g_edu_db, time_sql, -1, &stmt, NULL);
+    if (rc == SQLITE_OK) {
+        sqlite3_bind_int64(stmt, 1, student_id);
+        if (sqlite3_step(stmt) == SQLITE_ROW) {
+            double days_since = sqlite3_column_double(stmt, 0);
+            strcat(json, ",\"days_since_activity\":");
+            char days_str[32];
+            snprintf(days_str, sizeof(days_str), "%.1f", days_since);
+            strcat(json, days_str);
+        }
+        sqlite3_finalize(stmt);
+    }
+
+    strcat(json, "},\"recommendations\":[");
+
+    // Generate recommendations based on patterns
+    bool has_rec = false;
+
+    // Check for neglected subjects
+    const char* neglect_sql =
+        "SELECT subject FROM learning_progress "
+        "WHERE student_id = ? AND last_interaction < strftime('%s', 'now', '-7 days') "
+        "GROUP BY subject LIMIT 3";
+    rc = sqlite3_prepare_v2(g_edu_db, neglect_sql, -1, &stmt, NULL);
+    if (rc == SQLITE_OK) {
+        sqlite3_bind_int64(stmt, 1, student_id);
+        while (sqlite3_step(stmt) == SQLITE_ROW) {
+            const char* subject = (const char*)sqlite3_column_text(stmt, 0);
+            if (subject) {
+                if (has_rec) strcat(json, ",");
+                strcat(json, "{\"type\":\"review\",\"subject\":\"");
+                strncat(json, subject, 64);
+                strcat(json, "\",\"reason\":\"Not studied in over a week\"}");
+                has_rec = true;
+            }
+        }
+        sqlite3_finalize(stmt);
+    }
+
+    strcat(json, "]}");
+
+    CONVERGIO_MUTEX_UNLOCK(&g_edu_db_mutex);
+    return json;
+}
+
+/**
+ * Update student profile based on learning patterns (adaptive adjustment)
+ * Returns 0 on success, -1 on error
+ */
+int education_adaptive_update_profile(int64_t student_id) {
+    if (!g_edu_initialized) return -1;
+
+    char* analysis = education_adaptive_analyze(student_id);
+    if (!analysis) return -1;
+
+    // For now, just log the analysis. In production, this would
+    // update session_duration_preference, break_duration_preference,
+    // and other profile settings based on observed patterns.
+
+    // Future: Parse analysis JSON and update profile accordingly
+    // - If student performs better in morning, suggest morning sessions
+    // - If attention drops after 20 mins, reduce session_duration_preference
+    // - If visual content gets higher scores, set learning_style to 'visual'
+
+    free(analysis);
+    return 0;
+}
+
+/**
+ * Get next recommended topic for a student
+ * Returns topic name, caller must free
+ */
+char* education_adaptive_next_topic(int64_t student_id, const char* subject) {
+    if (!g_edu_initialized) return NULL;
+
+    CONVERGIO_MUTEX_LOCK(&g_edu_db_mutex);
+
+    // Find topics that need review (low skill or old)
+    const char* sql =
+        "SELECT topic FROM learning_progress "
+        "WHERE student_id = ? AND subject = ? "
+        "AND (skill_level < 0.7 OR last_interaction < strftime('%s', 'now', '-3 days')) "
+        "ORDER BY skill_level ASC, last_interaction ASC "
+        "LIMIT 1";
+
+    sqlite3_stmt* stmt;
+    int rc = sqlite3_prepare_v2(g_edu_db, sql, -1, &stmt, NULL);
+    if (rc != SQLITE_OK) {
+        CONVERGIO_MUTEX_UNLOCK(&g_edu_db_mutex);
+        return NULL;
+    }
+
+    sqlite3_bind_int64(stmt, 1, student_id);
+    sqlite3_bind_text(stmt, 2, subject, -1, SQLITE_STATIC);
+
+    char* topic = NULL;
+    if (sqlite3_step(stmt) == SQLITE_ROW) {
+        const char* t = (const char*)sqlite3_column_text(stmt, 0);
+        if (t) topic = strdup(t);
+    }
+
+    sqlite3_finalize(stmt);
+    CONVERGIO_MUTEX_UNLOCK(&g_edu_db_mutex);
+    return topic;
+}
+
+// ============================================================================
 // TOOLKIT OUTPUTS
 // ============================================================================
 

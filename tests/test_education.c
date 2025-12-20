@@ -400,7 +400,7 @@ void test_curriculum_load(void) {
 // ============================================================================
 
 void test_maestri_exist(void) {
-    TEST("Maestri - Verifica 14 agent definitions");
+    TEST("Maestri - Verifica 15 agent definitions");
 
     const char* maestri[] = {
         "socrate-filosofia",
@@ -416,11 +416,12 @@ void test_maestri_exist(void) {
         "cicerone-civica",
         "smith-economia",
         "lovelace-informatica",
-        "ippocrate-corpo"
+        "ippocrate-corpo",
+        "chris-storytelling"
     };
 
     char path[512];
-    for (int i = 0; i < 14; i++) {
+    for (int i = 0; i < 15; i++) {
         snprintf(path, sizeof(path),
                  "src/agents/definitions/education/%s.md", maestri[i]);
         FILE* f = fopen(path, "r");
@@ -437,6 +438,120 @@ void test_maestri_exist(void) {
         }
         fclose(f);
     }
+
+    PASS();
+}
+
+// ============================================================================
+// TEST MAIEUTIC METHOD (MT02)
+// Verify teachers use Socratic questioning approach
+// ============================================================================
+
+void test_maestri_maieutic_prompts(void) {
+    TEST("Maestri - Verificare che usino il metodo maieutico");
+
+    // Read Socrate's definition to verify maieutic instructions
+    const char* paths[] = {
+        "src/agents/definitions/education/socrate-filosofia.md",
+        "../src/agents/definitions/education/socrate-filosofia.md"
+    };
+
+    FILE* f = NULL;
+    for (int i = 0; i < 2 && !f; i++) {
+        f = fopen(paths[i], "r");
+    }
+
+    if (!f) {
+        FAIL("Could not read Socrate agent definition");
+        return;
+    }
+
+    // Read file content
+    char buffer[8192] = {0};
+    size_t bytes_read = fread(buffer, 1, sizeof(buffer) - 1, f);
+    fclose(f);
+
+    if (bytes_read == 0) {
+        FAIL("Empty agent definition file");
+        return;
+    }
+
+    // Check for maieutic keywords in the definition
+    bool has_maieutic = strstr(buffer, "maieutic") != NULL ||
+                        strstr(buffer, "Maieutic") != NULL ||
+                        strstr(buffer, "socratic") != NULL ||
+                        strstr(buffer, "Socratic") != NULL ||
+                        strstr(buffer, "question") != NULL ||
+                        strstr(buffer, "guide") != NULL;
+
+    ASSERT_TRUE(has_maieutic, "Socrate definition should contain maieutic/Socratic method references");
+
+    // Verify the definition contains guidance for NOT giving direct answers
+    bool has_no_direct = strstr(buffer, "non dare") != NULL ||
+                         strstr(buffer, "don't give") != NULL ||
+                         strstr(buffer, "guide") != NULL ||
+                         strstr(buffer, "help") != NULL ||
+                         strstr(buffer, "discover") != NULL;
+
+    ASSERT_TRUE(has_no_direct, "Definition should guide teacher to not give direct answers");
+
+    PASS();
+}
+
+// ============================================================================
+// TEST ACCESSIBILITY ADAPTATION (MT03)
+// Verify teachers adapt to accessibility profiles
+// ============================================================================
+
+void test_maestri_accessibility_adaptation(void) {
+    TEST("Maestri - Verificare adattamento accessibilita");
+
+    // Read a teacher definition to verify accessibility awareness
+    const char* paths[] = {
+        "src/agents/definitions/education/euclide-matematica.md",
+        "../src/agents/definitions/education/euclide-matematica.md"
+    };
+
+    FILE* f = NULL;
+    for (int i = 0; i < 2 && !f; i++) {
+        f = fopen(paths[i], "r");
+    }
+
+    if (!f) {
+        FAIL("Could not read Euclide agent definition");
+        return;
+    }
+
+    // Read file content
+    char buffer[8192] = {0};
+    size_t bytes_read = fread(buffer, 1, sizeof(buffer) - 1, f);
+    fclose(f);
+
+    if (bytes_read == 0) {
+        FAIL("Empty agent definition file");
+        return;
+    }
+
+    // Check for accessibility-related keywords
+    bool has_accessibility = strstr(buffer, "accessib") != NULL ||
+                             strstr(buffer, "dislessia") != NULL ||
+                             strstr(buffer, "dyslexia") != NULL ||
+                             strstr(buffer, "discalculia") != NULL ||
+                             strstr(buffer, "dyscalculia") != NULL ||
+                             strstr(buffer, "ADHD") != NULL ||
+                             strstr(buffer, "visual") != NULL ||
+                             strstr(buffer, "step") != NULL;
+
+    ASSERT_TRUE(has_accessibility, "Teacher definition should reference accessibility adaptations");
+
+    // Verify there are instructions for adapting output
+    bool has_adaptation = strstr(buffer, "adapt") != NULL ||
+                          strstr(buffer, "adjust") != NULL ||
+                          strstr(buffer, "simpl") != NULL ||
+                          strstr(buffer, "step-by-step") != NULL ||
+                          strstr(buffer, "passo") != NULL;
+
+    ASSERT_TRUE(has_adaptation, "Definition should contain adaptation instructions");
 
     PASS();
 }
@@ -664,6 +779,8 @@ int main(void) {
     test_goal_management();
     test_curriculum_load();
     test_maestri_exist();
+    test_maestri_maieutic_prompts();
+    test_maestri_accessibility_adaptation();
 
     // Test Libretto dello Studente
     printf("\n=== LIBRETTO DELLO STUDENTE ===\n");

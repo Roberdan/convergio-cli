@@ -1,7 +1,7 @@
 # Phase 4 - Italian Curricula
 
 **Status**: DONE
-**Progress**: 100%
+**Progress**: 90% (C10, C11 are P1)
 **Last Updated**: 2025-12-20
 **Parallelization**: 3 threads
 
@@ -39,9 +39,9 @@ Implement Italian school curricula as structured JSON files, with parser and set
 | ID | Task | Status | File |
 |----|------|--------|------|
 | C08 | IT Technical Institute | [x] | `curricula/it/iti_informatica.json` |
-| C09 | Commercial Technical Institute | [ ] | TODO |
-| C10 | Custom Path System | [ ] | Custom selection |
-| C11 | Hot-reload JSON | [ ] | Watch file changes |
+| C09 | Commercial Technical Institute | [x] | `curricula/it/iti_commerciale.json` |
+| C10 | Custom Path System | [ ] | P1 - Custom selection |
+| C11 | Hot-reload JSON | [ ] | P1 - Watch file changes |
 
 ---
 
@@ -111,13 +111,13 @@ Available paths in `setup_wizard.c`:
 
 ## Acceptance Criteria
 
-- [x] 7 JSON curriculum files created
+- [x] 8 JSON curriculum files created
 - [x] JSON parser working
 - [x] 16 options in setup wizard
-- [ ] Curricula hot-reload
+- [ ] Curricula hot-reload (P1)
 
 ---
 
 ## Result
 
-7 complete JSON curricula. 16 options selectable in wizard. Parser working. Hot-reload to implement.
+8 complete JSON curricula (including ITE Commerciale added 2025-12-20). 16 options selectable in wizard. Parser working. Hot-reload is P1.

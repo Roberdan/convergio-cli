@@ -66,14 +66,14 @@ struct VoiceSession {
 #define HUME_RECONNECT_DELAY_MS 1000
 #define HUME_HEARTBEAT_INTERVAL_MS 30000
 
-// Message types for Hume EVI 3
-static const char* HUME_MSG_AUDIO_INPUT = "audio_input";
-static const char* HUME_MSG_USER_MESSAGE = "user_message";
-static const char* HUME_MSG_ASSISTANT_MESSAGE = "assistant_message";
-static const char* HUME_MSG_AUDIO_OUTPUT = "audio_output";
-static const char* HUME_MSG_EMOTION = "emotion_features";
-static const char* HUME_MSG_TRANSCRIPT = "transcript";
-static const char* HUME_MSG_ERROR = "error";
+// Message types for Hume EVI 3 (used when Hume integration is active)
+__attribute__((unused)) static const char* HUME_MSG_AUDIO_INPUT = "audio_input";
+__attribute__((unused)) static const char* HUME_MSG_USER_MESSAGE = "user_message";
+__attribute__((unused)) static const char* HUME_MSG_ASSISTANT_MESSAGE = "assistant_message";
+__attribute__((unused)) static const char* HUME_MSG_AUDIO_OUTPUT = "audio_output";
+__attribute__((unused)) static const char* HUME_MSG_EMOTION = "emotion_features";
+__attribute__((unused)) static const char* HUME_MSG_TRANSCRIPT = "transcript";
+__attribute__((unused)) static const char* HUME_MSG_ERROR = "error";
 
 // ============================================================================
 // VOICE PROFILES - ALL 15 MAESTRI

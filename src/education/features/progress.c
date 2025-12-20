@@ -46,8 +46,10 @@ extern char* llm_generate(const char* prompt, const char* system_prompt);
 // HELPER FUNCTIONS
 // ============================================================================
 
+__attribute__((unused))
 static float calculate_skill_level(int quiz_score, int time_spent_minutes, int interactions) {
     // Simple heuristic: combine quiz performance with engagement
+    // NOTE: Reserved for future use in adaptive learning (S18)
     float quiz_component = (quiz_score / 100.0f) * 0.6f;
     float time_component = fminf((time_spent_minutes / 120.0f), 1.0f) * 0.2f;
     float interaction_component = fminf((interactions / 10.0f), 1.0f) * 0.2f;

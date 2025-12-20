@@ -157,7 +157,8 @@ DictionaryEntry* dictionary_lookup(const char* word, Language language,
     entry->word = strdup(word);
     entry->language = language;
 
-    LinguisticAccessibility la = get_linguistic_accessibility(access);
+    // Get accessibility settings (used for future adaptive definitions)
+    LinguisticAccessibility la __attribute__((unused)) = get_linguistic_accessibility(access);
 
     // In production, this would query an API or local database
     // For now, create a placeholder structure
@@ -429,7 +430,7 @@ void verb_display(const VerbTable* table,
     // Group by tense
     const char* current_tense = NULL;
     for (int i = 0; i < table->conjugation_count; i++) {
-        VerbConjugation* conj = &table->conjugations[i];
+        const VerbConjugation* conj = &table->conjugations[i];
 
         if (!current_tense || strcmp(current_tense, conj->tense) != 0) {
             current_tense = conj->tense;

@@ -101,9 +101,9 @@ Create 15 educational agents based on historical figures, each specialized in a 
 
 | ID | Test | Status | Note |
 |----|------|--------|------|
-| MT01 | Verify 15 teacher files exist | [x] | Glob check |
-| MT02 | Test maieutic response for each teacher | [ ] | TODO |
-| MT03 | Test accessibility adaptation in responses | [ ] | TODO |
+| MT01 | Verify 15 teacher files exist | [x] | `test_maestri_exist()` |
+| MT02 | Test maieutic response for each teacher | [x] | `test_maestri_maieutic_prompts()` |
+| MT03 | Test accessibility adaptation in responses | [x] | `test_maestri_accessibility_adaptation()` |
 
 ---
 
@@ -113,10 +113,10 @@ Create 15 educational agents based on historical figures, each specialized in a 
 - [x] Each teacher has primary tools defined
 - [x] Each teacher has voice profile assigned
 - [x] Interactive HTML available for all
-- [ ] Maieutic tests for each teacher
+- [x] Maieutic tests for each teacher
 
 ---
 
 ## Result
 
-15 teachers operational with complete definitions. Voice profiles assigned. Interactive HTML via LLM. Maieutic tests still to implement.
+15 teachers operational with complete definitions. Voice profiles assigned. Interactive HTML via LLM. All tests passing (MT01-MT03).

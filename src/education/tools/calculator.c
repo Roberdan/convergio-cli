@@ -351,8 +351,8 @@ Calculation* calc_divide_steps(double a, double b, const CalculatorAccessibility
     calc->operation = CALC_DIVIDE;
 
     if (b == 0) {
-        // Division by zero
-        calc->result = NAN;
+        // Division by zero - use a sentinel value
+        calc->result = 0.0 / 0.0;  // Produces NaN without macro
     } else {
         calc->result = a / b;
     }

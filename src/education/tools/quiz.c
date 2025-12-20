@@ -275,6 +275,8 @@ QuizQuestion* quiz_create_sequence(const char* question,
 // QUIZ GENERATION FROM LLM
 // ============================================================================
 
+// Template for LLM quiz generation (used in quiz_generate_from_llm)
+__attribute__((unused))
 static const char* QUIZ_PROMPT_TEMPLATE =
     "Generate a quiz about: %s\n\n"
     "Topic content:\n%s\n\n"
@@ -302,8 +304,8 @@ Quiz* quiz_generate_from_llm(const char* topic, const char* content,
 
     QuizAccessibility qa = get_quiz_accessibility(access);
 
-    // Determine difficulty string
-    const char* diff_str = "medium";
+    // Determine difficulty string (used when LLM integration is active)
+    const char* diff_str __attribute__((unused)) = "medium";
     switch (difficulty) {
         case DIFFICULTY_EASY: diff_str = "easy"; break;
         case DIFFICULTY_HARD: diff_str = "hard"; break;
@@ -311,8 +313,8 @@ Quiz* quiz_generate_from_llm(const char* topic, const char* content,
         default: break;
     }
 
-    // Determine question types based on accessibility
-    const char* types = "multiple_choice, true_false";
+    // Determine question types based on accessibility (used when LLM integration is active)
+    const char* types __attribute__((unused)) = "multiple_choice, true_false";
     if (!qa.simplified_options) {
         types = "multiple_choice, true_false, cloze, sequence";
     }

@@ -326,7 +326,6 @@ SyncedText* tts_generate_synced_text(const char* text, const TTSSettings* settin
     // Average word duration = 1.0 / (2.5 * speed) seconds
     float avg_word_duration = 1.0f / (2.5f * (settings ? settings->speed : 1.0f));
     float current_time = 0;
-    int char_pos = 0;
 
     const char* word_start = text;
     for (const char* p = text; ; p++) {
