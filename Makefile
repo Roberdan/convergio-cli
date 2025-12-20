@@ -36,7 +36,19 @@ MAKEFLAGS += -j$(PARALLEL_JOBS) --load-average=$(CPU_CORES)
 
 # Apple Silicon optimizations for M3 Max
 # M3 Max specific: use latest architecture features
-ARCH_FLAGS = -arch arm64 -mcpu=apple-m3
+# M3 Max specific CPU flag (only on M3 Max, not in CI)
+# CI runners may not be M3, so we make this conditional
+ifeq ($(CI),)
+    # Not in CI - check if we're on M3 Max (14 cores)
+    ifeq ($(shell sysctl -n hw.ncpu 2>/dev/null),14)
+        ARCH_FLAGS = -arch arm64 -mcpu=apple-m3
+    else
+        ARCH_FLAGS = -arch arm64
+    endif
+else
+    # In CI - use generic arm64
+    ARCH_FLAGS = -arch arm64
+endif
 
 # GNU Readline from Homebrew (NOT libedit - libedit doesn't support \001\002 markers for colors)
 # Use direct path since `brew` command may not be available in Homebrew sandbox
