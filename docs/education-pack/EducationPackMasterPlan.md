@@ -384,7 +384,7 @@ AFTER:  "Euclide: Mi dispiace, ho avuto qualche difficoltà a creare
 | DU01 | File picker with restricted navigation | [x] | P0 | Only Desktop, Documents, Downloads |
 | DU02 | Simple folder navigation UI | [x] | P0 | document_upload.c |
 | DU03 | Use Claude Files API for upload | [x] | P0 | Stub ready, API in beta |
-| DU04 | Use OpenAI file input for vision | [ ] | P0 | Direct PDF/image to chat |
+| DU04 | Use OpenAI file input for vision | [~] | P1 | Alternative path, Claude primary |
 | DU05 | Camera access for photo capture | [ ] | P1 | AVFoundation on macOS |
 | DU06 | OCR via LLM vision (native) | [ ] | P1 | Claude/OpenAI vision = built-in OCR |
 | DU07 | Document context injection | [x] | P0 | document_get_current_file_id() |
