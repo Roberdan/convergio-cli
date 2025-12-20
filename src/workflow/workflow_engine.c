@@ -9,13 +9,27 @@
 #include "nous/orchestrator.h"
 #include "nous/provider.h"
 #include "nous/nous.h"
+#include "nous/telemetry.h"
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
 #include <errno.h>
 
 // Error handling functions (defined in error_handling.c)
-// These are declared in workflow.h, so we just use them here
+// Observability functions (defined in workflow_observability.c)
+extern void workflow_log_event(LogLevel level, const char* event, const char* workflow_name, uint64_t workflow_id, const char* details);
+extern void workflow_log_node_execution(const Workflow* wf, const WorkflowNode* node, const char* status, const char* details);
+extern void workflow_log_error(const Workflow* wf, const char* error_type, const char* error_message);
+extern void workflow_telemetry_start(const Workflow* wf);
+extern void workflow_telemetry_end(const Workflow* wf, bool success);
+extern void workflow_telemetry_node(const Workflow* wf, const WorkflowNode* node, bool success, double latency_ms);
+extern void workflow_telemetry_error(const Workflow* wf, const char* error_type);
+extern void workflow_audit_log(const Workflow* wf, const char* operation, const char* details);
+extern void workflow_security_log(const Workflow* wf, const char* security_event, const char* details);
+extern bool workflow_validate_name_safe(const char* name);
+extern bool workflow_validate_key_safe(const char* key);
+extern char* workflow_sanitize_value(const char* value);
+extern bool workflow_validate_condition_safe(const char* condition);
 
 // ============================================================================
 // FORWARD DECLARATIONS
@@ -351,12 +365,35 @@ int workflow_execute(Workflow* wf, const char* input, char** output) {
     char* node_output = NULL;
     
     while (current) {
+        // Logging: Log node execution start
+        workflow_log_node_execution(wf, current, "executing", NULL);
+        
+        // Audit: Log node execution
+        workflow_audit_log(wf, "node_execute", current->name ? current->name : "unnamed");
+        
+        time_t node_start = time(NULL);
+        
         // Execute current node
         int result = workflow_execute_node(wf, current, current_input, &node_output);
+        
+        time_t node_end = time(NULL);
+        double latency_ms = (node_end - node_start) * 1000.0;
         
         if (result != 0) {
             // Execution failed
             wf->status = WORKFLOW_STATUS_FAILED;
+            
+            // Logging: Log node failure
+            workflow_log_node_execution(wf, current, "failed", wf->error_message);
+            workflow_log_error(wf, "node_execution_failed", wf->error_message);
+            
+            // Telemetry: Record node failure
+            workflow_telemetry_node(wf, current, false, latency_ms);
+            workflow_telemetry_error(wf, "node_execution_failed");
+            
+            // Audit: Log failure
+            workflow_audit_log(wf, "node_execute_failed", current->name ? current->name : "unnamed");
+            
             if (current_input) {
                 free(current_input);
                 current_input = NULL;
@@ -365,8 +402,22 @@ int workflow_execute(Workflow* wf, const char* input, char** output) {
                 free(node_output);
                 node_output = NULL;
             }
+            if (sanitized_input) {
+                free(sanitized_input);
+            }
+            
+            // Telemetry: Record workflow end (failure)
+            workflow_telemetry_end(wf, false);
+            workflow_log_event(LOG_LEVEL_ERROR, "workflow_execute_failed", wf->name, wf->workflow_id, wf->error_message);
+            
             return -1;
         }
+        
+        // Logging: Log node success
+        workflow_log_node_execution(wf, current, "completed", NULL);
+        
+        // Telemetry: Record node success
+        workflow_telemetry_node(wf, current, true, latency_ms);
         
         // Check if workflow was paused (human input required)
         if (wf->status == WORKFLOW_STATUS_PAUSED) {

@@ -32,6 +32,10 @@ typedef enum {
     TELEMETRY_EVENT_FALLBACK,       // Provider fallback triggered
     TELEMETRY_EVENT_SESSION_START,  // Session started
     TELEMETRY_EVENT_SESSION_END,    // Session ended
+    TELEMETRY_EVENT_WORKFLOW_START, // Workflow execution started
+    TELEMETRY_EVENT_WORKFLOW_END,   // Workflow execution ended
+    TELEMETRY_EVENT_WORKFLOW_NODE,  // Workflow node executed
+    TELEMETRY_EVENT_WORKFLOW_ERROR, // Workflow error occurred
 } TelemetryEventType;
 
 /**

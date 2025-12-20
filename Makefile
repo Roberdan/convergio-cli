@@ -198,6 +198,7 @@ C_SOURCES = $(SRC_DIR)/core/fabric.c \
             $(SRC_DIR)/workflow/patterns.c \
             $(SRC_DIR)/workflow/retry.c \
             $(SRC_DIR)/workflow/error_handling.c \
+            $(SRC_DIR)/workflow/workflow_observability.c \
             $(SRC_DIR)/core/commands/workflow.c
 
 OBJC_SOURCES = $(SRC_DIR)/metal/gpu.m \

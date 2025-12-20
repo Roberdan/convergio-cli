@@ -12,6 +12,12 @@
 #include <time.h>
 #include <errno.h>
 
+// Observability functions
+extern bool workflow_validate_name_safe(const char* name);
+extern bool workflow_validate_key_safe(const char* key);
+extern char* workflow_sanitize_value(const char* value);
+extern void workflow_security_log(const Workflow* wf, const char* security_event, const char* details);
+
 // ============================================================================
 // CONSTANTS
 // ============================================================================
