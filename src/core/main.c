@@ -226,22 +226,19 @@ static void print_gradient_line(const char* line) {
 static void print_edition_ascii(ConvergioEdition edition) {
     switch (edition) {
         case EDITION_EDUCATION:
-            // EDUCATION - compact 3-line ASCII with same gradient as CONVERGIO
-            print_gradient_line("                    ██▀▀▀ █▀▀▄ █  █ ▄▀▀▀ ▄▀▀▄ ▀█▀ █ ▄▀▀▄ █▄ █");
-            print_gradient_line("                    █▀▀   █  █ █  █ █    █▀▀█  █  █ █  █ █ ▀█");
-            print_gradient_line("                    ▀▀▀▀▀ ▀▀▀  ▀▀▀  ▀▀▀ ▀  ▀  ▀  ▀  ▀▀  ▀  ▀");
+            // EDUCATION - simple text with = underline, centered
+            print_gradient_line("                          E D U C A T I O N");
+            print_gradient_line("                          ═════════════════");
             break;
         case EDITION_BUSINESS:
-            // BUSINESS - compact 3-line ASCII
-            print_gradient_line("                    █▀▀▄ █  █ ▄▀▀▀ █ █▄ █ ██▀ ▄▀▀▀ ▄▀▀▀");
-            print_gradient_line("                    █▀▀▄ █  █  ▀▀▄ █ █ ▀█ █▀▀  ▀▀▄  ▀▀▄");
-            print_gradient_line("                    ▀▀▀  ▀▀▀  ▀▀▀  ▀ ▀  ▀ ▀▀▀ ▀▀▀  ▀▀▀ ");
+            // BUSINESS - simple text with = underline
+            print_gradient_line("                            B U S I N E S S");
+            print_gradient_line("                            ═══════════════");
             break;
         case EDITION_DEVELOPER:
-            // DEVELOPER - compact 3-line ASCII
-            print_gradient_line("                    █▀▀▄ ██▀ █  █ ██▀ █   ▄▀▀▄ █▀▀▄ ██▀ █▀▀▄");
-            print_gradient_line("                    █  █ █▀▀ ▀▄▄▀ █▀▀ █   █  █ █▀▀  █▀▀ █▀▀▄");
-            print_gradient_line("                    ▀▀▀  ▀▀▀  ▀▀  ▀▀▀ ▀▀▀  ▀▀  ▀    ▀▀▀ ▀  ▀");
+            // DEVELOPER - simple text with = underline
+            print_gradient_line("                           D E V E L O P E R");
+            print_gradient_line("                           ═════════════════");
             break;
         default:
             // Master edition - no extra label needed
