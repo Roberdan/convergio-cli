@@ -188,7 +188,8 @@ C_SOURCES = $(SRC_DIR)/core/fabric.c \
             $(SRC_DIR)/projects/projects.c \
             $(SRC_DIR)/todo/todo.c \
             $(SRC_DIR)/notifications/notify.c \
-            $(SRC_DIR)/mcp/mcp_client.c
+            $(SRC_DIR)/mcp/mcp_client.c \
+            $(SRC_DIR)/workflow/workflow_types.c
 
 OBJC_SOURCES = $(SRC_DIR)/metal/gpu.m \
                $(SRC_DIR)/neural/mlx_embed.m \
@@ -275,6 +276,7 @@ dirs:
 	@mkdir -p $(OBJ_DIR)/notifications
 	@mkdir -p $(OBJ_DIR)/mcp
 	@mkdir -p $(OBJ_DIR)/acp
+	@mkdir -p $(OBJ_DIR)/workflow
 	@mkdir -p $(BIN_DIR)
 	@mkdir -p data
 
