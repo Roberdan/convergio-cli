@@ -24,6 +24,7 @@
 #include "nous/plan_db.h"
 #include "nous/output_service.h"
 #include "nous/workflow.h"
+#include "nous/edition.h"
 #include "../../auth/oauth.h"
 #include <cjson/cJSON.h>
 #include <stdio.h>
@@ -1050,30 +1051,85 @@ static void print_detailed_help(const CommandHelp* h) {
 // CORE COMMANDS
 // ============================================================================
 
-int cmd_help(int argc, char** argv) {
-    // If a specific command is requested, show detailed help
-    if (argc >= 2) {
-        const CommandHelp* h = find_detailed_help(argv[1]);
-        if (h) {
-            print_detailed_help(h);
-            return 0;
-        }
+// Education Edition help
+static void print_help_education(void) {
+    printf("\n");
+    printf("\033[32m┌──────────────────────────────────────────────────────────────┐\033[0m\n");
+    printf("\033[32m│  \033[1;37mCONVERGIO EDUCATION\033[0;32m - Learn from History's Greatest       │\033[0m\n");
+    printf("\033[32m└──────────────────────────────────────────────────────────────┘\033[0m\n\n");
 
-        // Check if it's a known command without detailed help
-        for (const ReplCommand* cmd = COMMANDS; cmd->name != NULL; cmd++) {
-            if (strcmp(cmd->name, argv[1]) == 0) {
-                printf("\n\033[1m%s\033[0m - %s\n", cmd->name, cmd->description);
-                printf("\nNo detailed help available for this command.\n\n");
-                return 0;
-            }
-        }
+    // 1. YOUR TEACHERS - The 15 Maestri
+    printf("\033[1;33m📚 YOUR TEACHERS\033[0m  \033[2m(15 historical maestri ready to teach)\033[0m\n");
+    printf("   \033[36m@ali\033[0m               Principal - guides your learning journey\n");
+    printf("   \033[36m@euclide\033[0m           Mathematics - logic, geometry, algebra\n");
+    printf("   \033[36m@feynman\033[0m           Physics - makes complex ideas simple\n");
+    printf("   \033[36m@manzoni\033[0m           Italian - literature and storytelling\n");
+    printf("   \033[36m@darwin\033[0m            Sciences - observation and curiosity\n");
+    printf("   \033[36m@erodoto\033[0m           History - bringing the past alive\n");
+    printf("   \033[36m@humboldt\033[0m          Geography - nature and culture\n");
+    printf("   \033[36m@leonardo\033[0m          Art - creativity and observation\n");
+    printf("   \033[36m@shakespeare\033[0m       English - language and expression\n");
+    printf("   \033[36m@mozart\033[0m            Music - joy of musical creation\n");
+    printf("   \033[36m@cicerone\033[0m          Civics/Latin - rhetoric and citizenship\n");
+    printf("   \033[36m@smith\033[0m             Economics - understanding markets\n");
+    printf("   \033[36m@lovelace\033[0m          Computer Science - computational thinking\n");
+    printf("   \033[36m@ippocrate\033[0m         Health - wellness and body care\n");
+    printf("   \033[36m@socrate\033[0m           Philosophy - asking the right questions\n");
+    printf("   \033[36m@chris\033[0m             Storytelling - narrative and communication\n");
+    printf("   \033[36magents\033[0m             See all teachers and their specialties\n");
+    printf("   \033[2m   Tip: @ali or 'back' returns to the Principal\033[0m\n\n");
 
-        printf("\nUnknown command: %s\n", argv[1]);
-        printf("Type 'help' to see available commands.\n\n");
-        return -1;
-    }
+    // 2. STUDY TOOLS
+    printf("\033[1;33m📖 STUDY TOOLS\033[0m  \033[2m(interactive learning features)\033[0m\n");
+    printf("   \033[36meducation\033[0m          Enter Education mode (all features)\n");
+    printf("   \033[36mstudy <topic>\033[0m      Start a study session on any topic\n");
+    printf("   \033[36mhomework <desc>\033[0m    Get help with your homework\n");
+    printf("   \033[36mquiz <topic>\033[0m       Test your knowledge with a quiz\n");
+    printf("   \033[36mflashcards <topic>\033[0m Create and practice flashcards\n");
+    printf("   \033[36mmindmap <topic>\033[0m    Generate a visual mind map\n\n");
 
-    // Show general help - redesigned to showcase features
+    // 3. LANGUAGE TOOLS
+    printf("\033[1;33m🗣️  LANGUAGE TOOLS\033[0m  \033[2m(vocabulary and grammar)\033[0m\n");
+    printf("   \033[36mdefine <word>\033[0m      Get definition with examples\n");
+    printf("   \033[36mconjugate <verb>\033[0m   Show verb conjugations\n");
+    printf("   \033[36mpronounce <word>\033[0m   Learn pronunciation\n");
+    printf("   \033[36mgrammar <topic>\033[0m    Explain grammar rules\n\n");
+
+    // 4. PROGRESS TRACKING
+    printf("\033[1;33m📊 PROGRESS TRACKING\033[0m  \033[2m(your learning journey)\033[0m\n");
+    printf("   \033[36mlibretto\033[0m           View your digital report card\n");
+    printf("   \033[36mxp\033[0m                 Check your experience points\n");
+    printf("   \033[2m   Tip: Complete quizzes and study sessions to earn XP!\033[0m\n\n");
+
+    // 5. SPECIAL FEATURES
+    printf("\033[1;33m✨ SPECIAL FEATURES\033[0m\n");
+    printf("   \033[36mvoice\033[0m              Enable voice mode (text-to-speech)\n");
+    printf("   \033[36mhtml <topic>\033[0m       Generate interactive HTML content\n");
+    printf("   \033[36mcalc\033[0m               Scientific calculator\n");
+    printf("   \033[36mperiodic\033[0m           Interactive periodic table\n");
+    printf("   \033[36mconvert <expr>\033[0m     Unit converter (5km to miles)\n");
+    printf("   \033[36mvideo <topic>\033[0m      Search educational videos\n\n");
+
+    // 6. ORGANIZATION
+    printf("\033[1;33m📅 ORGANIZATION\033[0m  \033[2m(Anna helps you stay organized)\033[0m\n");
+    printf("   \033[36m@anna\033[0m              Ask Anna for help with scheduling\n");
+    printf("   \033[36mtodo\033[0m               View your task list\n");
+    printf("   \033[36mtodo add <task>\033[0m    Add homework or study tasks\n");
+    printf("   \033[36mremind <time> <msg>\033[0m Set study reminders\n\n");
+
+    // 7. SYSTEM
+    printf("\033[1;33m⚙️  SYSTEM\033[0m\n");
+    printf("   \033[36mstatus\033[0m             System health & active teachers\n");
+    printf("   \033[36mtheme\033[0m              Change colors and appearance\n");
+    printf("   \033[36msetup\033[0m              Configure your settings\n");
+    printf("   \033[36mcost\033[0m               Track API usage\n\n");
+
+    printf("\033[2m───────────────────────────────────────────────────────────────────\033[0m\n");
+    printf("\033[2mType \033[0mhelp <command>\033[2m for details  •  Or ask your teacher!\033[0m\n\n");
+}
+
+// Master/Full Edition help
+static void print_help_master(void) {
     printf("\n");
     printf("\033[36m┌──────────────────────────────────────────────────────────────┐\033[0m\n");
     printf("\033[36m│  \033[1;37mCONVERGIO\033[0;36m - Your AI Team with Human Purpose                 │\033[0m\n");
@@ -1142,6 +1198,52 @@ int cmd_help(int argc, char** argv) {
 
     printf("\033[2m───────────────────────────────────────────────────────────────────\033[0m\n");
     printf("\033[2mType \033[0mhelp <command>\033[2m for details  •  Or just talk to Ali!\033[0m\n\n");
+}
+
+int cmd_help(int argc, char** argv) {
+    // If a specific command is requested, show detailed help
+    if (argc >= 2) {
+        // Check if command is available in current edition
+        if (!edition_has_command(argv[1])) {
+            printf("\n\033[33mCommand '%s' is not available in %s.\033[0m\n\n",
+                   argv[1], edition_display_name());
+            return -1;
+        }
+
+        const CommandHelp* h = find_detailed_help(argv[1]);
+        if (h) {
+            print_detailed_help(h);
+            return 0;
+        }
+
+        // Check if it's a known command without detailed help
+        for (const ReplCommand* cmd = COMMANDS; cmd->name != NULL; cmd++) {
+            if (strcmp(cmd->name, argv[1]) == 0) {
+                printf("\n\033[1m%s\033[0m - %s\n", cmd->name, cmd->description);
+                printf("\nNo detailed help available for this command.\n\n");
+                return 0;
+            }
+        }
+
+        printf("\nUnknown command: %s\n", argv[1]);
+        printf("Type 'help' to see available commands.\n\n");
+        return -1;
+    }
+
+    // Show edition-specific general help
+    switch (edition_current()) {
+        case EDITION_EDUCATION:
+            print_help_education();
+            break;
+        case EDITION_BUSINESS:
+        case EDITION_DEVELOPER:
+            // TODO: Add Business and Developer specific help
+            print_help_master();
+            break;
+        default:
+            print_help_master();
+            break;
+    }
 
     return 0;
 }

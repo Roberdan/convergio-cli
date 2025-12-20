@@ -146,6 +146,48 @@ make EDITION=developer
 
 ---
 
+## UI/UX Decisions (2025-12-20 Update)
+
+### ASCII Branding per Edition
+
+Each edition displays a distinctive ASCII banner under the main CONVERGIO logo:
+
+```
+CONVERGIO (main logo)
+    └── EDUC (Education - green)
+    └── BUSIN (Business - blue)
+    └── DEVS (Developer - orange)
+    └── (none for Master)
+```
+
+**Rationale**: Visual differentiation helps users immediately identify which edition they're using. Colors are chosen to match brand identity:
+- Education: Green (growth, learning)
+- Business: Blue (trust, professionalism)
+- Developer: Orange (creativity, energy)
+
+### Edition-Aware Help System
+
+The `/help` command shows different content based on edition:
+
+1. **Education Edition**: Shows 15 Maestri (teachers), study tools, language tools, progress tracking
+2. **Business Edition**: Shows business agents, CRM tools, analytics (placeholder)
+3. **Developer Edition**: Shows dev agents, code review tools, CI/CD (placeholder)
+4. **Master Edition**: Shows all 53 agents and all features
+
+**Command Filtering**:
+- `edition_has_command()` validates commands at runtime
+- Commands not in edition's whitelist display: "Command 'X' is not available in Convergio Education"
+- Help for specific commands (`help quiz`) also checks availability
+
+### Agent Filtering
+
+The `/agents` command respects edition whitelists:
+- Only shows agents available in current edition
+- Education shows 18 agents (15 Maestri + Ali Principal + Anna + Jenny)
+- Master shows all 53+ agents
+
+---
+
 ## Related Documents
 
 - [Phase 9: Verticalization](../education-pack/phases/phase-09-verticalization.md)

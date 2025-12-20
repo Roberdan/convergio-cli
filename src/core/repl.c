@@ -16,6 +16,7 @@
 #include "nous/embedded_agents.h"
 #include "nous/tools.h"
 #include "nous/intent_router.h"
+#include "nous/edition.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -878,6 +879,14 @@ int repl_parse_and_execute(char* line) {
     const ReplCommand* commands = commands_get_table();
     for (const ReplCommand* cmd = commands; cmd->name != NULL; cmd++) {
         if (strcmp(cmd_name, cmd->name) == 0) {
+            // Check if command is available in current edition
+            if (!edition_has_command(cmd->name)) {
+                printf("\033[33mCommand '/%s' is not available in %s.\033[0m\n",
+                       cmd->name, edition_display_name());
+                printf("This command is part of a different Convergio edition.\n\n");
+                free(original_input);
+                return -1;
+            }
             int res = cmd->handler(argc, argv);
             free(original_input);
             return res;

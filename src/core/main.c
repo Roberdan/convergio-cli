@@ -222,6 +222,55 @@ static void print_gradient_line(const char* line) {
     printf("\n");
 }
 
+// Small ASCII edition labels
+static void print_edition_ascii(ConvergioEdition edition) {
+    const char* dim = "\033[2m";
+    const char* rst = "\033[0m";
+    const char* edu_color = "\033[38;5;40m";   // Green for education
+    const char* biz_color = "\033[38;5;33m";   // Blue for business
+    const char* dev_color = "\033[38;5;208m";  // Orange for developer
+
+    switch (edition) {
+        case EDITION_EDUCATION:
+            printf("%s", edu_color);
+            printf("              ┌─────────────────────────────────────────┐\n");
+            printf("              │  ███████╗██████╗ ██╗   ██╗ ██████╗      │\n");
+            printf("              │  ██╔════╝██╔══██╗██║   ██║██╔════╝      │\n");
+            printf("              │  █████╗  ██║  ██║██║   ██║██║           │\n");
+            printf("              │  ██╔══╝  ██║  ██║██║   ██║██║           │\n");
+            printf("              │  ███████╗██████╔╝╚██████╔╝╚██████╗      │\n");
+            printf("              │  ╚══════╝╚═════╝  ╚═════╝  ╚═════╝      │\n");
+            printf("              └─────────────────────────────────────────┘%s\n", rst);
+            break;
+        case EDITION_BUSINESS:
+            printf("%s", biz_color);
+            printf("              ┌─────────────────────────────────────────┐\n");
+            printf("              │  ██████╗ ██╗   ██╗███████╗██╗███╗   ██╗ │\n");
+            printf("              │  ██╔══██╗██║   ██║██╔════╝██║████╗  ██║ │\n");
+            printf("              │  ██████╔╝██║   ██║███████╗██║██╔██╗ ██║ │\n");
+            printf("              │  ██╔══██╗██║   ██║╚════██║██║██║╚██╗██║ │\n");
+            printf("              │  ██████╔╝╚██████╔╝███████║██║██║ ╚████║ │\n");
+            printf("              │  ╚═════╝  ╚═════╝ ╚══════╝╚═╝╚═╝  ╚═══╝ │\n");
+            printf("              └─────────────────────────────────────────┘%s\n", rst);
+            break;
+        case EDITION_DEVELOPER:
+            printf("%s", dev_color);
+            printf("              ┌─────────────────────────────────────────┐\n");
+            printf("              │  ██████╗ ███████╗██╗   ██╗███████╗      │\n");
+            printf("              │  ██╔══██╗██╔════╝██║   ██║██╔════╝      │\n");
+            printf("              │  ██║  ██║█████╗  ██║   ██║███████╗      │\n");
+            printf("              │  ██║  ██║██╔══╝  ╚██╗ ██╔╝╚════██║      │\n");
+            printf("              │  ██████╔╝███████╗ ╚████╔╝ ███████║      │\n");
+            printf("              │  ╚═════╝ ╚══════╝  ╚═══╝  ╚══════╝      │\n");
+            printf("              └─────────────────────────────────────────┘%s\n", rst);
+            break;
+        default:
+            // Master edition - no extra label needed
+            break;
+    }
+    (void)dim;  // Suppress unused warning
+}
+
 static void print_banner(void) {
     const char* rst = "\033[0m";
     const char* dim = "\033[2m";
@@ -236,6 +285,9 @@ static void print_banner(void) {
     print_gradient_line("     ███░     ██║     ██║   ██║██║╚██╗██║╚██╗ ██╔╝██╔══╝  ██╔══██╗██║   ██║██║██║   ██║");
     print_gradient_line("   ███░      ╚██████╗╚██████╔╝██║ ╚████║ ╚████╔╝ ███████╗██║  ██║╚██████╔╝██║╚██████╔╝");
     print_gradient_line(" ███░         ╚═════╝ ╚═════╝ ╚═╝  ╚═══╝  ╚═══╝  ╚══════╝╚═╝  ╚═╝ ╚═════╝ ╚═╝ ╚═════╝ ");
+
+    // Edition ASCII branding (smaller, below main logo)
+    print_edition_ascii(edition_current());
     printf("\n");
 
     // Edition-specific tagline
