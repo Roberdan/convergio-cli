@@ -6,12 +6,14 @@
 
 #include "nous/output_service.h"
 #include "nous/hyperlink.h"
+#include "nous/safe_path.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 #include <sys/stat.h>
 #include <dirent.h>
+#include <fcntl.h>
 #include <time.h>
 #include <uuid/uuid.h>
 

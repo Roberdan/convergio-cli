@@ -9,11 +9,13 @@
 
 #include "nous/config.h"
 #include "nous/nous.h"
+#include "nous/safe_path.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#include <fcntl.h>
 #include <pwd.h>
 #include <errno.h>
 

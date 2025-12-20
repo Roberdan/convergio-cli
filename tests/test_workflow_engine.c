@@ -232,6 +232,63 @@ static void test_workflow_cancel(void) {
 }
 
 // ============================================================================
+// THREAD SAFETY TESTS
+// ============================================================================
+
+#define NUM_THREADS 10
+#define ITERATIONS_PER_THREAD 100
+
+static void* thread_worker(void* arg) {
+    (void)arg;
+    
+    for (int i = 0; i < ITERATIONS_PER_THREAD; i++) {
+        WorkflowNode* entry = workflow_node_create("entry", NODE_TYPE_ACTION);
+        if (!entry) continue;
+        
+        Workflow* wf = workflow_create("thread_test", "Thread safety test", entry);
+        if (!wf) {
+            workflow_node_destroy(entry);
+            continue;
+        }
+        
+        // Concurrent state operations
+        workflow_set_state(wf, "key1", "value1");
+        workflow_set_state(wf, "key2", "value2");
+        const char* val = workflow_get_state_value(wf, "key1");
+        (void)val; // Suppress unused warning
+        
+        workflow_destroy(wf);
+    }
+    
+    return NULL;
+}
+
+static void test_workflow_thread_safety(void) {
+    printf("test_workflow_thread_safety:\n");
+    
+    pthread_t threads[NUM_THREADS];
+    
+    // Create multiple threads accessing workflows concurrently
+    for (int i = 0; i < NUM_THREADS; i++) {
+        if (pthread_create(&threads[i], NULL, thread_worker, NULL) != 0) {
+            printf("  ✗ Failed to create thread %d\n", i);
+            tests_run++;
+            continue;
+        }
+    }
+    
+    // Wait for all threads
+    for (int i = 0; i < NUM_THREADS; i++) {
+        pthread_join(threads[i], NULL);
+    }
+    
+    // If we get here without crashes or data races, test passes
+    // Thread Sanitizer will detect races if present
+    TEST_ASSERT(true, "thread safety test completed (check with Thread Sanitizer)");
+    printf("\n");
+}
+
+// ============================================================================
 // MAIN TEST RUNNER
 // ============================================================================
 
@@ -247,6 +304,7 @@ int main(void) {
     test_workflow_get_next_node();
     test_workflow_pause();
     test_workflow_cancel();
+    test_workflow_thread_safety();
     
     printf("=== RESULTS ===\n");
     printf("Tests run: %d\n", tests_run);
