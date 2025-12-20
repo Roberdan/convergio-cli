@@ -706,8 +706,8 @@ static void buffer_chunk_for_session(ACPSession* session, const char* chunk) {
                                               session->background_buffer_cap);
     }
 
-    // Append chunk
-    strcat(session->background_buffer, chunk);
+    // Append chunk using memcpy (safer than strcat)
+    memcpy(session->background_buffer + session->background_buffer_len, chunk, chunk_len + 1);
     session->background_buffer_len += chunk_len;
 }
 
