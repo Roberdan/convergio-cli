@@ -237,6 +237,24 @@ This implementation will deliver:
   - LLM cost and token usage optimization
   - Code reorganization and refactoring where beneficial
 
+**Best Practices & Development Standards (NEW):**
+- ⏳ Pre-commit hooks - automated quality checks before commit
+- ⏳ Enhanced CI/CD pipeline - workflow-specific automated checks
+- ⏳ Automated code formatting - consistent code style with clang-format
+- ⏳ Code coverage tracking - automated coverage reports and trends
+- ⏳ Code complexity metrics - track and limit code complexity
+- ⏳ Performance benchmarking - automated performance tests
+- ⏳ Memory profiling - automated memory leak detection
+- ⏳ Dependency vulnerability scanning - automated security scanning
+- ⏳ Automated security testing - fuzzing and penetration testing
+- ⏳ Automated documentation generation - API docs from code
+- ⏳ Technical debt tracking - systematic debt management
+- ⏳ API versioning strategy - backward compatibility guarantees
+- ⏳ Performance regression testing - detect performance regressions
+- ⏳ Load testing - test under high load
+- ⏳ Code review enhancements - automated checklists and metrics
+  - See [BEST_PRACTICES.md](BEST_PRACTICES.md) for complete list and implementation plan
+
 **Release Management (NEW):**
 - ✅ App-release-manager agent created - Enhanced for workflow orchestration with comprehensive checks
   - Location: `src/agents/app-release-manager.md`
