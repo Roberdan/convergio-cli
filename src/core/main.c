@@ -226,6 +226,7 @@ static void print_banner(void) {
     const char* rst = "\033[0m";
     const char* dim = "\033[2m";
     const char* c3 = "\033[38;5;75m";
+    const char* green = "\033[38;5;40m";
 
     printf("\n");
     // Block-style > arrow with CONVERGIO text
@@ -236,9 +237,31 @@ static void print_banner(void) {
     print_gradient_line("   ███░      ╚██████╗╚██████╔╝██║ ╚████║ ╚████╔╝ ███████╗██║  ██║╚██████╔╝██║╚██████╔╝");
     print_gradient_line(" ███░         ╚═════╝ ╚═════╝ ╚═╝  ╚═══╝  ╚═══╝  ╚══════╝╚═╝  ╚═╝ ╚═════╝ ╚═╝ ╚═════╝ ");
     printf("\n");
-    print_gradient_line("          Your team, with human purpose and AI momentum.");
-    printf("\n");
-    printf("  %sv%s%s  •  %s/help%s for commands\n", dim, convergio_get_version(), rst, c3, rst);
+
+    // Edition-specific tagline
+    const EditionInfo* info = edition_get_current_info();
+    if (edition_current() == EDITION_EDUCATION) {
+        print_gradient_line("          Learn from history's greatest teachers.");
+        printf("  %s%s%s  •  %sv%s%s%s  •  %s/help%s for commands\n",
+               green, info->name, rst,
+               dim, convergio_get_version(), info->version_suffix, rst,
+               c3, rst);
+    } else if (edition_current() == EDITION_BUSINESS) {
+        print_gradient_line("          Your AI-powered business team.");
+        printf("  %s%s%s  •  %sv%s%s%s  •  %s/help%s for commands\n",
+               green, info->name, rst,
+               dim, convergio_get_version(), info->version_suffix, rst,
+               c3, rst);
+    } else if (edition_current() == EDITION_DEVELOPER) {
+        print_gradient_line("          Ship quality code faster.");
+        printf("  %s%s%s  •  %sv%s%s%s  •  %s/help%s for commands\n",
+               green, info->name, rst,
+               dim, convergio_get_version(), info->version_suffix, rst,
+               c3, rst);
+    } else {
+        print_gradient_line("          Your team, with human purpose and AI momentum.");
+        printf("  %sv%s%s  •  %s/help%s for commands\n", dim, convergio_get_version(), rst, c3, rst);
+    }
     printf("\n");
 }
 

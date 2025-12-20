@@ -312,7 +312,7 @@ OBJECTS = $(C_OBJECTS) $(OBJC_OBJECTS)
 METAL_AIR = $(BUILD_DIR)/similarity.air
 METAL_LIB = $(BUILD_DIR)/similarity.metallib
 
-# Target (with edition suffix)
+# Target - binary name includes edition suffix (convergio, convergio-edu, convergio-biz, convergio-dev)
 TARGET = $(BIN_DIR)/convergio$(EDITION_SUFFIX)
 
 # Notification helper app
