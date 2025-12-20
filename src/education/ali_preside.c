@@ -701,3 +701,88 @@ char* preside_suggest_interdisciplinary(int64_t student_id, const char* topic) {
 
     return suggestion;
 }
+
+// ============================================================================
+// EDUCATION WELCOME SYSTEM
+// ============================================================================
+
+/**
+ * Show Ali's welcome message at startup.
+ * Detects first-time users and shows personalized greeting.
+ * Returns 0 on success, -1 on error.
+ */
+int education_show_welcome(void) {
+    // Initialize education system
+    if (education_init() != 0) {
+        fprintf(stderr, "\033[31mError: Failed to initialize education system\033[0m\n");
+        return -1;
+    }
+
+    // Check for existing profile
+    EducationStudentProfile* profile = education_profile_get_active();
+
+    printf("\n");
+    printf("  \033[1;38;5;135m┌─────────────────────────────────────────────────────────────┐\033[0m\n");
+    printf("  \033[1;38;5;135m│\033[0m  \033[1;38;5;214m🎓 Ali, il Preside\033[0m                                          \033[1;38;5;135m│\033[0m\n");
+    printf("  \033[1;38;5;135m├─────────────────────────────────────────────────────────────┤\033[0m\n");
+
+    if (!profile) {
+        // First-time user - trigger setup wizard
+        printf("  \033[1;38;5;135m│\033[0m                                                             \033[1;38;5;135m│\033[0m\n");
+        printf("  \033[1;38;5;135m│\033[0m  \033[1mBenvenuto a Convergio Education!\033[0m                           \033[1;38;5;135m│\033[0m\n");
+        printf("  \033[1;38;5;135m│\033[0m                                                             \033[1;38;5;135m│\033[0m\n");
+        printf("  \033[1;38;5;135m│\033[0m  Sono Ali, il tuo Preside virtuale. Sono qui per           \033[1;38;5;135m│\033[0m\n");
+        printf("  \033[1;38;5;135m│\033[0m  guidarti nel tuo percorso di apprendimento.               \033[1;38;5;135m│\033[0m\n");
+        printf("  \033[1;38;5;135m│\033[0m                                                             \033[1;38;5;135m│\033[0m\n");
+        printf("  \033[1;38;5;135m│\033[0m  Abbiamo 15 maestri straordinari pronti ad aiutarti:       \033[1;38;5;135m│\033[0m\n");
+        printf("  \033[1;38;5;135m│\033[0m  Socrate, Euclide, Feynman, Erodoto, Darwin, e altri!      \033[1;38;5;135m│\033[0m\n");
+        printf("  \033[1;38;5;135m│\033[0m                                                             \033[1;38;5;135m│\033[0m\n");
+        printf("  \033[1;38;5;135m│\033[0m  \033[33mPrima di iniziare, vorrei conoscerti meglio.\033[0m              \033[1;38;5;135m│\033[0m\n");
+        printf("  \033[1;38;5;135m│\033[0m  \033[33mUsa il comando /setup per configurare il tuo profilo.\033[0m     \033[1;38;5;135m│\033[0m\n");
+        printf("  \033[1;38;5;135m│\033[0m                                                             \033[1;38;5;135m│\033[0m\n");
+        printf("  \033[1;38;5;135m└─────────────────────────────────────────────────────────────┘\033[0m\n");
+        printf("\n");
+    } else {
+        // Returning user - personalized greeting
+        const char* name = profile->name ? profile->name : "studente";
+
+        // Get time-appropriate greeting
+        time_t now = time(NULL);
+        struct tm* tm_info = localtime(&now);
+        const char* greeting;
+        if (tm_info->tm_hour < 12) {
+            greeting = "Buongiorno";
+        } else if (tm_info->tm_hour < 18) {
+            greeting = "Buon pomeriggio";
+        } else {
+            greeting = "Buonasera";
+        }
+
+        printf("  \033[1;38;5;135m│\033[0m                                                             \033[1;38;5;135m│\033[0m\n");
+        printf("  \033[1;38;5;135m│\033[0m  \033[1m%s, %s!\033[0m", greeting, name);
+        // Pad to fit the box
+        int padding = 47 - (int)strlen(greeting) - (int)strlen(name);
+        for (int i = 0; i < padding; i++) printf(" ");
+        printf("\033[1;38;5;135m│\033[0m\n");
+        printf("  \033[1;38;5;135m│\033[0m                                                             \033[1;38;5;135m│\033[0m\n");
+        printf("  \033[1;38;5;135m│\033[0m  Bentornato/a! Sono pronto ad aiutarti con i tuoi studi.   \033[1;38;5;135m│\033[0m\n");
+        printf("  \033[1;38;5;135m│\033[0m  I nostri 15 maestri sono a tua disposizione.              \033[1;38;5;135m│\033[0m\n");
+        printf("  \033[1;38;5;135m│\033[0m                                                             \033[1;38;5;135m│\033[0m\n");
+        printf("  \033[1;38;5;135m│\033[0m  \033[36mCosa vorresti imparare oggi?\033[0m                              \033[1;38;5;135m│\033[0m\n");
+        printf("  \033[1;38;5;135m│\033[0m                                                             \033[1;38;5;135m│\033[0m\n");
+        printf("  \033[1;38;5;135m└─────────────────────────────────────────────────────────────┘\033[0m\n");
+        printf("\n");
+
+        // Show last session info if available
+        if (profile->last_session_at > 0) {
+            time_t diff = now - profile->last_session_at;
+            if (diff > 86400) {  // More than a day
+                int days = (int)(diff / 86400);
+                printf("  \033[2mÈ passato%s %d giorn%s dall'ultima sessione.\033[0m\n\n",
+                       days == 1 ? "" : "no", days, days == 1 ? "o" : "i");
+            }
+        }
+    }
+
+    return 0;
+}

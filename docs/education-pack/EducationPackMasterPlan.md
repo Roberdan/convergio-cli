@@ -359,6 +359,106 @@ AFTER:  "Euclide: Mi dispiace, ho avuto qualche difficoltà a creare
         concetto con un disegno più semplice?"
 ```
 
+#### 14.8 Document & Media Upload (School Materials)
+
+**Purpose**: Allow students to upload school lesson materials (textbooks, PDFs, images, photos of handwritten notes) so teachers can help with specific school assignments.
+
+**Key Principle**: This mode runs PARALLEL to the established curriculum - students can deep-dive into school-assigned topics with all Convergio tools.
+
+##### Implementation Strategy (December 2025)
+
+**Native LLM Document Processing** - Both Claude and OpenAI now support direct document input:
+
+| Provider | API Endpoint | Supported Formats | Max Size | Max Pages |
+|----------|--------------|-------------------|----------|-----------|
+| Claude | Files API (Beta) | PDF, DOCX, TXT, CSV, HTML, RTF, EPUB, images | 500 MB/file | 100 pages |
+| OpenAI | Chat Completions | PDF, DOCX, PPTX, XLSX, images | 32 MB/request | 100 pages |
+
+**Key Capability**: Both APIs extract text AND visual content (charts, diagrams, formulas) from documents!
+
+##### Implementation Tasks
+
+| ID | Task | Status | Priority | Notes |
+|----|------|--------|----------|-------|
+| DU01 | File picker with restricted navigation | [ ] | P0 | Only Desktop, Documents, Downloads |
+| DU02 | Simple folder navigation UI | [ ] | P0 | Friendly to students |
+| DU03 | Use Claude Files API for upload | [ ] | P0 | file_id reusable across calls |
+| DU04 | Use OpenAI file input for vision | [ ] | P0 | Direct PDF/image to chat |
+| DU05 | Camera access for photo capture | [ ] | P1 | AVFoundation on macOS |
+| DU06 | OCR via LLM vision (native) | [ ] | P1 | Claude/OpenAI vision = built-in OCR |
+| DU07 | Document context injection | [ ] | P0 | Pass file_id or base64 content |
+| DU08 | Topic extraction from document | [ ] | P1 | LLM prompt: "What subject is this?" |
+| DU09 | Route to appropriate teacher | [ ] | P1 | Based on detected subject |
+| DU10 | Explain concept from textbook | [ ] | P0 | "Explain this paragraph" |
+| DU11 | Adapt visuals for topic | [ ] | P0 | MindMaps, HTML for school topic |
+| DU12 | PPTX support (presentations) | [ ] | P1 | Common for school slides |
+| DU13 | XLSX support (spreadsheets) | [ ] | P2 | For data-related lessons |
+
+##### Claude Files API Usage (Preferred)
+```c
+// 1. Upload file once (500 MB max)
+POST /v1/files
+Content-Type: multipart/form-data
+file: <PDF binary>
+purpose: "user_data"
+
+Response: { "id": "file-abc123", "filename": "math_textbook.pdf" }
+
+// 2. Reference in messages (no re-upload!)
+{
+  "model": "claude-sonnet-4-20250514",
+  "messages": [{
+    "role": "user",
+    "content": [
+      { "type": "file", "file_id": "file-abc123" },
+      { "type": "text", "text": "Explain page 42 about fractions" }
+    ]
+  }]
+}
+```
+
+##### OpenAI PDF Input (Alternative)
+```c
+// Direct file in chat completion (32 MB max)
+{
+  "model": "gpt-4o",
+  "messages": [{
+    "role": "user",
+    "content": [
+      {
+        "type": "file",
+        "file": { "data": "<base64_pdf>", "type": "application/pdf" }
+      },
+      { "type": "text", "text": "Explain this page" }
+    ]
+  }]
+}
+```
+
+**User Flow**:
+1. Student: "Ho bisogno di aiuto con questa pagina del libro"
+2. Ali: "Certo! Carica la pagina - puoi fotografarla o cercare un PDF"
+3. [Simple file picker: Desktop / Documents / Downloads]
+4. [File uploaded to Claude Files API → file_id stored in session]
+5. Ali: "Vedo che studi le frazioni! Chiamo Euclide..."
+6. Euclide: [Receives file_id, explains the exact content from the textbook]
+
+**Security Sandbox**:
+- ONLY access Desktop, Documents, Downloads
+- No access to system folders, Applications, etc.
+- Files processed via LLM provider API (encrypted in transit)
+- Session-only file_id references (cleared on exit)
+
+**Cross-Edition Note**: Document upload is valuable for ALL editions:
+- Business: Contract review, financial reports
+- Developer: Code review, architecture diagrams
+- Master: All document types
+
+**Sources**:
+- [Claude Files API](https://platform.claude.com/docs/en/build-with-claude/files)
+- [Claude PDF Support](https://docs.claude.com/en/docs/build-with-claude/pdf-support)
+- [OpenAI PDF Files Guide](https://platform.openai.com/docs/guides/pdf-files)
+
 #### Cross-Edition Applicability
 
 | Feature | Education | Business | Developer | Master |
@@ -367,6 +467,8 @@ AFTER:  "Euclide: Mi dispiace, ho avuto qualche difficoltà a creare
 | User name usage | ✅ | ✅ | ✅ | ✅ |
 | Profile system | ✅ | ✅ | ✅ | ✅ |
 | Proactive proposals | ✅ | ✅ | ✅ | ✅ |
+| Document upload | ✅ | ✅ | ✅ | ✅ |
+| Camera capture | ✅ | ⚪ | ⚪ | ✅ |
 | Empathetic tone | ✅ | ✅ | ✅ | ✅ |
 | Fast HTML/visuals | ✅ | ✅ | ✅ | ✅ |
 

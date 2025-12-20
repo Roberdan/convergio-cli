@@ -1383,6 +1383,21 @@ void education_engagement_free(EducationEngagementStats* stats);
 int education_xp_add(int64_t student_id, int xp_amount, const char* reason);
 
 // ============================================================================
+// EDUCATION STARTUP
+// ============================================================================
+
+/**
+ * @brief Show Ali's welcome message at startup
+ *
+ * Detects first-time users (no profile) and shows appropriate greeting.
+ * For new users: Shows welcome and prompts for /setup
+ * For returning users: Shows personalized greeting with name
+ *
+ * @return 0 on success, -1 on error
+ */
+int education_show_welcome(void);
+
+// ============================================================================
 // INTERNAL API (FOR ANNA INTEGRATION)
 // ============================================================================
 

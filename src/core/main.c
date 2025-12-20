@@ -679,6 +679,12 @@ int main(int argc, char** argv) {
     // If needed in future, call statusbar_init() and statusbar_set_visible(true)
     (void)statusbar_init;  // Suppress unused warning
 
+    // Education edition: Show Ali's welcome message
+    if (edition_current() == EDITION_EDUCATION) {
+        extern int education_show_welcome(void);
+        education_show_welcome();
+    }
+
     // REPL with cost in prompt
     char prompt[256];
     char* line;

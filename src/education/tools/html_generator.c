@@ -31,7 +31,8 @@
 // CONSTANTS
 // ============================================================================
 
-#define HTML_LESSONS_DIR "/.convergio/education/lessons"
+// User-friendly location for education content
+#define HTML_LESSONS_DIR "/Documents/ConvergioEducation"
 
 // ============================================================================
 // HELPERS
@@ -53,17 +54,7 @@ static int ensure_lessons_dir(void) {
     const char* home = getenv("HOME");
     if (!home) return -1;
 
-    // Create ~/.convergio if needed
-    char convergio_dir[512];
-    snprintf(convergio_dir, sizeof(convergio_dir), "%s/.convergio", home);
-    mkdir(convergio_dir, 0755);
-
-    // Create education subdir
-    char edu_dir[512];
-    snprintf(edu_dir, sizeof(edu_dir), "%s/education", convergio_dir);
-    mkdir(edu_dir, 0755);
-
-    // Create lessons subdir
+    // Create ~/Documents/ConvergioEducation - user-friendly location
     char* dir = get_lessons_dir();
     if (!dir) return -1;
 

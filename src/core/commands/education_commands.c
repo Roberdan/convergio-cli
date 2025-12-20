@@ -719,7 +719,7 @@ int cmd_html(int argc, char** argv) {
         printf("support their lessons.\n\n");
         printf("How it works:\n");
         printf("  1. The maestro generates HTML via LLM prompt\n");
-        printf("  2. HTML is saved to ~/.convergio/education/lessons/\n");
+        printf("  2. HTML is saved to ~/Documents/ConvergioEducation/\n");
         printf("  3. Browser opens automatically with the visualization\n\n");
         printf("Usage: /html list                - List saved lessons\n");
         printf("       /html open <filename>     - Open a saved lesson\n");
@@ -739,7 +739,7 @@ int cmd_html(int argc, char** argv) {
 
         char lessons_dir[512];
         snprintf(lessons_dir, sizeof(lessons_dir),
-                 "%s/.convergio/education/lessons", home);
+                 "%s/Documents/ConvergioEducation", home);
 
         printf("\n📂 Saved lessons in %s:\n\n", lessons_dir);
 
@@ -765,7 +765,7 @@ int cmd_html(int argc, char** argv) {
 
         char filepath[512];
         snprintf(filepath, sizeof(filepath),
-                 "%s/.convergio/education/lessons/%s", home, argv[2]);
+                 "%s/Documents/ConvergioEducation/%s", home, argv[2]);
 
         printf("Opening: %s\n", filepath);
         char cmd[1024];

@@ -2346,6 +2346,10 @@ LocalToolCall* tools_parse_call(const char* tool_name, const char* arguments_jso
     } else if (strcmp(tool_name, "html_interactive") == 0 ||
                strcmp(tool_name, "HtmlInteractive") == 0) {
         call->type = TOOL_HTML_INTERACTIVE;
+    } else if (strcmp(tool_name, "mindmap") == 0 ||
+               strcmp(tool_name, "MindMap") == 0 ||
+               strcmp(tool_name, "mind_map") == 0) {
+        call->type = TOOL_MINDMAP;
     } else {
         tools_free_call(call);
         return NULL;
@@ -2628,6 +2632,82 @@ ToolResult* tools_execute(const LocalToolCall* call) {
                 return result_success(msg);
             } else {
                 return result_error("Failed to save HTML file");
+            }
+        }
+
+        case TOOL_MINDMAP: {
+            // Get mindmap parameters
+            char* title = json_get_string(args, "title");
+            char* definition = json_get_string(args, "definition");
+            if (!title) title = json_get_string(args, "root");
+            if (!definition) definition = json_get_string(args, "branches");
+
+            if (!title) {
+                free(definition);
+                return result_error("MindMap title/root is required");
+            }
+
+            // Build Mermaid mindmap definition
+            char mermaid_def[8192];
+            if (definition) {
+                snprintf(mermaid_def, sizeof(mermaid_def),
+                    "mindmap\n  root((%s))\n%s", title, definition);
+            } else {
+                snprintf(mermaid_def, sizeof(mermaid_def),
+                    "mindmap\n  root((%s))", title);
+            }
+
+            // Build HTML with embedded Mermaid.js
+            char html_content[16384];
+            snprintf(html_content, sizeof(html_content),
+                "<!DOCTYPE html>\n"
+                "<html lang=\"en\">\n"
+                "<head>\n"
+                "    <meta charset=\"UTF-8\">\n"
+                "    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n"
+                "    <title>%s - Mind Map</title>\n"
+                "    <script src=\"https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js\"></script>\n"
+                "    <style>\n"
+                "        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 20px; background: linear-gradient(135deg, #667eea 0%%, #764ba2 100%%); min-height: 100vh; }\n"
+                "        .container { max-width: 1200px; margin: 0 auto; background: white; border-radius: 16px; padding: 30px; box-shadow: 0 10px 40px rgba(0,0,0,0.2); }\n"
+                "        h1 { color: #333; text-align: center; margin-bottom: 30px; }\n"
+                "        .mermaid { display: flex; justify-content: center; padding: 20px; }\n"
+                "        .actions { text-align: center; margin-top: 20px; }\n"
+                "        button { background: #667eea; color: white; border: none; padding: 12px 24px; border-radius: 8px; cursor: pointer; font-size: 16px; margin: 5px; }\n"
+                "        button:hover { background: #5a6fd6; }\n"
+                "        @media print { .actions { display: none; } body { background: white; } .container { box-shadow: none; } }\n"
+                "    </style>\n"
+                "</head>\n"
+                "<body>\n"
+                "    <div class=\"container\">\n"
+                "        <h1>%s</h1>\n"
+                "        <div class=\"mermaid\">\n"
+                "%s\n"
+                "        </div>\n"
+                "        <div class=\"actions\">\n"
+                "            <button onclick=\"window.print()\">Print / Save as PDF</button>\n"
+                "        </div>\n"
+                "    </div>\n"
+                "    <script>mermaid.initialize({startOnLoad:true, theme:'default'});</script>\n"
+                "</body>\n"
+                "</html>",
+                title, title, mermaid_def);
+
+            free(title);
+            free(definition);
+
+            // Import html_save_and_open from education tools
+            extern char* html_save_and_open(const char* html_content, const char* topic);
+
+            char* path = html_save_and_open(html_content, "mindmap");
+
+            if (path) {
+                char msg[512];
+                snprintf(msg, sizeof(msg), "Mind map created and opened in browser: %s\nYou can print or save as PDF using the button on the page.", path);
+                free(path);
+                return result_success(msg);
+            } else {
+                return result_error("Failed to save mind map HTML file");
             }
         }
 
