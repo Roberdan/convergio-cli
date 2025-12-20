@@ -195,7 +195,8 @@ C_SOURCES = $(SRC_DIR)/core/fabric.c \
             $(SRC_DIR)/workflow/task_decomposer.c \
             $(SRC_DIR)/workflow/group_chat.c \
             $(SRC_DIR)/workflow/router.c \
-            $(SRC_DIR)/workflow/patterns.c
+            $(SRC_DIR)/workflow/patterns.c \
+            $(SRC_DIR)/workflow/retry.c
 
 OBJC_SOURCES = $(SRC_DIR)/metal/gpu.m \
                $(SRC_DIR)/neural/mlx_embed.m \
