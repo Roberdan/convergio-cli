@@ -2,7 +2,7 @@
 
 **Created**: 2025-12-19
 **Last Updated**: 2025-12-20
-**Status**: 13/13 Phases Complete (100% core, P1/P2 remaining)
+**Status**: 12/13 Phases Complete (Phase 13 Localization pending)
 **Version**: 2.4 (stubs being replaced with real implementations)
 **Branch**: `feature/education-pack`
 **Worktree**: `/Users/roberdan/GitHub/ConvergioCLI-education`
@@ -37,7 +37,7 @@ A virtual classroom council with the greatest historical teachers, equipped with
 
 **Legend**: ✅ Done | 🔄 In Progress | ⬜ Not Started
 
-**Build**: Clean (0 errors, 0 warnings) | **Tests**: 36/36 education tests passing
+**Build**: Clean (0 errors, 0 warnings) | **Tests**: 132 total test functions (36 education-specific)
 
 ---
 
@@ -228,10 +228,10 @@ A virtual classroom council with the greatest historical teachers, equipped with
 - **Max parallel threads**: 10
 - **LOC education**: ~12000+
 - **Test suites**: 10 (fuzz, unit, anna, compaction, plan_db, output, education, tools, web_search, help)
-- **Total tests passing**: 381
+- **Total test functions**: 132
 - **Education tests**: 36
-- **Phases completed**: 13/13 (Phase 13 Localization P1/P2 pending)
-- **Curricula JSON files**: 8
+- **Phases completed**: 12/13 (Phase 13 Localization pending)
+- **Curricula JSON files**: 8 (in `curricula/it/`)
 
 ---
 

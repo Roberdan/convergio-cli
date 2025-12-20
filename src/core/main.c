@@ -222,53 +222,115 @@ static void print_gradient_line(const char* line) {
     printf("\n");
 }
 
-// Small ASCII edition labels
-static void print_edition_ascii(ConvergioEdition edition) {
-    const char* dim = "\033[2m";
-    const char* rst = "\033[0m";
-    const char* edu_color = "\033[38;5;40m";   // Green for education
-    const char* biz_color = "\033[38;5;33m";   // Blue for business
-    const char* dev_color = "\033[38;5;208m";  // Orange for developer
+// Edition-specific gradient colors
+static void print_edition_char(const char* ch, int len, int col, int total_cols, ConvergioEdition edition) {
+    float t = (float)col / (float)total_cols;
+    int color;
 
     switch (edition) {
         case EDITION_EDUCATION:
-            printf("%s", edu_color);
-            printf("              ┌─────────────────────────────────────────┐\n");
-            printf("              │  ███████╗██████╗ ██╗   ██╗ ██████╗      │\n");
-            printf("              │  ██╔════╝██╔══██╗██║   ██║██╔════╝      │\n");
-            printf("              │  █████╗  ██║  ██║██║   ██║██║           │\n");
-            printf("              │  ██╔══╝  ██║  ██║██║   ██║██║           │\n");
-            printf("              │  ███████╗██████╔╝╚██████╔╝╚██████╗      │\n");
-            printf("              │  ╚══════╝╚═════╝  ╚═════╝  ╚═════╝      │\n");
-            printf("              └─────────────────────────────────────────┘%s\n", rst);
+            // Green gradient: dark green -> bright green -> lime
+            if (t < 0.33f) color = 22;       // Dark green
+            else if (t < 0.66f) color = 34;  // Green
+            else color = 40;                  // Bright green
             break;
         case EDITION_BUSINESS:
-            printf("%s", biz_color);
-            printf("              ┌─────────────────────────────────────────┐\n");
-            printf("              │  ██████╗ ██╗   ██╗███████╗██╗███╗   ██╗ │\n");
-            printf("              │  ██╔══██╗██║   ██║██╔════╝██║████╗  ██║ │\n");
-            printf("              │  ██████╔╝██║   ██║███████╗██║██╔██╗ ██║ │\n");
-            printf("              │  ██╔══██╗██║   ██║╚════██║██║██║╚██╗██║ │\n");
-            printf("              │  ██████╔╝╚██████╔╝███████║██║██║ ╚████║ │\n");
-            printf("              │  ╚═════╝  ╚═════╝ ╚══════╝╚═╝╚═╝  ╚═══╝ │\n");
-            printf("              └─────────────────────────────────────────┘%s\n", rst);
+            // Blue gradient: navy -> blue -> cyan
+            if (t < 0.33f) color = 25;       // Navy
+            else if (t < 0.66f) color = 33;  // Blue
+            else color = 39;                  // Light blue
             break;
         case EDITION_DEVELOPER:
-            printf("%s", dev_color);
-            printf("              ┌─────────────────────────────────────────┐\n");
-            printf("              │  ██████╗ ███████╗██╗   ██╗███████╗      │\n");
-            printf("              │  ██╔══██╗██╔════╝██║   ██║██╔════╝      │\n");
-            printf("              │  ██║  ██║█████╗  ██║   ██║███████╗      │\n");
-            printf("              │  ██║  ██║██╔══╝  ╚██╗ ██╔╝╚════██║      │\n");
-            printf("              │  ██████╔╝███████╗ ╚████╔╝ ███████║      │\n");
-            printf("              │  ╚═════╝ ╚══════╝  ╚═══╝  ╚══════╝      │\n");
-            printf("              └─────────────────────────────────────────┘%s\n", rst);
+            // Orange gradient: red-orange -> orange -> gold
+            if (t < 0.33f) color = 202;      // Dark orange
+            else if (t < 0.66f) color = 208; // Orange
+            else color = 214;                 // Gold
+            break;
+        default:
+            color = 255;  // White
+            break;
+    }
+    printf("\033[1m\033[38;5;%dm%.*s\033[0m", color, len, ch);
+}
+
+// Print edition line with gradient
+static void print_edition_gradient_line(const char* line, ConvergioEdition edition) {
+    int col = 0;
+    int total_cols = 0;
+
+    // Count visible columns
+    const char* p = line;
+    while (*p) {
+        if ((unsigned char)*p >= 0x80) {
+            if ((*p & 0xE0) == 0xC0) p += 2;
+            else if ((*p & 0xF0) == 0xE0) p += 3;
+            else if ((*p & 0xF8) == 0xF0) p += 4;
+            else p++;
+        } else {
+            p++;
+        }
+        total_cols++;
+    }
+
+    // Print with edition-specific gradient
+    p = line;
+    col = 0;
+    while (*p) {
+        int char_len = 1;
+        if ((unsigned char)*p >= 0x80) {
+            if ((*p & 0xE0) == 0xC0) char_len = 2;
+            else if ((*p & 0xF0) == 0xE0) char_len = 3;
+            else if ((*p & 0xF8) == 0xF0) char_len = 4;
+        }
+
+        if (*p == ' ') {
+            printf(" ");
+        } else {
+            print_edition_char(p, char_len, col, total_cols, edition);
+        }
+
+        p += char_len;
+        col++;
+    }
+    printf("\n");
+}
+
+// Small ASCII edition labels with gradient colors
+static void print_edition_ascii(ConvergioEdition edition) {
+    printf("\n");
+
+    switch (edition) {
+        case EDITION_EDUCATION:
+            // EDUCATION - full word, 4-line compact ASCII
+            print_edition_gradient_line("        ███████╗██████╗ ██╗   ██╗ ██████╗ █████╗ ████████╗██╗ ██████╗ ███╗   ██╗", edition);
+            print_edition_gradient_line("        ██╔════╝██╔══██╗██║   ██║██╔════╝██╔══██╗╚══██╔══╝██║██╔═══██╗████╗  ██║", edition);
+            print_edition_gradient_line("        █████╗  ██║  ██║██║   ██║██║     ███████║   ██║   ██║██║   ██║██╔██╗ ██║", edition);
+            print_edition_gradient_line("        ██╔══╝  ██║  ██║██║   ██║██║     ██╔══██║   ██║   ██║██║   ██║██║╚██╗██║", edition);
+            print_edition_gradient_line("        ███████╗██████╔╝╚██████╔╝╚██████╗██║  ██║   ██║   ██║╚██████╔╝██║ ╚████║", edition);
+            print_edition_gradient_line("        ╚══════╝╚═════╝  ╚═════╝  ╚═════╝╚═╝  ╚═╝   ╚═╝   ╚═╝ ╚═════╝ ╚═╝  ╚═══╝", edition);
+            break;
+        case EDITION_BUSINESS:
+            // BUSINESS - full word
+            print_edition_gradient_line("        ██████╗ ██╗   ██╗███████╗██╗███╗   ██╗███████╗███████╗███████╗", edition);
+            print_edition_gradient_line("        ██╔══██╗██║   ██║██╔════╝██║████╗  ██║██╔════╝██╔════╝██╔════╝", edition);
+            print_edition_gradient_line("        ██████╔╝██║   ██║███████╗██║██╔██╗ ██║█████╗  ███████╗███████╗", edition);
+            print_edition_gradient_line("        ██╔══██╗██║   ██║╚════██║██║██║╚██╗██║██╔══╝  ╚════██║╚════██║", edition);
+            print_edition_gradient_line("        ██████╔╝╚██████╔╝███████║██║██║ ╚████║███████╗███████║███████║", edition);
+            print_edition_gradient_line("        ╚═════╝  ╚═════╝ ╚══════╝╚═╝╚═╝  ╚═══╝╚══════╝╚══════╝╚══════╝", edition);
+            break;
+        case EDITION_DEVELOPER:
+            // DEVELOPER - full word
+            print_edition_gradient_line("        ██████╗ ███████╗██╗   ██╗███████╗██╗      ██████╗ ██████╗ ███████╗██████╗ ", edition);
+            print_edition_gradient_line("        ██╔══██╗██╔════╝██║   ██║██╔════╝██║     ██╔═══██╗██╔══██╗██╔════╝██╔══██╗", edition);
+            print_edition_gradient_line("        ██║  ██║█████╗  ██║   ██║█████╗  ██║     ██║   ██║██████╔╝█████╗  ██████╔╝", edition);
+            print_edition_gradient_line("        ██║  ██║██╔══╝  ╚██╗ ██╔╝██╔══╝  ██║     ██║   ██║██╔═══╝ ██╔══╝  ██╔══██╗", edition);
+            print_edition_gradient_line("        ██████╔╝███████╗ ╚████╔╝ ███████╗███████╗╚██████╔╝██║     ███████╗██║  ██║", edition);
+            print_edition_gradient_line("        ╚═════╝ ╚══════╝  ╚═══╝  ╚══════╝╚══════╝ ╚═════╝ ╚═╝     ╚══════╝╚═╝  ╚═╝", edition);
             break;
         default:
             // Master edition - no extra label needed
             break;
     }
-    (void)dim;  // Suppress unused warning
 }
 
 static void print_banner(void) {

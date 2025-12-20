@@ -1230,7 +1230,7 @@ Message* agent_receive_message(ManagedAgent* agent) {
 // REGISTRY STATUS
 // ============================================================================
 
-// Helper: categorize agent by name/description into expertise area
+// Helper: categorize agent by name/description into expertise area (Business/Developer editions)
 static int get_agent_category(const ManagedAgent* agent) {
     if (!agent || !agent->name) return 9; // Other
 
@@ -1283,6 +1283,41 @@ static int get_agent_category(const ManagedAgent* agent) {
     return 9; // Other
 }
 
+// Helper: categorize education agents by subject area
+static int get_education_category(const ManagedAgent* agent) {
+    if (!agent || !agent->name) return 5; // Other
+
+    const char* n = agent->name;
+
+    // 0: School Leadership (Direzione Scolastica)
+    if (strcasestr(n, "ali-principal") || strcasestr(n, "preside")) return 0;
+
+    // 1: Sciences (Scienze) - math, physics, biology, computer science, geography, health
+    if (strcasestr(n, "euclide") || strcasestr(n, "matematica") ||
+        strcasestr(n, "feynman") || strcasestr(n, "fisica") ||
+        strcasestr(n, "darwin") || strcasestr(n, "scienze") ||
+        strcasestr(n, "lovelace") || strcasestr(n, "informatica") ||
+        strcasestr(n, "humboldt") || strcasestr(n, "geografia") ||
+        strcasestr(n, "ippocrate") || strcasestr(n, "corpo")) return 1;
+
+    // 2: Humanities (Lettere e Umanistiche) - history, civics, philosophy, economics
+    if (strcasestr(n, "erodoto") || strcasestr(n, "storia") ||
+        strcasestr(n, "cicerone") || strcasestr(n, "civica") ||
+        strcasestr(n, "socrate") || strcasestr(n, "filosofia") ||
+        strcasestr(n, "smith") || strcasestr(n, "economia")) return 2;
+
+    // 3: Languages (Lingue) - Italian, English
+    if (strcasestr(n, "manzoni") || strcasestr(n, "italiano") ||
+        strcasestr(n, "shakespeare") || strcasestr(n, "inglese")) return 3;
+
+    // 4: Arts (Arti) - visual arts, music, storytelling
+    if (strcasestr(n, "leonardo") || strcasestr(n, "arte") ||
+        strcasestr(n, "mozart") || strcasestr(n, "musica") ||
+        strcasestr(n, "chris") || strcasestr(n, "storytelling")) return 4;
+
+    return 5; // Other Teachers
+}
+
 char* agent_registry_status(void) {
     Orchestrator* orch = orchestrator_get();
     if (!orch) return strdup("Registry not initialized");
@@ -1330,8 +1365,8 @@ char* agent_registry_status(void) {
         }
     }
 
-    // Categories with emojis
-    const char* cat_names[] = {
+    // Categories with emojis - different for education vs business editions
+    const char* business_cat_names[] = {
         "🎯 Leadership & Strategy",
         "⚡ Technology & Engineering",
         "📊 Data & Analytics",
@@ -1344,12 +1379,27 @@ char* agent_registry_status(void) {
         "🔧 Other Specialists"
     };
 
-    for (size_t cat = 0; cat < 10; cat++) {
+    const char* education_cat_names[] = {
+        "🏫 Direzione Scolastica",
+        "🔬 Scienze",
+        "📖 Lettere e Umanistiche",
+        "🗣️ Lingue",
+        "🎨 Arti",
+        "📚 Altri Maestri"
+    };
+
+    // Use education categories for education edition
+    bool is_education = (edition_current() == EDITION_EDUCATION);
+    size_t num_cats = is_education ? 6 : 10;
+    const char** cat_names = is_education ? education_cat_names : business_cat_names;
+
+    for (size_t cat = 0; cat < num_cats; cat++) {
         // Count agents in this category (with project and edition filtering)
         size_t count = 0;
         for (size_t i = 0; i < orch->agent_count; i++) {
             ManagedAgent* a = orch->agents[i];
-            if (get_agent_category(a) == (int)cat) {
+            int agent_cat = is_education ? get_education_category(a) : get_agent_category(a);
+            if (agent_cat == (int)cat) {
                 // Apply edition filter first
                 if (!edition_has_agent(a->name)) continue;
                 // Apply project filter if active
@@ -1365,7 +1415,8 @@ char* agent_registry_status(void) {
         // Agents in this category (with project and edition filtering)
         for (size_t i = 0; i < orch->agent_count && offset < buf_size - 512; i++) {
             ManagedAgent* agent = orch->agents[i];
-            if (get_agent_category(agent) != (int)cat) continue;
+            int agent_cat = is_education ? get_education_category(agent) : get_agent_category(agent);
+            if (agent_cat != (int)cat) continue;
 
             // Apply edition filter first
             if (!edition_has_agent(agent->name)) continue;
@@ -1412,8 +1463,14 @@ char* agent_registry_status(void) {
         offset += (size_t)snprintf(status + offset, buf_size - offset, "\n");
     }
 
-    offset += (size_t)snprintf(status + offset, buf_size - offset,
-        "\033[2mUsa:\033[0m \033[36m@nome messaggio\033[0m  \033[2m(es. @baccio rivedi questo codice)\033[0m\n");
+    // Footer with edition-appropriate example
+    if (is_education) {
+        offset += (size_t)snprintf(status + offset, buf_size - offset,
+            "\033[2mParla con un maestro:\033[0m \033[36m@nome domanda\033[0m  \033[2m(es. @euclide spiegami le frazioni)\033[0m\n");
+    } else {
+        offset += (size_t)snprintf(status + offset, buf_size - offset,
+            "\033[2mUsa:\033[0m \033[36m@nome messaggio\033[0m  \033[2m(es. @baccio rivedi questo codice)\033[0m\n");
+    }
 
     CONVERGIO_MUTEX_UNLOCK(&g_registry_mutex);
 
