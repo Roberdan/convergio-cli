@@ -124,6 +124,8 @@ make EDITION=education
 ./build/bin/convergio
 ```
 
+**For detailed build instructions, see [BUILD.md](BUILD.md)**
+
 ---
 
 *Copyright (c) 2025 Convergio.io - All rights reserved*

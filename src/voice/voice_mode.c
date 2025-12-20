@@ -298,8 +298,8 @@ int voice_mode_start(const char *maestro_id, const char *topic) {
         if (g_voice_mode.maestro_name[0] >= 'a' && g_voice_mode.maestro_name[0] <= 'z')
             g_voice_mode.maestro_name[0] -= 32;
     } else {
-        strcpy(g_voice_mode.maestro_id, "euclide-matematica");
-        strcpy(g_voice_mode.maestro_name, "Euclide");
+        strlcpy(g_voice_mode.maestro_id, "euclide-matematica", sizeof(g_voice_mode.maestro_id));
+        strlcpy(g_voice_mode.maestro_name, "Euclide", sizeof(g_voice_mode.maestro_name));
     }
 
     strncpy(g_voice_mode.topic, topic && topic[0] ? topic : "Mathematics", sizeof(g_voice_mode.topic) - 1);

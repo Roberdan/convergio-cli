@@ -525,7 +525,7 @@ VoiceSession* voice_session_create(const VoiceSessionConfig* config) {
     pthread_mutex_init(&session->state_mutex, NULL);
 
     // Set default maestro
-    strcpy(session->current_maestro_id, "euclide-matematica");
+    strlcpy(session->current_maestro_id, "euclide-matematica", sizeof(session->current_maestro_id));
     session->current_profile = voice_profile_get("euclide-matematica");
 
     return session;

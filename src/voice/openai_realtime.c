@@ -299,7 +299,7 @@ OpenAIRealtimeSession* openai_realtime_create(const char* api_key) {
     }
 
     pthread_mutex_init(&session->mutex, NULL);
-    strcpy(session->current_maestro, "euclide-matematica");
+    strlcpy(session->current_maestro, "euclide-matematica", sizeof(session->current_maestro));
 
     return session;
 }

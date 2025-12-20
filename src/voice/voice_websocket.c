@@ -510,9 +510,9 @@ bool voice_ws_connect(VoiceWebSocket *ws) {
         fprintf(stderr, "[Voice WS] Using Azure OpenAI: %s\n", ws->endpoint);
     } else if (openai_key) {
         ws->use_azure = false;
-        strcpy(ws->endpoint, "api.openai.com");
+        strlcpy(ws->endpoint, "api.openai.com", sizeof(ws->endpoint));
         strncpy(ws->api_key, openai_key, sizeof(ws->api_key) - 1);
-        strcpy(ws->deployment, "gpt-4o-realtime-preview");
+        strlcpy(ws->deployment, "gpt-4o-realtime-preview", sizeof(ws->deployment));
 
         fprintf(stderr, "[Voice WS] Using OpenAI direct\n");
     } else {

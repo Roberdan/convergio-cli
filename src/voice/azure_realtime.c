@@ -209,7 +209,7 @@ AzureRealtimeSession* azure_realtime_create(void) {
         return NULL;
     }
 
-    strcpy(session->current_maestro, "euclide-matematica");
+    strlcpy(session->current_maestro, "euclide-matematica", sizeof(session->current_maestro));
 
     return session;
 }

@@ -1115,54 +1115,55 @@ char* education_adaptive_analyze(int64_t student_id) {
     sqlite3_bind_int64(stmt, 1, student_id);
 
     // Build JSON response
-    char* json = calloc(8192, sizeof(char));
+    const size_t json_size = 8192;
+    char* json = calloc(json_size, sizeof(char));
     if (!json) {
         sqlite3_finalize(stmt);
         CONVERGIO_MUTEX_UNLOCK(&g_edu_db_mutex);
         return NULL;
     }
 
-    strcat(json, "{\"student_id\":");
+    strlcat(json, "{\"student_id\":", json_size);
     char id_str[32];
     snprintf(id_str, sizeof(id_str), "%" PRId64, student_id);
-    strcat(json, id_str);
-    strcat(json, ",\"analysis\":{");
+    strlcat(json, id_str, json_size);
+    strlcat(json, ",\"analysis\":{", json_size);
 
     // Weak subjects (need more attention)
-    strcat(json, "\"weak_subjects\":[");
+    strlcat(json, "\"weak_subjects\":[", json_size);
     bool first = true;
     while (sqlite3_step(stmt) == SQLITE_ROW) {
         const char* subject = (const char*)sqlite3_column_text(stmt, 0);
         double avg_skill = sqlite3_column_double(stmt, 1);
 
         if (avg_skill < 0.5 && subject) {  // Below 50% is considered weak
-            if (!first) strcat(json, ",");
-            strcat(json, "\"");
-            strncat(json, subject, 64);
-            strcat(json, "\"");
+            if (!first) strlcat(json, ",", json_size);
+            strlcat(json, "\"", json_size);
+            strlcat(json, subject, json_size);
+            strlcat(json, "\"", json_size);
             first = false;
         }
     }
-    strcat(json, "],");
+    strlcat(json, "],", json_size);
     sqlite3_reset(stmt);
     sqlite3_bind_int64(stmt, 1, student_id);
 
     // Strong subjects
-    strcat(json, "\"strong_subjects\":[");
+    strlcat(json, "\"strong_subjects\":[", json_size);
     first = true;
     while (sqlite3_step(stmt) == SQLITE_ROW) {
         const char* subject = (const char*)sqlite3_column_text(stmt, 0);
         double avg_skill = sqlite3_column_double(stmt, 1);
 
         if (avg_skill >= 0.75 && subject) {  // Above 75% is strong
-            if (!first) strcat(json, ",");
-            strcat(json, "\"");
-            strncat(json, subject, 64);
-            strcat(json, "\"");
+            if (!first) strlcat(json, ",", json_size);
+            strlcat(json, "\"", json_size);
+            strlcat(json, subject, json_size);
+            strlcat(json, "\"", json_size);
             first = false;
         }
     }
-    strcat(json, "]");
+    strlcat(json, "]", json_size);
 
     sqlite3_finalize(stmt);
 
@@ -1174,15 +1175,15 @@ char* education_adaptive_analyze(int64_t student_id) {
         sqlite3_bind_int64(stmt, 1, student_id);
         if (sqlite3_step(stmt) == SQLITE_ROW) {
             double overall = sqlite3_column_double(stmt, 0);
-            strcat(json, ",\"recommended_difficulty\":\"");
+            strlcat(json, ",\"recommended_difficulty\":\"", json_size);
             if (overall >= 0.8) {
-                strcat(json, "hard");
+                strlcat(json, "hard", json_size);
             } else if (overall >= 0.5) {
-                strcat(json, "medium");
+                strlcat(json, "medium", json_size);
             } else {
-                strcat(json, "easy");
+                strlcat(json, "easy", json_size);
             }
-            strcat(json, "\"");
+            strlcat(json, "\"", json_size);
         }
         sqlite3_finalize(stmt);
     }
@@ -1196,15 +1197,15 @@ char* education_adaptive_analyze(int64_t student_id) {
         sqlite3_bind_int64(stmt, 1, student_id);
         if (sqlite3_step(stmt) == SQLITE_ROW) {
             double days_since = sqlite3_column_double(stmt, 0);
-            strcat(json, ",\"days_since_activity\":");
+            strlcat(json, ",\"days_since_activity\":", json_size);
             char days_str[32];
             snprintf(days_str, sizeof(days_str), "%.1f", days_since);
-            strcat(json, days_str);
+            strlcat(json, days_str, json_size);
         }
         sqlite3_finalize(stmt);
     }
 
-    strcat(json, "},\"recommendations\":[");
+    strlcat(json, "},\"recommendations\":[", json_size);
 
     // Generate recommendations based on patterns
     bool has_rec = false;
@@ -1220,17 +1221,17 @@ char* education_adaptive_analyze(int64_t student_id) {
         while (sqlite3_step(stmt) == SQLITE_ROW) {
             const char* subject = (const char*)sqlite3_column_text(stmt, 0);
             if (subject) {
-                if (has_rec) strcat(json, ",");
-                strcat(json, "{\"type\":\"review\",\"subject\":\"");
-                strncat(json, subject, 64);
-                strcat(json, "\",\"reason\":\"Not studied in over a week\"}");
+                if (has_rec) strlcat(json, ",", json_size);
+                strlcat(json, "{\"type\":\"review\",\"subject\":\"", json_size);
+                strlcat(json, subject, json_size);
+                strlcat(json, "\",\"reason\":\"Not studied in over a week\"}", json_size);
                 has_rec = true;
             }
         }
         sqlite3_finalize(stmt);
     }
 
-    strcat(json, "]}");
+    strlcat(json, "]}", json_size);
 
     CONVERGIO_MUTEX_UNLOCK(&g_edu_db_mutex);
     return json;
@@ -3224,12 +3225,12 @@ int education_curriculum_create_custom(int64_t student_id, const char* name,
     // Create custom curriculum as JSON
     char subjects_json[2048] = "[";
     for (int i = 0; i < subject_count && i < 20; i++) {
-        if (i > 0) strcat(subjects_json, ",");
-        strcat(subjects_json, "\"");
-        strncat(subjects_json, subjects[i], 60);
-        strcat(subjects_json, "\"");
+        if (i > 0) strlcat(subjects_json, ",", sizeof(subjects_json));
+        strlcat(subjects_json, "\"", sizeof(subjects_json));
+        strlcat(subjects_json, subjects[i], sizeof(subjects_json));
+        strlcat(subjects_json, "\"", sizeof(subjects_json));
     }
-    strcat(subjects_json, "]");
+    strlcat(subjects_json, "]", sizeof(subjects_json));
 
     const char* sql =
         "INSERT INTO curriculum_progress (student_id, curriculum_id, subject, progress, custom_path) "
