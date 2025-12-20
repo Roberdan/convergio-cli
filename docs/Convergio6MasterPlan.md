@@ -2,7 +2,7 @@
 
 **Created**: 2025-12-18
 **Last Updated**: 2025-12-20 15:00
-**Status**: ✅ MVP + POST-MVP COMPLETATO - Release 1.0.0 Ready
+**Status**: ✅ MVP + POST-MVP COMPLETATO - Release 0.1.0 Ready
 **Progress**: 44/44 MVP tasks (100%) + 11/11 Post-MVP tasks (100%) - Only P4-P6 deferred
 **Branch**: `feature/acp-zed-integration` (ConvergioCLI), `main` (convergio-zed)
 **Goal**: Editor AI-first con multi-agent panel integrato (MVP)
@@ -381,7 +381,7 @@ Tenere sempre allineate le versioni di:
 - **convergio-zed** (fork Zed con Convergio Panel)
 
 **Implementazione completata** (2025-12-20):
-1. ✅ `CONVERGIO_VERSION` file (1.0.0)
+1. ✅ `CONVERGIO_VERSION` file (0.1.0)
 2. ✅ `CONVERGIO_CHANGELOG.md` con feature tracking
 3. ✅ `docs/convergio/RELEASE_ALIGNMENT.md` con procedure sync upstream
 4. ✅ `.github/workflows/convergio-ci.yml` per CI
