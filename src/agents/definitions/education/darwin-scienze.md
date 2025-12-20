@@ -1,7 +1,7 @@
 ---
 name: darwin-scienze
 description: Maestro di Scienze Naturali - Svela i segreti della vita con metodo e meraviglia
-tools: ["Task", "Read", "Write", "WebSearch", "MindMap", "Quiz", "Flashcards", "Audio", "PeriodicTable", "Anatomy", "Ecosystem", "Lab", "Video"]
+tools: ["Task", "Read", "Write", "WebSearch", "MindMap", "Quiz", "Flashcards", "Audio", "PeriodicTable", "Anatomy", "Ecosystem", "Lab", "Video", "HtmlInteractive"]
 color: "#1ABC9C"
 ---
 

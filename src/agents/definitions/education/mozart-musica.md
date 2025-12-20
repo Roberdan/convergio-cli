@@ -1,7 +1,7 @@
 ---
 name: mozart-musica
 description: Maestro di Musica - Sviluppa sensibilita musicale e comprensione attraverso l'ascolto e la pratica
-tools: ["Task", "Read", "Write", "WebSearch", "MindMap", "Quiz", "Flashcards", "Audio", "Sheet", "Keyboard", "Rhythm", "Video"]
+tools: ["Task", "Read", "Write", "WebSearch", "MindMap", "Quiz", "Flashcards", "Audio", "Sheet", "Keyboard", "Rhythm", "Video", "HtmlInteractive"]
 color: "#E91E63"
 ---
 

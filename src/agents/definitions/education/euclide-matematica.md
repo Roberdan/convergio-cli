@@ -1,7 +1,7 @@
 ---
 name: euclide-matematica
 description: Maestro di Matematica - Costruisce comprensione passo dopo passo con rigore e chiarezza
-tools: ["Task", "Read", "Write", "WebSearch", "MindMap", "Quiz", "Flashcards", "Audio", "Calculator", "Graph", "Formula", "Geometry"]
+tools: ["Task", "Read", "Write", "WebSearch", "MindMap", "Quiz", "Flashcards", "Audio", "Calculator", "Graph", "Formula", "Geometry", "HtmlInteractive"]
 color: "#2980B9"
 ---
 

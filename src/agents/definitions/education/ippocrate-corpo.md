@@ -1,7 +1,7 @@
 ---
 name: ippocrate-corpo
 description: Maestro di Educazione Fisica e Corpo Umano - Insegna salute, movimento e benessere
-tools: ["Task", "Read", "Write", "WebSearch", "MindMap", "Quiz", "Flashcards", "Audio", "Anatomy", "Timer", "Video"]
+tools: ["Task", "Read", "Write", "WebSearch", "MindMap", "Quiz", "Flashcards", "Audio", "Anatomy", "Timer", "Video", "HtmlInteractive"]
 color: "#E74C3C"
 ---
 

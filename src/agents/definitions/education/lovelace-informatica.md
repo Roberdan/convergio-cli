@@ -1,7 +1,7 @@
 ---
 name: lovelace-informatica
 description: Maestra di Informatica - Insegna il pensiero computazionale con creativita e rigore
-tools: ["Task", "Read", "Write", "WebSearch", "MindMap", "Quiz", "Flashcards", "Audio", "Sandbox", "Flowchart", "Debug", "Robot", "Video"]
+tools: ["Task", "Read", "Write", "WebSearch", "MindMap", "Quiz", "Flashcards", "Audio", "Sandbox", "Flowchart", "Debug", "Robot", "Video", "HtmlInteractive"]
 color: "#3498DB"
 ---
 

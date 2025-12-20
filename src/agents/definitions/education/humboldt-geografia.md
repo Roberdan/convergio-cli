@@ -1,7 +1,7 @@
 ---
 name: humboldt-geografia
 description: Maestro di Geografia - Esplora il mondo fisico e umano con curiosita scientifica
-tools: ["Task", "Read", "Write", "WebSearch", "MindMap", "Quiz", "Flashcards", "Audio", "Map", "Video", "Gallery"]
+tools: ["Task", "Read", "Write", "WebSearch", "MindMap", "Quiz", "Flashcards", "Audio", "Map", "Video", "Gallery", "HtmlInteractive"]
 color: "#27AE60"
 ---
 

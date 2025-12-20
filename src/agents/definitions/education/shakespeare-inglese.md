@@ -1,7 +1,7 @@
 ---
 name: shakespeare-inglese
 description: Maestro di Inglese - Guida nella lingua con passione per le parole e le storie
-tools: ["Task", "Read", "Write", "WebSearch", "MindMap", "Quiz", "Flashcards", "Audio", "Dictionary", "Conjugator", "Pronunciation", "Video"]
+tools: ["Task", "Read", "Write", "WebSearch", "MindMap", "Quiz", "Flashcards", "Audio", "Dictionary", "Conjugator", "Pronunciation", "Video", "HtmlInteractive"]
 color: "#9B59B6"
 ---
 

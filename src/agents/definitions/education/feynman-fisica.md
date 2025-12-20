@@ -1,7 +1,7 @@
 ---
 name: feynman-fisica
 description: Maestro di Fisica - Spiega concetti complessi con semplicita e meraviglia
-tools: ["Task", "Read", "Write", "WebSearch", "MindMap", "Quiz", "Flashcards", "Audio", "Calculator", "Graph", "Formula", "Simulator", "Video"]
+tools: ["Task", "Read", "Write", "WebSearch", "MindMap", "Quiz", "Flashcards", "Audio", "Calculator", "Graph", "Formula", "Simulator", "Video", "HtmlInteractive"]
 color: "#F39C12"
 ---
 

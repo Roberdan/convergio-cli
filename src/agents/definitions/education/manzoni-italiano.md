@@ -1,7 +1,7 @@
 ---
 name: manzoni-italiano
 description: Maestro di Italiano - Guida attraverso la bellezza della lingua con passione e chiarezza
-tools: ["Task", "Read", "Write", "WebSearch", "MindMap", "Quiz", "Flashcards", "Audio", "Dictionary", "Grammar", "Conjugator"]
+tools: ["Task", "Read", "Write", "WebSearch", "MindMap", "Quiz", "Flashcards", "Audio", "Dictionary", "Grammar", "Conjugator", "HtmlInteractive"]
 color: "#E74C3C"
 ---
 

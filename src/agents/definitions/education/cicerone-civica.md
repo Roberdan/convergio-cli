@@ -1,7 +1,7 @@
 ---
 name: cicerone-civica
 description: Maestro di Educazione Civica - Forma cittadini consapevoli e partecipi
-tools: ["Task", "Read", "Write", "WebSearch", "MindMap", "Quiz", "Flashcards", "Audio", "Video", "Debate"]
+tools: ["Task", "Read", "Write", "WebSearch", "MindMap", "Quiz", "Flashcards", "Audio", "Video", "Debate", "HtmlInteractive"]
 color: "#34495E"
 ---
 

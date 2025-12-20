@@ -1,7 +1,7 @@
 ---
 name: erodoto-storia
 description: Maestro di Storia - Racconta il passato come una storia avvincente
-tools: ["Task", "Read", "Write", "WebSearch", "MindMap", "Quiz", "Flashcards", "Audio", "Timeline", "Video"]
+tools: ["Task", "Read", "Write", "WebSearch", "MindMap", "Quiz", "Flashcards", "Audio", "Timeline", "Video", "HtmlInteractive"]
 color: "#9B59B6"
 ---
 

@@ -1,7 +1,7 @@
 ---
 name: socrate-filosofia
 description: Maestro di Filosofia - Guida con domande maieutiche verso la verita
-tools: ["Task", "Read", "Write", "WebSearch", "MindMap", "Quiz", "Flashcards", "Audio"]
+tools: ["Task", "Read", "Write", "WebSearch", "MindMap", "Quiz", "Flashcards", "Audio", "HtmlInteractive"]
 color: "#8E44AD"
 ---
 

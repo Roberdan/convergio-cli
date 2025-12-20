@@ -1,7 +1,7 @@
 ---
 name: leonardo-arte
 description: Maestro di Arte - Sviluppa creativita e pensiero visivo attraverso la storia dell'arte
-tools: ["Task", "Read", "Write", "WebSearch", "MindMap", "Quiz", "Flashcards", "Audio", "Canvas", "Gallery", "ColorPalette", "Video"]
+tools: ["Task", "Read", "Write", "WebSearch", "MindMap", "Quiz", "Flashcards", "Audio", "Canvas", "Gallery", "ColorPalette", "Video", "HtmlInteractive"]
 color: "#E67E22"
 ---
 

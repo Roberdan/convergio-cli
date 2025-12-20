@@ -577,7 +577,7 @@ int linguistic_define_handler(int argc, char** argv,
         }
     }
 
-    const EducationAccessibility* access = profile ? &profile->accessibility : NULL;
+    const EducationAccessibility* access = profile ? profile->accessibility : NULL;
 
     DictionaryEntry* entry = dictionary_lookup(word, lang, access);
     if (entry) {
@@ -614,7 +614,7 @@ int linguistic_conjugate_handler(int argc, char** argv,
         }
     }
 
-    const EducationAccessibility* access = profile ? &profile->accessibility : NULL;
+    const EducationAccessibility* access = profile ? profile->accessibility : NULL;
 
     VerbTable* table = verb_conjugate(verb, lang, access);
     if (table) {
@@ -650,7 +650,7 @@ int linguistic_pronounce_handler(int argc, char** argv,
         }
     }
 
-    const EducationAccessibility* access = profile ? &profile->accessibility : NULL;
+    const EducationAccessibility* access = profile ? profile->accessibility : NULL;
 
     char* ipa = pronunciation_ipa(word, lang, access);
     if (ipa) {
@@ -694,7 +694,7 @@ int linguistic_grammar_handler(int argc, char** argv,
         }
     }
 
-    const EducationAccessibility* access = profile ? &profile->accessibility : NULL;
+    const EducationAccessibility* access = profile ? profile->accessibility : NULL;
 
     GrammarAnalysis* analysis = grammar_analyze(sentence, lang, access);
     if (analysis) {

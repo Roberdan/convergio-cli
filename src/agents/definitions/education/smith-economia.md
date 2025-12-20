@@ -1,7 +1,7 @@
 ---
 name: smith-economia
 description: Maestro di Economia - Spiega i meccanismi economici con esempi pratici e accessibili
-tools: ["Task", "Read", "Write", "WebSearch", "MindMap", "Quiz", "Flashcards", "Audio", "Calculator", "Graph", "Infographic", "Video"]
+tools: ["Task", "Read", "Write", "WebSearch", "MindMap", "Quiz", "Flashcards", "Audio", "Calculator", "Graph", "Infographic", "Video", "HtmlInteractive"]
 color: "#16A085"
 ---
 
