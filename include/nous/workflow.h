@@ -13,6 +13,23 @@
 #include <stdint.h>
 #include <time.h>
 
+// Forward declarations for error handling
+typedef enum ProviderType ProviderType;
+typedef enum {
+    WORKFLOW_ERROR_NONE = 0,
+    WORKFLOW_ERROR_TIMEOUT,
+    WORKFLOW_ERROR_NETWORK,
+    WORKFLOW_ERROR_FILE_IO,
+    WORKFLOW_ERROR_CREDIT_EXHAUSTED,
+    WORKFLOW_ERROR_LLM_DOWN,
+    WORKFLOW_ERROR_TOOL_FAILED,
+    WORKFLOW_ERROR_AGENT_NOT_FOUND,
+    WORKFLOW_ERROR_PROVIDER_UNAVAILABLE,
+    WORKFLOW_ERROR_AUTHENTICATION,
+    WORKFLOW_ERROR_RATE_LIMIT,
+    WORKFLOW_ERROR_UNKNOWN
+} WorkflowErrorType;
+
 // ============================================================================
 // WORKFLOW TYPES
 // ============================================================================
@@ -167,6 +184,37 @@ int workflow_resume(Workflow* wf, uint64_t checkpoint_id);
 char* workflow_strdup(const char* str);
 bool workflow_validate_name(const char* name);
 bool workflow_validate_key(const char* key);
+
+// ============================================================================
+// ERROR HANDLING
+// ============================================================================
+
+// Timeout handling
+bool workflow_check_timeout(time_t start_time, int timeout_seconds);
+int workflow_set_node_timeout(Workflow* wf, WorkflowNode* node, int timeout_seconds);
+
+// Network error handling
+bool workflow_check_network(void);
+WorkflowErrorType workflow_handle_network_error(Workflow* wf, const char* error_msg);
+
+// File I/O error handling
+bool workflow_check_file_readable(const char* filepath);
+bool workflow_check_file_writable(const char* filepath);
+WorkflowErrorType workflow_handle_file_io_error(Workflow* wf, const char* filepath, const char* operation);
+
+// Credit/budget error handling
+bool workflow_check_budget(Workflow* wf);
+WorkflowErrorType workflow_handle_credit_exhausted(Workflow* wf);
+
+// LLM service error handling
+bool workflow_check_llm_available(ProviderType provider_type);
+WorkflowErrorType workflow_handle_llm_down(Workflow* wf, ProviderType provider_type);
+
+// Tool execution error handling
+WorkflowErrorType workflow_handle_tool_error(Workflow* wf, const char* tool_name, const char* error_msg);
+
+// Comprehensive error handling
+bool workflow_handle_error(Workflow* wf, WorkflowNode* node, WorkflowErrorType error_type, const char* error_msg);
 
 #endif // CONVERGIO_WORKFLOW_H
 

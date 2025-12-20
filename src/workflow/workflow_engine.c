@@ -14,6 +14,9 @@
 #include <time.h>
 #include <errno.h>
 
+// Error handling functions (defined in error_handling.c)
+// These are declared in workflow.h, so we just use them here
+
 // ============================================================================
 // FORWARD DECLARATIONS
 // ============================================================================
@@ -123,17 +126,43 @@ static int execute_action_node(Workflow* wf, WorkflowNode* node, const char* inp
         }
     }
     
+    // Pre-execution checks
+    time_t start_time = time(NULL);
+    
+    // Check network connectivity
+    if (!workflow_check_network()) {
+        workflow_handle_network_error(wf, "Network unavailable: Cannot connect to required services");
+        free(effective_prompt);
+        return -1;
+    }
+    
+    // Check budget/credit
+    if (!workflow_check_budget(wf)) {
+        workflow_handle_credit_exhausted(wf);
+        free(effective_prompt);
+        return -1;
+    }
+    
     // Execute agent via provider
     Provider* provider = provider_get(PROVIDER_ANTHROPIC);
     if (!provider || !provider->chat) {
         free(effective_prompt);
-        effective_prompt = NULL;
-        if (wf->error_message) {
-            free(wf->error_message);
-            wf->error_message = NULL;
-        }
-        wf->error_message = workflow_strdup("Provider not available");
+        workflow_handle_error(wf, node, WORKFLOW_ERROR_PROVIDER_UNAVAILABLE, "Provider not available");
         return -1;
+    }
+    
+    // Check if LLM service is available
+    if (!workflow_check_llm_available(PROVIDER_ANTHROPIC)) {
+        workflow_handle_llm_down(wf, PROVIDER_ANTHROPIC);
+        free(effective_prompt);
+        return -1;
+    }
+    
+    // Check timeout before execution
+    int timeout_seconds = 300; // Default 5 minutes
+    const char* timeout_str = workflow_get_state_value(wf, "node_timeout");
+    if (timeout_str) {
+        timeout_seconds = atoi(timeout_str);
     }
     
     TokenUsage usage = {0};
@@ -148,12 +177,19 @@ static int execute_action_node(Workflow* wf, WorkflowNode* node, const char* inp
     free(effective_prompt);
     effective_prompt = NULL;
     
-    if (!response) {
-        if (wf->error_message) {
-            free(wf->error_message);
-            wf->error_message = NULL;
+    // Check timeout after execution
+    if (workflow_check_timeout(start_time, timeout_seconds)) {
+        if (response) {
+            free(response);
         }
-        wf->error_message = workflow_strdup("Agent execution failed");
+        workflow_handle_error(wf, node, WORKFLOW_ERROR_TIMEOUT, "Node execution exceeded timeout");
+        return -1;
+    }
+    
+    if (!response) {
+        // Provider chat failed - this could be network, auth, rate limit, etc.
+        // We can't distinguish easily, so we mark as general failure
+        workflow_handle_error(wf, node, WORKFLOW_ERROR_UNKNOWN, "Agent execution failed - check network, API key, and credit");
         return -1;
     }
     

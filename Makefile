@@ -197,6 +197,7 @@ C_SOURCES = $(SRC_DIR)/core/fabric.c \
             $(SRC_DIR)/workflow/router.c \
             $(SRC_DIR)/workflow/patterns.c \
             $(SRC_DIR)/workflow/retry.c \
+            $(SRC_DIR)/workflow/error_handling.c \
             $(SRC_DIR)/core/commands/workflow.c
 
 OBJC_SOURCES = $(SRC_DIR)/metal/gpu.m \
@@ -776,8 +777,25 @@ $(PRE_RELEASE_E2E_TEST): $(PRE_RELEASE_E2E_SOURCES) $(PRE_RELEASE_E2E_OBJECTS) $
 		$(CC) $(CFLAGS) $(LDFLAGS) -o $(PRE_RELEASE_E2E_TEST) $(PRE_RELEASE_E2E_SOURCES) $(PRE_RELEASE_E2E_OBJECTS) $(MLX_STUBS_OBJ) $(FRAMEWORKS) $(LIBS); \
 	fi
 
+# Workflow error handling test
+WORKFLOW_ERROR_TEST = $(BIN_DIR)/workflow_error_test
+WORKFLOW_ERROR_SOURCES = tests/test_workflow_error_handling.c $(TEST_STUBS)
+WORKFLOW_ERROR_OBJECTS = $(filter-out $(OBJ_DIR)/core/main.o,$(OBJECTS))
+
+workflow_error_test: dirs swift $(OBJECTS) $(MLX_STUBS_OBJ) $(WORKFLOW_ERROR_TEST)
+	@echo "Running workflow error handling tests..."
+	@$(WORKFLOW_ERROR_TEST)
+
+$(WORKFLOW_ERROR_TEST): $(WORKFLOW_ERROR_SOURCES) $(WORKFLOW_ERROR_OBJECTS) $(SWIFT_LIB) $(MLX_STUBS_OBJ)
+	@echo "Compiling workflow error handling tests..."
+	@if [ -s "$(SWIFT_LIB)" ]; then \
+		$(CC) $(CFLAGS) $(LDFLAGS) -o $(WORKFLOW_ERROR_TEST) $(WORKFLOW_ERROR_SOURCES) $(WORKFLOW_ERROR_OBJECTS) $(SWIFT_LIB) $(FRAMEWORKS) $(LIBS) $(SWIFT_RUNTIME_LIBS); \
+	else \
+		$(CC) $(CFLAGS) $(LDFLAGS) -o $(WORKFLOW_ERROR_TEST) $(WORKFLOW_ERROR_SOURCES) $(WORKFLOW_ERROR_OBJECTS) $(MLX_STUBS_OBJ) $(FRAMEWORKS) $(LIBS); \
+	fi
+
 # Run all workflow tests
-workflow_test: workflow_types_test workflow_engine_test workflow_checkpoint_test workflow_e2e_test task_decomposer_test group_chat_test router_test patterns_test pre_release_e2e_test
+workflow_test: workflow_types_test workflow_engine_test workflow_checkpoint_test workflow_e2e_test task_decomposer_test group_chat_test router_test patterns_test pre_release_e2e_test workflow_error_test
 	@echo "All workflow tests completed!"
 
 # Run all tests
