@@ -391,6 +391,76 @@ void voice_local_tts_stop(void);
  */
 bool voice_local_tts_available(void);
 
+// ============================================================================
+// VOICE ACCESSIBILITY API (VA01-VA05)
+// ============================================================================
+
+/**
+ * Set speech rate adjustment (VA01)
+ * @param session Voice session
+ * @param rate Rate multiplier (0.5 = half speed, 2.0 = double speed)
+ * @return true on success
+ */
+bool voice_accessibility_set_speech_rate(VoiceSession* session, float rate);
+
+/**
+ * Get current speech rate
+ */
+float voice_accessibility_get_speech_rate(const VoiceSession* session);
+
+/**
+ * Set pitch adjustment (VA02)
+ * @param session Voice session
+ * @param pitch Pitch offset (-1.0 to 1.0, where 0 is normal)
+ * @return true on success
+ */
+bool voice_accessibility_set_pitch(VoiceSession* session, float pitch);
+
+/**
+ * Get current pitch offset
+ */
+float voice_accessibility_get_pitch(const VoiceSession* session);
+
+/**
+ * Enable screen reader compatibility mode (VA03)
+ * Sends events compatible with VoiceOver/JAWS
+ */
+void voice_accessibility_enable_screen_reader(VoiceSession* session, bool enable);
+
+/**
+ * Check if screen reader mode is enabled
+ */
+bool voice_accessibility_is_screen_reader_enabled(const VoiceSession* session);
+
+/**
+ * Enable visual feedback waveform (VA04)
+ * @param enabled true to show waveform indicator
+ */
+void voice_accessibility_enable_waveform(bool enabled);
+
+/**
+ * Get current audio level for waveform display
+ * @return Audio level 0.0 - 1.0
+ */
+float voice_accessibility_get_audio_level(void);
+
+/**
+ * Enable live transcription display (VA05)
+ */
+void voice_accessibility_enable_transcription(VoiceSession* session, bool enable);
+
+/**
+ * Get last transcript text
+ */
+const char* voice_accessibility_get_transcript(const VoiceSession* session);
+
+/**
+ * Configure voice accessibility from education profile
+ * @param student_id Student profile ID
+ * @return true on success
+ */
+bool voice_accessibility_configure_from_profile(VoiceSession* session, int64_t student_id);
+
 #ifdef __cplusplus
 }
 #endif

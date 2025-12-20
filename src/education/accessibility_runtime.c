@@ -326,7 +326,7 @@ char* a11y_generate_place_value_blocks(int number) {
 
     if (thousands > 0) {
         char buf[64];
-        snprintf(buf, sizeof(buf), "Migliaia: ");
+        snprintf(buf, sizeof(buf), "Thousands: ");
         strncat(result, buf, 64);
         for (int i = 0; i < thousands; i++) strncat(result, "[████] ", 10);
         strncat(result, "\n", 2);
@@ -334,7 +334,7 @@ char* a11y_generate_place_value_blocks(int number) {
 
     if (hundreds > 0) {
         char buf[64];
-        snprintf(buf, sizeof(buf), "Centinaia: ");
+        snprintf(buf, sizeof(buf), "Hundreds: ");
         strncat(result, buf, 64);
         for (int i = 0; i < hundreds; i++) strncat(result, "[███] ", 10);
         strncat(result, "\n", 2);
@@ -342,7 +342,7 @@ char* a11y_generate_place_value_blocks(int number) {
 
     if (tens > 0) {
         char buf[64];
-        snprintf(buf, sizeof(buf), "Decine: ");
+        snprintf(buf, sizeof(buf), "Tens: ");
         strncat(result, buf, 64);
         for (int i = 0; i < tens; i++) strncat(result, "[██] ", 8);
         strncat(result, "\n", 2);
@@ -350,7 +350,7 @@ char* a11y_generate_place_value_blocks(int number) {
 
     if (units > 0 || (thousands == 0 && hundreds == 0 && tens == 0)) {
         char buf[64];
-        snprintf(buf, sizeof(buf), "Unita: ");
+        snprintf(buf, sizeof(buf), "Units: ");
         strncat(result, buf, 64);
         for (int i = 0; i < units; i++) strncat(result, "[█] ", 6);
         strncat(result, "\n", 2);
@@ -496,11 +496,11 @@ char* a11y_generate_progress_bar(int current, int total, int width) {
  */
 const char* a11y_get_celebration_message(int achievement_level) {
     static const char* messages[] = {
-        "Ottimo! Continua cosi!",
-        "Fantastico! Stai andando alla grande!",
-        "Wow! Sei un campione!",
-        "Incredibile! Hai fatto centro!",
-        "Perfetto! Sei inarrestabile!"
+        "Great! Keep it up!",
+        "Fantastic! You're doing amazing!",
+        "Wow! You're a champion!",
+        "Incredible! You nailed it!",
+        "Perfect! You're unstoppable!"
     };
 
     if (achievement_level < 0) achievement_level = 0;
@@ -531,11 +531,13 @@ bool a11y_avoid_metaphors(const EducationAccessibility* access) {
  * AU01: List of common metaphors to avoid
  */
 static const char* METAPHORS_TO_AVOID[] = {
-    "come se",
-    "tipo",
-    "praticamente",
-    "in un certo senso",
-    "per modo di dire",
+    "as if",
+    "like",
+    "basically",
+    "in a sense",
+    "so to speak",
+    "figuratively",
+    "kind of",
     NULL
 };
 
@@ -560,19 +562,19 @@ const char* a11y_get_structure_prefix(const char* section_type) {
     if (!section_type) return "";
 
     if (strcmp(section_type, "intro") == 0) {
-        return "INTRODUZIONE: Ora spiegheremo il seguente argomento.\n";
+        return "INTRODUCTION: We will now explain the following topic.\n";
     }
     if (strcmp(section_type, "main") == 0) {
-        return "SPIEGAZIONE PRINCIPALE:\n";
+        return "MAIN EXPLANATION:\n";
     }
     if (strcmp(section_type, "example") == 0) {
-        return "ESEMPIO PRATICO:\n";
+        return "PRACTICAL EXAMPLE:\n";
     }
     if (strcmp(section_type, "summary") == 0) {
-        return "RIASSUNTO DEI PUNTI CHIAVE:\n";
+        return "KEY POINTS SUMMARY:\n";
     }
     if (strcmp(section_type, "next") == 0) {
-        return "PROSSIMO ARGOMENTO:\n";
+        return "NEXT TOPIC:\n";
     }
     return "";
 }
@@ -585,12 +587,12 @@ char* a11y_get_topic_change_warning(const char* old_topic, const char* new_topic
     if (!result) return NULL;
 
     snprintf(result, 256,
-        "\n[ATTENZIONE: Cambio argomento]\n"
-        "Abbiamo finito di parlare di: %s\n"
-        "Ora parleremo di: %s\n"
-        "Sei pronto per continuare?\n\n",
-        old_topic ? old_topic : "argomento precedente",
-        new_topic ? new_topic : "nuovo argomento");
+        "\n[NOTICE: Topic change]\n"
+        "We have finished talking about: %s\n"
+        "We will now talk about: %s\n"
+        "Are you ready to continue?\n\n",
+        old_topic ? old_topic : "previous topic",
+        new_topic ? new_topic : "new topic");
 
     return result;
 }

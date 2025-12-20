@@ -24,6 +24,12 @@
 #include <termios.h>
 #include <unistd.h>
 #include <signal.h>
+#include "nous/education.h"
+
+// Forward declaration for accessibility functions
+extern EducationStudentProfile* education_profile_get_active(void);
+extern float a11y_get_speech_rate(const EducationAccessibility* access, float maestro_default);
+extern float a11y_get_pitch_offset(const EducationAccessibility* access, float maestro_default);
 
 // ============================================================================
 // VOICE MODE STATE
@@ -54,6 +60,14 @@ typedef struct {
     bool raw_mode;
 
     pthread_mutex_t state_mutex;
+
+    // Accessibility settings (loaded from student profile)
+    float speech_rate;           // TTS speech rate (0.5-2.0)
+    float pitch_offset;          // TTS pitch offset (-1.0 to 1.0)
+    int break_interval_minutes;  // Suggested break interval
+    bool tts_highlight;          // Highlight words during TTS
+    bool high_contrast;          // High contrast mode
+    EducationStudentProfile* profile;  // Active student profile
 
 } VoiceModeContext;
 
@@ -252,6 +266,32 @@ int voice_mode_start(const char *maestro_id, const char *topic) {
     memset(&g_voice_mode, 0, sizeof(g_voice_mode));
     pthread_mutex_init(&g_voice_mode.state_mutex, NULL);
 
+    // Load accessibility profile if available
+    g_voice_mode.profile = education_profile_get_active();
+    const EducationAccessibility* access = g_voice_mode.profile ?
+        &g_voice_mode.profile->accessibility : NULL;
+
+    // Apply accessibility settings
+    g_voice_mode.speech_rate = a11y_get_speech_rate(access, 1.0f);
+    g_voice_mode.pitch_offset = a11y_get_pitch_offset(access, 0.0f);
+    g_voice_mode.tts_highlight = access && access->dyslexia && access->tts_enabled;
+    g_voice_mode.high_contrast = access && access->high_contrast;
+
+    // Set break interval based on conditions
+    if (access && access->adhd) {
+        g_voice_mode.break_interval_minutes = 10;
+    } else if (access && access->cerebral_palsy) {
+        g_voice_mode.break_interval_minutes = 15;
+    } else {
+        g_voice_mode.break_interval_minutes = 30;
+    }
+
+    // Transcript visible by default, or always on if screen reader needed
+    g_voice_mode.transcript_visible = true;
+    if (access && access->screen_reader) {
+        g_voice_mode.transcript_visible = true;  // Always show for screen reader users
+    }
+
     if (maestro_id && maestro_id[0]) {
         strncpy(g_voice_mode.maestro_id, maestro_id, sizeof(g_voice_mode.maestro_id) - 1);
         strncpy(g_voice_mode.maestro_name, maestro_id, sizeof(g_voice_mode.maestro_name) - 1);
@@ -262,9 +302,8 @@ int voice_mode_start(const char *maestro_id, const char *topic) {
         strcpy(g_voice_mode.maestro_name, "Euclide");
     }
 
-    strncpy(g_voice_mode.topic, topic && topic[0] ? topic : "Matematica", sizeof(g_voice_mode.topic) - 1);
+    strncpy(g_voice_mode.topic, topic && topic[0] ? topic : "Mathematics", sizeof(g_voice_mode.topic) - 1);
     g_voice_mode.state = VOICE_MODE_IDLE;
-    g_voice_mode.transcript_visible = true;
 
     if (!voice_audio_init()) {
         fprintf(stderr, "Failed to initialize audio\n");
@@ -281,11 +320,31 @@ int voice_mode_start(const char *maestro_id, const char *topic) {
     voice_ws_set_callbacks(g_ws, on_audio_received, on_transcript, on_ws_state, on_ws_error, NULL);
 
     char instructions[2048];
+
+    // Build accessibility-aware instructions
+    const char* speech_pace = "";
+    if (g_voice_mode.speech_rate < 0.8f) {
+        speech_pace = "Speak slowly and clearly, pausing between sentences. ";
+    } else if (g_voice_mode.speech_rate > 1.2f) {
+        speech_pace = "Speak at a brisk, efficient pace. ";
+    } else {
+        speech_pace = "Speak at a natural, conversational pace. ";
+    }
+
+    const char* accessibility_hints = "";
+    if (access && access->dyslexia) {
+        accessibility_hints = "Use short sentences and simple vocabulary. Repeat key concepts. ";
+    } else if (access && access->adhd) {
+        accessibility_hints = "Keep explanations brief and engaging. Use frequent checkpoints. ";
+    } else if (access && access->autism) {
+        accessibility_hints = "Be literal and direct. Avoid metaphors and idioms. Give clear structure. ";
+    }
+
     snprintf(instructions, sizeof(instructions),
-        "You are %s, an educational AI maestro. Speak naturally in Italian. "
+        "You are %s, an educational AI maestro. %s%s"
         "Help students learn about %s. Be patient, encouraging, and use analogies. "
-        "If interrupted, acknowledge naturally with 'Si, dimmi' and wait for the question.",
-        g_voice_mode.maestro_name, g_voice_mode.topic);
+        "If interrupted, acknowledge naturally and wait for the question.",
+        g_voice_mode.maestro_name, speech_pace, accessibility_hints, g_voice_mode.topic);
     voice_ws_set_maestro(g_ws, g_voice_mode.maestro_id, instructions);
 
     if (!voice_ws_connect(g_ws)) {

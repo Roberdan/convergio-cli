@@ -35,20 +35,24 @@
 #define PRESIDE_CONCERN_THRESHOLD_TREND -1.0f
 #define PRESIDE_WEEKLY_REPORT_DAYS 7
 
-// Maestri IDs for reference
+// Maestri IDs for reference (canonical slug IDs)
 static const char* MAESTRI_IDS[] = {
-    "ED01", "ED02", "ED03", "ED04", "ED05", "ED06", "ED07",
-    "ED08", "ED09", "ED10", "ED11", "ED12", "ED13", "ED14"
+    "socrate-filosofia", "euclide-matematica", "feynman-fisica", "erodoto-storia",
+    "humboldt-geografia", "manzoni-italiano", "darwin-scienze", "leonardo-arte",
+    "mozart-musica", "shakespeare-inglese", "cicerone-civica", "smith-economia",
+    "lovelace-informatica", "ippocrate-corpo", "chris-storytelling"
 };
 static const char* MAESTRI_NAMES[] = {
-    "Socrate", "Euclide", "Feynman", "Erodoto", "Humboldt", "Manzoni", "Darwin",
-    "Leonardo", "Mozart", "Shakespeare", "Cicerone", "Adam Smith", "Lovelace", "Ippocrate"
+    "Socrates", "Euclid", "Feynman", "Herodotus", "Humboldt", "Manzoni", "Darwin",
+    "Leonardo", "Mozart", "Shakespeare", "Cicero", "Adam Smith", "Lovelace",
+    "Hippocrates", "Chris"
 };
 static const char* MAESTRI_SUBJECTS[] = {
-    "Filosofia", "Matematica", "Fisica", "Storia", "Geografia", "Italiano", "Scienze",
-    "Arte", "Musica", "Inglese", "Ed. Civica", "Economia", "Informatica", "Sport"
+    "Philosophy", "Mathematics", "Physics", "History", "Geography", "Italian",
+    "Science", "Art", "Music", "English", "Civics", "Economics", "Computing",
+    "Health", "Storytelling"
 };
-static const int NUM_MAESTRI = 14;
+static const int NUM_MAESTRI = 15;
 
 // ============================================================================
 // TYPES - Use types from education.h
@@ -155,7 +159,7 @@ StudentDashboard* preside_get_dashboard(int64_t student_id) {
         // Check for concerns
         if (ms->average_grade < PRESIDE_CONCERN_THRESHOLD_GRADE) {
             char buf[128];
-            snprintf(buf, sizeof(buf), "- %s: media insufficiente (%.1f)\n",
+            snprintf(buf, sizeof(buf), "- %s: failing average (%.1f)\n",
                      ms->subject, ms->average_grade);
             if (dashboard->concerns) {
                 strncat(dashboard->concerns, buf,
@@ -164,7 +168,7 @@ StudentDashboard* preside_get_dashboard(int64_t student_id) {
         }
         if (ms->trend < PRESIDE_CONCERN_THRESHOLD_TREND) {
             char buf[128];
-            snprintf(buf, sizeof(buf), "- %s: trend in calo (%.1f)\n",
+            snprintf(buf, sizeof(buf), "- %s: declining trend (%.1f)\n",
                      ms->subject, ms->trend);
             if (dashboard->concerns) {
                 strncat(dashboard->concerns, buf,
@@ -175,7 +179,7 @@ StudentDashboard* preside_get_dashboard(int64_t student_id) {
         // Check for strengths
         if (ms->average_grade >= 8.0f) {
             char buf[128];
-            snprintf(buf, sizeof(buf), "- %s: eccellente (%.1f)\n",
+            snprintf(buf, sizeof(buf), "- %s: excellent (%.1f)\n",
                      ms->subject, ms->average_grade);
             if (dashboard->strengths) {
                 strncat(dashboard->strengths, buf,
@@ -204,21 +208,21 @@ void preside_print_dashboard(const StudentDashboard* dashboard) {
 
     printf("\n");
     printf("╔════════════════════════════════════════════════════════════════════╗\n");
-    printf("║             DASHBOARD STUDENTE - %s                          \n", dashboard->student_name);
+    printf("║             STUDENT DASHBOARD - %s                          \n", dashboard->student_name);
     printf("╠════════════════════════════════════════════════════════════════════╣\n");
 
-    printf("║ Media generale: %.1f                                               \n",
+    printf("║ Overall average: %.1f                                               \n",
            dashboard->overall_average);
-    printf("║ Ore di studio: %d    Sessioni: %d    Streak: %d giorni             \n",
+    printf("║ Study hours: %d    Sessions: %d    Streak: %d days             \n",
            dashboard->total_study_hours, dashboard->total_sessions,
            dashboard->current_streak);
-    printf("║ Obiettivi raggiunti: %d                                            \n",
+    printf("║ Goals achieved: %d                                            \n",
            dashboard->goals_achieved);
 
     printf("╠════════════════════════════════════════════════════════════════════╣\n");
-    printf("║ RENDIMENTO PER MATERIA                                             \n");
+    printf("║ PERFORMANCE BY SUBJECT                                             \n");
     printf("╠════════════════════════════════════════════════════════════════════╣\n");
-    printf("║ Materia          Maestro        Media   Trend   Ore               \n");
+    printf("║ Subject          Teacher        Avg     Trend   Hours               \n");
     printf("╟────────────────────────────────────────────────────────────────────╢\n");
 
     for (int i = 0; i < dashboard->maestro_count; i++) {
@@ -231,14 +235,14 @@ void preside_print_dashboard(const StudentDashboard* dashboard) {
 
     if (dashboard->concerns && dashboard->concerns[0]) {
         printf("╠════════════════════════════════════════════════════════════════════╣\n");
-        printf("║ ⚠️  PUNTI DI ATTENZIONE                                             \n");
+        printf("║ ATTENTION NEEDED                                                    \n");
         printf("╟────────────────────────────────────────────────────────────────────╢\n");
         printf("%s", dashboard->concerns);
     }
 
     if (dashboard->strengths && dashboard->strengths[0]) {
         printf("╠════════════════════════════════════════════════════════════════════╣\n");
-        printf("║ ⭐ PUNTI DI FORZA                                                   \n");
+        printf("║ STRENGTHS                                                           \n");
         printf("╟────────────────────────────────────────────────────────────────────╢\n");
         printf("%s", dashboard->strengths);
     }
@@ -272,14 +276,14 @@ ClassCouncil* preside_prepare_class_council(int64_t student_id) {
     council->agenda = malloc(PRESIDE_MAX_REPORT_LEN);
     if (council->agenda) {
         snprintf(council->agenda, PRESIDE_MAX_REPORT_LEN,
-            "CONSIGLIO DI CLASSE VIRTUALE - %s\n"
-            "Data: %s\n\n"
-            "ORDINE DEL GIORNO:\n"
-            "1. Analisi rendimento generale\n"
-            "2. Discussione aree critiche\n"
-            "3. Valorizzazione punti di forza\n"
-            "4. Proposte intervento\n"
-            "5. Comunicazioni famiglia\n",
+            "VIRTUAL CLASS COUNCIL - %s\n"
+            "Date: %s\n\n"
+            "AGENDA:\n"
+            "1. Overall performance analysis\n"
+            "2. Discussion of critical areas\n"
+            "3. Recognition of strengths\n"
+            "4. Intervention proposals\n"
+            "5. Parent communication\n",
             council->student_name,
             ctime(&council->scheduled_at));
     }
@@ -288,15 +292,15 @@ ClassCouncil* preside_prepare_class_council(int64_t student_id) {
     council->discussion_points = malloc(PRESIDE_MAX_REPORT_LEN);
     if (council->discussion_points) {
         snprintf(council->discussion_points, PRESIDE_MAX_REPORT_LEN,
-            "PUNTI DI DISCUSSIONE:\n\n"
-            "Media generale: %.1f\n"
-            "Ore di studio settimanali: %d\n\n"
-            "AREE CRITICHE:\n%s\n"
-            "ECCELLENZE:\n%s\n",
+            "DISCUSSION POINTS:\n\n"
+            "Overall average: %.1f\n"
+            "Weekly study hours: %d\n\n"
+            "CRITICAL AREAS:\n%s\n"
+            "STRENGTHS:\n%s\n",
             dashboard->overall_average,
             dashboard->total_study_hours,
-            dashboard->concerns ? dashboard->concerns : "Nessuna",
-            dashboard->strengths ? dashboard->strengths : "Nessuna");
+            dashboard->concerns ? dashboard->concerns : "None",
+            dashboard->strengths ? dashboard->strengths : "None");
     }
 
     // Generate recommendations based on analysis
@@ -306,23 +310,23 @@ ClassCouncil* preside_prepare_class_council(int64_t student_id) {
 
         if (dashboard->overall_average < 6.0f) {
             strncat(council->recommendations,
-                "- Attivare supporto didattico personalizzato\n",
+                "- Activate personalized learning support\n",
                 PRESIDE_MAX_REPORT_LEN - 1);
         }
         if (dashboard->current_streak < 3) {
             strncat(council->recommendations,
-                "- Potenziare motivazione e costanza nello studio\n",
+                "- Strengthen motivation and study consistency\n",
                 PRESIDE_MAX_REPORT_LEN - strlen(council->recommendations) - 1);
         }
-        if (dashboard->concerns && strstr(dashboard->concerns, "trend in calo")) {
+        if (dashboard->concerns && strstr(dashboard->concerns, "declining trend")) {
             strncat(council->recommendations,
-                "- Monitoraggio ravvicinato materie in calo\n",
+                "- Close monitoring of declining subjects\n",
                 PRESIDE_MAX_REPORT_LEN - strlen(council->recommendations) - 1);
         }
         if (council->recommendations[0] == '\0') {
             strncat(council->recommendations,
-                "- Mantenere il buon livello raggiunto\n"
-                "- Incoraggiare approfondimento nelle eccellenze\n",
+                "- Maintain current good performance\n"
+                "- Encourage deeper exploration of strengths\n",
                 PRESIDE_MAX_REPORT_LEN - 1);
         }
     }
@@ -363,18 +367,18 @@ char* preside_generate_weekly_report(int64_t student_id) {
 
     snprintf(report, PRESIDE_MAX_REPORT_LEN,
         "═══════════════════════════════════════════════\n"
-        "       REPORT SETTIMANALE EDUCATIVO\n"
+        "       WEEKLY EDUCATIONAL REPORT\n"
         "═══════════════════════════════════════════════\n"
-        "Studente: %s\n"
-        "Settimana del: %s\n"
+        "Student: %s\n"
+        "Week of: %s\n"
         "───────────────────────────────────────────────\n\n"
-        "RIEPILOGO GENERALE\n"
-        "• Media generale: %.1f\n"
-        "• Ore di studio: %d\n"
-        "• Sessioni completate: %d\n"
-        "• Obiettivi raggiunti: %d\n"
-        "• Streak attuale: %d giorni\n\n"
-        "RENDIMENTO PER MATERIA\n",
+        "GENERAL SUMMARY\n"
+        "• Overall average: %.1f\n"
+        "• Study hours: %d\n"
+        "• Completed sessions: %d\n"
+        "• Goals achieved: %d\n"
+        "• Current streak: %d days\n\n"
+        "PERFORMANCE BY SUBJECT\n",
         dashboard->student_name,
         date_str,
         dashboard->overall_average,
@@ -391,21 +395,21 @@ char* preside_generate_weekly_report(int64_t student_id) {
         snprintf(subject_line, sizeof(subject_line),
             "%s %-15s: %.1f (%s)\n",
             status, ms->subject, ms->average_grade,
-            ms->trend > 0 ? "in crescita" :
-            ms->trend < 0 ? "in calo" : "stabile");
+            ms->trend > 0 ? "improving" :
+            ms->trend < 0 ? "declining" : "stable");
         strncat(report, subject_line, PRESIDE_MAX_REPORT_LEN - strlen(report) - 1);
     }
 
     // Add concerns and strengths
     if (dashboard->concerns && dashboard->concerns[0]) {
-        strncat(report, "\nATTENZIONE RICHIESTA\n",
+        strncat(report, "\nATTENTION REQUIRED\n",
                PRESIDE_MAX_REPORT_LEN - strlen(report) - 1);
         strncat(report, dashboard->concerns,
                PRESIDE_MAX_REPORT_LEN - strlen(report) - 1);
     }
 
     if (dashboard->strengths && dashboard->strengths[0]) {
-        strncat(report, "\nPUNTI DI FORZA\n",
+        strncat(report, "\nSTRENGTHS\n",
                PRESIDE_MAX_REPORT_LEN - strlen(report) - 1);
         strncat(report, dashboard->strengths,
                PRESIDE_MAX_REPORT_LEN - strlen(report) - 1);
@@ -413,7 +417,7 @@ char* preside_generate_weekly_report(int64_t student_id) {
 
     strncat(report, "\n───────────────────────────────────────────────\n",
            PRESIDE_MAX_REPORT_LEN - strlen(report) - 1);
-    strncat(report, "Report generato da Ali (Preside Virtuale)\n",
+    strncat(report, "Report generated by Ali (Virtual Principal)\n",
            PRESIDE_MAX_REPORT_LEN - strlen(report) - 1);
 
     preside_dashboard_free(dashboard);
@@ -439,9 +443,9 @@ DifficultCase* preside_detect_difficult_case(int64_t student_id) {
     // Check overall average
     if (dashboard->overall_average < 5.0f) {
         concerns[concern_count].type = CONCERN_LOW_GRADE;
-        strncpy(concerns[concern_count].subject, "Generale", 31);
+        strncpy(concerns[concern_count].subject, "Overall", 31);
         snprintf(concerns[concern_count].description, 255,
-            "Media generale gravemente insufficiente: %.1f",
+            "Severely failing overall average: %.1f",
             dashboard->overall_average);
         concerns[concern_count].severity = 5;
         concerns[concern_count].detected_at = time(NULL);
@@ -456,7 +460,7 @@ DifficultCase* preside_detect_difficult_case(int64_t student_id) {
             concerns[concern_count].type = CONCERN_LOW_GRADE;
             strncpy(concerns[concern_count].subject, ms->subject, 31);
             snprintf(concerns[concern_count].description, 255,
-                "Voto gravemente insufficiente in %s: %.1f",
+                "Severely failing grade in %s: %.1f",
                 ms->subject, ms->average_grade);
             concerns[concern_count].severity = 4;
             concerns[concern_count].detected_at = time(NULL);
@@ -467,7 +471,7 @@ DifficultCase* preside_detect_difficult_case(int64_t student_id) {
             concerns[concern_count].type = CONCERN_DECLINING_TREND;
             strncpy(concerns[concern_count].subject, ms->subject, 31);
             snprintf(concerns[concern_count].description, 255,
-                "Trend in forte calo in %s: %.1f",
+                "Strongly declining trend in %s: %.1f",
                 ms->subject, ms->trend);
             concerns[concern_count].severity = 3;
             concerns[concern_count].detected_at = time(NULL);
@@ -478,9 +482,9 @@ DifficultCase* preside_detect_difficult_case(int64_t student_id) {
     // Check engagement
     if (dashboard->total_study_hours < 5) {
         concerns[concern_count].type = CONCERN_LOW_ENGAGEMENT;
-        strncpy(concerns[concern_count].subject, "Generale", 31);
+        strncpy(concerns[concern_count].subject, "Overall", 31);
         snprintf(concerns[concern_count].description, 255,
-            "Tempo di studio molto basso: %d ore",
+            "Very low study time: %d hours",
             dashboard->total_study_hours);
         concerns[concern_count].severity = 3;
         concerns[concern_count].detected_at = time(NULL);
@@ -490,9 +494,9 @@ DifficultCase* preside_detect_difficult_case(int64_t student_id) {
     // Check streak
     if (dashboard->current_streak == 0 && dashboard->total_sessions > 10) {
         concerns[concern_count].type = CONCERN_BREAK_STREAK;
-        strncpy(concerns[concern_count].subject, "Generale", 31);
+        strncpy(concerns[concern_count].subject, "Overall", 31);
         snprintf(concerns[concern_count].description, 255,
-            "Interruzione della continuita nello studio");
+            "Study continuity interrupted");
         concerns[concern_count].severity = 2;
         concerns[concern_count].detected_at = time(NULL);
         concern_count++;
@@ -556,13 +560,13 @@ char* preside_generate_parent_message(int64_t student_id, bool include_concerns)
     strftime(date_str, sizeof(date_str), "%d/%m/%Y", tm_info);
 
     snprintf(message, PRESIDE_MAX_REPORT_LEN,
-        "Gentile %s,\n\n"
-        "Le scrivo per aggiornarla sull'andamento scolastico di %s.\n\n"
-        "SITUAZIONE ATTUALE (al %s)\n"
-        "• Media generale: %.1f\n"
-        "• Ore di studio settimanali: %d\n"
-        "• Continuita: %d giorni consecutivi\n\n",
-        profile->parent_name ? profile->parent_name : "Genitore",
+        "Dear %s,\n\n"
+        "I am writing to update you on %s's academic progress.\n\n"
+        "CURRENT STATUS (as of %s)\n"
+        "• Overall average: %.1f\n"
+        "• Weekly study hours: %d\n"
+        "• Continuity: %d consecutive days\n\n",
+        profile->parent_name ? profile->parent_name : "Parent",
         dashboard->student_name,
         date_str,
         dashboard->overall_average,
@@ -570,7 +574,7 @@ char* preside_generate_parent_message(int64_t student_id, bool include_concerns)
         dashboard->current_streak);
 
     if (dashboard->strengths && dashboard->strengths[0]) {
-        strncat(message, "PUNTI DI FORZA\n",
+        strncat(message, "STRENGTHS\n",
                PRESIDE_MAX_REPORT_LEN - strlen(message) - 1);
         strncat(message, dashboard->strengths,
                PRESIDE_MAX_REPORT_LEN - strlen(message) - 1);
@@ -578,7 +582,7 @@ char* preside_generate_parent_message(int64_t student_id, bool include_concerns)
     }
 
     if (include_concerns && dashboard->concerns && dashboard->concerns[0]) {
-        strncat(message, "AREE DI MIGLIORAMENTO\n",
+        strncat(message, "AREAS FOR IMPROVEMENT\n",
                PRESIDE_MAX_REPORT_LEN - strlen(message) - 1);
         strncat(message, dashboard->concerns,
                PRESIDE_MAX_REPORT_LEN - strlen(message) - 1);
@@ -586,10 +590,10 @@ char* preside_generate_parent_message(int64_t student_id, bool include_concerns)
     }
 
     strncat(message,
-        "Resto a disposizione per qualsiasi chiarimento.\n\n"
-        "Cordiali saluti,\n"
-        "Ali - Preside Virtuale\n"
-        "Sistema Educativo Convergio\n",
+        "Please feel free to reach out with any questions.\n\n"
+        "Best regards,\n"
+        "Ali - Virtual Principal\n"
+        "Convergio Education System\n",
         PRESIDE_MAX_REPORT_LEN - strlen(message) - 1);
 
     preside_dashboard_free(dashboard);
@@ -627,44 +631,44 @@ char* preside_get_shared_context(int64_t student_id) {
         static char a11y_buf[512];
         a11y_buf[0] = '\0';
         if (profile->accessibility->dyslexia)
-            strncat(a11y_buf, "dislessia, ", 500);
+            strncat(a11y_buf, "dyslexia, ", 500);
         if (profile->accessibility->dyscalculia)
-            strncat(a11y_buf, "discalculia, ", 500 - strlen(a11y_buf));
+            strncat(a11y_buf, "dyscalculia, ", 500 - strlen(a11y_buf));
         if (profile->accessibility->adhd)
             strncat(a11y_buf, "ADHD, ", 500 - strlen(a11y_buf));
         if (profile->accessibility->autism)
-            strncat(a11y_buf, "autismo, ", 500 - strlen(a11y_buf));
+            strncat(a11y_buf, "autism, ", 500 - strlen(a11y_buf));
         if (profile->accessibility->cerebral_palsy)
-            strncat(a11y_buf, "paralisi cerebrale, ", 500 - strlen(a11y_buf));
+            strncat(a11y_buf, "cerebral palsy, ", 500 - strlen(a11y_buf));
         if (strlen(a11y_buf) > 0)
             a11y_buf[strlen(a11y_buf) - 2] = '\0';  // Remove trailing ", "
         accessibility_notes = a11y_buf;
     }
 
     snprintf(context, PRESIDE_MAX_REPORT_LEN,
-        "CONTESTO STUDENTE (uso riservato ai Maestri)\n"
+        "STUDENT CONTEXT (for Teachers only)\n"
         "═══════════════════════════════════════════\n"
-        "Nome: %s\n"
-        "Eta: %d anni\n"
-        "Curriculum: %s (Anno %d)\n"
-        "Accessibilita: %s\n\n"
-        "STATO ATTUALE\n"
-        "Media generale: %.1f\n"
-        "Streak studio: %d giorni\n\n"
-        "AREE CRITICHE\n%s\n"
-        "ECCELLENZE\n%s\n"
+        "Name: %s\n"
+        "Age: %d years\n"
+        "Curriculum: %s (Year %d)\n"
+        "Accessibility: %s\n\n"
+        "CURRENT STATUS\n"
+        "Overall average: %.1f\n"
+        "Study streak: %d days\n\n"
+        "CRITICAL AREAS\n%s\n"
+        "STRENGTHS\n%s\n"
         "═══════════════════════════════════════════\n"
-        "NOTA: Adattare sempre le risposte al profilo\n"
-        "accessibilita dello studente.\n",
+        "NOTE: Always adapt responses to the student's\n"
+        "accessibility profile.\n",
         profile->name,
         profile->age,
-        profile->curriculum_id ? profile->curriculum_id : "N/D",
+        profile->curriculum_id ? profile->curriculum_id : "N/A",
         profile->grade_level,
-        strlen(accessibility_notes) > 0 ? accessibility_notes : "Nessuna nota",
+        strlen(accessibility_notes) > 0 ? accessibility_notes : "None",
         dashboard->overall_average,
         dashboard->current_streak,
-        dashboard->concerns ? dashboard->concerns : "Nessuna",
-        dashboard->strengths ? dashboard->strengths : "Nessuna");
+        dashboard->concerns ? dashboard->concerns : "None",
+        dashboard->strengths ? dashboard->strengths : "None");
 
     preside_dashboard_free(dashboard);
     education_profile_free(profile);
@@ -683,16 +687,16 @@ char* preside_suggest_interdisciplinary(int64_t student_id, const char* topic) {
 
     // This would be more sophisticated with actual topic analysis
     snprintf(suggestion, 1024,
-        "SUGGERIMENTI INTERDISCIPLINARI per: %s\n"
+        "INTERDISCIPLINARY SUGGESTIONS for: %s\n"
         "─────────────────────────────────────────\n"
-        "Materie collegate:\n"
-        "• Storia: contesto storico dell'argomento\n"
-        "• Filosofia: implicazioni etiche e filosofiche\n"
-        "• Italiano: opere letterarie correlate\n"
-        "• Arte: rappresentazioni artistiche\n\n"
-        "Proposta progetto interdisciplinare:\n"
-        "Coinvolgere 2-3 maestri per un approfondimento\n"
-        "che colleghi diverse prospettive.\n",
+        "Connected subjects:\n"
+        "• History: historical context of the topic\n"
+        "• Philosophy: ethical and philosophical implications\n"
+        "• Literature: related literary works\n"
+        "• Art: artistic representations\n\n"
+        "Interdisciplinary project proposal:\n"
+        "Involve 2-3 teachers for an in-depth exploration\n"
+        "connecting different perspectives.\n",
         topic);
 
     return suggestion;

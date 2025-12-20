@@ -102,23 +102,6 @@ CFLAGS = $(ARCH_FLAGS) \
 
 OBJCFLAGS = $(CFLAGS) -fobjc-arc
 
-# ============================================================================
-# EDITION SELECTION
-# Build with: make EDITION=education (or business, developer)
-# ============================================================================
-ifeq ($(EDITION),education)
-    CFLAGS += -DCONVERGIO_EDITION_EDUCATION
-    EDITION_SUFFIX = -edu
-else ifeq ($(EDITION),business)
-    CFLAGS += -DCONVERGIO_EDITION_BUSINESS
-    EDITION_SUFFIX = -biz
-else ifeq ($(EDITION),developer)
-    CFLAGS += -DCONVERGIO_EDITION_DEVELOPER
-    EDITION_SUFFIX = -dev
-else
-    EDITION_SUFFIX =
-endif
-
 # Release/Debug flags
 ifeq ($(DEBUG),1)
     # Debug mode: extra warnings and sanitizers

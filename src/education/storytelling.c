@@ -8,7 +8,7 @@
  * - 18-minute TED timer
  * - Story hook suggestions
  *
- * Phase: FASE 12 - Storytelling Integration
+ * Phase: Phase 12 - Storytelling Integration
  *
  * Copyright (c) 2025 Convergio.io
  * Licensed under MIT License
@@ -99,111 +99,127 @@ typedef struct {
     const char** hooks;
 } MaestroHooks;
 
-static const char* SOCRATE_HOOKS[] = {
-    "Immagina di essere ad Atene, 2400 anni fa, in una piazza affollata...",
-    "Un giovane un giorno chiese: 'Maestro, cos'e la verita?'",
-    "Sai perche Socrate fu condannato a morte?",
+static const char* SOCRATES_HOOKS[] = {
+    "Imagine being in Athens, 2400 years ago, in a crowded plaza...",
+    "A young man once asked: 'Master, what is truth?'",
+    "Do you know why Socrates was sentenced to death?",
     NULL
 };
 
-static const char* EUCLIDE_HOOKS[] = {
-    "Un re chiese una volta: 'Esiste una via facile per la geometria?'",
-    "Pensa a un mondo senza numeri. Impossibile, vero?",
-    "Tutto inizio con un punto, una linea, e una domanda...",
+static const char* EUCLID_HOOKS[] = {
+    "A king once asked: 'Is there an easy path to geometry?'",
+    "Think of a world without numbers. Impossible, right?",
+    "It all began with a point, a line, and a question...",
     NULL
 };
 
 static const char* FEYNMAN_HOOKS[] = {
-    "Sai cosa succede quando lasci cadere una palla?",
-    "Un giorno in un ristorante, mi chiesi: perche l'acqua gira cosi nel lavandino?",
-    "Il segreto dell'universo e nascosto in una tazza di caffe...",
+    "Do you know what happens when you drop a ball?",
+    "One day in a restaurant, I wondered: why does water swirl that way in the sink?",
+    "The secret of the universe is hidden in a cup of coffee...",
     NULL
 };
 
-static const char* ERODOTO_HOOKS[] = {
-    "In un tempo lontano, un impero dominava il mondo conosciuto...",
-    "Questa storia inizia 3000 anni fa, sulle rive del Nilo...",
-    "Ti sei mai chiesto perche parliamo di 'vittoria di Pirro'?",
+static const char* HERODOTUS_HOOKS[] = {
+    "In a time long ago, an empire ruled the known world...",
+    "This story begins 3000 years ago, on the banks of the Nile...",
+    "Have you ever wondered why we speak of a 'Pyrrhic victory'?",
     NULL
 };
 
 static const char* DARWIN_HOOKS[] = {
-    "Navigando verso isole remote, notai qualcosa di strano...",
-    "Immagina di essere un fringuello su un'isola deserta...",
-    "Cosa hanno in comune il tuo naso e la proboscide dell'elefante?",
+    "Sailing to remote islands, I noticed something strange...",
+    "Imagine being a finch on a deserted island...",
+    "What do your nose and an elephant's trunk have in common?",
     NULL
 };
 
 static const char* LEONARDO_HOOKS[] = {
-    "Nel mio studio, circondato da macchine impossibili, vidi il futuro...",
-    "Un uccello mi insegno a volare. In teoria.",
-    "Prima di Instagram, c'era il mio taccuino...",
+    "In my studio, surrounded by impossible machines, I saw the future...",
+    "A bird taught me to fly. In theory.",
+    "Before Instagram, there was my sketchbook...",
     NULL
 };
 
 static const char* MANZONI_HOOKS[] = {
-    "Era una notte buia e tempestosa... no, aspetta, era un lago calmo.",
-    "Quel ramo del lago di Como... ti dice qualcosa?",
-    "Una promessa non mantenuta cambio la storia d'Italia.",
+    "It was a dark and stormy night... no wait, it was a calm lake.",
+    "That branch of Lake Como... does it ring a bell?",
+    "A broken promise changed the history of Italy.",
     NULL
 };
 
 static const char* SHAKESPEARE_HOOKS[] = {
-    "To be or not to be - ma cosa significa davvero?",
-    "Un principe, un fantasma, e una vendetta...",
-    "Tutti il mondo e un palcoscenico. Ma tu, che ruolo interpreti?",
+    "To be or not to be - but what does it really mean?",
+    "A prince, a ghost, and a revenge...",
+    "All the world's a stage. But what role do you play?",
     NULL
 };
 
 static const char* MOZART_HOOKS[] = {
-    "Avevo 5 anni quando scrissi la mia prima sinfonia...",
-    "La musica non e nelle note, ma nel silenzio tra di esse.",
-    "Senti questa melodia? L'ho sognata stanotte.",
+    "I was 5 years old when I wrote my first symphony...",
+    "Music is not in the notes, but in the silence between them.",
+    "Hear this melody? I dreamed it last night.",
     NULL
 };
 
-static const char* CICERONE_HOOKS[] = {
-    "Cittadini di Roma! Fino a quando abuserai della nostra pazienza?",
-    "Tre parole possono cambiare il mondo: Veni, Vidi, Vici.",
-    "L'arte della parola e l'arma piu potente.",
+static const char* CICERO_HOOKS[] = {
+    "Citizens of Rome! How long will you abuse our patience?",
+    "Three words can change the world: Veni, Vidi, Vici.",
+    "The art of speech is the most powerful weapon.",
     NULL
 };
 
 static const char* SMITH_HOOKS[] = {
-    "Perche un fabbricante di spilli e il segreto della ricchezza?",
-    "La mano invisibile - no, non e magia, e economia.",
-    "Cosa succederebbe se tutti pensassero solo a se stessi?",
+    "Why is a pin-maker the secret to wealth?",
+    "The invisible hand - no, it's not magic, it's economics.",
+    "What would happen if everyone only thought of themselves?",
     NULL
 };
 
 static const char* LOVELACE_HOOKS[] = {
-    "Mio padre era un poeta. Io preferivo le macchine.",
-    "Immagina un telaio che pensa...",
-    "Prima che esistesse la parola 'computer', io lo sognavo.",
+    "My father was a poet. I preferred machines.",
+    "Imagine a loom that thinks...",
+    "Before the word 'computer' existed, I dreamed of it.",
     NULL
 };
 
-static const char* IPPOCRATE_HOOKS[] = {
-    "Primo, non nuocere. Ma cosa significa curare?",
-    "Il corpo umano e un tempio - sai come prendertene cura?",
-    "2500 anni fa, la medicina era magia. Poi cambio tutto.",
+static const char* HIPPOCRATES_HOOKS[] = {
+    "First, do no harm. But what does it mean to heal?",
+    "The human body is a temple - do you know how to take care of it?",
+    "2500 years ago, medicine was magic. Then everything changed.",
+    NULL
+};
+
+static const char* HUMBOLDT_HOOKS[] = {
+    "I climbed the highest peaks to understand the Earth...",
+    "Everything is connected - from a tiny flower to the cosmos.",
+    "The Amazon taught me more than any library ever could.",
+    NULL
+};
+
+static const char* CHRIS_HOOKS[] = {
+    "The best talks are not about you - they're about your audience.",
+    "Every great story starts with a single question...",
+    "What if you could change someone's life in 18 minutes?",
     NULL
 };
 
 static const MaestroHooks MAESTRO_HOOKS[] = {
-    {"socrate-filosofia", SOCRATE_HOOKS},
-    {"euclide-matematica", EUCLIDE_HOOKS},
+    {"socrate-filosofia", SOCRATES_HOOKS},
+    {"euclide-matematica", EUCLID_HOOKS},
     {"feynman-fisica", FEYNMAN_HOOKS},
-    {"erodoto-storia", ERODOTO_HOOKS},
+    {"erodoto-storia", HERODOTUS_HOOKS},
     {"darwin-scienze", DARWIN_HOOKS},
     {"leonardo-arte", LEONARDO_HOOKS},
     {"manzoni-italiano", MANZONI_HOOKS},
     {"shakespeare-inglese", SHAKESPEARE_HOOKS},
     {"mozart-musica", MOZART_HOOKS},
-    {"cicerone-latino", CICERONE_HOOKS},
+    {"cicerone-civica", CICERO_HOOKS},
     {"smith-economia", SMITH_HOOKS},
     {"lovelace-informatica", LOVELACE_HOOKS},
-    {"ippocrate-salute", IPPOCRATE_HOOKS},
+    {"ippocrate-corpo", HIPPOCRATES_HOOKS},
+    {"humboldt-geografia", HUMBOLDT_HOOKS},
+    {"chris-storytelling", CHRIS_HOOKS},
     {NULL, NULL}
 };
 
@@ -346,15 +362,15 @@ void storytelling_free_filler_analysis(FillerAnalysis* analysis) {
  */
 const char* storytelling_filler_feedback(float percentage) {
     if (percentage < 1.0f) {
-        return "Eccellente! Quasi nessun riempitivo. Parli in modo chiaro e diretto.";
+        return "Excellent! Almost no fillers. You speak clearly and directly.";
     } else if (percentage < 3.0f) {
-        return "Buono! Pochi riempitivi. Con un po' di pratica sarai perfetto.";
+        return "Good! Few fillers. With a bit of practice you'll be perfect.";
     } else if (percentage < 5.0f) {
-        return "Discreto. Prova a fare pause silenziose invece di usare 'ehm' e 'cioe'.";
+        return "Decent. Try making silent pauses instead of using 'um' and 'like'.";
     } else if (percentage < 10.0f) {
-        return "Da migliorare. I riempitivi distraggono. Prova a rallentare e respirare.";
+        return "Needs improvement. Fillers are distracting. Try to slow down and breathe.";
     } else {
-        return "Attenzione! Troppi riempitivi. Esercitati a fare pause silenziose.";
+        return "Warning! Too many fillers. Practice making silent pauses.";
     }
 }
 
@@ -381,24 +397,24 @@ PacingAnalysis* storytelling_analyze_pacing(const char* text, int duration_secon
     // Determine rating
     if (analysis->words_per_minute < PACING_TOO_SLOW) {
         analysis->rating = "too_slow";
-        analysis->suggestion = "Stai parlando troppo lentamente. Il pubblico potrebbe perdere interesse. "
-                               "Prova ad aumentare leggermente il ritmo.";
+        analysis->suggestion = "You're speaking too slowly. The audience may lose interest. "
+                               "Try to increase your pace slightly.";
     } else if (analysis->words_per_minute < PACING_IDEAL_MIN) {
         analysis->rating = "slow";
-        analysis->suggestion = "Ritmo leggermente lento. Va bene per concetti complessi, "
-                               "ma prova a variare il tempo.";
+        analysis->suggestion = "Slightly slow pace. Good for complex concepts, "
+                               "but try to vary your tempo.";
     } else if (analysis->words_per_minute <= PACING_IDEAL_MAX) {
         analysis->rating = "ideal";
-        analysis->suggestion = "Ritmo perfetto! Mantieni questa velocita e ricorda di fare pause "
-                               "per enfatizzare i punti importanti.";
+        analysis->suggestion = "Perfect pace! Maintain this speed and remember to pause "
+                               "to emphasize important points.";
     } else if (analysis->words_per_minute < PACING_TOO_FAST) {
         analysis->rating = "fast";
-        analysis->suggestion = "Stai parlando un po' veloce. Rallenta leggermente e "
-                               "lascia respirare le tue parole.";
+        analysis->suggestion = "You're speaking a bit fast. Slow down slightly and "
+                               "let your words breathe.";
     } else {
         analysis->rating = "too_fast";
-        analysis->suggestion = "Troppo veloce! Il pubblico non riesce a seguirti. "
-                               "Respira, rallenta, fai pause.";
+        analysis->suggestion = "Too fast! The audience can't follow. "
+                               "Breathe, slow down, pause.";
     }
 
     return analysis;
@@ -470,16 +486,16 @@ void storytelling_ted_timer_stop(void) {
 }
 
 /**
- * Get section label in Italian
+ * Get section label
  */
 const char* storytelling_section_label(const char* section) {
     if (!section) return "";
-    if (strcmp(section, "hook") == 0) return "HOOK - Cattura l'attenzione";
-    if (strcmp(section, "main_idea") == 0) return "IDEA PRINCIPALE - Il tuo throughline";
-    if (strcmp(section, "three_pillars") == 0) return "TRE PILASTRI - I tuoi punti chiave";
-    if (strcmp(section, "call_to_action") == 0) return "CALL TO ACTION - Chiusura memorabile";
-    if (strcmp(section, "overtime") == 0) return "TEMPO SCADUTO!";
-    if (strcmp(section, "not_started") == 0) return "Pronto per iniziare";
+    if (strcmp(section, "hook") == 0) return "HOOK - Capture attention";
+    if (strcmp(section, "main_idea") == 0) return "MAIN IDEA - Your throughline";
+    if (strcmp(section, "three_pillars") == 0) return "THREE PILLARS - Your key points";
+    if (strcmp(section, "call_to_action") == 0) return "CALL TO ACTION - Memorable close";
+    if (strcmp(section, "overtime") == 0) return "TIME'S UP!";
+    if (strcmp(section, "not_started") == 0) return "Ready to start";
     return section;
 }
 
@@ -521,4 +537,125 @@ const char** storytelling_get_all_hooks(const char* maestro_id) {
         }
     }
     return NULL;
+}
+
+// ============================================================================
+// H.A.I.L. FRAMEWORK
+// ============================================================================
+
+static const char* HAIL_DESCRIPTIONS[] = {
+    [0] = "Honesty: Be authentic and transparent. Don't pretend to be someone else.",
+    [1] = "Authenticity: Be yourself. Your unique voice is your strength.",
+    [2] = "Integrity: Be consistent with your values. Say what you think.",
+    [3] = "Love: Show genuine interest in your audience. Speak to help them."
+};
+
+const char* storytelling_hail_description(int quality) {
+    if (quality < 0 || quality > 3) return "";
+    return HAIL_DESCRIPTIONS[quality];
+}
+
+float storytelling_evaluate_hail(const char* text, float scores[4]) {
+    if (!text || !scores) return 0.0f;
+
+    // Initialize scores
+    for (int i = 0; i < 4; i++) scores[i] = 0.5f;
+
+    char* lower = to_lower(text);
+    if (!lower) return 0.5f;
+
+    int total_words = count_words(text);
+    if (total_words == 0) {
+        free(lower);
+        return 0.5f;
+    }
+
+    // H - Honesty: Check for hedging words (negative indicator)
+    const char* hedging[] = {"maybe", "perhaps", "I don't know", "I think", "I guess", NULL};
+    int hedge_count = 0;
+    for (const char** h = hedging; *h; h++) {
+        hedge_count += count_word_occurrences(text, *h);
+    }
+    scores[0] = 1.0f - (float)hedge_count * 0.1f;
+    if (scores[0] < 0.2f) scores[0] = 0.2f;
+
+    // A - Authenticity: Check for personal pronouns (positive indicator)
+    int personal = count_word_occurrences(text, "I") +
+                   count_word_occurrences(text, "my") +
+                   count_word_occurrences(text, "me") +
+                   count_word_occurrences(text, "myself");
+    scores[1] = (float)personal / (float)total_words * 20.0f;
+    if (scores[1] > 1.0f) scores[1] = 1.0f;
+    if (scores[1] < 0.3f) scores[1] = 0.3f;
+
+    // I - Integrity: Check for decisive language
+    int decisive = count_word_occurrences(text, "believe") +
+                   count_word_occurrences(text, "I firmly believe") +
+                   count_word_occurrences(text, "it's important") +
+                   count_word_occurrences(text, "must");
+    scores[2] = 0.5f + (float)decisive * 0.1f;
+    if (scores[2] > 1.0f) scores[2] = 1.0f;
+
+    // L - Love: Check for audience engagement
+    int engagement = count_word_occurrences(text, "you") +
+                     count_word_occurrences(text, "your") +
+                     count_word_occurrences(text, "together") +
+                     count_word_occurrences(text, "we") +
+                     count_word_occurrences(text, "us");
+    scores[3] = (float)engagement / (float)total_words * 15.0f;
+    if (scores[3] > 1.0f) scores[3] = 1.0f;
+    if (scores[3] < 0.2f) scores[3] = 0.2f;
+
+    free(lower);
+
+    // Overall score
+    return (scores[0] + scores[1] + scores[2] + scores[3]) / 4.0f;
+}
+
+// ============================================================================
+// C.N.E.P.R. STRUCTURE
+// ============================================================================
+
+int storytelling_cnepr_duration(int section) {
+    switch (section) {
+        case 0: return 120;   // Connection: 2 min
+        case 1: return 300;   // Narration: 5 min
+        case 2: return 360;   // Explanation: 6 min
+        case 3: return 180;   // Persuasion: 3 min
+        case 4: return 120;   // Revelation: 2 min
+        default: return 0;
+    }
+}
+
+const char* storytelling_cnepr_name(int section) {
+    switch (section) {
+        case 0: return "Connection";
+        case 1: return "Narration";
+        case 2: return "Explanation";
+        case 3: return "Persuasion";
+        case 4: return "Revelation";
+        default: return "";
+    }
+}
+
+const char* storytelling_cnepr_tips(int section) {
+    switch (section) {
+        case 0:
+            return "Capture attention. Use a provocative question, "
+                   "a surprising statistic, or a personal anecdote.";
+        case 1:
+            return "Tell a personal or relevant story. "
+                   "Show vulnerability. Create empathy with the audience.";
+        case 2:
+            return "Explain the core concept. Use simple analogies. "
+                   "Break it into maximum three key points.";
+        case 3:
+            return "Convince with data, examples, and testimonials. "
+                   "Show the problem and the solution.";
+        case 4:
+            return "Close with a memorable call-to-action. "
+                   "Return to the opening theme. Leave a strong mental image.";
+        default:
+            return "";
+    }
 }

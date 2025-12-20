@@ -450,16 +450,16 @@ void quiz_session_complete_with_grade(QuizSession* session, int64_t student_id,
     // Generate grade comment based on performance
     char comment[256] = "";
     if (session->percentage >= 90.0f) {
-        snprintf(comment, sizeof(comment), "Eccellente! %d/%d corrette.",
+        snprintf(comment, sizeof(comment), "Excellent! %d/%d correct.",
                  session->correct_count, session->quiz->question_count);
     } else if (session->percentage >= 70.0f) {
-        snprintf(comment, sizeof(comment), "Buon lavoro! %d/%d corrette.",
+        snprintf(comment, sizeof(comment), "Good work! %d/%d correct.",
                  session->correct_count, session->quiz->question_count);
     } else if (session->percentage >= 50.0f) {
-        snprintf(comment, sizeof(comment), "Sufficiente. %d/%d corrette. Ripassare il materiale.",
+        snprintf(comment, sizeof(comment), "Passing. %d/%d correct. Review the material.",
                  session->correct_count, session->quiz->question_count);
     } else {
-        snprintf(comment, sizeof(comment), "Da rivedere. %d/%d corrette. Consiglio ripasso approfondito.",
+        snprintf(comment, sizeof(comment), "Needs review. %d/%d correct. Recommend thorough review.",
                  session->correct_count, session->quiz->question_count);
     }
 

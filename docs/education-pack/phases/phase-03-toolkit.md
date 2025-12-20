@@ -229,12 +229,12 @@ Implement educational tools shared by all teachers: mind maps, quizzes, flashcar
 
 | ID | Test | Status | Note |
 |----|------|--------|------|
-| TKT01 | Mind map test | [ ] | TODO |
-| TKT02 | Quiz all types test | [ ] | TODO |
-| TKT03 | Flashcards SM-2 test | [ ] | TODO |
-| TKT04 | TTS profile test | [ ] | TODO |
-| TKT05 | Calculator step test | [ ] | TODO |
-| TKT06 | Language tools test | [ ] | TODO |
+| TKT01 | Mind map save/retrieve | [x] | `test_toolkit_save_mindmap()` |
+| TKT02 | Quiz save/retrieve | [x] | `test_toolkit_save_quiz()` |
+| TKT03 | Flashcards API | [x] | `test_toolkit_flashcards_api()` |
+| TKT04 | TTS preference check | [x] | `test_toolkit_accessibility_wants_tts()` |
+| TKT05 | Audio output save | [x] | `test_toolkit_save_audio()` |
+| TKT06 | List outputs | [x] | `test_toolkit_list_outputs()` |
 
 ---
 

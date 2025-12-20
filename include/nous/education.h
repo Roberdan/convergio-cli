@@ -231,7 +231,7 @@ typedef struct {
 typedef struct {
     int64_t id;
     int64_t student_id;
-    char maestro_id[8];
+    char maestro_id[32];
     char topic[EDUCATION_MAX_TOPIC_LEN];
     time_t started_at;
     time_t ended_at;
@@ -290,7 +290,7 @@ typedef enum {
 typedef struct {
     int64_t id;
     int64_t student_id;
-    char maestro_id[8];         // ED01-ED14
+    char maestro_id[32];         // ED01-ED14
     char subject[64];           // Subject name
     char topic[EDUCATION_MAX_TOPIC_LEN];
     EducationGradeType grade_type;
@@ -308,7 +308,7 @@ typedef struct {
 typedef struct {
     int64_t id;
     int64_t student_id;
-    char maestro_id[8];
+    char maestro_id[32];
     char subject[64];
     char activity_type[32];     // "study", "quiz", "homework", "flashcards", etc.
     char topic[EDUCATION_MAX_TOPIC_LEN];
@@ -324,7 +324,7 @@ typedef struct {
  */
 typedef struct {
     char subject[64];
-    char maestro_id[8];
+    char maestro_id[32];
     float average_grade;
     int grade_count;
     int total_study_minutes;
@@ -356,7 +356,7 @@ typedef struct {
  */
 typedef struct {
     char id[32];
-    char maestro_id[8];
+    char maestro_id[32];  // e.g., "shakespeare-inglese", "socrate-filosofia"
     int hours_per_week;
     int topic_count;
     char** topics;  // Array of topic strings
@@ -894,6 +894,32 @@ int education_setup_start(void);
 bool education_setup_is_complete(void);
 
 // ============================================================================
+// ADAPTIVE LEARNING API (S18)
+// ============================================================================
+
+/**
+ * @brief Analyze student learning patterns and return insights
+ * @param student_id Student profile ID
+ * @return JSON string with analysis (caller must free), NULL on error
+ */
+char* education_adaptive_analyze(int64_t student_id);
+
+/**
+ * @brief Update student profile based on adaptive analysis
+ * @param student_id Student profile ID
+ * @return 0 on success, -1 on error
+ */
+int education_adaptive_update_profile(int64_t student_id);
+
+/**
+ * @brief Suggest next topic based on learning progress
+ * @param student_id Student profile ID
+ * @param subject Subject name
+ * @return JSON string with next topic suggestion (caller must free), NULL on error
+ */
+char* education_adaptive_next_topic(int64_t student_id, const char* subject);
+
+// ============================================================================
 // LIBRETTO DELLO STUDENTE API
 // ============================================================================
 
@@ -1037,7 +1063,7 @@ void libretto_stats_free(EducationSubjectStats** stats, int count);
  * @brief Statistics for a single maestro/subject
  */
 typedef struct {
-    char maestro_id[8];
+    char maestro_id[32];
     char maestro_name[32];
     char subject[32];
     float average_grade;
@@ -1292,6 +1318,69 @@ char* html_generate_timeline(const char* topic);
  * @return HTML string (caller must free)
  */
 char* html_generate_lesson(const char* topic, const char* content_html);
+
+// ============================================================================
+// GAMIFICATION API
+// ============================================================================
+
+/**
+ * @brief Engagement statistics for gamification
+ */
+typedef struct {
+    int current_streak;           // Days in current streak
+    int longest_streak;           // Longest streak ever
+    int streak_freezes_available; // Streak freeze tokens
+    bool has_weekend_amulet;      // Weekend doesn't break streak
+    time_t last_activity;         // Last activity timestamp
+    int total_xp;                 // Total XP earned
+    int level;                    // Current level
+    int daily_challenges_completed; // Challenges done today
+} EducationEngagementStats;
+
+/**
+ * @brief Get engagement stats for a student
+ * @param student_id Student profile ID
+ * @return Stats struct (caller must free with education_engagement_free)
+ */
+EducationEngagementStats* education_engagement_get_stats(int64_t student_id);
+
+/**
+ * @brief Check if student studied today (for streak)
+ * @param student_id Student profile ID
+ * @return 1 if studied today, 0 otherwise
+ */
+int education_engagement_check_streak(int64_t student_id);
+
+/**
+ * @brief Award XP to a student
+ * @param student_id Student profile ID
+ * @param xp XP amount to award
+ * @param reason Reason for XP (for history)
+ * @return 0 on success, -1 on error
+ */
+int education_engagement_award_xp(int64_t student_id, int xp, const char* reason);
+
+/**
+ * @brief Get celebration message for event type
+ * @param event_type Event type (0-9)
+ * @return Celebration message string
+ */
+const char* education_engagement_get_celebration(int event_type);
+
+/**
+ * @brief Free engagement stats
+ * @param stats Stats to free
+ */
+void education_engagement_free(EducationEngagementStats* stats);
+
+/**
+ * @brief Add XP to student (legacy wrapper)
+ * @param student_id Student profile ID
+ * @param xp_amount XP amount
+ * @param reason Reason string
+ * @return 0 on success, -1 on error
+ */
+int education_xp_add(int64_t student_id, int xp_amount, const char* reason);
 
 // ============================================================================
 // INTERNAL API (FOR ANNA INTEGRATION)

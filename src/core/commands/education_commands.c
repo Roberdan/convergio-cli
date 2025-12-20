@@ -106,8 +106,8 @@ int cmd_education(int argc, char** argv) {
             fprintf(stderr, "Usage: /education quick <name> <curriculum> <grade>\n");
             fprintf(stderr, "Example: /education quick Mario liceo_scientifico 1\n\n");
             fprintf(stderr, "Available curricula:\n");
-            fprintf(stderr, "  elementari, scuola_media, liceo_scientifico, liceo_classico,\n");
-            fprintf(stderr, "  liceo_linguistico, liceo_artistico, iti_informatica\n");
+            fprintf(stderr, "  elementary, middle_school, science_high_school, classical_high_school,\n");
+            fprintf(stderr, "  language_high_school, art_high_school, tech_high_school\n");
             return 1;
         }
 
@@ -185,7 +185,7 @@ int cmd_education(int argc, char** argv) {
  * /study - Start a study session
  *
  * Usage: /study <subject> [topic]
- * Example: /study matematica "equazioni di primo grado"
+ * Example: /study mathematics "linear equations"
  */
 int cmd_study(int argc, char** argv) {
     if (education_init() != 0) {
@@ -202,7 +202,7 @@ int cmd_study(int argc, char** argv) {
     if (argc < 2) {
         printf("\n📖 Study Session (Pomodoro Timer)\n\n");
         printf("Usage: /study <subject> [topic]\n");
-        printf("Example: /study matematica \"equazioni di primo grado\"\n\n");
+        printf("Example: /study mathematics \"linear equations\"\n\n");
         printf("Features:\n");
         printf("  • 25-minute focused work sessions\n");
         printf("  • 5-minute breaks (15 min after 4 pomodoros)\n");
@@ -210,7 +210,7 @@ int cmd_study(int argc, char** argv) {
         printf("  • End-of-session review quiz\n");
         printf("  • Automatic time tracking\n\n");
         printf("Available subjects based on your curriculum:\n");
-        printf("  matematica, fisica, italiano, storia, inglese...\n\n");
+        printf("  mathematics, physics, language arts, history, english...\n\n");
         return 0;
     }
 
@@ -265,7 +265,7 @@ int cmd_homework(int argc, char** argv) {
         printf("  • Understanding verification quiz\n");
         printf("  • Parental transparency log\n\n");
         printf("Usage: /homework <describe your homework>\n");
-        printf("Example: /homework Matematica: risolvere l'equazione 3x + 5 = 14\n\n");
+        printf("Example: /homework Mathematics: solve the equation 3x + 5 = 14\n\n");
         return 0;
     }
 
@@ -342,7 +342,7 @@ int cmd_quiz(int argc, char** argv) {
         printf("  • Accessibility support\n");
         printf("  • Automatic grade saving to libretto\n\n");
         printf("Usage: /quiz <topic> [--count n] [--difficulty easy|medium|hard]\n");
-        printf("Example: /quiz \"equazioni di primo grado\" --count 5\n\n");
+        printf("Example: /quiz \"linear equations\" --count 5\n\n");
         return 0;
     }
 
@@ -378,7 +378,7 @@ int cmd_flashcards(int argc, char** argv) {
         printf("  • Terminal UI for study sessions\n");
         printf("  • Export to Anki or PDF\n\n");
         printf("Usage: /flashcards <topic> [--count n] [--export anki|pdf]\n");
-        printf("Example: /flashcards \"verbi latini\" --count 20\n\n");
+        printf("Example: /flashcards \"latin verbs\" --count 20\n\n");
         return 0;
     }
 
@@ -414,7 +414,7 @@ int cmd_mindmap(int argc, char** argv) {
         printf("  • Accessibility adaptations\n");
         printf("  • LLM-powered content generation\n\n");
         printf("Usage: /mindmap <concept> [--format svg|png|pdf] [--output path]\n");
-        printf("Example: /mindmap \"Rivoluzione Francese\" --format svg\n\n");
+        printf("Example: /mindmap \"French Revolution\" --format svg\n\n");
         return 0;
     }
 
@@ -431,10 +431,10 @@ int cmd_mindmap(int argc, char** argv) {
  *
  * Subcommands:
  *   (none)      - Show dashboard summary
- *   voti        - Show grade history
- *   diario      - Show daily activity log
- *   progressi   - Show progress graphs
- *   media       - Show grade averages
+ *   grades      - Show grade history
+ *   diary       - Show daily activity log
+ *   progress    - Show progress graphs
+ *   average     - Show grade averages
  */
 int cmd_libretto(int argc, char** argv) {
     if (education_init() != 0) {
@@ -455,28 +455,28 @@ int cmd_libretto(int argc, char** argv) {
         // Dashboard view
         printf("\n");
         printf("╔═══════════════════════════════════════════════════════════════╗\n");
-        printf("║               📚 LIBRETTO DELLO STUDENTE                     ║\n");
+        printf("║                  📚 STUDENT GRADEBOOK                         ║\n");
         printf("╠═══════════════════════════════════════════════════════════════╣\n");
-        printf("║  👤 Studente: %-46s ║\n", profile->name);
+        printf("║  👤 Student: %-47s ║\n", profile->name);
         printf("╠═══════════════════════════════════════════════════════════════╣\n");
 
         if (report) {
-            printf("║  📊 Ultimi 30 giorni:                                         ║\n");
-            printf("║     • Media voti: %.1f/10                                     ║\n", report->overall_average > 0 ? report->overall_average : 0.0f);
-            printf("║     • Ore di studio: %d                                        ║\n", report->total_study_hours);
-            printf("║     • Quiz completati: %d                                      ║\n", report->quizzes_taken);
-            printf("║     • Obiettivi raggiunti: %d                                  ║\n", report->goals_achieved);
-            printf("║     • Streak attuale: %d giorni                                ║\n", report->current_streak);
+            printf("║  📊 Last 30 days:                                             ║\n");
+            printf("║     • Grade average: %.1f/10                                  ║\n", report->overall_average > 0 ? report->overall_average : 0.0f);
+            printf("║     • Study hours: %d                                          ║\n", report->total_study_hours);
+            printf("║     • Quizzes completed: %d                                    ║\n", report->quizzes_taken);
+            printf("║     • Goals achieved: %d                                       ║\n", report->goals_achieved);
+            printf("║     • Current streak: %d days                                  ║\n", report->current_streak);
         } else {
-            printf("║  📊 Nessun dato disponibile ancora                            ║\n");
+            printf("║  📊 No data available yet                                     ║\n");
         }
 
         printf("╠═══════════════════════════════════════════════════════════════╣\n");
-        printf("║  Comandi:                                                     ║\n");
-        printf("║    /libretto voti     - Storico voti per materia              ║\n");
-        printf("║    /libretto diario   - Log attivita giornaliere              ║\n");
-        printf("║    /libretto progressi - Grafici aree migliorate              ║\n");
-        printf("║    /libretto media    - Medie per materia                     ║\n");
+        printf("║  Commands:                                                    ║\n");
+        printf("║    /libretto grades   - Grade history by subject              ║\n");
+        printf("║    /libretto diary    - Daily activity log                    ║\n");
+        printf("║    /libretto progress - Improvement graphs                    ║\n");
+        printf("║    /libretto average  - Averages by subject                   ║\n");
         printf("╚═══════════════════════════════════════════════════════════════╝\n\n");
 
         if (report) libretto_report_free(report);
@@ -486,21 +486,21 @@ int cmd_libretto(int argc, char** argv) {
     const char* subcommand = argv[1];
 
     // -------------------------------------------------------------------------
-    // /libretto voti [materia]
+    // /libretto grades [subject]
     // -------------------------------------------------------------------------
-    if (strcmp(subcommand, "voti") == 0) {
+    if (strcmp(subcommand, "grades") == 0 || strcmp(subcommand, "voti") == 0) {
         const char* subject_filter = (argc >= 3) ? argv[2] : NULL;
 
         int count = 0;
         EducationGrade** grades = libretto_get_grades(profile->id, subject_filter, 0, 0, &count);
 
-        printf("\n📝 STORICO VOTI");
+        printf("\n📝 GRADE HISTORY");
         if (subject_filter) printf(" - %s", subject_filter);
         printf("\n");
         printf("─────────────────────────────────────────────────────────────────\n");
 
         if (grades && count > 0) {
-            printf("%-12s %-20s %-8s %-10s %s\n", "Data", "Materia", "Tipo", "Voto", "Commento");
+            printf("%-12s %-20s %-8s %-10s %s\n", "Date", "Subject", "Type", "Grade", "Comment");
             printf("─────────────────────────────────────────────────────────────────\n");
 
             for (int i = 0; i < count && i < 20; i++) {  // Limit to 20 most recent
@@ -509,16 +509,16 @@ int cmd_libretto(int argc, char** argv) {
                 // Format date
                 char date_str[12];
                 struct tm* tm_info = localtime(&g->recorded_at);
-                strftime(date_str, sizeof(date_str), "%d/%m/%Y", tm_info);
+                strftime(date_str, sizeof(date_str), "%Y-%m-%d", tm_info);
 
                 // Grade type abbreviation
                 const char* type_str = "?";
                 switch (g->grade_type) {
                     case GRADE_TYPE_QUIZ: type_str = "Quiz"; break;
-                    case GRADE_TYPE_HOMEWORK: type_str = "Compito"; break;
-                    case GRADE_TYPE_ORAL: type_str = "Orale"; break;
-                    case GRADE_TYPE_PROJECT: type_str = "Progetto"; break;
-                    case GRADE_TYPE_PARTICIPATION: type_str = "Partecip."; break;
+                    case GRADE_TYPE_HOMEWORK: type_str = "Homework"; break;
+                    case GRADE_TYPE_ORAL: type_str = "Oral"; break;
+                    case GRADE_TYPE_PROJECT: type_str = "Project"; break;
+                    case GRADE_TYPE_PARTICIPATION: type_str = "Particip."; break;
                 }
 
                 // Truncate comment
@@ -534,12 +534,12 @@ int cmd_libretto(int argc, char** argv) {
             }
 
             if (count > 20) {
-                printf("\n... e altri %d voti\n", count - 20);
+                printf("\n... and %d more grades\n", count - 20);
             }
 
             libretto_grades_free(grades, count);
         } else {
-            printf("Nessun voto registrato ancora.\n");
+            printf("No grades recorded yet.\n");
         }
 
         printf("─────────────────────────────────────────────────────────────────\n\n");
@@ -549,9 +549,9 @@ int cmd_libretto(int argc, char** argv) {
     }
 
     // -------------------------------------------------------------------------
-    // /libretto diario [giorni]
+    // /libretto diary [days]
     // -------------------------------------------------------------------------
-    if (strcmp(subcommand, "diario") == 0) {
+    if (strcmp(subcommand, "diary") == 0 || strcmp(subcommand, "diario") == 0) {
         int days = 7;  // Default to last 7 days
         if (argc >= 3) {
             days = atoi(argv[2]);
@@ -565,11 +565,11 @@ int cmd_libretto(int argc, char** argv) {
         int count = 0;
         EducationDailyLogEntry** logs = libretto_get_daily_log(profile->id, from, now, &count);
 
-        printf("\n📖 DIARIO ATTIVITA - Ultimi %d giorni\n", days);
+        printf("\n📖 ACTIVITY DIARY - Last %d days\n", days);
         printf("─────────────────────────────────────────────────────────────────\n");
 
         if (logs && count > 0) {
-            printf("%-12s %-12s %-15s %-8s %s\n", "Data", "Attivita", "Materia", "Durata", "Note");
+            printf("%-12s %-12s %-15s %-8s %s\n", "Date", "Activity", "Subject", "Duration", "Notes");
             printf("─────────────────────────────────────────────────────────────────\n");
 
             for (int i = 0; i < count && i < 30; i++) {
@@ -577,7 +577,7 @@ int cmd_libretto(int argc, char** argv) {
 
                 char date_str[12];
                 struct tm* tm_info = localtime(&e->started_at);
-                strftime(date_str, sizeof(date_str), "%d/%m/%Y", tm_info);
+                strftime(date_str, sizeof(date_str), "%Y-%m-%d", tm_info);
 
                 char duration_str[10];
                 snprintf(duration_str, sizeof(duration_str), "%dmin", e->duration_minutes);
@@ -597,7 +597,7 @@ int cmd_libretto(int argc, char** argv) {
 
             libretto_logs_free(logs, count);
         } else {
-            printf("Nessuna attivita registrata in questo periodo.\n");
+            printf("No activity recorded in this period.\n");
         }
 
         printf("─────────────────────────────────────────────────────────────────\n\n");
@@ -607,14 +607,14 @@ int cmd_libretto(int argc, char** argv) {
     }
 
     // -------------------------------------------------------------------------
-    // /libretto progressi
+    // /libretto progress
     // -------------------------------------------------------------------------
-    if (strcmp(subcommand, "progressi") == 0) {
-        printf("\n📈 PROGRESSI E TREND\n");
+    if (strcmp(subcommand, "progress") == 0 || strcmp(subcommand, "progressi") == 0) {
+        printf("\n📈 PROGRESS AND TRENDS\n");
         printf("─────────────────────────────────────────────────────────────────\n");
 
         if (report && report->subject_count > 0) {
-            printf("%-20s %-10s %-10s %s\n", "Materia", "Media", "N.Voti", "Grafico");
+            printf("%-20s %-10s %-10s %s\n", "Subject", "Average", "Grades", "Chart");
             printf("─────────────────────────────────────────────────────────────────\n");
 
             for (int i = 0; i < report->subject_count; i++) {
@@ -631,8 +631,8 @@ int cmd_libretto(int argc, char** argv) {
                        s->subject, s->average_grade, s->grade_count, bar);
             }
         } else {
-            printf("Non ci sono ancora abbastanza dati per i progressi.\n");
-            printf("Continua a studiare e fare quiz per vedere i tuoi trend!\n");
+            printf("Not enough data for progress tracking yet.\n");
+            printf("Keep studying and taking quizzes to see your trends!\n");
         }
 
         printf("─────────────────────────────────────────────────────────────────\n\n");
@@ -642,25 +642,25 @@ int cmd_libretto(int argc, char** argv) {
     }
 
     // -------------------------------------------------------------------------
-    // /libretto media [materia]
+    // /libretto average [subject]
     // -------------------------------------------------------------------------
-    if (strcmp(subcommand, "media") == 0) {
+    if (strcmp(subcommand, "average") == 0 || strcmp(subcommand, "media") == 0) {
         const char* subject_filter = (argc >= 3) ? argv[2] : NULL;
 
-        printf("\n📊 MEDIE VOTI\n");
+        printf("\n📊 GRADE AVERAGES\n");
         printf("─────────────────────────────────────────────────────────────────\n");
 
         if (subject_filter) {
             float avg = libretto_get_average(profile->id, subject_filter, 0, 0);
             if (avg >= 0) {
-                printf("Media in %s: %.2f/10\n", subject_filter, avg);
+                printf("Average in %s: %.2f/10\n", subject_filter, avg);
             } else {
-                printf("Nessun voto in %s\n", subject_filter);
+                printf("No grades in %s\n", subject_filter);
             }
         } else {
             // Show all subject averages
             if (report && report->subject_count > 0) {
-                printf("%-25s %s\n", "Materia", "Media");
+                printf("%-25s %s\n", "Subject", "Average");
                 printf("─────────────────────────────────────────────────────────────────\n");
 
                 for (int i = 0; i < report->subject_count; i++) {
@@ -670,9 +670,9 @@ int cmd_libretto(int argc, char** argv) {
                 }
 
                 printf("─────────────────────────────────────────────────────────────────\n");
-                printf("%-25s %.2f/10\n", "MEDIA GENERALE", report->overall_average);
+                printf("%-25s %.2f/10\n", "OVERALL AVERAGE", report->overall_average);
             } else {
-                printf("Nessun voto registrato ancora.\n");
+                printf("No grades recorded yet.\n");
             }
         }
 
@@ -682,8 +682,8 @@ int cmd_libretto(int argc, char** argv) {
         return 0;
     }
 
-    fprintf(stderr, "Sottocomando sconosciuto: %s\n", subcommand);
-    fprintf(stderr, "Uso: /libretto [voti|diario|progressi|media]\n");
+    fprintf(stderr, "Unknown subcommand: %s\n", subcommand);
+    fprintf(stderr, "Usage: /libretto [grades|diary|progress|average]\n");
 
     if (report) libretto_report_free(report);
     return 1;
@@ -1006,48 +1006,115 @@ int cmd_xp(int argc, char** argv) {
         return 1;
     }
 
+    // Get real engagement stats from database
+    EducationEngagementStats* stats = education_engagement_get_stats(profile->id);
+
     if (argc < 2 || strcmp(argv[1], "status") == 0) {
         printf("\n🎮 Gamification Status for %s\n\n", profile->name);
         printf("┌─────────────────────────────────┐\n");
-        printf("│ ⭐ XP:     1250 / 2000          │\n");
-        printf("│ 📊 Level:  5 (Apprendista)      │\n");
-        printf("│ 🔥 Streak: 7 giorni             │\n");
-        printf("└─────────────────────────────────┘\n\n");
 
-        printf("🏆 Badges recenti:\n");
-        printf("   🌟 Prima settimana completata\n");
-        printf("   📚 100 flashcards studiate\n");
-        printf("   🧮 Matematico in erba\n\n");
+        if (stats) {
+            int xp_in_level = stats->total_xp - ((stats->level - 1) * 100);
 
-        printf("📈 Prossimo obiettivo: 750 XP per Livello 6\n\n");
+            // Level titles based on level
+            const char* level_title = "Beginner";
+            if (stats->level >= 10) level_title = "Master";
+            else if (stats->level >= 7) level_title = "Expert";
+            else if (stats->level >= 5) level_title = "Apprentice";
+            else if (stats->level >= 3) level_title = "Student";
+
+            printf("│ ⭐ XP:     %-5d / %-5d         │\n", xp_in_level, 100);
+            printf("│ 📊 Level:  %-2d (%-12s)   │\n", stats->level, level_title);
+            printf("│ 🔥 Streak: %-3d days            │\n", stats->current_streak);
+            printf("└─────────────────────────────────┘\n\n");
+
+            printf("📊 Stats:\n");
+            printf("   Total XP: %d\n", stats->total_xp);
+            printf("   Longest streak: %d days\n", stats->longest_streak);
+            if (stats->streak_freezes_available > 0) {
+                printf("   Streak freezes: %d available\n", stats->streak_freezes_available);
+            }
+            if (stats->has_weekend_amulet) {
+                printf("   🛡️ Weekend Amulet active!\n");
+            }
+            printf("\n");
+
+            int xp_to_next = 100 - xp_in_level;
+            printf("📈 Next goal: %d XP to Level %d\n\n", xp_to_next, stats->level + 1);
+
+            education_engagement_free(stats);
+        } else {
+            printf("│ ⭐ XP:     0 / 100              │\n");
+            printf("│ 📊 Level:  1 (Beginner)        │\n");
+            printf("│ 🔥 Streak: 0 days              │\n");
+            printf("└─────────────────────────────────┘\n\n");
+            printf("Start studying to earn XP!\n\n");
+        }
         return 0;
     }
 
     const char* subcommand = argv[1];
 
     if (strcmp(subcommand, "leaderboard") == 0) {
-        printf("\n🏅 Classifica (questa settimana)\n\n");
-        printf("  1. 🥇 Mario      - 2500 XP\n");
-        printf("  2. 🥈 Sofia      - 2100 XP\n");
-        printf("  3. 🥉 Luca       - 1800 XP\n");
-        printf("  4.    %s  - 1250 XP ← Tu\n", profile->name);
-        printf("\n");
+        // Note: Real leaderboard would require multi-user database
+        // For now, show student's own ranking
+        printf("\n🏅 Leaderboard (this week)\n\n");
+        if (stats) {
+            printf("  Your stats:\n");
+            printf("  📊 XP this week: %d\n", stats->total_xp);
+            printf("  🔥 Current streak: %d days\n", stats->current_streak);
+            printf("\n");
+            printf("  (Leaderboard requires multi-user mode)\n\n");
+            education_engagement_free(stats);
+        } else {
+            printf("  No stats available yet. Start studying!\n\n");
+        }
         return 0;
     }
 
     if (strcmp(subcommand, "badges") == 0) {
-        printf("\n🏆 Tutti i Badge\n\n");
-        printf("Ottenuti:\n");
-        printf("   ✅ 🌟 Prima settimana\n");
-        printf("   ✅ 📚 100 flashcards\n");
-        printf("   ✅ 🧮 Matematico in erba\n\n");
-        printf("Da sbloccare:\n");
-        printf("   ⬜ 🏆 Quiz Master (10 quiz perfetti)\n");
-        printf("   ⬜ 📖 Topo di biblioteca (50 ore studio)\n");
-        printf("   ⬜ 🔥 30 giorni streak\n\n");
+        printf("\n🏆 All Badges\n\n");
+
+        if (stats) {
+            printf("Earned:\n");
+            if (stats->current_streak >= 7) {
+                printf("   ✅ 🌟 First week complete\n");
+            }
+            if (stats->total_xp >= 500) {
+                printf("   ✅ 📚 Rising star (500 XP)\n");
+            }
+            if (stats->longest_streak >= 30) {
+                printf("   ✅ 🔥 30-day streak\n");
+            }
+            if (stats->level >= 5) {
+                printf("   ✅ 🎓 Apprentice level\n");
+            }
+
+            printf("\nTo unlock:\n");
+            if (stats->current_streak < 7) {
+                printf("   ⬜ 🌟 First week (7-day streak)\n");
+            }
+            if (stats->total_xp < 500) {
+                printf("   ⬜ 📚 Rising star (500 XP)\n");
+            }
+            if (stats->total_xp < 1000) {
+                printf("   ⬜ 🏆 Scholar (1000 XP)\n");
+            }
+            if (stats->longest_streak < 30) {
+                printf("   ⬜ 🔥 30-day streak\n");
+            }
+            if (stats->level < 10) {
+                printf("   ⬜ 👑 Master level (Level 10)\n");
+            }
+            printf("\n");
+            education_engagement_free(stats);
+        } else {
+            printf("No badges yet. Start studying to earn badges!\n\n");
+        }
         return 0;
     }
 
+    if (stats) education_engagement_free(stats);
     printf("Usage: /xp [status|leaderboard|badges]\n");
     return 1;
 }
@@ -1058,6 +1125,8 @@ int cmd_xp(int argc, char** argv) {
 
 /**
  * /video - Search educational YouTube videos
+ * Note: This is a planned feature. Full implementation requires YouTube API.
+ * For now, provide guidance on finding educational videos.
  */
 int cmd_video(int argc, char** argv) {
     if (education_init() != 0) {
@@ -1066,31 +1135,36 @@ int cmd_video(int argc, char** argv) {
     }
 
     EducationStudentProfile* profile = education_profile_get_active();
+    (void)profile;  // Will be used when YouTube API is integrated
+
+    printf("\n🎬 Educational Video Search\n\n");
 
     if (argc < 2) {
-        printf("\n🎬 Educational Video Search\n\n");
         printf("Usage: /video <topic>\n");
-        printf("Example: /video \"teorema di pitagora\"\n\n");
-        printf("Searches curated educational channels only.\n\n");
-        return 0;
+        printf("Example: /video \"pythagorean theorem\"\n\n");
+    } else {
+        const char* topic = argv[1];
+        printf("Topic: %s\n\n", topic);
     }
 
-    const char* topic = argv[1];
-    int age = profile ? profile->age : 14;
+    printf("📺 Recommended Educational Channels:\n\n");
+    printf("  • Khan Academy - Comprehensive courses in math, science, more\n");
+    printf("    https://www.khanacademy.org\n\n");
+    printf("  • 3Blue1Brown - Visual math explanations\n");
+    printf("    https://www.3blue1brown.com\n\n");
+    printf("  • CrashCourse - History, science, literature\n");
+    printf("    https://www.youtube.com/crashcourse\n\n");
+    printf("  • Kurzgesagt - Animated science videos\n");
+    printf("    https://www.youtube.com/kurzgesagt\n\n");
+    printf("  • Veritasium - Science and engineering\n");
+    printf("    https://www.youtube.com/veritasium\n\n");
 
-    printf("\n🎬 Video educativi per: %s\n", topic);
-    printf("   (filtrati per età %d+)\n\n", age);
+    printf("💡 Tip: Search for \"%s\" on these channels for quality content.\n\n",
+           argc >= 2 ? argv[1] : "your topic");
 
-    // Simulated results from curated channels
-    printf("📺 Risultati da canali verificati:\n\n");
-    printf("1. 🎓 [Khan Academy IT] %s - Spiegazione completa\n", topic);
-    printf("   https://youtube.com/watch?v=example1\n\n");
-    printf("2. 📚 [Schooltoon] %s per principianti\n", topic);
-    printf("   https://youtube.com/watch?v=example2\n\n");
-    printf("3. 🔬 [Kurzgesagt IT] Visualizzazione di %s\n", topic);
-    printf("   https://youtube.com/watch?v=example3\n\n");
+    printf("Note: Full video search integration is coming soon.\n");
+    printf("      For now, visit these trusted educational resources.\n\n");
 
-    printf("💡 Suggerimento: Guarda insieme a un adulto per la prima volta.\n\n");
     return 0;
 }
 
@@ -1103,44 +1177,44 @@ int cmd_video(int argc, char** argv) {
  */
 int cmd_periodic(int argc, char** argv) {
     if (argc < 2) {
-        printf("\n⚗️ Tavola Periodica Interattiva\n\n");
-        printf("Usage: /periodic <elemento>\n");
+        printf("\n⚗️ Interactive Periodic Table\n\n");
+        printf("Usage: /periodic <element>\n");
         printf("Example: /periodic Fe\n");
-        printf("         /periodic oro\n\n");
+        printf("         /periodic gold\n\n");
         return 0;
     }
 
     const char* element = argv[1];
 
     // Simple element lookup (would be more comprehensive)
-    printf("\n⚗️ Elemento: %s\n\n", element);
+    printf("\n⚗️ Element: %s\n\n", element);
 
     // Example for common elements
-    if (strcasecmp(element, "Fe") == 0 || strcasecmp(element, "ferro") == 0) {
+    if (strcasecmp(element, "Fe") == 0 || strcasecmp(element, "iron") == 0) {
         printf("┌─────────────────────────────────┐\n");
         printf("│  26                             │\n");
-        printf("│  Fe     Ferro                   │\n");
+        printf("│  Fe     Iron                    │\n");
         printf("│  55.845 g/mol                   │\n");
-        printf("│  Metallo di transizione         │\n");
+        printf("│  Transition metal               │\n");
         printf("└─────────────────────────────────┘\n\n");
-        printf("Proprietà:\n");
-        printf("  • Punto di fusione: 1538°C\n");
-        printf("  • Densità: 7.87 g/cm³\n");
-        printf("  • Configurazione: [Ar] 3d⁶ 4s²\n\n");
-        printf("Curiosità:\n");
-        printf("  Il ferro è il 4° elemento più abbondante nella crosta terrestre.\n\n");
-    } else if (strcasecmp(element, "O") == 0 || strcasecmp(element, "ossigeno") == 0) {
+        printf("Properties:\n");
+        printf("  • Melting point: 1538°C\n");
+        printf("  • Density: 7.87 g/cm³\n");
+        printf("  • Configuration: [Ar] 3d⁶ 4s²\n\n");
+        printf("Fun fact:\n");
+        printf("  Iron is the 4th most abundant element in Earth's crust.\n\n");
+    } else if (strcasecmp(element, "O") == 0 || strcasecmp(element, "oxygen") == 0) {
         printf("┌─────────────────────────────────┐\n");
         printf("│  8                              │\n");
-        printf("│  O      Ossigeno                │\n");
+        printf("│  O      Oxygen                  │\n");
         printf("│  15.999 g/mol                   │\n");
-        printf("│  Non metallo                    │\n");
+        printf("│  Non-metal                      │\n");
         printf("└─────────────────────────────────┘\n\n");
-        printf("Proprietà:\n");
-        printf("  • Punto di ebollizione: -183°C\n");
-        printf("  • 21%% dell'atmosfera\n\n");
+        printf("Properties:\n");
+        printf("  • Boiling point: -183°C\n");
+        printf("  • 21%% of the atmosphere\n\n");
     } else {
-        printf("Elemento non trovato. Prova con simbolo (Fe) o nome (ferro).\n");
+        printf("Element not found. Try with symbol (Fe) or name (iron).\n");
     }
 
     return 0;
@@ -1155,12 +1229,12 @@ int cmd_periodic(int argc, char** argv) {
  */
 int cmd_convert(int argc, char** argv) {
     if (argc < 4) {
-        printf("\n📐 Convertitore Unità\n\n");
-        printf("Usage: /convert <valore> <da> <a>\n");
+        printf("\n📐 Unit Converter\n\n");
+        printf("Usage: /convert <value> <from> <to>\n");
         printf("Example: /convert 100 cm m\n");
         printf("         /convert 5 km mi\n");
         printf("         /convert 20 C F\n\n");
-        printf("Supporta: lunghezza, massa, temperatura, area, volume.\n\n");
+        printf("Supports: length, mass, temperature, area, volume.\n\n");
         return 0;
     }
 

@@ -582,12 +582,12 @@ MasteryStats mastery_get_stats(int64_t student_id, const char* subject) {
  */
 const char* mastery_status_label(SkillStatus status) {
     switch (status) {
-        case SKILL_MASTERED:    return "Padroneggiato";
-        case SKILL_PROFICIENT:  return "Competente";
-        case SKILL_FAMILIAR:    return "Familiare";
-        case SKILL_ATTEMPTED:   return "In corso";
-        case SKILL_NOT_STARTED: return "Da iniziare";
-        default:                return "Sconosciuto";
+        case SKILL_MASTERED:    return "Mastered";
+        case SKILL_PROFICIENT:  return "Proficient";
+        case SKILL_FAMILIAR:    return "Familiar";
+        case SKILL_ATTEMPTED:   return "In Progress";
+        case SKILL_NOT_STARTED: return "Not Started";
+        default:                return "Unknown";
     }
 }
 

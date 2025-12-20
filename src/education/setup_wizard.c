@@ -82,30 +82,19 @@ typedef struct {
 } CurriculumInfo;
 
 static const CurriculumInfo AVAILABLE_CURRICULA[] = {
-    // Scuola dell'Obbligo
-    {"elementari", "Scuola Elementare", "Classi 1-5 elementare (Primaria)", 1, 5},
-    {"scuola_media", "Scuola Media", "Classi 1-3 media (Secondaria I grado)", 6, 8},
+    // Primary/Secondary School (Italian system)
+    {"elementari", "Elementary School", "Grades 1-5 (Primary)", 1, 5},
+    {"scuola_media", "Middle School", "Grades 6-8 (Lower Secondary)", 6, 8},
 
-    // Licei
-    {"liceo_scientifico", "Liceo Scientifico", "5 anni con focus su matematica e scienze", 9, 13},
-    {"liceo_classico", "Liceo Classico", "5 anni con latino, greco e filosofia", 9, 13},
-    {"liceo_linguistico", "Liceo Linguistico", "5 anni con 3 lingue straniere", 9, 13},
-    {"liceo_artistico", "Liceo Artistico", "5 anni con focus su arti visive e design", 9, 13},
-    {"liceo_scienze_umane", "Liceo Scienze Umane", "5 anni con pedagogia, psicologia e sociologia", 9, 13},
-    {"liceo_musicale", "Liceo Musicale e Coreutico", "5 anni con musica o danza", 9, 13},
+    // High Schools (Licei)
+    {"liceo_scientifico", "Scientific High School", "5 years - focus on mathematics and sciences", 9, 13},
+    {"liceo_classico", "Classical High School", "5 years - Latin, Greek and philosophy", 9, 13},
+    {"liceo_linguistico", "Language High School", "5 years - 3 foreign languages", 9, 13},
+    {"liceo_artistico", "Art High School", "5 years - visual arts and design", 9, 13},
 
-    // Istituti Tecnici
-    {"iti_informatica", "ITI Informatica", "Istituto Tecnico - Informatica e Telecomunicazioni", 9, 13},
-    {"iti_elettronica", "ITI Elettronica", "Istituto Tecnico - Elettronica ed Elettrotecnica", 9, 13},
-    {"iti_meccanica", "ITI Meccanica", "Istituto Tecnico - Meccanica, Meccatronica ed Energia", 9, 13},
-    {"iti_chimica", "ITI Chimica", "Istituto Tecnico - Chimica, Materiali e Biotecnologie", 9, 13},
-
-    // Istituti Professionali
-    {"ipsia", "IPSIA", "Istituto Professionale - Industria e Artigianato", 9, 13},
-    {"alberghiero", "Istituto Alberghiero", "Istituto Professionale - Enogastronomia e Ospitalità", 9, 13},
-
-    // Personalizzato
-    {"custom", "Percorso Personalizzato", "Scegli tu le materie (homeschooling, esigenze speciali)", 1, 13},
+    // Technical Institutes
+    {"iti_informatica", "Technical - Computer Science", "Technical Institute - Computing and Telecommunications", 9, 13},
+    {"iti_commerciale", "Technical - Business", "Technical Institute - Business and Economics", 9, 13},
     {NULL, NULL, NULL, 0, 0}
 };
 
@@ -121,27 +110,27 @@ typedef struct {
 } AccessibilityCondition;
 
 static const AccessibilityCondition ACCESSIBILITY_CONDITIONS[] = {
-    {"dyslexia", "Dislessia",
-     "Difficoltà nella lettura e nel riconoscimento delle parole",
-     "Supporto: Font OpenDyslexic, TTS, sillabazione, sfondo crema"},
-    {"dyscalculia", "Discalculia",
-     "Difficoltà con numeri e calcoli matematici",
-     "Supporto: Visualizzazioni, step-by-step, niente timer, colori"},
+    {"dyslexia", "Dyslexia",
+     "Difficulty with reading and word recognition",
+     "Support: OpenDyslexic font, TTS, syllable breaking, cream background"},
+    {"dyscalculia", "Dyscalculia",
+     "Difficulty with numbers and mathematical calculations",
+     "Support: Visualizations, step-by-step, no timers, colors"},
     {"adhd", "ADHD",
-     "Difficoltà di attenzione e/o iperattività",
-     "Supporto: Risposte brevi, celebrazioni, gamification, pause"},
-    {"autism", "Autismo",
-     "Diverse modalità di elaborazione sociale e sensoriale",
-     "Supporto: Linguaggio letterale, struttura prevedibile, dettagli"},
-    {"cerebral_palsy", "Paralisi Cerebrale",
-     "Difficoltà motorie di vario grado",
-     "Supporto: Input vocale, timeout estesi, pause frequenti"},
-    {"visual", "Disabilità Visiva",
-     "Ridotta capacità visiva",
-     "Supporto: TTS, alto contrasto, font grandi"},
-    {"hearing", "Disabilità Uditiva",
-     "Ridotta capacità uditiva",
-     "Supporto: Contenuti testuali, sottotitoli"},
+     "Attention and/or hyperactivity difficulties",
+     "Support: Short responses, celebrations, gamification, breaks"},
+    {"autism", "Autism",
+     "Different social and sensory processing modes",
+     "Support: Literal language, predictable structure, details"},
+    {"cerebral_palsy", "Cerebral Palsy",
+     "Motor difficulties of varying degrees",
+     "Support: Voice input, extended timeouts, frequent breaks"},
+    {"visual", "Visual Impairment",
+     "Reduced visual ability",
+     "Support: TTS, high contrast, large fonts"},
+    {"hearing", "Hearing Impairment",
+     "Reduced hearing ability",
+     "Support: Text content, subtitles"},
     {NULL, NULL, NULL, NULL}
 };
 
@@ -156,9 +145,9 @@ static void clear_screen(void) {
 static void print_header(const char* title, int step, int total_steps) {
     printf("\n");
     printf(ANSI_CYAN "══════════════════════════════════════════════════════════════\n" ANSI_RESET);
-    printf(ANSI_BOLD "   🎓 CONVERGIO EDUCATION - Setup Studente\n" ANSI_RESET);
+    printf(ANSI_BOLD "   CONVERGIO EDUCATION - Student Setup\n" ANSI_RESET);
     if (step > 0) {
-        printf(ANSI_DIM "   Passo %d di %d: %s\n" ANSI_RESET, step, total_steps, title);
+        printf(ANSI_DIM "   Step %d of %d: %s\n" ANSI_RESET, step, total_steps, title);
     } else {
         printf(ANSI_DIM "   %s\n" ANSI_RESET, title);
     }
@@ -271,36 +260,36 @@ static bool read_yes_no(const char* prompt, bool default_value) {
  * S02: Step 1 - Nome e info base studente
  */
 static bool wizard_step1_basic_info(WizardState* state) {
-    print_header("Informazioni Base", 1, 6);
+    print_header("Basic Information", 1, 6);
 
-    printf("  Benvenuto nel setup del profilo studente!\n");
-    printf("  Iniziamo con alcune informazioni di base.\n\n");
+    printf("  Welcome to the student profile setup!\n");
+    printf("  Let's start with some basic information.\n\n");
 
-    // Nome studente
-    read_string("Come ti chiami?", state->name, sizeof(state->name));
+    // Student name
+    read_string("What is your name?", state->name, sizeof(state->name));
     if (strlen(state->name) == 0) {
-        print_warning("Il nome è obbligatorio.");
+        print_warning("Name is required.");
         return false;
     }
 
-    // Età
+    // Age
     printf("\n");
     char age_buf[16];
-    read_string("Quanti anni hai?", age_buf, sizeof(age_buf));
+    read_string("How old are you?", age_buf, sizeof(age_buf));
     state->age = atoi(age_buf);
     if (state->age < 5 || state->age > 99) {
         state->age = 0;
     }
 
-    // Contatto genitore (opzionale)
+    // Parent contact (optional)
     printf("\n");
-    if (read_yes_no("Vuoi aggiungere un contatto genitore/tutore?", false)) {
-        read_string("Nome genitore/tutore", state->parent_name, sizeof(state->parent_name));
-        read_string("Email genitore/tutore", state->parent_email, sizeof(state->parent_email));
+    if (read_yes_no("Add a parent/guardian contact?", false)) {
+        read_string("Parent/guardian name", state->parent_name, sizeof(state->parent_name));
+        read_string("Parent/guardian email", state->parent_email, sizeof(state->parent_email));
     }
 
     printf("\n");
-    print_success("Informazioni base salvate!");
+    print_success("Basic info saved!");
     return true;
 }
 
@@ -308,9 +297,9 @@ static bool wizard_step1_basic_info(WizardState* state) {
  * S03: Step 2 - Selezione curriculum
  */
 static bool wizard_step2_curriculum(WizardState* state) {
-    print_header("Selezione Curriculum", 2, 6);
+    print_header("Curriculum Selection", 2, 6);
 
-    printf("  Che tipo di scuola frequenti?\n\n");
+    printf("  What type of school do you attend?\n\n");
 
     int count = 0;
     for (int i = 0; AVAILABLE_CURRICULA[i].id != NULL; i++) {
@@ -344,11 +333,11 @@ static bool wizard_step2_curriculum(WizardState* state) {
  * S04: Step 3 - Assessment accessibilità
  */
 static bool wizard_step3_accessibility(WizardState* state) {
-    print_header("Accessibilità", 3, 6);
+    print_header("Accessibility", 3, 6);
 
-    printf("  Parliamo delle tue esigenze di apprendimento.\n");
-    printf("  Tutto quello che indichi sarà usato SOLO per aiutarti meglio.\n");
-    printf("  Nessun giudizio, solo supporto.\n\n");
+    printf("  Let's talk about your learning needs.\n");
+    printf("  Everything you share will ONLY be used to help you better.\n");
+    printf("  No judgment, just support.\n\n");
 
     // Initialize accessibility
     memset(&state->accessibility, 0, sizeof(state->accessibility));
@@ -397,15 +386,15 @@ static bool wizard_step3_accessibility(WizardState* state) {
  * S05: Step 4 - Preferenze input/output
  */
 static bool wizard_step4_preferences(WizardState* state) {
-    print_header("Preferenze", 4, 6);
+    print_header("Preferences", 4, 6);
 
-    printf("  Come preferisci interagire con i maestri?\n\n");
+    printf("  How do you prefer to interact with the maestri?\n\n");
 
     // Input preference
-    printf("  " ANSI_BOLD "Input preferito:" ANSI_RESET "\n");
-    print_option(1, "Tastiera", "Scrivo le domande");
-    print_option(2, "Voce", "Parlo al microfono");
-    print_option(3, "Entrambi", "Uso entrambi a seconda del momento");
+    printf("  " ANSI_BOLD "Preferred input:" ANSI_RESET "\n");
+    print_option(1, "Keyboard", "I type my questions");
+    print_option(2, "Voice", "I speak into the microphone");
+    print_option(3, "Both", "I use both depending on the situation");
 
     int input_choice = read_int_choice(1, 3);
     switch (input_choice) {
@@ -415,10 +404,10 @@ static bool wizard_step4_preferences(WizardState* state) {
     }
 
     // Output preference
-    printf("\n  " ANSI_BOLD "Output preferito:" ANSI_RESET "\n");
-    print_option(1, "Solo testo", "Leggo le risposte");
-    print_option(2, "Solo audio", "Ascolto le risposte (TTS)");
-    print_option(3, "Entrambi", "Testo + audio insieme");
+    printf("\n  " ANSI_BOLD "Preferred output:" ANSI_RESET "\n");
+    print_option(1, "Text only", "I read the responses");
+    print_option(2, "Audio only", "I listen to responses (TTS)");
+    print_option(3, "Both", "Text + audio together");
 
     int output_choice = read_int_choice(1, 3);
     switch (output_choice) {
@@ -438,9 +427,9 @@ static bool wizard_step4_preferences(WizardState* state) {
 
     // TTS Speed
     if (output_choice >= 2) {
-        printf("\n  Velocità lettura audio (0.5 = lento, 1.0 = normale, 1.5 = veloce)?\n");
+        printf("\n  Audio reading speed (0.5 = slow, 1.0 = normal, 1.5 = fast)?\n");
         char speed_buf[16];
-        read_string("Velocità [0.5-2.0]", speed_buf, sizeof(speed_buf));
+        read_string("Speed [0.5-2.0]", speed_buf, sizeof(speed_buf));
         state->accessibility.tts_speed = atof(speed_buf);
         if (state->accessibility.tts_speed < 0.5) state->accessibility.tts_speed = 0.5f;
         if (state->accessibility.tts_speed > 2.0) state->accessibility.tts_speed = 2.0f;
@@ -449,43 +438,43 @@ static bool wizard_step4_preferences(WizardState* state) {
     }
 
     // Session duration (Pomodoro)
-    printf("\n  Quanto vuoi che durino le sessioni di studio? (in minuti)\n");
-    printf("  " ANSI_DIM "Consigliato: 25 minuti (tecnica Pomodoro)" ANSI_RESET "\n");
+    printf("\n  How long should study sessions be? (in minutes)\n");
+    printf("  " ANSI_DIM "Recommended: 25 minutes (Pomodoro technique)" ANSI_RESET "\n");
     char dur_buf[16];
-    read_string("Durata [10-60]", dur_buf, sizeof(dur_buf));
+    read_string("Duration [10-60]", dur_buf, sizeof(dur_buf));
     state->session_duration = atoi(dur_buf);
     if (state->session_duration < 10) state->session_duration = 25;
     if (state->session_duration > 60) state->session_duration = 60;
 
     // Break duration
-    printf("\n  Quanto vuoi che durino le pause?\n");
+    printf("\n  How long should breaks be?\n");
     char break_buf[16];
-    read_string("Pausa [5-15]", break_buf, sizeof(break_buf));
+    read_string("Break [5-15]", break_buf, sizeof(break_buf));
     state->break_duration = atoi(break_buf);
     if (state->break_duration < 5) state->break_duration = 5;
     if (state->break_duration > 15) state->break_duration = 15;
 
     printf("\n");
-    print_success("Preferenze salvate!");
+    print_success("Preferences saved!");
     return true;
 }
 
 /**
- * S06: Step 5 - Metodo di studio attuale
+ * S06: Step 5 - Study method
  */
 static bool wizard_step5_study_method(WizardState* state) {
-    print_header("Metodo di Studio", 5, 6);
+    print_header("Study Method", 5, 6);
 
-    printf("  Raccontaci come studi di solito.\n");
-    printf("  Questo ci aiuta a personalizzare l'esperienza.\n\n");
+    printf("  Tell us about how you usually study.\n");
+    printf("  This helps us personalize your experience.\n\n");
 
     // Learning style
-    printf("  " ANSI_BOLD "Come impari meglio?" ANSI_RESET "\n");
-    print_option(1, "Visivo", "Immagini, grafici, video, mappe mentali");
-    print_option(2, "Uditivo", "Ascolto, discussioni, spiegazioni orali");
-    print_option(3, "Cinestetico", "Fare, provare, esperimenti pratici");
-    print_option(4, "Lettura/Scrittura", "Leggere, prendere appunti, riassunti");
-    print_option(5, "Misto", "Un po' di tutto");
+    printf("  " ANSI_BOLD "How do you learn best?" ANSI_RESET "\n");
+    print_option(1, "Visual", "Images, graphs, videos, mind maps");
+    print_option(2, "Auditory", "Listening, discussions, oral explanations");
+    print_option(3, "Kinesthetic", "Doing, trying, hands-on experiments");
+    print_option(4, "Reading/Writing", "Reading, taking notes, summaries");
+    print_option(5, "Mixed", "A bit of everything");
 
     int style_choice = read_int_choice(1, 5);
     switch (style_choice) {
@@ -498,44 +487,44 @@ static bool wizard_step5_study_method(WizardState* state) {
     state->learning_style[sizeof(state->learning_style) - 1] = '\0';
 
     // Current study method
-    printf("\n  " ANSI_BOLD "Come studi di solito?" ANSI_RESET "\n");
-    printf("  (Scrivi liberamente, premi Invio quando hai finito)\n");
+    printf("\n  " ANSI_BOLD "How do you usually study?" ANSI_RESET "\n");
+    printf("  (Write freely, press Enter when done)\n");
     read_string("", state->study_method, sizeof(state->study_method));
 
     // Challenges - just for UX, not stored
-    printf("\n  " ANSI_BOLD "Cosa trovi più difficile nello studio?" ANSI_RESET "\n");
-    print_option(1, "Concentrazione", "Mi distraggo facilmente");
-    print_option(2, "Memoria", "Faccio fatica a ricordare");
-    print_option(3, "Comprensione", "Non capisco al primo colpo");
-    print_option(4, "Organizzazione", "Non so da dove iniziare");
-    print_option(5, "Motivazione", "Non ho voglia di studiare");
-    print_option(6, "Nessuna in particolare", "Studio abbastanza bene");
+    printf("\n  " ANSI_BOLD "What do you find most difficult about studying?" ANSI_RESET "\n");
+    print_option(1, "Focus", "I get distracted easily");
+    print_option(2, "Memory", "I struggle to remember things");
+    print_option(3, "Comprehension", "I don't understand right away");
+    print_option(4, "Organization", "I don't know where to start");
+    print_option(5, "Motivation", "I don't feel like studying");
+    print_option(6, "Nothing specific", "I study well enough");
     read_int_choice(1, 6);
 
     printf("\n");
-    print_success("Profilo di studio acquisito!");
+    print_success("Study profile acquired!");
     return true;
 }
 
 /**
- * S07: Step 6 - Obiettivi personali
+ * S07: Step 6 - Personal goals
  */
 static bool wizard_step6_goals(WizardState* state) {
-    print_header("Obiettivi", 6, 6);
+    print_header("Goals", 6, 6);
 
-    printf("  Cosa vuoi ottenere con il tuo studio?\n");
-    printf("  Puoi aggiungere fino a %d obiettivi.\n\n", MAX_GOALS);
+    printf("  What do you want to achieve with your studies?\n");
+    printf("  You can add up to %d goals.\n\n", MAX_GOALS);
 
     state->goals_count = 0;
 
     for (int i = 0; i < MAX_GOALS; i++) {
-        printf("  " ANSI_BOLD "Obiettivo %d:" ANSI_RESET "\n", i + 1);
-        print_option(1, "Migliorare in una materia specifica", "");
-        print_option(2, "Preparare un esame", "");
-        print_option(3, "Recuperare un debito", "");
-        print_option(4, "Approfondire un argomento", "");
-        print_option(5, "Altro obiettivo personale", "");
-        print_option(6, "Basta obiettivi", "Ho finito");
+        printf("  " ANSI_BOLD "Goal %d:" ANSI_RESET "\n", i + 1);
+        print_option(1, "Improve in a specific subject", "");
+        print_option(2, "Prepare for an exam", "");
+        print_option(3, "Catch up on a subject", "");
+        print_option(4, "Deep dive into a topic", "");
+        print_option(5, "Other personal goal", "");
+        print_option(6, "Done with goals", "Finished");
 
         int goal_choice = read_int_choice(1, 6);
         if (goal_choice == 6) break;
@@ -544,47 +533,47 @@ static bool wizard_step6_goals(WizardState* state) {
 
         switch (goal_choice) {
             case 1:
-                printf("  Quale materia vuoi migliorare?\n");
+                printf("  Which subject do you want to improve?\n");
                 read_string("", description, sizeof(description));
                 snprintf(state->goals[i], MAX_GOAL_LEN,
-                         "Migliorare in %s", description);
+                         "Improve in %s", description);
                 break;
             case 2:
-                printf("  Che esame devi preparare?\n");
+                printf("  What exam are you preparing for?\n");
                 read_string("", description, sizeof(description));
                 snprintf(state->goals[i], MAX_GOAL_LEN,
-                         "Preparare esame: %s", description);
+                         "Prepare for exam: %s", description);
                 break;
             case 3:
-                printf("  Quale debito devi recuperare?\n");
+                printf("  Which subject do you need to catch up on?\n");
                 read_string("", description, sizeof(description));
                 snprintf(state->goals[i], MAX_GOAL_LEN,
-                         "Recuperare debito in %s", description);
+                         "Catch up in %s", description);
                 break;
             case 4:
-                printf("  Cosa vuoi approfondire?\n");
+                printf("  What topic do you want to explore?\n");
                 read_string("", description, sizeof(description));
                 snprintf(state->goals[i], MAX_GOAL_LEN,
-                         "Approfondire: %s", description);
+                         "Deep dive: %s", description);
                 break;
             case 5:
-                printf("  Descrivi il tuo obiettivo:\n");
+                printf("  Describe your goal:\n");
                 read_string("", state->goals[i], MAX_GOAL_LEN);
                 break;
         }
 
         state->goals_count++;
-        print_success("Obiettivo aggiunto!");
+        print_success("Goal added!");
         printf("\n");
     }
 
     if (state->goals_count == 0) {
-        strncpy(state->goals[0], "Studiare e imparare", MAX_GOAL_LEN - 1);
+        strncpy(state->goals[0], "Study and learn", MAX_GOAL_LEN - 1);
         state->goals[0][MAX_GOAL_LEN - 1] = '\0';
         state->goals_count = 1;
     }
 
-    print_success("Obiettivi registrati!");
+    print_success("Goals registered!");
     return true;
 }
 
@@ -592,43 +581,43 @@ static bool wizard_step6_goals(WizardState* state) {
  * S08: Show summary and confirm
  */
 static bool wizard_show_summary(WizardState* state) {
-    print_header("Riepilogo Profilo", 0, 0);
+    print_header("Profile Summary", 0, 0);
 
-    printf("  Ecco il tuo profilo completo:\n\n");
+    printf("  Here is your complete profile:\n\n");
 
-    printf("  " ANSI_BOLD "👤 Nome:" ANSI_RESET " %s", state->name);
+    printf("  " ANSI_BOLD "👤 Name:" ANSI_RESET " %s", state->name);
     if (state->age > 0) {
-        printf(" (%d anni)", state->age);
+        printf(" (%d years old)", state->age);
     }
     printf("\n");
 
-    printf("  " ANSI_BOLD "📚 Curriculum:" ANSI_RESET " %s (Anno %d)\n",
+    printf("  " ANSI_BOLD "📚 Curriculum:" ANSI_RESET " %s (Year %d)\n",
            state->curriculum_id, state->grade_level);
 
-    printf("  " ANSI_BOLD "🎯 Stile apprendimento:" ANSI_RESET " %s\n", state->learning_style);
+    printf("  " ANSI_BOLD "🎯 Learning style:" ANSI_RESET " %s\n", state->learning_style);
 
-    printf("  " ANSI_BOLD "⏱️ Sessioni:" ANSI_RESET " %d min studio, %d min pausa\n",
+    printf("  " ANSI_BOLD "⏱️ Sessions:" ANSI_RESET " %d min study, %d min break\n",
            state->session_duration, state->break_duration);
 
     // Accessibility summary
-    printf("  " ANSI_BOLD "♿ Accessibilità:" ANSI_RESET " ");
+    printf("  " ANSI_BOLD "♿ Accessibility:" ANSI_RESET " ");
     bool has_any = false;
-    if (state->accessibility.dyslexia) { printf("Dislessia "); has_any = true; }
-    if (state->accessibility.dyscalculia) { printf("Discalculia "); has_any = true; }
+    if (state->accessibility.dyslexia) { printf("Dyslexia "); has_any = true; }
+    if (state->accessibility.dyscalculia) { printf("Dyscalculia "); has_any = true; }
     if (state->accessibility.adhd) { printf("ADHD "); has_any = true; }
-    if (state->accessibility.autism) { printf("Autismo "); has_any = true; }
-    if (state->accessibility.cerebral_palsy) { printf("Paralisi Cerebrale "); has_any = true; }
-    if (!has_any) { printf("Nessuna esigenza speciale"); }
+    if (state->accessibility.autism) { printf("Autism "); has_any = true; }
+    if (state->accessibility.cerebral_palsy) { printf("Cerebral Palsy "); has_any = true; }
+    if (!has_any) { printf("No special needs"); }
     printf("\n");
 
     // Goals
-    printf("  " ANSI_BOLD "🎯 Obiettivi:" ANSI_RESET "\n");
+    printf("  " ANSI_BOLD "🎯 Goals:" ANSI_RESET "\n");
     for (int i = 0; i < state->goals_count; i++) {
         printf("     • %s\n", state->goals[i]);
     }
 
     printf("\n");
-    return read_yes_no("Confermi questi dati?", true);
+    return read_yes_no("Confirm this data?", true);
 }
 
 /**
@@ -674,8 +663,8 @@ static bool wizard_activate_profile(int64_t profile_id) {
     // Broadcast to maestri
     education_maestro_broadcast_profile(profile_id);
 
-    print_info("Profilo condiviso con tutti i 14 maestri.");
-    print_info("Ogni maestro adatterà il suo stile alle tue esigenze.");
+    print_info("Profile shared with all 15 maestri.");
+    print_info("Each maestro will adapt their style to your needs.");
 
     return true;
 }
@@ -698,20 +687,20 @@ bool education_setup_wizard(void) {
     EducationStudentProfile* existing = education_profile_get_active();
     if (existing != NULL) {
         clear_screen();
-        print_header("Profilo Esistente", 0, 0);
-        printf("  Esiste già un profilo per %s.\n\n", existing->name);
+        print_header("Existing Profile", 0, 0);
+        printf("  A profile already exists for %s.\n\n", existing->name);
 
-        print_option(1, "Continua con questo profilo", "");
-        print_option(2, "Crea un nuovo profilo", "");
-        print_option(3, "Modifica il profilo esistente", "");
+        print_option(1, "Continue with this profile", "");
+        print_option(2, "Create a new profile", "");
+        print_option(3, "Edit existing profile", "");
 
         int choice = read_int_choice(1, 3);
 
         if (choice == 1) {
-            print_success("Profilo esistente riattivato!");
+            print_success("Existing profile reactivated!");
             return true;
         } else if (choice == 3) {
-            print_warning("Modifica profilo non ancora implementata. Procedo con nuovo profilo.");
+            print_warning("Profile editing not yet implemented. Proceeding with new profile.");
         }
         // choice == 2 or fallthrough: create new
     }
@@ -723,11 +712,11 @@ bool education_setup_wizard(void) {
     state.accessibility.tts_speed = 1.0f;
 
     clear_screen();
-    print_header("Benvenuto!", 0, 0);
-    printf("  Ciao! Sono qui per configurare il tuo profilo studente.\n");
-    printf("  Ti farò alcune domande per conoscerti meglio e aiutarti\n");
-    printf("  nel modo migliore possibile.\n\n");
-    printf("  Premi Invio per iniziare...\n");
+    print_header("Welcome!", 0, 0);
+    printf("  Hello! I'm here to configure your student profile.\n");
+    printf("  I'll ask you some questions to get to know you better\n");
+    printf("  and help you in the best way possible.\n\n");
+    printf("  Press Enter to begin...\n");
     getchar();
 
     // Run wizard steps
@@ -751,7 +740,7 @@ bool education_setup_wizard(void) {
 
     clear_screen();
     if (!wizard_show_summary(&state)) {
-        print_warning("Setup annullato. Riprova con /education setup");
+        print_warning("Setup cancelled. Try again with /education setup");
         return false;
     }
 
@@ -768,15 +757,15 @@ bool education_setup_wizard(void) {
     }
 
     printf("\n");
-    print_success("Profilo salvato con successo!");
+    print_success("Profile saved successfully!");
     printf("\n");
-    printf("  " ANSI_GREEN "🎉 Benvenuto, %s!" ANSI_RESET "\n", state.name);
-    printf("  I 14 maestri storici sono pronti ad aiutarti.\n\n");
-    printf("  Prova questi comandi:\n");
-    printf("  • " ANSI_CYAN "/study <materia>" ANSI_RESET " - Inizia una sessione di studio\n");
-    printf("  • " ANSI_CYAN "/homework <compito>" ANSI_RESET " - Chiedi aiuto con i compiti\n");
-    printf("  • " ANSI_CYAN "/quiz <argomento>" ANSI_RESET " - Fai un quiz\n");
-    printf("  • " ANSI_CYAN "/mindmap <concetto>" ANSI_RESET " - Crea una mappa mentale\n");
+    printf("  " ANSI_GREEN "🎉 Welcome, %s!" ANSI_RESET "\n", state.name);
+    printf("  The 15 historical maestri are ready to help you.\n\n");
+    printf("  Try these commands:\n");
+    printf("  • " ANSI_CYAN "/study <subject>" ANSI_RESET " - Start a study session\n");
+    printf("  • " ANSI_CYAN "/homework <task>" ANSI_RESET " - Get help with homework\n");
+    printf("  • " ANSI_CYAN "/quiz <topic>" ANSI_RESET " - Take a quiz\n");
+    printf("  • " ANSI_CYAN "/mindmap <concept>" ANSI_RESET " - Create a mind map\n");
     printf("\n");
 
     return true;

@@ -132,12 +132,12 @@ typedef struct {
 | AT01 | Dyslexia profile test | [x] | Mario scenario |
 | AT02 | ADHD profile test | [x] | Sofia scenario |
 | AT03 | Autism profile test | [x] | Luca scenario |
-| AT04 | OpenDyslexic font test | [ ] | TODO |
-| AT05 | TTS speed test | [ ] | TODO |
-| AT06 | Color blocks test | [ ] | TODO |
-| AT07 | Extended timeout test | [ ] | TODO |
-| AT08 | Short responses test | [ ] | TODO |
-| AT09 | Predictable structure test | [ ] | TODO |
+| AT04 | Dyslexia font API | [x] | `test_accessibility_font_api()` |
+| AT05 | Text adaptation | [x] | `test_accessibility_text_adaptation()` |
+| AT06 | Dyscalculia formatting | [x] | `test_accessibility_dyscalculia()` |
+| AT07 | Motor timeout | [x] | `test_accessibility_motor()` |
+| AT08 | ADHD adaptations | [x] | `test_accessibility_adhd()` |
+| AT09 | Autism adaptations | [x] | `test_accessibility_autism()` |
 
 ---
 

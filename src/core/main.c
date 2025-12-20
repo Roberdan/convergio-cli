@@ -27,6 +27,7 @@
 #include "nous/plan_db.h"
 #include "nous/output_service.h"
 #include "nous/telemetry.h"
+#include "nous/edition.h"
 #include "../auth/oauth.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -495,6 +496,9 @@ int main(int argc, char** argv) {
             printf("\n  Then run: source ~/.zshrc\n\n");
         }
     }
+
+    // Initialize edition system (must be first)
+    edition_init();
 
     if (nous_init() != 0) {
         fprintf(stderr, "  \033[31m✗ Fabric initialization failed\033[0m\n");

@@ -961,27 +961,27 @@ static const CommandHelp DETAILED_HELP[] = {
         "  - Export to SVG, PNG, or PDF\n"
         "  - Accessibility adaptations\n"
         "  - Auto-opens in browser",
-        "/mindmap \"Rivoluzione Francese\"      # Generate and open\n"
-        "/mindmap fotosintesi --format png    # Export as PNG\n"
-        "/mindmap \"teoria della relativita\" --output ~/Desktop/relativity.svg"
+        "/mindmap \"French Revolution\"          # Generate and open\n"
+        "/mindmap photosynthesis --format png # Export as PNG\n"
+        "/mindmap \"theory of relativity\" --output ~/Desktop/relativity.svg"
     },
     {
         "libretto",
-        "libretto [voti|diario|progressi|media]",
+        "libretto [grades|diary|progress|average]",
         "Student gradebook and activity log",
         "View your complete student record (libretto).\n\n"
         "Subcommands:\n"
         "  (none)     Dashboard summary (last 30 days)\n"
-        "  voti       Grade history by subject\n"
-        "  diario     Daily activity log\n"
-        "  progressi  Progress graphs and trends\n"
-        "  media      Grade averages by subject\n\n"
+        "  grades     Grade history by subject\n"
+        "  diary      Daily activity log\n"
+        "  progress   Progress graphs and trends\n"
+        "  average    Grade averages by subject\n\n"
         "Grades from quizzes are automatically recorded.",
         "/libretto                            # Dashboard\n"
-        "/libretto voti                       # All grades\n"
-        "/libretto voti matematica            # Math grades only\n"
-        "/libretto diario 14                  # Last 14 days activity\n"
-        "/libretto media                      # Subject averages"
+        "/libretto grades                     # All grades\n"
+        "/libretto grades mathematics         # Math grades only\n"
+        "/libretto diary 14                   # Last 14 days activity\n"
+        "/libretto average                    # Subject averages"
     },
     {
         "voice",

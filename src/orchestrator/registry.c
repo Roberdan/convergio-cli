@@ -22,6 +22,7 @@
 // Embedded agents
 #include "nous/embedded_agents.h"
 #include "nous/projects.h"
+#include "nous/edition.h"
 
 // ============================================================================
 // ANTI-HALLUCINATION CONSTITUTION (MANDATORY FOR ALL AGENTS)
@@ -1300,23 +1301,39 @@ char* agent_registry_status(void) {
     // Check for active project filtering
     ConvergioProject* proj = project_current();
 
+    // Count available agents for this edition
+    size_t edition_agent_count = 0;
+    for (size_t i = 0; i < orch->agent_count; i++) {
+        if (edition_has_agent(orch->agents[i]->name)) {
+            edition_agent_count++;
+        }
+    }
+
     // Header (different if project active)
     if (proj) {
         offset += (size_t)snprintf(status + offset, buf_size - offset,
-            "\033[1mAgenti Progetto: %s\033[0m\n\n"
-            "Team di \033[1;36m%zu agenti\033[0m per questo progetto:\n\n",
+            "\033[1mProject Agents: %s\033[0m\n\n"
+            "Team of \033[1;36m%zu agents\033[0m for this project:\n\n",
             proj->name, proj->team_count);
     } else {
-        offset += (size_t)snprintf(status + offset, buf_size - offset,
-            "\033[1mI Miei Agenti Disponibili\033[0m\n\n"
-            "Ho a disposizione \033[1;36m%zu agenti specialistici\033[0m organizzati per area:\n\n",
-            orch->agent_count);
+        const EditionInfo* edition = edition_get_current_info();
+        if (edition->id != EDITION_FULL) {
+            offset += (size_t)snprintf(status + offset, buf_size - offset,
+                "\033[1m%s - Available Agents\033[0m\n\n"
+                "\033[1;36m%zu specialist agents\033[0m organized by area:\n\n",
+                edition->name, edition_agent_count);
+        } else {
+            offset += (size_t)snprintf(status + offset, buf_size - offset,
+                "\033[1mMy Available Agents\033[0m\n\n"
+                "\033[1;36m%zu specialist agents\033[0m organized by area:\n\n",
+                edition_agent_count);
+        }
     }
 
     // Categories with emojis
     const char* cat_names[] = {
-        "🎯 Leadership & Strategia",
-        "⚡ Tecnologia & Ingegneria",
+        "🎯 Leadership & Strategy",
+        "⚡ Technology & Engineering",
         "📊 Data & Analytics",
         "🎨 Product & Design",
         "💼 Business Operations",
@@ -1324,15 +1341,17 @@ char* agent_registry_status(void) {
         "👥 Customer & HR",
         "🏥 Healthcare & Compliance",
         "✨ Creative & Content",
-        "🔧 Altri Specialisti"
+        "🔧 Other Specialists"
     };
 
     for (size_t cat = 0; cat < 10; cat++) {
-        // Count agents in this category (with project filtering)
+        // Count agents in this category (with project and edition filtering)
         size_t count = 0;
         for (size_t i = 0; i < orch->agent_count; i++) {
             ManagedAgent* a = orch->agents[i];
             if (get_agent_category(a) == (int)cat) {
+                // Apply edition filter first
+                if (!edition_has_agent(a->name)) continue;
                 // Apply project filter if active
                 if (!proj || project_has_agent(a->name)) count++;
             }
@@ -1343,10 +1362,13 @@ char* agent_registry_status(void) {
         offset += (size_t)snprintf(status + offset, buf_size - offset,
             "\033[1m%s\033[0m\n", cat_names[cat]);
 
-        // Agents in this category (with project filtering)
+        // Agents in this category (with project and edition filtering)
         for (size_t i = 0; i < orch->agent_count && offset < buf_size - 512; i++) {
             ManagedAgent* agent = orch->agents[i];
             if (get_agent_category(agent) != (int)cat) continue;
+
+            // Apply edition filter first
+            if (!edition_has_agent(agent->name)) continue;
 
             // Apply project filter if active
             if (proj && !project_has_agent(agent->name)) continue;

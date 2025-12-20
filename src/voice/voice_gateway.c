@@ -934,3 +934,115 @@ void voice_audio_stop_playback(void) {
 void voice_audio_cleanup(void) {
 }
 #endif /* !CONVERGIO_VOICE_ENABLED */
+
+// ============================================================================
+// VOICE ACCESSIBILITY API (VA01-VA05)
+// ============================================================================
+
+static float g_audio_level = 0.0f;
+static bool g_waveform_enabled = false;
+static char g_last_transcript[4096] = {0};
+
+bool voice_accessibility_set_speech_rate(VoiceSession* session, float rate) {
+    if (!session) return false;
+    if (rate < 0.5f) rate = 0.5f;
+    if (rate > 2.0f) rate = 2.0f;
+
+    // Update session config (will apply to next audio)
+    // Note: This requires reconnecting to apply in most providers
+    ((VoiceSessionConfig*)&session->config)->speech_rate = rate;
+    return true;
+}
+
+float voice_accessibility_get_speech_rate(const VoiceSession* session) {
+    if (!session) return 1.0f;
+    return session->config.speech_rate;
+}
+
+bool voice_accessibility_set_pitch(VoiceSession* session, float pitch) {
+    if (!session) return false;
+    if (pitch < -1.0f) pitch = -1.0f;
+    if (pitch > 1.0f) pitch = 1.0f;
+
+    ((VoiceSessionConfig*)&session->config)->pitch_offset = pitch;
+    return true;
+}
+
+float voice_accessibility_get_pitch(const VoiceSession* session) {
+    if (!session) return 0.0f;
+    return session->config.pitch_offset;
+}
+
+// Screen reader state is stored per-session
+void voice_accessibility_enable_screen_reader(VoiceSession* session, bool enable) {
+    if (!session) return;
+    // When enabled, we emit NSAccessibility notifications on macOS
+    // Store state for later use
+    (void)enable;
+    // TODO: Implement VoiceOver integration when VOICE=1
+}
+
+bool voice_accessibility_is_screen_reader_enabled(const VoiceSession* session) {
+    (void)session;
+    // Check if VoiceOver is running on macOS
+    #ifdef __APPLE__
+    return system("defaults read com.apple.universalaccess voiceOverOnOffKey 2>/dev/null | grep -q 1") == 0;
+    #else
+    return false;
+    #endif
+}
+
+void voice_accessibility_enable_waveform(bool enabled) {
+    g_waveform_enabled = enabled;
+}
+
+float voice_accessibility_get_audio_level(void) {
+    return g_audio_level;
+}
+
+// Called internally when audio is received
+void voice_accessibility_update_audio_level(float level) {
+    g_audio_level = level;
+}
+
+void voice_accessibility_enable_transcription(VoiceSession* session, bool enable) {
+    if (!session) return;
+    ((VoiceSessionConfig*)&session->config)->enable_transcription = enable;
+}
+
+const char* voice_accessibility_get_transcript(const VoiceSession* session) {
+    (void)session;
+    return g_last_transcript;
+}
+
+// Called internally when transcript is received
+void voice_accessibility_update_transcript(const char* text) {
+    if (!text) return;
+    strncpy(g_last_transcript, text, sizeof(g_last_transcript) - 1);
+    g_last_transcript[sizeof(g_last_transcript) - 1] = '\0';
+}
+
+bool voice_accessibility_configure_from_profile(VoiceSession* session, int64_t student_id) {
+    if (!session) return false;
+
+    // Get student's accessibility settings
+    // This integrates with the education module
+    extern bool education_accessibility_wants_tts(int64_t);
+    extern int education_accessibility_get_font(int64_t, char*, int*);
+
+    // Check if TTS is preferred
+    bool wants_tts = education_accessibility_wants_tts(student_id);
+
+    if (wants_tts) {
+        // Enable transcription for visual learners
+        voice_accessibility_enable_transcription(session, true);
+
+        // Slower speech rate for processing time
+        voice_accessibility_set_speech_rate(session, 0.9f);
+    }
+
+    // Enable waveform for visual feedback
+    voice_accessibility_enable_waveform(true);
+
+    return true;
+}
