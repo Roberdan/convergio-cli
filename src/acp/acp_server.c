@@ -646,30 +646,69 @@ void acp_handle_session_new(int request_id, const char* params_json) {
 
     // Send session/history notification for resumed sessions with history
     // This is a custom Convergio extension - standard ACP clients will ignore it
+    // LAZY LOAD: Only send last N messages initially, client can request more
     if (resumed && session->message_count > 0) {
         cJSON* history_params = cJSON_CreateObject();
         cJSON_AddStringToObject(history_params, "sessionId", session->session_id);
 
+        // Calculate lazy load range: send only last ACP_LAZY_LOAD_INITIAL messages
+        int total_count = session->message_count;
+        int start_index = (total_count > ACP_LAZY_LOAD_INITIAL)
+                          ? (total_count - ACP_LAZY_LOAD_INITIAL) : 0;
+        int messages_sent = total_count - start_index;
+        bool has_more = (start_index > 0);
+
         cJSON* messages = cJSON_CreateArray();
-        for (int i = 0; i < session->message_count; i++) {
+        for (int i = start_index; i < total_count; i++) {
             cJSON* msg = cJSON_CreateObject();
             cJSON_AddStringToObject(msg, "role", session->messages[i].role);
             cJSON_AddStringToObject(msg, "content",
                 session->messages[i].content ? session->messages[i].content : "");
             cJSON_AddNumberToObject(msg, "timestamp", session->messages[i].timestamp);
+            cJSON_AddNumberToObject(msg, "index", i);  // Include index for loadMore
             cJSON_AddItemToArray(messages, msg);
         }
         cJSON_AddItemToObject(history_params, "messages", messages);
-        cJSON_AddBoolToObject(history_params, "compacted", false);  // TODO: integrate compaction
+        cJSON_AddBoolToObject(history_params, "compacted", false);
+
+        // Lazy load metadata
+        cJSON_AddBoolToObject(history_params, "hasMore", has_more);
+        cJSON_AddNumberToObject(history_params, "totalCount", total_count);
+        cJSON_AddNumberToObject(history_params, "startIndex", start_index);
 
         char* history_json = cJSON_PrintUnformatted(history_params);
         acp_send_notification("session/history", history_json);
         free(history_json);
         cJSON_Delete(history_params);
 
-        LOG_INFO(LOG_CAT_SYSTEM, "Sent session/history notification with %d messages",
-                 session->message_count);
+        LOG_INFO(LOG_CAT_SYSTEM, "Sent session/history notification with %d/%d messages (lazy load, hasMore=%s)",
+                 messages_sent, total_count, has_more ? "true" : "false");
     }
+}
+
+// Buffer chunk for background session
+static void buffer_chunk_for_session(ACPSession* session, const char* chunk) {
+    if (!session || !chunk) return;
+
+    size_t chunk_len = strlen(chunk);
+    size_t needed = session->background_buffer_len + chunk_len + 1;
+
+    // Allocate or expand buffer
+    if (!session->background_buffer) {
+        session->background_buffer_cap = (needed > ACP_BACKGROUND_BUFFER_SIZE)
+                                          ? needed : ACP_BACKGROUND_BUFFER_SIZE;
+        session->background_buffer = malloc(session->background_buffer_cap);
+        session->background_buffer[0] = '\0';
+        session->background_buffer_len = 0;
+    } else if (needed > session->background_buffer_cap) {
+        session->background_buffer_cap = needed * 2;
+        session->background_buffer = realloc(session->background_buffer,
+                                              session->background_buffer_cap);
+    }
+
+    // Append chunk
+    strcat(session->background_buffer, chunk);
+    session->background_buffer_len += chunk_len;
 }
 
 // Streaming callback for orchestrator
@@ -677,6 +716,14 @@ static void stream_callback(const char* chunk, void* user_data) {
     (void)user_data;
 
     if (!chunk || strlen(chunk) == 0) return;
+
+    // Check if session is in background mode
+    ACPSession* session = find_session(g_current_session_id);
+    if (session && session->is_background) {
+        // Buffer the chunk instead of sending
+        buffer_chunk_for_session(session, chunk);
+        return;
+    }
 
     // Build session/update notification (ACP schema format)
     cJSON* params = cJSON_CreateObject();
@@ -796,6 +843,9 @@ void acp_handle_session_prompt(int request_id, const char* params_json) {
 
     // Set current session for callback
     strncpy(g_current_session_id, session_id, sizeof(g_current_session_id) - 1);
+
+    // Mark session as processing (for background execution support)
+    session->is_processing = true;
 
     char* response = NULL;
 
@@ -944,6 +994,28 @@ void acp_handle_session_prompt(int request_id, const char* params_json) {
         free(response);
     }
 
+    // Mark session as no longer processing
+    session->is_processing = false;
+
+    // If session was in background, send completion notification
+    if (session->is_background) {
+        cJSON* notify_params = cJSON_CreateObject();
+        cJSON_AddStringToObject(notify_params, "sessionId", session->session_id);
+        cJSON_AddStringToObject(notify_params, "status", "completed");
+        cJSON_AddBoolToObject(notify_params, "hasBufferedContent",
+                              session->background_buffer_len > 0);
+        cJSON_AddNumberToObject(notify_params, "bufferedLength",
+                                (double)session->background_buffer_len);
+
+        char* notify_json = cJSON_PrintUnformatted(notify_params);
+        acp_send_notification("session/backgroundComplete", notify_json);
+        free(notify_json);
+        cJSON_Delete(notify_params);
+
+        LOG_INFO(LOG_CAT_SYSTEM, "Background session %s completed, buffered %zu bytes",
+                 session->session_id, session->background_buffer_len);
+    }
+
     g_current_session_id[0] = '\0';
 }
 
@@ -1013,6 +1085,226 @@ void acp_handle_session_cancel(int request_id, const char* params_json) {
 }
 
 // ============================================================================
+// LAZY LOAD: Load more history messages
+// ============================================================================
+
+void acp_handle_session_load_more(int request_id, const char* params_json) {
+    if (!params_json) {
+        acp_send_error(request_id, -32602, "Missing params");
+        return;
+    }
+
+    cJSON* params = cJSON_Parse(params_json);
+    if (!params) {
+        acp_send_error(request_id, -32700, "Parse error");
+        return;
+    }
+
+    // Get session ID
+    cJSON* session_id_item = cJSON_GetObjectItem(params, "sessionId");
+    if (!session_id_item || !cJSON_IsString(session_id_item)) {
+        cJSON_Delete(params);
+        acp_send_error(request_id, -32602, "Missing sessionId");
+        return;
+    }
+
+    const char* session_id = session_id_item->valuestring;
+    ACPSession* session = find_session(session_id);
+
+    if (!session) {
+        cJSON_Delete(params);
+        acp_send_error(request_id, -32602, "Session not found");
+        return;
+    }
+
+    // Get beforeIndex (load messages before this index)
+    cJSON* before_index_item = cJSON_GetObjectItem(params, "beforeIndex");
+    int before_index = before_index_item && cJSON_IsNumber(before_index_item)
+                       ? before_index_item->valueint
+                       : session->message_count;
+
+    // Get limit (how many messages to load)
+    cJSON* limit_item = cJSON_GetObjectItem(params, "limit");
+    int limit = limit_item && cJSON_IsNumber(limit_item)
+                ? limit_item->valueint
+                : ACP_LAZY_LOAD_INITIAL;
+
+    cJSON_Delete(params);
+
+    // Calculate range to load
+    int end_index = before_index;
+    int start_index = (end_index > limit) ? (end_index - limit) : 0;
+    bool has_more = (start_index > 0);
+
+    // Build response
+    cJSON* result = cJSON_CreateObject();
+    cJSON* messages = cJSON_CreateArray();
+
+    for (int i = start_index; i < end_index && i < session->message_count; i++) {
+        cJSON* msg = cJSON_CreateObject();
+        cJSON_AddStringToObject(msg, "role", session->messages[i].role);
+        cJSON_AddStringToObject(msg, "content",
+            session->messages[i].content ? session->messages[i].content : "");
+        cJSON_AddNumberToObject(msg, "timestamp", session->messages[i].timestamp);
+        cJSON_AddNumberToObject(msg, "index", i);
+        cJSON_AddItemToArray(messages, msg);
+    }
+
+    cJSON_AddItemToObject(result, "messages", messages);
+    cJSON_AddBoolToObject(result, "hasMore", has_more);
+    cJSON_AddNumberToObject(result, "startIndex", start_index);
+    cJSON_AddNumberToObject(result, "totalCount", session->message_count);
+
+    char* result_json = cJSON_PrintUnformatted(result);
+    acp_send_response(request_id, result_json);
+    free(result_json);
+    cJSON_Delete(result);
+
+    LOG_INFO(LOG_CAT_SYSTEM, "Loaded %d more messages (index %d-%d, hasMore=%s)",
+             end_index - start_index, start_index, end_index - 1,
+             has_more ? "true" : "false");
+}
+
+// ============================================================================
+// BACKGROUND EXECUTION: Allow agents to continue when user switches
+// ============================================================================
+
+void acp_handle_session_background(int request_id, const char* params_json) {
+    if (!params_json) {
+        acp_send_error(request_id, -32602, "Missing params");
+        return;
+    }
+
+    cJSON* params = cJSON_Parse(params_json);
+    if (!params) {
+        acp_send_error(request_id, -32700, "Parse error");
+        return;
+    }
+
+    cJSON* session_id_item = cJSON_GetObjectItem(params, "sessionId");
+    if (!session_id_item || !cJSON_IsString(session_id_item)) {
+        cJSON_Delete(params);
+        acp_send_error(request_id, -32602, "Missing sessionId");
+        return;
+    }
+
+    const char* session_id = session_id_item->valuestring;
+    ACPSession* session = find_session(session_id);
+    cJSON_Delete(params);
+
+    if (!session) {
+        acp_send_error(request_id, -32602, "Session not found");
+        return;
+    }
+
+    session->is_background = true;
+    LOG_INFO(LOG_CAT_SYSTEM, "Session %s moved to background", session_id);
+
+    cJSON* result = cJSON_CreateObject();
+    cJSON_AddBoolToObject(result, "success", true);
+    cJSON_AddBoolToObject(result, "isProcessing", session->is_processing);
+
+    char* result_json = cJSON_PrintUnformatted(result);
+    acp_send_response(request_id, result_json);
+    free(result_json);
+    cJSON_Delete(result);
+}
+
+void acp_handle_session_foreground(int request_id, const char* params_json) {
+    if (!params_json) {
+        acp_send_error(request_id, -32602, "Missing params");
+        return;
+    }
+
+    cJSON* params = cJSON_Parse(params_json);
+    if (!params) {
+        acp_send_error(request_id, -32700, "Parse error");
+        return;
+    }
+
+    cJSON* session_id_item = cJSON_GetObjectItem(params, "sessionId");
+    if (!session_id_item || !cJSON_IsString(session_id_item)) {
+        cJSON_Delete(params);
+        acp_send_error(request_id, -32602, "Missing sessionId");
+        return;
+    }
+
+    const char* session_id = session_id_item->valuestring;
+    ACPSession* session = find_session(session_id);
+    cJSON_Delete(params);
+
+    if (!session) {
+        acp_send_error(request_id, -32602, "Session not found");
+        return;
+    }
+
+    session->is_background = false;
+    LOG_INFO(LOG_CAT_SYSTEM, "Session %s moved to foreground", session_id);
+
+    cJSON* result = cJSON_CreateObject();
+    cJSON_AddBoolToObject(result, "success", true);
+    cJSON_AddBoolToObject(result, "isProcessing", session->is_processing);
+
+    // Include buffered content if any
+    if (session->background_buffer && session->background_buffer_len > 0) {
+        cJSON_AddStringToObject(result, "bufferedContent", session->background_buffer);
+        cJSON_AddNumberToObject(result, "bufferedLength", (double)session->background_buffer_len);
+
+        // Clear buffer after sending
+        free(session->background_buffer);
+        session->background_buffer = NULL;
+        session->background_buffer_len = 0;
+        session->background_buffer_cap = 0;
+    }
+
+    char* result_json = cJSON_PrintUnformatted(result);
+    acp_send_response(request_id, result_json);
+    free(result_json);
+    cJSON_Delete(result);
+}
+
+void acp_handle_session_status(int request_id, const char* params_json) {
+    if (!params_json) {
+        acp_send_error(request_id, -32602, "Missing params");
+        return;
+    }
+
+    cJSON* params = cJSON_Parse(params_json);
+    if (!params) {
+        acp_send_error(request_id, -32700, "Parse error");
+        return;
+    }
+
+    cJSON* session_id_item = cJSON_GetObjectItem(params, "sessionId");
+    if (!session_id_item || !cJSON_IsString(session_id_item)) {
+        cJSON_Delete(params);
+        acp_send_error(request_id, -32602, "Missing sessionId");
+        return;
+    }
+
+    const char* session_id = session_id_item->valuestring;
+    ACPSession* session = find_session(session_id);
+    cJSON_Delete(params);
+
+    if (!session) {
+        acp_send_error(request_id, -32602, "Session not found");
+        return;
+    }
+
+    cJSON* result = cJSON_CreateObject();
+    cJSON_AddBoolToObject(result, "active", session->active);
+    cJSON_AddBoolToObject(result, "isBackground", session->is_background);
+    cJSON_AddBoolToObject(result, "isProcessing", session->is_processing);
+    cJSON_AddNumberToObject(result, "messageCount", session->message_count);
+    cJSON_AddNumberToObject(result, "bufferedLength", (double)session->background_buffer_len);
+
+    char* result_json = cJSON_PrintUnformatted(result);
+    acp_send_response(request_id, result_json);
+    free(result_json);
+    cJSON_Delete(result);
+}
+
+// ============================================================================
 // REQUEST DISPATCHER
 // ============================================================================
 
@@ -1038,6 +1330,14 @@ static void dispatch_request(cJSON* request) {
         acp_handle_session_prompt(request_id, params_json);
     } else if (strcmp(method, "session/cancel") == 0) {
         acp_handle_session_cancel(request_id, params_json);
+    } else if (strcmp(method, "session/loadMore") == 0) {
+        acp_handle_session_load_more(request_id, params_json);
+    } else if (strcmp(method, "session/background") == 0) {
+        acp_handle_session_background(request_id, params_json);
+    } else if (strcmp(method, "session/foreground") == 0) {
+        acp_handle_session_foreground(request_id, params_json);
+    } else if (strcmp(method, "session/status") == 0) {
+        acp_handle_session_status(request_id, params_json);
     } else if (strcmp(method, "shutdown") == 0) {
         acp_send_response(request_id, "{}");
         g_running = 0;

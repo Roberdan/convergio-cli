@@ -13,7 +13,7 @@ Fix Ali Panel visibility and optimize conversation persistence for long sessions
 |----|------|--------|--------|------|
 | A1 | Fix Ali Panel button visibility | 🔄 | 0.5 day | AliPanel loads after AgentPanel |
 | A2 | Add "working" indicator for active agents | ⏸️ | 0.5 day | Visual badge when agent is processing |
-| A3 | Lazy load conversations (last first) | ⏸️ | 1 day | Load last message first, then expand |
+| A3 | Lazy load conversations (last first) | ✅ | 1 day | Load last 5 messages, session/loadMore for more |
 | A4 | Summarize old messages for long convos | ⏸️ | 1 day | AI summary of messages beyond threshold |
 | A5 | Add detailed debug logging | ⏸️ | 0.5 day | For development troubleshooting |
 | A6 | Error handling for long sessions | ⏸️ | 0.5 day | Graceful recovery from session issues |

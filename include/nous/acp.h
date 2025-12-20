@@ -26,6 +26,12 @@
 // Maximum messages per session history
 #define ACP_MAX_MESSAGES 100
 
+// Lazy load: initial messages to send on resume
+#define ACP_LAZY_LOAD_INITIAL 5
+
+// Background execution buffer size
+#define ACP_BACKGROUND_BUFFER_SIZE 65536
+
 // Session message (for history)
 typedef struct {
     char role[16];          // "user" or "assistant"
@@ -43,6 +49,12 @@ typedef struct {
     // Message history for session resume
     ACPMessage messages[ACP_MAX_MESSAGES];
     int message_count;
+    // Background execution support
+    bool is_background;         // Session switched to background
+    bool is_processing;         // Agent is still processing
+    char* background_buffer;    // Buffered output while in background
+    size_t background_buffer_len;
+    size_t background_buffer_cap;
 } ACPSession;
 
 // Server state
@@ -78,6 +90,10 @@ void acp_handle_initialize(int request_id, const char* params_json);
 void acp_handle_session_new(int request_id, const char* params_json);
 void acp_handle_session_prompt(int request_id, const char* params_json);
 void acp_handle_session_cancel(int request_id, const char* params_json);
+void acp_handle_session_load_more(int request_id, const char* params_json);
+void acp_handle_session_background(int request_id, const char* params_json);
+void acp_handle_session_foreground(int request_id, const char* params_json);
+void acp_handle_session_status(int request_id, const char* params_json);
 
 // Response helpers
 void acp_send_response(int id, const char* result_json);
