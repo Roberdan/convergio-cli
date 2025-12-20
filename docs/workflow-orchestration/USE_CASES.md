@@ -270,6 +270,103 @@ Tutti i workflow possono essere personalizzati:
 
 ---
 
+---
+
+## Release Management Use Cases
+
+### 9. Pre-Release Checklist
+
+**Template**: `pre-release-checklist.json`
+
+**Scenario**: Review completa e test paralleli prima del release con zero tolleranza per errori, warnings, technical debt, o problemi di qualsiasi tipo.
+
+**Workflow**:
+1. **Parallel Quality Checks** (6 checks simultanei):
+   - **Code Review** (Thor/CRITIC): Review completo, ZERO TOLERANZA per technical debt
+   - **Security Audit** (Luca/CRITIC): Audit completo, ZERO TOLERANZA per vulnerabilità
+   - **Static Analysis** (Thor/CRITIC): ZERO TOLERANZA per warnings
+   - **Dependency Audit** (Domik/ANALYST): ZERO TOLERANZA per dipendenze vulnerabili
+   - **Documentation Check** (Sofia/WRITER): ZERO TOLERANZA per documentazione mancante
+   - **Build Verification** (Marco/EXECUTOR): ZERO TOLERANZA per build failures
+
+2. **Issue Aggregation**: Raccoglie TUTTI i problemi da tutti i checks
+
+3. **Issue Analysis**: Analizza problemi, identifica pattern, root causes
+
+4. **Zero Tolerance Check**: Se QUALSIASI problema trovato → BLOCCA RELEASE
+
+5. **Parallel Test Execution** (6 test suites simultanei):
+   - **Unit Tests**: ZERO TOLERANZA per test falliti, coverage >= 80%
+   - **Integration Tests**: ZERO TOLERANZA per test falliti
+   - **E2E Tests**: ZERO TOLERANZA per test falliti
+   - **Fuzz Tests**: ZERO TOLERANZA per crashes o memory leaks
+   - **Sanitizer Tests** (ASan, UBSan, TSan): ZERO TOLERANZA per memory leaks, undefined behavior, data races
+   - **Performance Tests**: ZERO TOLERANZA per regressioni significative
+
+6. **Test Validation**: Verifica che TUTTI i test siano passati
+
+7. **Technical Debt Check**: ZERO TOLERANZA per nuovo technical debt
+
+8. **Final Quality Gate**: Verifica finale che TUTTO sia perfetto
+
+9. **Release Approval**: Se tutto perfetto → approva, altrimenti → blocca
+
+**Zero Tolerance Rules**:
+- ✅ ZERO errori di compilazione
+- ✅ ZERO warnings
+- ✅ ZERO test falliti
+- ✅ ZERO vulnerabilità di sicurezza
+- ✅ ZERO technical debt aggiunto
+- ✅ ZERO documentazione mancante
+- ✅ ZERO dipendenze vulnerabili
+- ✅ Coverage >= 80% (ZERO tolleranza per coverage insufficiente)
+- ✅ TUTTI i quality checks devono passare
+- ✅ TUTTI i test devono passare
+
+**Features**:
+- ✅ Parallel execution (12 checks/test simultanei)
+- ✅ Automatic issue aggregation
+- ✅ Zero tolerance policy (qualsiasi problema blocca release)
+- ✅ Comprehensive test coverage
+- ✅ Technical debt detection
+- ✅ Automatic release notes generation
+
+**Example**:
+```bash
+/workflow execute pre-release-checklist "Pre-release check per versione 1.0.0"
+```
+
+**Output quando bloccato**:
+```
+RELEASE BLOCCATO - ZERO TOLERANZA
+
+Problemi trovati:
+- CRITICAL: 2 vulnerabilità di sicurezza (CVSS >= 9.0)
+- HIGH: 3 test falliti
+- MEDIUM: 5 warnings static analysis
+- LOW: Coverage 75% (target: 80%)
+
+Tutti i problemi devono essere risolti prima del release.
+```
+
+**Output quando approvato**:
+```
+RELEASE APPROVATO
+
+✅ Tutti i quality checks passati
+✅ Tutti i test passati (100% success rate)
+✅ Coverage: 85% (target: 80%)
+✅ Zero warnings
+✅ Zero errori
+✅ Zero technical debt aggiunto
+✅ Documentazione completa
+✅ Build verificato su tutte le piattaforme
+
+Release notes generati. Pronto per il release.
+```
+
+---
+
 ## See Also
 
 - [User Guide](USER_GUIDE.md)

@@ -209,6 +209,9 @@ Pre-built workflow templates are available in `src/workflow/templates/`:
 - **api-design-review.json** - API design review: progettazione, review, documentazione
 - **incident-response.json** - Incident response: rilevamento, analisi, mitigazione, risoluzione
 
+### Release Management
+- **pre-release-checklist.json** - Pre-release checklist: review completa, test paralleli, zero tolleranza
+
 ### Business & Planning
 - **product-launch.json** - Product launch planning completo
 
