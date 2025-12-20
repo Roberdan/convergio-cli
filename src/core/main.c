@@ -223,22 +223,26 @@ static void print_gradient_line(const char* line) {
 }
 
 // Small ASCII edition labels - 3 lines, same gradient as main logo
+// Each letter is exactly 4 chars wide (3 char letter + 1 space) for perfect alignment
 static void print_edition_ascii(ConvergioEdition edition) {
     switch (edition) {
         case EDITION_EDUCATION:
-            // EDUCATION - simple text with = underline, centered
-            print_gradient_line("                          E D U C A T I O N");
-            print_gradient_line("                          ═════════════════");
+            // EDUCATION - 9 letters x 4 chars = 36 chars wide, centered under logo
+            print_gradient_line("                            █▀▀ █▀▄ █ █ █▀▀ ▄▀▄ ▀█▀ █ █▀█ █▀█");
+            print_gradient_line("                            █▄  █ █ █ █ █   █▀█  █  █ █ █ █ █");
+            print_gradient_line("                            ▀▀▀ ▀▀  ▀▀▀ ▀▀▀ ▀ ▀  ▀  ▀ ▀▀▀ ▀ ▀");
             break;
         case EDITION_BUSINESS:
-            // BUSINESS - simple text with = underline
-            print_gradient_line("                            B U S I N E S S");
-            print_gradient_line("                            ═══════════════");
+            // BUSINESS - 8 letters x 4 chars = 32 chars wide
+            print_gradient_line("                              █▀▄ █ █ █▀▀ █ █▀█ █▀▀ █▀▀ █▀▀");
+            print_gradient_line("                              █▀▄ █ █ ▀▀█ █ █ █ █▄  ▀▀█ ▀▀█");
+            print_gradient_line("                              ▀▀  ▀▀▀ ▀▀▀ ▀ ▀ ▀ ▀▀▀ ▀▀▀ ▀▀▀");
             break;
         case EDITION_DEVELOPER:
-            // DEVELOPER - simple text with = underline
-            print_gradient_line("                           D E V E L O P E R");
-            print_gradient_line("                           ═════════════════");
+            // DEVELOPER - 9 letters x 4 chars = 36 chars wide
+            print_gradient_line("                            █▀▄ █▀▀ █ █ █▀▀ █   █▀█ █▀▄ █▀▀ █▀▄");
+            print_gradient_line("                            █ █ █▄  ▀▄▀ █▄  █   █ █ █▀  █▄  █▀▄");
+            print_gradient_line("                            ▀▀  ▀▀▀  ▀  ▀▀▀ ▀▀▀ ▀▀▀ ▀   ▀▀▀ ▀ ▀");
             break;
         default:
             // Master edition - no extra label needed
