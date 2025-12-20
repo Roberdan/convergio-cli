@@ -142,6 +142,12 @@ void workflow_free_checkpoints(Checkpoint* checkpoints, size_t count);
 // WORKFLOW EXECUTION
 // ============================================================================
 
+// State management (convenience functions)
+WorkflowState* workflow_get_state(Workflow* wf);
+int workflow_set_state(Workflow* wf, const char* key, const char* value);
+const char* workflow_get_state_value(Workflow* wf, const char* key);
+int workflow_clear_state(Workflow* wf);
+
 // Core execution
 int workflow_execute(Workflow* wf, const char* input, char** output);
 int workflow_execute_node(Workflow* wf, WorkflowNode* node, const char* input, char** output);
