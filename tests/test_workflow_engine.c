@@ -209,6 +209,9 @@ static void test_workflow_pause(void) {
     WorkflowNode* entry = workflow_node_create("entry", NODE_TYPE_ACTION);
     Workflow* wf = workflow_create("test", "Test", entry);
     
+    // workflow_pause requires status to be RUNNING
+    wf->status = WORKFLOW_STATUS_RUNNING;
+    
     int result = workflow_pause(wf);
     TEST_ASSERT(result == 0, "workflow_pause succeeds");
     TEST_ASSERT(wf->status == WORKFLOW_STATUS_PAUSED, "status is PAUSED");
