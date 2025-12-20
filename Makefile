@@ -5,18 +5,45 @@
 # Version management
 VERSION := $(shell cat VERSION 2>/dev/null || echo "0.0.0")
 
-# Compiler settings
-CC = clang
-OBJC = clang
+# Compiler settings with cache optimization
+# Use sccache for faster rebuilds (wraps clang)
+SCCACHE = /opt/homebrew/bin/sccache
+CCACHE = /opt/homebrew/bin/ccache
 
-# Apple Silicon optimizations (generic for all M-series chips)
-ARCH_FLAGS = -arch arm64
+# Check if sccache is available, fallback to ccache, then clang
+ifeq ($(shell command -v $(SCCACHE) >/dev/null 2>&1 && echo yes),yes)
+    CC = $(SCCACHE) clang
+    OBJC = $(SCCACHE) clang
+    CACHE_INFO = sccache
+else ifeq ($(shell command -v $(CCACHE) >/dev/null 2>&1 && echo yes),yes)
+    CC = $(CCACHE) clang
+    OBJC = $(CCACHE) clang
+    CACHE_INFO = ccache
+else
+    CC = clang
+    OBJC = clang
+    CACHE_INFO = no-cache
+endif
+
+# Parallel build optimization for M3 Max
+# Use more jobs than cores to account for I/O wait and maximize throughput
+# M3 Max: 14 cores (10P + 4E), use 18-20 jobs for optimal parallelism
+CPU_CORES := $(shell sysctl -n hw.ncpu 2>/dev/null || echo 14)
+P_CORES := $(shell sysctl -n hw.perflevel0.physicalcpu 2>/dev/null || echo 10)
+# Use 1.5x cores for optimal parallelism (accounts for I/O wait)
+PARALLEL_JOBS := $(shell echo $$(( $(CPU_CORES) * 3 / 2 )) || echo 20)
+MAKEFLAGS += -j$(PARALLEL_JOBS) --load-average=$(CPU_CORES)
+
+# Apple Silicon optimizations for M3 Max
+# M3 Max specific: use latest architecture features
+ARCH_FLAGS = -arch arm64 -mcpu=apple-m3
 
 # GNU Readline from Homebrew (NOT libedit - libedit doesn't support \001\002 markers for colors)
 # Use direct path since `brew` command may not be available in Homebrew sandbox
 READLINE_PREFIX = /opt/homebrew/opt/readline
 
-# Compiler flags
+# Compiler flags optimized for M3 Max
+# M3 Max has excellent SIMD and vectorization support
 CFLAGS = $(ARCH_FLAGS) \
          -std=c17 \
          -Wall -Wextra -Wpedantic \
@@ -24,6 +51,7 @@ CFLAGS = $(ARCH_FLAGS) \
          -Wno-overlength-strings \
          -ffast-math \
          -fvectorize \
+         -mllvm -enable-machine-outliner=never \
          -I./include \
          -I/opt/homebrew/include \
          -I$(READLINE_PREFIX)/include \
@@ -42,10 +70,16 @@ ifeq ($(DEBUG),1)
               -Wstrict-overflow=2 -fstack-protector-strong
     LDFLAGS += -fsanitize=address,undefined
 else
+    # Release mode: Maximum optimization for M3 Max
     # Note: LTO disabled because it incorrectly eliminates tool functions
     # that are called through function pointers / dynamic paths
-    CFLAGS += -O3 -DNDEBUG
-    LDFLAGS +=
+    CFLAGS += -O3 -DNDEBUG \
+              -mllvm -enable-machine-outliner=never
+    # Linker optimizations for M3 Max with 36GB RAM
+    # Use more memory for faster linking (macOS ld64 doesn't support -threads)
+    LDFLAGS += -Wl,-cache_path_lto,$(BUILD_DIR)/lto.cache \
+               -Wl,-dead_strip \
+               -Wl,-no_deduplicate
 endif
 
 # Coverage mode flags
@@ -195,6 +229,7 @@ all: dirs metal swift $(TARGET) notify-helper
 	@echo "║          CONVERGIO KERNEL v$(VERSION)             ║"
 	@echo "║  Build complete!                                  ║"
 	@echo "║  Run with: $(TARGET)                              ║"
+	@echo "║  M3 Max: $(CPU_CORES) cores ($(P_CORES)P+4E) | Jobs: $(PARALLEL_JOBS) | Cache: $(CACHE_INFO) ║"
 	@echo "╚═══════════════════════════════════════════════════╝"
 	@echo ""
 
@@ -205,6 +240,13 @@ $(EMBEDDED_AGENTS): $(wildcard $(SRC_DIR)/agents/definitions/*.md) scripts/embed
 
 # Ensure embedded agents are generated before compiling
 $(OBJ_DIR)/agents/embedded_agents.o: $(EMBEDDED_AGENTS)
+
+# Environment optimizations for M3 Max with 36GB RAM
+# Increase Swift build parallelism
+export SWIFT_BUILD_JOBS=$(PARALLEL_JOBS)
+# Optimize sccache for M3 Max (10GB cache)
+export SCCACHE_DIR=$(HOME)/.cache/sccache
+export SCCACHE_CACHE_SIZE=10G
 
 # Create directories
 dirs:
@@ -245,8 +287,10 @@ XCODE_RELEASE_DIR = $(XCODE_BUILD_DIR)/Build/Products/Release
 swift: $(SWIFT_LIB)
 
 $(SWIFT_LIB): Package.swift Sources/ConvergioMLX/MLXBridge.swift
-	@echo "Building Swift package (MLX integration)..."
-	@swift build -c release --product ConvergioMLX 2>&1 | grep -v "^$$" || true
+	@echo "Building Swift package (MLX integration, M3 Max optimized)..."
+	@swift build -c release --product ConvergioMLX \
+		-Xswiftc -O -Xswiftc -whole-module-optimization \
+		--jobs $(PARALLEL_JOBS) 2>&1 | grep -v "^$$" || true
 	@if [ -f "$(SWIFT_LIB)" ]; then \
 		echo "Swift library built: $(SWIFT_LIB)"; \
 		mkdir -p $(BIN_DIR); \
@@ -270,12 +314,14 @@ $(SWIFT_LIB): Package.swift Sources/ConvergioMLX/MLXBridge.swift
 notify-helper: $(NOTIFY_HELPER_APP)
 
 $(NOTIFY_HELPER_APP): $(NOTIFY_HELPER_SRC) $(NOTIFY_HELPER_PLIST)
-	@echo "Building notification helper app..."
+	@echo "Building notification helper app (M3 Max optimized)..."
 	@mkdir -p $(NOTIFY_HELPER_APP)/Contents/MacOS $(NOTIFY_HELPER_APP)/Contents/Resources
 	@swiftc -o $(NOTIFY_HELPER_APP)/Contents/MacOS/ConvergioNotify \
-		$(NOTIFY_HELPER_SRC) -framework Cocoa -O -suppress-warnings 2>/dev/null || \
+		$(NOTIFY_HELPER_SRC) -framework Cocoa -O -whole-module-optimization \
+		-target arm64-apple-macosx13.0 -suppress-warnings 2>/dev/null || \
 		swiftc -o $(NOTIFY_HELPER_APP)/Contents/MacOS/ConvergioNotify \
-		$(NOTIFY_HELPER_SRC) -framework Cocoa 2>&1 | grep -v "was deprecated" || true
+		$(NOTIFY_HELPER_SRC) -framework Cocoa -O -target arm64-apple-macosx13.0 \
+		2>&1 | grep -v "was deprecated" || true
 	@cp $(NOTIFY_HELPER_PLIST) $(NOTIFY_HELPER_APP)/Contents/Info.plist
 	@if [ -f docs/logo/CovergioLogo.jpeg ]; then \
 		mkdir -p /tmp/ConvergioNotify.iconset; \
@@ -299,9 +345,10 @@ $(NOTIFY_HELPER_APP): $(NOTIFY_HELPER_SRC) $(NOTIFY_HELPER_PLIST)
 metal: $(METAL_LIB)
 
 $(METAL_AIR): $(METAL_SOURCES)
-	@echo "Compiling Metal shaders..."
+	@echo "Compiling Metal shaders (M3 Max optimized)..."
 	@xcrun -sdk macosx metal -c $(METAL_SOURCES) -o $(METAL_AIR) \
-		-std=metal3.1 -O3 2>/dev/null || \
+		-std=metal3.1 -O3 -ffast-math -fno-math-errno \
+		-mtriple=air64-apple-macosx13.0 2>/dev/null || \
 		(echo "Warning: Metal Toolchain not available, skipping shader compilation" && touch $(METAL_AIR))
 
 $(METAL_LIB): $(METAL_AIR)
@@ -313,12 +360,12 @@ $(METAL_LIB): $(METAL_AIR)
 		touch $(METAL_LIB); \
 	fi
 
-# Compile C sources
+# Compile C sources (with cache and parallelization)
 $(OBJ_DIR)/%.o: $(SRC_DIR)/%.c
 	@echo "Compiling $<..."
 	@$(CC) $(CFLAGS) -c $< -o $@
 
-# Compile Objective-C sources
+# Compile Objective-C sources (with cache and parallelization)
 $(OBJ_DIR)/%.o: $(SRC_DIR)/%.m
 	@echo "Compiling $<..."
 	@$(OBJC) $(OBJCFLAGS) -c $< -o $@
@@ -343,7 +390,8 @@ SWIFT_RUNTIME_LIBS = -L/usr/lib/swift \
                      -lc++
 
 $(TARGET): $(OBJECTS) $(SWIFT_LIB) $(MLX_STUBS_OBJ)
-	@echo "Linking $(TARGET)..."
+	@echo "Linking $(TARGET) (M3 Max optimized, $(PARALLEL_JOBS) jobs)..."
+	@mkdir -p $(BUILD_DIR)/lto.cache
 	@if [ -s "$(SWIFT_LIB)" ]; then \
 		echo "  Including MLX Swift library (with C++ runtime)..."; \
 		$(CC) $(LDFLAGS) $(OBJECTS) $(SWIFT_LIB) -o $(TARGET) $(FRAMEWORKS) $(LIBS) \
@@ -599,6 +647,17 @@ coverage: clean
 		echo "Coverage data not generated. Run 'make coverage' after running tests."; \
 	fi
 
+# Cache statistics
+cache-stats:
+	@echo "=== Build Cache Statistics ==="
+	@if [ "$(CACHE_INFO)" = "sccache" ]; then \
+		$(SCCACHE) --show-stats 2>&1 | head -15; \
+	elif [ "$(CACHE_INFO)" = "ccache" ]; then \
+		$(CCACHE) -s; \
+	else \
+		echo "No cache configured"; \
+	fi
+
 # Help
 help:
 	@echo "Convergio Kernel Build System v$(VERSION)"
@@ -618,12 +677,19 @@ help:
 	@echo "  plan_db_test - Build and run plan database tests"
 	@echo "  output_service_test - Build and run output service tests"
 	@echo "  check-docs - Verify all REPL commands are documented"
+	@echo "  cache-stats - Show build cache statistics"
 	@echo "  hwinfo     - Show Apple Silicon hardware info"
 	@echo "  version    - Show version"
 	@echo "  help       - Show this message"
 	@echo ""
 	@echo "Variables:"
 	@echo "  DEBUG=1   - Enable debug build"
+	@echo ""
+	@echo "Build Optimization (M3 Max):"
+	@echo "  CPU: $(CPU_CORES) cores ($(P_CORES)P+4E)"
+	@echo "  Cache: $(CACHE_INFO)"
+	@echo "  Parallel jobs: $(PARALLEL_JOBS)"
+	@echo "  Architecture: arm64 (M3 Max optimized)"
 
 # ACP Server target - for Zed integration
 ACP_TARGET = $(BIN_DIR)/convergio-acp
@@ -664,4 +730,4 @@ install-acp: convergio-acp
 	@echo "Installed. Configure Zed with:"
 	@echo '  {"agent_servers": {"Convergio": {"type": "custom", "command": "/usr/local/bin/convergio-acp"}}}'
 
-.PHONY: all dirs metal run clean debug install uninstall hwinfo help fuzz_test unit_test anna_test plan_db_test output_service_test check-docs test version dist release convergio-acp install-acp
+.PHONY: all dirs metal run clean debug install uninstall hwinfo help fuzz_test unit_test anna_test plan_db_test output_service_test check-docs test version dist release convergio-acp install-acp cache-stats
