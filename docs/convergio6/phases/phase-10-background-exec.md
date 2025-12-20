@@ -1,6 +1,6 @@
 # PHASE 10 - Background Execution
 
-**Status**: 🔄 IN PROGRESS
+**Status**: ✅ COMPLETE
 **Depends on**: Phase 9
 
 ## Objective
@@ -11,10 +11,10 @@ Allow agents to continue working when user switches to another agent. When retur
 
 | ID | Task | Status | Effort | Note |
 |----|------|--------|--------|------|
-| B1 | Keep ACP sessions alive on agent switch | 🔄 | 1 day | session/background + session/foreground |
+| B1 | Keep ACP sessions alive on agent switch | ✅ | 1 day | AgentSessionBackground trait + ext_method calls |
 | B2 | Server-side background processing | ✅ | 1.5 days | Buffer chunks when is_background=true |
 | B3 | Queue results for inactive sessions | ✅ | 1 day | background_buffer in ACPSession |
-| B4 | Visual indicator "agent working" | ⏸️ | 0.5 day | Badge/icon in Convergio Panel |
+| B4 | Visual indicator "agent working" | ✅ | 0.5 day | ArrowCircle icon + processing_agents state |
 | B5 | Notification when background task completes | ✅ | 0.5 day | session/backgroundComplete notification |
 
 ## Architecture
