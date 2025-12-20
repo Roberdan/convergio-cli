@@ -102,6 +102,8 @@ int cmd_flashcards(int argc, char** argv);
 int cmd_mindmap(int argc, char** argv);
 int cmd_libretto(int argc, char** argv);
 int cmd_voice(int argc, char** argv);
+int cmd_upload(int argc, char** argv);
+int cmd_doc(int argc, char** argv);
 
 static const ReplCommand COMMANDS[] = {
     {"help",        "Show available commands",           cmd_help},
@@ -161,6 +163,8 @@ static const ReplCommand COMMANDS[] = {
     {"mindmap",     "Generate visual mind maps",         cmd_mindmap},
     {"libretto",    "Student gradebook and activity log", cmd_libretto},
     {"voice",       "Conversational voice mode with maestri", cmd_voice},
+    {"upload",      "Upload a document for study help",  cmd_upload},
+    {"doc",         "Manage uploaded documents",         cmd_doc},
     {"quit",        "Exit Convergio",                    cmd_quit},
     {"exit",        "Exit Convergio",                    cmd_quit},
     {NULL, NULL, NULL}

@@ -287,6 +287,7 @@ C_SOURCES = $(SRC_DIR)/core/fabric.c \
             $(SRC_DIR)/education/tools/html_generator.c \
             $(SRC_DIR)/education/ali_preside.c \
             $(SRC_DIR)/education/error_interpreter.c \
+            $(SRC_DIR)/education/document_upload.c \
             $(SRC_DIR)/voice/voice_gateway.c \
             $(SRC_DIR)/voice/openai_realtime.c \
             $(SRC_DIR)/voice/azure_realtime.c \

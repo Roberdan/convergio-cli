@@ -1323,3 +1323,62 @@ int cmd_voice(int argc, char** argv) {
 
     return voice_mode_start(maestro_id, topic);
 }
+
+// ============================================================================
+// COMMAND: /upload
+// ============================================================================
+
+/**
+ * /upload - Upload a document for study help
+ *
+ * Opens an interactive file picker restricted to Desktop, Documents, Downloads
+ * folders. Only shows supported file types (PDF, DOCX, PPTX, images, etc.)
+ *
+ * Usage:
+ *   /upload           - Open file picker
+ *   /upload <path>    - Upload specific file
+ */
+int cmd_upload(int argc, char** argv) {
+    extern int document_command_handler(int argc, char** argv);
+
+    // Pass to document handler
+    char* upload_args[] = {"upload", NULL, NULL};
+    int upload_argc = 1;
+
+    if (argc >= 2) {
+        upload_args[1] = argv[1];
+        upload_argc = 2;
+    }
+
+    return document_command_handler(upload_argc, upload_args);
+}
+
+// ============================================================================
+// COMMAND: /doc
+// ============================================================================
+
+/**
+ * /doc - Manage uploaded documents
+ *
+ * Lists, selects, and manages uploaded school materials.
+ *
+ * Usage:
+ *   /doc              - List uploaded documents
+ *   /doc list         - List all uploaded documents
+ *   /doc <n>          - Select document n
+ *   /doc clear        - Clear all uploaded documents
+ */
+int cmd_doc(int argc, char** argv) {
+    extern int document_command_handler(int argc, char** argv);
+
+    // Pass to document handler
+    char* doc_args[4] = {"doc", NULL, NULL, NULL};
+    int doc_argc = 1;
+
+    for (int i = 1; i < argc && i < 3; i++) {
+        doc_args[i] = argv[i];
+        doc_argc++;
+    }
+
+    return document_command_handler(doc_argc, doc_args);
+}

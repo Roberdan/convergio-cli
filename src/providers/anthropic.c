@@ -1068,3 +1068,42 @@ bool anthropic_is_cancelled(void) {
     }
     return false;
 }
+
+// ============================================================================
+// CLAUDE FILES API (Beta - for document upload)
+// ============================================================================
+
+/**
+ * Upload a file to Claude Files API
+ *
+ * Note: As of December 2025, Claude's Files API is in beta.
+ * This is a stub that will be fully implemented when the API is stable.
+ *
+ * @param filepath Full path to file to upload
+ * @param purpose Purpose of upload (e.g., "user_data")
+ * @return file_id string (caller must free), or NULL on error
+ */
+char* anthropic_upload_file(const char* filepath, const char* purpose) {
+    (void)purpose;  // Suppress unused parameter warning
+    if (!filepath) return NULL;
+
+    // Get filename from path
+    const char* filename = strrchr(filepath, '/');
+    filename = filename ? filename + 1 : filepath;
+
+    // For now, generate a placeholder file_id
+    // The actual Claude Files API endpoint would be:
+    // POST https://api.anthropic.com/v1/files
+    // with multipart/form-data containing the file
+
+    // TODO: Implement actual upload when Files API is stable
+    // For education MVP, we generate a local reference ID
+
+    // Generate a stub file_id that indicates this is a local reference
+    char* file_id = malloc(128);
+    if (file_id) {
+        snprintf(file_id, 128, "local-%s-%ld", filename, (long)time(NULL));
+    }
+
+    return file_id;
+}

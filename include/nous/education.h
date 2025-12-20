@@ -1436,6 +1436,76 @@ char* education_interpret_error(const char* error_msg, const char* agent_id);
 bool education_should_interpret_error(const char* error_msg);
 
 // ============================================================================
+// DOCUMENT UPLOAD API (School Materials)
+// ============================================================================
+
+/**
+ * @brief Open interactive file picker for document upload
+ *
+ * Shows a student-friendly file browser restricted to Desktop, Documents,
+ * and Downloads folders. Only shows supported file types.
+ *
+ * @return Full path to selected file (caller must free), or NULL if cancelled
+ */
+char* document_file_picker(void);
+
+/**
+ * @brief Upload a document to Claude Files API
+ *
+ * @param filepath Full path to file to upload
+ * @return true on success, false on failure
+ */
+bool document_upload(const char* filepath);
+
+/**
+ * @brief List all uploaded documents
+ */
+void document_list(void);
+
+/**
+ * @brief Select an uploaded document by index
+ *
+ * @param index 1-based index of document to select
+ * @return true on success
+ */
+bool document_select(int index);
+
+/**
+ * @brief Clear all uploaded documents
+ */
+void document_clear(void);
+
+/**
+ * @brief Get the file_id of the current document
+ *
+ * @return file_id string or NULL if no document active
+ */
+const char* document_get_current_file_id(void);
+
+/**
+ * @brief Get the filename of the current document
+ *
+ * @return filename string or NULL if no document active
+ */
+const char* document_get_current_filename(void);
+
+/**
+ * @brief Check if a document is currently active
+ *
+ * @return true if a document is selected
+ */
+bool document_is_active(void);
+
+/**
+ * @brief Command handler for /upload and /doc commands
+ *
+ * @param argc Argument count
+ * @param argv Argument values
+ * @return 0 on success, non-zero on error
+ */
+int document_command_handler(int argc, char** argv);
+
+// ============================================================================
 // INTERNAL API (FOR ANNA INTEGRATION)
 // ============================================================================
 
