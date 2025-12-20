@@ -190,7 +190,8 @@ C_SOURCES = $(SRC_DIR)/core/fabric.c \
             $(SRC_DIR)/notifications/notify.c \
             $(SRC_DIR)/mcp/mcp_client.c \
             $(SRC_DIR)/workflow/workflow_types.c \
-            $(SRC_DIR)/workflow/workflow_engine.c
+            $(SRC_DIR)/workflow/workflow_engine.c \
+            $(SRC_DIR)/workflow/checkpoint.c
 
 OBJC_SOURCES = $(SRC_DIR)/metal/gpu.m \
                $(SRC_DIR)/neural/mlx_embed.m \
