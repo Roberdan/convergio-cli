@@ -919,6 +919,115 @@ void education_profile_free(EducationStudentProfile* profile) {
     free(profile);
 }
 
+EducationStudentProfile** education_profile_list(int* count) {
+    if (!g_edu_initialized || !count) return NULL;
+    *count = 0;
+
+    CONVERGIO_MUTEX_LOCK(&g_edu_db_mutex);
+
+    // First, count profiles
+    sqlite3_stmt* count_stmt;
+    int rc = sqlite3_prepare_v2(g_edu_db, "SELECT COUNT(*) FROM student_profiles", -1, &count_stmt, NULL);
+    if (rc != SQLITE_OK) {
+        CONVERGIO_MUTEX_UNLOCK(&g_edu_db_mutex);
+        return NULL;
+    }
+
+    int total = 0;
+    if (sqlite3_step(count_stmt) == SQLITE_ROW) {
+        total = sqlite3_column_int(count_stmt, 0);
+    }
+    sqlite3_finalize(count_stmt);
+
+    if (total == 0) {
+        CONVERGIO_MUTEX_UNLOCK(&g_edu_db_mutex);
+        return NULL;
+    }
+
+    // Allocate array
+    EducationStudentProfile** profiles = calloc(total, sizeof(EducationStudentProfile*));
+    if (!profiles) {
+        CONVERGIO_MUTEX_UNLOCK(&g_edu_db_mutex);
+        return NULL;
+    }
+
+    // Fetch all profiles
+    const char* sql =
+        "SELECT p.id, p.name, p.age, p.grade_level, p.curriculum_id, "
+        "p.parent_name, p.parent_email, p.preferred_language, p.learning_style, "
+        "p.is_active, p.created_at, p.updated_at, p.last_session_at "
+        "FROM student_profiles p ORDER BY p.name";
+
+    sqlite3_stmt* stmt;
+    rc = sqlite3_prepare_v2(g_edu_db, sql, -1, &stmt, NULL);
+    if (rc != SQLITE_OK) {
+        free(profiles);
+        CONVERGIO_MUTEX_UNLOCK(&g_edu_db_mutex);
+        return NULL;
+    }
+
+    int idx = 0;
+    while (sqlite3_step(stmt) == SQLITE_ROW && idx < total) {
+        EducationStudentProfile* p = calloc(1, sizeof(EducationStudentProfile));
+        if (!p) continue;
+
+        p->id = sqlite3_column_int64(stmt, 0);
+        p->name = safe_strdup((const char*)sqlite3_column_text(stmt, 1));
+        p->age = sqlite3_column_int(stmt, 2);
+        p->grade_level = sqlite3_column_int(stmt, 3);
+        p->curriculum_id = safe_strdup((const char*)sqlite3_column_text(stmt, 4));
+        p->parent_name = safe_strdup((const char*)sqlite3_column_text(stmt, 5));
+        p->parent_email = safe_strdup((const char*)sqlite3_column_text(stmt, 6));
+        p->preferred_language = safe_strdup((const char*)sqlite3_column_text(stmt, 7));
+        p->study_method = safe_strdup((const char*)sqlite3_column_text(stmt, 8));
+        p->is_active = sqlite3_column_int(stmt, 9);
+        p->created_at = sqlite3_column_int64(stmt, 10);
+        p->updated_at = sqlite3_column_int64(stmt, 11);
+        p->last_session_at = sqlite3_column_int64(stmt, 12);
+
+        profiles[idx++] = p;
+    }
+    sqlite3_finalize(stmt);
+
+    *count = idx;
+    CONVERGIO_MUTEX_UNLOCK(&g_edu_db_mutex);
+    return profiles;
+}
+
+void education_profile_list_free(EducationStudentProfile** profiles, int count) {
+    if (!profiles) return;
+    for (int i = 0; i < count; i++) {
+        education_profile_free(profiles[i]);
+    }
+    free(profiles);
+}
+
+int education_profile_count(void) {
+    if (!g_edu_initialized) return 0;
+
+    CONVERGIO_MUTEX_LOCK(&g_edu_db_mutex);
+
+    sqlite3_stmt* stmt;
+    int rc = sqlite3_prepare_v2(g_edu_db, "SELECT COUNT(*) FROM student_profiles", -1, &stmt, NULL);
+    if (rc != SQLITE_OK) {
+        CONVERGIO_MUTEX_UNLOCK(&g_edu_db_mutex);
+        return 0;
+    }
+
+    int count = 0;
+    if (sqlite3_step(stmt) == SQLITE_ROW) {
+        count = sqlite3_column_int(stmt, 0);
+    }
+    sqlite3_finalize(stmt);
+
+    CONVERGIO_MUTEX_UNLOCK(&g_edu_db_mutex);
+    return count;
+}
+
+bool education_is_first_run(void) {
+    return education_profile_count() == 0;
+}
+
 // ============================================================================
 // ACCESSIBILITY MANAGEMENT (S16)
 // ============================================================================

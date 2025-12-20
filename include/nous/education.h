@@ -490,6 +490,18 @@ void education_profile_free(EducationStudentProfile* profile);
  */
 void education_profile_list_free(EducationStudentProfile** profiles, int count);
 
+/**
+ * @brief Get the number of student profiles
+ * @return Number of profiles (0 if none or error)
+ */
+int education_profile_count(void);
+
+/**
+ * @brief Check if this is the first run (no profiles exist)
+ * @return true if no profiles exist, false otherwise
+ */
+bool education_is_first_run(void);
+
 // ============================================================================
 // ACCESSIBILITY API
 // ============================================================================
