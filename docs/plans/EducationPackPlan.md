@@ -955,10 +955,10 @@ FASE 8 (Test) - 5 THREAD PARALLELI
 
 ## FASE 10 - VOICE INTERACTION (NEW - P0 CRITICAL) 🎙️
 
-> **ADR**: `docs/adr/ADR-002-voice-interaction-architecture.md`
+> **ADR**: `docs/adr/ADR-002-voice-interaction-architecture.md` (tech), `ADR-003-voice-cli-conversational-ux.md` (UX)
 > **Documentation**: `docs/voice/VOICE_SETUP.md`
-> **Vision**: Interazione vocale fluida come ChatGPT mobile con tutti i maestri
-> **Technology**: Azure OpenAI Realtime (primary) + OpenAI Realtime (fallback) + Hume EVI (emotion)
+> **Vision**: Conversazione naturale tipo ChatGPT Voice - sempre in ascolto, interruzioni naturali
+> **Technology**: Azure OpenAI Realtime (gpt-realtime GA) + libwebsockets + CoreAudio
 
 ### 10.0 Infrastructure (DONE 2025-12-20)
 
