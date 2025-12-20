@@ -630,8 +630,142 @@ check-docs:
 	@echo "Checking help documentation coverage..."
 	@./scripts/check_help_docs.sh
 
+# Workflow test targets
+WORKFLOW_TYPES_TEST = $(BIN_DIR)/workflow_types_test
+WORKFLOW_TYPES_SOURCES = tests/test_workflow_types.c $(TEST_STUBS)
+WORKFLOW_TYPES_OBJECTS = $(filter-out $(OBJ_DIR)/core/main.o,$(OBJECTS))
+
+workflow_types_test: dirs swift $(OBJECTS) $(MLX_STUBS_OBJ) $(WORKFLOW_TYPES_TEST)
+	@echo "Running workflow types tests..."
+	@$(WORKFLOW_TYPES_TEST)
+
+$(WORKFLOW_TYPES_TEST): $(WORKFLOW_TYPES_SOURCES) $(WORKFLOW_TYPES_OBJECTS) $(SWIFT_LIB) $(MLX_STUBS_OBJ)
+	@echo "Compiling workflow types tests..."
+	@if [ -s "$(SWIFT_LIB)" ]; then \
+		$(CC) $(CFLAGS) $(LDFLAGS) -o $(WORKFLOW_TYPES_TEST) $(WORKFLOW_TYPES_SOURCES) $(WORKFLOW_TYPES_OBJECTS) $(SWIFT_LIB) $(FRAMEWORKS) $(LIBS) $(SWIFT_RUNTIME_LIBS); \
+	else \
+		$(CC) $(CFLAGS) $(LDFLAGS) -o $(WORKFLOW_TYPES_TEST) $(WORKFLOW_TYPES_SOURCES) $(WORKFLOW_TYPES_OBJECTS) $(MLX_STUBS_OBJ) $(FRAMEWORKS) $(LIBS); \
+	fi
+
+WORKFLOW_ENGINE_TEST = $(BIN_DIR)/workflow_engine_test
+WORKFLOW_ENGINE_SOURCES = tests/test_workflow_engine.c $(TEST_STUBS)
+WORKFLOW_ENGINE_OBJECTS = $(filter-out $(OBJ_DIR)/core/main.o,$(OBJECTS))
+
+workflow_engine_test: dirs swift $(OBJECTS) $(MLX_STUBS_OBJ) $(WORKFLOW_ENGINE_TEST)
+	@echo "Running workflow engine tests..."
+	@$(WORKFLOW_ENGINE_TEST)
+
+$(WORKFLOW_ENGINE_TEST): $(WORKFLOW_ENGINE_SOURCES) $(WORKFLOW_ENGINE_OBJECTS) $(SWIFT_LIB) $(MLX_STUBS_OBJ)
+	@echo "Compiling workflow engine tests..."
+	@if [ -s "$(SWIFT_LIB)" ]; then \
+		$(CC) $(CFLAGS) $(LDFLAGS) -o $(WORKFLOW_ENGINE_TEST) $(WORKFLOW_ENGINE_SOURCES) $(WORKFLOW_ENGINE_OBJECTS) $(SWIFT_LIB) $(FRAMEWORKS) $(LIBS) $(SWIFT_RUNTIME_LIBS); \
+	else \
+		$(CC) $(CFLAGS) $(LDFLAGS) -o $(WORKFLOW_ENGINE_TEST) $(WORKFLOW_ENGINE_SOURCES) $(WORKFLOW_ENGINE_OBJECTS) $(MLX_STUBS_OBJ) $(FRAMEWORKS) $(LIBS); \
+	fi
+
+WORKFLOW_CHECKPOINT_TEST = $(BIN_DIR)/workflow_checkpoint_test
+WORKFLOW_CHECKPOINT_SOURCES = tests/test_workflow_checkpoint.c $(TEST_STUBS)
+WORKFLOW_CHECKPOINT_OBJECTS = $(filter-out $(OBJ_DIR)/core/main.o,$(OBJECTS))
+
+workflow_checkpoint_test: dirs swift $(OBJECTS) $(MLX_STUBS_OBJ) $(WORKFLOW_CHECKPOINT_TEST)
+	@echo "Running workflow checkpoint tests..."
+	@$(WORKFLOW_CHECKPOINT_TEST)
+
+$(WORKFLOW_CHECKPOINT_TEST): $(WORKFLOW_CHECKPOINT_SOURCES) $(WORKFLOW_CHECKPOINT_OBJECTS) $(SWIFT_LIB) $(MLX_STUBS_OBJ)
+	@echo "Compiling workflow checkpoint tests..."
+	@if [ -s "$(SWIFT_LIB)" ]; then \
+		$(CC) $(CFLAGS) $(LDFLAGS) -o $(WORKFLOW_CHECKPOINT_TEST) $(WORKFLOW_CHECKPOINT_SOURCES) $(WORKFLOW_CHECKPOINT_OBJECTS) $(SWIFT_LIB) $(FRAMEWORKS) $(LIBS) $(SWIFT_RUNTIME_LIBS); \
+	else \
+		$(CC) $(CFLAGS) $(LDFLAGS) -o $(WORKFLOW_CHECKPOINT_TEST) $(WORKFLOW_CHECKPOINT_SOURCES) $(WORKFLOW_CHECKPOINT_OBJECTS) $(MLX_STUBS_OBJ) $(FRAMEWORKS) $(LIBS); \
+	fi
+
+WORKFLOW_E2E_TEST = $(BIN_DIR)/workflow_e2e_test
+WORKFLOW_E2E_SOURCES = tests/test_workflow_e2e.c $(TEST_STUBS)
+WORKFLOW_E2E_OBJECTS = $(filter-out $(OBJ_DIR)/core/main.o,$(OBJECTS))
+
+workflow_e2e_test: dirs swift $(OBJECTS) $(MLX_STUBS_OBJ) $(WORKFLOW_E2E_TEST)
+	@echo "Running workflow E2E tests..."
+	@$(WORKFLOW_E2E_TEST)
+
+$(WORKFLOW_E2E_TEST): $(WORKFLOW_E2E_SOURCES) $(WORKFLOW_E2E_OBJECTS) $(SWIFT_LIB) $(MLX_STUBS_OBJ)
+	@echo "Compiling workflow E2E tests..."
+	@if [ -s "$(SWIFT_LIB)" ]; then \
+		$(CC) $(CFLAGS) $(LDFLAGS) -o $(WORKFLOW_E2E_TEST) $(WORKFLOW_E2E_SOURCES) $(WORKFLOW_E2E_OBJECTS) $(SWIFT_LIB) $(FRAMEWORKS) $(LIBS) $(SWIFT_RUNTIME_LIBS); \
+	else \
+		$(CC) $(CFLAGS) $(LDFLAGS) -o $(WORKFLOW_E2E_TEST) $(WORKFLOW_E2E_SOURCES) $(WORKFLOW_E2E_OBJECTS) $(MLX_STUBS_OBJ) $(FRAMEWORKS) $(LIBS); \
+	fi
+
+# Additional workflow test targets
+TASK_DECOMPOSER_TEST = $(BIN_DIR)/task_decomposer_test
+TASK_DECOMPOSER_SOURCES = tests/test_task_decomposer.c $(TEST_STUBS)
+TASK_DECOMPOSER_OBJECTS = $(filter-out $(OBJ_DIR)/core/main.o,$(OBJECTS))
+
+task_decomposer_test: dirs swift $(OBJECTS) $(MLX_STUBS_OBJ) $(TASK_DECOMPOSER_TEST)
+	@echo "Running task decomposer tests..."
+	@$(TASK_DECOMPOSER_TEST)
+
+$(TASK_DECOMPOSER_TEST): $(TASK_DECOMPOSER_SOURCES) $(TASK_DECOMPOSER_OBJECTS) $(SWIFT_LIB) $(MLX_STUBS_OBJ)
+	@echo "Compiling task decomposer tests..."
+	@if [ -s "$(SWIFT_LIB)" ]; then \
+		$(CC) $(CFLAGS) $(LDFLAGS) -o $(TASK_DECOMPOSER_TEST) $(TASK_DECOMPOSER_SOURCES) $(TASK_DECOMPOSER_OBJECTS) $(SWIFT_LIB) $(FRAMEWORKS) $(LIBS) $(SWIFT_RUNTIME_LIBS); \
+	else \
+		$(CC) $(CFLAGS) $(LDFLAGS) -o $(TASK_DECOMPOSER_TEST) $(TASK_DECOMPOSER_SOURCES) $(TASK_DECOMPOSER_OBJECTS) $(MLX_STUBS_OBJ) $(FRAMEWORKS) $(LIBS); \
+	fi
+
+GROUP_CHAT_TEST = $(BIN_DIR)/group_chat_test
+GROUP_CHAT_SOURCES = tests/test_group_chat.c $(TEST_STUBS)
+GROUP_CHAT_OBJECTS = $(filter-out $(OBJ_DIR)/core/main.o,$(OBJECTS))
+
+group_chat_test: dirs swift $(OBJECTS) $(MLX_STUBS_OBJ) $(GROUP_CHAT_TEST)
+	@echo "Running group chat tests..."
+	@$(GROUP_CHAT_TEST)
+
+$(GROUP_CHAT_TEST): $(GROUP_CHAT_SOURCES) $(GROUP_CHAT_OBJECTS) $(SWIFT_LIB) $(MLX_STUBS_OBJ)
+	@echo "Compiling group chat tests..."
+	@if [ -s "$(SWIFT_LIB)" ]; then \
+		$(CC) $(CFLAGS) $(LDFLAGS) -o $(GROUP_CHAT_TEST) $(GROUP_CHAT_SOURCES) $(GROUP_CHAT_OBJECTS) $(SWIFT_LIB) $(FRAMEWORKS) $(LIBS) $(SWIFT_RUNTIME_LIBS); \
+	else \
+		$(CC) $(CFLAGS) $(LDFLAGS) -o $(GROUP_CHAT_TEST) $(GROUP_CHAT_SOURCES) $(GROUP_CHAT_OBJECTS) $(MLX_STUBS_OBJ) $(FRAMEWORKS) $(LIBS); \
+	fi
+
+ROUTER_TEST = $(BIN_DIR)/router_test
+ROUTER_SOURCES = tests/test_router.c $(TEST_STUBS)
+ROUTER_OBJECTS = $(filter-out $(OBJ_DIR)/core/main.o,$(OBJECTS))
+
+router_test: dirs swift $(OBJECTS) $(MLX_STUBS_OBJ) $(ROUTER_TEST)
+	@echo "Running router tests..."
+	@$(ROUTER_TEST)
+
+$(ROUTER_TEST): $(ROUTER_SOURCES) $(ROUTER_OBJECTS) $(SWIFT_LIB) $(MLX_STUBS_OBJ)
+	@echo "Compiling router tests..."
+	@if [ -s "$(SWIFT_LIB)" ]; then \
+		$(CC) $(CFLAGS) $(LDFLAGS) -o $(ROUTER_TEST) $(ROUTER_SOURCES) $(ROUTER_OBJECTS) $(SWIFT_LIB) $(FRAMEWORKS) $(LIBS) $(SWIFT_RUNTIME_LIBS); \
+	else \
+		$(CC) $(CFLAGS) $(LDFLAGS) -o $(ROUTER_TEST) $(ROUTER_SOURCES) $(ROUTER_OBJECTS) $(MLX_STUBS_OBJ) $(FRAMEWORKS) $(LIBS); \
+	fi
+
+PATTERNS_TEST = $(BIN_DIR)/patterns_test
+PATTERNS_SOURCES = tests/test_patterns.c $(TEST_STUBS)
+PATTERNS_OBJECTS = $(filter-out $(OBJ_DIR)/core/main.o,$(OBJECTS))
+
+patterns_test: dirs swift $(OBJECTS) $(MLX_STUBS_OBJ) $(PATTERNS_TEST)
+	@echo "Running patterns tests..."
+	@$(PATTERNS_TEST)
+
+$(PATTERNS_TEST): $(PATTERNS_SOURCES) $(PATTERNS_OBJECTS) $(SWIFT_LIB) $(MLX_STUBS_OBJ)
+	@echo "Compiling patterns tests..."
+	@if [ -s "$(SWIFT_LIB)" ]; then \
+		$(CC) $(CFLAGS) $(LDFLAGS) -o $(PATTERNS_TEST) $(PATTERNS_SOURCES) $(PATTERNS_OBJECTS) $(SWIFT_LIB) $(FRAMEWORKS) $(LIBS) $(SWIFT_RUNTIME_LIBS); \
+	else \
+		$(CC) $(CFLAGS) $(LDFLAGS) -o $(PATTERNS_TEST) $(PATTERNS_SOURCES) $(PATTERNS_OBJECTS) $(MLX_STUBS_OBJ) $(FRAMEWORKS) $(LIBS); \
+	fi
+
+# Run all workflow tests
+workflow_test: workflow_types_test workflow_engine_test workflow_checkpoint_test workflow_e2e_test task_decomposer_test group_chat_test router_test patterns_test
+	@echo "All workflow tests completed!"
+
 # Run all tests
-test: fuzz_test unit_test anna_test compaction_test plan_db_test output_service_test tools_test websearch_test check-docs
+test: fuzz_test unit_test anna_test compaction_test plan_db_test output_service_test tools_test websearch_test workflow_test check-docs
 	@echo "All tests completed!"
 
 # Coverage target - builds with coverage and runs tests
