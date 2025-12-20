@@ -203,6 +203,49 @@ Pre-built workflow templates are available in `src/workflow/templates/`:
 
 - **code-review.json** - Multi-agent code review
 - **product-launch.json** - Product launch planning
+- **class-council.json** - Consiglio di classe (Ali coordina insegnanti per valutare uno studente)
+
+---
+
+## Real-World Use Case: Consiglio di Classe
+
+### Scenario
+
+Ali (preside/orchestrator) coordina un consiglio di classe dove vari insegnanti valutano uno studente.
+
+### Workflow Steps
+
+1. **Valutazioni Parallele**: Tutti gli insegnanti valutano lo studente nelle loro materie in parallelo
+   - Insegnante Matematica: voto e commenti
+   - Insegnante Italiano: voto e commenti
+   - Insegnante Inglese: voto e commenti
+   - Insegnante Scienze: voto e commenti
+
+2. **Raccolta Valutazioni**: Calcolo della media dei voti e identificazione di problemi critici
+
+3. **Discussione Insegnanti**: Ali coordina una discussione tra gli insegnanti per raggiungere un consenso
+
+4. **Decisione Finale**: Routing condizionale basato su:
+   - **Esito Positivo** (media >= 7): Comunicazione positiva ai genitori
+   - **Richiede Miglioramento** (5 <= media < 7): Piano di miglioramento
+   - **Situazione Critica** (media < 5): Piano di intervento urgente
+
+5. **Conclusione**: Preparazione del verbale del consiglio di classe
+
+### Example Usage
+
+```bash
+# Eseguire il workflow del consiglio di classe
+/workflow execute class-council "Valuta lo studente Mario Rossi, classe 3A, primo quadrimestre 2024-2025"
+```
+
+### Features Demonstrated
+
+- ✅ **Parallel Execution**: Valutazioni simultanee di tutti gli insegnanti
+- ✅ **Group Chat**: Discussione coordinata tra insegnanti
+- ✅ **Consensus Building**: Raggiungimento di un accordo sulla situazione
+- ✅ **Conditional Routing**: Percorsi diversi basati sulla media dei voti
+- ✅ **Checkpointing**: Possibilità di salvare lo stato durante la discussione
 
 ---
 
