@@ -219,6 +219,85 @@ else
 fi
 
 echo ""
+echo -e "${BLUE}=== Test 7: Phase 9 - Lazy Load ===${NC}"
+
+# Test 7.1: Lazy load constants defined in acp.h
+log_test "Lazy load constant ACP_LAZY_LOAD_INITIAL defined"
+if grep -q 'ACP_LAZY_LOAD_INITIAL' include/nous/acp.h; then
+    pass
+else
+    fail "ACP_LAZY_LOAD_INITIAL not found in acp.h"
+fi
+
+# Test 7.2: session/loadMore handler exists
+log_test "session/loadMore handler implemented"
+if grep -q 'session/loadMore\|acp_handle_session_load_more' src/acp/acp_server.c; then
+    pass
+else
+    fail "session/loadMore handler not found"
+fi
+
+# Test 7.3: Lazy load fields in session history
+log_test "hasMore/totalCount fields in session history"
+if grep -q 'hasMore\|has_more\|totalCount\|total_count' src/acp/acp_server.c; then
+    pass
+else
+    fail "Lazy load fields not in session history"
+fi
+
+echo ""
+echo -e "${BLUE}=== Test 8: Phase 10 - Background Execution ===${NC}"
+
+# Test 8.1: Background buffer defined in acp.h
+log_test "Background buffer fields in ACPSession"
+if grep -q 'is_background\|background_buffer' include/nous/acp.h; then
+    pass
+else
+    fail "Background buffer fields not in acp.h"
+fi
+
+# Test 8.2: session/background handler exists
+log_test "session/background handler implemented"
+if grep -q 'session/background\|acp_handle_session_background' src/acp/acp_server.c; then
+    pass
+else
+    fail "session/background handler not found"
+fi
+
+# Test 8.3: session/foreground handler exists
+log_test "session/foreground handler implemented"
+if grep -q 'session/foreground\|acp_handle_session_foreground' src/acp/acp_server.c; then
+    pass
+else
+    fail "session/foreground handler not found"
+fi
+
+# Test 8.4: backgroundComplete notification
+log_test "session/backgroundComplete notification"
+if grep -q 'backgroundComplete\|background_complete' src/acp/acp_server.c; then
+    pass
+else
+    fail "backgroundComplete notification not found"
+fi
+
+# Test 8.5: Processing agents tracking in Convergio Panel
+log_test "processing_agents field in Convergio Panel"
+if grep -q 'processing_agents' "$CONVERGIO_PANEL"; then
+    pass
+else
+    fail "processing_agents not found in panel"
+fi
+
+# Test 8.6: AgentSessionBackground trait in Zed
+log_test "AgentSessionBackground trait in connection.rs"
+ZED_CONNECTION="/Users/roberdan/GitHub/convergio-zed/crates/acp_thread/src/connection.rs"
+if [ -f "$ZED_CONNECTION" ] && grep -q 'AgentSessionBackground' "$ZED_CONNECTION"; then
+    pass
+else
+    fail "AgentSessionBackground trait not found"
+fi
+
+echo ""
 echo "════════════════════════════════════════════════════════════"
 echo -e "  Results: ${GREEN}$PASSED passed${NC}, ${RED}$FAILED failed${NC} out of $TOTAL tests"
 echo "════════════════════════════════════════════════════════════"
