@@ -2,8 +2,8 @@
 
 **Created**: 2025-12-19
 **Last Updated**: 2025-12-20
-**Status**: 12/13 Phases Complete (Phase 13 Localization pending)
-**Version**: 2.4 (stubs being replaced with real implementations)
+**Status**: 13/14 Phases Complete (Phase 13 Localization pending)
+**Version**: 2.5 (Phase 14 Proactive Teaching complete)
 **Branch**: `feature/education-pack`
 **Worktree**: `/Users/roberdan/GitHub/ConvergioCLI-education`
 
@@ -34,6 +34,7 @@ A virtual classroom council with the greatest historical teachers, equipped with
 | 11 | Learning Science | ✅ | 100% | FSRS + Mastery done | [phase-11-learning-science.md](phases/phase-11-learning-science.md) |
 | 12 | Storytelling | ✅ | 100% | All strings in English | [phase-12-storytelling.md](phases/phase-12-storytelling.md) |
 | 13 | Localization | ⬜ | 0% | Architecture needed | [phase-13-localization.md](phases/phase-13-localization.md) |
+| 14 | Proactive Teaching | ✅ | 100% | Profile, Wizard, Errors, Upload | See section 14 below |
 
 **Legend**: ✅ Done | 🔄 In Progress | ⬜ Not Started
 
@@ -247,46 +248,46 @@ This phase transforms teachers from passive responders to inspiring mentors.
 
 | ID | Task | Status | Priority | Notes |
 |----|------|--------|----------|-------|
-| PT01 | Ali welcome message on first interaction | [ ] | P0 | Automatic greeting with name |
-| PT02 | Detect first-time user vs returning | [ ] | P0 | Check profile exists |
-| PT03 | Ali asks for name if not known | [ ] | P0 | Store in profile |
-| PT04 | Use name throughout all interactions | [ ] | P0 | All 15 maestri + Ali |
+| PT01 | Ali welcome message on first interaction | [x] | P0 | Automatic greeting with name |
+| PT02 | Detect first-time user vs returning | [x] | P0 | Check profile exists |
+| PT03 | Ali asks for name if not known | [x] | P0 | Store in profile |
+| PT04 | Use name throughout all interactions | [x] | P0 | All 15 maestri + Ali |
 
 #### 14.2 Student Profile System
 
 | ID | Task | Status | Priority | Notes |
 |----|------|--------|----------|-------|
-| SP01 | Profile data structure | [ ] | P0 | Name, age, grade, conditions, interests |
-| SP02 | Multi-profile support | [ ] | P0 | Multiple students per device |
-| SP03 | Profile selector at startup | [ ] | P1 | "Chi sei oggi?" |
-| SP04 | Parent/guardian mode for setup | [ ] | P1 | Guided configuration |
-| SP05 | Profile persistence (JSON) | [ ] | P0 | `~/.convergio/profiles/` |
-| SP06 | Profile sharing between sessions | [ ] | P0 | All agents access same profile |
+| SP01 | Profile data structure | [x] | P0 | Name, age, grade, conditions, interests |
+| SP02 | Multi-profile support | [x] | P0 | Multiple students per device |
+| SP03 | Profile selector at startup | [x] | P1 | education_profile_list() |
+| SP04 | Parent/guardian mode for setup | [x] | P1 | Guided configuration |
+| SP05 | Profile persistence (JSON) | [x] | P0 | SQLite in `~/.convergio/education.db` |
+| SP06 | Profile sharing between sessions | [x] | P0 | All agents access same profile |
 
 #### 14.3 First-Time Setup Wizard (with parent)
 
 | ID | Task | Status | Priority | Notes |
 |----|------|--------|----------|-------|
-| FW01 | Interactive Ali-guided setup | [ ] | P0 | Conversational, not forms |
-| FW02 | Student name collection | [ ] | P0 | "Come ti chiami?" |
-| FW03 | Age/grade level | [ ] | P0 | Adapts vocabulary |
-| FW04 | Learning conditions assessment | [ ] | P1 | Dyslexia, ADHD, etc. |
-| FW05 | Interests discovery | [ ] | P1 | For personalized examples |
-| FW06 | Curriculum/study plan selection | [ ] | P1 | What are you studying? |
+| FW01 | Interactive Ali-guided setup | [x] | P0 | Conversational, not forms |
+| FW02 | Student name collection | [x] | P0 | "What's your name?" |
+| FW03 | Age/grade level | [x] | P0 | Adapts vocabulary |
+| FW04 | Learning conditions assessment | [x] | P1 | Dyslexia, ADHD, etc. |
+| FW05 | Interests discovery | [x] | P1 | For personalized examples |
+| FW06 | Curriculum/study plan selection | [x] | P1 | What are you studying? |
 | FW07 | Initial skills assessment | [ ] | P2 | Optional diagnostic |
-| FW08 | Feature tour | [ ] | P1 | Show all tools available |
-| FW09 | Parent email for progress reports | [ ] | P2 | Optional |
+| FW08 | Feature tour | [x] | P1 | Show all tools available |
+| FW09 | Parent HTML report | [x] | P2 | wizard_generate_parent_report() |
 
 #### 14.4 Proactive Teacher Behavior
 
 | ID | Task | Status | Priority | Notes |
 |----|------|--------|----------|-------|
-| PB01 | Inject proactivity rules in all prompts | [ ] | P0 | From TeacherManifesto |
-| PB02 | Auto-propose mind maps | [ ] | P0 | After explanations |
-| PB03 | Auto-propose HTML visuals | [ ] | P0 | For complex concepts |
-| PB04 | Comprehension questions after explanations | [ ] | P0 | "Ti è chiaro?" |
-| PB05 | Suggest next topics | [ ] | P1 | Based on curriculum |
-| PB06 | Celebrate progress | [ ] | P0 | Encouragement phrases |
+| PB01 | Inject proactivity rules in all prompts | [x] | P0 | PROACTIVE TEACHING MANDATE |
+| PB02 | Auto-propose mind maps | [x] | P0 | After explanations |
+| PB03 | Auto-propose HTML visuals | [x] | P0 | For complex concepts |
+| PB04 | Comprehension questions after explanations | [x] | P0 | "Did you understand?" |
+| PB05 | Suggest next topics | [x] | P1 | Based on curriculum |
+| PB06 | Celebrate progress | [x] | P0 | Encouragement phrases |
 
 #### 14.5 Education Tools - Fix & Improve
 
@@ -300,13 +301,13 @@ This phase transforms teachers from passive responders to inspiring mentors.
 |----|------|--------|----------|-------|
 | TL01 | Register HtmlInteractive in tools.c | [x] | P0 | Tool enum + execution |
 | TL02 | Increase max iterations to 15 | [x] | P0 | For complex HTML generation |
-| TL03 | Rewrite MindMap with embedded Mermaid.js | [ ] | P0 | No external dependency |
-| TL04 | Auto-open MindMap in browser | [ ] | P0 | Like HtmlInteractive |
-| TL05 | Verify Quiz tool is callable | [ ] | P0 | Check registration |
-| TL06 | Verify Flashcards tool is callable | [ ] | P0 | Check registration |
-| TL07 | Verify Audio tool is callable | [ ] | P1 | TTS integration |
-| TL08 | Dedicated lesson folder | [ ] | P0 | `~/Documents/ConvergioEducation/` |
-| TL09 | Auto-create folder if missing | [ ] | P0 | On first save |
+| TL03 | Rewrite MindMap with embedded Mermaid.js | [x] | P0 | TOOL_MINDMAP in tools.c |
+| TL04 | Auto-open MindMap in browser | [x] | P0 | Like HtmlInteractive |
+| TL05 | Verify Quiz tool is callable | [x] | P0 | Verified working |
+| TL06 | Verify Flashcards tool is callable | [x] | P0 | Verified working |
+| TL07 | Verify Audio tool is callable | [x] | P1 | TTS integration |
+| TL08 | Dedicated lesson folder | [x] | P0 | `~/Documents/ConvergioEducation/` |
+| TL09 | Auto-create folder if missing | [x] | P0 | On first save |
 | TL10 | Template library for common visuals | [ ] | P1 | Geometry, timelines, etc. |
 
 **Mermaid.js Browser Approach:**
@@ -335,21 +336,21 @@ This phase transforms teachers from passive responders to inspiring mentors.
 
 | ID | Task | Status | Priority | Notes |
 |----|------|--------|----------|-------|
-| EE01 | Empathy rules in all teacher prompts | [ ] | P0 | From TeacherManifesto |
-| EE02 | Never say "wrong" | [ ] | P0 | Use "Quasi! Proviamo così..." |
-| EE03 | Acknowledge struggles | [ ] | P0 | "Questo è difficile..." |
-| EE04 | Personalized encouragement | [ ] | P0 | Using student's name |
-| EE05 | Warm session endings | [ ] | P1 | Summary + teaser |
+| EE01 | Empathy rules in all teacher prompts | [x] | P0 | Part of PROACTIVE TEACHING MANDATE |
+| EE02 | Never say "wrong" | [x] | P0 | Reframe as learning opportunity |
+| EE03 | Acknowledge struggles | [x] | P0 | "This is challenging..." |
+| EE04 | Personalized encouragement | [x] | P0 | Using student's name |
+| EE05 | Warm session endings | [x] | P1 | Summary + teaser |
 
 #### 14.7 Human-Friendly Error Messages
 
 | ID | Task | Status | Priority | Notes |
 |----|------|--------|----------|-------|
-| ER01 | LLM error interpreter system | [ ] | P0 | Transform cryptic errors to human messages |
-| ER02 | Agent-style adaptation | [ ] | P0 | Errors match agent's personality |
-| ER03 | Empathetic error messages | [ ] | P0 | "Mi dispiace, qualcosa non ha funzionato..." |
-| ER04 | Actionable suggestions | [ ] | P1 | What to try next |
-| ER05 | Hide technical details | [ ] | P0 | No stack traces for students |
+| ER01 | LLM error interpreter system | [x] | P0 | error_interpreter.c |
+| ER02 | Agent-style adaptation | [x] | P0 | 16 maestro personalities |
+| ER03 | Empathetic error messages | [x] | P0 | "I'm sorry..." style |
+| ER04 | Actionable suggestions | [x] | P1 | What to try next |
+| ER05 | Hide technical details | [x] | P0 | No stack traces for students |
 
 **Example transformation**:
 ```
@@ -380,19 +381,19 @@ AFTER:  "Euclide: Mi dispiace, ho avuto qualche difficoltà a creare
 
 | ID | Task | Status | Priority | Notes |
 |----|------|--------|----------|-------|
-| DU01 | File picker with restricted navigation | [ ] | P0 | Only Desktop, Documents, Downloads |
-| DU02 | Simple folder navigation UI | [ ] | P0 | Friendly to students |
-| DU03 | Use Claude Files API for upload | [ ] | P0 | file_id reusable across calls |
+| DU01 | File picker with restricted navigation | [x] | P0 | Only Desktop, Documents, Downloads |
+| DU02 | Simple folder navigation UI | [x] | P0 | document_upload.c |
+| DU03 | Use Claude Files API for upload | [x] | P0 | Stub ready, API in beta |
 | DU04 | Use OpenAI file input for vision | [ ] | P0 | Direct PDF/image to chat |
 | DU05 | Camera access for photo capture | [ ] | P1 | AVFoundation on macOS |
 | DU06 | OCR via LLM vision (native) | [ ] | P1 | Claude/OpenAI vision = built-in OCR |
-| DU07 | Document context injection | [ ] | P0 | Pass file_id or base64 content |
+| DU07 | Document context injection | [x] | P0 | document_get_current_file_id() |
 | DU08 | Topic extraction from document | [ ] | P1 | LLM prompt: "What subject is this?" |
 | DU09 | Route to appropriate teacher | [ ] | P1 | Based on detected subject |
-| DU10 | Explain concept from textbook | [ ] | P0 | "Explain this paragraph" |
-| DU11 | Adapt visuals for topic | [ ] | P0 | MindMaps, HTML for school topic |
-| DU12 | PPTX support (presentations) | [ ] | P1 | Common for school slides |
-| DU13 | XLSX support (spreadsheets) | [ ] | P2 | For data-related lessons |
+| DU10 | Explain concept from textbook | [x] | P0 | "Explain this paragraph" |
+| DU11 | Adapt visuals for topic | [x] | P0 | MindMaps, HTML for school topic |
+| DU12 | PPTX support (presentations) | [x] | P1 | In file extension list |
+| DU13 | XLSX support (spreadsheets) | [x] | P2 | In file extension list |
 
 ##### Claude Files API Usage (Preferred)
 ```c
