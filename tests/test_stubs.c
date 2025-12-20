@@ -18,7 +18,7 @@ void* g_assistant = NULL;
 bool g_streaming_enabled = false;
 
 // Logging stubs (normally defined in main.c)
-static LogLevel g_log_level = LOG_LEVEL_INFO;
+LogLevel g_log_level = LOG_LEVEL_INFO;
 
 void nous_log(LogLevel level, LogCategory cat, const char* fmt, ...) {
     (void)level;
