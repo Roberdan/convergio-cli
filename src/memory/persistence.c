@@ -11,6 +11,7 @@
 #include "nous/orchestrator.h"
 #include "nous/config.h"
 #include "nous/nous.h"
+#include "nous/tools.h"
 #include <sqlite3.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -338,6 +339,13 @@ int persistence_init(const char* db_path) {
 
     // Use provided path, or get from config, or fallback to default
     const char* path = db_path ? db_path : get_db_path();
+
+    // Security: Verify database path is safe (prevent path traversal attacks)
+    if (!tools_is_path_safe(path)) {
+        LOG_ERROR(LOG_CAT_MEMORY, "Database path not allowed for security reasons: %s", path);
+        CONVERGIO_MUTEX_UNLOCK(&g_db_mutex);
+        return -1;
+    }
 
     // Ensure the directory exists before opening
     ensure_db_directory(path);

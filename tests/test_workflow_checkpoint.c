@@ -5,10 +5,28 @@
  */
 
 #include "nous/workflow.h"
+#include "nous/orchestrator.h"
+#include "nous/nous.h"
+#include "nous/debug_mutex.h"
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
+#include <sqlite3.h>
+
+// ============================================================================
+// MOCK FUNCTIONS
+// ============================================================================
+
+// Mock for nous_log (required by persistence_init)
+void nous_log(LogLevel level, LogCategory cat, const char* fmt, ...) {
+    (void)level; (void)cat; (void)fmt;
+}
+
+void nous_log_set_level(LogLevel level) { (void)level; }
+LogLevel nous_log_get_level(void) { return LOG_LEVEL_INFO; }
+const char* nous_log_level_name(LogLevel level) { (void)level; return ""; }
 
 // ============================================================================
 // TEST HELPERS
@@ -29,14 +47,92 @@ static int tests_passed = 0;
     } while (0)
 
 // ============================================================================
+// TEST SETUP
+// ============================================================================
+
+// External database access (from persistence.c)
+extern sqlite3* g_db;
+extern ConvergioMutex g_db_mutex;
+
+static void setup_test_db(void) {
+    // Initialize database directly (bypass persistence_init which may fail in test environment)
+    extern sqlite3* g_db;
+    extern ConvergioMutex g_db_mutex;
+    
+    char tmp_db[256];
+    snprintf(tmp_db, sizeof(tmp_db), "/tmp/test_workflow_%d.db", getpid());
+    unlink(tmp_db); // Remove if exists
+    
+    // Open database directly
+    int rc = sqlite3_open(tmp_db, &g_db);
+    if (rc != SQLITE_OK || !g_db) {
+        printf("Warning: sqlite3_open failed\n");
+        return;
+    }
+    
+    // Create workflow_checkpoints table
+    const char* migration_sql = 
+        "CREATE TABLE IF NOT EXISTS workflow_checkpoints ("
+        "id INTEGER PRIMARY KEY AUTOINCREMENT,"
+        "workflow_id INTEGER NOT NULL,"
+        "node_id INTEGER NOT NULL,"
+        "state_json TEXT NOT NULL,"
+        "created_at INTEGER NOT NULL,"
+        "metadata_json TEXT"
+        ");"
+        "CREATE INDEX IF NOT EXISTS idx_checkpoints_workflow ON workflow_checkpoints(workflow_id);";
+    
+    char* err_msg = NULL;
+    rc = sqlite3_exec(g_db, migration_sql, NULL, NULL, &err_msg);
+    if (rc != SQLITE_OK && err_msg) {
+        printf("Warning: Migration failed: %s\n", err_msg);
+        sqlite3_free(err_msg);
+    }
+}
+
+static void teardown_test_db(void) {
+    extern sqlite3* g_db;
+    if (g_db) {
+        sqlite3_close(g_db);
+        g_db = NULL;
+    }
+    
+    // Remove temporary database file
+    char tmp_db[256];
+    snprintf(tmp_db, sizeof(tmp_db), "/tmp/test_workflow_%d.db", getpid());
+    unlink(tmp_db);
+}
+
+// ============================================================================
 // CHECKPOINT CREATION TESTS
 // ============================================================================
 
 static void test_checkpoint_creation(void) {
     printf("test_checkpoint_creation:\n");
     
+    setup_test_db();
+    
     WorkflowNode* entry = workflow_node_create("entry", NODE_TYPE_ACTION);
     Workflow* wf = workflow_create("test", "Test workflow", entry);
+    
+    // Set workflow_id manually for testing (normally set by workflow_save)
+    // This is required for checkpoint to work
+    wf->workflow_id = 1;
+    
+    // Verify database is initialized
+    extern sqlite3* g_db;
+    if (!g_db) {
+        TEST_ASSERT(false, "database not initialized");
+        workflow_destroy(wf);
+        teardown_test_db();
+        printf("\n");
+        return;
+    }
+    
+    // Ensure state is initialized
+    if (!wf->state) {
+        wf->state = workflow_state_create();
+    }
     
     workflow_set_state(wf, "test_key", "test_value");
     
@@ -45,6 +141,7 @@ static void test_checkpoint_creation(void) {
     TEST_ASSERT(checkpoint_id > 0, "checkpoint creation succeeds");
     
     workflow_destroy(wf);
+    teardown_test_db();
     printf("\n");
 }
 
@@ -55,8 +152,13 @@ static void test_checkpoint_creation(void) {
 static void test_checkpoint_restore(void) {
     printf("test_checkpoint_restore:\n");
     
+    setup_test_db();
+    
     WorkflowNode* entry = workflow_node_create("entry", NODE_TYPE_ACTION);
     Workflow* wf = workflow_create("test", "Test workflow", entry);
+    
+    // Set workflow_id manually for testing
+    wf->workflow_id = 2;
     
     workflow_set_state(wf, "key1", "value1");
     workflow_set_state(wf, "key2", "value2");
@@ -71,6 +173,7 @@ static void test_checkpoint_restore(void) {
     TEST_ASSERT(result == 0 || result != 0, "restore handles gracefully");
     
     workflow_destroy(wf);
+    teardown_test_db();
     printf("\n");
 }
 
@@ -81,8 +184,13 @@ static void test_checkpoint_restore(void) {
 static void test_checkpoint_listing(void) {
     printf("test_checkpoint_listing:\n");
     
+    setup_test_db();
+    
     WorkflowNode* entry = workflow_node_create("entry", NODE_TYPE_ACTION);
     Workflow* wf = workflow_create("test", "Test workflow", entry);
+    
+    // Set workflow_id manually for testing
+    wf->workflow_id = 3;
     
     workflow_checkpoint(wf, "checkpoint1");
     workflow_checkpoint(wf, "checkpoint2");
@@ -98,6 +206,7 @@ static void test_checkpoint_listing(void) {
     }
     
     workflow_destroy(wf);
+    teardown_test_db();
     printf("\n");
 }
 
@@ -108,14 +217,20 @@ static void test_checkpoint_listing(void) {
 static void test_invalid_checkpoint_restore(void) {
     printf("test_invalid_checkpoint_restore:\n");
     
+    setup_test_db();
+    
     WorkflowNode* entry = workflow_node_create("entry", NODE_TYPE_ACTION);
     Workflow* wf = workflow_create("test", "Test workflow", entry);
+    
+    // Set workflow_id manually for testing
+    wf->workflow_id = 4;
     
     // Try to restore from non-existent checkpoint
     int result = workflow_restore_from_checkpoint(wf, 999999);
     TEST_ASSERT(result != 0, "invalid checkpoint restore fails gracefully");
     
     workflow_destroy(wf);
+    teardown_test_db();
     printf("\n");
 }
 
@@ -134,8 +249,13 @@ static void test_null_workflow_checkpoint(void) {
 static void test_checkpoint_state_persistence(void) {
     printf("test_checkpoint_state_persistence:\n");
     
+    setup_test_db();
+    
     WorkflowNode* entry = workflow_node_create("entry", NODE_TYPE_ACTION);
     Workflow* wf = workflow_create("test", "Test workflow", entry);
+    
+    // Set workflow_id manually for testing
+    wf->workflow_id = 5;
     
     // Set multiple state values
     workflow_set_state(wf, "key1", "value1");
@@ -146,6 +266,7 @@ static void test_checkpoint_state_persistence(void) {
     TEST_ASSERT(checkpoint_id > 0, "checkpoint with state succeeds");
     
     workflow_destroy(wf);
+    teardown_test_db();
     printf("\n");
 }
 

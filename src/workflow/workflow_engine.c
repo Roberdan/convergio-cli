@@ -402,9 +402,7 @@ int workflow_execute(Workflow* wf, const char* input, char** output) {
                 free(node_output);
                 node_output = NULL;
             }
-            if (sanitized_input) {
-                free(sanitized_input);
-            }
+            // Input is already validated by workflow_validate_name/validate_key
             
             // Telemetry: Record workflow end (failure)
             workflow_telemetry_end(wf, false);

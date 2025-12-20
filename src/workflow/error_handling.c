@@ -20,37 +20,10 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
-// Helper function for string duplication (if not in workflow_types.c)
-static char* workflow_strdup(const char* str) {
-    if (!str) {
-        return NULL;
-    }
-    size_t len = strlen(str);
-    char* dup = malloc(len + 1);
-    if (dup) {
-        memcpy(dup, str, len + 1);
-    }
-    return dup;
-}
+// workflow_strdup is defined in workflow_types.c
+extern char* workflow_strdup(const char* str);
 
-// ============================================================================
-// ERROR TYPES
-// ============================================================================
-
-typedef enum {
-    WORKFLOW_ERROR_NONE = 0,
-    WORKFLOW_ERROR_TIMEOUT,
-    WORKFLOW_ERROR_NETWORK,
-    WORKFLOW_ERROR_FILE_IO,
-    WORKFLOW_ERROR_CREDIT_EXHAUSTED,
-    WORKFLOW_ERROR_LLM_DOWN,
-    WORKFLOW_ERROR_TOOL_FAILED,
-    WORKFLOW_ERROR_AGENT_NOT_FOUND,
-    WORKFLOW_ERROR_PROVIDER_UNAVAILABLE,
-    WORKFLOW_ERROR_AUTHENTICATION,
-    WORKFLOW_ERROR_RATE_LIMIT,
-    WORKFLOW_ERROR_UNKNOWN
-} WorkflowErrorType;
+// WorkflowErrorType is defined in workflow.h
 
 // ============================================================================
 // TIMEOUT HANDLING
