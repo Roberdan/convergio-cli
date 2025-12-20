@@ -295,13 +295,15 @@ Tutti i workflow possono essere personalizzati:
 
 4. **Zero Tolerance Check**: Se QUALSIASI problema trovato → BLOCCA RELEASE
 
-5. **Parallel Test Execution** (6 test suites simultanei):
-   - **Unit Tests**: ZERO TOLERANZA per test falliti, coverage >= 80%
-   - **Integration Tests**: ZERO TOLERANZA per test falliti
-   - **E2E Tests**: ZERO TOLERANZA per test falliti
-   - **Fuzz Tests**: ZERO TOLERANZA per crashes o memory leaks
-   - **Sanitizer Tests** (ASan, UBSan, TSan): ZERO TOLERANZA per memory leaks, undefined behavior, data races
+5. **Parallel Test Execution** (7 test suites simultanei):
+   - **Unit Tests (C)**: `make unit_test` - ZERO TOLERANZA per test falliti, coverage >= 80%
+   - **Integration Tests (C)**: `make test` - Include tutti i test C (fuzz, anna, compaction, plan_db, output_service, tools, websearch, workflow)
+   - **E2E Tests (Script Shell)**: `./tests/e2e_test.sh` - Test CLI completo con API reali
+   - **ACP E2E Tests**: `./tests/test_acp_e2e.sh` - Test ACP protocol per Zed integration
+   - **Fuzz Tests (C)**: `make fuzz_test` - ZERO TOLERANZA per crashes o memory leaks
+   - **Sanitizer Tests**: `make DEBUG=1 SANITIZE=address,undefined,thread test` - ZERO TOLERANZA per memory leaks, undefined behavior, data races
    - **Performance Tests**: ZERO TOLERANZA per regressioni significative
+   - **All Make Tests**: `make test` - Esegue tutti i test C in un unico comando
 
 6. **Test Validation**: Verifica che TUTTI i test siano passati
 
@@ -324,10 +326,11 @@ Tutti i workflow possono essere personalizzati:
 - ✅ TUTTI i test devono passare
 
 **Features**:
-- ✅ Parallel execution (12 checks/test simultanei)
+- ✅ Parallel execution (13 checks/test simultanei: 6 quality + 7 test)
 - ✅ Automatic issue aggregation
 - ✅ Zero tolerance policy (qualsiasi problema blocca release)
-- ✅ Comprehensive test coverage
+- ✅ Comprehensive test coverage (test C + script shell)
+- ✅ Supporto per test C (`make test`) e script shell (`e2e_test.sh`, `test_acp_e2e.sh`, etc.)
 - ✅ Technical debt detection
 - ✅ Automatic release notes generation
 
