@@ -830,8 +830,42 @@ $(SECURITY_TEST): $(SECURITY_SOURCES) $(SECURITY_OBJECTS) $(SWIFT_LIB) $(MLX_STU
 		$(CC) $(CFLAGS) $(LDFLAGS) -o $(SECURITY_TEST) $(SECURITY_SOURCES) $(SECURITY_OBJECTS) $(MLX_STUBS_OBJ) $(FRAMEWORKS) $(LIBS); \
 	fi
 
+# Workflow migration test
+WORKFLOW_MIGRATION_TEST = $(BIN_DIR)/workflow_migration_test
+WORKFLOW_MIGRATION_SOURCES = tests/test_workflow_migration.c $(TEST_STUBS)
+WORKFLOW_MIGRATION_OBJECTS = $(filter-out $(OBJ_DIR)/core/main.o,$(OBJECTS))
+
+workflow_migration_test: dirs swift $(OBJECTS) $(MLX_STUBS_OBJ) $(WORKFLOW_MIGRATION_TEST)
+	@echo "Running workflow migration tests..."
+	@$(WORKFLOW_MIGRATION_TEST)
+
+$(WORKFLOW_MIGRATION_TEST): $(WORKFLOW_MIGRATION_SOURCES) $(WORKFLOW_MIGRATION_OBJECTS) $(SWIFT_LIB) $(MLX_STUBS_OBJ)
+	@echo "Compiling workflow migration tests..."
+	@if [ -s "$(SWIFT_LIB)" ]; then \
+		$(CC) $(CFLAGS) $(LDFLAGS) -o $(WORKFLOW_MIGRATION_TEST) $(WORKFLOW_MIGRATION_SOURCES) $(WORKFLOW_MIGRATION_OBJECTS) $(SWIFT_LIB) $(FRAMEWORKS) $(LIBS) $(SWIFT_RUNTIME_LIBS); \
+	else \
+		$(CC) $(CFLAGS) $(LDFLAGS) -o $(WORKFLOW_MIGRATION_TEST) $(WORKFLOW_MIGRATION_SOURCES) $(WORKFLOW_MIGRATION_OBJECTS) $(MLX_STUBS_OBJ) $(FRAMEWORKS) $(LIBS); \
+	fi
+
+# Workflow integration test
+WORKFLOW_INTEGRATION_TEST = $(BIN_DIR)/workflow_integration_test
+WORKFLOW_INTEGRATION_SOURCES = tests/test_workflow_integration.c $(TEST_STUBS)
+WORKFLOW_INTEGRATION_OBJECTS = $(filter-out $(OBJ_DIR)/core/main.o,$(OBJECTS))
+
+workflow_integration_test: dirs swift $(OBJECTS) $(MLX_STUBS_OBJ) $(WORKFLOW_INTEGRATION_TEST)
+	@echo "Running workflow integration tests..."
+	@$(WORKFLOW_INTEGRATION_TEST)
+
+$(WORKFLOW_INTEGRATION_TEST): $(WORKFLOW_INTEGRATION_SOURCES) $(WORKFLOW_INTEGRATION_OBJECTS) $(SWIFT_LIB) $(MLX_STUBS_OBJ)
+	@echo "Compiling workflow integration tests..."
+	@if [ -s "$(SWIFT_LIB)" ]; then \
+		$(CC) $(CFLAGS) $(LDFLAGS) -o $(WORKFLOW_INTEGRATION_TEST) $(WORKFLOW_INTEGRATION_SOURCES) $(WORKFLOW_INTEGRATION_OBJECTS) $(SWIFT_LIB) $(FRAMEWORKS) $(LIBS) $(SWIFT_RUNTIME_LIBS); \
+	else \
+		$(CC) $(CFLAGS) $(LDFLAGS) -o $(WORKFLOW_INTEGRATION_TEST) $(WORKFLOW_INTEGRATION_SOURCES) $(WORKFLOW_INTEGRATION_OBJECTS) $(MLX_STUBS_OBJ) $(FRAMEWORKS) $(LIBS); \
+	fi
+
 # Run all workflow tests
-workflow_test: workflow_types_test workflow_engine_test workflow_checkpoint_test workflow_e2e_test task_decomposer_test group_chat_test router_test patterns_test pre_release_e2e_test workflow_error_test
+workflow_test: workflow_types_test workflow_engine_test workflow_checkpoint_test workflow_e2e_test task_decomposer_test group_chat_test router_test patterns_test pre_release_e2e_test workflow_error_test workflow_migration_test workflow_integration_test
 	@echo "All workflow tests completed!"
 
 # Quick workflow tests (fast feedback - unit tests only)
