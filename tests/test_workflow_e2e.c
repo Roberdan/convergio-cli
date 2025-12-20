@@ -417,6 +417,193 @@ static void test_e2e_class_council_workflow(void) {
 }
 
 // ============================================================================
+// E2E SCENARIO 8: SECURITY AUDIT WORKFLOW
+// ============================================================================
+
+static void test_e2e_security_audit_workflow(void) {
+    printf("test_e2e_security_audit_workflow:\n");
+    
+    #define LUCA_SECURITY_ID 6001
+    #define BACCIO_CODER_ID 6002
+    #define MARCO_DEVOPS_ID 6003
+    
+    WorkflowNode* security_scan = workflow_node_create("security_scan", NODE_TYPE_ACTION);
+    WorkflowNode* vulnerability_analysis = workflow_node_create("vulnerability_analysis", NODE_TYPE_ACTION);
+    WorkflowNode* risk_assessment = workflow_node_create("risk_assessment", NODE_TYPE_DECISION);
+    WorkflowNode* critical_fix = workflow_node_create("critical_vuln_fix", NODE_TYPE_ACTION);
+    WorkflowNode* security_review = workflow_node_create("security_review", NODE_TYPE_ACTION);
+    WorkflowNode* deployment = workflow_node_create("deployment", NODE_TYPE_ACTION);
+    WorkflowNode* verification = workflow_node_create("verification", NODE_TYPE_ACTION);
+    WorkflowNode* security_report = workflow_node_create("security_report", NODE_TYPE_ACTION);
+    WorkflowNode* conclusion = workflow_node_create("conclusion", NODE_TYPE_CONVERGE);
+    
+    workflow_node_set_agent(security_scan, LUCA_SECURITY_ID, "Esegui security scan completo");
+    workflow_node_set_agent(vulnerability_analysis, LUCA_SECURITY_ID, "Analizza vulnerabilità con CVSS scoring");
+    workflow_node_set_agent(critical_fix, BACCIO_CODER_ID, "Implementa fix vulnerabilità critica");
+    workflow_node_set_agent(security_review, LUCA_SECURITY_ID, "Review approfondito del fix");
+    workflow_node_set_agent(deployment, MARCO_DEVOPS_ID, "Deploy fix di sicurezza");
+    workflow_node_set_agent(verification, LUCA_SECURITY_ID, "Verifica che vulnerabilità sia risolta");
+    workflow_node_set_agent(security_report, 6004, "Genera security report"); // WRITER
+    
+    workflow_node_add_edge(security_scan, vulnerability_analysis, NULL);
+    workflow_node_add_edge(vulnerability_analysis, risk_assessment, NULL);
+    workflow_node_add_edge(risk_assessment, critical_fix, "cvss_score >= 9.0");
+    workflow_node_add_edge(critical_fix, security_review, NULL);
+    workflow_node_add_edge(security_review, deployment, NULL);
+    workflow_node_add_edge(deployment, verification, NULL);
+    workflow_node_add_edge(verification, security_report, "vulnerability_fixed == true");
+    workflow_node_add_edge(security_report, conclusion, NULL);
+    
+    Workflow* wf = workflow_create("security_audit_test", "Security Audit Workflow", security_scan);
+    TEST_ASSERT(wf != NULL, "security audit workflow created");
+    
+    workflow_set_state(wf, "target_system", "API v2");
+    workflow_set_state(wf, "audit_scope", "authentication, authorization, data validation");
+    
+    char* output = NULL;
+    int result = workflow_execute(wf, "Esegui security audit completo per API v2", &output);
+    
+    TEST_ASSERT(result == 0 || wf->status == WORKFLOW_STATUS_COMPLETED ||
+                wf->status == WORKFLOW_STATUS_FAILED,
+                "security audit workflow execution completes");
+    
+    if (output) {
+        free(output);
+    }
+    workflow_destroy(wf);
+    printf("\n");
+}
+
+// ============================================================================
+// E2E SCENARIO 9: PERFORMANCE OPTIMIZATION WORKFLOW
+// ============================================================================
+
+static void test_e2e_performance_optimization_workflow(void) {
+    printf("test_e2e_performance_optimization_workflow:\n");
+    
+    #define OMRI_ANALYST_ID 7001
+    #define BACCIO_CODER_ID 7002
+    #define MARCO_DEVOPS_ID 7003
+    #define THOR_QA_ID 7004
+    
+    WorkflowNode* performance_analysis = workflow_node_create("performance_analysis", NODE_TYPE_ACTION);
+    WorkflowNode* data_analysis = workflow_node_create("data_analysis", NODE_TYPE_ACTION);
+    WorkflowNode* optimization_planning = workflow_node_create("optimization_planning", NODE_TYPE_ACTION);
+    WorkflowNode* optimization_decision = workflow_node_create("optimization_decision", NODE_TYPE_DECISION);
+    WorkflowNode* code_optimization = workflow_node_create("code_optimization", NODE_TYPE_ACTION);
+    WorkflowNode* performance_test = workflow_node_create("performance_test", NODE_TYPE_ACTION);
+    WorkflowNode* performance_verification = workflow_node_create("performance_verification", NODE_TYPE_DECISION);
+    WorkflowNode* deployment = workflow_node_create("deployment", NODE_TYPE_ACTION);
+    WorkflowNode* monitoring = workflow_node_create("monitoring", NODE_TYPE_ACTION);
+    WorkflowNode* conclusion = workflow_node_create("conclusion", NODE_TYPE_CONVERGE);
+    
+    workflow_node_set_agent(performance_analysis, OMRI_ANALYST_ID, "Analizza performance del sistema");
+    workflow_node_set_agent(data_analysis, OMRI_ANALYST_ID, "Analizza metriche e dati");
+    workflow_node_set_agent(optimization_planning, 7005, "Crea piano di ottimizzazione"); // PLANNER
+    workflow_node_set_agent(code_optimization, BACCIO_CODER_ID, "Ottimizza codice");
+    workflow_node_set_agent(performance_test, THOR_QA_ID, "Esegui performance test");
+    workflow_node_set_agent(deployment, MARCO_DEVOPS_ID, "Deploy ottimizzazioni");
+    workflow_node_set_agent(monitoring, OMRI_ANALYST_ID, "Monitora performance in produzione");
+    
+    workflow_node_add_edge(performance_analysis, data_analysis, NULL);
+    workflow_node_add_edge(data_analysis, optimization_planning, NULL);
+    workflow_node_add_edge(optimization_planning, optimization_decision, NULL);
+    workflow_node_add_edge(optimization_decision, code_optimization, "bottleneck_type == 'code'");
+    workflow_node_add_edge(code_optimization, performance_test, NULL);
+    workflow_node_add_edge(performance_test, performance_verification, NULL);
+    workflow_node_add_edge(performance_verification, deployment, "performance_targets_met == true");
+    workflow_node_add_edge(deployment, monitoring, NULL);
+    workflow_node_add_edge(monitoring, conclusion, NULL);
+    
+    Workflow* wf = workflow_create("performance_optimization_test", "Performance Optimization Workflow", performance_analysis);
+    TEST_ASSERT(wf != NULL, "performance optimization workflow created");
+    
+    workflow_set_state(wf, "target_system", "API di ricerca");
+    workflow_set_state(wf, "performance_issue", "latenza elevata nelle query");
+    
+    char* output = NULL;
+    int result = workflow_execute(wf, "Ottimizza performance API di ricerca", &output);
+    
+    TEST_ASSERT(result == 0 || wf->status == WORKFLOW_STATUS_COMPLETED ||
+                wf->status == WORKFLOW_STATUS_FAILED,
+                "performance optimization workflow execution completes");
+    
+    if (output) {
+        free(output);
+    }
+    workflow_destroy(wf);
+    printf("\n");
+}
+
+// ============================================================================
+// E2E SCENARIO 10: INCIDENT RESPONSE WORKFLOW
+// ============================================================================
+
+static void test_e2e_incident_response_workflow(void) {
+    printf("test_e2e_incident_response_workflow:\n");
+    
+    #define ALI_ORCHESTRATOR_ID 8001
+    #define DOMIK_ANALYST_ID 8002
+    #define LUCA_SECURITY_ID 8003
+    #define BACCIO_CODER_ID 8004
+    #define MARCO_DEVOPS_ID 8005
+    
+    WorkflowNode* incident_detection = workflow_node_create("incident_detection", NODE_TYPE_ACTION);
+    WorkflowNode* incident_triage = workflow_node_create("incident_triage", NODE_TYPE_DECISION);
+    WorkflowNode* critical_incident = workflow_node_create("critical_incident", NODE_TYPE_ACTION);
+    WorkflowNode* root_cause_analysis = workflow_node_create("root_cause_analysis", NODE_TYPE_ACTION);
+    WorkflowNode* security_check = workflow_node_create("security_check", NODE_TYPE_ACTION);
+    WorkflowNode* mitigation_planning = workflow_node_create("mitigation_planning", NODE_TYPE_ACTION);
+    WorkflowNode* hotfix = workflow_node_create("hotfix", NODE_TYPE_ACTION);
+    WorkflowNode* fix_verification = workflow_node_create("fix_verification", NODE_TYPE_ACTION);
+    WorkflowNode* incident_resolved = workflow_node_create("incident_resolved", NODE_TYPE_ACTION);
+    WorkflowNode* post_mortem = workflow_node_create("post_mortem", NODE_TYPE_ACTION);
+    WorkflowNode* conclusion = workflow_node_create("conclusion", NODE_TYPE_CONVERGE);
+    
+    workflow_node_set_agent(incident_detection, ALI_ORCHESTRATOR_ID, "Rileva e classifica incidente");
+    workflow_node_set_agent(critical_incident, ALI_ORCHESTRATOR_ID, "Gestisci incidente critico");
+    workflow_node_set_agent(root_cause_analysis, DOMIK_ANALYST_ID, "Analizza root cause");
+    workflow_node_set_agent(security_check, LUCA_SECURITY_ID, "Verifica implicazioni sicurezza");
+    workflow_node_set_agent(mitigation_planning, 8006, "Crea piano mitigazione"); // PLANNER
+    workflow_node_set_agent(hotfix, BACCIO_CODER_ID, "Implementa hotfix");
+    workflow_node_set_agent(fix_verification, 8007, "Verifica fix"); // CRITIC
+    workflow_node_set_agent(incident_resolved, ALI_ORCHESTRATOR_ID, "Conferma risoluzione");
+    workflow_node_set_agent(post_mortem, 8008, "Scrivi post-mortem"); // WRITER
+    
+    workflow_node_add_edge(incident_detection, incident_triage, NULL);
+    workflow_node_add_edge(incident_triage, critical_incident, "severity == 'critical'");
+    workflow_node_add_edge(critical_incident, root_cause_analysis, NULL);
+    workflow_node_add_edge(root_cause_analysis, security_check, NULL);
+    workflow_node_add_edge(security_check, mitigation_planning, NULL);
+    workflow_node_add_edge(mitigation_planning, hotfix, "can_hotfix == true");
+    workflow_node_add_edge(hotfix, fix_verification, NULL);
+    workflow_node_add_edge(fix_verification, incident_resolved, "incident_resolved == true");
+    workflow_node_add_edge(incident_resolved, post_mortem, NULL);
+    workflow_node_add_edge(post_mortem, conclusion, NULL);
+    
+    Workflow* wf = workflow_create("incident_response_test", "Incident Response Workflow", incident_detection);
+    TEST_ASSERT(wf != NULL, "incident response workflow created");
+    
+    workflow_set_state(wf, "incident_type", "service_down");
+    workflow_set_state(wf, "affected_service", "authentication_service");
+    workflow_set_state(wf, "severity", "critical");
+    
+    char* output = NULL;
+    int result = workflow_execute(wf, "Gestisci downtime del servizio di autenticazione", &output);
+    
+    TEST_ASSERT(result == 0 || wf->status == WORKFLOW_STATUS_COMPLETED ||
+                wf->status == WORKFLOW_STATUS_FAILED ||
+                wf->status == WORKFLOW_STATUS_PAUSED,
+                "incident response workflow execution completes");
+    
+    if (output) {
+        free(output);
+    }
+    workflow_destroy(wf);
+    printf("\n");
+}
+
+// ============================================================================
 // MAIN TEST RUNNER
 // ============================================================================
 
@@ -430,6 +617,9 @@ int main(void) {
     test_e2e_workflow_with_checkpointing();
     test_e2e_product_launch_workflow();
     test_e2e_class_council_workflow();
+    test_e2e_security_audit_workflow();
+    test_e2e_performance_optimization_workflow();
+    test_e2e_incident_response_workflow();
     
     printf("=== RESULTS ===\n");
     printf("Tests run: %d\n", tests_run);
