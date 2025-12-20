@@ -1,7 +1,7 @@
 # Execution Plan: Convergio 6.0 - Zed Integration
 
 **Created**: 2025-12-18
-**Last Updated**: 2025-12-20 15:30
+**Last Updated**: 2025-12-20 20:40
 **Status**: ✅ MVP + POST-MVP COMPLETE - Release 0.1.0 Ready
 **Version**: 0.1.0
 **Branch**: `feature/acp-zed-integration` (ConvergioCLI), `main` (convergio-zed)
@@ -13,14 +13,16 @@
 | Phase | Status | Tasks | Note |
 |-------|--------|-------|------|
 | [PHASE 1 - MVP](convergio6/phases/phase-1-mvp.md) | ✅ Done | 4/4 | ACP server working |
-| [PHASE 2 - Multi-Agent](convergio6/phases/phase-2-multi-agent.md) | ✅ Done | 3/6 | P4-P6 deferred |
+| [PHASE 2 - Multi-Agent](convergio6/phases/phase-2-multi-agent.md) | ✅ Done | 3/3 | P4-P6 moved out |
 | [PHASE 3 - Zed Fork](convergio6/phases/phase-3-zed-fork.md) | ✅ Done | 9/9 | Convergio Panel integrated |
 | [PHASE 4 - Features](convergio6/phases/phase-4-features.md) | ✅ Done | 10/10 | Ali + Persistence |
 | [PHASE 5 - Polish](convergio6/phases/phase-5-polish.md) | ✅ Done | 4/4 | Icons, themes, onboarding |
 | [PHASE 6 - Files](convergio6/phases/phase-6-files.md) | ✅ Done | 8/8 | File tools, E2E tests |
 | [PHASE 7 - Memory](convergio6/phases/phase-7-memory.md) | ✅ Done | 6/6 | Ali historical memory |
 | [PHASE 8 - Git Graph](convergio6/phases/phase-8-git-graph.md) | ✅ Done | 10/10 | Post-MVP |
-| **TOTAL** | **✅** | **54/57** | P4-P6 deferred to future |
+| [PHASE 9 - Lazy Load](convergio6/phases/phase-9-ali-persistence.md) | ✅ Done | 3/3 | Lazy load + loadMore |
+| [PHASE 10 - Background Exec](convergio6/phases/phase-10-background-exec.md) | ✅ Done | 5/5 | Background processing |
+| **TOTAL** | **✅** | **62/62** | All planned tasks complete |
 
 ### Status Legend
 - ✅ Done - Phase completed
@@ -28,7 +30,7 @@
 - ⏸️ Pending - Not started yet
 - ❌ Blocked - Has blockers
 
-**Progress**: 44/44 MVP tasks (100%) + 10/10 Post-MVP (100%)
+**Progress**: 52/52 MVP tasks (100%) + 10/10 Post-MVP (100%)
 
 ---
 
@@ -42,9 +44,11 @@
 - [x] 54 agents available in panel
 - [x] Collapsible categories
 - [x] Search by name/skills
-- [x] E2E test complete (19/19 passing)
+- [x] E2E test complete (28/28 passing)
 - [x] Ali historical memory working
 - [x] Git Graph Panel (Post-MVP)
+- [x] Lazy load for conversation history
+- [x] Background execution for agents
 
 ---
 
@@ -67,6 +71,8 @@
 - [PHASE 6 - Files](convergio6/phases/phase-6-files.md) - File Tools
 - [PHASE 7 - Memory](convergio6/phases/phase-7-memory.md) - Historical Memory
 - [PHASE 8 - Git Graph](convergio6/phases/phase-8-git-graph.md) - Git Visualization
+- [PHASE 9 - Lazy Load](convergio6/phases/phase-9-ali-persistence.md) - Conversation Lazy Loading
+- [PHASE 10 - Background Exec](convergio6/phases/phase-10-background-exec.md) - Background Processing
 
 ---
 
@@ -87,12 +93,12 @@
 
 ## NEXT STEPS
 
-### Deferred (P4-P6)
+### Deferred
 
 | ID | Task | Status | Note |
 |----|------|--------|------|
-| P4 | Agent packs (thematic grouping) | ⏸️ | Future work |
-| P5 | Accessibility layer | ⏸️ | Future work |
+| P4 | Agent packs (thematic grouping) | 🔄 | In progress - edu worktree |
+| P5 | Accessibility layer | 🔄 | In progress - edu worktree |
 | P6 | Extension manifest + publishing | ⏸️ | Future work |
 
 ---

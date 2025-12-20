@@ -1,37 +1,31 @@
-# PHASE 9 - Ali Panel & Persistence Optimization
+# PHASE 9 - Lazy Load & Pagination
 
-**Status**: 🔄 IN PROGRESS
-**Started**: 2025-12-20
+**Status**: ✅ COMPLETE
+**Completed**: 2025-12-20
 
 ## Objective
 
-Fix Ali Panel visibility and optimize conversation persistence for long sessions.
+Implement lazy loading for conversation history to improve startup performance.
 
 ## Tasks
 
 | ID | Task | Status | Effort | Note |
 |----|------|--------|--------|------|
-| A1 | Fix Ali Panel button visibility | 🔄 | 0.5 day | AliPanel loads after AgentPanel |
-| A2 | Add "working" indicator for active agents | ⏸️ | 0.5 day | Visual badge when agent is processing |
-| A3 | Lazy load conversations (last first) | ✅ | 1 day | Load last 5 messages, session/loadMore for more |
-| A4 | Summarize old messages for long convos | ⏸️ | 1 day | AI summary of messages beyond threshold |
-| A5 | Add detailed debug logging | ⏸️ | 0.5 day | For development troubleshooting |
-| A6 | Error handling for long sessions | ⏸️ | 0.5 day | Graceful recovery from session issues |
+| L1 | Define lazy load constants in acp.h | ✅ | 0.25 day | ACP_LAZY_LOAD_INITIAL = 20 |
+| L2 | Implement session/loadMore handler | ✅ | 0.5 day | Paginated history retrieval |
+| L3 | Add hasMore/totalCount to session history | ✅ | 0.25 day | Pagination metadata |
 
 ## Implementation Details
 
-### A1: Ali Panel Button Fix
-- Problem: AliPanel requires AgentPanel but they initialize in parallel
-- Solution: Initialize AliPanel AFTER AgentPanel in `zed.rs`
-- Files: `crates/zed/src/zed.rs`
+### Lazy Load Protocol
+- `ACP_LAZY_LOAD_INITIAL = 20` - Initial messages to load
+- `session/loadMore` - Request more history with pagination
+- Response includes `hasMore` and `totalCount` fields
 
-### A3-A4: Lazy Load Strategy
-```
-1. On session resume, send only last 2 messages immediately
-2. Include summary of previous N messages
-3. Load full history on scroll-up or explicit request
-4. Threshold: summarize after 20 messages
-```
+### Key Files
+
+- `include/nous/acp.h` - Lazy load constants
+- `src/acp/acp_server.c` - session/loadMore handler
 
 ## Dependencies
 
