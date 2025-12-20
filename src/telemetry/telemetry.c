@@ -306,7 +306,8 @@ int telemetry_flush(void) {
     }
 
     // Open data file for writing
-    FILE* f = fopen(g_telemetry_config.data_path, "w");
+    int fd = safe_path_open(g_telemetry_config.data_path, safe_path_get_user_boundary(), O_WRONLY | O_CREAT | O_TRUNC, 0644);
+    FILE* f = fd >= 0 ? fdopen(fd, "w") : NULL;
     if (!f) {
         fprintf(stderr, "telemetry: Failed to open data file for writing: %s\n",
                 strerror(errno));
@@ -387,7 +388,8 @@ int telemetry_flush(void) {
 // ============================================================================
 
 static int load_config(void) {
-    FILE* f = fopen(g_telemetry_config.config_path, "r");
+    int fd = safe_path_open(g_telemetry_config.config_path, safe_path_get_user_boundary(), O_RDONLY, 0);
+    FILE* f = fd >= 0 ? fdopen(fd, "r") : NULL;
     if (!f) {
         return -1;
     }
@@ -423,7 +425,8 @@ static int load_config(void) {
 }
 
 static int save_config(void) {
-    FILE* f = fopen(g_telemetry_config.config_path, "w");
+    int fd = safe_path_open(g_telemetry_config.config_path, safe_path_get_user_boundary(), O_WRONLY | O_CREAT | O_TRUNC, 0644);
+    FILE* f = fd >= 0 ? fdopen(fd, "w") : NULL;
     if (!f) {
         fprintf(stderr, "telemetry: Failed to save config: %s\n", strerror(errno));
         return -1;

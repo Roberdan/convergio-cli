@@ -153,6 +153,11 @@ int workflow_restore_from_checkpoint(Workflow* wf, uint64_t checkpoint_id);
 Checkpoint* workflow_list_checkpoints(Workflow* wf, size_t* count);
 void workflow_free_checkpoints(Checkpoint* checkpoints, size_t count);
 
+// Performance-optimized checkpoint operations
+uint64_t workflow_checkpoint_incremental(Workflow* wf, uint64_t previous_checkpoint_id, const char* node_name);
+int workflow_get_changed_state_entries(const Workflow* wf, time_t last_checkpoint_time, char*** changed_keys, size_t* changed_count);
+int workflow_cleanup_old_checkpoints(Workflow* wf, size_t keep_count);
+
 // ============================================================================
 // WORKFLOW EXECUTION
 // ============================================================================
