@@ -1722,3 +1722,129 @@ int persistence_clear_all_summaries(void) {
 
     return (rc == SQLITE_OK) ? 0 : -1;
 }
+
+// ============================================================================
+// ACP UNIFIED PERSISTENCE (CLI + Zed share same conversation storage)
+// ============================================================================
+
+char* persistence_get_or_create_agent_session(const char* agent_name) {
+    if (!g_db || !agent_name) return NULL;
+
+    CONVERGIO_MUTEX_LOCK(&g_db_mutex);
+
+    const char* find_sql =
+        "SELECT s.id FROM sessions s "
+        "INNER JOIN messages m ON s.id = m.session_id "
+        "WHERE m.sender_name = ? AND date(s.started_at) = date('now') "
+        "AND s.ended_at IS NULL "
+        "ORDER BY s.started_at DESC LIMIT 1";
+
+    sqlite3_stmt* stmt;
+    int rc = sqlite3_prepare_v2(g_db, find_sql, -1, &stmt, NULL);
+    if (rc == SQLITE_OK) {
+        sqlite3_bind_text(stmt, 1, agent_name, -1, SQLITE_TRANSIENT);
+        if (sqlite3_step(stmt) == SQLITE_ROW) {
+            const char* id = (const char*)sqlite3_column_text(stmt, 0);
+            char* session_id = strdup(id);
+            sqlite3_finalize(stmt);
+            CONVERGIO_MUTEX_UNLOCK(&g_db_mutex);
+            return session_id;
+        }
+        sqlite3_finalize(stmt);
+    }
+
+    CONVERGIO_MUTEX_UNLOCK(&g_db_mutex);
+    return persistence_create_session(agent_name);
+}
+
+int persistence_save_acp_message(const char* session_id, const char* agent_name,
+                                  const char* role, const char* content) {
+    if (!g_db || !session_id || !role || !content) return -1;
+
+    CONVERGIO_MUTEX_LOCK(&g_db_mutex);
+
+    const char* sql =
+        "INSERT INTO messages (session_id, type, sender_name, content, input_tokens) "
+        "VALUES (?, ?, ?, ?, 0)";
+
+    sqlite3_stmt* stmt;
+    int rc = sqlite3_prepare_v2(g_db, sql, -1, &stmt, NULL);
+    if (rc != SQLITE_OK) {
+        CONVERGIO_MUTEX_UNLOCK(&g_db_mutex);
+        return -1;
+    }
+
+    int msg_type = (strcmp(role, "user") == 0) ? 1 : 2;
+    const char* sender = (msg_type == 2 && agent_name) ? agent_name : role;
+
+    sqlite3_bind_text(stmt, 1, session_id, -1, SQLITE_TRANSIENT);
+    sqlite3_bind_int(stmt, 2, msg_type);
+    sqlite3_bind_text(stmt, 3, sender, -1, SQLITE_TRANSIENT);
+    sqlite3_bind_text(stmt, 4, content, -1, SQLITE_TRANSIENT);
+
+    rc = sqlite3_step(stmt);
+    sqlite3_finalize(stmt);
+
+    CONVERGIO_MUTEX_UNLOCK(&g_db_mutex);
+    return (rc == SQLITE_DONE) ? 0 : -1;
+}
+
+ACPHistoryMessage* persistence_load_acp_messages(const char* session_id, size_t max, size_t* out_count) {
+    if (!g_db || !session_id || !out_count) return NULL;
+
+    CONVERGIO_MUTEX_LOCK(&g_db_mutex);
+
+    const char* sql =
+        "SELECT sender_name, content, strftime('%s', created_at) "
+        "FROM messages WHERE session_id = ? "
+        "ORDER BY created_at ASC LIMIT ?";
+
+    sqlite3_stmt* stmt;
+    int rc = sqlite3_prepare_v2(g_db, sql, -1, &stmt, NULL);
+    if (rc != SQLITE_OK) {
+        CONVERGIO_MUTEX_UNLOCK(&g_db_mutex);
+        return NULL;
+    }
+
+    sqlite3_bind_text(stmt, 1, session_id, -1, SQLITE_TRANSIENT);
+    sqlite3_bind_int(stmt, 2, (int)max);
+
+    ACPHistoryMessage* messages = malloc(sizeof(ACPHistoryMessage) * max);
+    if (!messages) {
+        sqlite3_finalize(stmt);
+        CONVERGIO_MUTEX_UNLOCK(&g_db_mutex);
+        return NULL;
+    }
+
+    size_t count = 0;
+    while (sqlite3_step(stmt) == SQLITE_ROW && count < max) {
+        const char* sender = (const char*)sqlite3_column_text(stmt, 0);
+        const char* content = (const char*)sqlite3_column_text(stmt, 1);
+        long timestamp = sqlite3_column_int64(stmt, 2);
+
+        const char* role = "user";
+        if (sender && strcmp(sender, "user") != 0) {
+            role = "assistant";
+        }
+
+        strncpy(messages[count].role, role, sizeof(messages[count].role) - 1);
+        messages[count].role[sizeof(messages[count].role) - 1] = '\0';
+        messages[count].content = content ? strdup(content) : NULL;
+        messages[count].timestamp = timestamp;
+        count++;
+    }
+
+    sqlite3_finalize(stmt);
+    CONVERGIO_MUTEX_UNLOCK(&g_db_mutex);
+
+    *out_count = count;
+    return messages;
+}
+
+void persistence_free_acp_messages(ACPHistoryMessage* messages, size_t count) {
+    if (!messages) return;
+    for (size_t i = 0; i < count; i++) {
+        free(messages[i].content);
+    }
+    free(messages);
+}

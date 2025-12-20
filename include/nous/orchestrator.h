@@ -331,6 +331,18 @@ char* persistence_load_messages_range(const char* session_id, int64_t from_id, i
 int persistence_get_session_message_count(const char* session_id);
 char* persistence_load_latest_checkpoint(const char* session_id);
 
+// ACP-specific persistence (unified backend for CLI + Zed)
+char* persistence_get_or_create_agent_session(const char* agent_name);
+int persistence_save_acp_message(const char* session_id, const char* agent_name,
+                                  const char* role, const char* content);
+typedef struct {
+    char role[16];
+    char* content;
+    long timestamp;
+} ACPHistoryMessage;
+ACPHistoryMessage* persistence_load_acp_messages(const char* session_id, size_t max, size_t* out_count);
+void persistence_free_acp_messages(ACPHistoryMessage* messages, size_t count);
+
 // ============================================================================
 // MESSAGE BUS API
 // ============================================================================

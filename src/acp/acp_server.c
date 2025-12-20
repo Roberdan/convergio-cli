@@ -268,63 +268,11 @@ static char* get_session_filepath(const char* session_id) {
     return filepath;
 }
 
-// Find most recent session file for an agent name
+// Find most recent session for an agent name - now uses SQLite unified persistence
 static char* find_session_by_agent_name(const char* agent_name) {
-    char* dir = expand_path(SESSIONS_DIR);
-    DIR* d = opendir(dir);
-    if (!d) {
-        free(dir);
-        return NULL;
-    }
-
-    char* best_session_id = NULL;
-    long best_timestamp = 0;
-
-    struct dirent* entry;
-    while ((entry = readdir(d)) != NULL) {
-        if (strstr(entry->d_name, ".json") == NULL) continue;
-
-        char filepath[512];
-        snprintf(filepath, sizeof(filepath), "%s/%s", dir, entry->d_name);
-
-        FILE* f = fopen(filepath, "r");
-        if (!f) continue;
-
-        fseek(f, 0, SEEK_END);
-        long fsize = ftell(f);
-        fseek(f, 0, SEEK_SET);
-
-        char* content = malloc(fsize + 1);
-        fread(content, 1, fsize, f);
-        content[fsize] = '\0';
-        fclose(f);
-
-        cJSON* root = cJSON_Parse(content);
-        free(content);
-        if (!root) continue;
-
-        cJSON* saved_agent = cJSON_GetObjectItem(root, "agent_name");
-        cJSON* timestamp = cJSON_GetObjectItem(root, "timestamp");
-        cJSON* session_id = cJSON_GetObjectItem(root, "session_id");
-
-        if (saved_agent && cJSON_IsString(saved_agent) &&
-            session_id && cJSON_IsString(session_id) &&
-            strcmp(saved_agent->valuestring, agent_name) == 0) {
-
-            long ts = timestamp && cJSON_IsNumber(timestamp) ? (long)timestamp->valuedouble : 0;
-            if (ts > best_timestamp) {
-                best_timestamp = ts;
-                if (best_session_id) free(best_session_id);
-                best_session_id = strdup(session_id->valuestring);
-            }
-        }
-
-        cJSON_Delete(root);
-    }
-
-    closedir(d);
-    free(dir);
-    return best_session_id;
+    // Use SQLite unified persistence to find session by agent name
+    // This enables CLI and Zed to share the same conversation history
+    return persistence_get_or_create_agent_session(agent_name);
 }
 
 // Save session to disk
@@ -367,14 +315,43 @@ int acp_session_save(ACPSession* session) {
     return -1;
 }
 
-// Load session from disk
+// Load session from SQLite unified persistence (fallback to JSON for backward compatibility)
 ACPSession* acp_session_load(const char* session_id) {
-    char* filepath = get_session_filepath(session_id);
+    if (g_server.session_count >= ACP_MAX_SESSIONS) {
+        return NULL;
+    }
 
+    ACPSession* session = &g_server.sessions[g_server.session_count++];
+    memset(session, 0, sizeof(ACPSession));
+
+    strncpy(session->session_id, session_id, sizeof(session->session_id) - 1);
+    session->active = true;
+    session->orchestrator_ctx = NULL;
+
+    // Try to load messages from SQLite unified persistence
+    size_t msg_count = 0;
+    ACPHistoryMessage* history = persistence_load_acp_messages(session_id, ACP_MAX_MESSAGES, &msg_count);
+
+    if (history && msg_count > 0) {
+        // Successfully loaded from SQLite
+        for (size_t i = 0; i < msg_count && session->message_count < ACP_MAX_MESSAGES; i++) {
+            strncpy(session->messages[session->message_count].role,
+                    history[i].role, sizeof(session->messages[0].role) - 1);
+            session->messages[session->message_count].content =
+                history[i].content ? strdup(history[i].content) : NULL;
+            session->messages[session->message_count].timestamp = history[i].timestamp;
+            session->message_count++;
+        }
+        persistence_free_acp_messages(history, msg_count);
+        return session;
+    }
+
+    // Fallback: try to load from legacy JSON file
+    char* filepath = get_session_filepath(session_id);
     FILE* f = fopen(filepath, "r");
     if (!f) {
         free(filepath);
-        return NULL;
+        return session; // No messages found, but session is valid (empty)
     }
 
     fseek(f, 0, SEEK_END);
@@ -389,24 +366,10 @@ ACPSession* acp_session_load(const char* session_id) {
 
     cJSON* root = cJSON_Parse(content);
     free(content);
-    if (!root) return NULL;
+    if (!root) return session;
 
-    // Create new session slot
-    if (g_server.session_count >= ACP_MAX_SESSIONS) {
-        cJSON_Delete(root);
-        return NULL;
-    }
-
-    ACPSession* session = &g_server.sessions[g_server.session_count++];
-    memset(session, 0, sizeof(ACPSession));
-
-    // Load basic info
-    cJSON* item = cJSON_GetObjectItem(root, "session_id");
-    if (item && cJSON_IsString(item)) {
-        strncpy(session->session_id, item->valuestring, sizeof(session->session_id) - 1);
-    }
-
-    item = cJSON_GetObjectItem(root, "agent_name");
+    // Load basic info from JSON
+    cJSON* item = cJSON_GetObjectItem(root, "agent_name");
     if (item && cJSON_IsString(item)) {
         strncpy(session->agent_name, item->valuestring, sizeof(session->agent_name) - 1);
     }
@@ -416,7 +379,7 @@ ACPSession* acp_session_load(const char* session_id) {
         strncpy(session->cwd, item->valuestring, sizeof(session->cwd) - 1);
     }
 
-    // Load message history
+    // Load and migrate message history from JSON to SQLite
     cJSON* messages = cJSON_GetObjectItem(root, "messages");
     if (messages && cJSON_IsArray(messages)) {
         cJSON* msg;
@@ -433,19 +396,21 @@ ACPSession* acp_session_load(const char* session_id) {
                 session->messages[session->message_count].content = strdup(content_item->valuestring);
                 session->messages[session->message_count].timestamp =
                     ts && cJSON_IsNumber(ts) ? (long)ts->valuedouble : time(NULL);
+
+                // Migrate to SQLite unified persistence
+                persistence_save_acp_message(session_id, session->agent_name,
+                    role->valuestring, content_item->valuestring);
+
                 session->message_count++;
             }
         }
     }
 
-    session->active = true;
-    session->orchestrator_ctx = NULL;
-
     cJSON_Delete(root);
     return session;
 }
 
-// Add message to session history
+// Add message to session history (in-memory and SQLite unified persistence)
 void acp_session_add_message(ACPSession* session, const char* role, const char* content) {
     if (!session || !role || !content) return;
     if (session->message_count >= ACP_MAX_MESSAGES) {
@@ -460,6 +425,9 @@ void acp_session_add_message(ACPSession* session, const char* role, const char* 
     strncpy(session->messages[idx].role, role, sizeof(session->messages[0].role) - 1);
     session->messages[idx].content = strdup(content);
     session->messages[idx].timestamp = time(NULL);
+
+    // Also save to SQLite unified persistence (CLI + Zed share same storage)
+    persistence_save_acp_message(session->session_id, session->agent_name, role, content);
 }
 
 static char* generate_session_id(void) {
@@ -485,14 +453,26 @@ static ACPSession* create_session(const char* cwd, const char* agent_name) {
 
     ACPSession* session = &g_server.sessions[g_server.session_count++];
     memset(session, 0, sizeof(ACPSession));
-    strncpy(session->session_id, generate_session_id(), sizeof(session->session_id) - 1);
-    strncpy(session->cwd, cwd ? cwd : ".", sizeof(session->cwd) - 1);
+
+    // Set agent name first (needed for SQLite session lookup)
     if (agent_name) {
         strncpy(session->agent_name, agent_name, sizeof(session->agent_name) - 1);
     } else if (g_server.selected_agent[0] != '\0') {
-        // Use server's selected agent as default
         snprintf(session->agent_name, sizeof(session->agent_name), "Convergio-%s", g_server.selected_agent);
     }
+
+    // Use SQLite unified persistence to get/create session ID
+    // This enables CLI and Zed to share the same session storage
+    char* sqlite_session_id = persistence_get_or_create_agent_session(session->agent_name);
+    if (sqlite_session_id) {
+        strncpy(session->session_id, sqlite_session_id, sizeof(session->session_id) - 1);
+        free(sqlite_session_id);
+    } else {
+        // Fallback to local session ID generation
+        strncpy(session->session_id, generate_session_id(), sizeof(session->session_id) - 1);
+    }
+
+    strncpy(session->cwd, cwd ? cwd : ".", sizeof(session->cwd) - 1);
     session->active = true;
     session->orchestrator_ctx = NULL;
     session->message_count = 0;
