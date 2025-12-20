@@ -137,6 +137,21 @@ Checkpoint* checkpoint_create(uint64_t workflow_id, uint64_t node_id, const char
 void checkpoint_destroy(Checkpoint* cp);
 
 // ============================================================================
+// WORKFLOW EXECUTION
+// ============================================================================
+
+// Core execution
+int workflow_execute(Workflow* wf, const char* input, char** output);
+int workflow_execute_node(Workflow* wf, WorkflowNode* node, const char* input, char** output);
+WorkflowNode* workflow_get_next_node(Workflow* wf, WorkflowNode* current);
+WorkflowNode* workflow_get_current_node(Workflow* wf);
+
+// Workflow control
+int workflow_pause(Workflow* wf);
+int workflow_cancel(Workflow* wf);
+int workflow_resume(Workflow* wf, uint64_t checkpoint_id);
+
+// ============================================================================
 // UTILITY FUNCTIONS
 // ============================================================================
 
