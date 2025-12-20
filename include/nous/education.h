@@ -1410,6 +1410,32 @@ int education_xp_add(int64_t student_id, int xp_amount, const char* reason);
 int education_show_welcome(void);
 
 // ============================================================================
+// ERROR INTERPRETER API (Friendly error messages for students)
+// ============================================================================
+
+/**
+ * @brief Transform a technical error message into a friendly, empathetic message
+ *
+ * In Education edition, converts cryptic error messages into human-friendly
+ * messages that match each maestro's personality. Students never see stack traces.
+ *
+ * @param error_msg Original error message
+ * @param agent_id Agent ID (e.g., "euclide-matematica") for personality matching
+ * @return Newly allocated friendly message string (caller must free), or NULL on error
+ */
+char* education_interpret_error(const char* error_msg, const char* agent_id);
+
+/**
+ * @brief Check if an error message should be interpreted
+ *
+ * Only returns true in Education edition and for recognized error patterns.
+ *
+ * @param error_msg Error message to check
+ * @return true if message should be interpreted, false otherwise
+ */
+bool education_should_interpret_error(const char* error_msg);
+
+// ============================================================================
 // INTERNAL API (FOR ANNA INTEGRATION)
 // ============================================================================
 

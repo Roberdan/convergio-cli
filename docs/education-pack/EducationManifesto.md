@@ -24,7 +24,31 @@ Il bambino dislessico lotta con pagine che sembrano scritte in geroglifici. La r
 
 Non è colpa degli insegnanti. Fanno miracoli con quello che hanno. È il sistema che non funziona.
 
-Noi abbiamo deciso di costruire qualcosa di diverso.
+E oggi c'è un problema in più.
+
+---
+
+## Il Mondo è Cambiato
+
+A che serve imparare a dare risposte quando l'intelligenza artificiale le ha già tutte?
+
+Non è una provocazione. È la domanda che ogni genitore, ogni insegnante, ogni studente dovrebbe porsi. Il mondo in cui siamo cresciuti non esiste più. Le competenze che ci hanno insegnato — memorizzare date, applicare formule, ripetere definizioni — sono esattamente quelle che le macchine fanno meglio di noi.
+
+E allora? Allora la scuola deve cambiare. Radicalmente.
+
+Non serve più insegnare a trovare risposte. Serve insegnare a fare domande. Le domande giuste. Quelle che nessuna macchina sa ancora formulare.
+
+Non serve più riempire teste di nozioni. Serve accendere la curiosità. Quella fame di capire che ti spinge a esplorare, a collegare, a chiederti "perché?" e "e se invece...?"
+
+Non serve più premiare chi ripete meglio. Serve sviluppare l'autonomia. La capacità di imparare da soli, di cercare, di sbagliare e riprovare.
+
+Non serve più isolare gli studenti in banchi separati. Serve coltivare la socialità. La collaborazione, l'empatia, la capacità di lavorare insieme — cose che nessun algoritmo potrà mai sostituire.
+
+Non serve più insegnare il "cosa". Serve insegnare il "come" e il "perché". Capire come funziona il mondo intorno a noi. Non le formule — i principi. Non i fatti — le connessioni.
+
+Questa è la scuola che serve oggi. Una scuola che non compete con l'AI, ma che prepara gli esseri umani a fare quello che solo gli esseri umani possono fare.
+
+Noi abbiamo deciso di costruirla.
 
 ---
 
@@ -255,6 +279,74 @@ Non vendiamo i tuoi dati. Non li usiamo per addestrare modelli. Non li condividi
 Quando carichi un file, il sistema può accedere solo a Desktop, Documenti, Download. Nient'altro. Non può vedere le tue foto, i tuoi messaggi, le tue app.
 
 Per i genitori: potete stare tranquilli. Vostro figlio sta usando uno strumento che non raccoglie dati personali, non mostra pubblicità, non ha funzioni social, non richiede account online.
+
+---
+
+## Etica, Sicurezza, Inclusione
+
+Costruire strumenti educativi per bambini e ragazzi è una responsabilità enorme. Non la prendiamo alla leggera.
+
+### Etica
+
+I nostri maestri seguono principi etici rigorosi, codificati nel sistema stesso.
+
+**Mai giudicare.** Uno studente non è "bravo" o "scarso". È una persona che sta imparando, con i suoi tempi e i suoi modi.
+
+**Mai umiliare.** L'errore non viene mai evidenziato come fallimento. Viene trasformato in opportunità.
+
+**Mai discriminare.** Ogni studente riceve la stessa qualità di insegnamento, indipendentemente da chi è, da dove viene, dalle sue condizioni.
+
+**Mai manipolare.** Non usiamo dark pattern, non creiamo dipendenza, non sfruttiamo la psicologia per tenere gli studenti incollati allo schermo.
+
+**Sempre onesti.** Se un maestro non sa qualcosa, lo dice. Se un concetto è difficile, lo ammette. Niente finzioni, niente false promesse.
+
+### Sicurezza dei Contenuti
+
+I contenuti generati sono filtrati e controllati.
+
+**Appropriati all'età.** Il sistema conosce l'età dello studente e adatta i contenuti di conseguenza.
+
+**Niente contenuti dannosi.** Violenza, odio, discriminazione, contenuti sessuali — bloccati a livello di sistema.
+
+**Fonti verificate.** Quando si citano fatti, si citano fatti. Non opinioni spacciate per verità.
+
+**Supervisione possibile.** I genitori possono vedere cosa studia il figlio, quali argomenti affronta, come interagisce.
+
+### Inclusione Reale
+
+L'inclusione non è una casella da spuntare. È un principio di progettazione.
+
+**Accessibilità nativa.** Non aggiungiamo l'accessibilità dopo. La progettiamo dentro, fin dall'inizio.
+
+**Nessuno escluso.** Dislessia, discalculia, ADHD, autismo, difficoltà motorie, difficoltà visive, difficoltà uditive — il sistema si adatta.
+
+**Diversità rappresentata.** I nostri maestri includono donne e uomini, di epoche e culture diverse. Marie Curie, Frida Kahlo, Montessori — non solo uomini bianchi europei.
+
+**Linguaggio inclusivo.** Mai stereotipi, mai assunzioni su genere, cultura, background.
+
+### Osservabilità
+
+I genitori e gli educatori non sono tagliati fuori. Possono vedere.
+
+**Il Libretto.** Registro completo di cosa lo studente ha studiato, dove ha avuto difficoltà, dove eccelle.
+
+**Progressi visibili.** Grafici chiari che mostrano l'evoluzione nel tempo.
+
+**Nessuna scatola nera.** Il sistema è trasparente. Sai cosa fa e perché.
+
+**Report periodici.** Se configurati, i genitori ricevono aggiornamenti sui progressi.
+
+### Safety by Design
+
+La sicurezza non è un'aggiunta. È nel design.
+
+**Sandbox rigoroso.** Il sistema accede solo alle cartelle autorizzate. Non può vedere il resto del computer.
+
+**Niente connessioni nascoste.** Sai esattamente con cosa comunica il sistema.
+
+**Sessioni isolate.** Quello che fai in una sessione non "trapela" altrove.
+
+**Codice aperto.** Puoi verificare tu stesso cosa fa. O farlo verificare da qualcuno di cui ti fidi.
 
 ---
 

@@ -17,6 +17,7 @@
 #include "nous/tools.h"
 #include "nous/intent_router.h"
 #include "nous/edition.h"
+#include "nous/education.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -587,6 +588,15 @@ int repl_process_natural_input(const char* input) {
             // Print Ali's name as header
             printf(ANSI_BOLD ANSI_CYAN "%s" ANSI_RESET "\n\n", name);
 
+            // In Education edition, transform error messages to friendly ones
+            if (education_should_interpret_error(response)) {
+                char* friendly = education_interpret_error(response, "ali-principal");
+                if (friendly) {
+                    free(response);
+                    response = friendly;
+                }
+            }
+
             // Render markdown to ANSI for nice terminal output
             md_print(response);
             printf("\n");
@@ -674,6 +684,15 @@ int repl_direct_agent_communication(const char* agent_name, const char* message)
     if (response) {
         // Print agent's name as header
         printf(ANSI_BOLD ANSI_CYAN "%s" ANSI_RESET "\n\n", agent->name);
+
+        // In Education edition, transform error messages to friendly ones
+        if (education_should_interpret_error(response)) {
+            char* friendly = education_interpret_error(response, agent_name);
+            if (friendly) {
+                free(response);
+                response = friendly;
+            }
+        }
 
         // Render markdown
         md_print(response);
