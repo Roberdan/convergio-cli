@@ -108,31 +108,39 @@
             "id": "parallel_test_execution",
             "name": "Esecuzione Test Paralleli",
             "type": "PARALLEL",
-            "description": "Esegue tutti i test in parallelo per massima efficienza",
-            "next_nodes": ["unit_tests", "integration_tests", "e2e_tests", "fuzz_tests", "sanitizer_tests", "performance_tests"]
+            "description": "Esegue tutti i test in parallelo per massima efficienza (test C + script shell)",
+            "next_nodes": ["unit_tests", "integration_tests", "e2e_tests", "fuzz_tests", "sanitizer_tests", "performance_tests", "all_make_tests"]
+        },
+        {
+            "id": "all_make_tests",
+            "name": "All Make Tests",
+            "type": "ACTION",
+            "agent_role": "EXECUTOR",
+            "action_prompt": "Esegui TUTTI i test via Makefile. Comando: make test (include fuzz_test, unit_test, anna_test, compaction_test, plan_db_test, output_service_test, tools_test, websearch_test, workflow_test, check-docs). Verifica: TUTTI i test passano, exit code 0. ZERO TOLERANZA per test falliti. Genera report con risultati dettagliati.",
+            "next_nodes": ["aggregate_test_results"]
         },
         {
             "id": "unit_tests",
-            "name": "Unit Tests",
+            "name": "Unit Tests (C)",
             "type": "ACTION",
             "agent_role": "EXECUTOR",
-            "action_prompt": "Esegui TUTTI gli unit tests. Comando: make unit_test. Verifica: TUTTI i test passano, coverage >= 80%, nessun test skipped. ZERO TOLERANZA per test falliti o coverage insufficiente. Genera report con risultati dettagliati.",
+            "action_prompt": "Esegui TUTTI gli unit tests C. Comando: make unit_test. Verifica: TUTTI i test passano, coverage >= 80%, nessun test skipped. ZERO TOLERANZA per test falliti o coverage insufficiente. Genera report con risultati dettagliati.",
             "next_nodes": ["aggregate_test_results"]
         },
         {
             "id": "integration_tests",
-            "name": "Integration Tests",
+            "name": "Integration Tests (C)",
             "type": "ACTION",
             "agent_role": "EXECUTOR",
-            "action_prompt": "Esegui TUTTI gli integration tests. Verifica: TUTTI i test passano, nessun test skipped. ZERO TOLERANZA per test falliti. Genera report con risultati dettagliati.",
+            "action_prompt": "Esegui TUTTI gli integration tests C. Comando: make test (include fuzz_test, anna_test, compaction_test, plan_db_test, output_service_test, tools_test, websearch_test, workflow_test). Verifica: TUTTI i test passano, nessun test skipped. ZERO TOLERANZA per test falliti. Genera report con risultati dettagliati.",
             "next_nodes": ["aggregate_test_results"]
         },
         {
             "id": "e2e_tests",
-            "name": "E2E Tests",
+            "name": "E2E Tests (Script Shell)",
             "type": "ACTION",
             "agent_role": "EXECUTOR",
-            "action_prompt": "Esegui TUTTI gli E2E tests. Verifica: TUTTI i test passano, tutti gli scenari coperti. ZERO TOLERANZA per test falliti. Genera report con risultati dettagliati.",
+            "action_prompt": "Esegui TUTTI gli E2E test script shell. Comandi: ./tests/e2e_test.sh (test CLI completo), ./tests/test_acp_e2e.sh (test ACP protocol), ./tests/test_convergio6_phases.sh (test fasi MVP). Verifica: TUTTI gli script passano, exit code 0, nessun FAILED nel output. ZERO TOLERANZA per test falliti. Genera report con risultati dettagliati di ogni script.",
             "next_nodes": ["aggregate_test_results"]
         },
         {
@@ -277,12 +285,14 @@
         {"from": "parallel_test_execution", "to": "fuzz_tests"},
         {"from": "parallel_test_execution", "to": "sanitizer_tests"},
         {"from": "parallel_test_execution", "to": "performance_tests"},
+        {"from": "parallel_test_execution", "to": "all_make_tests"},
         {"from": "unit_tests", "to": "aggregate_test_results"},
         {"from": "integration_tests", "to": "aggregate_test_results"},
         {"from": "e2e_tests", "to": "aggregate_test_results"},
         {"from": "fuzz_tests", "to": "aggregate_test_results"},
         {"from": "sanitizer_tests", "to": "aggregate_test_results"},
         {"from": "performance_tests", "to": "aggregate_test_results"},
+        {"from": "all_make_tests", "to": "aggregate_test_results"},
         {"from": "aggregate_test_results", "to": "test_validation"},
         {"from": "test_validation", "to": "block_release_tests", "condition": "all_tests_passed == false || coverage < 80"},
         {"from": "test_validation", "to": "technical_debt_check", "condition": "all_tests_passed == true && coverage >= 80"},
@@ -321,15 +331,25 @@
         "zero_tolerance_rules": [
             "ZERO errori di compilazione",
             "ZERO warnings",
-            "ZERO test falliti",
+            "ZERO test falliti (C tests + script shell)",
             "ZERO vulnerabilità di sicurezza",
             "ZERO technical debt aggiunto",
             "ZERO documentazione mancante",
             "ZERO dipendenze vulnerabili",
             "Coverage >= 80% (ZERO tolleranza per coverage insufficiente)",
             "TUTTI i quality checks devono passare",
-            "TUTTI i test devono passare"
-        ]
+            "TUTTI i test devono passare (make test + e2e_test.sh + test_acp_e2e.sh + test_convergio6_phases.sh)",
+            "TUTTI gli script shell devono avere exit code 0",
+            "ZERO FAILED nei log degli script shell"
+        ],
+        "test_commands": {
+            "make_tests": "make test (include: fuzz_test, unit_test, anna_test, compaction_test, plan_db_test, output_service_test, tools_test, websearch_test, workflow_test, check-docs)",
+            "e2e_script": "./tests/e2e_test.sh (test CLI completo con API reali)",
+            "acp_e2e_script": "./tests/test_acp_e2e.sh (test ACP protocol per Zed integration)",
+            "phases_script": "./tests/test_convergio6_phases.sh (test 6 fasi MVP)",
+            "sanitizer_tests": "make DEBUG=1 SANITIZE=address,undefined,thread test",
+            "coverage": "make coverage (genera report coverage, target >= 80%)"
+        }
     }
 }
 
