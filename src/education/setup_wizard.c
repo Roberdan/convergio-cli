@@ -578,6 +578,46 @@ static bool wizard_step6_goals(WizardState* state) {
 }
 
 /**
+ * S07b: Step 7 - Initial skills assessment (FW07)
+ * Offers LLM-based assessment by maestri after profile setup
+ * The actual assessment is done via /assess command with real AI dialogue
+ */
+static bool wizard_step7_skills_assessment(WizardState* state) {
+    print_header("Skills Assessment", 7, 7);
+
+    printf("  After profile setup, we recommend a skills assessment.\n");
+    printf("  Our maestri will have a friendly conversation with you\n");
+    printf("  to understand your current level in different subjects.\n\n");
+
+    printf("  " ANSI_BOLD "How it works:" ANSI_RESET "\n");
+    printf("  • Socrate (Philosophy teacher) leads the assessment\n");
+    printf("  • You'll chat naturally - no boring tests!\n");
+    printf("  • Each maestro learns your strengths and areas to improve\n");
+    printf("  • Takes about 5-10 minutes\n\n");
+
+    print_option(1, "Yes, assess now", "Start assessment after setup (recommended)");
+    print_option(2, "Maybe later", "Use /assess anytime to begin");
+
+    int choice = read_int_choice(1, 2);
+
+    if (choice == 1) {
+        // Mark that user wants assessment - will trigger /assess after wizard
+        strncpy(state->study_method,
+                "[ASSESSMENT_REQUESTED] ",
+                sizeof(state->study_method) - 1);
+        strncat(state->study_method,
+                state->study_method[0] ? state->study_method : "Adaptive learning",
+                sizeof(state->study_method) - strlen(state->study_method) - 1);
+        print_success("Assessment scheduled! Will start after profile setup.");
+    } else {
+        print_info("No problem! Use /assess anytime to begin the assessment.");
+    }
+
+    printf("\n");
+    return true;
+}
+
+/**
  * S08: Show summary and confirm
  */
 static bool wizard_show_summary(WizardState* state) {
@@ -909,6 +949,9 @@ bool education_setup_wizard(void) {
 
     clear_screen();
     if (!wizard_step6_goals(&state)) return false;
+
+    clear_screen();
+    if (!wizard_step7_skills_assessment(&state)) return false;
 
     clear_screen();
     if (!wizard_show_summary(&state)) {

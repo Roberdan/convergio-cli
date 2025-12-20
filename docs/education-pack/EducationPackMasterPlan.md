@@ -274,7 +274,7 @@ This phase transforms teachers from passive responders to inspiring mentors.
 | FW04 | Learning conditions assessment | [x] | P1 | Dyslexia, ADHD, etc. |
 | FW05 | Interests discovery | [x] | P1 | For personalized examples |
 | FW06 | Curriculum/study plan selection | [x] | P1 | What are you studying? |
-| FW07 | Initial skills assessment | [ ] | P2 | Optional diagnostic |
+| FW07 | Initial skills assessment | [x] | P2 | LLM-based via /assess - Socrate leads conversational diagnostic |
 | FW08 | Feature tour | [x] | P1 | Show all tools available |
 | FW09 | Parent HTML report | [x] | P2 | wizard_generate_parent_report() |
 
@@ -308,7 +308,7 @@ This phase transforms teachers from passive responders to inspiring mentors.
 | TL07 | Verify Audio tool is callable | [x] | P1 | TTS integration |
 | TL08 | Dedicated lesson folder | [x] | P0 | `~/Documents/ConvergioEducation/` |
 | TL09 | Auto-create folder if missing | [x] | P0 | On first save |
-| TL10 | Template library for common visuals | [ ] | P1 | Geometry, timelines, etc. |
+| TL10 | Template library for common visuals | [x] | P1 | LLM prompt templates: html_get_template_prompt() |
 
 **Mermaid.js Browser Approach:**
 ```html
@@ -384,12 +384,12 @@ AFTER:  "Euclide: Mi dispiace, ho avuto qualche difficoltà a creare
 | DU01 | File picker with restricted navigation | [x] | P0 | Only Desktop, Documents, Downloads |
 | DU02 | Simple folder navigation UI | [x] | P0 | document_upload.c |
 | DU03 | Use Claude Files API for upload | [x] | P0 | Stub ready, API in beta |
-| DU04 | Use OpenAI file input for vision | [~] | P1 | Alternative path, Claude primary |
-| DU05 | Camera access for photo capture | [ ] | P1 | AVFoundation on macOS |
-| DU06 | OCR via LLM vision (native) | [ ] | P1 | Claude/OpenAI vision = built-in OCR |
+| DU04 | Use OpenAI file input for vision | [x] | P1 | document_create_vision_data_url() for base64 encoding |
+| DU05 | Camera access for photo capture | [~] | P1 | Stub ready, needs AVFoundation implementation |
+| DU06 | OCR via LLM vision (native) | [x] | P1 | LLM-based via document_generate_ocr_prompt() |
 | DU07 | Document context injection | [x] | P0 | document_get_current_file_id() |
-| DU08 | Topic extraction from document | [ ] | P1 | LLM prompt: "What subject is this?" |
-| DU09 | Route to appropriate teacher | [ ] | P1 | Based on detected subject |
+| DU08 | Topic extraction from document | [x] | P1 | LLM-based via document_generate_topic_extraction_prompt() |
+| DU09 | Route to appropriate teacher | [x] | P1 | LLM-based via document_generate_routing_prompt() |
 | DU10 | Explain concept from textbook | [x] | P0 | "Explain this paragraph" |
 | DU11 | Adapt visuals for topic | [x] | P0 | MindMaps, HTML for school topic |
 | DU12 | PPTX support (presentations) | [x] | P1 | In file extension list |

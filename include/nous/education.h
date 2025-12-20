@@ -1236,7 +1236,11 @@ typedef enum {
     HTML_CONTENT_TIMELINE = 3,    /**< Erodoto: Interactive timelines */
     HTML_CONTENT_MUSIC = 4,       /**< Mozart: Sheet music with playback */
     HTML_CONTENT_ART = 5,         /**< Leonardo: Art gallery with zoom */
-    HTML_CONTENT_EVOLUTION = 6    /**< Darwin: Interactive evolution trees */
+    HTML_CONTENT_EVOLUTION = 6,   /**< Darwin: Interactive evolution trees */
+    HTML_CONTENT_BIOLOGY = 7,     /**< Darwin: Biology diagrams (cells, organisms) */
+    HTML_CONTENT_GRAPH = 8,       /**< Euclide: Math function graphs */
+    HTML_CONTENT_QUIZ = 9,        /**< All maestri: Interactive quizzes */
+    HTML_CONTENT_FLASHCARD = 10   /**< All maestri: Flashcard decks */
 } HtmlContentType;
 
 /**
@@ -1330,6 +1334,38 @@ char* html_generate_timeline(const char* topic);
  * @return HTML string (caller must free)
  */
 char* html_generate_lesson(const char* topic, const char* content_html);
+
+/**
+ * @brief Get LLM prompt template for visual generation (TL10)
+ *
+ * Returns a prompt string that guides the LLM to generate appropriate
+ * HTML visualizations for the given content type.
+ *
+ * @param type Type of visual to generate
+ * @return Constant prompt string (do not free)
+ */
+const char* html_get_template_prompt(HtmlContentType type);
+
+/** @brief Get geometry visual prompt template */
+const char* html_template_prompt_geometry(void);
+
+/** @brief Get timeline visual prompt template */
+const char* html_template_prompt_timeline(void);
+
+/** @brief Get physics diagram prompt template */
+const char* html_template_prompt_physics(void);
+
+/** @brief Get biology diagram prompt template */
+const char* html_template_prompt_biology(void);
+
+/** @brief Get math graph prompt template */
+const char* html_template_prompt_math_graph(void);
+
+/** @brief Get quiz generation prompt template */
+const char* html_template_prompt_quiz(void);
+
+/** @brief Get flashcard generation prompt template */
+const char* html_template_prompt_flashcards(void);
 
 // ============================================================================
 // GAMIFICATION API

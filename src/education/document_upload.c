@@ -20,10 +20,12 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdbool.h>
+#include <stdint.h>
 #include <dirent.h>
 #include <sys/stat.h>
 #include <unistd.h>
 #include <ctype.h>
+#include <strings.h>  // For strcasecmp
 
 // ============================================================================
 // CONSTANTS
@@ -409,8 +411,14 @@ bool document_upload(const char* filepath) {
 
     printf("\n✓ Upload complete!\n");
     printf("  File: %s (%s)\n", filename, size_str);
-    printf("\nYou can now ask questions about this document.\n");
-    printf("Example: \"Explain page 1\" or \"What is this document about?\"\n\n");
+    printf("\n📚 Document ready for analysis!\n");
+    printf("\nTry asking:\n");
+    printf("  • \"What subject is this document about?\" (auto-routes to right teacher)\n");
+    printf("  • \"Explain page 1\"\n");
+    printf("  • \"Help me with this homework\"\n");
+    printf("  • \"Quiz me on this material\"\n\n");
+    printf("💡 Tip: The maestri will automatically analyze the topic and\n");
+    printf("   the right teacher will help you based on the subject!\n\n");
 
     return true;
 }
@@ -496,6 +504,349 @@ const char* document_get_current_filename(void) {
  */
 bool document_is_active(void) {
     return g_current_file_index >= 0 && g_current_file_index < g_uploaded_count;
+}
+
+// ============================================================================
+// LLM-BASED TOPIC EXTRACTION AND MAESTRO ROUTING (DU08 + DU09)
+// ============================================================================
+
+/**
+ * DU08: Generate prompt for LLM to extract document topic
+ * The LLM analyzes the document and identifies the subject area.
+ * Returns a dynamically allocated string - caller must free.
+ */
+char* document_generate_topic_extraction_prompt(void) {
+    if (!document_is_active()) return NULL;
+
+    const char* filename = document_get_current_filename();
+    if (!filename) return NULL;
+
+    // Generate prompt for LLM to analyze document
+    const char* prompt_template =
+        "Analyze the uploaded document '%s' and determine:\n"
+        "1. What subject/discipline does this document belong to? "
+        "(e.g., Mathematics, Physics, Italian Literature, History, Biology, etc.)\n"
+        "2. What specific topic within that subject?\n"
+        "3. What grade level is this appropriate for?\n\n"
+        "Respond in this format:\n"
+        "SUBJECT: [main subject]\n"
+        "TOPIC: [specific topic]\n"
+        "LEVEL: [grade level]\n"
+        "MAESTRO: [which of our 15 maestri should help - Euclide for math, "
+        "Feynman for physics, Darwin for biology, Manzoni for Italian, "
+        "Erodoto for history, Leonardo for art, Mozart for music, "
+        "Shakespeare for English, Lovelace for computing, etc.]\n\n"
+        "Then provide a brief summary of what this document contains.";
+
+    size_t len = strlen(prompt_template) + strlen(filename) + 64;
+    char* prompt = malloc(len);
+    if (!prompt) return NULL;
+
+    snprintf(prompt, len, prompt_template, filename);
+    return prompt;
+}
+
+/**
+ * DU09: Maestro mapping for automatic routing
+ * Maps detected subject to the appropriate historical teacher.
+ */
+typedef struct {
+    const char* subject_keywords[5];
+    const char* maestro_id;
+    const char* maestro_name;
+} MaestroRouting;
+
+static const MaestroRouting MAESTRO_ROUTES[] = {
+    {{"math", "algebra", "geometry", "calculus", "arithmetic"}, "euclide", "Euclide"},
+    {{"physics", "mechanics", "energy", "quantum", "relativity"}, "feynman", "Richard Feynman"},
+    {{"biology", "evolution", "cell", "genetics", "organism"}, "darwin", "Charles Darwin"},
+    {{"chemistry", "molecule", "element", "reaction", "periodic"}, "darwin", "Charles Darwin"},
+    {{"geography", "climate", "earth", "territory", "map"}, "humboldt", "Alexander von Humboldt"},
+    {{"history", "war", "civilization", "empire", "revolution"}, "erodoto", "Erodoto"},
+    {{"italian", "literature", "poem", "novel", "grammar"}, "manzoni", "Alessandro Manzoni"},
+    {{"english", "shakespeare", "poetry", "drama", "language"}, "shakespeare", "William Shakespeare"},
+    {{"art", "painting", "sculpture", "design", "drawing"}, "leonardo", "Leonardo da Vinci"},
+    {{"music", "composition", "harmony", "melody", "rhythm"}, "mozart", "Wolfgang Amadeus Mozart"},
+    {{"philosophy", "ethics", "logic", "thinking", "socratic"}, "socrate", "Socrate"},
+    {{"civics", "law", "government", "rights", "citizen"}, "cicerone", "Marco Tullio Cicerone"},
+    {{"economics", "market", "trade", "money", "business"}, "smith", "Adam Smith"},
+    {{"computer", "programming", "algorithm", "code", "software"}, "lovelace", "Ada Lovelace"},
+    {{"health", "medicine", "body", "anatomy", "wellness"}, "ippocrate", "Ippocrate"},
+    {{NULL, NULL, NULL, NULL, NULL}, NULL, NULL}
+};
+
+/**
+ * DU09: Generate prompt for LLM to suggest appropriate maestro
+ * Based on document content, the LLM recommends which teacher should help.
+ * Returns a dynamically allocated string - caller must free.
+ */
+char* document_generate_routing_prompt(const char* detected_subject) {
+    if (!detected_subject || strlen(detected_subject) == 0) {
+        return NULL;
+    }
+
+    const char* prompt_template =
+        "Based on the subject '%s', recommend which of our 15 historical maestri "
+        "should help the student with this document:\n\n"
+        "Available Maestri:\n"
+        "- Socrate: Philosophy, critical thinking, Socratic dialogue\n"
+        "- Euclide: Mathematics, geometry, algebra, arithmetic\n"
+        "- Feynman: Physics, mechanics, energy, quantum concepts\n"
+        "- Darwin: Biology, natural sciences, evolution, chemistry\n"
+        "- Humboldt: Geography, climate, earth sciences, exploration\n"
+        "- Manzoni: Italian language and literature\n"
+        "- Erodoto: History, ancient civilizations, historical events\n"
+        "- Leonardo: Art, design, visual arts, engineering\n"
+        "- Mozart: Music, composition, musical theory\n"
+        "- Shakespeare: English language and literature\n"
+        "- Cicerone: Civics, law, ethics, government\n"
+        "- Smith: Economics, markets, business\n"
+        "- Lovelace: Computer science, programming, algorithms\n"
+        "- Ippocrate: Health, medicine, human body\n"
+        "- Anderson: Storytelling, presentation, TED-style explanations\n\n"
+        "Respond with:\n"
+        "RECOMMENDED_MAESTRO: [maestro name]\n"
+        "REASON: [why this maestro is best for this subject]\n"
+        "SWITCH_COMMAND: /study with [maestro]\n";
+
+    size_t len = strlen(prompt_template) + strlen(detected_subject) + 64;
+    char* prompt = malloc(len);
+    if (!prompt) return NULL;
+
+    snprintf(prompt, len, prompt_template, detected_subject);
+    return prompt;
+}
+
+/**
+ * Quick subject-to-maestro lookup (fallback if LLM unavailable)
+ * Returns maestro_id or NULL if no match.
+ */
+const char* document_get_maestro_for_subject(const char* subject) {
+    if (!subject) return NULL;
+
+    // Convert to lowercase for matching
+    char lower[128] = {0};
+    strncpy(lower, subject, sizeof(lower) - 1);
+    for (int i = 0; lower[i]; i++) {
+        lower[i] = (char)tolower((unsigned char)lower[i]);
+    }
+
+    // Search through routing table
+    for (int i = 0; MAESTRO_ROUTES[i].maestro_id != NULL; i++) {
+        for (int j = 0; MAESTRO_ROUTES[i].subject_keywords[j] != NULL; j++) {
+            if (strstr(lower, MAESTRO_ROUTES[i].subject_keywords[j])) {
+                return MAESTRO_ROUTES[i].maestro_id;
+            }
+        }
+    }
+
+    return "socrate";  // Default to Socrate for unknown subjects
+}
+
+// ============================================================================
+// DU06: OCR VIA LLM VISION
+// ============================================================================
+
+/**
+ * DU06: Generate prompt for LLM to perform OCR on an image.
+ * The LLM's vision capability naturally reads text from images.
+ * This prompt guides it to extract text cleanly.
+ *
+ * Returns a dynamically allocated string - caller must free.
+ */
+char* document_generate_ocr_prompt(void) {
+    if (!document_is_active()) return NULL;
+
+    const char* filename = document_get_current_filename();
+    if (!filename) return NULL;
+
+    const char* prompt_template =
+        "This is an image of a document or handwritten text ('%s').\n\n"
+        "Please perform OCR (Optical Character Recognition) on this image:\n\n"
+        "1. EXTRACT all visible text exactly as written\n"
+        "2. PRESERVE the original formatting (paragraphs, lists, headings)\n"
+        "3. If handwritten, do your best to interpret the writing\n"
+        "4. If there are diagrams or formulas, describe them in [brackets]\n"
+        "5. Indicate any text you're uncertain about with (?)\n\n"
+        "OUTPUT FORMAT:\n"
+        "---BEGIN EXTRACTED TEXT---\n"
+        "[extracted text here]\n"
+        "---END EXTRACTED TEXT---\n\n"
+        "If this is homework or a textbook page, also identify:\n"
+        "- SUBJECT: What subject this belongs to\n"
+        "- TOPIC: The specific topic being covered\n"
+        "- QUESTIONS: Any questions or exercises visible";
+
+    size_t len = strlen(prompt_template) + strlen(filename) + 64;
+    char* prompt = malloc(len);
+    if (!prompt) return NULL;
+
+    snprintf(prompt, len, prompt_template, filename);
+    return prompt;
+}
+
+/**
+ * Check if the current document is an image (for OCR).
+ */
+bool document_is_image(void) {
+    const char* filename = document_get_current_filename();
+    if (!filename) return false;
+
+    const char* dot = strrchr(filename, '.');
+    if (!dot) return false;
+
+    // Check for image extensions
+    const char* image_exts[] = {".jpg", ".jpeg", ".png", ".gif", ".bmp", ".webp", NULL};
+    for (int i = 0; image_exts[i]; i++) {
+        if (strcasecmp(dot, image_exts[i]) == 0) {
+            return true;
+        }
+    }
+    return false;
+}
+
+// ============================================================================
+// DU04: OPENAI FILE INPUT FOR VISION (Base64 encoding)
+// ============================================================================
+
+// Base64 encoding table
+static const char base64_chars[] =
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+
+/**
+ * DU04: Encode file content as base64 for OpenAI vision API.
+ * OpenAI requires images as base64-encoded data URLs.
+ *
+ * @param filepath Path to image file
+ * @return Base64 encoded string (caller must free), or NULL on error
+ */
+char* document_encode_base64(const char* filepath) {
+    if (!filepath) return NULL;
+
+    // Open file
+    FILE* f = fopen(filepath, "rb");
+    if (!f) return NULL;
+
+    // Get file size
+    fseek(f, 0, SEEK_END);
+    long file_size = ftell(f);
+    fseek(f, 0, SEEK_SET);
+
+    // Check size limit (32 MB for OpenAI)
+    if (file_size > 32 * 1024 * 1024) {
+        fclose(f);
+        return NULL;
+    }
+
+    // Read file content
+    unsigned char* data = malloc((size_t)file_size);
+    if (!data) {
+        fclose(f);
+        return NULL;
+    }
+    size_t read_size = fread(data, 1, (size_t)file_size, f);
+    fclose(f);
+
+    if ((long)read_size != file_size) {
+        free(data);
+        return NULL;
+    }
+
+    // Calculate base64 output size
+    size_t output_len = 4 * ((read_size + 2) / 3) + 1;
+    char* encoded = malloc(output_len);
+    if (!encoded) {
+        free(data);
+        return NULL;
+    }
+
+    // Encode to base64
+    size_t i, j;
+    for (i = 0, j = 0; i < read_size;) {
+        uint32_t octet_a = i < read_size ? data[i++] : 0;
+        uint32_t octet_b = i < read_size ? data[i++] : 0;
+        uint32_t octet_c = i < read_size ? data[i++] : 0;
+
+        uint32_t triple = (octet_a << 16) + (octet_b << 8) + octet_c;
+
+        encoded[j++] = base64_chars[(triple >> 18) & 0x3F];
+        encoded[j++] = base64_chars[(triple >> 12) & 0x3F];
+        encoded[j++] = base64_chars[(triple >> 6) & 0x3F];
+        encoded[j++] = base64_chars[triple & 0x3F];
+    }
+
+    // Add padding
+    size_t mod = read_size % 3;
+    if (mod > 0) {
+        for (size_t k = 0; k < 3 - mod; k++) {
+            encoded[j - 1 - k] = '=';
+        }
+    }
+    encoded[j] = '\0';
+
+    free(data);
+    return encoded;
+}
+
+/**
+ * DU04: Create OpenAI vision API data URL for an image.
+ * Format: data:image/jpeg;base64,<encoded_data>
+ *
+ * @param filepath Path to image file
+ * @return Data URL string (caller must free), or NULL on error
+ */
+char* document_create_vision_data_url(const char* filepath) {
+    if (!filepath) return NULL;
+
+    // Get MIME type
+    const char* mime = get_mime_type(filepath);
+
+    // Encode to base64
+    char* base64_data = document_encode_base64(filepath);
+    if (!base64_data) return NULL;
+
+    // Create data URL
+    size_t url_len = strlen("data:") + strlen(mime) + strlen(";base64,") +
+                     strlen(base64_data) + 1;
+    char* data_url = malloc(url_len);
+    if (!data_url) {
+        free(base64_data);
+        return NULL;
+    }
+
+    snprintf(data_url, url_len, "data:%s;base64,%s", mime, base64_data);
+    free(base64_data);
+
+    return data_url;
+}
+
+// ============================================================================
+// DU05: CAMERA ACCESS (macOS AVFoundation stub)
+// ============================================================================
+
+/**
+ * DU05: Capture photo from camera.
+ *
+ * Note: Full camera access requires AVFoundation (Objective-C/Swift).
+ * This stub provides the interface; implementation in camera.m
+ *
+ * @return Path to captured image (caller must free), or NULL on error
+ */
+char* document_capture_from_camera(void) {
+    // Full implementation requires AVFoundation integration
+    // For now, prompt user to use file upload instead
+    printf("\n📷 Camera capture is not yet available.\n");
+    printf("   Please use /upload to select an existing photo.\n");
+    printf("   Or use your phone's camera and transfer the photo.\n\n");
+    return NULL;
+}
+
+/**
+ * Check if camera is available.
+ */
+bool document_camera_available(void) {
+    // Would check AVCaptureDevice.authorizationStatus in real implementation
+    return false;
 }
 
 // ============================================================================

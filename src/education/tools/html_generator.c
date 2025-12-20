@@ -273,3 +273,147 @@ char* html_generate_lesson(const char* topic, const char* content_html) {
              content_html ? content_html : "<p>Contenuto in elaborazione...</p>");
     return html;
 }
+
+// ============================================================================
+// TL10: LLM PROMPT TEMPLATES FOR COMMON VISUALS
+// ============================================================================
+
+/**
+ * Get LLM prompt template for generating geometry visualizations.
+ * The LLM will generate interactive HTML with SVG/Canvas.
+ */
+const char* html_template_prompt_geometry(void) {
+    return
+        "Generate an interactive HTML visualization for geometry.\n"
+        "REQUIREMENTS:\n"
+        "- Use SVG for precise geometric shapes (triangles, circles, angles)\n"
+        "- Include labels for all measurements and angles\n"
+        "- Add CSS animations to highlight key relationships\n"
+        "- Make it responsive (max-width: 800px)\n"
+        "- Use color coding: blue for given values, red for unknown\n"
+        "- Include step-by-step visual proof if applicable\n"
+        "- Add Italian labels (angolo, lato, diagonale, etc.)\n"
+        "STYLE: Modern, clean, professional with gradient backgrounds.\n"
+        "OUTPUT: Complete standalone HTML document.";
+}
+
+/**
+ * Get LLM prompt template for generating historical timelines.
+ */
+const char* html_template_prompt_timeline(void) {
+    return
+        "Generate an interactive HTML timeline visualization.\n"
+        "REQUIREMENTS:\n"
+        "- Horizontal scrollable timeline with event cards\n"
+        "- Each event: date, title, short description, optional image placeholder\n"
+        "- Color-code by category (wars=red, discoveries=green, culture=purple)\n"
+        "- Hover effects to expand event details\n"
+        "- Responsive design with mobile-friendly vertical fallback\n"
+        "- Include zoom controls (+/-) for different time scales\n"
+        "STYLE: Classic parchment aesthetic with modern interactions.\n"
+        "OUTPUT: Complete standalone HTML document.";
+}
+
+/**
+ * Get LLM prompt template for generating physics diagrams.
+ */
+const char* html_template_prompt_physics(void) {
+    return
+        "Generate an interactive HTML physics diagram.\n"
+        "REQUIREMENTS:\n"
+        "- Use Canvas or SVG for dynamic visualizations\n"
+        "- Show force vectors with arrows (labeled with magnitude)\n"
+        "- Include interactive sliders to adjust parameters\n"
+        "- Real-time calculation updates when values change\n"
+        "- Unit labels (N, m/s², kg, etc.)\n"
+        "- Include the relevant formula displayed prominently\n"
+        "STYLE: Scientific, clean, with grid background.\n"
+        "OUTPUT: Complete standalone HTML document with JavaScript.";
+}
+
+/**
+ * Get LLM prompt template for generating biology diagrams.
+ */
+const char* html_template_prompt_biology(void) {
+    return
+        "Generate an interactive HTML biology diagram.\n"
+        "REQUIREMENTS:\n"
+        "- Detailed labeled diagram (cell, organ, organism)\n"
+        "- Click/hover on parts to see descriptions\n"
+        "- Use SVG for scalable illustrations\n"
+        "- Color-code different structures/systems\n"
+        "- Include a legend explaining colors/symbols\n"
+        "- Add zoom capability for detailed views\n"
+        "STYLE: Scientific illustration style, pastel colors.\n"
+        "OUTPUT: Complete standalone HTML document.";
+}
+
+/**
+ * Get LLM prompt template for generating math function graphs.
+ */
+const char* html_template_prompt_math_graph(void) {
+    return
+        "Generate an interactive HTML math graph visualization.\n"
+        "REQUIREMENTS:\n"
+        "- Use Canvas for plotting functions\n"
+        "- Coordinate grid with labeled axes\n"
+        "- Interactive: drag to pan, scroll to zoom\n"
+        "- Plot the function with smooth curve\n"
+        "- Highlight key points (zeros, maxima, minima, asymptotes)\n"
+        "- Display equation prominently with LaTeX-style formatting\n"
+        "- Add sliders to modify function parameters if applicable\n"
+        "STYLE: Clean mathematical plotting, dark grid on light background.\n"
+        "OUTPUT: Complete standalone HTML document with JavaScript.";
+}
+
+/**
+ * Get LLM prompt template for generating interactive quizzes.
+ */
+const char* html_template_prompt_quiz(void) {
+    return
+        "Generate an interactive HTML quiz.\n"
+        "REQUIREMENTS:\n"
+        "- Multiple choice questions with 4 options each\n"
+        "- Immediate feedback on selection (green=correct, red=wrong)\n"
+        "- Explanation shown after each answer\n"
+        "- Progress bar showing questions completed\n"
+        "- Final score with encouraging message\n"
+        "- Option to retry incorrect questions\n"
+        "- Confetti animation on perfect score\n"
+        "STYLE: Gamified, colorful, encouraging.\n"
+        "OUTPUT: Complete standalone HTML document with JavaScript.";
+}
+
+/**
+ * Get LLM prompt template for generating flashcards.
+ */
+const char* html_template_prompt_flashcards(void) {
+    return
+        "Generate interactive HTML flashcards.\n"
+        "REQUIREMENTS:\n"
+        "- Click to flip between question and answer\n"
+        "- Smooth 3D flip animation\n"
+        "- Navigation arrows for next/previous card\n"
+        "- Shuffle button\n"
+        "- Progress indicator (card X of Y)\n"
+        "- Mark cards as 'known' or 'review' for spaced repetition\n"
+        "- Keyboard navigation (arrows, space to flip)\n"
+        "STYLE: Clean cards with subtle shadows, colorful accents.\n"
+        "OUTPUT: Complete standalone HTML document with JavaScript.";
+}
+
+/**
+ * Get appropriate prompt template based on content type.
+ */
+const char* html_get_template_prompt(HtmlContentType type) {
+    switch (type) {
+        case HTML_CONTENT_GEOMETRY: return html_template_prompt_geometry();
+        case HTML_CONTENT_TIMELINE: return html_template_prompt_timeline();
+        case HTML_CONTENT_PHYSICS:  return html_template_prompt_physics();
+        case HTML_CONTENT_BIOLOGY:  return html_template_prompt_biology();
+        case HTML_CONTENT_GRAPH:    return html_template_prompt_math_graph();
+        case HTML_CONTENT_QUIZ:     return html_template_prompt_quiz();
+        case HTML_CONTENT_FLASHCARD: return html_template_prompt_flashcards();
+        default:                    return NULL;
+    }
+}
