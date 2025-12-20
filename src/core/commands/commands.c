@@ -1009,6 +1009,38 @@ static const CommandHelp DETAILED_HELP[] = {
         "/voice feynman                       # With Feynman\n"
         "/voice euclide geometria             # Euclide on geometry"
     },
+    {
+        "upload",
+        "upload [path]",
+        "Upload a document for study help",
+        "Open an interactive file picker to upload school materials.\n\n"
+        "Supported formats:\n"
+        "  - PDF, DOCX, DOC\n"
+        "  - PPTX, PPT (presentations)\n"
+        "  - XLSX, XLS (spreadsheets)\n"
+        "  - Images (JPG, PNG)\n"
+        "  - TXT, RTF, CSV\n\n"
+        "File picker is restricted to Desktop, Documents, and Downloads\n"
+        "for student safety.\n\n"
+        "After upload, you can ask teachers about the document content.",
+        "/upload                              # Open file picker\n"
+        "/upload ~/Documents/math.pdf        # Upload specific file"
+    },
+    {
+        "doc",
+        "doc [list|clear|number]",
+        "Manage uploaded documents",
+        "View and manage uploaded school materials.\n\n"
+        "Subcommands:\n"
+        "  list         List all uploaded documents\n"
+        "  clear        Remove all uploaded documents\n"
+        "  <number>     Select document by number\n\n"
+        "The current document is used when asking teachers questions.",
+        "/doc                                 # List uploaded documents\n"
+        "/doc list                            # Same as /doc\n"
+        "/doc 1                               # Select first document\n"
+        "/doc clear                           # Remove all documents"
+    },
     {NULL, NULL, NULL, NULL, NULL}
 };
 
