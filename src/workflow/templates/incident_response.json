@@ -1,0 +1,201 @@
+{
+    "name": "incident-response",
+    "description": "Incident Response: rilevamento, analisi, mitigazione, risoluzione e post-mortem",
+    "entry_node": "incident_detection",
+    "nodes": [
+        {
+            "id": "incident_detection",
+            "name": "Rilevamento Incidente",
+            "type": "ACTION",
+            "agent_role": "ORCHESTRATOR",
+            "action_prompt": "Rileva e classifica l'incidente. Identifica: severità, impatto, servizi affetti, utenti impattati, timeline. Attiva response team.",
+            "next_nodes": ["incident_triage"]
+        },
+        {
+            "id": "incident_triage",
+            "name": "Triage Incidente",
+            "type": "DECISION",
+            "description": "Classifica severità e priorità dell'incidente",
+            "next_nodes": ["critical_incident", "high_priority_incident", "normal_incident"]
+        },
+        {
+            "id": "critical_incident",
+            "name": "Incidente Critico",
+            "type": "ACTION",
+            "agent_role": "ORCHESTRATOR",
+            "action_prompt": "Gestisci incidente critico. Attiva: war room, escalation, comunicazione stakeholders, rollback plan, incident commander.",
+            "next_nodes": ["root_cause_analysis"]
+        },
+        {
+            "id": "high_priority_incident",
+            "name": "Incidente Alta Priorità",
+            "type": "ACTION",
+            "agent_role": "ORCHESTRATOR",
+            "action_prompt": "Gestisci incidente ad alta priorità. Coordina team, analizza impatto, pianifica fix.",
+            "next_nodes": ["root_cause_analysis"]
+        },
+        {
+            "id": "normal_incident",
+            "name": "Incidente Normale",
+            "type": "ACTION",
+            "agent_role": "ORCHESTRATOR",
+            "action_prompt": "Gestisci incidente normale. Assegna a team appropriato, traccia progresso.",
+            "next_nodes": ["root_cause_analysis"]
+        },
+        {
+            "id": "root_cause_analysis",
+            "name": "Analisi Root Cause",
+            "type": "ACTION",
+            "agent_role": "ANALYST",
+            "action_prompt": "Analizza root cause dell'incidente. Usa: 5 whys, timeline analysis, log analysis, system state. Identifica causa principale.",
+            "next_nodes": ["security_check"]
+        },
+        {
+            "id": "security_check",
+            "name": "Security Check",
+            "type": "ACTION",
+            "agent_role": "CRITIC",
+            "action_prompt": "Verifica se l'incidente ha implicazioni di sicurezza. Controlla: data breach, unauthorized access, exploit, compromise.",
+            "next_nodes": ["mitigation_planning"]
+        },
+        {
+            "id": "mitigation_planning",
+            "name": "Pianificazione Mitigazione",
+            "type": "ACTION",
+            "agent_role": "PLANNER",
+            "action_prompt": "Crea piano di mitigazione. Definisci: immediate actions, workarounds, temporary fixes, communication plan, rollback strategy.",
+            "next_nodes": ["mitigation_decision"]
+        },
+        {
+            "id": "mitigation_decision",
+            "name": "Decisione Mitigazione",
+            "type": "DECISION",
+            "description": "Scegli strategia di mitigazione",
+            "next_nodes": ["immediate_mitigation", "hotfix", "rollback"]
+        },
+        {
+            "id": "immediate_mitigation",
+            "name": "Mitigazione Immediata",
+            "type": "ACTION",
+            "agent_role": "EXECUTOR",
+            "action_prompt": "Esegui mitigazione immediata. Azioni: disable feature, rate limiting, traffic routing, emergency patch, service isolation.",
+            "next_nodes": ["fix_implementation"]
+        },
+        {
+            "id": "hotfix",
+            "name": "Hotfix",
+            "type": "ACTION",
+            "agent_role": "CODER",
+            "action_prompt": "Implementa hotfix. Focus su: fix rapido, test minimi critici, deploy emergenza, monitoraggio intensivo.",
+            "next_nodes": ["fix_implementation"]
+        },
+        {
+            "id": "rollback",
+            "name": "Rollback",
+            "type": "ACTION",
+            "agent_role": "EXECUTOR",
+            "action_prompt": "Esegui rollback a versione stabile. Verifica: backup disponibile, data consistency, service restoration.",
+            "next_nodes": ["fix_implementation"]
+        },
+        {
+            "id": "fix_implementation",
+            "name": "Implementazione Fix",
+            "type": "ACTION",
+            "agent_role": "CODER",
+            "action_prompt": "Implementa fix permanente. Assicurati che risolva root cause, includa test, sia production-ready.",
+            "next_nodes": ["fix_verification"]
+        },
+        {
+            "id": "fix_verification",
+            "name": "Verifica Fix",
+            "type": "ACTION",
+            "agent_role": "CRITIC",
+            "action_prompt": "Verifica che il fix risolva l'incidente. Esegui: test completi, verifica regressioni, monitoraggio, user validation.",
+            "next_nodes": ["resolution_decision"]
+        },
+        {
+            "id": "resolution_decision",
+            "name": "Decisione Risoluzione",
+            "type": "DECISION",
+            "description": "Verifica se l'incidente è risolto",
+            "next_nodes": ["incident_resolved", "re_investigation"]
+        },
+        {
+            "id": "re_investigation",
+            "name": "Re-Investigazione",
+            "type": "ACTION",
+            "agent_role": "ANALYST",
+            "action_prompt": "Se il fix non ha risolto, re-investiga. Analizza cosa è mancato, identifica nuove cause, pianifica nuovo fix.",
+            "next_nodes": ["root_cause_analysis"]
+        },
+        {
+            "id": "incident_resolved",
+            "name": "Incidente Risolto",
+            "type": "ACTION",
+            "agent_role": "ORCHESTRATOR",
+            "action_prompt": "Conferma risoluzione incidente. Comunica a stakeholders, aggiorna status page, chiudi ticket, de-escalate.",
+            "next_nodes": ["post_mortem"]
+        },
+        {
+            "id": "post_mortem",
+            "name": "Post-Mortem",
+            "type": "ACTION",
+            "agent_role": "WRITER",
+            "action_prompt": "Scrivi post-mortem completo: timeline, root cause, impact, response, lessons learned, action items, prevention measures.",
+            "next_nodes": ["conclusion"]
+        },
+        {
+            "id": "conclusion",
+            "name": "Conclusione",
+            "type": "CONVERGE",
+            "description": "Finalizza incident response",
+            "next_nodes": []
+        }
+    ],
+    "edges": [
+        {"from": "incident_detection", "to": "incident_triage"},
+        {"from": "incident_triage", "to": "critical_incident", "condition": "severity == 'critical' || impact == 'service_down'"},
+        {"from": "incident_triage", "to": "high_priority_incident", "condition": "severity == 'high'"},
+        {"from": "incident_triage", "to": "normal_incident", "condition": "severity == 'normal' || severity == 'low'"},
+        {"from": "critical_incident", "to": "root_cause_analysis"},
+        {"from": "high_priority_incident", "to": "root_cause_analysis"},
+        {"from": "normal_incident", "to": "root_cause_analysis"},
+        {"from": "root_cause_analysis", "to": "security_check"},
+        {"from": "security_check", "to": "mitigation_planning"},
+        {"from": "mitigation_planning", "to": "mitigation_decision"},
+        {"from": "mitigation_decision", "to": "immediate_mitigation", "condition": "can_mitigate_immediately == true"},
+        {"from": "mitigation_decision", "to": "hotfix", "condition": "can_hotfix == true && can_mitigate_immediately == false"},
+        {"from": "mitigation_decision", "to": "rollback", "condition": "can_rollback == true && can_hotfix == false"},
+        {"from": "immediate_mitigation", "to": "fix_implementation"},
+        {"from": "hotfix", "to": "fix_implementation"},
+        {"from": "rollback", "to": "fix_implementation"},
+        {"from": "fix_implementation", "to": "fix_verification"},
+        {"from": "fix_verification", "to": "resolution_decision"},
+        {"from": "resolution_decision", "to": "incident_resolved", "condition": "incident_resolved == true"},
+        {"from": "resolution_decision", "to": "re_investigation", "condition": "incident_resolved == false"},
+        {"from": "re_investigation", "to": "root_cause_analysis"},
+        {"from": "incident_resolved", "to": "post_mortem"},
+        {"from": "post_mortem", "to": "conclusion"}
+    ],
+    "metadata": {
+        "use_case": "Incident Response",
+        "scenario": "Gestione completa di un incidente di produzione",
+        "participants": [
+            "Ali (ORCHESTRATOR) - Incident commander",
+            "Domik (ANALYST) - Root cause analysis",
+            "Luca (CRITIC) - Security check",
+            "Baccio (CODER) - Fix implementation",
+            "Marco (EXECUTOR) - Deployment e rollback"
+        ],
+        "features": [
+            "Incident detection e triage",
+            "Severity-based routing",
+            "Root cause analysis",
+            "Security assessment",
+            "Multiple mitigation strategies",
+            "Fix verification loop",
+            "Post-mortem documentation"
+        ]
+    }
+}
+

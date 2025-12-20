@@ -1,0 +1,156 @@
+{
+    "name": "bug-triage",
+    "description": "Bug Triage & Fix: Identificazione, priorità, fix e verifica di bug",
+    "entry_node": "bug_analysis",
+    "nodes": [
+        {
+            "id": "bug_analysis",
+            "name": "Analisi Bug",
+            "type": "ACTION",
+            "agent_role": "CODER",
+            "action_prompt": "Analizza il bug report. Identifica: severità, impatto, root cause, area del codice interessata. Fornisci una stima del tempo di fix.",
+            "next_nodes": ["security_check", "priority_assessment"]
+        },
+        {
+            "id": "security_check",
+            "name": "Security Check",
+            "type": "ACTION",
+            "agent_role": "CRITIC",
+            "action_prompt": "Valuta se il bug ha implicazioni di sicurezza. Identifica vulnerabilità, rischio di exploit, impatto sulla sicurezza dei dati.",
+            "next_nodes": ["priority_assessment"]
+        },
+        {
+            "id": "priority_assessment",
+            "name": "Valutazione Priorità",
+            "type": "DECISION",
+            "description": "Determina la priorità del bug basata su severità, sicurezza e impatto",
+            "next_nodes": ["critical_fix", "high_priority_fix", "normal_fix", "low_priority_fix"]
+        },
+        {
+            "id": "critical_fix",
+            "name": "Fix Critico",
+            "type": "ACTION",
+            "agent_role": "CODER",
+            "action_prompt": "Implementa il fix per il bug critico. Focus su: sicurezza, stabilità, rollback plan. Scrivi test di regressione.",
+            "next_nodes": ["code_review_critical"]
+        },
+        {
+            "id": "high_priority_fix",
+            "name": "Fix Alta Priorità",
+            "type": "ACTION",
+            "agent_role": "CODER",
+            "action_prompt": "Implementa il fix per il bug ad alta priorità. Assicurati che il fix sia completo e testato.",
+            "next_nodes": ["code_review"]
+        },
+        {
+            "id": "normal_fix",
+            "name": "Fix Normale",
+            "type": "ACTION",
+            "agent_role": "CODER",
+            "action_prompt": "Implementa il fix per il bug normale. Segui le best practices del codebase.",
+            "next_nodes": ["code_review"]
+        },
+        {
+            "id": "low_priority_fix",
+            "name": "Fix Bassa Priorità",
+            "type": "ACTION",
+            "agent_role": "CODER",
+            "action_prompt": "Implementa il fix per il bug a bassa priorità. Può essere incluso nella prossima release.",
+            "next_nodes": ["code_review"]
+        },
+        {
+            "id": "code_review_critical",
+            "name": "Code Review Critico",
+            "type": "ACTION",
+            "agent_role": "CRITIC",
+            "action_prompt": "Review approfondito del fix critico. Verifica: sicurezza, edge cases, test coverage, performance impact.",
+            "next_nodes": ["deployment_critical"]
+        },
+        {
+            "id": "code_review",
+            "name": "Code Review",
+            "type": "ACTION",
+            "agent_role": "CRITIC",
+            "action_prompt": "Review del fix. Verifica qualità del codice, test, conformità agli standard.",
+            "next_nodes": ["deployment"]
+        },
+        {
+            "id": "deployment_critical",
+            "name": "Deployment Critico",
+            "type": "ACTION",
+            "agent_role": "EXECUTOR",
+            "action_prompt": "Deploy del fix critico in produzione. Esegui: build, test, deploy, monitoraggio. Prepara rollback plan.",
+            "next_nodes": ["verification"]
+        },
+        {
+            "id": "deployment",
+            "name": "Deployment",
+            "type": "ACTION",
+            "agent_role": "EXECUTOR",
+            "action_prompt": "Deploy del fix. Esegui: build, test, deploy in staging, verifica, deploy in produzione.",
+            "next_nodes": ["verification"]
+        },
+        {
+            "id": "verification",
+            "name": "Verifica Fix",
+            "type": "ACTION",
+            "agent_role": "CRITIC",
+            "action_prompt": "Verifica che il fix risolva il bug. Esegui test, verifica regressioni, monitora metriche. Conferma risoluzione.",
+            "next_nodes": ["documentation", "close_bug"]
+        },
+        {
+            "id": "documentation",
+            "name": "Documentazione",
+            "type": "ACTION",
+            "agent_role": "WRITER",
+            "action_prompt": "Documenta il bug e il fix: root cause, soluzione, lezioni apprese, prevenzione futura.",
+            "next_nodes": ["close_bug"]
+        },
+        {
+            "id": "close_bug",
+            "name": "Chiusura Bug",
+            "type": "CONVERGE",
+            "description": "Chiudi il bug e aggiorna il tracking",
+            "next_nodes": []
+        }
+    ],
+    "edges": [
+        {"from": "bug_analysis", "to": "security_check"},
+        {"from": "bug_analysis", "to": "priority_assessment"},
+        {"from": "security_check", "to": "priority_assessment"},
+        {"from": "priority_assessment", "to": "critical_fix", "condition": "severity == 'critical' || security_risk == true"},
+        {"from": "priority_assessment", "to": "high_priority_fix", "condition": "severity == 'high' && security_risk == false"},
+        {"from": "priority_assessment", "to": "normal_fix", "condition": "severity == 'medium'"},
+        {"from": "priority_assessment", "to": "low_priority_fix", "condition": "severity == 'low'"},
+        {"from": "critical_fix", "to": "code_review_critical"},
+        {"from": "high_priority_fix", "to": "code_review"},
+        {"from": "normal_fix", "to": "code_review"},
+        {"from": "low_priority_fix", "to": "code_review"},
+        {"from": "code_review_critical", "to": "deployment_critical"},
+        {"from": "code_review", "to": "deployment"},
+        {"from": "deployment_critical", "to": "verification"},
+        {"from": "deployment", "to": "verification"},
+        {"from": "verification", "to": "documentation", "condition": "fix_verified == true"},
+        {"from": "verification", "to": "close_bug", "condition": "fix_verified == false"},
+        {"from": "documentation", "to": "close_bug"}
+    ],
+    "metadata": {
+        "use_case": "Bug Triage & Fix",
+        "scenario": "Gestione completa del ciclo di vita di un bug",
+        "participants": [
+            "Baccio (CODER) - Analisi e fix",
+            "Luca (CRITIC) - Security check",
+            "Thor (CRITIC) - Code review e verifica",
+            "Marco (EXECUTOR) - Deployment"
+        ],
+        "features": [
+            "Analisi automatica del bug",
+            "Security assessment",
+            "Priority-based routing",
+            "Code review differenziato per criticità",
+            "Deployment con rollback plan",
+            "Verifica e documentazione"
+        ]
+    }
+}
+

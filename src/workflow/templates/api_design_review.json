@@ -1,0 +1,171 @@
+{
+    "name": "api-design-review",
+    "description": "API Design Review: progettazione, review, documentazione e validazione",
+    "entry_node": "api_design",
+    "nodes": [
+        {
+            "id": "api_design",
+            "name": "Progettazione API",
+            "type": "ACTION",
+            "agent_role": "CODER",
+            "action_prompt": "Progetta l'API. Definisci: endpoints, request/response schemas, authentication, versioning, error handling, rate limiting, pagination.",
+            "next_nodes": ["technical_review"]
+        },
+        {
+            "id": "technical_review",
+            "name": "Technical Review",
+            "type": "ACTION",
+            "agent_role": "CODER",
+            "action_prompt": "Review tecnico dell'API design. Verifica: RESTful principles, consistency, scalability, performance, security best practices.",
+            "next_nodes": ["security_review"]
+        },
+        {
+            "id": "security_review",
+            "name": "Security Review",
+            "type": "ACTION",
+            "agent_role": "CRITIC",
+            "action_prompt": "Review di sicurezza dell'API. Verifica: authentication, authorization, input validation, SQL injection, XSS, CSRF, rate limiting, data encryption.",
+            "next_nodes": "quality_review"
+        },
+        {
+            "id": "quality_review",
+            "name": "Quality Review",
+            "type": "ACTION",
+            "agent_role": "CRITIC",
+            "action_prompt": "Review qualità complessiva. Verifica: naming conventions, error messages, status codes, backward compatibility, deprecation strategy.",
+            "next_nodes": ["review_decision"]
+        },
+        {
+            "id": "review_decision",
+            "name": "Decisione Review",
+            "type": "DECISION",
+            "description": "Valuta se l'API design è approvato",
+            "next_nodes": ["api_approved", "api_needs_revision"]
+        },
+        {
+            "id": "api_needs_revision",
+            "name": "API Richiede Revisione",
+            "type": "ACTION",
+            "agent_role": "CODER",
+            "action_prompt": "Rivedi l'API design basandoti sui feedback. Risolvi tutti i problemi identificati, migliora design, ri-applica best practices.",
+            "next_nodes": ["technical_review"]
+        },
+        {
+            "id": "api_approved",
+            "name": "API Approvata",
+            "type": "ACTION",
+            "agent_role": "WRITER",
+            "action_prompt": "Genera documentazione completa dell'API: OpenAPI/Swagger spec, endpoint documentation, examples, authentication guide, error codes, rate limits.",
+            "next_nodes": ["documentation_review"]
+        },
+        {
+            "id": "documentation_review",
+            "name": "Review Documentazione",
+            "type": "ACTION",
+            "agent_role": "CRITIC",
+            "action_prompt": "Review della documentazione. Verifica: completezza, chiarezza, esempi, accuracy, user-friendliness.",
+            "next_nodes": ["documentation_decision"]
+        },
+        {
+            "id": "documentation_decision",
+            "name": "Decisione Documentazione",
+            "type": "DECISION",
+            "description": "Valuta se la documentazione è completa",
+            "next_nodes": ["implementation", "documentation_revision"]
+        },
+        {
+            "id": "documentation_revision",
+            "name": "Revisione Documentazione",
+            "type": "ACTION",
+            "agent_role": "WRITER",
+            "action_prompt": "Migliora la documentazione basandoti sui feedback. Aggiungi esempi, chiarisci concetti, correggi errori.",
+            "next_nodes": ["documentation_review"]
+        },
+        {
+            "id": "implementation",
+            "name": "Implementazione",
+            "type": "ACTION",
+            "agent_role": "CODER",
+            "action_prompt": "Implementa l'API secondo il design approvato. Segui: design spec, coding standards, test coverage, error handling.",
+            "next_nodes": ["api_testing"]
+        },
+        {
+            "id": "api_testing",
+            "name": "API Testing",
+            "type": "ACTION",
+            "agent_role": "CRITIC",
+            "action_prompt": "Testa l'API. Esegui: unit tests, integration tests, security tests, performance tests, edge cases, error scenarios.",
+            "next_nodes": ["validation"]
+        },
+        {
+            "id": "validation",
+            "name": "Validazione",
+            "type": "DECISION",
+            "description": "Valuta se l'API è pronta per produzione",
+            "next_nodes": ["deployment", "fix_issues"]
+        },
+        {
+            "id": "fix_issues",
+            "name": "Fix Issues",
+            "type": "ACTION",
+            "agent_role": "CODER",
+            "action_prompt": "Risolvi i problemi identificati nei test. Fix bugs, migliora error handling, ottimizza performance.",
+            "next_nodes": ["api_testing"]
+        },
+        {
+            "id": "deployment",
+            "name": "Deployment",
+            "type": "ACTION",
+            "agent_role": "EXECUTOR",
+            "action_prompt": "Deploy l'API in produzione. Esegui: staging deployment, smoke tests, production deployment, monitoring setup.",
+            "next_nodes": ["conclusion"]
+        },
+        {
+            "id": "conclusion",
+            "name": "Conclusione",
+            "type": "CONVERGE",
+            "description": "Finalizza API design review",
+            "next_nodes": []
+        }
+    ],
+    "edges": [
+        {"from": "api_design", "to": "technical_review"},
+        {"from": "technical_review", "to": "security_review"},
+        {"from": "security_review", "to": "quality_review"},
+        {"from": "quality_review", "to": "review_decision"},
+        {"from": "review_decision", "to": "api_approved", "condition": "api_approved == true"},
+        {"from": "review_decision", "to": "api_needs_revision", "condition": "api_approved == false"},
+        {"from": "api_needs_revision", "to": "technical_review"},
+        {"from": "api_approved", "to": "documentation_review"},
+        {"from": "documentation_review", "to": "documentation_decision"},
+        {"from": "documentation_decision", "to": "implementation", "condition": "documentation_complete == true"},
+        {"from": "documentation_decision", "to": "documentation_revision", "condition": "documentation_complete == false"},
+        {"from": "documentation_revision", "to": "documentation_review"},
+        {"from": "implementation", "to": "api_testing"},
+        {"from": "api_testing", "to": "validation"},
+        {"from": "validation", "to": "deployment", "condition": "api_ready == true"},
+        {"from": "validation", "to": "fix_issues", "condition": "api_ready == false"},
+        {"from": "fix_issues", "to": "api_testing"},
+        {"from": "deployment", "to": "conclusion"}
+    ],
+    "metadata": {
+        "use_case": "API Design Review",
+        "scenario": "Review completo del design e implementazione di un'API",
+        "participants": [
+            "Baccio (CODER) - API design e implementation",
+            "Dan (CODER) - Technical review",
+            "Luca (CRITIC) - Security review",
+            "Thor (CRITIC) - Quality review",
+            "Sofia (WRITER) - Documentation",
+            "Marco (EXECUTOR) - Deployment"
+        ],
+        "features": [
+            "Multi-stage review (technical, security, quality)",
+            "Iterative refinement loop",
+            "Documentation generation",
+            "Comprehensive testing",
+            "Validation gate"
+        ]
+    }
+}
+
