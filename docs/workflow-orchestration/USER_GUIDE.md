@@ -201,8 +201,18 @@ Workflows automatically create checkpoints at key points. You can resume from an
 
 Pre-built workflow templates are available in `src/workflow/templates/`:
 
+### Software Development
 - **code-review.json** - Multi-agent code review
-- **product-launch.json** - Product launch planning
+- **bug-triage.json** - Bug triage, prioritization, fix e verifica
+- **security-audit.json** - Security audit completo con identificazione e fix vulnerabilità
+- **performance-optimization.json** - Ottimizzazione performance: analisi, profiling, ottimizzazione
+- **api-design-review.json** - API design review: progettazione, review, documentazione
+- **incident-response.json** - Incident response: rilevamento, analisi, mitigazione, risoluzione
+
+### Business & Planning
+- **product-launch.json** - Product launch planning completo
+
+### Education
 - **class-council.json** - Consiglio di classe (Ali coordina insegnanti per valutare uno studente)
 
 ---
