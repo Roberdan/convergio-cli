@@ -779,7 +779,7 @@ void acp_handle_session_prompt(int request_id, const char* params_json) {
 
     // Extract prompt text and context (ACP format: prompt[])
     cJSON* prompt_array = cJSON_GetObjectItem(params, "prompt");
-    char prompt_text[16384] = {0};  // Larger buffer for context
+    char prompt_text[24576] = {0};  // Buffer for prompt + context combined
     char context_text[8192] = {0};  // Buffer for embedded context
 
     if (prompt_array && cJSON_IsArray(prompt_array)) {
@@ -809,17 +809,30 @@ void acp_handle_session_prompt(int request_id, const char* params_json) {
                 }
                 if (content && cJSON_IsString(content)) {
                     ctx_remaining = sizeof(context_text) - strlen(context_text) - 1;
-                    strncat(context_text, content->valuestring, ctx_remaining);
-                    strncat(context_text, "\n", ctx_remaining - 1);
+                    if (ctx_remaining > 0) {
+                        strncat(context_text, content->valuestring, ctx_remaining);
+                        ctx_remaining = sizeof(context_text) - strlen(context_text) - 1;
+                        if (ctx_remaining > 0) {
+                            strncat(context_text, "\n", ctx_remaining);
+                        }
+                    }
                 }
                 if (selection && cJSON_IsObject(selection)) {
                     cJSON* sel_text = cJSON_GetObjectItem(selection, "text");
                     if (sel_text && cJSON_IsString(sel_text)) {
                         ctx_remaining = sizeof(context_text) - strlen(context_text) - 1;
-                        char sel_header[64] = "\n[Selection]:\n";
-                        strncat(context_text, sel_header, ctx_remaining);
-                        strncat(context_text, sel_text->valuestring, ctx_remaining - 20);
-                        strncat(context_text, "\n", 1);
+                        if (ctx_remaining > 20) {
+                            char sel_header[64] = "\n[Selection]:\n";
+                            strncat(context_text, sel_header, ctx_remaining);
+                            ctx_remaining = sizeof(context_text) - strlen(context_text) - 1;
+                            if (ctx_remaining > 0) {
+                                strncat(context_text, sel_text->valuestring, ctx_remaining);
+                                ctx_remaining = sizeof(context_text) - strlen(context_text) - 1;
+                                if (ctx_remaining > 0) {
+                                    strncat(context_text, "\n", ctx_remaining);
+                                }
+                            }
+                        }
                     }
                 }
             }
