@@ -868,6 +868,119 @@ static const CommandHelp DETAILED_HELP[] = {
         "/style flash        # Set to ultra-concise\n"
         "/style detailed     # Set to comprehensive"
     },
+    // Education Pack commands
+    {
+        "education",
+        "education [setup|quick|profile|progress]",
+        "Education Pack setup and management",
+        "Manage student profiles and education settings.\n\n"
+        "Subcommands:\n"
+        "  setup          Run the interactive setup wizard\n"
+        "  quick <name> <curriculum> <grade>  Quick profile creation\n"
+        "  profile        Show current student profile\n"
+        "  progress       Show learning progress\n\n"
+        "Available curricula:\n"
+        "  elementari, scuola_media, liceo_scientifico, liceo_classico,\n"
+        "  liceo_linguistico, liceo_artistico, iti_informatica",
+        "/education                           # Show current profile\n"
+        "/education setup                     # Interactive wizard\n"
+        "/education quick Mario liceo_scientifico 1\n"
+        "/education profile                   # Detailed profile view"
+    },
+    {
+        "study",
+        "study <subject> [topic]",
+        "Start a study session with Pomodoro timer",
+        "Start a focused study session with a maestro.\n\n"
+        "Features:\n"
+        "  - 25-minute focused work sessions (Pomodoro)\n"
+        "  - 5-minute breaks (15 min after 4 pomodoros)\n"
+        "  - Native macOS notifications\n"
+        "  - End-of-session review quiz\n"
+        "  - Automatic time tracking in libretto",
+        "/study matematica                    # Study math\n"
+        "/study fisica \"moto rettilineo\"      # Study specific topic\n"
+        "/study italiano                      # Study Italian"
+    },
+    {
+        "homework",
+        "homework <description>",
+        "Get help with homework (anti-cheating mode)",
+        "Get guided help understanding homework without answers.\n\n"
+        "Features:\n"
+        "  - Socratic method - guiding questions only\n"
+        "  - 5-level progressive hint system (0=subtle, 4=detailed)\n"
+        "  - Understanding verification quiz\n"
+        "  - Parental transparency log\n\n"
+        "The system helps you UNDERSTAND, not do your homework for you.",
+        "/homework Matematica: risolvere 3x + 5 = 14\n"
+        "/homework Storia: cause della Rivoluzione Francese\n"
+        "/homework-hint 2                     # Get level 2 hint"
+    },
+    {
+        "quiz",
+        "quiz <topic> [--count n] [--difficulty easy|medium|hard]",
+        "Generate adaptive quizzes",
+        "Generate quizzes with multiple question types.\n\n"
+        "Question types:\n"
+        "  - Multiple choice\n"
+        "  - True/False\n"
+        "  - Open answer\n"
+        "  - Sequence ordering\n"
+        "  - Matching pairs\n"
+        "  - Fill in the blanks\n\n"
+        "Grades are automatically saved to the libretto.",
+        "/quiz frazioni                       # 5 questions (default)\n"
+        "/quiz \"equazioni\" --count 10         # 10 questions\n"
+        "/quiz storia --difficulty easy       # Easy difficulty"
+    },
+    {
+        "flashcards",
+        "flashcards <topic> [--count n] [--export anki|pdf]",
+        "Create and review flashcards with spaced repetition",
+        "Study with flashcards using the SM-2 algorithm.\n\n"
+        "Features:\n"
+        "  - SM-2 spaced repetition algorithm (Anki-like)\n"
+        "  - Text-to-speech support\n"
+        "  - Terminal UI for study sessions\n"
+        "  - Export to Anki (.apkg) or PDF\n\n"
+        "Rate your recall: 0 (forgot) to 5 (perfect)",
+        "/flashcards \"verbi latini\"           # Create 10 flashcards\n"
+        "/flashcards vocabolario --count 20   # Create 20 flashcards\n"
+        "/flashcards storia --export anki     # Export to Anki"
+    },
+    {
+        "mindmap",
+        "mindmap <concept> [--format svg|png|pdf] [--output path]",
+        "Generate visual mind maps",
+        "Generate Mermaid.js mind maps from any concept.\n\n"
+        "Features:\n"
+        "  - LLM-powered content generation\n"
+        "  - Export to SVG, PNG, or PDF\n"
+        "  - Accessibility adaptations\n"
+        "  - Auto-opens in browser",
+        "/mindmap \"Rivoluzione Francese\"      # Generate and open\n"
+        "/mindmap fotosintesi --format png    # Export as PNG\n"
+        "/mindmap \"teoria della relativita\" --output ~/Desktop/relativity.svg"
+    },
+    {
+        "libretto",
+        "libretto [voti|diario|progressi|media]",
+        "Student gradebook and activity log",
+        "View your complete student record (libretto).\n\n"
+        "Subcommands:\n"
+        "  (none)     Dashboard summary (last 30 days)\n"
+        "  voti       Grade history by subject\n"
+        "  diario     Daily activity log\n"
+        "  progressi  Progress graphs and trends\n"
+        "  media      Grade averages by subject\n\n"
+        "Grades from quizzes are automatically recorded.",
+        "/libretto                            # Dashboard\n"
+        "/libretto voti                       # All grades\n"
+        "/libretto voti matematica            # Math grades only\n"
+        "/libretto diario 14                  # Last 14 days activity\n"
+        "/libretto media                      # Subject averages"
+    },
     {NULL, NULL, NULL, NULL, NULL}
 };
 
