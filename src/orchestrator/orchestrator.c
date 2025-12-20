@@ -1248,7 +1248,7 @@ char* orchestrator_agent_chat(ManagedAgent* agent, const char* user_message) {
 
     char* final_response = NULL;
     char* last_error_reason = NULL;  // Track error context
-    int max_iterations = 5;  // Max tool loop iterations
+    int max_iterations = 15;  // Max tool loop iterations (increased for complex tasks like HTML creation)
     int iteration = 0;
     bool was_cancelled = false;
 

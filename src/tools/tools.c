@@ -2343,6 +2343,9 @@ LocalToolCall* tools_parse_call(const char* tool_name, const char* arguments_jso
         call->type = TOOL_EDIT;
     } else if (strcmp(tool_name, "file_delete") == 0) {
         call->type = TOOL_FILE_DELETE;
+    } else if (strcmp(tool_name, "html_interactive") == 0 ||
+               strcmp(tool_name, "HtmlInteractive") == 0) {
+        call->type = TOOL_HTML_INTERACTIVE;
     } else {
         tools_free_call(call);
         return NULL;
@@ -2597,6 +2600,35 @@ ToolResult* tools_execute(const LocalToolCall* call) {
             ToolResult* r = tool_file_delete(path, permanent);
             free(path);
             return r;
+        }
+
+        case TOOL_HTML_INTERACTIVE: {
+            // Get HTML content and topic from arguments
+            char* content = json_get_string(args, "content");
+            char* topic = json_get_string(args, "topic");
+            if (!content) content = json_get_string(args, "html");
+            if (!topic) topic = strdup("lesson");
+
+            if (!content) {
+                free(topic);
+                return result_error("HTML content is required (use 'content' or 'html' parameter)");
+            }
+
+            // Import html_save_and_open from education tools
+            extern char* html_save_and_open(const char* html_content, const char* topic);
+
+            char* path = html_save_and_open(content, topic);
+            free(content);
+            free(topic);
+
+            if (path) {
+                char msg[512];
+                snprintf(msg, sizeof(msg), "HTML page created and opened in browser: %s", path);
+                free(path);
+                return result_success(msg);
+            } else {
+                return result_error("Failed to save HTML file");
+            }
         }
 
         default:

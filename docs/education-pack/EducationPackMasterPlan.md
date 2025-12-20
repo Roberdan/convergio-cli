@@ -237,7 +237,142 @@ A virtual classroom council with the greatest historical teachers, equipped with
 
 ## Roadmap
 
-### Phase 14: Additional Editions (P1)
+### Phase 14: Proactive Teaching & Student Experience (P0) ⭐ NEW
+
+**Reference**: [TeacherManifesto.md](TeacherManifesto.md)
+
+This phase transforms teachers from passive responders to inspiring mentors.
+
+#### 14.1 Welcome & First Contact
+
+| ID | Task | Status | Priority | Notes |
+|----|------|--------|----------|-------|
+| PT01 | Ali welcome message on first interaction | [ ] | P0 | Automatic greeting with name |
+| PT02 | Detect first-time user vs returning | [ ] | P0 | Check profile exists |
+| PT03 | Ali asks for name if not known | [ ] | P0 | Store in profile |
+| PT04 | Use name throughout all interactions | [ ] | P0 | All 15 maestri + Ali |
+
+#### 14.2 Student Profile System
+
+| ID | Task | Status | Priority | Notes |
+|----|------|--------|----------|-------|
+| SP01 | Profile data structure | [ ] | P0 | Name, age, grade, conditions, interests |
+| SP02 | Multi-profile support | [ ] | P0 | Multiple students per device |
+| SP03 | Profile selector at startup | [ ] | P1 | "Chi sei oggi?" |
+| SP04 | Parent/guardian mode for setup | [ ] | P1 | Guided configuration |
+| SP05 | Profile persistence (JSON) | [ ] | P0 | `~/.convergio/profiles/` |
+| SP06 | Profile sharing between sessions | [ ] | P0 | All agents access same profile |
+
+#### 14.3 First-Time Setup Wizard (with parent)
+
+| ID | Task | Status | Priority | Notes |
+|----|------|--------|----------|-------|
+| FW01 | Interactive Ali-guided setup | [ ] | P0 | Conversational, not forms |
+| FW02 | Student name collection | [ ] | P0 | "Come ti chiami?" |
+| FW03 | Age/grade level | [ ] | P0 | Adapts vocabulary |
+| FW04 | Learning conditions assessment | [ ] | P1 | Dyslexia, ADHD, etc. |
+| FW05 | Interests discovery | [ ] | P1 | For personalized examples |
+| FW06 | Curriculum/study plan selection | [ ] | P1 | What are you studying? |
+| FW07 | Initial skills assessment | [ ] | P2 | Optional diagnostic |
+| FW08 | Feature tour | [ ] | P1 | Show all tools available |
+| FW09 | Parent email for progress reports | [ ] | P2 | Optional |
+
+#### 14.4 Proactive Teacher Behavior
+
+| ID | Task | Status | Priority | Notes |
+|----|------|--------|----------|-------|
+| PB01 | Inject proactivity rules in all prompts | [ ] | P0 | From TeacherManifesto |
+| PB02 | Auto-propose mind maps | [ ] | P0 | After explanations |
+| PB03 | Auto-propose HTML visuals | [ ] | P0 | For complex concepts |
+| PB04 | Comprehension questions after explanations | [ ] | P0 | "Ti è chiaro?" |
+| PB05 | Suggest next topics | [ ] | P1 | Based on curriculum |
+| PB06 | Celebrate progress | [ ] | P0 | Encouragement phrases |
+
+#### 14.5 Education Tools - Fix & Improve
+
+**Current Issues:**
+- HtmlInteractive tool not registered → agents fail with max iterations
+- MindMap uses external `mmdc` CLI instead of embedded Mermaid.js
+- Quiz, Flashcards, Audio tools need verification
+- No unified browser-based viewer for all visual content
+
+| ID | Task | Status | Priority | Notes |
+|----|------|--------|----------|-------|
+| TL01 | Register HtmlInteractive in tools.c | [x] | P0 | Tool enum + execution |
+| TL02 | Increase max iterations to 15 | [x] | P0 | For complex HTML generation |
+| TL03 | Rewrite MindMap with embedded Mermaid.js | [ ] | P0 | No external dependency |
+| TL04 | Auto-open MindMap in browser | [ ] | P0 | Like HtmlInteractive |
+| TL05 | Verify Quiz tool is callable | [ ] | P0 | Check registration |
+| TL06 | Verify Flashcards tool is callable | [ ] | P0 | Check registration |
+| TL07 | Verify Audio tool is callable | [ ] | P1 | TTS integration |
+| TL08 | Dedicated lesson folder | [ ] | P0 | `~/Documents/ConvergioEducation/` |
+| TL09 | Auto-create folder if missing | [ ] | P0 | On first save |
+| TL10 | Template library for common visuals | [ ] | P1 | Geometry, timelines, etc. |
+
+**Mermaid.js Browser Approach:**
+```html
+<!DOCTYPE html>
+<html>
+<head>
+  <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+</head>
+<body>
+  <div class="mermaid">
+    mindmap
+      root((Topic))
+        Branch 1
+        Branch 2
+  </div>
+  <script>mermaid.initialize({startOnLoad:true});</script>
+</body>
+</html>
+```
+- No external CLI needed
+- Works offline (bundle Mermaid.js)
+- Exportable via browser print-to-PDF
+
+#### 14.6 Empathy & Engagement
+
+| ID | Task | Status | Priority | Notes |
+|----|------|--------|----------|-------|
+| EE01 | Empathy rules in all teacher prompts | [ ] | P0 | From TeacherManifesto |
+| EE02 | Never say "wrong" | [ ] | P0 | Use "Quasi! Proviamo così..." |
+| EE03 | Acknowledge struggles | [ ] | P0 | "Questo è difficile..." |
+| EE04 | Personalized encouragement | [ ] | P0 | Using student's name |
+| EE05 | Warm session endings | [ ] | P1 | Summary + teaser |
+
+#### 14.7 Human-Friendly Error Messages
+
+| ID | Task | Status | Priority | Notes |
+|----|------|--------|----------|-------|
+| ER01 | LLM error interpreter system | [ ] | P0 | Transform cryptic errors to human messages |
+| ER02 | Agent-style adaptation | [ ] | P0 | Errors match agent's personality |
+| ER03 | Empathetic error messages | [ ] | P0 | "Mi dispiace, qualcosa non ha funzionato..." |
+| ER04 | Actionable suggestions | [ ] | P1 | What to try next |
+| ER05 | Hide technical details | [ ] | P0 | No stack traces for students |
+
+**Example transformation**:
+```
+BEFORE: "Agent 'euclide-matematica' exceeded maximum iterations (5)"
+AFTER:  "Euclide: Mi dispiace, ho avuto qualche difficoltà a creare
+        la pagina. Proviamo in modo diverso - posso spiegarti il
+        concetto con un disegno più semplice?"
+```
+
+#### Cross-Edition Applicability
+
+| Feature | Education | Business | Developer | Master |
+|---------|:---------:|:--------:|:---------:|:------:|
+| Welcome message | ✅ | ✅ | ✅ | ✅ |
+| User name usage | ✅ | ✅ | ✅ | ✅ |
+| Profile system | ✅ | ✅ | ✅ | ✅ |
+| Proactive proposals | ✅ | ✅ | ✅ | ✅ |
+| Empathetic tone | ✅ | ✅ | ✅ | ✅ |
+| Fast HTML/visuals | ✅ | ✅ | ✅ | ✅ |
+
+---
+
+### Phase 15: Additional Editions (P1)
 
 | ID | Task | Status | Priority | Notes |
 |----|------|--------|----------|-------|
@@ -257,7 +392,7 @@ A virtual classroom council with the greatest historical teachers, equipped with
 | Compliance | Ali, Elena, Dr. Enzo, Sophia, Guardian, Luca, Anna | Legal, healthcare, gov |
 | HR | Ali, Giulia, Coach, Dave, Behice, Anna | HR teams, people ops |
 
-### Phase 15: Runtime Edition Switching (P2)
+### Phase 16: Runtime Edition Switching (P2)
 
 | ID | Task | Status | Priority | Notes |
 |----|------|--------|----------|-------|
