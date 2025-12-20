@@ -1233,6 +1233,96 @@ void test_accessibility_autism(void) {
 }
 
 // ============================================================================
+// PHASE 14: PROACTIVE TEACHING & STUDENT EXPERIENCE
+// ============================================================================
+
+/**
+ * Test Error Interpreter (ER01-05)
+ * Transforms technical errors into friendly, empathetic messages
+ */
+void test_error_interpreter(void) {
+    TEST("Error Interpreter - Education edition only (ER01-05)");
+
+    // Test that the function exists and handles NULL
+    bool should_interpret = education_should_interpret_error(NULL);
+    ASSERT_TRUE(!should_interpret, "NULL should not be interpreted");
+
+    // Test error pattern matching (only works in education edition)
+    should_interpret = education_should_interpret_error("Error: Tool execution failed");
+    // Result depends on edition, just verify it doesn't crash
+
+    // Test interpretation function
+    char* friendly = education_interpret_error("Error: Too many tool iterations", "euclide-matematica");
+    // In non-education edition, returns the original
+    if (friendly) {
+        free(friendly);
+    }
+
+    PASS();
+}
+
+/**
+ * Test Multi-Profile System (SP01-06)
+ * Multiple students per device with profile switching
+ */
+void test_multi_profile(void) {
+    TEST("Multi-Profile System - Profile list and count (SP01-06)");
+
+    // Test profile count (should work even with no profiles)
+    int count = education_profile_count();
+    ASSERT_TRUE(count >= 0, "Profile count should be non-negative");
+
+    // Test first run detection
+    bool first_run = education_is_first_run();
+    // Just verify it doesn't crash - result depends on state
+
+    // Test profile list
+    int list_count = 0;
+    EducationStudentProfile** profiles = education_profile_list(&list_count);
+    ASSERT_TRUE(list_count >= 0, "List count should be non-negative");
+
+    if (profiles && list_count > 0) {
+        // Verify first profile has valid name
+        ASSERT_NOT_NULL(profiles[0], "First profile should exist");
+        if (profiles[0]->name) {
+            ASSERT_TRUE(strlen(profiles[0]->name) > 0, "Profile name should not be empty");
+        }
+        education_profile_list_free(profiles, list_count);
+    }
+
+    (void)first_run;  // Suppress unused warning
+
+    PASS();
+}
+
+/**
+ * Test Document Upload API (DU01-13)
+ * File picker and Claude Files API integration
+ */
+void test_document_upload_api(void) {
+    TEST("Document Upload - API functions (DU01-13)");
+
+    // Test document state functions
+    bool active = document_is_active();
+    ASSERT_TRUE(!active, "No document should be active initially");
+
+    const char* file_id = document_get_current_file_id();
+    ASSERT_TRUE(file_id == NULL, "File ID should be NULL when no document active");
+
+    const char* filename = document_get_current_filename();
+    ASSERT_TRUE(filename == NULL, "Filename should be NULL when no document active");
+
+    // Test document clear (should not crash even with no documents)
+    document_clear();
+
+    // Test document select with invalid index (should return false)
+    bool selected = document_select(999);
+    ASSERT_TRUE(!selected, "Invalid index should return false");
+
+    PASS();
+}
+
+// ============================================================================
 // MAIN
 // ============================================================================
 
@@ -1314,6 +1404,12 @@ int main(void) {
     test_accessibility_motor();
     test_accessibility_adhd();
     test_accessibility_autism();
+
+    // Test Phase 14: Proactive Teaching & Student Experience
+    printf("\n=== PHASE 14: PROACTIVE TEACHING ===\n");
+    test_error_interpreter();
+    test_multi_profile();
+    test_document_upload_api();
 
     // Cleanup
     education_shutdown();
