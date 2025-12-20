@@ -669,6 +669,178 @@ static bool wizard_activate_profile(int64_t profile_id) {
     return true;
 }
 
+/**
+ * Generate HTML parent report with student profile and configuration
+ */
+static char* wizard_generate_parent_report(const WizardState* state) {
+    // Get curriculum name
+    const char* curriculum_name = state->curriculum_id;
+    for (int i = 0; AVAILABLE_CURRICULA[i].id != NULL; i++) {
+        if (strcmp(AVAILABLE_CURRICULA[i].id, state->curriculum_id) == 0) {
+            curriculum_name = AVAILABLE_CURRICULA[i].name;
+            break;
+        }
+    }
+
+    // Build accessibility list
+    char accessibility_html[2048] = "";
+    int acc_pos = 0;
+    if (state->accessibility.dyslexia) {
+        acc_pos += snprintf(accessibility_html + acc_pos, sizeof(accessibility_html) - acc_pos,
+            "<li><strong>Dyslexia</strong>: OpenDyslexic font, TTS, syllable breaking</li>");
+    }
+    if (state->accessibility.dyscalculia) {
+        acc_pos += snprintf(accessibility_html + acc_pos, sizeof(accessibility_html) - acc_pos,
+            "<li><strong>Dyscalculia</strong>: Visual aids, step-by-step, no timers</li>");
+    }
+    if (state->accessibility.adhd) {
+        acc_pos += snprintf(accessibility_html + acc_pos, sizeof(accessibility_html) - acc_pos,
+            "<li><strong>ADHD</strong>: Short sessions, gamification, frequent breaks</li>");
+    }
+    if (state->accessibility.autism) {
+        acc_pos += snprintf(accessibility_html + acc_pos, sizeof(accessibility_html) - acc_pos,
+            "<li><strong>Autism</strong>: Structured lessons, literal language, details</li>");
+    }
+    if (state->accessibility.cerebral_palsy) {
+        acc_pos += snprintf(accessibility_html + acc_pos, sizeof(accessibility_html) - acc_pos,
+            "<li><strong>Cerebral Palsy</strong>: Voice input, extended time</li>");
+    }
+    if (acc_pos == 0) {
+        snprintf(accessibility_html, sizeof(accessibility_html), "<li>No specific adaptations configured</li>");
+    }
+
+    // Build goals list
+    char goals_html[2048] = "";
+    int goals_pos = 0;
+    for (int i = 0; i < state->goals_count; i++) {
+        goals_pos += snprintf(goals_html + goals_pos, sizeof(goals_html) - goals_pos,
+            "<li>%s</li>", state->goals[i]);
+    }
+    if (goals_pos == 0) {
+        snprintf(goals_html, sizeof(goals_html), "<li>No goals set yet</li>");
+    }
+
+    // Get current date
+    time_t now = time(NULL);
+    struct tm* tm = localtime(&now);
+    char date_str[64];
+    strftime(date_str, sizeof(date_str), "%B %d, %Y", tm);
+
+    // Generate HTML
+    size_t html_size = 16384;
+    char* html = malloc(html_size);
+    if (!html) return NULL;
+
+    snprintf(html, html_size,
+        "<!DOCTYPE html>\n"
+        "<html lang=\"en\">\n"
+        "<head>\n"
+        "    <meta charset=\"UTF-8\">\n"
+        "    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n"
+        "    <title>%s's Learning Profile - Convergio Education</title>\n"
+        "    <style>\n"
+        "        * { margin: 0; padding: 0; box-sizing: border-box; }\n"
+        "        body { font-family: 'Segoe UI', system-ui, sans-serif; background: linear-gradient(135deg, #667eea 0%%, #764ba2 100%%); min-height: 100vh; padding: 20px; }\n"
+        "        .container { max-width: 800px; margin: 0 auto; background: white; border-radius: 20px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); overflow: hidden; }\n"
+        "        .header { background: linear-gradient(135deg, #11998e 0%%, #38ef7d 100%%); color: white; padding: 40px; text-align: center; }\n"
+        "        .header h1 { font-size: 2.5em; margin-bottom: 10px; }\n"
+        "        .header .subtitle { opacity: 0.9; font-size: 1.2em; }\n"
+        "        .content { padding: 40px; }\n"
+        "        .section { margin-bottom: 30px; }\n"
+        "        .section h2 { color: #667eea; border-bottom: 2px solid #667eea; padding-bottom: 10px; margin-bottom: 15px; }\n"
+        "        .info-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; }\n"
+        "        .info-item { background: #f8f9fa; padding: 15px; border-radius: 10px; }\n"
+        "        .info-item .label { color: #666; font-size: 0.9em; margin-bottom: 5px; }\n"
+        "        .info-item .value { font-size: 1.2em; font-weight: 600; color: #333; }\n"
+        "        ul { list-style-position: inside; color: #555; }\n"
+        "        li { margin: 8px 0; }\n"
+        "        .maestri { background: linear-gradient(135deg, #f093fb 0%%, #f5576c 100%%); color: white; padding: 30px; border-radius: 15px; margin-top: 30px; }\n"
+        "        .maestri h3 { margin-bottom: 15px; }\n"
+        "        .footer { text-align: center; padding: 20px; color: #888; font-size: 0.9em; }\n"
+        "        @media print { body { background: white; } .container { box-shadow: none; } }\n"
+        "    </style>\n"
+        "</head>\n"
+        "<body>\n"
+        "    <div class=\"container\">\n"
+        "        <div class=\"header\">\n"
+        "            <h1>%s's Learning Profile</h1>\n"
+        "            <div class=\"subtitle\">Convergio Education - Personalized Learning Journey</div>\n"
+        "        </div>\n"
+        "        <div class=\"content\">\n"
+        "            <div class=\"section\">\n"
+        "                <h2>Student Information</h2>\n"
+        "                <div class=\"info-grid\">\n"
+        "                    <div class=\"info-item\"><div class=\"label\">Name</div><div class=\"value\">%s</div></div>\n"
+        "                    <div class=\"info-item\"><div class=\"label\">Age</div><div class=\"value\">%d years</div></div>\n"
+        "                    <div class=\"info-item\"><div class=\"label\">Grade Level</div><div class=\"value\">Grade %d</div></div>\n"
+        "                    <div class=\"info-item\"><div class=\"label\">Curriculum</div><div class=\"value\">%s</div></div>\n"
+        "                </div>\n"
+        "            </div>\n"
+        "            <div class=\"section\">\n"
+        "                <h2>Learning Preferences</h2>\n"
+        "                <div class=\"info-grid\">\n"
+        "                    <div class=\"info-item\"><div class=\"label\">Session Duration</div><div class=\"value\">%d minutes</div></div>\n"
+        "                    <div class=\"info-item\"><div class=\"label\">Break Duration</div><div class=\"value\">%d minutes</div></div>\n"
+        "                    <div class=\"info-item\"><div class=\"label\">Learning Style</div><div class=\"value\">%s</div></div>\n"
+        "                    <div class=\"info-item\"><div class=\"label\">Study Method</div><div class=\"value\">%s</div></div>\n"
+        "                </div>\n"
+        "            </div>\n"
+        "            <div class=\"section\">\n"
+        "                <h2>Accessibility Adaptations</h2>\n"
+        "                <ul>%s</ul>\n"
+        "            </div>\n"
+        "            <div class=\"section\">\n"
+        "                <h2>Learning Goals</h2>\n"
+        "                <ul>%s</ul>\n"
+        "            </div>\n"
+        "            <div class=\"maestri\">\n"
+        "                <h3>15 Historical Maestri Ready to Help</h3>\n"
+        "                <p>Your child will learn from: Socrate (Philosophy), Euclide (Math), Feynman (Physics), "
+        "Darwin (Science), Humboldt (Geography), Manzoni (Italian), Erodoto (History), Leonardo (Art), "
+        "Mozart (Music), Shakespeare (English), Cicerone (Civics), Smith (Economics), Lovelace (Computing), "
+        "Ippocrate (Health), and Chris Anderson (Storytelling).</p>\n"
+        "            </div>\n"
+        "        </div>\n"
+        "        <div class=\"footer\">\n"
+        "            <p>Generated on %s | Convergio Education v5.3</p>\n"
+        "            <p>Questions? Contact your child's teacher or visit convergio.io</p>\n"
+        "        </div>\n"
+        "    </div>\n"
+        "</body>\n"
+        "</html>",
+        state->name, state->name, state->name, state->age, state->grade_level, curriculum_name,
+        state->session_duration, state->break_duration,
+        state->learning_style[0] ? state->learning_style : "Visual + Auditory",
+        state->study_method[0] ? state->study_method : "Adaptive",
+        accessibility_html, goals_html, date_str);
+
+    return html;
+}
+
+/**
+ * Save parent report as HTML file and open in browser
+ */
+static bool wizard_save_parent_report(const WizardState* state) {
+    char* html = wizard_generate_parent_report(state);
+    if (!html) return false;
+
+    // Use html_save_and_open from html_generator.c
+    extern char* html_save_and_open(const char* html_content, const char* topic);
+
+    char topic[256];
+    snprintf(topic, sizeof(topic), "%s_profile_report", state->name);
+
+    char* path = html_save_and_open(html, topic);
+    free(html);
+
+    if (path) {
+        printf("\n  " ANSI_GREEN "📄 Parent report saved: %s" ANSI_RESET "\n", path);
+        free(path);
+        return true;
+    }
+    return false;
+}
+
 // ============================================================================
 // MAIN ENTRY POINTS
 // ============================================================================
@@ -761,11 +933,24 @@ bool education_setup_wizard(void) {
     printf("\n");
     printf("  " ANSI_GREEN "🎉 Welcome, %s!" ANSI_RESET "\n", state.name);
     printf("  The 15 historical maestri are ready to help you.\n\n");
-    printf("  Try these commands:\n");
+
+    // Offer parent report
+    printf("  Would you like to generate a report for your parents?\n");
+    printf("  " ANSI_DIM "(A beautiful HTML page with your profile details)" ANSI_RESET "\n\n");
+    print_option(1, "Yes, generate parent report", "Opens in browser");
+    print_option(2, "No, start learning now", "Skip report");
+
+    int report_choice = read_int_choice(1, 2);
+    if (report_choice == 1) {
+        wizard_save_parent_report(&state);
+    }
+
+    printf("\n  Try these commands:\n");
     printf("  • " ANSI_CYAN "/study <subject>" ANSI_RESET " - Start a study session\n");
     printf("  • " ANSI_CYAN "/homework <task>" ANSI_RESET " - Get help with homework\n");
     printf("  • " ANSI_CYAN "/quiz <topic>" ANSI_RESET " - Take a quiz\n");
     printf("  • " ANSI_CYAN "/mindmap <concept>" ANSI_RESET " - Create a mind map\n");
+    printf("  • " ANSI_CYAN "/libretto" ANSI_RESET " - View your student record\n");
     printf("\n");
 
     return true;

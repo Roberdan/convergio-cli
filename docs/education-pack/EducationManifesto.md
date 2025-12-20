@@ -276,8 +276,6 @@ Non siamo l'unico strumento educativo AI. Ma siamo diversi.
 
 **Open source.** Il codice è aperto. Puoi vedere esattamente cosa fa. Puoi fidarti perché puoi verificare.
 
-**Locale-first.** Funziona sul tuo computer. Non serve internet costante. I tuoi dati non viaggiano.
-
 ---
 
 ## La Promessa
