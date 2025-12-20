@@ -1210,3 +1210,42 @@ int cmd_convert(int argc, char** argv) {
 
     return 0;
 }
+
+// ============================================================================
+// COMMAND: /voice
+// ============================================================================
+
+// External from voice_mode.c
+extern int voice_mode_start(const char *maestro_id, const char *topic);
+
+/**
+ * /voice [maestro] [topic] - Start conversational voice mode
+ *
+ * Examples:
+ *   /voice                     - Start with default maestro (Euclide)
+ *   /voice feynman             - Start with Feynman
+ *   /voice euclide geometria   - Start with Euclide on geometry topic
+ *
+ * In voice mode:
+ *   ESC - Exit voice mode
+ *   M   - Toggle mute microphone
+ *   T   - Toggle transcript display
+ *   S   - Save conversation
+ */
+int cmd_voice(int argc, char** argv) {
+    const char *maestro_id = NULL;
+    const char *topic = NULL;
+
+    if (argc >= 2) {
+        maestro_id = argv[1];
+    }
+    if (argc >= 3) {
+        topic = argv[2];
+    }
+
+    printf("\n🎤 Starting voice mode...\n");
+    printf("   Speak naturally with your maestro.\n");
+    printf("   Press ESC to exit.\n\n");
+
+    return voice_mode_start(maestro_id, topic);
+}

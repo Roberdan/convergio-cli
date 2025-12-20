@@ -900,41 +900,37 @@ bool voice_local_tts_available(void) {
 }
 
 // ============================================================================
-// AUDIO UTILITIES (Stubs - Real implementation needs CoreAudio/PortAudio)
+// AUDIO UTILITIES (Stubs - Real implementation in voice_audio.m when VOICE=1)
 // ============================================================================
 
-bool voice_audio_init_input(void) {
-    // TODO: Initialize CoreAudio input
+#ifndef CONVERGIO_VOICE_ENABLED
+// Stub implementations when voice is not enabled
+bool voice_audio_init(void) {
     return true;
 }
 
-bool voice_audio_init_output(void) {
-    // TODO: Initialize CoreAudio output
-    return true;
-}
-
-bool voice_audio_start_capture(void (*callback)(const uint8_t* data, size_t length, void* user_data), void* user_data) {
-    // TODO: Start CoreAudio capture
+bool voice_audio_start_capture(void (*callback)(const int16_t*, size_t, void*), void* user_data) {
     (void)callback;
     (void)user_data;
     return true;
 }
 
 void voice_audio_stop_capture(void) {
-    // TODO: Stop CoreAudio capture
 }
 
-void voice_audio_play(const uint8_t* data, size_t length) {
-    // TODO: Play audio through CoreAudio
-    (void)data;
-    (void)length;
+bool voice_audio_start_playback(void) {
+    return true;
+}
+
+void voice_audio_play(const int16_t* samples, size_t count) {
+    (void)samples;
+    (void)count;
 }
 
 void voice_audio_stop_playback(void) {
-    // TODO: Stop audio playback
     voice_local_tts_stop();
 }
 
 void voice_audio_cleanup(void) {
-    // TODO: Cleanup audio resources
 }
+#endif /* !CONVERGIO_VOICE_ENABLED */

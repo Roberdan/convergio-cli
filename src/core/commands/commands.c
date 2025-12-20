@@ -100,6 +100,7 @@ int cmd_quiz(int argc, char** argv);
 int cmd_flashcards(int argc, char** argv);
 int cmd_mindmap(int argc, char** argv);
 int cmd_libretto(int argc, char** argv);
+int cmd_voice(int argc, char** argv);
 
 static const ReplCommand COMMANDS[] = {
     {"help",        "Show available commands",           cmd_help},
@@ -158,6 +159,7 @@ static const ReplCommand COMMANDS[] = {
     {"flashcards",  "Create and review flashcards",      cmd_flashcards},
     {"mindmap",     "Generate visual mind maps",         cmd_mindmap},
     {"libretto",    "Student gradebook and activity log", cmd_libretto},
+    {"voice",       "Conversational voice mode with maestri", cmd_voice},
     {"quit",        "Exit Convergio",                    cmd_quit},
     {"exit",        "Exit Convergio",                    cmd_quit},
     {NULL, NULL, NULL}
@@ -980,6 +982,27 @@ static const CommandHelp DETAILED_HELP[] = {
         "/libretto voti matematica            # Math grades only\n"
         "/libretto diario 14                  # Last 14 days activity\n"
         "/libretto media                      # Subject averages"
+    },
+    {
+        "voice",
+        "voice [maestro] [topic]",
+        "Conversational voice mode with AI maestri",
+        "Start natural conversational voice mode with a maestro.\n\n"
+        "Like ChatGPT Advanced Voice Mode:\n"
+        "  - Natural conversation flow\n"
+        "  - Interrupt anytime (barge-in)\n"
+        "  - No push-to-talk needed\n"
+        "  - Real-time transcript\n\n"
+        "During voice mode:\n"
+        "  ESC - Exit voice mode\n"
+        "  M   - Toggle mute microphone\n"
+        "  T   - Toggle transcript display\n"
+        "  S   - Save conversation\n\n"
+        "Requires: make VOICE=1 (voice feature enabled)\n"
+        "Dependency: brew install libwebsockets openssl",
+        "/voice                               # With default maestro\n"
+        "/voice feynman                       # With Feynman\n"
+        "/voice euclide geometria             # Euclide on geometry"
     },
     {NULL, NULL, NULL, NULL, NULL}
 };

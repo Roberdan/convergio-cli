@@ -154,6 +154,24 @@ FRAMEWORKS = -framework Metal \
 # GNU readline linked statically from Homebrew (libedit doesn't support prompt color markers)
 LIBS = -lcurl -lsqlite3 /opt/homebrew/opt/cjson/lib/libcjson.a $(READLINE_PREFIX)/lib/libreadline.a $(READLINE_PREFIX)/lib/libhistory.a -lncurses
 
+# ============================================================================
+# VOICE FEATURE (optional, requires libwebsockets)
+# Build with: make VOICE=1
+# Install dependency: brew install libwebsockets openssl
+# ============================================================================
+ifeq ($(VOICE),1)
+    LIBWEBSOCKETS_PREFIX = /opt/homebrew/opt/libwebsockets
+    OPENSSL_PREFIX = /opt/homebrew/opt/openssl@3
+    CFLAGS += -DCONVERGIO_VOICE_ENABLED -I$(LIBWEBSOCKETS_PREFIX)/include -I$(OPENSSL_PREFIX)/include
+    LIBS += $(LIBWEBSOCKETS_PREFIX)/lib/libwebsockets.a -L$(OPENSSL_PREFIX)/lib -lssl -lcrypto
+    VOICE_C_SOURCES = $(SRC_DIR)/voice/voice_websocket.c
+    VOICE_OBJC_SOURCES = $(SRC_DIR)/voice/voice_audio.m
+    FRAMEWORKS += -framework AVFoundation -framework AudioToolbox
+else
+    VOICE_C_SOURCES =
+    VOICE_OBJC_SOURCES =
+endif
+
 # Swift Package Manager (for MLX integration)
 SWIFT_BUILD_DIR = .build/release
 SWIFT_LIB = $(SWIFT_BUILD_DIR)/libConvergioMLX.a
@@ -267,7 +285,9 @@ C_SOURCES = $(SRC_DIR)/core/fabric.c \
             $(SRC_DIR)/education/ali_preside.c \
             $(SRC_DIR)/voice/voice_gateway.c \
             $(SRC_DIR)/voice/openai_realtime.c \
-            $(SRC_DIR)/voice/azure_realtime.c
+            $(SRC_DIR)/voice/azure_realtime.c \
+            $(SRC_DIR)/voice/voice_mode.c \
+            $(VOICE_C_SOURCES)
 
 OBJC_SOURCES = $(SRC_DIR)/metal/gpu.m \
                $(SRC_DIR)/neural/mlx_embed.m \
@@ -275,7 +295,8 @@ OBJC_SOURCES = $(SRC_DIR)/metal/gpu.m \
                $(SRC_DIR)/auth/keychain.m \
                $(SRC_DIR)/core/hardware.m \
                $(SRC_DIR)/core/clipboard.m \
-               $(SRC_DIR)/providers/mlx.m
+               $(SRC_DIR)/providers/mlx.m \
+               $(VOICE_OBJC_SOURCES)
 
 METAL_SOURCES = shaders/similarity.metal
 
@@ -362,6 +383,7 @@ dirs:
 	@mkdir -p $(OBJ_DIR)/education
 	@mkdir -p $(OBJ_DIR)/education/features
 	@mkdir -p $(OBJ_DIR)/education/tools
+	@mkdir -p $(OBJ_DIR)/voice
 	@mkdir -p $(BIN_DIR)
 	@mkdir -p data
 
@@ -1405,6 +1427,7 @@ help:
 	@echo ""
 	@echo "Variables:"
 	@echo "  DEBUG=1   - Enable debug build"
+	@echo "  VOICE=1   - Enable voice mode (requires libwebsockets)"
 	@echo ""
 	@echo "Build Optimization (M3 Max):"
 	@echo "  CPU: $(CPU_CORES) cores ($(P_CORES)P+4E)"
