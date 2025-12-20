@@ -318,6 +318,41 @@ static int voice_ws_callback(struct lws *wsi, enum lws_callback_reasons reason,
     if (!ws) return 0;
 
     switch (reason) {
+        case LWS_CALLBACK_CLIENT_APPEND_HANDSHAKE_HEADER: {
+            // Add API key header
+            unsigned char **p = (unsigned char **)in;
+            unsigned char *end = (*p) + len;
+
+            // For Azure: api-key header
+            // For OpenAI: Authorization: Bearer header
+            if (ws->use_azure) {
+                if (lws_add_http_header_by_name(wsi,
+                        (const unsigned char *)"api-key:",
+                        (const unsigned char *)ws->api_key,
+                        (int)strlen(ws->api_key), p, end)) {
+                    return -1;
+                }
+            } else {
+                char auth_header[512];
+                snprintf(auth_header, sizeof(auth_header), "Bearer %s", ws->api_key);
+                if (lws_add_http_header_by_name(wsi,
+                        (const unsigned char *)"Authorization:",
+                        (const unsigned char *)auth_header,
+                        (int)strlen(auth_header), p, end)) {
+                    return -1;
+                }
+            }
+
+            // Add OpenAI-Beta header for realtime
+            if (lws_add_http_header_by_name(wsi,
+                    (const unsigned char *)"OpenAI-Beta:",
+                    (const unsigned char *)"realtime=v1",
+                    11, p, end)) {
+                return -1;
+            }
+            break;
+        }
+
         case LWS_CALLBACK_CLIENT_ESTABLISHED:
             fprintf(stderr, "[Voice WS] Connected\n");
             ws->state = VOICE_WS_CONNECTED;
@@ -456,16 +491,23 @@ bool voice_ws_connect(VoiceWebSocket *ws) {
     // Prefer Azure, fallback to OpenAI
     if (azure_endpoint && azure_key && azure_deployment) {
         ws->use_azure = true;
-        strncpy(ws->endpoint, azure_endpoint, sizeof(ws->endpoint) - 1);
+
+        // Parse endpoint: remove https:// prefix and trailing /
+        const char *host = azure_endpoint;
+        if (strncmp(host, "https://", 8) == 0) host += 8;
+        if (strncmp(host, "http://", 7) == 0) host += 7;
+        strncpy(ws->endpoint, host, sizeof(ws->endpoint) - 1);
+
+        // Remove trailing slash if present
+        size_t len = strlen(ws->endpoint);
+        if (len > 0 && ws->endpoint[len - 1] == '/') {
+            ws->endpoint[len - 1] = '\0';
+        }
+
         strncpy(ws->api_key, azure_key, sizeof(ws->api_key) - 1);
         strncpy(ws->deployment, azure_deployment, sizeof(ws->deployment) - 1);
 
-        // Remove https:// prefix if present
-        char *host = ws->endpoint;
-        if (strncmp(host, "https://", 8) == 0) host += 8;
-        if (strncmp(host, "http://", 7) == 0) host += 7;
-
-        fprintf(stderr, "[Voice WS] Using Azure OpenAI: %s\n", host);
+        fprintf(stderr, "[Voice WS] Using Azure OpenAI: %s\n", ws->endpoint);
     } else if (openai_key) {
         ws->use_azure = false;
         strcpy(ws->endpoint, "api.openai.com");

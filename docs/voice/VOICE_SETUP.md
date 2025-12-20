@@ -96,6 +96,35 @@ wss://your-resource-name.openai.azure.com/openai/v1/realtime?model=gpt-4o-realti
 - $64/1M output tokens
 - ~$0.15/min
 
+## Testing the Connection
+
+### Quick Test with wscat
+```bash
+# Test Azure OpenAI Realtime
+export AZURE_KEY="your-azure-key"
+wscat -c "wss://your-resource-name.openai.azure.com/openai/realtime?api-version=2024-10-01-preview&deployment=gpt-4o-realtime" \
+  -H "api-key: $AZURE_KEY" \
+  -x '{"type":"session.update","session":{"modalities":["text"]}}'
+
+# Expected response: {"type":"session.created",...}
+```
+
+### Test from Convergio
+```bash
+# With Azure (preferred)
+export AZURE_OPENAI_REALTIME_ENDPOINT="https://your-resource-name.openai.azure.com/"
+export AZURE_OPENAI_REALTIME_API_KEY="your-key"
+export AZURE_OPENAI_REALTIME_DEPLOYMENT="gpt-4o-realtime"
+./build/bin/convergio
+# Then type: /voice
+
+# With direct OpenAI
+unset AZURE_OPENAI_REALTIME_ENDPOINT
+export OPENAI_API_KEY="sk-..."
+./build/bin/convergio
+# Then type: /voice
+```
+
 ## Troubleshooting
 
 ### "No API key found"
