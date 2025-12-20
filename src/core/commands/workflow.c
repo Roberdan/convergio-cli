@@ -7,6 +7,7 @@
 
 #include "nous/commands.h"
 #include "nous/workflow.h"
+#include "nous/workflow_visualization.h"
 #include "nous/nous.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -28,11 +29,7 @@ static Workflow* workflow_load_by_id(uint64_t id) {
     return NULL; // Not yet implemented
 }
 
-// Export workflow as Mermaid diagram (stub - visualization not yet implemented)
-static char* workflow_export_mermaid(Workflow* wf) {
-    (void)wf;
-    return NULL; // Not yet implemented
-}
+// Export workflow as Mermaid diagram - now implemented in workflow_visualization.c
 
 // ============================================================================
 // WORKFLOW LIST
@@ -58,13 +55,29 @@ static int cmd_workflow_list(int argc, char** argv) {
 // ============================================================================
 
 static int cmd_workflow_show(int argc, char** argv) {
-    if (argc < 2) {
-        printf("Usage: /workflow show <name>\n");
+    bool mermaid_only = false;
+    const char* name = NULL;
+    
+    // Parse arguments
+    for (int i = 1; i < argc; i++) {
+        if (strcmp(argv[i], "--mermaid") == 0 || strcmp(argv[i], "-m") == 0) {
+            mermaid_only = true;
+        } else if (strcmp(argv[i], "--help") == 0 || strcmp(argv[i], "-h") == 0) {
+            printf("Usage: /workflow show [--mermaid] <name>\n");
+            printf("Show workflow details and Mermaid diagram\n");
+            printf("\nOptions:\n");
+            printf("  --mermaid, -m    Show only Mermaid diagram (no details)\n");
+            return 0;
+        } else if (!name) {
+            name = argv[i];
+        }
+    }
+    
+    if (!name) {
+        printf("Usage: /workflow show [--mermaid] <name>\n");
         printf("Show workflow details and Mermaid diagram\n");
         return 1;
     }
-    
-    const char* name = argv[1];
     
     // Try to load from database (when persistence is implemented)
     Workflow* wf = workflow_load_by_name(name);
@@ -75,20 +88,34 @@ static int cmd_workflow_show(int argc, char** argv) {
         return 1;
     }
     
-    printf("Workflow: %s\n", wf->name ? wf->name : "Unknown");
-    if (wf->description) {
-        printf("Description: %s\n", wf->description);
-    }
-    printf("Status: %d\n", wf->status);
-    printf("Current node ID: %llu\n", (unsigned long long)wf->current_node_id);
+    // Export Mermaid
+    char* mermaid = workflow_export_mermaid_alloc(wf);
     
-    // Export Mermaid (when implemented)
-    char* mermaid = workflow_export_mermaid(wf);
-    if (mermaid) {
-        printf("\nWorkflow diagram:\n```mermaid\n%s\n```\n", mermaid);
-        free(mermaid);
+    if (mermaid_only) {
+        // Output only Mermaid diagram
+        if (mermaid) {
+            printf("%s\n", mermaid);
+            free(mermaid);
+        } else {
+            printf("Error: Failed to generate Mermaid diagram\n");
+            workflow_destroy(wf);
+            return 1;
+        }
     } else {
-        printf("\n(Mermaid export not yet implemented)\n");
+        // Show full details
+        printf("Workflow: %s\n", wf->name ? wf->name : "Unknown");
+        if (wf->description) {
+            printf("Description: %s\n", wf->description);
+        }
+        printf("Status: %d\n", wf->status);
+        printf("Current node ID: %llu\n", (unsigned long long)wf->current_node_id);
+        
+        if (mermaid) {
+            printf("\nWorkflow diagram:\n```mermaid\n%s\n```\n", mermaid);
+            free(mermaid);
+        } else {
+            printf("\n(Mermaid export failed)\n");
+        }
     }
     
     workflow_destroy(wf);

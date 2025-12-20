@@ -75,9 +75,14 @@ int workflow_set_node_timeout(Workflow* wf, WorkflowNode* node, int timeout_seco
 /**
  * @brief Check network connectivity
  * @return true if network is available, false otherwise
+ * 
+ * Security note: Uses popen with hardcoded safe command (ping to 8.8.8.8).
+ * This is acceptable as the command is static and safe (no user input).
+ * For production, consider using a more secure network check API.
  */
 bool workflow_check_network(void) {
     // Try to resolve a well-known host
+    // SECURITY: Hardcoded safe command - no user input
     FILE* fp = popen("ping -c 1 -W 1000 8.8.8.8 > /dev/null 2>&1", "r");
     if (fp) {
         int status = pclose(fp);
