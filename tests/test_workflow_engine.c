@@ -30,8 +30,8 @@ static int tests_passed = 0;
         } \
     } while (0)
 
-// Mock agent execution (simplified)
-static int mock_agent_execute(SemanticID agent_id, const char* prompt, const char* input, char** output) {
+// Mock agent execution (simplified) - kept for potential future use
+__attribute__((unused)) static int mock_agent_execute(SemanticID agent_id, const char* prompt, const char* input, char** output) {
     (void)agent_id;
     (void)prompt;
     if (output) {

@@ -354,6 +354,22 @@ int telemetry_flush(void) {
                 fprintf(f, "\"session_end\",\n");
                 fprintf(f, "      \"timestamp\": %ld\n", e->timestamp);
                 break;
+            case TELEMETRY_EVENT_WORKFLOW_START:
+            case TELEMETRY_EVENT_WORKFLOW_END:
+            case TELEMETRY_EVENT_WORKFLOW_NODE:
+            case TELEMETRY_EVENT_WORKFLOW_ERROR:
+            case TELEMETRY_EVENT_ORCHESTRATOR_DELEGATION:
+            case TELEMETRY_EVENT_ORCHESTRATOR_PLANNING:
+            case TELEMETRY_EVENT_ORCHESTRATOR_CONVERGENCE:
+                // These events are handled by workflow_observability.c
+                // For export, just include basic info
+                fprintf(f, "\"workflow_event\",\n");
+                fprintf(f, "      \"timestamp\": %ld\n", e->timestamp);
+                break;
+            default:
+                fprintf(f, "\"unknown\",\n");
+                fprintf(f, "      \"timestamp\": %ld\n", e->timestamp);
+                break;
         }
 
         fprintf(f, "    }%s\n", (i < g_event_count - 1) ? "," : "");
