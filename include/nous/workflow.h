@@ -133,8 +133,10 @@ int workflow_state_remove(WorkflowState* state, const char* key);
 // ============================================================================
 
 // Checkpoint operations
-Checkpoint* checkpoint_create(uint64_t workflow_id, uint64_t node_id, const char* state_json);
-void checkpoint_destroy(Checkpoint* cp);
+uint64_t workflow_checkpoint(Workflow* wf, const char* node_name);
+int workflow_restore_from_checkpoint(Workflow* wf, uint64_t checkpoint_id);
+Checkpoint* workflow_list_checkpoints(Workflow* wf, size_t* count);
+void workflow_free_checkpoints(Checkpoint* checkpoints, size_t count);
 
 // ============================================================================
 // WORKFLOW EXECUTION
