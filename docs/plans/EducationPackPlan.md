@@ -2,8 +2,8 @@
 
 **Created**: 2025-12-19
 **Last Updated**: 2025-12-20
-**Status**: ✅ All P0 Complete - 8/9 fasi DONE, 1 TODO (FASE 9 verticalization)
-**Progress**: ~90% complete - All BLOCKING P0 tasks done, ready for PR
+**Status**: 🚀 Expanded - 12 phases total (8 DONE + 4 NEW critical features)
+**Progress**: ~70% complete - Core done, NEW: Voice + Learning Science + Storytelling
 **Branch**: `feature/education-pack`
 **Worktree**: `/Users/roberdan/GitHub/ConvergioCLI-education`
 **Goal**: Sistema educativo con maestri storici, toolkit didattico completo, accessibilita adattiva
@@ -946,6 +946,182 @@ FASE 8 (Test) - 5 THREAD PARALLELI
 - [ ] Ali preside operativo
 - [ ] Test con 5+ studenti reali
 - [ ] Feedback >4/5 da utenti con disabilita
+
+---
+
+## FASE 10 - VOICE INTERACTION (NEW - P0 CRITICAL) 🎙️
+
+> **ADR**: `docs/adr/ADR-002-voice-interaction-architecture.md`
+> **Vision**: Interazione vocale fluida come ChatGPT mobile o Gemini Live con tutti i maestri
+> **Technology**: Hume AI EVI 3 (primary) + OpenAI GPT-Realtime (fallback)
+
+### 10.1 Core Voice System
+
+| ID | Task | Status | Priority | Note |
+|----|------|--------|----------|------|
+| VO01 | Hume EVI 3 WebSocket integration | [ ] | P0 | <200ms latency |
+| VO02 | Basic voice input/output | [ ] | P0 | Mic → LLM → Speaker |
+| VO03 | Voice Activity Detection (VAD) | [ ] | P0 | Detect when user speaks |
+| VO04 | Barge-in handling | [ ] | P0 | User can interrupt |
+| VO05 | Emotion detection pipeline | [ ] | P0 | Frustration, confusion, etc. |
+| VO06 | Response adaptation per emotion | [ ] | P0 | Slower on frustration |
+| VO07 | Multi-language support | [ ] | P0 | IT, EN, ES, FR, DE |
+| VO08 | Fallback to OpenAI Realtime | [ ] | P1 | If Hume unavailable |
+| VO09 | Fallback to local TTS | [ ] | P2 | macOS `say` command |
+
+### 10.2 Custom Voice per Maestro
+
+| ID | Task | Status | Priority | Note |
+|----|------|--------|----------|------|
+| VV01 | Euclide voice profile | [ ] | P0 | Calm, methodical, Greek-Italian |
+| VV02 | Feynman voice profile | [ ] | P0 | Enthusiastic, American |
+| VV03 | Manzoni voice profile | [ ] | P0 | Warm, literary, Milanese |
+| VV04 | Darwin voice profile | [ ] | P1 | Curious, British |
+| VV05 | Erodoto voice profile | [ ] | P1 | Storyteller, dramatic |
+| VV06 | All other maestri voices | [ ] | P1 | 10 remaining profiles |
+| VV07 | Voice switching on maestro change | [ ] | P0 | Dynamic voice routing |
+| VV08 | Chris (Storytelling) voice | [ ] | P0 | Inspiring, dynamic, American |
+
+### 10.3 Voice Accessibility
+
+| ID | Task | Status | Priority | Note |
+|----|------|--------|----------|------|
+| VA01 | Adjustable speech rate | [ ] | P0 | 0.5x to 2x |
+| VA02 | Voice pitch adjustment | [ ] | P1 | For hearing impairment |
+| VA03 | Screen reader compatibility | [ ] | P0 | VoiceOver integration |
+| VA04 | Visual feedback during speech | [ ] | P0 | Waveform or indicator |
+| VA05 | Transcription display option | [ ] | P1 | Show text while speaking |
+
+### 10.4 Voice Test Tasks
+
+| ID | Task | Status | Note |
+|----|------|--------|------|
+| VOT01 | Test latency <200ms | [ ] | End-to-end measurement |
+| VOT02 | Test emotion detection accuracy | [ ] | 80%+ accuracy target |
+| VOT03 | Test barge-in reliability | [ ] | 95%+ success |
+| VOT04 | Test all 15 voice profiles | [ ] | Distinctive voices |
+| VOT05 | Test fallback chain | [ ] | Hume → OpenAI → Local |
+
+---
+
+## FASE 11 - LEARNING SCIENCE (NEW - P0) 📚
+
+> **Inspiration**: Khan Academy (mastery learning) + Duolingo (engagement engineering)
+> **Documentation**: `docs/education/README.md`
+
+### 11.1 Mastery Learning (Khan Academy)
+
+| ID | Task | Status | Priority | Note |
+|----|------|--------|----------|------|
+| ML01 | Skill mastery tracking | [ ] | P0 | 80% correct = mastered |
+| ML02 | Personalized skill gaps detection | [ ] | P0 | AI identifies weak areas |
+| ML03 | Adaptive difficulty | [ ] | P0 | Harder if doing well |
+| ML04 | Visual skill tree | [ ] | P1 | Subject → Topic → Skill |
+| ML05 | Prerequisite enforcement | [ ] | P1 | Can't skip foundations |
+| ML06 | Learning path recommendation | [ ] | P0 | "Next: Fractions" |
+| ML07 | Progress visualization | [ ] | P0 | Clear mastery indicators |
+
+### 11.2 Engagement Engineering (Duolingo)
+
+| ID | Task | Status | Priority | Note |
+|----|------|--------|----------|------|
+| EE01 | FSRS spaced repetition algorithm | [ ] | P0 | 2024 algorithm |
+| EE02 | Streak freeze feature | [ ] | P1 | Protect streak |
+| EE03 | Weekend amulet | [ ] | P2 | Weekend off allowed |
+| EE04 | Streak wager | [ ] | P2 | Bet on yourself |
+| EE05 | Variable reward schedule | [ ] | P1 | Surprise bonuses |
+| EE06 | Loss aversion mechanics | [ ] | P1 | "Don't lose streak!" |
+| EE07 | Micro-celebrations | [ ] | P0 | Every correct answer |
+| EE08 | Daily challenges | [ ] | P1 | Mini-quiz of the day |
+| EE09 | Leaderboard (optional) | [ ] | P2 | Classroom competition |
+| EE10 | Notification optimization | [ ] | P1 | Smart reminders |
+
+### 11.3 AI-Powered Personalization
+
+| ID | Task | Status | Priority | Note |
+|----|------|--------|----------|------|
+| AP01 | Learning style detection | [ ] | P1 | Visual/auditory/kinesthetic |
+| AP02 | Emotion-aware lesson adjustment | [ ] | P0 | Via Hume EVI |
+| AP03 | Time-of-day optimization | [ ] | P2 | Best hours to study |
+| AP04 | Pace adjustment | [ ] | P0 | Slower for struggling |
+| AP05 | Content recommendation engine | [ ] | P1 | "Students like you..." |
+
+### 11.4 Learning Science Tests
+
+| ID | Task | Status | Note |
+|----|------|--------|------|
+| LST01 | Test mastery tracking | [ ] | 80% threshold |
+| LST02 | Test FSRS algorithm | [ ] | Correct intervals |
+| LST03 | Test streak mechanics | [ ] | 7-day bonus |
+| LST04 | Test adaptive difficulty | [ ] | Adjusts correctly |
+
+---
+
+## FASE 12 - STORYTELLING INTEGRATION (NEW - P1) 🎭
+
+> **New Maestro**: Chris (TED-style storytelling & public speaking)
+> **Cross-cutting**: Storytelling as skill for ALL maestri
+
+### 12.1 Chris Maestro
+
+| ID | Task | Status | Priority | Note |
+|----|------|--------|----------|------|
+| ST01 | Chris agent definition | [x] | P0 | `chris-storytelling.md` |
+| ST02 | TED H.A.I.L. framework | [x] | P0 | Honesty, Authenticity, Integrity, Love |
+| ST03 | C.N.E.P.R. presentation structure | [x] | P0 | Connection, Narration, Explanation, Persuasion, Revelation |
+| ST04 | 18-minute structure template | [x] | P0 | TED format |
+| ST05 | Public speaking practice mode | [ ] | P1 | Timer + feedback |
+| ST06 | Filler word detection | [ ] | P1 | "um", "ehm" counter |
+| ST07 | Pacing analysis | [ ] | P1 | Too fast/slow feedback |
+| ST08 | Voice in storytelling teaching | [ ] | P0 | Practice aloud |
+
+### 12.2 Storytelling as Cross-Cutting Skill
+
+| ID | Task | Status | Priority | Note |
+|----|------|--------|----------|------|
+| XS01 | Storytelling training for all maestri | [ ] | P1 | Each maestro uses stories |
+| XS02 | Story hooks per subject | [ ] | P1 | "C'era una volta un filosofo greco..." |
+| XS03 | Narrative structure in explanations | [ ] | P1 | Build suspense before revelation |
+| XS04 | Student presentation coaching | [ ] | P1 | Chris reviews any subject |
+| XS05 | Cross-subject storytelling projects | [ ] | P2 | History + Literature narratives |
+
+### 12.3 Integration with Riccardo (Main Convergio)
+
+| ID | Task | Status | Priority | Note |
+|----|------|--------|----------|------|
+| RI01 | Define Chris vs Riccardo scope | [x] | P0 | Chris teaches, Riccardo does |
+| RI02 | Shared storytelling frameworks | [ ] | P2 | Common methodology |
+| RI03 | Student → Professional transition | [ ] | P2 | Chris prepares for Riccardo |
+
+---
+
+## UPDATED SUCCESS CRITERIA
+
+- [x] 15 maestri operativi (14 originali + Chris)
+- [~] Toolkit P0 completo - Core done, alcuni comandi TODO
+- [ ] Voice interaction funzionante con tutti i maestri
+- [ ] Emotion detection e adaptive responses
+- [ ] Mastery learning system attivo
+- [ ] FSRS spaced repetition implementato
+- [ ] Gamification completa (XP, streaks, badges)
+- [ ] Chris storytelling maestro operativo
+- [ ] Cross-subject storytelling training
+- [ ] Test con studenti reali con feedback positivo
+
+---
+
+## DOCUMENTATION INDEX
+
+| Document | Description |
+|----------|-------------|
+| [Education README](../education/README.md) | Feature overview completo |
+| [ADR-001 HTML Generator](../adr/ADR-001-html-generator-llm-approach.md) | LLM vs Templates |
+| [ADR-002 Voice Interaction](../adr/ADR-002-voice-interaction-architecture.md) | Hume EVI 3 architecture |
+| [Maestri Definitions](../../src/agents/definitions/education/) | 15 agent .md files |
+
+---
+
+*Last updated: 2025-12-20 - Added Voice Interaction, Learning Science, Storytelling phases*
 
 ---
 
