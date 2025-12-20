@@ -760,8 +760,24 @@ $(PATTERNS_TEST): $(PATTERNS_SOURCES) $(PATTERNS_OBJECTS) $(SWIFT_LIB) $(MLX_STU
 		$(CC) $(CFLAGS) $(LDFLAGS) -o $(PATTERNS_TEST) $(PATTERNS_SOURCES) $(PATTERNS_OBJECTS) $(MLX_STUBS_OBJ) $(FRAMEWORKS) $(LIBS); \
 	fi
 
+PRE_RELEASE_E2E_TEST = $(BIN_DIR)/pre_release_e2e_test
+PRE_RELEASE_E2E_SOURCES = tests/test_workflow_e2e_pre_release.c $(TEST_STUBS)
+PRE_RELEASE_E2E_OBJECTS = $(filter-out $(OBJ_DIR)/core/main.o,$(OBJECTS))
+
+pre_release_e2e_test: dirs swift $(OBJECTS) $(MLX_STUBS_OBJ) $(PRE_RELEASE_E2E_TEST)
+	@echo "Running pre-release E2E tests..."
+	@$(PRE_RELEASE_E2E_TEST)
+
+$(PRE_RELEASE_E2E_TEST): $(PRE_RELEASE_E2E_SOURCES) $(PRE_RELEASE_E2E_OBJECTS) $(SWIFT_LIB) $(MLX_STUBS_OBJ)
+	@echo "Compiling pre-release E2E tests..."
+	@if [ -s "$(SWIFT_LIB)" ]; then \
+		$(CC) $(CFLAGS) $(LDFLAGS) -o $(PRE_RELEASE_E2E_TEST) $(PRE_RELEASE_E2E_SOURCES) $(PRE_RELEASE_E2E_OBJECTS) $(SWIFT_LIB) $(FRAMEWORKS) $(LIBS) $(SWIFT_RUNTIME_LIBS); \
+	else \
+		$(CC) $(CFLAGS) $(LDFLAGS) -o $(PRE_RELEASE_E2E_TEST) $(PRE_RELEASE_E2E_SOURCES) $(PRE_RELEASE_E2E_OBJECTS) $(MLX_STUBS_OBJ) $(FRAMEWORKS) $(LIBS); \
+	fi
+
 # Run all workflow tests
-workflow_test: workflow_types_test workflow_engine_test workflow_checkpoint_test workflow_e2e_test task_decomposer_test group_chat_test router_test patterns_test
+workflow_test: workflow_types_test workflow_engine_test workflow_checkpoint_test workflow_e2e_test task_decomposer_test group_chat_test router_test patterns_test pre_release_e2e_test
 	@echo "All workflow tests completed!"
 
 # Run all tests
