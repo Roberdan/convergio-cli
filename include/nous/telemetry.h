@@ -36,6 +36,9 @@ typedef enum {
     TELEMETRY_EVENT_WORKFLOW_END,   // Workflow execution ended
     TELEMETRY_EVENT_WORKFLOW_NODE,  // Workflow node executed
     TELEMETRY_EVENT_WORKFLOW_ERROR, // Workflow error occurred
+    TELEMETRY_EVENT_ORCHESTRATOR_DELEGATION, // Agent delegation event
+    TELEMETRY_EVENT_ORCHESTRATOR_PLANNING,   // Task planning event
+    TELEMETRY_EVENT_ORCHESTRATOR_CONVERGENCE, // Response convergence event
 } TelemetryEventType;
 
 /**

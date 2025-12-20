@@ -9,10 +9,12 @@
 #include "nous/nous.h"
 #include "nous/projects.h"
 #include "nous/provider.h"
+#include "nous/telemetry.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <dispatch/dispatch.h>
+#include <time.h>
 
 // Model used for agent delegation (matches previous claude.c default)
 #define DELEGATION_MODEL "claude-sonnet-4-20250514"
@@ -143,8 +145,13 @@ char* execute_delegations(DelegationList* delegations, const char* user_input,
     if (!delegations || delegations->count == 0 || !user_input || !ali) {
         LOG_ERROR(LOG_CAT_AGENT, "execute_delegations: invalid params (delegations=%p, count=%zu, input=%p, ali=%p)",
                   (void*)delegations, delegations ? delegations->count : 0, (void*)user_input, (void*)ali);
+        telemetry_record_error("orchestrator_delegation_invalid_params");
         return NULL;
     }
+
+    // Measure latency for telemetry
+    struct timespec start_time, end_time;
+    clock_gettime(CLOCK_MONOTONIC, &start_time);
 
     LOG_INFO(LOG_CAT_AGENT, "Starting delegation to %zu agents", delegations->count);
 
@@ -306,6 +313,20 @@ char* execute_delegations(DelegationList* delegations, const char* user_input,
 
     if (synthesized) {
         cost_record_agent_usage(ali, 1000, strlen(synthesized) / 4);
+    }
+
+    // Calculate latency and record telemetry
+    clock_gettime(CLOCK_MONOTONIC, &end_time);
+    double latency_ms = ((end_time.tv_sec - start_time.tv_sec) * 1000.0) +
+                        ((end_time.tv_nsec - start_time.tv_nsec) / 1000000.0);
+
+    if (synthesized) {
+        // Record successful delegation as API call (orchestrator internal operation)
+        telemetry_record_api_call("orchestrator", "delegation", delegations->count, strlen(synthesized) / 4, latency_ms);
+        LOG_DEBUG(LOG_CAT_AGENT, "Delegation completed in %.2f ms", latency_ms);
+    } else {
+        telemetry_record_error("orchestrator_delegation_failed");
+        LOG_ERROR(LOG_CAT_AGENT, "Delegation failed - synthesis returned NULL");
     }
 
     // Cleanup

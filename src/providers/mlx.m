@@ -20,11 +20,13 @@
 #include "nous/provider.h"
 #include "nous/nous.h"
 #include "nous/hardware.h"
+#include "nous/telemetry.h"
 #include <stdlib.h>
 #include <string.h>
 #include <pthread.h>
 #include <sys/stat.h>
 #include <dlfcn.h>
+#include <time.h>
 
 // ============================================================================
 // SWIFT BRIDGE DECLARATIONS
@@ -772,25 +774,42 @@ static char* mlx_provider_chat(
         strcmp(g_mlx_data.current_model_id, model) != 0) {
 
         if (mlx_load_model(model) != MLX_OK) {
+            telemetry_record_error("mlx_model_load_failed");
             return NULL;
         }
     }
 
+    // Measure latency for telemetry
+    struct timespec start_time, end_time;
+    clock_gettime(CLOCK_MONOTONIC, &start_time);
+
     char* response = NULL;
     MLXError err = mlx_generate(user, system, 4096, 0.7f, &response);
 
+    clock_gettime(CLOCK_MONOTONIC, &end_time);
+    double latency_ms = ((end_time.tv_sec - start_time.tv_sec) * 1000.0) +
+                        ((end_time.tv_nsec - start_time.tv_nsec) / 1000000.0);
+
     if (err != MLX_OK) {
+        telemetry_record_error("mlx_inference_failed");
         return NULL;
     }
 
     // Update usage stats
+    size_t tokens_input = 0;
+    size_t tokens_output = 0;
     if (usage) {
-        usage->input_tokens = mlx_estimate_tokens(user);
-        if (system) usage->input_tokens += mlx_estimate_tokens(system);
-        usage->output_tokens = mlx_estimate_tokens(response);
+        tokens_input = mlx_estimate_tokens(user);
+        if (system) tokens_input += mlx_estimate_tokens(system);
+        tokens_output = mlx_estimate_tokens(response);
+        usage->input_tokens = tokens_input;
+        usage->output_tokens = tokens_output;
         usage->cached_tokens = 0;
         usage->estimated_cost = 0.0;  // Local inference is free!
     }
+
+    // Record successful API call in telemetry (local models, cost=0)
+    telemetry_record_api_call("mlx", model ? model : "mlx", tokens_input, tokens_output, latency_ms);
 
     return response;
 }

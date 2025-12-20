@@ -23,6 +23,7 @@
 #include "nous/notify.h"
 #include "nous/plan_db.h"
 #include "nous/output_service.h"
+#include "nous/telemetry.h"
 #include "../auth/oauth.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -68,7 +69,7 @@ static const char* LOG_LEVEL_NAMES[] = {
 };
 
 static const char* LOG_CAT_NAMES[] = {
-    "SYSTEM", "AGENT", "TOOL", "API", "MEMORY", "MSGBUS", "COST"
+    "SYSTEM", "AGENT", "TOOL", "API", "MEMORY", "MSGBUS", "COST", "WORKFLOW"
 };
 
 static const char* LOG_CAT_COLORS[] = {
@@ -78,7 +79,8 @@ static const char* LOG_CAT_COLORS[] = {
     "\033[35m",   // Magenta - API
     "\033[34m",   // Blue - MEMORY
     "\033[37m",   // White - MSGBUS
-    "\033[31m"    // Red - COST
+    "\033[31m",   // Red - COST
+    "\033[93m"    // Bright Yellow - WORKFLOW
 };
 
 void nous_log(LogLevel level, LogCategory cat, const char* fmt, ...) {
@@ -567,6 +569,15 @@ int main(int argc, char** argv) {
     // Initialize notification system (for daemon, reminders, etc.)
     notify_init();
 
+    // Initialize telemetry system (privacy-first, opt-in)
+    if (telemetry_init() != 0) {
+        fprintf(stderr, "  \033[33m⚠ Telemetry initialization failed (non-critical)\033[0m\n");
+        // Non-critical: telemetry is optional
+    } else {
+        // Record session start in telemetry
+        telemetry_record_session_start();
+    }
+
     // Only show status if there were errors during initialization
     (void)init_errors;  // Suppress unused warning - errors already printed
 
@@ -721,6 +732,12 @@ int main(int argc, char** argv) {
         nous_destroy_agent(g_assistant);
     }
 
+    // Record session end in telemetry
+    telemetry_record_session_end();
+    
+    // Shutdown telemetry (flushes pending events)
+    telemetry_shutdown();
+    
     nous_gpu_shutdown();
     nous_scheduler_shutdown();
     nous_shutdown();

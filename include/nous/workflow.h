@@ -9,12 +9,10 @@
 #define CONVERGIO_WORKFLOW_H
 
 #include "nous/nous.h"
+#include "nous/provider.h" // For ProviderType, ProviderError
 #include <stdbool.h>
 #include <stdint.h>
 #include <time.h>
-
-// Forward declarations for error handling
-typedef enum ProviderType ProviderType;
 typedef enum {
     WORKFLOW_ERROR_NONE = 0,
     WORKFLOW_ERROR_TIMEOUT,

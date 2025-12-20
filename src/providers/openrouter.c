@@ -12,6 +12,7 @@
 #include "nous/provider_common.h"
 #include "nous/config.h"
 #include "nous/nous.h"
+#include "nous/telemetry.h"
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
@@ -20,6 +21,7 @@
 #include <ctype.h>
 #include <pthread.h>
 #include <signal.h>
+#include <time.h>
 
 // ============================================================================
 // CONFIGURATION
@@ -372,36 +374,57 @@ static char* openrouter_chat(Provider* self, const char* model, const char* syst
 
     data->request_cancelled = 0;
 
+    // Measure latency for telemetry
+    struct timespec start_time, end_time;
+    clock_gettime(CLOCK_MONOTONIC, &start_time);
+
     LOG_DEBUG(LOG_CAT_API, "OpenRouter API call: model=%s", api_model);
     CURLcode res = curl_easy_perform(curl);
+
+    // Calculate latency
+    clock_gettime(CLOCK_MONOTONIC, &end_time);
+    double latency_ms = ((end_time.tv_sec - start_time.tv_sec) * 1000.0) +
+                        ((end_time.tv_nsec - start_time.tv_nsec) / 1000000.0);
 
     long http_code = 0;
     curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &http_code);
     data->last_error.http_status = (int)http_code;
 
     char* result = NULL;
+    uint64_t tokens_input = 0;
+    uint64_t tokens_output = 0;
 
     if (res == CURLE_ABORTED_BY_CALLBACK) {
         data->last_error.code = PROVIDER_ERR_TIMEOUT;
         data->last_error.message = strdup("Request cancelled");
+        telemetry_record_error("provider_timeout");
     } else if (res != CURLE_OK) {
         data->last_error.code = PROVIDER_ERR_NETWORK;
         data->last_error.message = strdup(curl_easy_strerror(res));
+        telemetry_record_error("provider_network_error");
     } else if (http_code != 200) {
         data->last_error.code = provider_map_http_error(http_code);
         data->last_error.message = strdup(response.data ? response.data : "Unknown error");
         LOG_WARN(LOG_CAT_API, "OpenRouter API error: HTTP %ld -> %d", http_code, data->last_error.code);
+        telemetry_record_error("provider_api_error");
     } else {
         result = extract_response_content(response.data);
         if (!result) {
             data->last_error.code = PROVIDER_ERR_INVALID_REQUEST;
             data->last_error.message = strdup("Failed to parse response");
+            telemetry_record_error("provider_parse_error");
         } else if (usage) {
             memset(usage, 0, sizeof(TokenUsage));
             extract_token_usage(response.data, usage);
             usage->estimated_cost = model_estimate_cost(model, usage->input_tokens, usage->output_tokens);
+            tokens_input = usage->input_tokens;
+            tokens_output = usage->output_tokens;
             LOG_DEBUG(LOG_CAT_COST, "Tokens: in=%zu out=%zu cost=$%.6f",
                      usage->input_tokens, usage->output_tokens, usage->estimated_cost);
+        }
+        // Record successful API call in telemetry
+        if (result) {
+            telemetry_record_api_call("openrouter", api_model, tokens_input, tokens_output, latency_ms);
         }
     }
 
@@ -534,7 +557,16 @@ static char* openrouter_chat_with_tools(Provider* self, const char* model, const
 
     data->request_cancelled = 0;
 
+    // Measure latency for telemetry
+    struct timespec start_time, end_time;
+    clock_gettime(CLOCK_MONOTONIC, &start_time);
+
     CURLcode res = curl_easy_perform(curl);
+
+    // Calculate latency
+    clock_gettime(CLOCK_MONOTONIC, &end_time);
+    double latency_ms = ((end_time.tv_sec - start_time.tv_sec) * 1000.0) +
+                        ((end_time.tv_nsec - start_time.tv_nsec) / 1000000.0);
 
     curl_slist_free_all(headers);
     curl_easy_cleanup(curl);
@@ -544,6 +576,7 @@ static char* openrouter_chat_with_tools(Provider* self, const char* model, const
         free(response.data);
         data->last_error.code = PROVIDER_ERR_NETWORK;
         data->last_error.message = strdup(curl_easy_strerror(res));
+        telemetry_record_error("provider_network_error");
         return NULL;
     }
 
@@ -557,9 +590,20 @@ static char* openrouter_chat_with_tools(Provider* self, const char* model, const
 
     // Extract text response
     char* result = extract_response_content(response.data);
+    uint64_t tokens_input = 0;
+    uint64_t tokens_output = 0;
     if (usage) {
         memset(usage, 0, sizeof(TokenUsage));
         extract_token_usage(response.data, usage);
+        tokens_input = usage->input_tokens;
+        tokens_output = usage->output_tokens;
+    }
+
+    // Record successful API call in telemetry
+    if (result) {
+        telemetry_record_api_call("openrouter", api_model, tokens_input, tokens_output, latency_ms);
+    } else {
+        telemetry_record_error("provider_parse_error");
     }
 
     free(response.data);
