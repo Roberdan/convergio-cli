@@ -126,7 +126,8 @@ static bool file_exists(const char* path) {
 
 // Read entire file into string
 static char* read_file(const char* path) {
-    FILE* f = fopen(path, "r");
+    int fd = safe_path_open(path, safe_path_get_user_boundary(), O_RDONLY, 0);
+    FILE* f = fd >= 0 ? fdopen(fd, "r") : NULL;
     if (!f) return NULL;
 
     fseek(f, 0, SEEK_END);
@@ -148,7 +149,8 @@ static char* read_file(const char* path) {
 
 // Write string to file
 static bool write_file(const char* path, const char* content) {
-    FILE* f = fopen(path, "w");
+    int fd = safe_path_open(path, safe_path_get_user_boundary(), O_WRONLY | O_CREAT | O_TRUNC, 0644);
+    FILE* f = fd >= 0 ? fdopen(fd, "w") : NULL;
     if (!f) return false;
 
     size_t len = strlen(content);
@@ -1065,7 +1067,8 @@ bool project_append_history(ConvergioProject* project, const char* role,
     char history_file[1024];
     snprintf(history_file, sizeof(history_file), "%s/%s", project->storage_path, HISTORY_FILE);
 
-    FILE* f = fopen(history_file, "a");
+    int fd = safe_path_open(history_file, safe_path_get_user_boundary(), O_WRONLY | O_CREAT | O_APPEND, 0644);
+    FILE* f = fd >= 0 ? fdopen(fd, "a") : NULL;
     if (!f) return false;
 
     char* escaped_content = json_escape_str(content);
@@ -1092,7 +1095,8 @@ size_t project_load_history(ConvergioProject* project, size_t max_turns,
     char history_file[1024];
     snprintf(history_file, sizeof(history_file), "%s/%s", project->storage_path, HISTORY_FILE);
 
-    FILE* f = fopen(history_file, "r");
+    int fd = safe_path_open(history_file, safe_path_get_user_boundary(), O_RDONLY, 0);
+    FILE* f = fd >= 0 ? fdopen(fd, "r") : NULL;
     if (!f) return 0;
 
     // Count lines first

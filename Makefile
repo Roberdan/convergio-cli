@@ -150,6 +150,7 @@ C_SOURCES = $(SRC_DIR)/core/fabric.c \
             $(SRC_DIR)/orchestrator/planning.c \
             $(SRC_DIR)/orchestrator/plan_db.c \
             $(SRC_DIR)/orchestrator/convergence.c \
+            $(SRC_DIR)/orchestrator/workflow_integration.c \
             $(SRC_DIR)/memory/persistence.c \
             $(SRC_DIR)/memory/semantic_persistence.c \
             $(SRC_DIR)/memory/memory.c \

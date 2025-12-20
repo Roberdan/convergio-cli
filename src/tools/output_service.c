@@ -220,7 +220,8 @@ OutputError output_create(const OutputRequest* request, OutputResult* result) {
     free(safe_title);
 
     // Create file
-    FILE* f = fopen(result->filepath, "w");
+    int fd = safe_path_open(result->filepath, safe_path_get_cwd_boundary(), O_WRONLY | O_CREAT | O_TRUNC, 0644);
+    FILE* f = fd >= 0 ? fdopen(fd, "w") : NULL;
     if (!f) {
         return OUTPUT_ERROR_IO;
     }
@@ -269,7 +270,8 @@ OutputError output_create(const OutputRequest* request, OutputResult* result) {
 OutputError output_append(const char* filepath, const char* content) {
     if (!filepath || !content) return OUTPUT_ERROR_INVALID;
 
-    FILE* f = fopen(filepath, "a");
+    int fd = safe_path_open(filepath, safe_path_get_cwd_boundary(), O_WRONLY | O_CREAT | O_APPEND, 0644);
+    FILE* f = fd >= 0 ? fdopen(fd, "a") : NULL;
     if (!f) return OUTPUT_ERROR_IO;
 
     fprintf(f, "\n%s", content);
