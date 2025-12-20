@@ -335,6 +335,7 @@ This implementation will deliver:
 | [Missing Items Complete](MISSING_ITEMS_COMPLETE.md) | **⚠️ CRITICAL** - Complete inventory of ALL missing items (170+ items) |
 | [Brutal Reality Check](BRUTAL_REALITY_CHECK.md) | **🔴 BRUTAL** - Brutal honesty about what's missing (no sugar-coating) |
 | [Action Plan](ACTION_PLAN.md) | **📋 EXECUTABLE** - Prioritized action plan with effort estimates |
+| [Best Practices](BEST_PRACTICES.md) | **📋 NEW** - Comprehensive best practices and development standards (20+ practices) |
 
 ### Phase Details
 
