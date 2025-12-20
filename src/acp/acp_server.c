@@ -663,6 +663,33 @@ void acp_handle_session_new(int request_id, const char* params_json) {
     acp_send_response(request_id, result_json);
     free(result_json);
     cJSON_Delete(result);
+
+    // Send session/history notification for resumed sessions with history
+    // This is a custom Convergio extension - standard ACP clients will ignore it
+    if (resumed && session->message_count > 0) {
+        cJSON* history_params = cJSON_CreateObject();
+        cJSON_AddStringToObject(history_params, "sessionId", session->session_id);
+
+        cJSON* messages = cJSON_CreateArray();
+        for (int i = 0; i < session->message_count; i++) {
+            cJSON* msg = cJSON_CreateObject();
+            cJSON_AddStringToObject(msg, "role", session->messages[i].role);
+            cJSON_AddStringToObject(msg, "content",
+                session->messages[i].content ? session->messages[i].content : "");
+            cJSON_AddNumberToObject(msg, "timestamp", session->messages[i].timestamp);
+            cJSON_AddItemToArray(messages, msg);
+        }
+        cJSON_AddItemToObject(history_params, "messages", messages);
+        cJSON_AddBoolToObject(history_params, "compacted", false);  // TODO: integrate compaction
+
+        char* history_json = cJSON_PrintUnformatted(history_params);
+        acp_send_notification("session/history", history_json);
+        free(history_json);
+        cJSON_Delete(history_params);
+
+        LOG_INFO(LOG_CAT_SYSTEM, "Sent session/history notification with %d messages",
+                 session->message_count);
+    }
 }
 
 // Streaming callback for orchestrator
@@ -941,10 +968,63 @@ void acp_handle_session_prompt(int request_id, const char* params_json) {
 }
 
 void acp_handle_session_cancel(int request_id, const char* params_json) {
-    (void)params_json;
-    // TODO: Implement cancellation
+    const char* session_id = NULL;
+    char session_id_from_params[64] = {0};
+
+    // Parse session_id from params if provided
+    if (params_json) {
+        cJSON* params = cJSON_Parse(params_json);
+        if (params) {
+            cJSON* sid = cJSON_GetObjectItem(params, "sessionId");
+            if (sid && cJSON_IsString(sid)) {
+                strncpy(session_id_from_params, sid->valuestring, sizeof(session_id_from_params) - 1);
+                session_id = session_id_from_params;
+            }
+            cJSON_Delete(params);
+        }
+    }
+
+    // Fallback to current session if no session_id provided
+    if (!session_id || session_id[0] == '\0') {
+        session_id = g_current_session_id;
+    }
+
+    // Find and cancel the session
+    bool cancelled = false;
+    if (session_id && session_id[0] != '\0') {
+        ACPSession* session = find_session(session_id);
+        if (session) {
+            // Free message memory
+            for (int i = 0; i < session->message_count; i++) {
+                if (session->messages[i].content) {
+                    free(session->messages[i].content);
+                    session->messages[i].content = NULL;
+                }
+            }
+            session->message_count = 0;
+
+            // Mark session as inactive
+            session->active = false;
+
+            // Remove persistence file
+            char* filepath = get_session_filepath(session_id);
+            if (filepath) {
+                unlink(filepath);
+                free(filepath);
+            }
+
+            // Clear current session if it was the cancelled one
+            if (strcmp(g_current_session_id, session_id) == 0) {
+                g_current_session_id[0] = '\0';
+            }
+
+            cancelled = true;
+            LOG_DEBUG(LOG_CAT_SYSTEM, "Session cancelled: %s", session_id);
+        }
+    }
+
     cJSON* result = cJSON_CreateObject();
-    cJSON_AddBoolToObject(result, "cancelled", true);
+    cJSON_AddBoolToObject(result, "cancelled", cancelled);
 
     char* result_json = cJSON_PrintUnformatted(result);
     acp_send_response(request_id, result_json);
