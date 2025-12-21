@@ -62,7 +62,7 @@ CONVERGIO_MUTEX_DECLARE(g_session_mutex);
 
 // Helper to save conversation to both persistence and project history
 static void save_conversation(const char* role, const char* content, const char* agent_name) {
-    // Save to regular persistence
+    // Save to regular persistence (FIX-04: protect session_id access)
     CONVERGIO_MUTEX_LOCK(&g_session_mutex);
     if (g_current_session_id) {
         persistence_save_conversation(g_current_session_id, role, content, (int)strlen(content) / 4);
@@ -811,6 +811,7 @@ static char* build_context_prompt(const char* user_input) {
 
     // 3. Load only recent conversation from current session (not full history)
     // Full session summaries are created on quit and loaded via /recall if needed
+    // FIX-04: protect session_id access with mutex
     CONVERGIO_MUTEX_LOCK(&g_session_mutex);
     char* session_id_copy = g_current_session_id ? strdup(g_current_session_id) : NULL;
     CONVERGIO_MUTEX_UNLOCK(&g_session_mutex);
@@ -1057,7 +1058,7 @@ char* orchestrator_process(const char* user_input) {
         free(final_response);
 
         if (synthesized) {
-            // Save synthesized response
+            // Save synthesized response (FIX-04: protect session_id)
             CONVERGIO_MUTEX_LOCK(&g_session_mutex);
             if (g_current_session_id) {
                 persistence_save_conversation(g_current_session_id, "assistant", synthesized,
@@ -1567,7 +1568,7 @@ char* orchestrator_status(void) {
 // ============================================================================
 
 // Get current session ID (for external use)
-// Note: Caller must not modify or free the returned pointer
+// FIX-04: Note - caller must not modify or free the returned pointer
 const char* orchestrator_get_session_id(void) {
     CONVERGIO_MUTEX_LOCK(&g_session_mutex);
     const char* session_id = g_current_session_id;
@@ -1578,7 +1579,7 @@ const char* orchestrator_get_session_id(void) {
 // Compact current session into a summary (called on quit)
 // Returns 0 on success, -1 on error
 int orchestrator_compact_session(void (*progress_callback)(int percent, const char* msg)) {
-    // Make a protected copy of session ID to avoid holding mutex during I/O
+    // FIX-04: Make a protected copy of session ID to avoid holding mutex during I/O
     CONVERGIO_MUTEX_LOCK(&g_session_mutex);
     char* session_id = g_current_session_id ? strdup(g_current_session_id) : NULL;
     CONVERGIO_MUTEX_UNLOCK(&g_session_mutex);

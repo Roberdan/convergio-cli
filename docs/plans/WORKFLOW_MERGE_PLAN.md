@@ -1,6 +1,6 @@
 # Workflow-Orchestration Merge Plan
 
-**Last Updated**: 2025-12-21 | **Status**: ✅ ALL PHASES COMPLETE (51/51 tasks)
+**Last Updated**: 2025-12-21 | **Status**: 🔧 PHASE 6 IN PROGRESS (58/65 tasks)
 
 ---
 
@@ -8,9 +8,10 @@
 
 | Stato | Tasks |
 |-------|-------|
-| ✅ Completati | 51 |
-| ⬚ Da fare | 0 |
-| **Totale** | **51** |
+| ✅ Completati | 58 |
+| ⏳ In corso | 0 |
+| ⬚ Da fare | 7 |
+| **Totale** | **65** |
 
 ```
 ✅ PHASE 1: MERGE & BUILD ████████████████████ 100% (5/5)
@@ -18,6 +19,7 @@
 ✅ PHASE 3: QUALITY       ████████████████████ 100% (13/13)
 ✅ PHASE 4: DOCS          ████████████████████ 100% (12/12)
 ✅ PHASE 5: REFACTORING   ████████████████████ 100% (14/14) - ALL ANALYZED
+⏳ PHASE 6: FIX IMPL      ██████████░░░░░░░░░░  50% (7/14) - IMPLEMENTATION
 ```
 
 ---
@@ -220,6 +222,51 @@ make clean && make EDITION=education && make test && make education_test
 | 🔧 REF-06 | Test infrastructure | Medium-High | ✅ analyzed | 31 test files, no unified framework - create test_utils.h |
 | 🔧 REF-07 | Build system cleanup | Low | ✅ analyzed | Extract test macros, consolidate quality gates |
 | 🔧 REF-08 | Caching agent definitions | Low-Medium | ✅ analyzed | O(n) linear search for 72 agents - add LRU cache |
+
+---
+
+## ⏳ PHASE 6: Implementation Fixes (FROM PHASE 5 ANALYSIS)
+
+> **Objective**: Fix all CRITICAL and HIGH issues identified in PHASE 5 architecture review.
+
+### Batch 6A - Security CRITICAL (must fix first)
+
+| Task ID | Issue | Location | Severity | Status |
+|---------|-------|----------|----------|--------|
+| 🔴 FIX-01 | Edition filtering bypass | repl.c (4 locations) | CRITICAL | ✅ DONE |
+
+### Batch 6B - Thread Safety CRITICAL (parallel fixes)
+
+| Task ID | Issue | Location | Severity | Status |
+|---------|-------|----------|----------|--------|
+| 🔴 FIX-02 | Non-atomic chat ID | group_chat.c - atomic_fetch_add | CRITICAL | ✅ DONE |
+| 🔴 FIX-03 | Inconsistent mutex types | todo.c - CONVERGIO_MUTEX | CRITICAL | ✅ DONE |
+| 🔴 FIX-04 | Unprotected session_id | orchestrator.c - g_session_mutex | HIGH | ✅ DONE |
+
+### Batch 6C - Error Recovery HIGH (parallel fixes)
+
+| Task ID | Issue | Location | Severity | Status |
+|---------|-------|----------|----------|--------|
+| 🟠 FIX-05 | No SIGSEGV handler | signals.c - sigsegv_handler | HIGH | ✅ DONE |
+| 🟠 FIX-06 | Force exit bypasses cleanup | signals.c - cleanup callback | HIGH | ✅ DONE |
+| 🟠 FIX-07 | No auto crash recovery | signals.c - crash marker | HIGH | ✅ DONE |
+
+### Batch 6D - Architecture Cleanup (sequential, complex)
+
+| Task ID | Issue | Location | Severity | Status |
+|---------|-------|----------|----------|--------|
+| 🟡 FIX-08 | Core over-coupling | main.c 82 includes → <20 | MEDIUM | ⬚ |
+| 🟡 FIX-09 | No LLM facade | education/workflow bypass orchestrator | MEDIUM | ⬚ |
+| 🟡 FIX-10 | Too many globals | 13 globals → <5 | MEDIUM | ⬚ |
+
+### Batch 6E - Refactoring (parallel, lower priority)
+
+| Task ID | Issue | Effort | Status |
+|---------|-------|--------|--------|
+| 🟢 FIX-11 | REF-01: Unified Registry Pattern | Medium | ⬚ |
+| 🟢 FIX-12 | REF-02: Centralized Error Handling | Medium-High | ⬚ |
+| 🟢 FIX-13 | REF-05: Standardized Logging (29 files) | Medium | ⬚ |
+| 🟢 FIX-14 | REF-08: Agent caching O(n)→O(1) | Low-Medium | ⬚ |
 
 ---
 

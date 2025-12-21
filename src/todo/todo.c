@@ -15,6 +15,7 @@
 
 #include "nous/todo.h"
 #include "nous/nous.h"
+#include "nous/debug_mutex.h"
 #include <sqlite3.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -25,7 +26,7 @@
 
 // External database handle from persistence.c
 extern sqlite3* g_db;
-extern pthread_mutex_t g_db_mutex;
+extern ConvergioMutex g_db_mutex;
 
 // Prepared statement cache
 typedef enum {
@@ -71,12 +72,12 @@ static const char* SQL_STATS =
     "(SELECT COUNT(*) FROM inbox WHERE processed = 0)";
 
 void todo_invalidate_stats_statement(void) {
-    pthread_mutex_lock(&g_db_mutex);
+    CONVERGIO_MUTEX_LOCK(&g_db_mutex);
     if (g_stmts[STMT_GET_STATS]) {
         sqlite3_finalize(g_stmts[STMT_GET_STATS]);
         g_stmts[STMT_GET_STATS] = NULL;
     }
-    pthread_mutex_unlock(&g_db_mutex);
+    CONVERGIO_MUTEX_UNLOCK(&g_db_mutex);
 }
 
 // ============================================================================
@@ -303,7 +304,7 @@ int todo_init(void) {
         "WHERE tasks_fts MATCH ? AND t.status IN (0, 1) "
         "ORDER BY rank LIMIT 50";
 
-    pthread_mutex_lock(&g_db_mutex);
+    CONVERGIO_MUTEX_LOCK(&g_db_mutex);
 
     if (prepare_statement(STMT_INSERT_TASK, sql_insert) != SQLITE_OK) goto init_error;
     if (prepare_statement(STMT_GET_TASK, sql_get) != SQLITE_OK) goto init_error;
@@ -315,14 +316,14 @@ int todo_init(void) {
     if (prepare_statement(STMT_SEARCH_FTS, sql_search) != SQLITE_OK) goto init_error;
     if (prepare_statement(STMT_GET_STATS, SQL_STATS) != SQLITE_OK) goto init_error;
 
-    pthread_mutex_unlock(&g_db_mutex);
+    CONVERGIO_MUTEX_UNLOCK(&g_db_mutex);
 
     g_todo_initialized = true;
     return 0;
 
 init_error:
     finalize_statement_cache();
-    pthread_mutex_unlock(&g_db_mutex);
+    CONVERGIO_MUTEX_UNLOCK(&g_db_mutex);
     g_todo_initialized = false;
     return -1;
 }
@@ -330,9 +331,9 @@ init_error:
 void todo_shutdown(void) {
     if (!g_todo_initialized) return;
 
-    pthread_mutex_lock(&g_db_mutex);
+    CONVERGIO_MUTEX_LOCK(&g_db_mutex);
     finalize_statement_cache();
-    pthread_mutex_unlock(&g_db_mutex);
+    CONVERGIO_MUTEX_UNLOCK(&g_db_mutex);
 
     g_todo_initialized = false;
 }
@@ -350,7 +351,7 @@ int64_t todo_create(const TodoCreateOptions* options) {
     format_iso8601(options->due_date, due_buf, sizeof(due_buf));
     format_iso8601(options->reminder_at, remind_buf, sizeof(remind_buf));
 
-    pthread_mutex_lock(&g_db_mutex);
+    CONVERGIO_MUTEX_LOCK(&g_db_mutex);
 
     sqlite3_stmt* stmt = g_stmts[STMT_INSERT_TASK];
     sqlite3_reset(stmt);
@@ -377,14 +378,14 @@ int64_t todo_create(const TodoCreateOptions* options) {
         id = sqlite3_last_insert_rowid(g_db);
     }
 
-    pthread_mutex_unlock(&g_db_mutex);
+    CONVERGIO_MUTEX_UNLOCK(&g_db_mutex);
     return id;
 }
 
 TodoTask* todo_get(int64_t id) {
     if (!g_todo_initialized && todo_init() != 0) return NULL;
 
-    pthread_mutex_lock(&g_db_mutex);
+    CONVERGIO_MUTEX_LOCK(&g_db_mutex);
 
     sqlite3_stmt* stmt = g_stmts[STMT_GET_TASK];
     sqlite3_reset(stmt);
@@ -395,7 +396,7 @@ TodoTask* todo_get(int64_t id) {
         task = task_from_row(stmt);
     }
 
-    pthread_mutex_unlock(&g_db_mutex);
+    CONVERGIO_MUTEX_UNLOCK(&g_db_mutex);
     return task;
 }
 
@@ -424,12 +425,12 @@ int todo_update(int64_t id, const TodoCreateOptions* options) {
 
     snprintf(sql + len, sizeof(sql) - len, " WHERE id = ?");
 
-    pthread_mutex_lock(&g_db_mutex);
+    CONVERGIO_MUTEX_LOCK(&g_db_mutex);
 
     sqlite3_stmt* stmt = NULL;
     int rc = sqlite3_prepare_v2(g_db, sql, -1, &stmt, NULL);
     if (rc != SQLITE_OK) {
-        pthread_mutex_unlock(&g_db_mutex);
+        CONVERGIO_MUTEX_UNLOCK(&g_db_mutex);
         return -1;
     }
 
@@ -460,7 +461,7 @@ int todo_update(int64_t id, const TodoCreateOptions* options) {
 
     rc = sqlite3_step(stmt);
     sqlite3_finalize(stmt);
-    pthread_mutex_unlock(&g_db_mutex);
+    CONVERGIO_MUTEX_UNLOCK(&g_db_mutex);
 
     return (rc == SQLITE_DONE) ? 0 : -1;
 }
@@ -470,19 +471,19 @@ int todo_delete(int64_t id) {
 
     const char* sql = "DELETE FROM tasks WHERE id = ?";
 
-    pthread_mutex_lock(&g_db_mutex);
+    CONVERGIO_MUTEX_LOCK(&g_db_mutex);
 
     sqlite3_stmt* stmt = NULL;
     int rc = sqlite3_prepare_v2(g_db, sql, -1, &stmt, NULL);
     if (rc != SQLITE_OK) {
-        pthread_mutex_unlock(&g_db_mutex);
+        CONVERGIO_MUTEX_UNLOCK(&g_db_mutex);
         return -1;
     }
 
     sqlite3_bind_int64(stmt, 1, id);
     rc = sqlite3_step(stmt);
     sqlite3_finalize(stmt);
-    pthread_mutex_unlock(&g_db_mutex);
+    CONVERGIO_MUTEX_UNLOCK(&g_db_mutex);
 
     return (rc == SQLITE_DONE) ? 0 : -1;
 }
@@ -494,14 +495,14 @@ int todo_delete(int64_t id) {
 int todo_complete(int64_t id) {
     if (!g_todo_initialized && todo_init() != 0) return -1;
 
-    pthread_mutex_lock(&g_db_mutex);
+    CONVERGIO_MUTEX_LOCK(&g_db_mutex);
 
     sqlite3_stmt* stmt = g_stmts[STMT_COMPLETE_TASK];
     sqlite3_reset(stmt);
     sqlite3_bind_int64(stmt, 1, id);
 
     int rc = sqlite3_step(stmt);
-    pthread_mutex_unlock(&g_db_mutex);
+    CONVERGIO_MUTEX_UNLOCK(&g_db_mutex);
 
     return (rc == SQLITE_DONE) ? 0 : -1;
 }
@@ -512,19 +513,19 @@ int todo_uncomplete(int64_t id) {
     const char* sql = "UPDATE tasks SET status = 0, completed_at = NULL, "
                       "updated_at = datetime('now') WHERE id = ?";
 
-    pthread_mutex_lock(&g_db_mutex);
+    CONVERGIO_MUTEX_LOCK(&g_db_mutex);
 
     sqlite3_stmt* stmt = NULL;
     int rc = sqlite3_prepare_v2(g_db, sql, -1, &stmt, NULL);
     if (rc != SQLITE_OK) {
-        pthread_mutex_unlock(&g_db_mutex);
+        CONVERGIO_MUTEX_UNLOCK(&g_db_mutex);
         return -1;
     }
 
     sqlite3_bind_int64(stmt, 1, id);
     rc = sqlite3_step(stmt);
     sqlite3_finalize(stmt);
-    pthread_mutex_unlock(&g_db_mutex);
+    CONVERGIO_MUTEX_UNLOCK(&g_db_mutex);
 
     return (rc == SQLITE_DONE) ? 0 : -1;
 }
@@ -534,19 +535,19 @@ int todo_start(int64_t id) {
 
     const char* sql = "UPDATE tasks SET status = 1, updated_at = datetime('now') WHERE id = ?";
 
-    pthread_mutex_lock(&g_db_mutex);
+    CONVERGIO_MUTEX_LOCK(&g_db_mutex);
 
     sqlite3_stmt* stmt = NULL;
     int rc = sqlite3_prepare_v2(g_db, sql, -1, &stmt, NULL);
     if (rc != SQLITE_OK) {
-        pthread_mutex_unlock(&g_db_mutex);
+        CONVERGIO_MUTEX_UNLOCK(&g_db_mutex);
         return -1;
     }
 
     sqlite3_bind_int64(stmt, 1, id);
     rc = sqlite3_step(stmt);
     sqlite3_finalize(stmt);
-    pthread_mutex_unlock(&g_db_mutex);
+    CONVERGIO_MUTEX_UNLOCK(&g_db_mutex);
 
     return (rc == SQLITE_DONE) ? 0 : -1;
 }
@@ -556,19 +557,19 @@ int todo_cancel(int64_t id) {
 
     const char* sql = "UPDATE tasks SET status = 3, updated_at = datetime('now') WHERE id = ?";
 
-    pthread_mutex_lock(&g_db_mutex);
+    CONVERGIO_MUTEX_LOCK(&g_db_mutex);
 
     sqlite3_stmt* stmt = NULL;
     int rc = sqlite3_prepare_v2(g_db, sql, -1, &stmt, NULL);
     if (rc != SQLITE_OK) {
-        pthread_mutex_unlock(&g_db_mutex);
+        CONVERGIO_MUTEX_UNLOCK(&g_db_mutex);
         return -1;
     }
 
     sqlite3_bind_int64(stmt, 1, id);
     rc = sqlite3_step(stmt);
     sqlite3_finalize(stmt);
-    pthread_mutex_unlock(&g_db_mutex);
+    CONVERGIO_MUTEX_UNLOCK(&g_db_mutex);
 
     return (rc == SQLITE_DONE) ? 0 : -1;
 }
@@ -608,14 +609,14 @@ TodoTask** todo_list_today(int* count) {
         return NULL;
     }
 
-    pthread_mutex_lock(&g_db_mutex);
+    CONVERGIO_MUTEX_LOCK(&g_db_mutex);
 
     sqlite3_stmt* stmt = g_stmts[STMT_LIST_TODAY];
     sqlite3_reset(stmt);
 
     TodoTask** tasks = execute_list_query(stmt, count);
 
-    pthread_mutex_unlock(&g_db_mutex);
+    CONVERGIO_MUTEX_UNLOCK(&g_db_mutex);
     return tasks;
 }
 
@@ -625,14 +626,14 @@ TodoTask** todo_list_overdue(int* count) {
         return NULL;
     }
 
-    pthread_mutex_lock(&g_db_mutex);
+    CONVERGIO_MUTEX_LOCK(&g_db_mutex);
 
     sqlite3_stmt* stmt = g_stmts[STMT_LIST_OVERDUE];
     sqlite3_reset(stmt);
 
     TodoTask** tasks = execute_list_query(stmt, count);
 
-    pthread_mutex_unlock(&g_db_mutex);
+    CONVERGIO_MUTEX_UNLOCK(&g_db_mutex);
     return tasks;
 }
 
@@ -651,7 +652,7 @@ TodoTask** todo_list_upcoming(int days, int* count) {
              "AND date(due_date) <= date('now', '+%d days') "
              "ORDER BY due_date ASC LIMIT 100", days);
 
-    pthread_mutex_lock(&g_db_mutex);
+    CONVERGIO_MUTEX_LOCK(&g_db_mutex);
 
     sqlite3_stmt* stmt;
     sqlite3_prepare_v2(g_db, sql, -1, &stmt, NULL);
@@ -659,7 +660,7 @@ TodoTask** todo_list_upcoming(int days, int* count) {
     TodoTask** tasks = execute_list_query(stmt, count);
 
     sqlite3_finalize(stmt);
-    pthread_mutex_unlock(&g_db_mutex);
+    CONVERGIO_MUTEX_UNLOCK(&g_db_mutex);
 
     return tasks;
 }
@@ -674,7 +675,7 @@ TodoTask** todo_search(const char* query, int* count) {
         return NULL;
     }
 
-    pthread_mutex_lock(&g_db_mutex);
+    CONVERGIO_MUTEX_LOCK(&g_db_mutex);
 
     sqlite3_stmt* stmt = g_stmts[STMT_SEARCH_FTS];
     sqlite3_reset(stmt);
@@ -682,7 +683,7 @@ TodoTask** todo_search(const char* query, int* count) {
 
     TodoTask** tasks = execute_list_query(stmt, count);
 
-    pthread_mutex_unlock(&g_db_mutex);
+    CONVERGIO_MUTEX_UNLOCK(&g_db_mutex);
     return tasks;
 }
 
@@ -740,12 +741,12 @@ TodoTask** todo_list(const TodoFilter* filter, int* count) {
                         " AND status IN (0, 1) ORDER BY priority ASC, due_date ASC LIMIT 100");
     }
 
-    pthread_mutex_lock(&g_db_mutex);
+    CONVERGIO_MUTEX_LOCK(&g_db_mutex);
 
     sqlite3_stmt* stmt = NULL;
     int rc = sqlite3_prepare_v2(g_db, sql, -1, &stmt, NULL);
     if (rc != SQLITE_OK) {
-        pthread_mutex_unlock(&g_db_mutex);
+        CONVERGIO_MUTEX_UNLOCK(&g_db_mutex);
         *count = 0;
         return NULL;
     }
@@ -762,7 +763,7 @@ TodoTask** todo_list(const TodoFilter* filter, int* count) {
     TodoTask** tasks = execute_list_query(stmt, count);
 
     sqlite3_finalize(stmt);
-    pthread_mutex_unlock(&g_db_mutex);
+    CONVERGIO_MUTEX_UNLOCK(&g_db_mutex);
 
     return tasks;
 }
@@ -775,7 +776,7 @@ int64_t inbox_capture(const char* content, const char* source) {
     if (!content || !*content) return -1;
     if (!g_todo_initialized && todo_init() != 0) return -1;
 
-    pthread_mutex_lock(&g_db_mutex);
+    CONVERGIO_MUTEX_LOCK(&g_db_mutex);
 
     sqlite3_stmt* stmt = g_stmts[STMT_INSERT_INBOX];
     sqlite3_reset(stmt);
@@ -789,7 +790,7 @@ int64_t inbox_capture(const char* content, const char* source) {
         id = sqlite3_last_insert_rowid(g_db);
     }
 
-    pthread_mutex_unlock(&g_db_mutex);
+    CONVERGIO_MUTEX_UNLOCK(&g_db_mutex);
     return id;
 }
 
@@ -799,7 +800,7 @@ TodoInboxItem** inbox_list_unprocessed(int* count) {
         return NULL;
     }
 
-    pthread_mutex_lock(&g_db_mutex);
+    CONVERGIO_MUTEX_LOCK(&g_db_mutex);
 
     sqlite3_stmt* stmt = g_stmts[STMT_LIST_INBOX];
     sqlite3_reset(stmt);
@@ -810,7 +811,7 @@ TodoInboxItem** inbox_list_unprocessed(int* count) {
 
     items = malloc(capacity * sizeof(TodoInboxItem*));
     if (!items) {
-        pthread_mutex_unlock(&g_db_mutex);
+        CONVERGIO_MUTEX_UNLOCK(&g_db_mutex);
         *count = 0;
         return NULL;
     }
@@ -834,7 +835,7 @@ TodoInboxItem** inbox_list_unprocessed(int* count) {
         items[n++] = item;
     }
 
-    pthread_mutex_unlock(&g_db_mutex);
+    CONVERGIO_MUTEX_UNLOCK(&g_db_mutex);
     *count = n;
     return items;
 }
@@ -844,12 +845,12 @@ int inbox_process(int64_t inbox_id, int64_t task_id) {
 
     const char* sql = "UPDATE inbox SET processed = 1, processed_task_id = ? WHERE id = ?";
 
-    pthread_mutex_lock(&g_db_mutex);
+    CONVERGIO_MUTEX_LOCK(&g_db_mutex);
 
     sqlite3_stmt* stmt = NULL;
     int rc = sqlite3_prepare_v2(g_db, sql, -1, &stmt, NULL);
     if (rc != SQLITE_OK) {
-        pthread_mutex_unlock(&g_db_mutex);
+        CONVERGIO_MUTEX_UNLOCK(&g_db_mutex);
         return -1;
     }
 
@@ -857,7 +858,7 @@ int inbox_process(int64_t inbox_id, int64_t task_id) {
     sqlite3_bind_int64(stmt, 2, inbox_id);
     rc = sqlite3_step(stmt);
     sqlite3_finalize(stmt);
-    pthread_mutex_unlock(&g_db_mutex);
+    CONVERGIO_MUTEX_UNLOCK(&g_db_mutex);
 
     return (rc == SQLITE_DONE) ? 0 : -1;
 }
@@ -867,19 +868,19 @@ int inbox_delete(int64_t inbox_id) {
 
     const char* sql = "DELETE FROM inbox WHERE id = ?";
 
-    pthread_mutex_lock(&g_db_mutex);
+    CONVERGIO_MUTEX_LOCK(&g_db_mutex);
 
     sqlite3_stmt* stmt = NULL;
     int rc = sqlite3_prepare_v2(g_db, sql, -1, &stmt, NULL);
     if (rc != SQLITE_OK) {
-        pthread_mutex_unlock(&g_db_mutex);
+        CONVERGIO_MUTEX_UNLOCK(&g_db_mutex);
         return -1;
     }
 
     sqlite3_bind_int64(stmt, 1, inbox_id);
     rc = sqlite3_step(stmt);
     sqlite3_finalize(stmt);
-    pthread_mutex_unlock(&g_db_mutex);
+    CONVERGIO_MUTEX_UNLOCK(&g_db_mutex);
 
     return (rc == SQLITE_DONE) ? 0 : -1;
 }
@@ -892,12 +893,12 @@ TodoStats todo_get_stats(void) {
     TodoStats stats = {0};
     if (!g_todo_initialized && todo_init() != 0) return stats;
 
-    pthread_mutex_lock(&g_db_mutex);
+    CONVERGIO_MUTEX_LOCK(&g_db_mutex);
     sqlite3_stmt* stmt = g_stmts[STMT_GET_STATS];
     if (!stmt) {
         if (sqlite3_prepare_v3(g_db, SQL_STATS, -1, SQLITE_PREPARE_PERSISTENT,
                                &g_stmts[STMT_GET_STATS], NULL) != SQLITE_OK) {
-            pthread_mutex_unlock(&g_db_mutex);
+            CONVERGIO_MUTEX_UNLOCK(&g_db_mutex);
             return stats;
         }
         stmt = g_stmts[STMT_GET_STATS];
@@ -914,7 +915,7 @@ TodoStats todo_get_stats(void) {
         stats.inbox_unprocessed = sqlite3_column_int(stmt, 5);
     }
 
-    pthread_mutex_unlock(&g_db_mutex);
+    CONVERGIO_MUTEX_UNLOCK(&g_db_mutex);
     return stats;
 }
 

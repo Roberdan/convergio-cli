@@ -624,6 +624,11 @@ int repl_direct_agent_communication(const char* agent_name, const char* message)
     // Find or spawn the agent
     ManagedAgent* agent = agent_find_by_name(agent_name);
     if (!agent) {
+        // FIX-01: Check edition whitelist BEFORE spawning (security)
+        if (!edition_has_agent(agent_name)) {
+            printf(ANSI_YELLOW "Agent '%s' is not available in this edition." ANSI_RESET "\n", agent_name);
+            return 0;
+        }
         // Try to spawn the agent (it might exist as embedded but not yet spawned)
         agent = agent_spawn(AGENT_ROLE_ANALYST, agent_name, NULL);
     }
@@ -762,6 +767,14 @@ int repl_parse_and_execute(char* line) {
         // Find or spawn the agent
         ManagedAgent* agent = agent_find_by_name(agent_name);
         if (!agent) {
+            // FIX-01: Check edition whitelist BEFORE spawning (security)
+            // This prevents bypassing edition restrictions via @agent syntax
+            if (!edition_has_agent(agent_name)) {
+                printf(ANSI_YELLOW "Agent '%s' is not available in this edition." ANSI_RESET "\n", agent_name);
+                printf("Type 'agents' to see available agents for %s.\n", edition_display_name());
+                free(original_input);
+                return 0;
+            }
             // Try to spawn the agent (it might exist as embedded but not yet spawned)
             agent = agent_spawn(AGENT_ROLE_ANALYST, agent_name, NULL);
         }
@@ -862,8 +875,12 @@ int repl_parse_and_execute(char* line) {
         // Only find existing agents or known embedded agents
         addressed_agent = agent_find_by_name(argv[0]);
         if (!addressed_agent && agent_is_known_name(argv[0])) {
-            // It's a known agent that just needs spawning
-            addressed_agent = agent_spawn(AGENT_ROLE_ANALYST, argv[0], NULL);
+            // FIX-01: Check edition whitelist BEFORE spawning (security)
+            if (edition_has_agent(argv[0])) {
+                // It's a known agent that just needs spawning
+                addressed_agent = agent_spawn(AGENT_ROLE_ANALYST, argv[0], NULL);
+            }
+            // If not in edition, addressed_agent stays NULL - won't trigger agent switch
         }
     }
 
@@ -926,6 +943,12 @@ int repl_parse_and_execute(char* line) {
         // Find or spawn the target agent
         ManagedAgent* target = agent_find_by_name(route.agent);
         if (!target) {
+            // FIX-01: Check edition whitelist BEFORE spawning (security)
+            if (!edition_has_agent(route.agent)) {
+                printf(ANSI_YELLOW "Agent '%s' is not available in this edition." ANSI_RESET "\n", route.agent);
+                free(original_input);
+                return 0;
+            }
             target = agent_spawn(AGENT_ROLE_ANALYST, route.agent, NULL);
         }
 
