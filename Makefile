@@ -5,6 +5,11 @@
 # Version management
 VERSION := $(shell cat VERSION 2>/dev/null || echo "0.0.0")
 
+# Branch-aware cache optimization (for parallel branch development)
+# Isolates cache per branch to avoid conflicts when building multiple branches
+GIT_BRANCH := $(shell git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "default")
+CACHE_SUFFIX := $(shell echo $(GIT_BRANCH) | tr '/' '_' | tr -cd '[:alnum:]_')
+
 # Edition support (master, education, business, developer)
 # Usage: make EDITION=education
 #
@@ -59,6 +64,15 @@ P_CORES := $(shell sysctl -n hw.perflevel0.physicalcpu 2>/dev/null || echo 10)
 PARALLEL_JOBS := $(shell echo $$(( $(CPU_CORES) * 2 )) || echo 28)
 # Swift build parallelism (default to P_CORES for optimal Swift compilation)
 SWIFT_BUILD_JOBS ?= $(P_CORES)
+
+# Adaptive parallelism: reduce if multiple builds running (parallel branch development)
+MAKE_COUNT := $(shell ps aux | grep -c '[m]ake.*Makefile' || echo 1)
+ifeq ($(shell [ $(MAKE_COUNT) -gt 2 ] && echo yes),yes)
+    # Multiple builds detected - reduce parallelism to avoid thrashing
+    PARALLEL_JOBS := $(shell echo $$(( $(CPU_CORES) )) || echo 14)
+    SWIFT_BUILD_JOBS := $(shell echo $$(( $(P_CORES) / 2 )) || echo 5)
+endif
+
 # Allow higher load average for better CPU utilization
 MAKEFLAGS += -j$(PARALLEL_JOBS) --load-average=$(shell echo $$(( $(CPU_CORES) * 2 )) || echo 28)
 # Enable jobserver for better parallelization
@@ -289,7 +303,8 @@ all: dirs metal swift $(TARGET) notify-helper
 	@echo "║          CONVERGIO KERNEL v$(VERSION)             ║"
 	@echo "║  Build complete!                                  ║"
 	@echo "║  Run with: $(TARGET)                              ║"
-	@echo "║  M3 Max: $(CPU_CORES) cores ($(P_CORES)P+4E) | Jobs: $(PARALLEL_JOBS) | Cache: $(CACHE_INFO) ║"
+	@echo "║  Branch: $(GIT_BRANCH) | Jobs: $(PARALLEL_JOBS) | Cache: $(CACHE_INFO) ║"
+	@echo "║  M3 Max: $(CPU_CORES) cores ($(P_CORES)P+4E) | Cache dir: $(SCCACHE_DIR) ║"
 	@echo "╚═══════════════════════════════════════════════════╝"
 	@echo ""
 
@@ -308,8 +323,9 @@ export SWIFT_BUILD_JOBS := $(SWIFT_BUILD_JOBS)
 export SWIFT_ACTIVE_COMPILATION_CONDITIONS="$(ARCH_FLAGS)"
 # Enable Swift incremental compilation
 export SWIFT_ENABLE_INCREMENTAL_COMPILATION=1
-# Optimize sccache for M3 Max (10GB cache)
-export SCCACHE_DIR=$(HOME)/.cache/sccache
+# Optimize sccache for M3 Max (10GB cache per branch)
+# Branch-aware cache isolation prevents conflicts when building multiple branches
+export SCCACHE_DIR=$(HOME)/.cache/sccache-$(CACHE_SUFFIX)
 export SCCACHE_CACHE_SIZE=10G
 
 # Create directories
@@ -428,15 +444,26 @@ $(METAL_LIB): $(METAL_AIR)
 		touch $(METAL_LIB); \
 	fi
 
-# Compile C sources (with cache and parallelization)
-$(OBJ_DIR)/%.o: $(SRC_DIR)/%.c
-	@echo "Compiling $<..."
-	@$(CC) $(CFLAGS) -c $< -o $@
+# Dependency tracking directory
+DEPDIR := $(OBJ_DIR)/.deps
+DEPFLAGS = -MT $@ -MMD -MP -MF $(DEPDIR)/$*.d
 
-# Compile Objective-C sources (with cache and parallelization)
-$(OBJ_DIR)/%.o: $(SRC_DIR)/%.m
+# Compile C sources (with cache, parallelization, and dependency tracking)
+$(OBJ_DIR)/%.o: $(SRC_DIR)/%.c | $(DEPDIR)
 	@echo "Compiling $<..."
-	@$(OBJC) $(OBJCFLAGS) -c $< -o $@
+	@$(CC) $(CFLAGS) $(DEPFLAGS) -c $< -o $@
+
+# Compile Objective-C sources (with cache, parallelization, and dependency tracking)
+$(OBJ_DIR)/%.o: $(SRC_DIR)/%.m | $(DEPDIR)
+	@echo "Compiling $<..."
+	@$(OBJC) $(OBJCFLAGS) $(DEPFLAGS) -c $< -o $@
+
+# Create dependency directory
+$(DEPDIR):
+	@mkdir -p $(DEPDIR)
+
+# Include dependency files (rebuild when headers change)
+-include $(wildcard $(DEPDIR)/*.d)
 
 # MLX Stubs (for when Swift library is not available)
 MLX_STUBS_SRC = $(SRC_DIR)/providers/mlx_stubs.c
@@ -477,6 +504,7 @@ run: all
 clean:
 	@rm -rf $(BUILD_DIR)
 	@rm -rf .build
+	@rm -rf $(HOME)/.cache/sccache-$(CACHE_SUFFIX) 2>/dev/null || true
 	@echo "Cleaned."
 
 # Debug build
@@ -556,385 +584,83 @@ release: dist
 # Test stubs (provides globals normally in main.c)
 TEST_STUBS = tests/test_stubs.c
 
-# Fuzz test target - tests security functions with malformed inputs
-FUZZ_TEST = $(BIN_DIR)/fuzz_test
-FUZZ_SOURCES = tests/fuzz_test.c $(TEST_STUBS)
-# Exclude main.o since fuzz_test has its own main() and stubs provide globals
-FUZZ_OBJECTS = $(filter-out $(OBJ_DIR)/core/main.o,$(OBJECTS))
+# ============================================================================
+# TEST MACROS - Reduces duplication from ~600 lines to ~50 lines
+# ============================================================================
 
-fuzz_test: dirs swift $(OBJECTS) $(MLX_STUBS_OBJ) $(FUZZ_TEST)
-	@echo "Running fuzz tests..."
-	@$(FUZZ_TEST)
+# Macro for standard tests (with Swift/MLX support)
+# Usage: $(eval $(call define_standard_test,test_name,test_source))
+# Creates test that uses all objects except main.o
+define define_standard_test
+$(1)_TEST = $$(BIN_DIR)/$(1)
+$(1)_SOURCES = $(2) $$(TEST_STUBS)
+$(1)_OBJECTS = $$(filter-out $$(OBJ_DIR)/core/main.o,$$(OBJECTS))
 
-$(FUZZ_TEST): $(FUZZ_SOURCES) $(FUZZ_OBJECTS) $(SWIFT_LIB) $(MLX_STUBS_OBJ)
-	@echo "Compiling fuzz tests..."
-	@if [ -s "$(SWIFT_LIB)" ]; then \
-		$(CC) $(CFLAGS) $(LDFLAGS) -o $(FUZZ_TEST) $(FUZZ_SOURCES) $(FUZZ_OBJECTS) $(SWIFT_LIB) $(FRAMEWORKS) $(LIBS) $(SWIFT_RUNTIME_LIBS); \
+$(1): dirs swift $$(OBJECTS) $$(MLX_STUBS_OBJ) $$($(1)_TEST)
+	@echo "Running $(1)..."
+	@$$($(1)_TEST)
+
+$$($(1)_TEST): $$($(1)_SOURCES) $$($(1)_OBJECTS) $$(SWIFT_LIB) $$(MLX_STUBS_OBJ)
+	@echo "Compiling $(1)..."
+	@if [ -s "$$(SWIFT_LIB)" ]; then \
+		$$(CC) $$(CFLAGS) $$(LDFLAGS) -o $$($(1)_TEST) $$($(1)_SOURCES) $$($(1)_OBJECTS) $$(SWIFT_LIB) $$(FRAMEWORKS) $$(LIBS) $$(SWIFT_RUNTIME_LIBS); \
 	else \
-		$(CC) $(CFLAGS) $(LDFLAGS) -o $(FUZZ_TEST) $(FUZZ_SOURCES) $(FUZZ_OBJECTS) $(MLX_STUBS_OBJ) $(FRAMEWORKS) $(LIBS); \
+		$$(CC) $$(CFLAGS) $$(LDFLAGS) -o $$($(1)_TEST) $$($(1)_SOURCES) $$($(1)_OBJECTS) $$(MLX_STUBS_OBJ) $$(FRAMEWORKS) $$(LIBS); \
 	fi
+endef
 
-# Unit test target - tests core components
-UNIT_TEST = $(BIN_DIR)/unit_test
-UNIT_SOURCES = tests/test_unit.c $(TEST_STUBS)
-UNIT_OBJECTS = $(filter-out $(OBJ_DIR)/core/main.o,$(OBJECTS))
+# Macro for simple tests (without Swift, custom objects)
+# Usage: $(eval $(call define_simple_test,test_name,test_source,test_objects,extra_libs))
+# extra_libs is optional (e.g., "-lsqlite3 -lpthread")
+define define_simple_test
+$(1)_TEST = $$(BIN_DIR)/$(1)
+$(1)_SOURCES = $(2)
+$(1)_OBJECTS = $(3)
 
-unit_test: dirs swift $(OBJECTS) $(MLX_STUBS_OBJ) $(UNIT_TEST)
-	@echo "Running unit tests..."
-	@$(UNIT_TEST)
+$(1): dirs $(3) $$($(1)_TEST)
+	@echo "Running $(1)..."
+	@$$($(1)_TEST)
 
-$(UNIT_TEST): $(UNIT_SOURCES) $(UNIT_OBJECTS) $(SWIFT_LIB) $(MLX_STUBS_OBJ)
-	@echo "Compiling unit tests..."
-	@if [ -s "$(SWIFT_LIB)" ]; then \
-		$(CC) $(CFLAGS) $(LDFLAGS) -o $(UNIT_TEST) $(UNIT_SOURCES) $(UNIT_OBJECTS) $(SWIFT_LIB) $(FRAMEWORKS) $(LIBS) $(SWIFT_RUNTIME_LIBS); \
-	else \
-		$(CC) $(CFLAGS) $(LDFLAGS) -o $(UNIT_TEST) $(UNIT_SOURCES) $(UNIT_OBJECTS) $(MLX_STUBS_OBJ) $(FRAMEWORKS) $(LIBS); \
-	fi
+$$($(1)_TEST): $$($(1)_SOURCES) $$($(1)_OBJECTS)
+	@echo "Compiling $(1)..."
+	@$$(CC) $$(CFLAGS) $$(LDFLAGS) -o $$($(1)_TEST) $$($(1)_SOURCES) $$($(1)_OBJECTS) $(if $(4),$(4),) $$(FRAMEWORKS) $$(LIBS)
+endef
 
-# Anna Executive Assistant test target - tests todo, notify, mcp_client
-ANNA_TEST = $(BIN_DIR)/anna_test
-ANNA_SOURCES = tests/test_anna.c $(TEST_STUBS)
-ANNA_OBJECTS = $(filter-out $(OBJ_DIR)/core/main.o,$(OBJECTS))
+# ============================================================================
+# TEST DEFINITIONS - Using macros (much cleaner and maintainable!)
+# ============================================================================
 
-anna_test: dirs swift $(OBJECTS) $(MLX_STUBS_OBJ) $(ANNA_TEST)
-	@echo "Running Anna Executive Assistant tests..."
-	@$(ANNA_TEST)
+# Standard tests (with Swift/MLX support)
+$(eval $(call define_standard_test,fuzz_test,tests/fuzz_test.c))
+$(eval $(call define_standard_test,unit_test,tests/test_unit.c))
+$(eval $(call define_standard_test,anna_test,tests/test_anna.c))
+$(eval $(call define_standard_test,tools_test,tests/test_tools.c))
+$(eval $(call define_standard_test,websearch_test,tests/test_websearch.c))
+$(eval $(call define_standard_test,telemetry_test,tests/test_telemetry.c))
+$(eval $(call define_standard_test,security_test,tests/test_security.c))
+$(eval $(call define_standard_test,stress_test,tests/test_stress.c))
+$(eval $(call define_standard_test,workflow_types_test,tests/test_workflow_types.c))
+$(eval $(call define_standard_test,workflow_engine_test,tests/test_workflow_engine.c))
+$(eval $(call define_standard_test,workflow_checkpoint_test,tests/test_workflow_checkpoint.c))
+$(eval $(call define_standard_test,workflow_e2e_test,tests/test_workflow_e2e.c))
+$(eval $(call define_standard_test,task_decomposer_test,tests/test_task_decomposer.c))
+$(eval $(call define_standard_test,group_chat_test,tests/test_group_chat.c))
+$(eval $(call define_standard_test,router_test,tests/test_router.c))
+$(eval $(call define_standard_test,patterns_test,tests/test_patterns.c))
+$(eval $(call define_standard_test,pre_release_e2e_test,tests/test_workflow_e2e_pre_release.c))
+$(eval $(call define_standard_test,workflow_error_test,tests/test_workflow_error_handling.c))
+$(eval $(call define_standard_test,workflow_migration_test,tests/test_workflow_migration.c))
+$(eval $(call define_standard_test,workflow_integration_test,tests/test_workflow_integration.c))
 
-$(ANNA_TEST): $(ANNA_SOURCES) $(ANNA_OBJECTS) $(SWIFT_LIB) $(MLX_STUBS_OBJ)
-	@echo "Compiling Anna tests..."
-	@if [ -s "$(SWIFT_LIB)" ]; then \
-		$(CC) $(CFLAGS) $(LDFLAGS) -o $(ANNA_TEST) $(ANNA_SOURCES) $(ANNA_OBJECTS) $(SWIFT_LIB) $(FRAMEWORKS) $(LIBS) $(SWIFT_RUNTIME_LIBS); \
-	else \
-		$(CC) $(CFLAGS) $(LDFLAGS) -o $(ANNA_TEST) $(ANNA_SOURCES) $(ANNA_OBJECTS) $(MLX_STUBS_OBJ) $(FRAMEWORKS) $(LIBS); \
-	fi
-
-# Compaction test target - tests context compaction module
-COMPACTION_TEST = $(BIN_DIR)/compaction_test
-COMPACTION_SOURCES = tests/test_compaction.c
-# Only need compaction.o and its minimal dependencies for this test
-COMPACTION_OBJECTS = $(OBJ_DIR)/context/compaction.o
-
-compaction_test: dirs $(OBJ_DIR)/context/compaction.o $(COMPACTION_TEST)
-	@echo "Running compaction tests..."
-	@$(COMPACTION_TEST)
-
-$(COMPACTION_TEST): $(COMPACTION_SOURCES) $(COMPACTION_OBJECTS)
-	@echo "Compiling compaction tests..."
-	@$(CC) $(CFLAGS) $(LDFLAGS) -o $(COMPACTION_TEST) $(COMPACTION_SOURCES) $(COMPACTION_OBJECTS) $(FRAMEWORKS) $(LIBS)
-
-# Plan database test target - tests SQLite-backed plan system
-PLAN_DB_TEST = $(BIN_DIR)/plan_db_test
-PLAN_DB_SOURCES = tests/test_plan_db.c
-PLAN_DB_OBJECTS = $(OBJ_DIR)/orchestrator/plan_db.o $(OBJ_DIR)/core/safe_path.o
-
-plan_db_test: dirs $(OBJ_DIR)/orchestrator/plan_db.o $(OBJ_DIR)/core/safe_path.o $(PLAN_DB_TEST)
-	@echo "Running plan database tests..."
-	@$(PLAN_DB_TEST)
-
-$(PLAN_DB_TEST): $(PLAN_DB_SOURCES) $(PLAN_DB_OBJECTS)
-	@echo "Compiling plan database tests..."
-	@$(CC) $(CFLAGS) $(LDFLAGS) -o $(PLAN_DB_TEST) $(PLAN_DB_SOURCES) $(PLAN_DB_OBJECTS) -lsqlite3 -lpthread
-
-# Output service test target - tests centralized document generation
-OUTPUT_SERVICE_TEST = $(BIN_DIR)/output_service_test
-OUTPUT_SERVICE_SOURCES = tests/test_output_service.c
-OUTPUT_SERVICE_OBJECTS = $(OBJ_DIR)/tools/output_service.o $(OBJ_DIR)/ui/hyperlink.o $(OBJ_DIR)/core/safe_path.o
-
-output_service_test: dirs $(OUTPUT_SERVICE_OBJECTS) $(OUTPUT_SERVICE_TEST)
-	@echo "Running output service tests..."
-	@$(OUTPUT_SERVICE_TEST)
-
-$(OUTPUT_SERVICE_TEST): $(OUTPUT_SERVICE_SOURCES) $(OUTPUT_SERVICE_OBJECTS)
-	@echo "Compiling output service tests..."
-	@$(CC) $(CFLAGS) $(LDFLAGS) -o $(OUTPUT_SERVICE_TEST) $(OUTPUT_SERVICE_SOURCES) $(OUTPUT_SERVICE_OBJECTS)
-
-# Tools test target - tests tools module including web search
-TOOLS_TEST = $(BIN_DIR)/tools_test
-TOOLS_SOURCES = tests/test_tools.c $(TEST_STUBS)
-# Need most objects for full tools testing
-TOOLS_OBJECTS = $(filter-out $(OBJ_DIR)/core/main.o,$(OBJECTS))
-
-tools_test: dirs swift $(OBJECTS) $(MLX_STUBS_OBJ) $(TOOLS_TEST)
-	@echo "Running tools tests..."
-	@$(TOOLS_TEST)
-
-$(TOOLS_TEST): $(TOOLS_SOURCES) $(TOOLS_OBJECTS) $(SWIFT_LIB) $(MLX_STUBS_OBJ)
-	@echo "Compiling tools tests..."
-	@if [ -s "$(SWIFT_LIB)" ]; then \
-		$(CC) $(CFLAGS) $(LDFLAGS) -o $(TOOLS_TEST) $(TOOLS_SOURCES) $(TOOLS_OBJECTS) $(SWIFT_LIB) $(FRAMEWORKS) $(LIBS) $(SWIFT_RUNTIME_LIBS); \
-	else \
-		$(CC) $(CFLAGS) $(LDFLAGS) -o $(TOOLS_TEST) $(TOOLS_SOURCES) $(TOOLS_OBJECTS) $(MLX_STUBS_OBJ) $(FRAMEWORKS) $(LIBS); \
-	fi
-
-# Web search test target - tests web search across providers
-WEBSEARCH_TEST = $(BIN_DIR)/websearch_test
-WEBSEARCH_SOURCES = tests/test_websearch.c $(TEST_STUBS)
-WEBSEARCH_OBJECTS = $(filter-out $(OBJ_DIR)/core/main.o,$(OBJECTS))
-
-websearch_test: dirs swift $(OBJECTS) $(MLX_STUBS_OBJ) $(WEBSEARCH_TEST)
-	@echo "Running web search tests..."
-	@$(WEBSEARCH_TEST)
-
-$(WEBSEARCH_TEST): $(WEBSEARCH_SOURCES) $(WEBSEARCH_OBJECTS) $(SWIFT_LIB) $(MLX_STUBS_OBJ)
-	@echo "Compiling web search tests..."
-	@if [ -s "$(SWIFT_LIB)" ]; then \
-		$(CC) $(CFLAGS) $(LDFLAGS) -o $(WEBSEARCH_TEST) $(WEBSEARCH_SOURCES) $(WEBSEARCH_OBJECTS) $(SWIFT_LIB) $(FRAMEWORKS) $(LIBS) $(SWIFT_RUNTIME_LIBS); \
-	else \
-		$(CC) $(CFLAGS) $(LDFLAGS) -o $(WEBSEARCH_TEST) $(WEBSEARCH_SOURCES) $(WEBSEARCH_OBJECTS) $(MLX_STUBS_OBJ) $(FRAMEWORKS) $(LIBS); \
-	fi
+# Simple tests (without Swift, custom objects)
+$(eval $(call define_simple_test,compaction_test,tests/test_compaction.c,$(OBJ_DIR)/context/compaction.o))
+$(eval $(call define_simple_test,plan_db_test,tests/test_plan_db.c,$(OBJ_DIR)/orchestrator/plan_db.o $(OBJ_DIR)/core/safe_path.o,-lsqlite3 -lpthread))
+$(eval $(call define_simple_test,output_service_test,tests/test_output_service.c,$(OBJ_DIR)/tools/output_service.o $(OBJ_DIR)/ui/hyperlink.o $(OBJ_DIR)/core/safe_path.o))
 
 # Check help documentation coverage
 check-docs:
 	@echo "Checking help documentation coverage..."
 	@./scripts/check_help_docs.sh
-
-# Workflow test targets
-WORKFLOW_TYPES_TEST = $(BIN_DIR)/workflow_types_test
-WORKFLOW_TYPES_SOURCES = tests/test_workflow_types.c $(TEST_STUBS)
-WORKFLOW_TYPES_OBJECTS = $(filter-out $(OBJ_DIR)/core/main.o,$(OBJECTS))
-
-workflow_types_test: dirs swift $(OBJECTS) $(MLX_STUBS_OBJ) $(WORKFLOW_TYPES_TEST)
-	@echo "Running workflow types tests..."
-	@$(WORKFLOW_TYPES_TEST)
-
-$(WORKFLOW_TYPES_TEST): $(WORKFLOW_TYPES_SOURCES) $(WORKFLOW_TYPES_OBJECTS) $(SWIFT_LIB) $(MLX_STUBS_OBJ)
-	@echo "Compiling workflow types tests..."
-	@if [ -s "$(SWIFT_LIB)" ]; then \
-		$(CC) $(CFLAGS) $(LDFLAGS) -o $(WORKFLOW_TYPES_TEST) $(WORKFLOW_TYPES_SOURCES) $(WORKFLOW_TYPES_OBJECTS) $(SWIFT_LIB) $(FRAMEWORKS) $(LIBS) $(SWIFT_RUNTIME_LIBS); \
-	else \
-		$(CC) $(CFLAGS) $(LDFLAGS) -o $(WORKFLOW_TYPES_TEST) $(WORKFLOW_TYPES_SOURCES) $(WORKFLOW_TYPES_OBJECTS) $(MLX_STUBS_OBJ) $(FRAMEWORKS) $(LIBS); \
-	fi
-
-WORKFLOW_ENGINE_TEST = $(BIN_DIR)/workflow_engine_test
-WORKFLOW_ENGINE_SOURCES = tests/test_workflow_engine.c $(TEST_STUBS)
-WORKFLOW_ENGINE_OBJECTS = $(filter-out $(OBJ_DIR)/core/main.o,$(OBJECTS))
-
-workflow_engine_test: dirs swift $(OBJECTS) $(MLX_STUBS_OBJ) $(WORKFLOW_ENGINE_TEST)
-	@echo "Running workflow engine tests..."
-	@$(WORKFLOW_ENGINE_TEST)
-
-$(WORKFLOW_ENGINE_TEST): $(WORKFLOW_ENGINE_SOURCES) $(WORKFLOW_ENGINE_OBJECTS) $(SWIFT_LIB) $(MLX_STUBS_OBJ)
-	@echo "Compiling workflow engine tests..."
-	@if [ -s "$(SWIFT_LIB)" ]; then \
-		$(CC) $(CFLAGS) $(LDFLAGS) -o $(WORKFLOW_ENGINE_TEST) $(WORKFLOW_ENGINE_SOURCES) $(WORKFLOW_ENGINE_OBJECTS) $(SWIFT_LIB) $(FRAMEWORKS) $(LIBS) $(SWIFT_RUNTIME_LIBS); \
-	else \
-		$(CC) $(CFLAGS) $(LDFLAGS) -o $(WORKFLOW_ENGINE_TEST) $(WORKFLOW_ENGINE_SOURCES) $(WORKFLOW_ENGINE_OBJECTS) $(MLX_STUBS_OBJ) $(FRAMEWORKS) $(LIBS); \
-	fi
-
-WORKFLOW_CHECKPOINT_TEST = $(BIN_DIR)/workflow_checkpoint_test
-WORKFLOW_CHECKPOINT_SOURCES = tests/test_workflow_checkpoint.c $(TEST_STUBS)
-WORKFLOW_CHECKPOINT_OBJECTS = $(filter-out $(OBJ_DIR)/core/main.o,$(OBJECTS))
-
-workflow_checkpoint_test: dirs swift $(OBJECTS) $(MLX_STUBS_OBJ) $(WORKFLOW_CHECKPOINT_TEST)
-	@echo "Running workflow checkpoint tests..."
-	@$(WORKFLOW_CHECKPOINT_TEST)
-
-$(WORKFLOW_CHECKPOINT_TEST): $(WORKFLOW_CHECKPOINT_SOURCES) $(WORKFLOW_CHECKPOINT_OBJECTS) $(SWIFT_LIB) $(MLX_STUBS_OBJ)
-	@echo "Compiling workflow checkpoint tests..."
-	@if [ -s "$(SWIFT_LIB)" ]; then \
-		$(CC) $(CFLAGS) $(LDFLAGS) -o $(WORKFLOW_CHECKPOINT_TEST) $(WORKFLOW_CHECKPOINT_SOURCES) $(WORKFLOW_CHECKPOINT_OBJECTS) $(SWIFT_LIB) $(FRAMEWORKS) $(LIBS) $(SWIFT_RUNTIME_LIBS); \
-	else \
-		$(CC) $(CFLAGS) $(LDFLAGS) -o $(WORKFLOW_CHECKPOINT_TEST) $(WORKFLOW_CHECKPOINT_SOURCES) $(WORKFLOW_CHECKPOINT_OBJECTS) $(MLX_STUBS_OBJ) $(FRAMEWORKS) $(LIBS); \
-	fi
-
-WORKFLOW_E2E_TEST = $(BIN_DIR)/workflow_e2e_test
-WORKFLOW_E2E_SOURCES = tests/test_workflow_e2e.c $(TEST_STUBS)
-WORKFLOW_E2E_OBJECTS = $(filter-out $(OBJ_DIR)/core/main.o,$(OBJECTS))
-
-workflow_e2e_test: dirs swift $(OBJECTS) $(MLX_STUBS_OBJ) $(WORKFLOW_E2E_TEST)
-	@echo "Running workflow E2E tests..."
-	@$(WORKFLOW_E2E_TEST)
-
-$(WORKFLOW_E2E_TEST): $(WORKFLOW_E2E_SOURCES) $(WORKFLOW_E2E_OBJECTS) $(SWIFT_LIB) $(MLX_STUBS_OBJ)
-	@echo "Compiling workflow E2E tests..."
-	@if [ -s "$(SWIFT_LIB)" ]; then \
-		$(CC) $(CFLAGS) $(LDFLAGS) -o $(WORKFLOW_E2E_TEST) $(WORKFLOW_E2E_SOURCES) $(WORKFLOW_E2E_OBJECTS) $(SWIFT_LIB) $(FRAMEWORKS) $(LIBS) $(SWIFT_RUNTIME_LIBS); \
-	else \
-		$(CC) $(CFLAGS) $(LDFLAGS) -o $(WORKFLOW_E2E_TEST) $(WORKFLOW_E2E_SOURCES) $(WORKFLOW_E2E_OBJECTS) $(MLX_STUBS_OBJ) $(FRAMEWORKS) $(LIBS); \
-	fi
-
-# Additional workflow test targets
-TASK_DECOMPOSER_TEST = $(BIN_DIR)/task_decomposer_test
-TASK_DECOMPOSER_SOURCES = tests/test_task_decomposer.c $(TEST_STUBS)
-TASK_DECOMPOSER_OBJECTS = $(filter-out $(OBJ_DIR)/core/main.o,$(OBJECTS))
-
-task_decomposer_test: dirs swift $(OBJECTS) $(MLX_STUBS_OBJ) $(TASK_DECOMPOSER_TEST)
-	@echo "Running task decomposer tests..."
-	@$(TASK_DECOMPOSER_TEST)
-
-$(TASK_DECOMPOSER_TEST): $(TASK_DECOMPOSER_SOURCES) $(TASK_DECOMPOSER_OBJECTS) $(SWIFT_LIB) $(MLX_STUBS_OBJ)
-	@echo "Compiling task decomposer tests..."
-	@if [ -s "$(SWIFT_LIB)" ]; then \
-		$(CC) $(CFLAGS) $(LDFLAGS) -o $(TASK_DECOMPOSER_TEST) $(TASK_DECOMPOSER_SOURCES) $(TASK_DECOMPOSER_OBJECTS) $(SWIFT_LIB) $(FRAMEWORKS) $(LIBS) $(SWIFT_RUNTIME_LIBS); \
-	else \
-		$(CC) $(CFLAGS) $(LDFLAGS) -o $(TASK_DECOMPOSER_TEST) $(TASK_DECOMPOSER_SOURCES) $(TASK_DECOMPOSER_OBJECTS) $(MLX_STUBS_OBJ) $(FRAMEWORKS) $(LIBS); \
-	fi
-
-GROUP_CHAT_TEST = $(BIN_DIR)/group_chat_test
-GROUP_CHAT_SOURCES = tests/test_group_chat.c $(TEST_STUBS)
-GROUP_CHAT_OBJECTS = $(filter-out $(OBJ_DIR)/core/main.o,$(OBJECTS))
-
-group_chat_test: dirs swift $(OBJECTS) $(MLX_STUBS_OBJ) $(GROUP_CHAT_TEST)
-	@echo "Running group chat tests..."
-	@$(GROUP_CHAT_TEST)
-
-$(GROUP_CHAT_TEST): $(GROUP_CHAT_SOURCES) $(GROUP_CHAT_OBJECTS) $(SWIFT_LIB) $(MLX_STUBS_OBJ)
-	@echo "Compiling group chat tests..."
-	@if [ -s "$(SWIFT_LIB)" ]; then \
-		$(CC) $(CFLAGS) $(LDFLAGS) -o $(GROUP_CHAT_TEST) $(GROUP_CHAT_SOURCES) $(GROUP_CHAT_OBJECTS) $(SWIFT_LIB) $(FRAMEWORKS) $(LIBS) $(SWIFT_RUNTIME_LIBS); \
-	else \
-		$(CC) $(CFLAGS) $(LDFLAGS) -o $(GROUP_CHAT_TEST) $(GROUP_CHAT_SOURCES) $(GROUP_CHAT_OBJECTS) $(MLX_STUBS_OBJ) $(FRAMEWORKS) $(LIBS); \
-	fi
-
-ROUTER_TEST = $(BIN_DIR)/router_test
-ROUTER_SOURCES = tests/test_router.c $(TEST_STUBS)
-ROUTER_OBJECTS = $(filter-out $(OBJ_DIR)/core/main.o,$(OBJECTS))
-
-router_test: dirs swift $(OBJECTS) $(MLX_STUBS_OBJ) $(ROUTER_TEST)
-	@echo "Running router tests..."
-	@$(ROUTER_TEST)
-
-$(ROUTER_TEST): $(ROUTER_SOURCES) $(ROUTER_OBJECTS) $(SWIFT_LIB) $(MLX_STUBS_OBJ)
-	@echo "Compiling router tests..."
-	@if [ -s "$(SWIFT_LIB)" ]; then \
-		$(CC) $(CFLAGS) $(LDFLAGS) -o $(ROUTER_TEST) $(ROUTER_SOURCES) $(ROUTER_OBJECTS) $(SWIFT_LIB) $(FRAMEWORKS) $(LIBS) $(SWIFT_RUNTIME_LIBS); \
-	else \
-		$(CC) $(CFLAGS) $(LDFLAGS) -o $(ROUTER_TEST) $(ROUTER_SOURCES) $(ROUTER_OBJECTS) $(MLX_STUBS_OBJ) $(FRAMEWORKS) $(LIBS); \
-	fi
-
-PATTERNS_TEST = $(BIN_DIR)/patterns_test
-PATTERNS_SOURCES = tests/test_patterns.c $(TEST_STUBS)
-PATTERNS_OBJECTS = $(filter-out $(OBJ_DIR)/core/main.o,$(OBJECTS))
-
-patterns_test: dirs swift $(OBJECTS) $(MLX_STUBS_OBJ) $(PATTERNS_TEST)
-	@echo "Running patterns tests..."
-	@$(PATTERNS_TEST)
-
-$(PATTERNS_TEST): $(PATTERNS_SOURCES) $(PATTERNS_OBJECTS) $(SWIFT_LIB) $(MLX_STUBS_OBJ)
-	@echo "Compiling patterns tests..."
-	@if [ -s "$(SWIFT_LIB)" ]; then \
-		$(CC) $(CFLAGS) $(LDFLAGS) -o $(PATTERNS_TEST) $(PATTERNS_SOURCES) $(PATTERNS_OBJECTS) $(SWIFT_LIB) $(FRAMEWORKS) $(LIBS) $(SWIFT_RUNTIME_LIBS); \
-	else \
-		$(CC) $(CFLAGS) $(LDFLAGS) -o $(PATTERNS_TEST) $(PATTERNS_SOURCES) $(PATTERNS_OBJECTS) $(MLX_STUBS_OBJ) $(FRAMEWORKS) $(LIBS); \
-	fi
-
-PRE_RELEASE_E2E_TEST = $(BIN_DIR)/pre_release_e2e_test
-PRE_RELEASE_E2E_SOURCES = tests/test_workflow_e2e_pre_release.c $(TEST_STUBS)
-PRE_RELEASE_E2E_OBJECTS = $(filter-out $(OBJ_DIR)/core/main.o,$(OBJECTS))
-
-pre_release_e2e_test: dirs swift $(OBJECTS) $(MLX_STUBS_OBJ) $(PRE_RELEASE_E2E_TEST)
-	@echo "Running pre-release E2E tests..."
-	@$(PRE_RELEASE_E2E_TEST)
-
-$(PRE_RELEASE_E2E_TEST): $(PRE_RELEASE_E2E_SOURCES) $(PRE_RELEASE_E2E_OBJECTS) $(SWIFT_LIB) $(MLX_STUBS_OBJ)
-	@echo "Compiling pre-release E2E tests..."
-	@if [ -s "$(SWIFT_LIB)" ]; then \
-		$(CC) $(CFLAGS) $(LDFLAGS) -o $(PRE_RELEASE_E2E_TEST) $(PRE_RELEASE_E2E_SOURCES) $(PRE_RELEASE_E2E_OBJECTS) $(SWIFT_LIB) $(FRAMEWORKS) $(LIBS) $(SWIFT_RUNTIME_LIBS); \
-	else \
-		$(CC) $(CFLAGS) $(LDFLAGS) -o $(PRE_RELEASE_E2E_TEST) $(PRE_RELEASE_E2E_SOURCES) $(PRE_RELEASE_E2E_OBJECTS) $(MLX_STUBS_OBJ) $(FRAMEWORKS) $(LIBS); \
-	fi
-
-# Workflow error handling test
-WORKFLOW_ERROR_TEST = $(BIN_DIR)/workflow_error_test
-WORKFLOW_ERROR_SOURCES = tests/test_workflow_error_handling.c $(TEST_STUBS)
-WORKFLOW_ERROR_OBJECTS = $(filter-out $(OBJ_DIR)/core/main.o,$(OBJECTS))
-
-workflow_error_test: dirs swift $(OBJECTS) $(MLX_STUBS_OBJ) $(WORKFLOW_ERROR_TEST)
-	@echo "Running workflow error handling tests..."
-	@$(WORKFLOW_ERROR_TEST)
-
-$(WORKFLOW_ERROR_TEST): $(WORKFLOW_ERROR_SOURCES) $(WORKFLOW_ERROR_OBJECTS) $(SWIFT_LIB) $(MLX_STUBS_OBJ)
-	@echo "Compiling workflow error handling tests..."
-	@if [ -s "$(SWIFT_LIB)" ]; then \
-		$(CC) $(CFLAGS) $(LDFLAGS) -o $(WORKFLOW_ERROR_TEST) $(WORKFLOW_ERROR_SOURCES) $(WORKFLOW_ERROR_OBJECTS) $(SWIFT_LIB) $(FRAMEWORKS) $(LIBS) $(SWIFT_RUNTIME_LIBS); \
-	else \
-		$(CC) $(CFLAGS) $(LDFLAGS) -o $(WORKFLOW_ERROR_TEST) $(WORKFLOW_ERROR_SOURCES) $(WORKFLOW_ERROR_OBJECTS) $(MLX_STUBS_OBJ) $(FRAMEWORKS) $(LIBS); \
-	fi
-
-# Telemetry test
-TELEMETRY_TEST = $(BIN_DIR)/telemetry_test
-TELEMETRY_SOURCES = tests/test_telemetry.c $(TEST_STUBS)
-TELEMETRY_OBJECTS = $(filter-out $(OBJ_DIR)/core/main.o,$(OBJECTS))
-
-telemetry_test: dirs swift $(OBJECTS) $(MLX_STUBS_OBJ) $(TELEMETRY_TEST)
-	@echo "Running telemetry tests..."
-	@$(TELEMETRY_TEST)
-
-$(TELEMETRY_TEST): $(TELEMETRY_SOURCES) $(TELEMETRY_OBJECTS) $(SWIFT_LIB) $(MLX_STUBS_OBJ)
-	@echo "Compiling telemetry tests..."
-	@if [ -s "$(SWIFT_LIB)" ]; then \
-		$(CC) $(CFLAGS) $(LDFLAGS) -o $(TELEMETRY_TEST) $(TELEMETRY_SOURCES) $(TELEMETRY_OBJECTS) $(SWIFT_LIB) $(FRAMEWORKS) $(LIBS) $(SWIFT_RUNTIME_LIBS); \
-	else \
-		$(CC) $(CFLAGS) $(LDFLAGS) -o $(TELEMETRY_TEST) $(TELEMETRY_SOURCES) $(TELEMETRY_OBJECTS) $(MLX_STUBS_OBJ) $(FRAMEWORKS) $(LIBS); \
-	fi
-
-# Security test
-SECURITY_TEST = $(BIN_DIR)/security_test
-SECURITY_SOURCES = tests/test_security.c $(TEST_STUBS)
-SECURITY_OBJECTS = $(filter-out $(OBJ_DIR)/core/main.o,$(OBJECTS))
-
-security_test: dirs swift $(OBJECTS) $(MLX_STUBS_OBJ) $(SECURITY_TEST)
-	@echo "Running security tests..."
-	@$(SECURITY_TEST)
-
-$(SECURITY_TEST): $(SECURITY_SOURCES) $(SECURITY_OBJECTS) $(SWIFT_LIB) $(MLX_STUBS_OBJ)
-	@echo "Compiling security tests..."
-	@if [ -s "$(SWIFT_LIB)" ]; then \
-		$(CC) $(CFLAGS) $(LDFLAGS) -o $(SECURITY_TEST) $(SECURITY_SOURCES) $(SECURITY_OBJECTS) $(SWIFT_LIB) $(FRAMEWORKS) $(LIBS) $(SWIFT_RUNTIME_LIBS); \
-	else \
-		$(CC) $(CFLAGS) $(LDFLAGS) -o $(SECURITY_TEST) $(SECURITY_SOURCES) $(SECURITY_OBJECTS) $(MLX_STUBS_OBJ) $(FRAMEWORKS) $(LIBS); \
-	fi
-
-# Stress test (concurrent execution)
-STRESS_TEST = $(BIN_DIR)/stress_test
-STRESS_SOURCES = tests/test_stress.c $(TEST_STUBS)
-STRESS_OBJECTS = $(filter-out $(OBJ_DIR)/core/main.o,$(OBJECTS))
-
-stress_test: dirs swift $(OBJECTS) $(MLX_STUBS_OBJ) $(STRESS_TEST)
-	@echo "Running stress tests..."
-	@$(STRESS_TEST)
-
-$(STRESS_TEST): $(STRESS_SOURCES) $(STRESS_OBJECTS) $(SWIFT_LIB) $(MLX_STUBS_OBJ)
-	@echo "Compiling stress tests..."
-	@if [ -s "$(SWIFT_LIB)" ]; then \
-		$(CC) $(CFLAGS) $(LDFLAGS) -o $(STRESS_TEST) $(STRESS_SOURCES) $(STRESS_OBJECTS) $(SWIFT_LIB) $(FRAMEWORKS) $(LIBS) $(SWIFT_RUNTIME_LIBS); \
-	else \
-		$(CC) $(CFLAGS) $(LDFLAGS) -o $(STRESS_TEST) $(STRESS_SOURCES) $(STRESS_OBJECTS) $(MLX_STUBS_OBJ) $(FRAMEWORKS) $(LIBS); \
-	fi
-
-# Workflow migration test
-WORKFLOW_MIGRATION_TEST = $(BIN_DIR)/workflow_migration_test
-WORKFLOW_MIGRATION_SOURCES = tests/test_workflow_migration.c $(TEST_STUBS)
-WORKFLOW_MIGRATION_OBJECTS = $(filter-out $(OBJ_DIR)/core/main.o,$(OBJECTS))
-
-workflow_migration_test: dirs swift $(OBJECTS) $(MLX_STUBS_OBJ) $(WORKFLOW_MIGRATION_TEST)
-	@echo "Running workflow migration tests..."
-	@$(WORKFLOW_MIGRATION_TEST)
-
-$(WORKFLOW_MIGRATION_TEST): $(WORKFLOW_MIGRATION_SOURCES) $(WORKFLOW_MIGRATION_OBJECTS) $(SWIFT_LIB) $(MLX_STUBS_OBJ)
-	@echo "Compiling workflow migration tests..."
-	@if [ -s "$(SWIFT_LIB)" ]; then \
-		$(CC) $(CFLAGS) $(LDFLAGS) -o $(WORKFLOW_MIGRATION_TEST) $(WORKFLOW_MIGRATION_SOURCES) $(WORKFLOW_MIGRATION_OBJECTS) $(SWIFT_LIB) $(FRAMEWORKS) $(LIBS) $(SWIFT_RUNTIME_LIBS); \
-	else \
-		$(CC) $(CFLAGS) $(LDFLAGS) -o $(WORKFLOW_MIGRATION_TEST) $(WORKFLOW_MIGRATION_SOURCES) $(WORKFLOW_MIGRATION_OBJECTS) $(MLX_STUBS_OBJ) $(FRAMEWORKS) $(LIBS); \
-	fi
-
-# Workflow integration test
-WORKFLOW_INTEGRATION_TEST = $(BIN_DIR)/workflow_integration_test
-WORKFLOW_INTEGRATION_SOURCES = tests/test_workflow_integration.c $(TEST_STUBS)
-WORKFLOW_INTEGRATION_OBJECTS = $(filter-out $(OBJ_DIR)/core/main.o,$(OBJECTS))
-
-workflow_integration_test: dirs swift $(OBJECTS) $(MLX_STUBS_OBJ) $(WORKFLOW_INTEGRATION_TEST)
-	@echo "Running workflow integration tests..."
-	@$(WORKFLOW_INTEGRATION_TEST)
-
-$(WORKFLOW_INTEGRATION_TEST): $(WORKFLOW_INTEGRATION_SOURCES) $(WORKFLOW_INTEGRATION_OBJECTS) $(SWIFT_LIB) $(MLX_STUBS_OBJ)
-	@echo "Compiling workflow integration tests..."
-	@if [ -s "$(SWIFT_LIB)" ]; then \
-		$(CC) $(CFLAGS) $(LDFLAGS) -o $(WORKFLOW_INTEGRATION_TEST) $(WORKFLOW_INTEGRATION_SOURCES) $(WORKFLOW_INTEGRATION_OBJECTS) $(SWIFT_LIB) $(FRAMEWORKS) $(LIBS) $(SWIFT_RUNTIME_LIBS); \
-	else \
-		$(CC) $(CFLAGS) $(LDFLAGS) -o $(WORKFLOW_INTEGRATION_TEST) $(WORKFLOW_INTEGRATION_SOURCES) $(WORKFLOW_INTEGRATION_OBJECTS) $(MLX_STUBS_OBJ) $(FRAMEWORKS) $(LIBS); \
-	fi
 
 # Run all workflow tests
 workflow_test: workflow_types_test workflow_engine_test workflow_checkpoint_test workflow_e2e_test task_decomposer_test group_chat_test router_test patterns_test pre_release_e2e_test workflow_error_test workflow_migration_test workflow_integration_test
@@ -1225,12 +951,14 @@ complexity-check:
 	@echo "╚══════════════════════════════════════════════════════════════╝"
 	@./scripts/complexity_check.sh
 
-# Cache statistics
+# Cache statistics (branch-aware)
 cache-stats:
-	@echo "=== Build Cache Statistics ==="
+	@echo "=== Build Cache Statistics (Branch: $(GIT_BRANCH)) ==="
 	@if [ "$(CACHE_INFO)" = "sccache" ]; then \
+		echo "Cache directory: $(SCCACHE_DIR)"; \
 		$(SCCACHE) --show-stats 2>&1 | head -15; \
 	elif [ "$(CACHE_INFO)" = "ccache" ]; then \
+		echo "Cache directory: $(CCACHE_DIR)"; \
 		$(CCACHE) -s; \
 	else \
 		echo "No cache configured"; \
