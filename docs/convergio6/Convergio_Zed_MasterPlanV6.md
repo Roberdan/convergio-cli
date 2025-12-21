@@ -12,15 +12,15 @@
 
 | Status | Tasks |
 |--------|-------|
-| Completed | 67 (Phase 1-10 + 5 from Phase 11-12) |
+| Completed | 71 (Phase 1-10 + 4 S1-S4 + 5 B1-B4,B6) |
 | In Progress | 2 |
-| Pending | 29 |
+| Pending | 25 |
 | **Total** | **98** |
 
 ```
 PHASE 1-10: MVP & POST-MVP    ████████████████████ 100% (62/62) DONE
 PHASE 11: STABILITY           ██████████░░░░░░░░░░  50% (4/8) IN PROGRESS
-PHASE 12: BACKGROUND EXEC FIX ██░░░░░░░░░░░░░░░░░░  12% (1/8) IN PROGRESS
+PHASE 12: BACKGROUND EXEC FIX ████████████░░░░░░░░  62% (5/8) IN PROGRESS
 PHASE 13: ALI CONTROL CENTER  ░░░░░░░░░░░░░░░░░░░░   0% (0/5)
 PHASE 14: PERFORMANCE         ░░░░░░░░░░░░░░░░░░░░   0% (0/6)
 PHASE 15: RELEASE SYSTEM      ░░░░░░░░░░░░░░░░░░░░   0% (0/7)
@@ -154,27 +154,34 @@ Client                          Server (single-threaded)
 | ID | Task | Status | Effort | Owner |
 |----|------|--------|--------|-------|
 | B1 | ~~Debug why background sessions stop processing~~ Root cause identified | ✅ Done | - | - |
-| B2 | Implement async prompt processing (pthread) | 🔄 Partial | 2 days | - |
+| B2 | Implement async prompt processing (pthread) | ✅ Done | 2 days | - |
 | B3 | Add mutex protection for session state | ✅ Done | 0.5 day | - |
-| B4 | Implement background message queue | Pending | 1 day | - |
+| B4 | Implement background message queue | ✅ Done | 1 day | - |
 | B5 | Test buffered content retrieval on foreground | Pending | 0.5 day | - |
-| B6 | Fix notification delivery for backgroundComplete | Pending | 0.5 day | - |
+| B6 | Fix notification delivery for backgroundComplete | ✅ Done | 0.5 day | - |
 | B7 | Add visual indicator when background task completes | Pending | 0.5 day | - |
 | B8 | E2E test: start task, switch agent, return, verify results | Pending | 1 day | - |
 
 ### Progress Notes (2025-12-21)
 
-**Completed:**
+**B2 Completed:**
 - Thread-safe stdout writes (g_stdout_mutex)
 - Session mutex initialization in create_session()
 - Proper cleanup in cleanup_sessions() (joins workers, destroys mutexes)
-- Worker thread structure and function skeleton
+- Worker thread structure (PromptWorkerArgs) and thread function
+- Thread-local session ID (tl_current_session_id) for callbacks
+- worker_stream_callback() - buffers to background_buffer when is_background=true
+- process_prompt_internal() - full prompt processing with history, memory, context
+- Refactored acp_handle_session_prompt() to spawn worker thread
+- Worker thread join handling in cleanup and when starting new prompts
+- Cancel handler updated to join worker threads
+- All tests passing
 
-**Remaining for B2:**
-- Refactor acp_handle_session_prompt to spawn worker thread
-- Move prompt processing logic to process_prompt_internal
-- Handle g_current_session_id per-thread or per-args
-- Update stream_callback to be thread-safe
+**B4-B8 Remaining:**
+- Test the full background workflow with Zed client
+- Verify buffered content retrieval works correctly
+- Test notification delivery for backgroundComplete
+- Add visual indicator in convergio-zed when background task completes
 
 ### Expected Behavior (Target)
 

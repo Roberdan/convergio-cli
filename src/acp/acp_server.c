@@ -248,21 +248,270 @@ typedef struct {
     char session_id[64];
 } PromptWorkerArgs;
 
-// Forward declaration
+// Thread-local session ID for stream_callback
+static __thread char tl_current_session_id[64] = {0};
+
+// Forward declarations
 static void process_prompt_internal(PromptWorkerArgs* args);
+static void worker_stream_callback(const char* chunk, void* user_data);
+
+// Worker stream callback - uses thread-local session ID
+static void worker_stream_callback(const char* chunk, void* user_data) {
+    PromptWorkerArgs* args = (PromptWorkerArgs*)user_data;
+    if (!chunk || strlen(chunk) == 0) return;
+
+    // Check if session is in background mode (thread-safe)
+    pthread_mutex_lock(&args->session->mutex);
+    bool is_background = args->session->is_background;
+    pthread_mutex_unlock(&args->session->mutex);
+
+    if (is_background) {
+        // Buffer the chunk instead of sending
+        pthread_mutex_lock(&args->session->mutex);
+
+        size_t chunk_len = strlen(chunk);
+        size_t needed = args->session->background_buffer_len + chunk_len + 1;
+
+        if (!args->session->background_buffer) {
+            args->session->background_buffer_cap = (needed > ACP_BACKGROUND_BUFFER_SIZE)
+                ? needed * 2 : ACP_BACKGROUND_BUFFER_SIZE;
+            args->session->background_buffer = malloc(args->session->background_buffer_cap);
+            args->session->background_buffer[0] = '\0';
+            args->session->background_buffer_len = 0;
+        } else if (needed > args->session->background_buffer_cap) {
+            args->session->background_buffer_cap = needed * 2;
+            args->session->background_buffer = realloc(args->session->background_buffer,
+                                                        args->session->background_buffer_cap);
+        }
+
+        memcpy(args->session->background_buffer + args->session->background_buffer_len,
+               chunk, chunk_len + 1);
+        args->session->background_buffer_len += chunk_len;
+
+        pthread_mutex_unlock(&args->session->mutex);
+        return;
+    }
+
+    // Build session/update notification (ACP schema format)
+    cJSON* params = cJSON_CreateObject();
+    cJSON_AddStringToObject(params, "sessionId", args->session_id);
+
+    cJSON* update = cJSON_CreateObject();
+    cJSON_AddStringToObject(update, "sessionUpdate", "agent_message_chunk");
+
+    cJSON* content = cJSON_CreateObject();
+    cJSON_AddStringToObject(content, "type", "text");
+    cJSON_AddStringToObject(content, "text", chunk);
+    cJSON_AddItemToObject(update, "content", content);
+
+    cJSON_AddItemToObject(params, "update", update);
+
+    char* params_json = cJSON_PrintUnformatted(params);
+    acp_send_notification("session/update", params_json);
+    free(params_json);
+    cJSON_Delete(params);
+}
+
+// Process prompt in worker thread
+static void process_prompt_internal(PromptWorkerArgs* args) {
+    ACPSession* session = args->session;
+    char* response = NULL;
+
+    // Build conversation history context from session (for resume support)
+    char* history_context = NULL;
+
+    pthread_mutex_lock(&session->mutex);
+    int msg_count = session->message_count;
+    pthread_mutex_unlock(&session->mutex);
+
+    if (msg_count > 0) {
+        size_t ctx_size = 16384;
+        history_context = malloc(ctx_size);
+        size_t ctx_len = 0;
+        ctx_len += snprintf(history_context + ctx_len, ctx_size - ctx_len,
+            "\n[Previous conversation history - continue from where we left off]\n");
+
+        pthread_mutex_lock(&session->mutex);
+        int start = session->message_count > 10 ? session->message_count - 10 : 0;
+        for (int i = start; i < session->message_count; i++) {
+            const char* role = session->messages[i].role;
+            const char* content = session->messages[i].content;
+            if (content) {
+                size_t max_len = 500;
+                ctx_len += snprintf(history_context + ctx_len, ctx_size - ctx_len,
+                    "\n**%s**: %.500s%s\n",
+                    strcmp(role, "user") == 0 ? "You" : "Assistant",
+                    content,
+                    strlen(content) > max_len ? "..." : "");
+            }
+            if (ctx_len > ctx_size - 1024) break;
+        }
+        pthread_mutex_unlock(&session->mutex);
+
+        ctx_len += snprintf(history_context + ctx_len, ctx_size - ctx_len,
+            "\n[End of history - now responding to new message]\n\n");
+    }
+
+    // Route to specific agent or orchestrator
+    if (args->selected_agent && args->selected_agent[0] != '\0') {
+        ManagedAgent* agent = agent_find_by_name(args->selected_agent);
+        if (agent) {
+            char* enhanced_prompt = args->prompt_text;
+            if (history_context) {
+                size_t ep_len = strlen(args->prompt_text) + strlen(history_context) + 64;
+                enhanced_prompt = malloc(ep_len);
+                snprintf(enhanced_prompt, ep_len, "%s%s", history_context, args->prompt_text);
+            }
+
+            response = orchestrator_agent_chat(agent, enhanced_prompt);
+
+            if (enhanced_prompt != args->prompt_text) free(enhanced_prompt);
+
+            if (response) {
+                worker_stream_callback(response, args);
+                save_agent_context(args->selected_agent, args->prompt_text, response);
+            }
+        } else {
+            response = orchestrator_process_stream(args->prompt_text,
+                (void (*)(const char*, void*))worker_stream_callback, args);
+        }
+    } else {
+        // Default: orchestrator (Ali) with streaming
+        char* agent_contexts = load_all_agent_contexts();
+
+        char* historical_memory = NULL;
+        MemorySearchResult memory_result = {0};
+        if (memory_load_recent(10, &memory_result) == 0 && memory_result.count > 0) {
+            historical_memory = memory_build_context(&memory_result, 8192);
+            memory_free_result(&memory_result);
+        }
+
+        size_t enhanced_len = strlen(args->prompt_text) + 1024;
+        if (agent_contexts) enhanced_len += strlen(agent_contexts);
+        if (historical_memory) enhanced_len += strlen(historical_memory);
+        if (history_context) enhanced_len += strlen(history_context);
+
+        char* enhanced_prompt = malloc(enhanced_len);
+        size_t pos = 0;
+
+        if (historical_memory) {
+            pos += snprintf(enhanced_prompt + pos, enhanced_len - pos,
+                "[Historical Memory - Cross-Session Context]\n%s\n---\n\n",
+                historical_memory);
+            free(historical_memory);
+        }
+
+        if (agent_contexts) {
+            pos += snprintf(enhanced_prompt + pos, enhanced_len - pos,
+                "[Recent Agent Conversations]\n%s\n---\n\n",
+                agent_contexts);
+            free(agent_contexts);
+        }
+
+        if (history_context) {
+            pos += snprintf(enhanced_prompt + pos, enhanced_len - pos, "%s", history_context);
+        }
+
+        pos += snprintf(enhanced_prompt + pos, enhanced_len - pos,
+            "[User Message]\n%s", args->prompt_text);
+
+        response = orchestrator_process_stream(enhanced_prompt,
+            (void (*)(const char*, void*))worker_stream_callback, args);
+        free(enhanced_prompt);
+    }
+
+    // Save messages to session history (thread-safe)
+    pthread_mutex_lock(&session->mutex);
+    acp_session_add_message(session, "user", args->prompt_text);
+    if (response) {
+        acp_session_add_message(session, "assistant", response);
+    }
+    pthread_mutex_unlock(&session->mutex);
+
+    // Persist session to disk
+    acp_session_save(session);
+
+    // Generate memory summary for significant conversations
+    pthread_mutex_lock(&session->mutex);
+    if (session->message_count >= 4 && session->message_count % 4 == 0) {
+        const char* messages[ACP_MAX_MESSAGES];
+        const char* roles[ACP_MAX_MESSAGES];
+        for (int i = 0; i < session->message_count; i++) {
+            messages[i] = session->messages[i].content;
+            roles[i] = session->messages[i].role;
+        }
+        int count = session->message_count;
+        char agent_name[64];
+        strncpy(agent_name, session->agent_name, sizeof(agent_name) - 1);
+        pthread_mutex_unlock(&session->mutex);
+
+        MemoryEntry mem_entry;
+        if (memory_generate_summary(agent_name, messages, roles, count, &mem_entry) == 0) {
+            memory_save(&mem_entry);
+        }
+    } else {
+        pthread_mutex_unlock(&session->mutex);
+    }
+
+    if (history_context) {
+        free(history_context);
+    }
+
+    // Send final response
+    cJSON* result = cJSON_CreateObject();
+    cJSON_AddStringToObject(result, "stopReason", "end_turn");
+
+    char* result_json = cJSON_PrintUnformatted(result);
+    acp_send_response(args->request_id, result_json);
+    free(result_json);
+    cJSON_Delete(result);
+
+    if (response) {
+        free(response);
+    }
+
+    // If session was in background, send completion notification
+    pthread_mutex_lock(&session->mutex);
+    bool is_background = session->is_background;
+    size_t buffered_len = session->background_buffer_len;
+    pthread_mutex_unlock(&session->mutex);
+
+    if (is_background) {
+        cJSON* notify_params = cJSON_CreateObject();
+        cJSON_AddStringToObject(notify_params, "sessionId", args->session_id);
+        cJSON_AddStringToObject(notify_params, "status", "completed");
+        cJSON_AddBoolToObject(notify_params, "hasBufferedContent", buffered_len > 0);
+        cJSON_AddNumberToObject(notify_params, "bufferedLength", (double)buffered_len);
+
+        char* notify_json = cJSON_PrintUnformatted(notify_params);
+        acp_send_notification("session/backgroundComplete", notify_json);
+        free(notify_json);
+        cJSON_Delete(notify_params);
+
+        LOG_INFO(LOG_CAT_SYSTEM, "Background session %s completed, buffered %zu bytes",
+                 args->session_id, buffered_len);
+    }
+}
 
 // Worker thread function
 static void* prompt_worker_thread(void* arg) {
     PromptWorkerArgs* args = (PromptWorkerArgs*)arg;
+    ACPSession* session = args->session;
+
+    // Set thread-local session ID
+    strncpy(tl_current_session_id, args->session_id, sizeof(tl_current_session_id) - 1);
 
     // Process the prompt (this is the blocking part)
     process_prompt_internal(args);
 
     // Mark session as no longer processing
-    pthread_mutex_lock(&args->session->mutex);
-    args->session->is_processing = false;
-    args->session->has_worker = false;
-    pthread_mutex_unlock(&args->session->mutex);
+    // NOTE: has_worker stays true until cleanup_sessions() joins this thread
+    pthread_mutex_lock(&session->mutex);
+    session->is_processing = false;
+    pthread_mutex_unlock(&session->mutex);
+
+    // Clear thread-local session ID
+    tl_current_session_id[0] = '\0';
 
     // Free worker args
     if (args->prompt_text) free(args->prompt_text);
@@ -882,6 +1131,28 @@ void acp_handle_session_prompt(int request_id, const char* params_json) {
         return;
     }
 
+    // Check if session has an active or finished worker
+    pthread_mutex_lock(&session->mutex);
+    if (session->has_worker) {
+        if (session->is_processing) {
+            // Worker is still running - reject new prompt
+            pthread_mutex_unlock(&session->mutex);
+            cJSON_Delete(params);
+            acp_send_error(request_id, -32000, "Session busy - prompt already in progress");
+            return;
+        } else {
+            // Worker finished but wasn't joined yet - join it now
+            pthread_t old_thread = session->worker_thread;
+            session->has_worker = false;
+            pthread_mutex_unlock(&session->mutex);
+
+            pthread_join(old_thread, NULL);
+            LOG_DEBUG(LOG_CAT_SYSTEM, "Joined completed worker thread for session %s", session_id);
+        }
+    } else {
+        pthread_mutex_unlock(&session->mutex);
+    }
+
     // Extract prompt text and context (ACP format: prompt[])
     cJSON* prompt_array = cJSON_GetObjectItem(params, "prompt");
     char prompt_text[24576] = {0};  // Buffer for prompt + context combined
@@ -959,182 +1230,56 @@ void acp_handle_session_prompt(int request_id, const char* params_json) {
         return;
     }
 
-    // Set current session for callback
-    strncpy(g_current_session_id, session_id, sizeof(g_current_session_id) - 1);
+    // ASYNC EXECUTION: Spawn worker thread for prompt processing
+    // This allows the main loop to continue reading stdin (e.g., session/background)
+    PromptWorkerArgs* args = malloc(sizeof(PromptWorkerArgs));
+    if (!args) {
+        acp_send_error(request_id, -32000, "Failed to allocate worker args");
+        return;
+    }
 
-    // Mark session as processing (for background execution support)
+    args->session = session;
+    args->prompt_text = strdup(prompt_text);
+    args->request_id = request_id;
+    args->selected_agent = g_server.selected_agent[0] != '\0'
+                           ? strdup(g_server.selected_agent)
+                           : NULL;
+    strncpy(args->session_id, session_id, sizeof(args->session_id) - 1);
+
+    // Mark session as processing before spawning thread
+    pthread_mutex_lock(&session->mutex);
     session->is_processing = true;
+    session->worker_cancelled = false;
+    pthread_mutex_unlock(&session->mutex);
 
-    char* response = NULL;
+    // Spawn worker thread
+    int rc = pthread_create(&session->worker_thread, NULL, prompt_worker_thread, args);
+    if (rc != 0) {
+        // Thread creation failed - clean up and report error
+        pthread_mutex_lock(&session->mutex);
+        session->is_processing = false;
+        pthread_mutex_unlock(&session->mutex);
 
-    // Build conversation history context from session (for resume support)
-    char* history_context = NULL;
-    if (session->message_count > 0) {
-        size_t ctx_size = 16384;
-        history_context = malloc(ctx_size);
-        size_t ctx_len = 0;
-        ctx_len += snprintf(history_context + ctx_len, ctx_size - ctx_len,
-            "\n[Previous conversation history - continue from where we left off]\n");
+        free(args->prompt_text);
+        if (args->selected_agent) free(args->selected_agent);
+        free(args);
 
-        // Include recent messages (limit to last 10 for context window)
-        int start = session->message_count > 10 ? session->message_count - 10 : 0;
-        for (int i = start; i < session->message_count; i++) {
-            const char* role = session->messages[i].role;
-            const char* content = session->messages[i].content;
-            if (content) {
-                // Truncate very long messages
-                size_t max_len = 500;
-                ctx_len += snprintf(history_context + ctx_len, ctx_size - ctx_len,
-                    "\n**%s**: %.500s%s\n",
-                    strcmp(role, "user") == 0 ? "You" : "Assistant",
-                    content,
-                    strlen(content) > max_len ? "..." : "");
-            }
-            if (ctx_len > ctx_size - 1024) break;
-        }
-        ctx_len += snprintf(history_context + ctx_len, ctx_size - ctx_len,
-            "\n[End of history - now responding to new message]\n\n");
+        acp_send_error(request_id, -32000, "Failed to spawn worker thread");
+        return;
     }
 
-    // Route to specific agent or orchestrator
-    if (g_server.selected_agent[0] != '\0') {
-        // Specific agent selected - use direct agent chat (no streaming yet)
-        ManagedAgent* agent = agent_find_by_name(g_server.selected_agent);
-        if (agent) {
-            // Build enhanced prompt with history context if available
-            char* enhanced_prompt = prompt_text;
-            if (history_context) {
-                size_t ep_len = strlen(prompt_text) + strlen(history_context) + 64;
-                enhanced_prompt = malloc(ep_len);
-                snprintf(enhanced_prompt, ep_len, "%s%s", history_context, prompt_text);
-            }
+    // Mark session as having an active worker
+    pthread_mutex_lock(&session->mutex);
+    session->has_worker = true;
+    pthread_mutex_unlock(&session->mutex);
 
-            response = orchestrator_agent_chat(agent, enhanced_prompt);
+    // NOTE: Thread is NOT detached - cleanup_sessions() will join it on shutdown
+    // This ensures proper cleanup and avoids undefined behavior
 
-            if (enhanced_prompt != prompt_text) free(enhanced_prompt);
+    LOG_INFO(LOG_CAT_SYSTEM, "Spawned worker thread for session %s", session_id);
 
-            // Send full response as single chunk
-            if (response) {
-                stream_callback(response, NULL);
-                // Save context for other agents to see (F2: context sharing)
-                save_agent_context(g_server.selected_agent, prompt_text, response);
-            }
-        } else {
-            // Agent not found - fallback to orchestrator
-            response = orchestrator_process_stream(prompt_text, stream_callback, NULL);
-        }
-    } else {
-        // Default: orchestrator (Ali) with streaming
-        // F2: Load context from other agent conversations
-        char* agent_contexts = load_all_agent_contexts();
-
-        // H5: Load historical memory for Ali
-        char* historical_memory = NULL;
-        MemorySearchResult memory_result = {0};
-        if (memory_load_recent(10, &memory_result) == 0 && memory_result.count > 0) {
-            historical_memory = memory_build_context(&memory_result, 8192);
-            memory_free_result(&memory_result);
-        }
-
-        // Build enhanced prompt with all context
-        size_t enhanced_len = strlen(prompt_text) + 1024;
-        if (agent_contexts) enhanced_len += strlen(agent_contexts);
-        if (historical_memory) enhanced_len += strlen(historical_memory);
-
-        char* enhanced_prompt = malloc(enhanced_len);
-        size_t pos = 0;
-
-        // Add historical memory first (long-term context)
-        if (historical_memory) {
-            pos += snprintf(enhanced_prompt + pos, enhanced_len - pos,
-                "[Historical Memory - Cross-Session Context]\n%s\n---\n\n",
-                historical_memory);
-            free(historical_memory);
-        }
-
-        // Add recent agent conversations (short-term context)
-        if (agent_contexts) {
-            pos += snprintf(enhanced_prompt + pos, enhanced_len - pos,
-                "[Recent Agent Conversations]\n%s\n---\n\n",
-                agent_contexts);
-            free(agent_contexts);
-        }
-
-        // Add the actual user prompt
-        pos += snprintf(enhanced_prompt + pos, enhanced_len - pos,
-            "[User Message]\n%s", prompt_text);
-
-        response = orchestrator_process_stream(enhanced_prompt, stream_callback, NULL);
-        free(enhanced_prompt);
-    }
-
-    // Save messages to session history for resume support
-    acp_session_add_message(session, "user", prompt_text);
-    if (response) {
-        acp_session_add_message(session, "assistant", response);
-    }
-
-    // Persist session to disk
-    acp_session_save(session);
-
-    // H3: Generate memory summary for significant conversations (4+ messages = 2+ exchanges)
-    if (session->message_count >= 4 && session->message_count % 4 == 0) {
-        // Prepare messages for summary generation
-        const char* messages[ACP_MAX_MESSAGES];
-        const char* roles[ACP_MAX_MESSAGES];
-        for (int i = 0; i < session->message_count; i++) {
-            messages[i] = session->messages[i].content;
-            roles[i] = session->messages[i].role;
-        }
-
-        MemoryEntry mem_entry;
-        if (memory_generate_summary(session->agent_name, messages, roles,
-                                    session->message_count, &mem_entry) == 0) {
-            memory_save(&mem_entry);
-        }
-    }
-
-    // Cleanup history context
-    if (history_context) {
-        free(history_context);
-    }
-
-    // Send final response
-    cJSON* result = cJSON_CreateObject();
-    cJSON_AddStringToObject(result, "stopReason", "end_turn");
-
-    char* result_json = cJSON_PrintUnformatted(result);
-    acp_send_response(request_id, result_json);
-    free(result_json);
-    cJSON_Delete(result);
-
-    if (response) {
-        free(response);
-    }
-
-    // Mark session as no longer processing
-    session->is_processing = false;
-
-    // If session was in background, send completion notification
-    if (session->is_background) {
-        cJSON* notify_params = cJSON_CreateObject();
-        cJSON_AddStringToObject(notify_params, "sessionId", session->session_id);
-        cJSON_AddStringToObject(notify_params, "status", "completed");
-        cJSON_AddBoolToObject(notify_params, "hasBufferedContent",
-                              session->background_buffer_len > 0);
-        cJSON_AddNumberToObject(notify_params, "bufferedLength",
-                                (double)session->background_buffer_len);
-
-        char* notify_json = cJSON_PrintUnformatted(notify_params);
-        acp_send_notification("session/backgroundComplete", notify_json);
-        free(notify_json);
-        cJSON_Delete(notify_params);
-
-        LOG_INFO(LOG_CAT_SYSTEM, "Background session %s completed, buffered %zu bytes",
-                 session->session_id, session->background_buffer_len);
-    }
-
-    g_current_session_id[0] = '\0';
+    // NOTE: Response will be sent by worker thread when complete
+    // Main loop can now continue reading stdin for other requests
 }
 
 void acp_handle_session_cancel(int request_id, const char* params_json) {
@@ -1164,6 +1309,25 @@ void acp_handle_session_cancel(int request_id, const char* params_json) {
     if (session_id && session_id[0] != '\0') {
         ACPSession* session = find_session(session_id);
         if (session) {
+            // Cancel any active worker thread
+            pthread_mutex_lock(&session->mutex);
+            if (session->has_worker) {
+                session->worker_cancelled = true;
+                pthread_t worker = session->worker_thread;
+                bool is_processing = session->is_processing;
+                session->has_worker = false;
+                pthread_mutex_unlock(&session->mutex);
+
+                // Wait for worker to finish (it should check worker_cancelled flag)
+                // Note: This may block briefly while worker finishes current operation
+                if (is_processing) {
+                    LOG_INFO(LOG_CAT_SYSTEM, "Waiting for worker thread to finish for cancel...");
+                }
+                pthread_join(worker, NULL);
+            } else {
+                pthread_mutex_unlock(&session->mutex);
+            }
+
             // Free message memory
             for (int i = 0; i < session->message_count; i++) {
                 if (session->messages[i].content) {
@@ -1173,8 +1337,17 @@ void acp_handle_session_cancel(int request_id, const char* params_json) {
             }
             session->message_count = 0;
 
+            // Free background buffer
+            if (session->background_buffer) {
+                free(session->background_buffer);
+                session->background_buffer = NULL;
+                session->background_buffer_len = 0;
+                session->background_buffer_cap = 0;
+            }
+
             // Mark session as inactive
             session->active = false;
+            session->is_processing = false;
 
             // Remove persistence file
             char* filepath = get_session_filepath(session_id);
