@@ -1088,13 +1088,23 @@ quality_gate_tests:
 
 quality_gate_security:
 	@echo ""
-	@echo "=== 3. Security Check (Basic) ==="
+	@echo "=== 3. Security Check (Comprehensive) ==="
+	@# Check for unsafe functions in high-priority files
+	@UNSAFE_HIGH=$$(grep -rE "(fopen|system|popen)\s*\(" src/core/config.c src/memory/persistence.c src/telemetry/telemetry.c src/telemetry/export.c src/projects/projects.c 2>/dev/null | grep -v "tools_is_command_safe\|safe_path_open\|safe_open\|test_" | wc -l | tr -d ' '); \
+	if [ "$$UNSAFE_HIGH" -gt 0 ]; then \
+		echo "⚠️  WARNING: Found $$UNSAFE_HIGH unsafe function calls in high-priority files"; \
+		echo "   These should use safe alternatives (safe_path_open, tools_is_command_safe)"; \
+		echo "   See docs/workflow-orchestration/SECURITY_ENFORCEMENT_PLAN.md"; \
+	else \
+		echo "✅ PASSED: High-priority files use safe functions"; \
+	fi
+	@# Check for dangerous string functions
 	@DANGEROUS=$$(grep -rE "(strcpy|strcat|gets)\s*\(" src/ 2>/dev/null | grep -v "tools_is_command_safe\|test_" | wc -l | tr -d ' '); \
 	if [ "$$DANGEROUS" -gt 0 ]; then \
 		echo "⚠️  WARNING: Found $$DANGEROUS potential security issues"; \
-		echo "   Review use of dangerous functions"; \
+		echo "   Review use of dangerous functions (use strncpy, snprintf, fgets)"; \
 	else \
-		echo "✅ PASSED: No obvious security issues"; \
+		echo "✅ PASSED: No dangerous string functions found"; \
 	fi
 
 # Cache statistics
