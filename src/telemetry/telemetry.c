@@ -234,6 +234,90 @@ void telemetry_record_session_end(void) {
     add_event(&event);
 }
 
+void telemetry_record_performance(
+    const char* operation,
+    double duration_ms,
+    uint64_t memory_bytes
+) {
+    if (!telemetry_is_enabled()) {
+        return;
+    }
+
+    TelemetryEvent event = {0};
+    event.type = TELEMETRY_EVENT_PERFORMANCE;
+    event.timestamp = time(NULL);
+    if (operation) {
+        strncpy(event.operation, operation, sizeof(event.operation) - 1);
+    }
+    event.duration_ms = duration_ms;
+    event.memory_bytes = memory_bytes;
+
+    add_event(&event);
+}
+
+void telemetry_record_security(
+    const char* security_event,
+    const char* context,
+    bool success
+) {
+    if (!telemetry_is_enabled()) {
+        return;
+    }
+
+    TelemetryEvent event = {0};
+    event.type = TELEMETRY_EVENT_SECURITY;
+    event.timestamp = time(NULL);
+    if (security_event) {
+        strncpy(event.security_event, security_event, sizeof(event.security_event) - 1);
+    }
+    if (context) {
+        strncpy(event.security_context, context, sizeof(event.security_context) - 1);
+    }
+    event.security_success = success;
+
+    add_event(&event);
+}
+
+void telemetry_record_retry(
+    const char* reason,
+    int attempt,
+    int max_retries
+) {
+    if (!telemetry_is_enabled()) {
+        return;
+    }
+
+    TelemetryEvent event = {0};
+    event.type = TELEMETRY_EVENT_RETRY;
+    event.timestamp = time(NULL);
+    if (reason) {
+        strncpy(event.retry_reason, reason, sizeof(event.retry_reason) - 1);
+    }
+    event.retry_attempt = attempt;
+    event.max_retries = max_retries;
+
+    add_event(&event);
+}
+
+void telemetry_record_checkpoint(
+    const char* workflow_type,
+    double duration_ms
+) {
+    if (!telemetry_is_enabled()) {
+        return;
+    }
+
+    TelemetryEvent event = {0};
+    event.type = TELEMETRY_EVENT_CHECKPOINT;
+    event.timestamp = time(NULL);
+    if (workflow_type) {
+        strncpy(event.operation, workflow_type, sizeof(event.operation) - 1);
+    }
+    event.duration_ms = duration_ms;
+
+    add_event(&event);
+}
+
 // ============================================================================
 // DATA MANAGEMENT
 // ============================================================================

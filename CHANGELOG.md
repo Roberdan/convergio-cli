@@ -9,6 +9,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Advanced Workflow Orchestration** - Complete multi-agent coordination system
+  - State machine-based workflow execution with checkpointing
+  - Task decomposition with dependency resolution and topological sort
+  - Group chat coordination with consensus detection
+  - Conditional routing with expression evaluation (==, !=, <, >, <=, >=)
+  - Retry logic with exponential backoff and error classification
+  - Mermaid diagram export for workflow visualization
+  - 9 workflow templates and 4 reusable patterns
+  - CLI commands: `workflow list`, `workflow show`, `workflow execute`, `workflow resume`
+  - Comprehensive documentation: USER_GUIDE.md, PATTERN_GUIDE.md, MIGRATION_GUIDE.md
+  - ADR: `docs/adr/018-workflow-orchestration.md`
+
+- **Extended Telemetry Events** - Enhanced observability
+  - Performance metrics (operation duration, memory usage)
+  - Security audit events (validation results, context)
+  - Retry tracking (attempt, reason, max retries)
+  - Checkpoint events (workflow type, duration)
+
+- **Security Enforcement Phase 2** - Safe file operations
+  - Replaced `fopen()` with `safe_path_open()` in 5 core files
+  - Path validation with boundary checking
+  - Consistent security patterns across codebase
+
 - **Web Search Tool** - Multi-provider web search support
   - Anthropic: Native `web_search_20250305` tool with citations
   - OpenAI: Native search via `gpt-4o-search-preview` model with `web_search_options`
