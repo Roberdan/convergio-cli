@@ -91,9 +91,7 @@ else
     # that are called through function pointers / dynamic paths
     CFLAGS += -O3 -DNDEBUG \
               -mllvm -enable-machine-outliner=never \
-              -mllvm -enable-unsafe-fp-math \
-              -mllvm -enable-no-infs-fp-math \
-              -mllvm -enable-no-nans-fp-math
+              -ffast-math
     # Linker optimizations for M3 Max with 36GB RAM
     # Use more memory for faster linking (macOS ld64 doesn't support -threads)
     LDFLAGS += -Wl,-cache_path_lto,$(BUILD_DIR)/lto.cache \
