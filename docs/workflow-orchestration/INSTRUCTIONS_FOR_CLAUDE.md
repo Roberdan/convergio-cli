@@ -1,0 +1,265 @@
+# Istruzioni per Claude - Completamento Workflow Orchestration
+
+**Created**: 2025-12-21  
+**Status**: 🎯 READY FOR EXECUTION  
+**Purpose**: Exact instructions for Claude to complete remaining work
+
+---
+
+## 🎯 CONTEXT
+
+**Worktree**: `/Users/roberdan/GitHub/ConvergioCLI-workflow`  
+**Branch**: `feature/workflow-orchestration`  
+**PR**: #72 - "feat(workflow): Advanced Workflow Orchestration - Feature Complete"
+
+**Current Status**: 
+- ✅ Core implementation: 100% complete
+- ✅ Testing: 100% complete (all test files created)
+- ⏳ Verifications: 0% (not executed)
+- ⏳ Documentation: ~60% (4 files missing)
+- ⏳ Best Practices: Phase 1-2 partial, Phase 3 pending
+- ⏳ Future Enhancements: 0% (not started)
+
+---
+
+## 📖 DOCUMENTI DA LEGGERE (IN ORDINE)
+
+### 1. PRIMA DI INIZIARE
+- **PENDING_TASKS_EXECUTABLE.md** - Lista completa di tutti i task con location, comandi, documentazione
+- **MASTER_PLAN.md** - Piano generale con status e overview
+- **ZERO_TOLERANCE_POLICY.md** - Standard di qualità (zero tolleranza)
+
+### 2. PER OGNI TASK
+- **BEST_PRACTICES.md** - Best practices per implementazione
+- **SECURITY_ENFORCEMENT_PLAN.md** - Piano sicurezza (se lavori su security)
+- **CODEBASE_AUDIT.md** - Audit code quality (se lavori su code quality)
+
+### 3. RIFERIMENTI
+- **GLOBAL_BEST_PRACTICES_PROPOSAL.md** - Best practices globali
+- **CONTRIBUTING.md** - Linee guida contribuzione (include zero tolerance)
+
+---
+
+## 🚀 TASK DA COMPLETARE (PRIORITÀ)
+
+### PRIORITÀ ALTA (Fare PRIMA)
+
+#### 1. Fix Linking Error
+**Location**: `/Users/roberdan/GitHub/ConvergioCLI-workflow`  
+**Branch**: `feature/workflow-orchestration`  
+**Problema**: `duplicate symbol '_nous_log'` in `test_workflow_integration.c` e `test_stubs.c`  
+**Comando per verificare**: `make coverage_workflow 2>&1 | grep "duplicate symbol"`  
+**Azione**: 
+- Trovare dove `_nous_log` è definito due volte
+- Rimuovere definizione duplicata o usare `extern` dove appropriato
+- Verificare: `make coverage_workflow` deve compilare senza errori
+
+**Documentazione**: Vedi `PENDING_TASKS_EXECUTABLE.md` sezione "6.1 Fix Linking Error"
+
+---
+
+#### 2. Eseguire Verifiche
+
+**Location**: `/Users/roberdan/GitHub/ConvergioCLI-workflow`  
+**Branch**: `feature/workflow-orchestration`
+
+##### 2.1 Code Coverage Measurement
+- **Comando**: `make coverage_workflow`
+- **Verifica**: Coverage >= 80%
+- **Output**: `coverage/workflow_coverage.info`
+- **Documentazione**: `MASTER_PLAN.md` sezione "Pending Verification"
+
+##### 2.2 Sanitizer Tests
+- **Comando**: `make DEBUG=1 SANITIZE=address,undefined,thread test`
+- **Verifica**: Zero leaks, zero undefined behavior, zero data races
+- **Documentazione**: `MASTER_PLAN.md` sezione "Quality Gates"
+
+##### 2.3 Security Audit
+- **Azione**: Review manuale (puoi usare `make security_audit_workflow`)
+- **Verifica**: Zero vulnerabilità
+- **Documentazione**: `SECURITY_CHECKLIST.md` e `SECURITY_ENFORCEMENT_PLAN.md`
+
+##### 2.4 Performance Benchmarks
+- **Azione**: Creare benchmark tests e eseguire
+- **Verifica**: Performance targets met
+- **Documentazione**: `MASTER_PLAN.md` sezione "Performance targets"
+
+---
+
+#### 3. Creare Documentazione Mancante
+
+**Location**: `/Users/roberdan/GitHub/ConvergioCLI-workflow`  
+**Branch**: `feature/workflow-orchestration`
+
+##### 3.1 architecture.md
+- **Path**: `docs/workflow-orchestration/architecture.md`
+- **Template**: Vedi `MASTER_PLAN.md` sezione "Architecture Overview"
+- **Contenuto**: System architecture, component interactions, data flow
+
+##### 3.2 ADR 018
+- **Path**: `docs/workflow-orchestration/ADR/018-workflow-orchestration.md`
+- **Template**: Segui formato ADR esistente (vedi `ADR/001-error-handling-strategy.md`)
+- **Contenuto**: Decisione di implementare workflow orchestration, rationale, alternative
+
+##### 3.3 MIGRATION_GUIDE.md
+- **Path**: `docs/workflow-orchestration/MIGRATION_GUIDE.md`
+- **Contenuto**: Guida step-by-step per migrare codice esistente a workflows, esempi, pattern comuni
+
+##### 3.4 PATTERN_GUIDE.md
+- **Path**: `docs/workflow-orchestration/PATTERN_GUIDE.md`
+- **Contenuto**: Documentazione pattern library, esempi d'uso, best practices
+
+---
+
+### PRIORITÀ MEDIA (Fare DOPO)
+
+#### 4. CI/CD Coverage Tracking
+
+**Location**: `/Users/roberdan/GitHub/ConvergioCLI-workflow`  
+**Branch**: `feature/workflow-orchestration`
+
+- **File**: `.github/workflows/workflow-coverage.yml` (creare)
+- **Azione**: 
+  - Workflow GitHub Actions che esegue `make coverage_workflow` su ogni PR
+  - Upload coverage a codecov.io o simile
+  - Fail PR se coverage < 80%
+- **Documentazione**: `BEST_PRACTICES.md` sezione "Code Coverage Tracking"
+- **Template**: Vedi `.github/workflows/ci.yml` esistente
+
+---
+
+#### 5. Security Enforcement Phase 2
+
+**Location**: `/Users/roberdan/GitHub/ConvergioCLI-workflow`  
+**Branch**: `feature/workflow-orchestration`
+
+**File da aggiornare** (5 file):
+- `src/core/main.c` - Sostituire `fopen()` con `safe_path_open()`
+- `src/core/commands/commands.c` - Verificare uso `tools_is_command_safe()`
+- `src/orchestrator/registry.c` - Aggiungere path validation
+- `src/orchestrator/plan_db.c` - Aggiungere path validation
+- `src/memory/memory.c` - Aggiungere path validation
+
+**Documentazione**: `SECURITY_ENFORCEMENT_PLAN.md` sezione "Phase 2"
+
+---
+
+### PRIORITÀ BASSA (Fare DOPO)
+
+#### 6. Future Enhancements
+
+**Location**: `/Users/roberdan/GitHub/ConvergioCLI-workflow`  
+**Branch**: `feature/workflow-orchestration`
+
+##### 6.1 Workflow Execution History UI
+- **File**: `src/workflow/workflow_history_ui.c` (nuovo)
+- **Contenuto**: CLI-based UI per visualizzare workflow execution history
+- **Documentazione**: `MASTER_PLAN.md` sezione "Future Enhancements"
+
+##### 6.2 Extended Telemetry Events
+- **File**: `src/telemetry/telemetry.c` (estendere)
+- **Contenuto**: Event types più specifici per providers/orchestrator
+- **Documentazione**: `MASTER_PLAN.md` sezione "Future Enhancements"
+
+##### 6.3 Performance Telemetry
+- **File**: `src/workflow/workflow_observability.c` (estendere)
+- **Contenuto**: Metriche performance dettagliate (latency, throughput, resource usage)
+- **Documentazione**: `MASTER_PLAN.md` sezione "Future Enhancements"
+
+##### 6.4 Security Audit Logging
+- **File**: `src/workflow/workflow_observability.c` (estendere)
+- **Contenuto**: Enhanced security event logging, audit trail
+- **Documentazione**: `MASTER_PLAN.md` sezione "Future Enhancements"
+
+---
+
+## 📝 WORKFLOW DI LAVORO
+
+### Per ogni task:
+
+1. **Leggi la documentazione** indicata nel task
+2. **Verifica il branch**: `git branch --show-current` deve essere `feature/workflow-orchestration`
+3. **Esegui il task** seguendo le istruzioni
+4. **Testa**: Assicurati che tutto compili e funzioni
+5. **Commit**: Usa conventional commits (es. `fix(workflow): resolve linking error`)
+6. **Aggiorna MASTER_PLAN.md**: Marca il task come completato
+7. **Aggiorna PENDING_TASKS_EXECUTABLE.md**: Marca il task come completato
+
+### Standard di qualità (ZERO TOLERANCE):
+
+- ✅ Zero errori di compilazione
+- ✅ Zero warnings
+- ✅ Tutti i test passano
+- ✅ Coverage >= 80% (per nuovo codice)
+- ✅ Zero memory leaks
+- ✅ Zero data races
+- ✅ Documentazione completa
+
+**Vedi**: `ZERO_TOLERANCE_POLICY.md` e `CONTRIBUTING.md`
+
+---
+
+## 🎯 ORDINE DI ESECUZIONE CONSIGLIATO
+
+1. **Fix linking error** (blocca coverage)
+2. **Eseguire verifiche** (coverage, sanitizers)
+3. **Creare documentazione mancante** (4 file)
+4. **CI/CD coverage tracking** (automazione)
+5. **Security enforcement Phase 2** (5 file)
+6. **Future enhancements** (4 task)
+
+---
+
+## ✅ CRITERI DI COMPLETAMENTO
+
+Ogni task è completo quando:
+- ✅ Codice compila senza errori
+- ✅ Tutti i test passano
+- ✅ Documentazione è completa e accurata
+- ✅ Cambiamenti committati con conventional commits
+- ✅ MASTER_PLAN.md aggiornato con status
+- ✅ PENDING_TASKS_EXECUTABLE.md aggiornato
+
+---
+
+## 📞 COMANDI UTILI
+
+```bash
+# Verifica branch
+cd /Users/roberdan/GitHub/ConvergioCLI-workflow
+git branch --show-current
+
+# Build
+make clean && make
+
+# Test
+make test
+
+# Coverage
+make coverage_workflow
+
+# Sanitizers
+make DEBUG=1 SANITIZE=address,undefined,thread test
+
+# Quality gate
+make quality_gate
+
+# Security audit
+make security_audit_workflow
+```
+
+---
+
+## 🚨 IMPORTANTE
+
+- **NON fare merge della PR** - solo completare i task
+- **NON cambiare branch** - lavora sempre su `feature/workflow-orchestration`
+- **NON committare su main** - solo su feature branch
+- **SEMPRE testare** prima di committare
+- **SEMPRE aggiornare documentazione** quando completi un task
+
+---
+
+**Last Updated**: 2025-12-21  
+**Ready for**: Claude to execute tasks systematically
+
