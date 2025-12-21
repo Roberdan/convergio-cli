@@ -189,6 +189,43 @@ bool workflow_validate_name(const char* name);
 bool workflow_validate_key(const char* key);
 
 // ============================================================================
+// ETHICAL GUARDRAILS
+// ============================================================================
+
+// Ethical validation result
+typedef enum {
+    ETHICAL_OK = 0,              // Content is ethically acceptable
+    ETHICAL_WARN = 1,            // Content has minor concerns, proceed with caution
+    ETHICAL_BLOCK = 2,           // Content violates ethical guidelines, block execution
+    ETHICAL_HUMAN_REVIEW = 3     // Content requires human review before proceeding
+} EthicalResult;
+
+// Sensitive operation categories
+typedef enum {
+    SENSITIVE_NONE = 0,
+    SENSITIVE_FINANCIAL = 1,      // Financial transactions, payments
+    SENSITIVE_PERSONAL_DATA = 2,  // PII, personal information
+    SENSITIVE_SECURITY = 4,       // Security-related operations
+    SENSITIVE_LEGAL = 8,          // Legal/compliance operations
+    SENSITIVE_EXTERNAL_API = 16,  // External API calls
+    SENSITIVE_DATA_DELETE = 32    // Data deletion operations
+} SensitiveCategory;
+
+// Ethical validation functions
+EthicalResult workflow_validate_ethical(const char* content);
+bool workflow_is_sensitive_operation(const char* operation, SensitiveCategory* category);
+bool workflow_requires_human_approval(SensitiveCategory category);
+
+// Human-in-the-loop callback type
+typedef bool (*HumanApprovalCallback)(const char* operation, SensitiveCategory category, void* context);
+
+// Set human approval callback
+void workflow_set_approval_callback(HumanApprovalCallback callback, void* context);
+
+// Request human approval for sensitive operation
+bool workflow_request_human_approval(const char* operation, SensitiveCategory category);
+
+// ============================================================================
 // ERROR HANDLING
 // ============================================================================
 

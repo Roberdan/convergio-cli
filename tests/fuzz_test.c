@@ -11,6 +11,7 @@
 #include <assert.h>
 #include <stdarg.h>
 #include "nous/nous.h"
+#include "nous/workflow.h"
 
 // Stub for nous_log since we exclude main.o which has the real implementation
 LogLevel g_log_level = LOG_LEVEL_ERROR;
@@ -194,6 +195,113 @@ void test_toml_parser_fuzz(void) {
 }
 
 // ============================================================================
+// WORKFLOW CONDITION FUZZ TESTS
+// ============================================================================
+
+extern bool workflow_validate_condition_safe(const char* condition);
+
+void test_workflow_condition_fuzz(void) {
+    printf("\n=== Workflow Condition Fuzz Tests ===\n");
+
+    // Code injection attempts should be blocked
+    TEST("Block exec() injection", !workflow_validate_condition_safe("state.result == 'exec(rm -rf /)'"));
+    TEST("Block eval() injection", !workflow_validate_condition_safe("eval('malicious code')"));
+    TEST("Block system() injection", !workflow_validate_condition_safe("system('whoami')"));
+    TEST("Block popen() injection", !workflow_validate_condition_safe("popen('/bin/sh', 'r')"));
+    TEST("Block import injection", !workflow_validate_condition_safe("import os; os.system('rm')"));
+    TEST("Block script injection", !workflow_validate_condition_safe("<script>alert(1)</script>"));
+    TEST("Block javascript injection", !workflow_validate_condition_safe("javascript:alert(1)"));
+
+    // Very long conditions should be blocked
+    char long_condition[2000];
+    memset(long_condition, 'a', sizeof(long_condition) - 1);
+    long_condition[sizeof(long_condition) - 1] = '\0';
+    TEST("Block very long condition", !workflow_validate_condition_safe(long_condition));
+
+    // Valid conditions should pass
+    TEST("Allow simple equality", workflow_validate_condition_safe("state.result == 'success'"));
+    TEST("Allow numeric comparison", workflow_validate_condition_safe("state.count > 10"));
+    TEST("Allow contains check", workflow_validate_condition_safe("'error' in state.message"));
+    TEST("Allow boolean", workflow_validate_condition_safe("state.completed == true"));
+    TEST("Allow NULL condition", workflow_validate_condition_safe(NULL));
+
+    // Edge cases
+    TEST("Handle empty condition", workflow_validate_condition_safe(""));
+}
+
+// ============================================================================
+// ETHICAL GUARDRAILS FUZZ TESTS
+// ============================================================================
+
+// workflow_validate_ethical is declared in workflow.h
+
+void test_ethical_guardrails_fuzz(void) {
+    printf("\n=== Ethical Guardrails Fuzz Tests ===\n");
+
+    // Very long malicious content
+    char long_malicious[5000];
+    memset(long_malicious, 'h', sizeof(long_malicious) - 1);
+    memcpy(long_malicious, "hack", 4);  // Start with "hack"
+    long_malicious[sizeof(long_malicious) - 1] = '\0';
+
+    // Should handle without crash
+    int result = workflow_validate_ethical(long_malicious);
+    TEST("Handle very long malicious content (no crash)", result >= 0);
+
+    // Unicode attacks
+    result = workflow_validate_ethical("h\xc0" "\x80" "ck the system");  // Overlong NULL encoding
+    TEST("Handle overlong UTF-8 (no crash)", result >= 0 || result < 0);  // Any result is OK, just no crash
+
+    // NULL should not crash
+    result = workflow_validate_ethical(NULL);
+    TEST("Handle NULL content", result == 0);  // ETHICAL_OK
+
+    // Empty string
+    result = workflow_validate_ethical("");
+    TEST("Handle empty content", result == 0);  // ETHICAL_OK
+
+    // Special characters
+    result = workflow_validate_ethical("\x00\x01\x02\x03\x04");
+    TEST("Handle control characters (no crash)", result >= 0 || result < 0);
+}
+
+// ============================================================================
+// INPUT VALIDATION LIMITS FUZZ TESTS
+// ============================================================================
+
+extern bool workflow_validate_name(const char* name);
+extern bool workflow_validate_key(const char* key);
+
+void test_validation_limits_fuzz(void) {
+    printf("\n=== Input Validation Limits Fuzz Tests ===\n");
+
+    // Workflow name with special SQL characters
+    TEST("Block SQL in workflow name", !workflow_validate_name("'; DROP TABLE--"));
+    TEST("Block OR injection in name", !workflow_validate_name("' OR '1'='1"));
+
+    // Very long workflow name
+    char long_name[1000];
+    memset(long_name, 'a', sizeof(long_name) - 1);
+    long_name[sizeof(long_name) - 1] = '\0';
+    TEST("Handle very long workflow name", !workflow_validate_name(long_name));
+
+    // State key with injection
+    TEST("Block SQL in state key", !workflow_validate_key("'; DELETE FROM--"));
+
+    // NULL handling
+    TEST("Handle NULL workflow name", !workflow_validate_name(NULL));
+    TEST("Handle NULL state key", !workflow_validate_key(NULL));
+
+    // Empty handling
+    TEST("Handle empty workflow name", !workflow_validate_name(""));
+    TEST("Handle empty state key", !workflow_validate_key(""));
+
+    // Valid inputs
+    TEST("Allow valid workflow name", workflow_validate_name("my_workflow_123"));
+    TEST("Allow valid state key", workflow_validate_key("api_response_data"));
+}
+
+// ============================================================================
 // MAIN
 // ============================================================================
 
@@ -206,6 +314,9 @@ int main(void) {
     test_malformed_inputs();
     test_json_parser_fuzz();
     test_toml_parser_fuzz();
+    test_workflow_condition_fuzz();
+    test_ethical_guardrails_fuzz();
+    test_validation_limits_fuzz();
 
     printf("\n====================\n");
     printf("Results: %d/%d tests passed\n", tests_passed, tests_run);

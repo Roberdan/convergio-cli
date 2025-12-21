@@ -141,9 +141,38 @@ static int execute_action_node(Workflow* wf, WorkflowNode* node, const char* inp
         }
     }
     
+    // Ethical guardrails: Validate content before execution
+    EthicalResult ethical_check = workflow_validate_ethical(effective_prompt);
+    if (ethical_check == ETHICAL_BLOCK) {
+        if (wf->error_message) {
+            free(wf->error_message);
+            wf->error_message = NULL;
+        }
+        wf->error_message = workflow_strdup("Action blocked by ethical guardrails");
+        workflow_security_log(wf, "ethical_block", "Content blocked by ethical validation");
+        free(effective_prompt);
+        return -1;
+    }
+
+    if (ethical_check == ETHICAL_HUMAN_REVIEW) {
+        SensitiveCategory category = SENSITIVE_NONE;
+        workflow_is_sensitive_operation(effective_prompt, &category);
+        if (!workflow_request_human_approval(effective_prompt, category)) {
+            if (wf->error_message) {
+                free(wf->error_message);
+                wf->error_message = NULL;
+            }
+            wf->error_message = workflow_strdup("Action requires human approval which was denied");
+            workflow_security_log(wf, "human_approval_denied", "Human-in-the-loop approval denied");
+            free(effective_prompt);
+            return -1;
+        }
+        workflow_security_log(wf, "human_approval_granted", "Human-in-the-loop approval granted");
+    }
+
     // Pre-execution checks
     time_t start_time = time(NULL);
-    
+
     // Check network connectivity
     if (!workflow_check_network(5)) {
         workflow_handle_network_error(wf, "Network unavailable: Cannot connect to required services");

@@ -2,17 +2,32 @@
  * CONVERGIO GROUP CHAT
  *
  * Multi-agent conversation with consensus building
+ * Thread-safe implementation with fair agent selection
  */
 
 #include "nous/group_chat.h"
 #include "nous/orchestrator.h"
 #include "nous/nous.h"
+#include "nous/debug_mutex.h"
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include <stdint.h>
 
 // workflow_strdup is defined in workflow_types.c
 extern char* workflow_strdup(const char* str);
+
+// MEDIUM-03: Thread-safe chat ID generation
+CONVERGIO_MUTEX_DECLARE(g_chat_id_mutex);
+static uint64_t g_next_chat_id = 1;
+
+// MEDIUM-03: Thread-safe chat ID allocation
+static uint64_t allocate_chat_id(void) {
+    CONVERGIO_MUTEX_LOCK(&g_chat_id_mutex);
+    uint64_t id = g_next_chat_id++;
+    CONVERGIO_MUTEX_UNLOCK(&g_chat_id_mutex);
+    return id;
+}
 
 // ============================================================================
 // GROUP CHAT CREATION
@@ -28,8 +43,8 @@ GroupChat* group_chat_create(SemanticID* participants, size_t count, GroupChatMo
         return NULL;
     }
     
-    static uint64_t next_chat_id = 1;
-    chat->chat_id = next_chat_id++;
+    // MEDIUM-03: Use thread-safe ID allocation
+    chat->chat_id = allocate_chat_id();
     chat->mode = mode;
     chat->current_round = 0;
     chat->max_rounds = 10;
@@ -55,9 +70,19 @@ GroupChat* group_chat_create(SemanticID* participants, size_t count, GroupChatMo
         free(chat);
         return NULL;
     }
-    
+
     chat->message_count = 0;
-    
+
+    // Fair agent selection: Initialize participation tracking
+    chat->participation_count = calloc(count, sizeof(size_t));
+    if (!chat->participation_count) {
+        free(chat->message_history);
+        free(chat->participants);
+        free(chat);
+        return NULL;
+    }
+    chat->total_participations = 0;
+
     return chat;
 }
 
@@ -65,18 +90,24 @@ void group_chat_destroy(GroupChat* chat) {
     if (!chat) {
         return;
     }
-    
+
     if (chat->participants) {
         free(chat->participants);
         chat->participants = NULL;
     }
-    
+
     if (chat->message_history) {
         // Messages are managed by orchestrator, don't free here
         free(chat->message_history);
         chat->message_history = NULL;
     }
-    
+
+    // Free participation tracking
+    if (chat->participation_count) {
+        free(chat->participation_count);
+        chat->participation_count = NULL;
+    }
+
     free(chat);
     chat = NULL;
 }
@@ -123,10 +154,19 @@ int group_chat_add_message(GroupChat* chat, SemanticID sender, const char* conte
     
     chat->message_history[chat->message_count++] = msg;
     chat->last_message_at = time(NULL);
-    
+
+    // Fair agent selection: Track participation
+    for (size_t i = 0; i < chat->participant_count; i++) {
+        if (chat->participants[i] == sender) {
+            chat->participation_count[i]++;
+            chat->total_participations++;
+            break;
+        }
+    }
+
     // Send message via message bus
     message_send(msg);
-    
+
     return 0;
 }
 
@@ -154,27 +194,33 @@ SemanticID group_chat_get_next_speaker(GroupChat* chat) {
         
         case GROUP_CHAT_CONSENSUS:
         case GROUP_CHAT_DEBATE: {
-            // For consensus/debate, any participant can speak
-            // Return participant who hasn't spoken recently
-            if (chat->message_count == 0) {
+            // Fair agent selection with bias prevention
+            // Prioritize participants who have spoken least to ensure fair distribution
+            if (chat->message_count == 0 || !chat->participation_count) {
                 return chat->participants[0];
             }
-            
-            // Find participant who spoke least recently
-            SemanticID least_recent = chat->participants[0];
-            time_t oldest_time = time(NULL);
-            
-            for (int i = (int)chat->message_count - 1; i >= 0 && i >= (int)chat->message_count - (int)chat->participant_count; i--) {
-                if (chat->message_history[i]) {
-                    time_t msg_time = chat->message_history[i]->timestamp;
-                    if (msg_time < oldest_time) {
-                        oldest_time = msg_time;
-                        least_recent = chat->message_history[i]->sender;
-                    }
+
+            // Find participant with minimum participation count (bias prevention)
+            size_t min_count = SIZE_MAX;
+            size_t min_idx = 0;
+
+            // Calculate expected participation per agent
+            double expected = (double)chat->total_participations / (double)chat->participant_count;
+
+            for (size_t i = 0; i < chat->participant_count; i++) {
+                size_t count = chat->participation_count[i];
+                // Bias prevention: strongly prefer underrepresented participants
+                if (count < min_count) {
+                    min_count = count;
+                    min_idx = i;
+                }
+                // If counts are equal, check deviation from expected (secondary bias check)
+                else if (count == min_count && (double)count < expected) {
+                    min_idx = i;
                 }
             }
-            
-            return least_recent;
+
+            return chat->participants[min_idx];
         }
         
         default:
