@@ -8,12 +8,14 @@
  */
 
 #include "nous/telemetry.h"
+#include "nous/safe_path.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
 #include <unistd.h>
 #include <time.h>
+#include <fcntl.h>
 
 // ============================================================================
 // EXPORT
@@ -25,8 +27,9 @@ char* telemetry_export(void) {
         return NULL;
     }
 
-    // Read data file
-    FILE* f = fopen(config->data_path, "r");
+    // Read data file (safe path open)
+    int fd = safe_path_open(config->data_path, safe_path_get_user_boundary(), O_RDONLY, 0);
+    FILE* f = fd >= 0 ? fdopen(fd, "r") : NULL;
     if (!f) {
         fprintf(stderr, "No telemetry data to export.\n");
         return NULL;
@@ -123,8 +126,9 @@ void telemetry_view(void) {
         return;
     }
 
-    // Read data file
-    FILE* f = fopen(config->data_path, "r");
+    // Read data file (safe path open)
+    int fd = safe_path_open(config->data_path, safe_path_get_user_boundary(), O_RDONLY, 0);
+    FILE* f = fd >= 0 ? fdopen(fd, "r") : NULL;
     if (!f) {
         printf("No telemetry data collected yet.\n");
         return;
