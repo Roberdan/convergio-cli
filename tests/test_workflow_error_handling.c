@@ -13,7 +13,7 @@
 
 #include "nous/workflow.h"
 #include "nous/provider.h"
-#include "test_stubs.c"
+// Note: test_stubs.c is linked separately via $(TEST_STUBS) in Makefile
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
