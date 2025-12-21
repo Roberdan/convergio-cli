@@ -33,6 +33,9 @@ static const bool g_edition_locked = false;
 static ConvergioEdition g_current_edition = EDITION_MASTER;
 #endif
 
+// Track if edition was set via CLI (takes priority over config/env)
+static bool g_edition_set_by_cli = false;
+
 // ============================================================================
 // EDUCATION EDITION WHITELIST
 // ============================================================================
@@ -258,13 +261,42 @@ bool edition_set(ConvergioEdition edition) {
 }
 
 bool edition_set_by_name(const char *name) {
-    if (!name) return false;
-    return edition_set(edition_from_name(name));
+    if (!name) {
+        fprintf(stderr, "[Edition] Edition name cannot be NULL\n");
+        return false;
+    }
+
+    // Check for valid edition name (don't silently default to master)
+    if (strcmp(name, "master") == 0 || strcmp(name, "full") == 0) {
+        return edition_set(EDITION_MASTER);
+    } else if (strcmp(name, "education") == 0 || strcmp(name, "edu") == 0) {
+        return edition_set(EDITION_EDUCATION);
+    } else if (strcmp(name, "business") == 0 || strcmp(name, "biz") == 0) {
+        return edition_set(EDITION_BUSINESS);
+    } else if (strcmp(name, "developer") == 0 || strcmp(name, "dev") == 0) {
+        return edition_set(EDITION_DEVELOPER);
+    }
+
+    fprintf(stderr, "[Edition] Unknown edition name: '%s'\n", name);
+    return false;
+}
+
+bool edition_set_by_cli(const char *name) {
+    if (edition_set_by_name(name)) {
+        g_edition_set_by_cli = true;
+        return true;
+    }
+    return false;
+}
+
+bool edition_was_set_by_cli(void) {
+    return g_edition_set_by_cli;
 }
 
 ConvergioEdition edition_from_name(const char *name) {
     if (!name) return EDITION_MASTER;
 
+    // "full" is an alias for master (primarily for internal use)
     if (strcmp(name, "master") == 0 || strcmp(name, "full") == 0) {
         return EDITION_MASTER;
     } else if (strcmp(name, "education") == 0 || strcmp(name, "edu") == 0) {
@@ -300,7 +332,10 @@ const EditionInfo *edition_get_current_info(void) {
 }
 
 static bool string_in_list(const char *str, const char **list) {
-    if (!str || !list) return true;  // NULL list = allow all
+    // NULL list = allow all (master edition)
+    if (!list) return true;
+    // NULL str = not allowed (invalid input)
+    if (!str) return false;
 
     for (const char **p = list; *p != NULL; p++) {
         if (strcmp(str, *p) == 0) return true;

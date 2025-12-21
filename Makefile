@@ -7,16 +7,22 @@ VERSION := $(shell cat VERSION 2>/dev/null || echo "0.0.0")
 
 # Edition support (master, education, business, developer)
 # Usage: make EDITION=education
+#
+# Only Education uses compile-time locking (for child safety).
+# Other editions use runtime switching via --edition flag.
 EDITION ?= master
 
 ifeq ($(EDITION),education)
+    # Education edition is compile-time locked for child safety
     EDITION_CFLAGS = -DCONVERGIO_EDITION_EDUCATION
     EDITION_SUFFIX = -edu
 else ifeq ($(EDITION),business)
-    EDITION_CFLAGS = -DCONVERGIO_EDITION_BUSINESS
+    # Business edition - same binary as master, just different default
+    EDITION_CFLAGS =
     EDITION_SUFFIX = -biz
 else ifeq ($(EDITION),developer)
-    EDITION_CFLAGS = -DCONVERGIO_EDITION_DEVELOPER
+    # Developer edition - same binary as master, just different default
+    EDITION_CFLAGS =
     EDITION_SUFFIX = -dev
 else
     EDITION_CFLAGS =
