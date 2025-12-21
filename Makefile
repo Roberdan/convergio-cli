@@ -636,7 +636,7 @@ $(PLAN_DB_TEST): $(PLAN_DB_SOURCES) $(PLAN_DB_OBJECTS)
 # Output service test target - tests centralized document generation
 OUTPUT_SERVICE_TEST = $(BIN_DIR)/output_service_test
 OUTPUT_SERVICE_SOURCES = tests/test_output_service.c
-OUTPUT_SERVICE_OBJECTS = $(OBJ_DIR)/tools/output_service.o $(OBJ_DIR)/ui/hyperlink.o
+OUTPUT_SERVICE_OBJECTS = $(OBJ_DIR)/tools/output_service.o $(OBJ_DIR)/ui/hyperlink.o $(OBJ_DIR)/core/safe_path.o
 
 output_service_test: dirs $(OUTPUT_SERVICE_OBJECTS) $(OUTPUT_SERVICE_TEST)
 	@echo "Running output service tests..."

@@ -272,7 +272,9 @@ OutputError output_create(const OutputRequest* request, OutputResult* result) {
 OutputError output_append(const char* filepath, const char* content) {
     if (!filepath || !content) return OUTPUT_ERROR_INVALID;
 
-    int fd = safe_path_open(filepath, safe_path_get_cwd_boundary(), O_WRONLY | O_CREAT | O_APPEND, 0644);
+    // Use O_WRONLY | O_APPEND without O_CREAT since the file should already exist
+    // safe_path_open adds O_EXCL when O_CREAT is set which would fail for existing files
+    int fd = safe_path_open(filepath, safe_path_get_cwd_boundary(), O_WRONLY | O_APPEND, 0644);
     FILE* f = fd >= 0 ? fdopen(fd, "a") : NULL;
     if (!f) return OUTPUT_ERROR_IO;
 

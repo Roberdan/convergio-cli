@@ -11,7 +11,7 @@
 
 <p align="center">
   <a href="https://github.com/Roberdan/convergio-cli/actions/workflows/ci.yml"><img src="https://github.com/Roberdan/convergio-cli/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
-  <a href="https://github.com/Roberdan/convergio-cli/releases/latest"><img src="https://img.shields.io/badge/version-5.3.1-blue" alt="Version 5.3.1"></a>
+  <a href="https://github.com/Roberdan/convergio-cli/releases/latest"><img src="https://img.shields.io/badge/version-5.4.0-blue" alt="Version 5.4.0"></a>
   <a href="https://github.com/Roberdan/convergio-cli/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-green.svg" alt="License"></a>
   <a href="https://github.com/Roberdan/convergio-cli"><img src="https://img.shields.io/badge/platform-macOS%20(Apple%20Silicon)-black" alt="Platform"></a>
   <a href="https://github.com/Roberdan/convergio-cli/stargazers"><img src="https://img.shields.io/github/stars/Roberdan/convergio-cli?style=social" alt="Stars"></a>
@@ -19,7 +19,7 @@
 
 <p align="center">
   <img src="https://img.shields.io/badge/coverage-96%25-brightgreen" alt="Coverage 96%">
-  <img src="https://img.shields.io/badge/tests-306%20passing-success" alt="306 Tests">
+  <img src="https://img.shields.io/badge/tests-350%2B%20passing-success" alt="350+ Tests">
   <img src="https://img.shields.io/badge/agents-54%20specialists-purple" alt="54 AI Agents">
   <img src="https://img.shields.io/badge/C17-Standard-blue" alt="C17">
   <img src="https://img.shields.io/badge/Swift-5.9-orange" alt="Swift 5.9">
@@ -110,6 +110,48 @@ cd convergio-cli
 git checkout feature/native-app
 cd ConvergioApp && xcodegen && open ConvergioApp.xcodeproj
 ```
+
+---
+
+## What's New in v5.4.0
+
+### Workflow Orchestration - Multi-Agent Collaboration Engine
+
+Full-featured workflow orchestration system for complex multi-agent collaboration:
+
+```bash
+# List available workflows
+> /workflow list
+
+# Execute a workflow
+> /workflow execute security-audit --input "Review src/auth"
+
+# Resume a paused workflow
+> /workflow resume wf-12345
+```
+
+**Workflow Orchestration Features:**
+- **DAG-Based Workflows**: Complex directed acyclic graph execution
+- **State Machine Engine**: Robust state transitions with checkpointing
+- **Multi-Agent Patterns**: Router, Group Chat, Sequential, Parallel
+- **Task Decomposition**: LLM-powered automatic task breakdown
+- **Error Handling**: Comprehensive retry policies with exponential backoff
+- **Conditional Routing**: Dynamic path selection based on results
+- **Checkpointing**: Resume workflows from any point after crashes
+- **Security Hardened**: Path traversal protection, SQL injection prevention, input validation
+
+**9 Workflow Templates Included:**
+- Code Review & Refinement
+- Security Audit Pipeline
+- Bug Triage & Fix
+- Performance Optimization
+- API Design Review
+- Incident Response
+- Product Launch Checklist
+- Pre-Release Quality Gates
+- Class Council (Education)
+
+See [Workflow Orchestration Documentation](docs/workflow-orchestration/USER_GUIDE.md) for complete details.
 
 ---
 
@@ -713,14 +755,16 @@ flowchart TB
 
 | Metric | Value |
 |--------|-------|
-| Source Files | 71 C/Objective-C/Swift |
-| Lines of Code | ~58,837 LOC |
+| Source Files | 86+ C/Objective-C/Swift |
+| Lines of Code | ~86,000 LOC |
+| Workflow Engine | 12 workflow modules |
 | AI Agents | 54 specialists |
 | Providers | 6 (Cloud + Local) |
-| Commands | 40+ REPL commands |
+| Commands | 45+ REPL commands |
 | Tools | 15+ execution tools |
 | Models Supported | 300+ across providers |
 | Local Models | 8 MLX models |
+| Test Coverage | 350+ tests passing |
 
 ### Apple Silicon Optimizations
 
@@ -828,7 +872,7 @@ MIT License - see [LICENSE](LICENSE) for details.
 ---
 
 <p align="center">
-  <strong>Convergio CLI v5.1.0</strong><br/>
+  <strong>Convergio CLI v5.4.0</strong><br/>
   <em>Multi-Model AI Orchestration for Apple Silicon</em>
 </p>
 
