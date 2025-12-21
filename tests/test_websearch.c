@@ -18,16 +18,7 @@
 #include "nous/provider.h"
 #include "nous/nous.h"
 
-// Stub for nous_log (required - acp_stubs.o is not linked with test binaries)
-LogLevel g_log_level = LOG_LEVEL_ERROR;
-
-void nous_log(LogLevel level, LogCategory cat, const char* fmt, ...) {
-    (void)level; (void)cat; (void)fmt;
-}
-
-void nous_log_set_level(LogLevel level) { g_log_level = level; }
-LogLevel nous_log_get_level(void) { return g_log_level; }
-const char* nous_log_level_name(LogLevel level) { (void)level; return ""; }
+// Log stubs are provided by test_stubs.c (linked via Makefile)
 
 // Test counters
 static int tests_run = 0;

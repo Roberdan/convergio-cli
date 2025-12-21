@@ -17,22 +17,12 @@
 #include <sqlite3.h>
 #include <pthread.h>
 
+#include "nous/nous.h"  // For LogLevel, LogCategory
 #include "nous/todo.h"
 #include "nous/notify.h"
 #include "nous/mcp_client.h"
 
-// Stub for nous_log
-typedef enum { LOG_LEVEL_ERROR = 0 } LogLevel;
-typedef enum { LOG_CAT_GENERAL = 0 } LogCategory;
-LogLevel g_log_level = LOG_LEVEL_ERROR;
-
-void nous_log(LogLevel level, LogCategory cat, const char* fmt, ...) {
-    (void)level; (void)cat; (void)fmt;
-}
-
-void nous_log_set_level(LogLevel level) { g_log_level = level; }
-LogLevel nous_log_get_level(void) { return g_log_level; }
-const char* nous_log_level_name(LogLevel level) { (void)level; return ""; }
+// Log stubs are provided by test_stubs.c (linked via Makefile)
 
 // External references to global database (defined in persistence.c)
 // Using extern to avoid duplicate symbol errors when linking with persistence.o

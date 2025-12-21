@@ -39,7 +39,7 @@
 // TEST FIXTURES
 // ============================================================================
 
-static const char* TEST_OUTPUT_DIR = "/tmp/convergio_test_outputs";
+static const char* TEST_OUTPUT_DIR = "build/test_outputs";  // Must be within cwd for safe_path
 
 static void setup(void) {
     // Clean up old test directory

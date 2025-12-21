@@ -13,6 +13,58 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
+#include <sqlite3.h>
+#include "nous/debug_mutex.h"
+
+// ============================================================================
+// DATABASE SETUP FOR CHECKPOINT TESTS
+// ============================================================================
+
+// External database access (from persistence.c)
+extern sqlite3* g_db;
+extern ConvergioMutex g_db_mutex;
+
+static void setup_test_db(void) {
+    char tmp_db[256];
+    snprintf(tmp_db, sizeof(tmp_db), "/tmp/test_workflow_e2e_%d.db", getpid());
+    unlink(tmp_db);
+
+    int rc = sqlite3_open(tmp_db, &g_db);
+    if (rc != SQLITE_OK || !g_db) {
+        printf("Warning: sqlite3_open failed\n");
+        return;
+    }
+
+    const char* migration_sql =
+        "CREATE TABLE IF NOT EXISTS workflow_checkpoints ("
+        "id INTEGER PRIMARY KEY AUTOINCREMENT,"
+        "workflow_id INTEGER NOT NULL,"
+        "node_id INTEGER NOT NULL,"
+        "state_json TEXT NOT NULL,"
+        "created_at INTEGER NOT NULL,"
+        "metadata_json TEXT"
+        ");"
+        "CREATE INDEX IF NOT EXISTS idx_checkpoints_workflow ON workflow_checkpoints(workflow_id);";
+
+    char* err_msg = NULL;
+    rc = sqlite3_exec(g_db, migration_sql, NULL, NULL, &err_msg);
+    if (rc != SQLITE_OK && err_msg) {
+        printf("Warning: Migration failed: %s\n", err_msg);
+        sqlite3_free(err_msg);
+    }
+}
+
+static void teardown_test_db(void) {
+    if (g_db) {
+        sqlite3_close(g_db);
+        g_db = NULL;
+    }
+
+    char tmp_db[256];
+    snprintf(tmp_db, sizeof(tmp_db), "/tmp/test_workflow_e2e_%d.db", getpid());
+    unlink(tmp_db);
+}
 
 // ============================================================================
 // TEST HELPERS
@@ -208,7 +260,9 @@ static void test_e2e_conditional_routing(void) {
 
 static void test_e2e_workflow_with_checkpointing(void) {
     printf("test_e2e_workflow_with_checkpointing:\n");
-    
+
+    setup_test_db();
+
     WorkflowNode* step1 = workflow_node_create("step1", NODE_TYPE_ACTION);
     WorkflowNode* step2 = workflow_node_create("step2", NODE_TYPE_ACTION);
     WorkflowNode* step3 = workflow_node_create("step3", NODE_TYPE_ACTION);
@@ -222,7 +276,10 @@ static void test_e2e_workflow_with_checkpointing(void) {
     
     Workflow* wf = workflow_create("checkpoint_test", "Checkpoint test workflow", step1);
     TEST_ASSERT(wf != NULL, "checkpoint test workflow created");
-    
+
+    // Set workflow_id for checkpoint to work (normally set by workflow_save)
+    wf->workflow_id = 1;
+
     // Execute first step
     char* output = NULL;
     workflow_execute(wf, "Start workflow", &output);
@@ -253,6 +310,7 @@ static void test_e2e_workflow_with_checkpointing(void) {
         free(output);
     }
     workflow_destroy(wf);
+    teardown_test_db();
     printf("\n");
 }
 
