@@ -1,317 +1,301 @@
 # Workflow-Orchestration Merge Plan
 
-**Created**: 2025-12-21
-**Status**: WORKFLOW MERGED - EDUCATION IN PROGRESS
-**Priority**: HIGH - Education pack merge pending
-**Last Updated**: 2025-12-21 (aggiornato con stato reale)
-**Location**: QUESTA E' L'UNICA COPIA AUTORITATIVA (in education worktree)
+**Last Updated**: 2025-12-21 | **Status**: 🔴 PHASE 2 - SECURITY AUDIT
 
 ---
 
-## IMPORTANT: Working Instructions
+## Dashboard
 
-> **SINGLE SOURCE OF TRUTH**: Questo file in `/Users/roberdan/GitHub/ConvergioCLI-education/docs/plans/WORKFLOW_MERGE_PLAN.md` e' l'UNICA copia autoritativa del piano.
+| Stato | Tasks |
+|-------|-------|
+| ✅ Completati | 12 |
+| ⬚ Da fare | 39 |
+| **Totale** | **51** |
 
-### Come lavorare:
-
-1. **Lavora SOLO nel worktree education** (`/Users/roberdan/GitHub/ConvergioCLI-education`)
-2. **Quando serve aggiornare da main**:
-   ```bash
-   cd /Users/roberdan/GitHub/ConvergioCLI-education
-   git fetch origin main
-   git merge origin/main  # Risolvi eventuali conflitti
-   ```
-3. **Fai tutte le modifiche qui** - codice, documentazione, test
-4. **Testa tutto prima di proporre merge a main**:
-   ```bash
-   make clean && make EDITION=education
-   make test
-   make education_test
-   ```
-5. **Solo quando tutto funziona al 100%**, crea PR per merge a main
+```
+✅ PHASE 1: MERGE & BUILD ████████████████████ 100% (5/5)
+🔴 PHASE 2: SECURITY      ████████░░░░░░░░░░░░  43% (3/7)
+🟠 PHASE 3: QUALITY       █░░░░░░░░░░░░░░░░░░░   8% (1/13)
+🟡 PHASE 4: DOCS          ██████░░░░░░░░░░░░░░  25% (3/12)
+🟢 PHASE 5: REFACTORING   ░░░░░░░░░░░░░░░░░░░░   0% (0/14)
+```
 
 ---
 
-## Executive Summary
+## ✅ Completati (12 tasks)
 
-The `feature/workflow-orchestration` branch introduces a comprehensive workflow engine (~157 files, +32K lines) but was developed **before** PR #73 (runtime edition switching). This creates a critical conflict: the workflow branch **DELETES** the edition system.
-
-**Goal**: Merge workflow -> main while preserving the edition system, then rebase education-pack.
-
----
-
-## Current State
-
-### Branches & Worktrees
-
-| Worktree | Branch | Status |
-|----------|--------|--------|
-| `/Users/roberdan/GitHub/ConvergioCLI` | main | Has workflow + edition (PR #72 merged) |
-| `/Users/roberdan/GitHub/ConvergioCLI-workflow` | feature/workflow-orchestration | MERGED to main |
-| `/Users/roberdan/GitHub/ConvergioCLI-education` | feature/education-pack | IN PROGRESS - rebased on main, Makefile conflict resolved |
-
-### Critical Conflicts (RESOLVED)
-
-| File | Main (after PR #73) | Workflow Branch | Resolution |
-|------|---------------------|-----------------|------------|
-| `include/nous/edition.h` | Full edition API | DELETED | Restore from main |
-| `src/core/edition.c` | Runtime switching | DELETED | Restore from main |
-| `src/core/main.c` | Has `--edition` flag | No edition flag | Merge carefully |
-| `Makefile` | EDITION support | Different structure | Manual merge - DONE |
+| ID | Phase | Task | Data |
+|----|-------|------|------|
+| ✅ | 1 | Workflow merge PR #72 | 2025-12-21 |
+| ✅ | 1 | Education rebase | 2025-12-21 |
+| ✅ | 1 | Build EDITION=education | 2025-12-21 |
+| ✅ | 1 | All tests passing (39/39) | 2025-12-21 |
+| ✅ | 1 | Ali Preside, Accessibility, Libretto verified | 2025-12-21 |
+| ✅ | 2 | SQL injection check (0 found) | 2025-12-21 |
+| ✅ | 2 | Buffer overflow check (0 found) | 2025-12-21 |
+| ✅ | 2 | Safe string functions (1219 confirmed) | 2025-12-21 |
+| ✅ | 3 | TODO/FIXME audit (3 real TODOs found) | 2025-12-21 |
+| ✅ | 4 | README workflow section | 2025-12-21 |
+| ✅ | 4 | Workflow commands documented | 2025-12-21 |
+| ✅ | 4 | CHANGELOG v5.4.0 | 2025-12-21 |
 
 ---
 
-## Verification Checklist
+## ⬚ Da Fare (39 tasks)
 
-### After Workflow Merge (PR #72 - COMPLETED 2025-12-21)
-
-- [x] `make clean && make` passes (verified during PR #72)
-- [x] `make EDITION=education` passes
-- [x] `make EDITION=business` passes
-- [x] `make test` passes (all tests)
-- [x] `make workflow_test` passes
-- [x] `./build/bin/convergio --version` shows correct version
-- [x] `./build/bin/convergio --edition business` works
-- [x] `./build/bin/convergio-edu` locked to education (if built with EDITION=education)
-- [x] Quality gates pass: `make quality_gate`
-
-### After Education Rebase (IN PROGRESS)
-
-- [ ] `make EDITION=education` passes - DA VERIFICARE
-- [ ] `make education_test` passes - DA VERIFICARE
-- [ ] Ali Preside agent works - DA VERIFICARE
-- [ ] Education agents load correctly - DA VERIFICARE
-- [ ] Accessibility runtime works - DA VERIFICARE
-- [ ] Libretto feature works - DA VERIFICARE
+| Phase | Tasks | Priority |
+|-------|-------|----------|
+| 🔴 2 Security | 4 tasks (SEC-01 to SEC-04) | CRITICAL |
+| 🟠 3 Quality | 12 tasks (QA-01 to QA-12) | HIGH |
+| 🟡 4 Docs | 9 tasks (DOC-01 to DOC-09) | MEDIUM |
+| 🟢 5 Refactor | 14 tasks (ARCH + REF) | BACKLOG |
 
 ---
 
-## Post-Merge Code Analysis
+## Working Instructions
 
-> **STATUS**: GREP-BASED CHECK DONE (vedi CODE_ANALYSIS_REPORT.md in questo worktree)
-> **NOTE**: Solo pattern matching, NON e' un audit completo
-
-### Security Audit (grep-based preliminary)
-
-- [x] SQL injection patterns: 0 trovati nel codice (solo in docs)
-- [x] Buffer overflow (strcpy, sprintf): 0 trovati
-- [x] Safe string functions: 1219 usi confermati
-- [ ] Command injection: 15 system() calls - DA VALUTARE MANUALMENTE
-- [ ] Analisi OWASP Top 10 con strumenti dedicati - NON FATTO
-- [ ] Audit secrets management (API keys, tokens) - NON FATTO
-- [ ] Review delle dipendenze per CVE note - NON FATTO
-
-### Code Quality & Technical Debt
-
-- [ ] Identificare codice duplicato tra moduli
-- [ ] Verificare consistenza naming conventions
-- [ ] Controllare complessita' ciclomatica delle funzioni
-- [ ] Identificare funzioni troppo lunghe (>100 righe)
-- [ ] Verificare error handling consistente
-- [ ] Controllare coverage dei test (<80% = technical debt)
-- [ ] Identificare magic numbers e stringhe hardcoded
-- [x] Verificare tutti i TODO/FIXME nel codice
-  - 3 TODOs reali trovati (102 occorrenze erano nomi variabili)
-  - `src/orchestrator/workflow_integration.c:144` - Parse plan_output
-  - `src/memory/persistence.c:230` - Manager tables per Anna
-  - `src/education/anna_integration.c:730` - Session tracking
-
-### Memory & Performance
-
-- [ ] Eseguire Valgrind/AddressSanitizer su tutto il codebase
-- [ ] Profiling con Instruments (macOS) per memory leaks
-- [ ] Analisi performance hot paths (workflow engine, LLM calls)
-- [ ] Verificare corretta deallocazione in tutti i percorsi di errore
-- [ ] Controllare uso efficiente delle strutture dati
-- [ ] Analisi latenza nelle chiamate API
-- [ ] Verificare caching appropriato (agent definitions, config)
-
-### Refactoring Opportunities
-
-- [ ] **Registry Pattern**: Unificare agent/command/tool registries
-- [ ] **Error Handling**: Centralizzare in `src/core/error_interpreter.c`
-- [ ] **Config Loading**: Consolidare parsing config da varie fonti
-- [ ] **Telemetry**: Unificare event tracking tra moduli
-- [ ] **Logging**: Standardizzare livelli e formati log
-- [ ] **Test Infrastructure**: Consolidare test utilities e mocks
-- [ ] **Build System**: Pulire Makefile/CMakeLists duplicazioni
-
-### Architecture Review
-
-- [ ] Verificare separazione concerns tra layers
-- [ ] Controllare dipendenze cicliche tra moduli
-- [ ] Analizzare accoppiamento tra componenti
-- [ ] Verificare che edition filtering sia consistente ovunque
-- [ ] Controllare thread safety in codice concorrente
-- [ ] Verificare gestione graceful shutdown
-- [ ] Analizzare recovery da errori critici
-
-### Specific Areas to Audit
-
-| Area | Files | Focus |
-|------|-------|-------|
-| Workflow Engine | `src/workflow/*.c` | State machine correctness, memory |
-| Checkpoint System | `checkpoint*.c` | Data integrity, recovery |
-| LLM Integration | `src/providers/*.c` | Rate limiting, error handling |
-| Agent Registry | `src/orchestrator/registry.c` | Thread safety, reload logic |
-| Memory/DB | `src/memory/*.c` | SQL injection, data validation |
-| Voice | `src/voice/*.c` | WebSocket handling, audio buffers |
-| Education Tools | `src/education/tools/*.c` | Input sanitization |
-
-### Tools to Use
+> **SINGLE SOURCE OF TRUTH**: `/Users/roberdan/GitHub/ConvergioCLI-education/docs/plans/WORKFLOW_MERGE_PLAN.md`
 
 ```bash
-# Static analysis
-cppcheck --enable=all src/
-clang-tidy src/**/*.c
+# Lavora SOLO qui
+cd /Users/roberdan/GitHub/ConvergioCLI-education
 
-# Memory analysis
-valgrind --leak-check=full ./build/bin/convergio
-leaks --atExit -- ./build/bin/convergio
+# Aggiornare da main
+git fetch origin main && git merge origin/main
 
-# Coverage
-make coverage
-lcov --capture --directory . --output-file coverage.info
-genhtml coverage.info --output-directory coverage_report
-
-# Complexity analysis
-pmccabe src/**/*.c | sort -n -r | head -20
-
-# Find TODOs and FIXMEs
-rg -n "TODO|FIXME|XXX|HACK" src/
-```
-
-### Report Template
-
-Dopo l'analisi, creare report in `docs/CODE_ANALYSIS_REPORT.md`:
-
-```markdown
-# Code Analysis Report - Post Workflow Merge
-
-**Date**: YYYY-MM-DD
-**Analyzer**: [Nome]
-
-## Executive Summary
-- Critical issues: X
-- High priority: X
-- Medium priority: X
-- Low priority: X
-
-## Critical Issues (Fix Immediately)
-1. [Issue description, file, line]
-
-## High Priority (Fix Before Release)
-1. [Issue description]
-
-## Medium Priority (Fix in Next Sprint)
-1. [Issue description]
-
-## Low Priority (Backlog)
-1. [Issue description]
-
-## Optimization Opportunities
-1. [Opportunity description, estimated impact]
-
-## Refactoring Recommendations
-1. [Recommendation, effort estimate]
+# Test prima di PR
+make clean && make EDITION=education && make test && make education_test
 ```
 
 ---
 
-## Post-Merge Documentation Tasks
+## 🔴 PHASE 2: Security Audit (PRIORITY: CRITICAL)
 
-> **STATUS**: IN PROGRESS (working in education worktree)
+### Batch 2A - Parallel (3 agents)
 
-### README.md Update
+| Task ID | Task | Agent | Status |
+|---------|------|-------|--------|
+| 🔒 SEC-01 | Valutare 15 system() calls per command injection | luca-security-expert | ⬚ |
+| 🔒 SEC-02 | Audit secrets management (API keys, tokens, .env) | luca-security-expert | ⬚ |
+| 🔒 SEC-03 | Review dipendenze per CVE (check package versions) | luca-security-expert | ⬚ |
 
-- [x] Aggiungere sezione **Workflow Engine** con features principali (GIA' FATTO in v5.4.0)
-- [x] Documentare i nuovi comandi `/workflow list`, `/workflow execute`, `/workflow resume` (GIA' FATTO)
-- [x] Aggiornare lista features con checkpointing, task decomposition, group chat (GIA' FATTO)
-- [x] Documentare i 9 workflow templates disponibili (GIA' FATTO)
-- [x] Verificare che tutti i badge/shields siano aggiornati (v5.4.0)
-- [ ] Aggiungere sezione **Quality Standards** (Zero Tolerance Policy)
-- [ ] Aggiornare sezione **Editions** con tutte le edition supportate
+```bash
+# SEC-01: Find system() calls
+rg "system\s*\(" /Users/roberdan/GitHub/ConvergioCLI-education/src/ -n
 
-### Documentation Cleanup
+# SEC-02: Find potential secrets
+rg -i "(api.?key|token|secret|password|credential)" /Users/roberdan/GitHub/ConvergioCLI-education/src/ -n
 
-- [ ] Rimuovere documentazione duplicata tra workflow e main (docs/workflow-orchestration/ADR vs docs/adr)
-- [ ] Unificare docs/workflow-orchestration/ con docs/ principale
-- [x] Aggiornare CHANGELOG.md con tutte le nuove features (v5.4.0 gia' documentato)
-- [ ] Verificare che ADR siano tutti aggiornati e linkati
-- [ ] Creare una pagina "What's New in v5.5" (o versione appropriata)
+# SEC-03: Check dependencies
+cat /Users/roberdan/GitHub/ConvergioCLI-education/Package.swift 2>/dev/null || echo "No Swift deps"
+```
 
-### Code Documentation
+### Batch 2B - Sequential (requires 2A)
 
-- [ ] Verificare che tutti i nuovi header abbiano documentazione Doxygen
-- [ ] Aggiornare man page se presente
-- [ ] Verificare `--help` output include nuovi comandi
+| Task ID | Task | Agent | Status |
+|---------|------|-------|--------|
+| 🔒 SEC-04 | OWASP Top 10 analysis con cppcheck/clang-tidy | luca-security-expert | ⬚ |
+
+```bash
+# Run static analysis
+cd /Users/roberdan/GitHub/ConvergioCLI-education
+cppcheck --enable=all --error-exitcode=1 src/ 2>&1 | head -100
+```
+
+---
+
+## 🟠 PHASE 3: Code Quality (PRIORITY: HIGH)
+
+### Batch 3A - Parallel (4 agents, independent scans)
+
+| Task ID | Task | Command | Status |
+|---------|------|---------|--------|
+| 🧪 QA-01 | Funzioni >100 righe | `wc -l src/**/*.c \| awk '$1>100'` | ⬚ |
+| 🧪 QA-02 | Complessita ciclomatica | `pmccabe src/**/*.c \| sort -rn \| head -20` | ⬚ |
+| 🧪 QA-03 | Magic numbers | `rg "[^0-9][0-9]{3,}[^0-9]" src/ --type c` | ⬚ |
+| 🧪 QA-04 | Naming conventions | `rg "^[a-z]+_[a-z]+" src/ -o \| sort \| uniq -c \| sort -rn` | ⬚ |
+
+### Batch 3B - Parallel (2 agents, heavy analysis)
+
+| Task ID | Task | Command | Status |
+|---------|------|---------|--------|
+| 🧪 QA-05 | Test coverage | `make coverage && lcov ...` | ⬚ |
+| 🧪 QA-06 | Codice duplicato | `jscpd src/ --min-lines 10` | ⬚ |
+
+### Batch 3C - Memory (sequential, needs build)
+
+| Task ID | Task | Command | Status |
+|---------|------|---------|--------|
+| 🧪 QA-07 | Valgrind leak check | `valgrind --leak-check=full ./build/bin/convergio-edu --help` | ⬚ |
+| 🧪 QA-08 | macOS leaks | `leaks --atExit -- ./build/bin/convergio-edu --help` | ⬚ |
+| 🧪 QA-09 | AddressSanitizer build | `make clean && CFLAGS="-fsanitize=address" make` | ⬚ |
+
+### Batch 3D - Error handling (sequential review)
+
+| Task ID | Task | Focus | Status |
+|---------|------|-------|--------|
+| 🧪 QA-10 | Error handling consistente | Review error paths in src/workflow/ | ⬚ |
+| 🧪 QA-11 | Deallocazione in error paths | Check free() on all error returns | ⬚ |
+| 🧪 QA-12 | Graceful shutdown | Verify cleanup in signal handlers | ⬚ |
+
+---
+
+## 🟡 PHASE 4: Documentation (PRIORITY: MEDIUM)
+
+### Batch 4A - Parallel (3 agents, independent docs)
+
+| Task ID | Task | File | Status |
+|---------|------|------|--------|
+| 📄 DOC-01 | Quality Standards section | README.md | ⬚ |
+| 📄 DOC-02 | Editions section update | README.md | ⬚ |
+| 📄 DOC-03 | What's New in v5.5 page | docs/WHATS_NEW_v5.5.md | ⬚ |
+
+### Batch 4B - Parallel (cleanup)
+
+| Task ID | Task | Action | Status |
+|---------|------|--------|--------|
+| 📄 DOC-04 | Unificare docs/workflow-orchestration/ | Move to docs/ | ⬚ |
+| 📄 DOC-05 | Rimuovere ADR duplicati | Delete workflow-orchestration/ADR | ⬚ |
+
+### Batch 4C - Sequential (verification)
+
+| Task ID | Task | Check | Status |
+|---------|------|-------|--------|
+| 📄 DOC-06 | Doxygen headers | All new .h files | ⬚ |
+| 📄 DOC-07 | Man page update | man/convergio.1 | ⬚ |
+| 📄 DOC-08 | --help output verification | Run and check | ⬚ |
+| 📄 DOC-09 | ADR linkage | Check all ADR are linked | ⬚ |
+
+---
+
+## 🟢 PHASE 5: Refactoring (PRIORITY: LOW - BACKLOG)
+
+> Questi sono miglioramenti futuri, non bloccanti per il merge.
+
+### Architecture Review (before refactoring)
+
+| Task ID | Task | Status |
+|---------|------|--------|
+| 🔧 ARCH-01 | Separazione concerns tra layers | ⬚ |
+| 🔧 ARCH-02 | Dipendenze cicliche tra moduli | ⬚ |
+| 🔧 ARCH-03 | Accoppiamento componenti | ⬚ |
+| 🔧 ARCH-04 | Edition filtering consistente | ⬚ |
+| 🔧 ARCH-05 | Thread safety | ⬚ |
+| 🔧 ARCH-06 | Recovery errori critici | ⬚ |
+
+### Refactoring Opportunities (future sprints)
+
+| Task ID | Task | Effort | Status |
+|---------|------|--------|--------|
+| 🔧 REF-01 | Registry Pattern unificato | Medium | ⬚ |
+| 🔧 REF-02 | Error Handling centralizzato | Medium | ⬚ |
+| 🔧 REF-03 | Config Loading consolidato | Low | ⬚ |
+| 🔧 REF-04 | Telemetry unificato | Medium | ⬚ |
+| 🔧 REF-05 | Logging standardizzato | Low | ⬚ |
+| 🔧 REF-06 | Test infrastructure | Medium | ⬚ |
+| 🔧 REF-07 | Build system cleanup | Low | ⬚ |
+| 🔧 REF-08 | Caching agent definitions | Low | ⬚ |
+
+---
+
+## Known TODOs in Code
+
+| File | Line | Description |
+|------|------|-------------|
+| `src/orchestrator/workflow_integration.c` | 144 | Parse plan_output |
+| `src/memory/persistence.c` | 230 | Manager tables per Anna |
+| `src/education/anna_integration.c` | 730 | Session tracking |
+
+---
+
+## Execution Parallelization Map
+
+```
+TIME ──────────────────────────────────────────────────────►
+
+PHASE 2A: [SEC-01]──┐
+          [SEC-02]──┼──► PHASE 2B: [SEC-04]
+          [SEC-03]──┘
+
+PHASE 3A: [QA-01]──┐
+          [QA-02]──┤
+          [QA-03]──┼──► PHASE 3C: [QA-07]──[QA-08]──[QA-09]
+          [QA-04]──┤              │
+                   │              ▼
+PHASE 3B: [QA-05]──┤    PHASE 3D: [QA-10]──[QA-11]──[QA-12]
+          [QA-06]──┘
+
+PHASE 4A: [DOC-01]──┐
+          [DOC-02]──┼──► PHASE 4C: [DOC-06]──[DOC-07]──[DOC-08]──[DOC-09]
+          [DOC-03]──┤
+                    │
+PHASE 4B: [DOC-04]──┤
+          [DOC-05]──┘
+
+(PHASE 5 is backlog - execute only after merge)
+```
+
+---
+
+## Quick Commands Reference
+
+```bash
+# Security scans (run in parallel)
+rg "system\s*\(" src/ -n &
+rg -i "api.?key|token|secret" src/ -n &
+cppcheck --enable=all src/ 2>&1 | head -50 &
+wait
+
+# Quality scans (run in parallel)
+pmccabe src/**/*.c 2>/dev/null | sort -rn | head -20 &
+rg "[^0-9][0-9]{4,}[^0-9]" src/ --type c &
+wait
+
+# Memory analysis
+valgrind --leak-check=full ./build/bin/convergio-edu --help 2>&1 | tail -30
+leaks --atExit -- ./build/bin/convergio-edu --help 2>&1 | tail -20
+```
+
+---
+
+## Rollback Plan
+
+```bash
+# Revert merge on main
+cd /Users/roberdan/GitHub/ConvergioCLI
+git checkout main
+git revert -m 1 <merge-commit-hash>
+git push origin main
+```
 
 ---
 
 ## Notes
 
 1. **NEVER squash commits** - Preserve full history
-2. **NEVER force push to main** - Unless absolutely necessary with team agreement
+2. **NEVER force push to main**
 3. **Always run tests** before pushing
-4. **Create checkpoint tags** before risky operations: `git tag pre-workflow-merge`
+4. **Update this dashboard** after completing tasks
 
 ---
 
-## Rollback Plan
+## Legenda
 
-If merge fails or causes issues:
-
-```bash
-# 1. Revert the merge commit on main
-cd /Users/roberdan/GitHub/ConvergioCLI
-git checkout main
-git revert -m 1 <merge-commit-hash>
-git push origin main
-
-# 2. Or hard reset (DANGEROUS - only if no one else pulled)
-git reset --hard <commit-before-merge>
-git push origin main --force-with-lease
-```
-
----
-
-## Key Files Reference
-
-### Workflow Branch New Files (now on main)
-
-```
-src/workflow/
-├── workflow_engine.c      # Core execution (551 lines)
-├── workflow_types.c       # Data structures (394 lines)
-├── task_decomposer.c      # LLM task breakdown (790 lines)
-├── group_chat.c           # Multi-agent chat (294 lines)
-├── router.c               # Conditional routing (195 lines)
-├── patterns.c             # Reusable patterns (154 lines)
-├── error_handling.c       # Error recovery (468 lines)
-├── checkpoint.c           # Persistence (310 lines)
-├── checkpoint_optimization.c
-├── retry.c                # Retry logic (186 lines)
-├── workflow_observability.c # Logging/telemetry (348 lines)
-├── workflow_visualization.c # Mermaid export (308 lines)
-└── templates/
-    ├── class_council.json    # Education workflow!
-    ├── code_review.json
-    ├── incident_response.json
-    └── ... (9 total)
-```
-
-### Education-Specific Files
-
-```
-src/education/
-├── tools/                # Education-specific tools
-├── anna_integration.c    # Anna assistant integration
-├── accessibility.c       # Accessibility runtime
-└── libretto.c            # Libretto feature
-```
+| Icona | Significato |
+|-------|-------------|
+| ✅ | Completato |
+| ⏳ | In corso |
+| ⬚ | Da fare |
+| 🔴 | CRITICAL priority |
+| 🟠 | HIGH priority |
+| 🟡 | MEDIUM priority |
+| 🟢 | LOW/BACKLOG |
+| 🔒 | Security task |
+| 🧪 | Quality/Test task |
+| 📄 | Documentation task |
+| 🔧 | Refactoring task |
 
 ---
 
 **Document Owner**: Roberto
-**Last Updated**: 2025-12-21
-**Single Authoritative Copy**: /Users/roberdan/GitHub/ConvergioCLI-education/docs/plans/WORKFLOW_MERGE_PLAN.md
+**Single Authoritative Copy**: `/Users/roberdan/GitHub/ConvergioCLI-education/docs/plans/WORKFLOW_MERGE_PLAN.md`
