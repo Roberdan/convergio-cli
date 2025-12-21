@@ -187,6 +187,7 @@ BIN_DIR = $(BUILD_DIR)/bin
 C_SOURCES = $(SRC_DIR)/core/fabric.c \
             $(SRC_DIR)/core/main.c \
             $(SRC_DIR)/core/signals.c \
+            $(SRC_DIR)/core/error.c \
             $(SRC_DIR)/core/repl.c \
             $(SRC_DIR)/core/edition.c \
             $(SRC_DIR)/core/commands/commands.c \
