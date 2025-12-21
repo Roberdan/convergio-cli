@@ -18,6 +18,7 @@
 #include <time.h>
 #include <errno.h>
 #include <sys/stat.h>
+#include <sys/wait.h>
 #include <unistd.h>
 
 // workflow_strdup is defined in workflow_types.c
@@ -73,21 +74,50 @@ int workflow_set_node_timeout(Workflow* wf, WorkflowNode* node, int timeout_seco
 // ============================================================================
 
 /**
- * @brief Check network connectivity
+ * @brief Check network connectivity with timeout
+ * @param timeout_seconds Timeout in seconds (0 = default 5 seconds)
  * @return true if network is available, false otherwise
  * 
  * Security note: Uses popen with hardcoded safe command (ping to 8.8.8.8).
  * This is acceptable as the command is static and safe (no user input).
  * For production, consider using a more secure network check API.
  */
-bool workflow_check_network(void) {
-    // Try to resolve a well-known host
-    // SECURITY: Hardcoded safe command - no user input
-    FILE* fp = popen("ping -c 1 -W 1000 8.8.8.8 > /dev/null 2>&1", "r");
-    if (fp) {
-        int status = pclose(fp);
-        return (status == 0);
+bool workflow_check_network(int timeout_seconds) {
+    if (timeout_seconds <= 0) {
+        timeout_seconds = 5; // Default 5 seconds timeout
     }
+    
+    // Cap timeout at 30 seconds to avoid excessive delays
+    if (timeout_seconds > 30) {
+        timeout_seconds = 30;
+    }
+    
+    // Try to resolve a well-known host with timeout
+    // SECURITY: Hardcoded safe command - no user input
+    // Use timeout in milliseconds for ping (-W flag)
+    char cmd[256];
+    snprintf(cmd, sizeof(cmd), "ping -c 1 -W %d 8.8.8.8 > /dev/null 2>&1", timeout_seconds * 1000);
+    
+    FILE* fp = popen(cmd, "r");
+    if (!fp) {
+        return false; // Failed to execute command
+    }
+    
+    int status = pclose(fp);
+    
+    // pclose returns the exit status of the command
+    // ping returns 0 on success, non-zero on failure
+    if (status == 0) {
+        return true; // Network is available
+    }
+    
+    // Check if it was a timeout (exit code 124 typically means timeout)
+    if (WIFEXITED(status) && WEXITSTATUS(status) == 124) {
+        // Timeout occurred
+        return false;
+    }
+    
+    // Other error (network unreachable, etc.)
     return false;
 }
 
@@ -152,7 +182,7 @@ bool workflow_check_file_writable(const char* filepath) {
     }
     
     // Check if directory exists and is writable
-    char* dir = strdup(filepath);
+    char* dir = workflow_strdup(filepath);
     char* last_slash = strrchr(dir, '/');
     if (last_slash) {
         *last_slash = '\0';
@@ -268,7 +298,7 @@ WorkflowErrorType workflow_handle_credit_exhausted(Workflow* wf) {
 bool workflow_check_llm_available(ProviderType provider_type) {
     // This is a placeholder - actual implementation would check provider status
     // For now, we assume provider is available if network is available
-    return workflow_check_network();
+    return workflow_check_network(5);
 }
 
 /**
