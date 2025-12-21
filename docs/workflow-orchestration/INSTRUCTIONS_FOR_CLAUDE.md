@@ -93,8 +93,14 @@ ld: 4 duplicate symbols
 ```
 
 **File coinvolti**:
-- `tests/test_workflow_integration.c` - Probabilmente include `test_stubs.c` direttamente
-- `tests/unit/test_stubs.c` - Contiene definizioni di stub functions
+- `tests/test_workflow_integration.c` (riga 45) - Definisce `void nous_log(LogLevel level, LogCategory cat, ...)`
+- `tests/unit/test_stubs.c` (riga 11) - Definisce `void nous_log(int level, ...)` con signature diversa
+- Nel Makefile: `WORKFLOW_INTEGRATION_SOURCES` include sia `test_workflow_integration.c` che `$(TEST_STUBS)`
+
+**Problema identificato**:
+- `test_workflow_integration.c` definisce `nous_log` con signature: `(LogLevel level, LogCategory cat, ...)`
+- `tests/unit/test_stubs.c` definisce `nous_log` con signature: `(int level, ...)`
+- Entrambi vengono compilati e linkati insieme, causando duplicate symbol
 
 **Comando per verificare l'errore**: 
 ```bash
@@ -113,10 +119,22 @@ make coverage_workflow 2>&1 | grep -A 5 "duplicate symbol"
    grep -n "nous_log\|_nous_log" tests/test_workflow_integration.c tests/unit/test_stubs.c
    ```
 
-2. **Soluzione probabile**:
-   - Se `test_workflow_integration.c` include `test_stubs.c` direttamente con `#include`, rimuovi l'include
-   - Assicurati che `test_stubs.c` sia compilato separatamente e linkato (non incluso)
-   - Verifica che nel Makefile `test_workflow_integration` linki `test_stubs.o` invece di includere il file
+2. **Soluzione**:
+   - **Opzione A (Raccomandata)**: Rimuovi la definizione di `nous_log` da `test_workflow_integration.c` (riga 45-48)
+     - Usa invece quella in `tests/unit/test_stubs.c` o `tests/test_stubs.c`
+     - Oppure aggiungi `extern` declaration se necessario
+   
+   - **Opzione B**: Unifica le signature - assicurati che entrambe le definizioni abbiano la stessa signature
+     - Verifica quale signature è corretta guardando `include/nous/nous.h`
+     - Aggiorna quella sbagliata per matchare
+   
+   - **Opzione C**: Rendi `static` una delle definizioni se è usata solo in quel file
+     - Ma questo potrebbe non funzionare se è usata da altri file di test
+   
+   - **Verifica Makefile**: Assicurati che `WORKFLOW_INTEGRATION_SOURCES` non includa entrambi i file che definiscono `nous_log`
+     - Attualmente: `WORKFLOW_INTEGRATION_SOURCES = tests/test_workflow_integration.c $(TEST_STUBS)`
+     - `TEST_STUBS = tests/test_stubs.c` (non `tests/unit/test_stubs.c`)
+     - Verifica se `tests/unit/test_stubs.c` viene compilato separatamente e linkato
 
 3. **Verifica la fix**:
    ```bash
