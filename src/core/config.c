@@ -8,6 +8,7 @@
  */
 
 #include "nous/config.h"
+#include "nous/edition.h"
 #include "nous/nous.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -152,6 +153,8 @@ static int parse_config_line(const char* line, char* section, size_t section_siz
             strncpy(g_config.theme, value, sizeof(g_config.theme) - 1);
         } else if (strcmp(key, "style") == 0) {
             strncpy(g_config.style, value, sizeof(g_config.style) - 1);
+        } else if (strcmp(key, "edition") == 0) {
+            strncpy(g_config.edition, value, sizeof(g_config.edition) - 1);
         }
     } else if (strcmp(section, "updates") == 0) {
         if (strcmp(key, "check_on_startup") == 0) {
@@ -177,6 +180,7 @@ static void set_defaults(void) {
     strncpy(g_config.debug_level, "none", sizeof(g_config.debug_level) - 1);
     strncpy(g_config.theme, "Ocean", sizeof(g_config.theme) - 1);  // Default theme
     strncpy(g_config.style, "balanced", sizeof(g_config.style) - 1);  // Default style
+    strncpy(g_config.edition, "master", sizeof(g_config.edition) - 1);  // Default edition
     g_config.check_updates_on_startup = true;
     g_config.auto_update = false;
 }
@@ -225,6 +229,17 @@ int convergio_config_init(void) {
 
     // Load config file if it exists
     convergio_config_load();
+
+    // Apply edition from config (if not Education binary which is locked)
+    if (edition_is_mutable() && g_config.edition[0]) {
+        edition_set_by_name(g_config.edition);
+    }
+
+    // Environment variable overrides config (priority: CLI > env > config)
+    const char* env_edition = getenv("CONVERGIO_EDITION");
+    if (env_edition && strlen(env_edition) > 0 && edition_is_mutable()) {
+        edition_set_by_name(env_edition);
+    }
 
     g_config.initialized = true;
     return 0;
@@ -278,7 +293,8 @@ int convergio_config_save(void) {
     fprintf(f, "color = %s\n", g_config.color_enabled ? "true" : "false");
     fprintf(f, "debug_level = \"%s\"\n", g_config.debug_level);
     fprintf(f, "theme = \"%s\"\n", g_config.theme[0] ? g_config.theme : "Ocean");
-    fprintf(f, "style = \"%s\"\n\n", g_config.style[0] ? g_config.style : "balanced");
+    fprintf(f, "style = \"%s\"\n", g_config.style[0] ? g_config.style : "balanced");
+    fprintf(f, "edition = \"%s\"\n\n", g_config.edition[0] ? g_config.edition : "master");
 
     fprintf(f, "[updates]\n");
     fprintf(f, "check_on_startup = %s\n", g_config.check_updates_on_startup ? "true" : "false");
