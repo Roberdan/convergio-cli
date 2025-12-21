@@ -434,6 +434,133 @@ CMakeLists.txt             # CMake (add workflow sources)
 
 ---
 
+## Post-Merge Code Analysis
+
+> **DA FARE** dopo il merge, prima di considerare stabile
+
+### Security Audit
+
+- [ ] Analisi OWASP Top 10 su tutto il codice
+- [ ] Verificare input validation in tutti gli endpoint
+- [ ] Controllare command injection vulnerabilities (specialmente in Bash tool usage)
+- [ ] Audit secrets management (API keys, tokens)
+- [ ] Verificare SQL injection in memory/database layer
+- [ ] Controllare buffer overflow potenziali in codice C
+- [ ] Review delle dipendenze per CVE note
+
+### Memory & Performance
+
+- [ ] Eseguire Valgrind/AddressSanitizer su tutto il codebase
+- [ ] Profiling con Instruments (macOS) per memory leaks
+- [ ] Analisi performance hot paths (workflow engine, LLM calls)
+- [ ] Verificare corretta deallocazione in tutti i percorsi di errore
+- [ ] Controllare uso efficiente delle strutture dati
+- [ ] Analisi latenza nelle chiamate API
+- [ ] Verificare caching appropriato (agent definitions, config)
+
+### Code Quality & Technical Debt
+
+- [ ] Identificare codice duplicato tra moduli
+- [ ] Verificare consistenza naming conventions
+- [ ] Controllare complessità ciclomatica delle funzioni
+- [ ] Identificare funzioni troppo lunghe (>100 righe)
+- [ ] Verificare error handling consistente
+- [ ] Controllare coverage dei test (<80% = technical debt)
+- [ ] Identificare magic numbers e stringhe hardcoded
+- [ ] Verificare tutti i TODO/FIXME nel codice
+
+### Refactoring Opportunities
+
+- [ ] **Registry Pattern**: Unificare agent/command/tool registries
+- [ ] **Error Handling**: Centralizzare in `src/core/error_interpreter.c`
+- [ ] **Config Loading**: Consolidare parsing config da varie fonti
+- [ ] **Telemetry**: Unificare event tracking tra moduli
+- [ ] **Logging**: Standardizzare livelli e formati log
+- [ ] **Test Infrastructure**: Consolidare test utilities e mocks
+- [ ] **Build System**: Pulire Makefile/CMakeLists duplicazioni
+
+### Architecture Review
+
+- [ ] Verificare separazione concerns tra layers
+- [ ] Controllare dipendenze cicliche tra moduli
+- [ ] Analizzare accoppiamento tra componenti
+- [ ] Verificare che edition filtering sia consistente ovunque
+- [ ] Controllare thread safety in codice concorrente
+- [ ] Verificare gestione graceful shutdown
+- [ ] Analizzare recovery da errori critici
+
+### Specific Areas to Audit
+
+| Area | Files | Focus |
+|------|-------|-------|
+| Workflow Engine | `src/workflow/*.c` | State machine correctness, memory |
+| Checkpoint System | `checkpoint*.c` | Data integrity, recovery |
+| LLM Integration | `src/providers/*.c` | Rate limiting, error handling |
+| Agent Registry | `src/orchestrator/registry.c` | Thread safety, reload logic |
+| Memory/DB | `src/memory/*.c` | SQL injection, data validation |
+| Voice | `src/voice/*.c` | WebSocket handling, audio buffers |
+| Education Tools | `src/education/tools/*.c` | Input sanitization |
+
+### Tools to Use
+
+```bash
+# Static analysis
+cppcheck --enable=all src/
+clang-tidy src/**/*.c
+
+# Memory analysis
+valgrind --leak-check=full ./build/bin/convergio
+leaks --atExit -- ./build/bin/convergio
+
+# Coverage
+make coverage
+lcov --capture --directory . --output-file coverage.info
+genhtml coverage.info --output-directory coverage_report
+
+# Complexity analysis
+pmccabe src/**/*.c | sort -n -r | head -20
+
+# Find TODOs and FIXMEs
+rg -n "TODO|FIXME|XXX|HACK" src/
+```
+
+### Report Template
+
+Dopo l'analisi, creare report in `docs/CODE_ANALYSIS_REPORT.md`:
+
+```markdown
+# Code Analysis Report - Post Workflow Merge
+
+**Date**: YYYY-MM-DD
+**Analyzer**: [Nome]
+
+## Executive Summary
+- Critical issues: X
+- High priority: X
+- Medium priority: X
+- Low priority: X
+
+## Critical Issues (Fix Immediately)
+1. [Issue description, file, line]
+
+## High Priority (Fix Before Release)
+1. [Issue description]
+
+## Medium Priority (Fix in Next Sprint)
+1. [Issue description]
+
+## Low Priority (Backlog)
+1. [Issue description]
+
+## Optimization Opportunities
+1. [Opportunity description, estimated impact]
+
+## Refactoring Recommendations
+1. [Recommendation, effort estimate]
+```
+
+---
+
 ## Post-Merge Documentation Tasks
 
 > **DA FARE** dopo che tutto funziona e prima di considerare il merge completo

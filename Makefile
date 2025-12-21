@@ -623,9 +623,9 @@ $(COMPACTION_TEST): $(COMPACTION_SOURCES) $(COMPACTION_OBJECTS)
 # Plan database test target - tests SQLite-backed plan system
 PLAN_DB_TEST = $(BIN_DIR)/plan_db_test
 PLAN_DB_SOURCES = tests/test_plan_db.c
-PLAN_DB_OBJECTS = $(OBJ_DIR)/orchestrator/plan_db.o
+PLAN_DB_OBJECTS = $(OBJ_DIR)/orchestrator/plan_db.o $(OBJ_DIR)/core/safe_path.o
 
-plan_db_test: dirs $(OBJ_DIR)/orchestrator/plan_db.o $(PLAN_DB_TEST)
+plan_db_test: dirs $(OBJ_DIR)/orchestrator/plan_db.o $(OBJ_DIR)/core/safe_path.o $(PLAN_DB_TEST)
 	@echo "Running plan database tests..."
 	@$(PLAN_DB_TEST)
 

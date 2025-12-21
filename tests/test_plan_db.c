@@ -422,7 +422,7 @@ TEST(export_markdown) {
     plan_db_add_task(plan_id, "Task 2", "agent2", 60, NULL, task_id);
     plan_db_add_task(plan_id, "Task 3", NULL, 40, NULL, task_id);
 
-    const char* out_path = "/tmp/test_plan_export.md";
+    const char* out_path = "build/test_plan_export.md";  // Must be within cwd for safe_path
     PlanDbError err = plan_db_export_markdown(plan_id, out_path, true);
     ASSERT_EQ(err, PLAN_DB_OK);
 
