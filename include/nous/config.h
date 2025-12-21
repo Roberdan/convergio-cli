@@ -30,6 +30,7 @@ typedef struct {
     char debug_level[16];  // none, error, warn, info, debug, trace
     char theme[32];        // Theme name (Ocean, Forest, Sunset, etc.)
     char style[16];        // Response style: flash, concise, balanced, detailed
+    char edition[32];      // Edition: master, business, developer (education is compile-time only)
 
     // Updates
     bool check_updates_on_startup;
