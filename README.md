@@ -464,7 +464,9 @@ convergio
 # edition = "business"
 ```
 
-**Note:** Education edition requires a dedicated binary (`convergio-edu`) for child safety compliance. It cannot be switched at runtime.
+**Note:**
+- Edition switching requires restarting Convergio to take effect
+- Education edition requires a dedicated binary (`convergio-edu`) for child safety compliance
 
 ### Building Specific Editions
 
