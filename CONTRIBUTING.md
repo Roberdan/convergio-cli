@@ -152,6 +152,55 @@ docs(readme): Update installation instructions
 2. Add it to the `COMMANDS` array
 3. Update the `cmd_help()` output
 
+## Zero Tolerance Policy
+
+**MANDATORY - NO EXCEPTIONS**
+
+Convergio enforces a **zero tolerance policy** for code quality issues. This ensures high standards across the entire codebase.
+
+### Zero Tolerance For:
+
+- ❌ **Code without tests** - All new code must have tests
+- ❌ **Failing tests** - All tests must pass
+- ❌ **Warnings** - Zero compiler or static analysis warnings
+- ❌ **Memory leaks** - Zero memory leaks (verified with Address Sanitizer)
+- ❌ **Data races** - Zero data races (verified with Thread Sanitizer)
+- ❌ **Security vulnerabilities** - All security issues must be fixed
+- ❌ **Silent error handling** - All errors must be logged
+- ❌ **Shortcuts or "good enough" code** - Code must be production-ready
+- ❌ **Low test coverage** - Minimum 80% coverage for new code
+- ❌ **Breaking changes without migration** - Backward compatibility required
+
+**NO EXCEPTIONS. NO NEGOTIATION. NO "I'LL FIX IT LATER".**
+
+### Enforcement
+
+1. **Pre-Commit Hooks** - Automated checks before every commit
+2. **Quality Gates** - Comprehensive checks before PR merge
+3. **CI/CD Pipeline** - Automated verification in GitHub Actions
+4. **App Release Manager** - Final verification before release
+
+### Quality Gates
+
+Before creating a PR, run:
+
+```bash
+make quality_gate
+```
+
+This will verify:
+- ✅ Build succeeds with zero warnings
+- ✅ All tests pass (unit, integration, fuzz, sanitizer)
+- ✅ Code coverage >= 80%
+- ✅ Static analysis clean
+- ✅ Security audit passed
+- ✅ No memory leaks
+- ✅ No data races
+
+**PRs will be rejected if quality gates fail.**
+
+See [docs/workflow-orchestration/ZERO_TOLERANCE_POLICY.md](docs/workflow-orchestration/ZERO_TOLERANCE_POLICY.md) for complete details.
+
 ## Questions?
 
 Feel free to open an issue for any questions about contributing.
