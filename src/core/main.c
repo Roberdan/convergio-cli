@@ -282,8 +282,14 @@ int main(int argc, char** argv) {
             printf("Usage: convergio [OPTIONS] [COMMAND]\n\n");
             printf("Commands:\n");
             printf("  setup                   Configure API key, models, and settings\n");
-            printf("  update [check|install]  Check for or install updates\n\n");
+            printf("  update [check|install]  Check for or install updates\n");
+            printf("  workflow <subcommand>   Manage multi-agent workflows\n");
+            printf("    list                  List available workflow templates\n");
+            printf("    show <name>           Show workflow details and Mermaid diagram\n");
+            printf("    execute <name>        Execute a workflow\n");
+            printf("    resume <id>           Resume a checkpointed workflow\n\n");
             printf("Options:\n");
+            printf("  -a, --agent <name>      Start with specific agent (e.g., amy-cfo, rex-code-reviewer)\n");
             printf("  -w, --workspace <path>  Set workspace directory (default: current dir)\n");
             printf("  -e, --edition <name>    Set edition (master, business, developer)\n");
             printf("  -l, --local             Use MLX local models (Apple Silicon only)\n");
