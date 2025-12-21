@@ -267,10 +267,10 @@ int main(int argc, char** argv) {
             g_mlx_model[sizeof(g_mlx_model) - 1] = '\0';
         } else if ((strcmp(argv[i], "--edition") == 0 || strcmp(argv[i], "-e") == 0) && i + 1 < argc) {
             const char* ed = argv[++i];
-            if (!edition_set_by_name(ed)) {
-                fprintf(stderr, "Error: Cannot set edition to '%s'\n", ed);
+            if (!edition_set_by_cli(ed)) {
+                // Error already printed by edition_set_by_cli
                 fprintf(stderr, "Valid editions: master, business, developer\n");
-                fprintf(stderr, "(Education edition requires dedicated binary)\n");
+                fprintf(stderr, "(Education edition requires dedicated binary: convergio-edu)\n");
                 return 1;
             }
         } else if (strcmp(argv[i], "--help") == 0 || strcmp(argv[i], "-h") == 0) {
@@ -356,6 +356,9 @@ int main(int argc, char** argv) {
         fprintf(stderr, "  \033[31m✗ Config initialization failed\033[0m\n");
         init_errors = true;
     }
+
+    // Initialize edition system (displays edition info for non-master)
+    edition_init();
 
     // Initialize theme system
     theme_init();

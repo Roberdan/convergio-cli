@@ -230,15 +230,25 @@ int convergio_config_init(void) {
     // Load config file if it exists
     convergio_config_load();
 
-    // Apply edition from config (if not Education binary which is locked)
-    if (edition_is_mutable() && g_config.edition[0]) {
-        edition_set_by_name(g_config.edition);
-    }
-
-    // Environment variable overrides config (priority: CLI > env > config)
-    const char* env_edition = getenv("CONVERGIO_EDITION");
-    if (env_edition && strlen(env_edition) > 0 && edition_is_mutable()) {
-        edition_set_by_name(env_edition);
+    // Apply edition from config/env (priority: CLI > env > config)
+    // Skip if already set by CLI flag (CLI has highest priority)
+    if (!edition_was_set_by_cli() && edition_is_mutable()) {
+        // Check environment variable first (higher priority than config)
+        const char* env_edition = getenv("CONVERGIO_EDITION");
+        if (env_edition && strlen(env_edition) > 0) {
+            if (!edition_set_by_name(env_edition)) {
+                LOG_WARN(LOG_CAT_SYSTEM,
+                    "Invalid edition '%s' in CONVERGIO_EDITION env var; using default",
+                    env_edition);
+            }
+        } else if (g_config.edition[0]) {
+            // Fall back to config file setting
+            if (!edition_set_by_name(g_config.edition)) {
+                LOG_WARN(LOG_CAT_SYSTEM,
+                    "Invalid edition '%s' in config; using default",
+                    g_config.edition);
+            }
+        }
     }
 
     g_config.initialized = true;

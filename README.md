@@ -465,7 +465,8 @@ convergio
 ```
 
 **Note:**
-- Edition switching requires restarting Convergio to take effect
+- Edition is set at startup and takes effect immediately for that session
+- To change edition, start a new Convergio session with the desired flag/config
 - Education edition requires a dedicated binary (`convergio-edu`) for child safety compliance
 
 ### Building Specific Editions

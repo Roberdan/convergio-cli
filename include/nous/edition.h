@@ -78,6 +78,19 @@ bool edition_set(ConvergioEdition edition);
 bool edition_set_by_name(const char *name);
 
 /**
+ * Set edition by CLI flag (marks as CLI priority)
+ * Use this when parsing --edition command line argument
+ * CLI takes priority over env var and config
+ */
+bool edition_set_by_cli(const char *name);
+
+/**
+ * Check if edition was set via CLI flag
+ * Config and env var should skip setting if this returns true
+ */
+bool edition_was_set_by_cli(void);
+
+/**
  * Check if edition can be changed at runtime
  * Returns false for Education binary
  */
