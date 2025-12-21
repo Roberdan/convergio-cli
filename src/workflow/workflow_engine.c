@@ -333,15 +333,50 @@ WorkflowNode* workflow_get_current_node(Workflow* wf) {
 }
 
 // ============================================================================
-// WORKFLOW EXECUTION
+// WORKFLOW EXECUTION - Helper Functions
 // ============================================================================
 
-// Execute a workflow from start to completion (linear workflows only for Phase 1)
-int workflow_execute(Workflow* wf, const char* input, char** output) {
-    if (!wf) {
-        return -1;
+// Handle node execution failure
+static void handle_node_failure(Workflow* wf, WorkflowNode* node, 
+                                char* current_input, char* node_output,
+                                double latency_ms) {
+    wf->status = WORKFLOW_STATUS_FAILED;
+    
+    // Logging: Log node failure
+    workflow_log_node_execution(wf, node, "failed", wf->error_message);
+    workflow_log_error(wf, "node_execution_failed", wf->error_message);
+    
+    // Telemetry: Record node failure
+    workflow_telemetry_node(wf, node, false, latency_ms);
+    workflow_telemetry_error(wf, "node_execution_failed");
+    
+    // Audit: Log failure
+    workflow_audit_log(wf, "node_execute_failed", node->name ? node->name : "unnamed");
+    
+    // Cleanup
+    if (current_input) {
+        free(current_input);
+    }
+    if (node_output) {
+        free(node_output);
     }
     
+    // Telemetry: Record workflow end (failure)
+    workflow_telemetry_end(wf, false);
+    workflow_log_event(LOG_LEVEL_ERROR, "workflow_execute_failed", wf->name, wf->workflow_id, wf->error_message);
+}
+
+// Handle node execution success
+static void handle_node_success(Workflow* wf, WorkflowNode* node, double latency_ms) {
+    // Logging: Log node success
+    workflow_log_node_execution(wf, node, "completed", NULL);
+    
+    // Telemetry: Record node success
+    workflow_telemetry_node(wf, node, true, latency_ms);
+}
+
+// Prepare workflow for execution
+static int prepare_workflow_execution(Workflow* wf, const char* input) {
     if (!wf->entry_node) {
         if (wf->error_message) {
             free(wf->error_message);
@@ -366,6 +401,24 @@ int workflow_execute(Workflow* wf, const char* input, char** output) {
         workflow_set_state(wf, "input", input);
     }
     
+    return 0;
+}
+
+// ============================================================================
+// WORKFLOW EXECUTION
+// ============================================================================
+
+// Execute a workflow from start to completion (linear workflows only for Phase 1)
+int workflow_execute(Workflow* wf, const char* input, char** output) {
+    if (!wf) {
+        return -1;
+    }
+    
+    // Prepare workflow for execution
+    if (prepare_workflow_execution(wf, input) != 0) {
+        return -1;
+    }
+    
     // Execute linear workflow
     WorkflowNode* current = wf->entry_node;
     char* current_input = input ? workflow_strdup(input) : NULL;
@@ -388,51 +441,20 @@ int workflow_execute(Workflow* wf, const char* input, char** output) {
         
         if (result != 0) {
             // Execution failed
-            wf->status = WORKFLOW_STATUS_FAILED;
-            
-            // Logging: Log node failure
-            workflow_log_node_execution(wf, current, "failed", wf->error_message);
-            workflow_log_error(wf, "node_execution_failed", wf->error_message);
-            
-            // Telemetry: Record node failure
-            workflow_telemetry_node(wf, current, false, latency_ms);
-            workflow_telemetry_error(wf, "node_execution_failed");
-            
-            // Audit: Log failure
-            workflow_audit_log(wf, "node_execute_failed", current->name ? current->name : "unnamed");
-            
-            if (current_input) {
-                free(current_input);
-                current_input = NULL;
-            }
-            if (node_output) {
-                free(node_output);
-                node_output = NULL;
-            }
-            // Input is already validated by workflow_validate_name/validate_key
-            
-            // Telemetry: Record workflow end (failure)
-            workflow_telemetry_end(wf, false);
-            workflow_log_event(LOG_LEVEL_ERROR, "workflow_execute_failed", wf->name, wf->workflow_id, wf->error_message);
-            
+            handle_node_failure(wf, current, current_input, node_output, latency_ms);
             return -1;
         }
         
         // Logging: Log node success
-        workflow_log_node_execution(wf, current, "completed", NULL);
-        
-        // Telemetry: Record node success
-        workflow_telemetry_node(wf, current, true, latency_ms);
+        handle_node_success(wf, current, latency_ms);
         
         // Check if workflow was paused (human input required)
         if (wf->status == WORKFLOW_STATUS_PAUSED) {
             if (current_input) {
                 free(current_input);
-                current_input = NULL;
             }
             if (node_output) {
                 free(node_output);
-                node_output = NULL;
             }
             return 0; // Paused, not an error
         }
@@ -443,19 +465,14 @@ int workflow_execute(Workflow* wf, const char* input, char** output) {
         // Update input for next node (use output from current)
         if (current_input) {
             free(current_input);
-            current_input = NULL;
         }
-        if (node_output) {
-            current_input = node_output;
-            node_output = NULL;
-        } else {
-            current_input = NULL;
-        }
+        current_input = node_output;
+        node_output = NULL;
         
         current = next;
     }
     
-    // Workflow completed
+    // Workflow completed successfully
     wf->status = WORKFLOW_STATUS_COMPLETED;
     wf->updated_at = time(NULL);
     
@@ -473,8 +490,11 @@ int workflow_execute(Workflow* wf, const char* input, char** output) {
     
     if (current_input) {
         free(current_input);
-        current_input = NULL;
     }
+    
+    // Telemetry: Record workflow end (success)
+    workflow_telemetry_end(wf, true);
+    workflow_log_event(LOG_LEVEL_INFO, "workflow_execute_completed", wf->name, wf->workflow_id, NULL);
     
     return 0;
 }
