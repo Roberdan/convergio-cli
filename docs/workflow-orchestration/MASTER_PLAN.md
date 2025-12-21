@@ -16,7 +16,7 @@
 | [PHASE 1 - Foundation](phases/phase-1-foundation.md) | ⚠️ **Partial** | 4/4 core, ~40 items pending | Core code exists, but tests/verifications incomplete |
 | [PHASE 2 - Task Decomposition](phases/phase-2-task-decomposition.md) | ⚠️ **Partial** | 3/3 core, ~25 items pending | Core code exists, but tests/verifications incomplete |
 | [PHASE 3 - Group Chat & Refinement](phases/phase-3-group-chat.md) | ⚠️ **Partial** | 3/3 core, ~20 items pending | Core code exists, but tests/verifications incomplete |
-| [PHASE 4 - Conditional Routing](phases/phase-4-conditional-routing.md) | ⚠️ **Partial** | 2/3 core, R3 MISSING, ~30 items pending | **R3 (Mermaid export) COMPLETELY MISSING**, other code exists |
+| [PHASE 4 - Conditional Routing](phases/phase-4-conditional-routing.md) | ⚠️ **Partial** | 3/3 core, ~30 items pending | Core code exists, including Mermaid export (R3), but tests/verifications incomplete |
 | [PHASE 5 - Integration & Polish](phases/phase-5-integration.md) | ⚠️ **Partial** | 4/4 core, ~35 items pending | Core code exists, but integration/optimization incomplete |
 | **TOTAL** | **⚠️ PARTIAL** | **16/17 core** | **170+ items missing or pending verification** |
 
@@ -238,7 +238,7 @@ This implementation will deliver:
 - ⏳ Global security verification - verify all components use security functions (60% complete: SQL 100%, Command 100%, Path 9%)
 
 **Future Enhancements:**
-- ⏳ Mermaid visualization export - workflow diagram generation
+- ✅ Mermaid visualization export - workflow diagram generation (implemented and integrated in CLI)
 - ⏳ Workflow execution history UI - visual history browser
 - ✅ README.md workflow section update - user-facing documentation
 - ⏳ Extended telemetry events - more specific event types for providers/orchestrator
