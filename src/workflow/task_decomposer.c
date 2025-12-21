@@ -44,116 +44,183 @@ extern char* workflow_strdup(const char* str);
 // TASK DECOMPOSITION (LLM-based)
 // ============================================================================
 
+// Security: Maximum limits for LLM output validation
+#define MAX_TASKS_FROM_LLM 50
+#define MAX_PREREQUISITES_PER_TASK 20
+#define MAX_ROLE_LENGTH 32
+
+// Security: Validate and sanitize LLM-provided string
+static char* sanitize_llm_string(const char* str, size_t max_len) {
+    if (!str) {
+        return NULL;
+    }
+
+    size_t len = strlen(str);
+    if (len == 0 || len > max_len) {
+        return NULL;
+    }
+
+    // Check for dangerous patterns
+    const char* dangerous[] = {"<script", "javascript:", "eval(", "exec(", NULL};
+    for (int i = 0; dangerous[i]; i++) {
+        if (strstr(str, dangerous[i])) {
+            return NULL;
+        }
+    }
+
+    return workflow_strdup(str);
+}
+
+// Security: Validate role string from LLM
+static AgentRole validate_role_string(const char* role_str) {
+    if (!role_str || strlen(role_str) > MAX_ROLE_LENGTH) {
+        return AGENT_ROLE_EXECUTOR; // Default fallback
+    }
+
+    // Case-insensitive comparison with allowed roles only
+    if (strcasecmp(role_str, "analyst") == 0) return AGENT_ROLE_ANALYST;
+    if (strcasecmp(role_str, "coder") == 0) return AGENT_ROLE_CODER;
+    if (strcasecmp(role_str, "writer") == 0) return AGENT_ROLE_WRITER;
+    if (strcasecmp(role_str, "critic") == 0) return AGENT_ROLE_CRITIC;
+    if (strcasecmp(role_str, "planner") == 0) return AGENT_ROLE_PLANNER;
+    if (strcasecmp(role_str, "executor") == 0) return AGENT_ROLE_EXECUTOR;
+
+    return AGENT_ROLE_EXECUTOR; // Unknown role defaults to executor
+}
+
 // Parse JSON response from LLM into DecomposedTask array
+// Security: Implements JSON schema validation for LLM outputs
 static DecomposedTask* parse_decomposition_json(const char* json_str, size_t* out_count) {
     if (!json_str || !out_count) {
         return NULL;
     }
-    
+
+    // Security: Limit JSON input size
+    size_t json_len = strlen(json_str);
+    if (json_len > 1024 * 1024) {  // Max 1MB JSON
+        return NULL;
+    }
+
     cJSON* json = cJSON_Parse(json_str);
     if (!json) {
         return NULL;
     }
-    
+
+    // Schema validation: root must be object with "tasks" array
+    if (!cJSON_IsObject(json)) {
+        cJSON_Delete(json);
+        return NULL;
+    }
+
     cJSON* tasks_array = cJSON_GetObjectItem(json, "tasks");
     if (!cJSON_IsArray(tasks_array)) {
         cJSON_Delete(json);
         return NULL;
     }
-    
+
     int array_size = cJSON_GetArraySize(tasks_array);
-    if (array_size <= 0) {
+
+    // Security: Limit number of tasks from LLM
+    if (array_size <= 0 || array_size > MAX_TASKS_FROM_LLM) {
         cJSON_Delete(json);
         return NULL;
     }
-    
+
     DecomposedTask* tasks = calloc(array_size, sizeof(DecomposedTask));
     if (!tasks) {
         cJSON_Delete(json);
         return NULL;
     }
-    
+
     static uint64_t next_task_id = 1;
-    
+    int valid_task_count = 0;
+
     for (int i = 0; i < array_size; i++) {
         cJSON* task_obj = cJSON_GetArrayItem(tasks_array, i);
+
+        // Schema validation: each task must be an object
         if (!cJSON_IsObject(task_obj)) {
             continue;
         }
-        
-        tasks[i].task_id = next_task_id++;
-        tasks[i].status = TASK_STATUS_PENDING;
-        tasks[i].max_retries = 3;
-        tasks[i].current_retry = 0;
-        tasks[i].created_at = time(NULL);
-        tasks[i].completed_at = 0;
-        tasks[i].assigned_agent_id = 0;
-        
-        // Parse description
+
+        // Schema validation: description is required
         cJSON* desc_obj = cJSON_GetObjectItem(task_obj, "description");
-        if (cJSON_IsString(desc_obj)) {
-            const char* desc = cJSON_GetStringValue(desc_obj);
-            if (desc && strlen(desc) < MAX_DESCRIPTION_LENGTH) {
-                tasks[i].description = workflow_strdup(desc);
-            }
+        if (!cJSON_IsString(desc_obj)) {
+            continue;  // Skip tasks without description
         }
-        
-        // Parse role
+
+        const char* desc = cJSON_GetStringValue(desc_obj);
+        char* sanitized_desc = sanitize_llm_string(desc, MAX_DESCRIPTION_LENGTH);
+        if (!sanitized_desc) {
+            continue;  // Skip tasks with invalid description
+        }
+
+        // Task is valid, populate it
+        int idx = valid_task_count++;
+        tasks[idx].task_id = next_task_id++;
+        tasks[idx].status = TASK_STATUS_PENDING;
+        tasks[idx].max_retries = 3;
+        tasks[idx].current_retry = 0;
+        tasks[idx].created_at = time(NULL);
+        tasks[idx].completed_at = 0;
+        tasks[idx].assigned_agent_id = 0;
+        tasks[idx].description = sanitized_desc;
+
+        // Parse role with validation
         cJSON* role_obj = cJSON_GetObjectItem(task_obj, "role");
         if (cJSON_IsString(role_obj)) {
-            const char* role_str = cJSON_GetStringValue(role_obj);
-            // Map string to AgentRole (simplified)
-            if (strcmp(role_str, "analyst") == 0 || strcmp(role_str, "ANALYST") == 0) {
-                tasks[i].required_role = AGENT_ROLE_ANALYST;
-            } else if (strcmp(role_str, "coder") == 0 || strcmp(role_str, "CODER") == 0) {
-                tasks[i].required_role = AGENT_ROLE_CODER;
-            } else if (strcmp(role_str, "writer") == 0 || strcmp(role_str, "WRITER") == 0) {
-                tasks[i].required_role = AGENT_ROLE_WRITER;
-            } else if (strcmp(role_str, "critic") == 0 || strcmp(role_str, "CRITIC") == 0) {
-                tasks[i].required_role = AGENT_ROLE_CRITIC;
-            } else if (strcmp(role_str, "planner") == 0 || strcmp(role_str, "PLANNER") == 0) {
-                tasks[i].required_role = AGENT_ROLE_PLANNER;
-            } else {
-                tasks[i].required_role = AGENT_ROLE_EXECUTOR;
-            }
+            tasks[idx].required_role = validate_role_string(cJSON_GetStringValue(role_obj));
+        } else {
+            tasks[idx].required_role = AGENT_ROLE_EXECUTOR;
         }
-        
-        // Parse prerequisites
+
+        // Parse prerequisites with validation
         cJSON* prereq_obj = cJSON_GetObjectItem(task_obj, "prerequisites");
         if (cJSON_IsArray(prereq_obj)) {
             int prereq_size = cJSON_GetArraySize(prereq_obj);
+
+            // Security: Limit prerequisites per task
+            if (prereq_size > MAX_PREREQUISITES_PER_TASK) {
+                prereq_size = MAX_PREREQUISITES_PER_TASK;
+            }
+
             if (prereq_size > 0) {
-                tasks[i].prerequisite_capacity = prereq_size;
-                tasks[i].prerequisite_ids = calloc(prereq_size, sizeof(uint64_t));
-                if (tasks[i].prerequisite_ids) {
+                tasks[idx].prerequisite_capacity = prereq_size;
+                tasks[idx].prerequisite_ids = calloc(prereq_size, sizeof(uint64_t));
+                if (tasks[idx].prerequisite_ids) {
                     for (int j = 0; j < prereq_size; j++) {
                         cJSON* prereq_item = cJSON_GetArrayItem(prereq_obj, j);
                         if (cJSON_IsNumber(prereq_item)) {
-                            // Prerequisite is referenced by index in array
                             int prereq_idx = (int)cJSON_GetNumberValue(prereq_item);
-                            if (prereq_idx >= 0 && prereq_idx < array_size) {
-                                tasks[i].prerequisite_ids[tasks[i].prerequisite_count] = 
+                            // Security: Validate prerequisite index bounds
+                            if (prereq_idx >= 0 && prereq_idx < array_size && prereq_idx != i) {
+                                tasks[idx].prerequisite_ids[tasks[idx].prerequisite_count] =
                                     tasks[prereq_idx].task_id;
-                                tasks[i].prerequisite_count++;
+                                tasks[idx].prerequisite_count++;
                             }
                         }
                     }
                 }
             }
         }
-        
-        // Parse validation criteria
+
+        // Parse validation criteria with sanitization
         cJSON* validation_obj = cJSON_GetObjectItem(task_obj, "validation");
         if (cJSON_IsString(validation_obj)) {
-            const char* validation = cJSON_GetStringValue(validation_obj);
-            if (validation && strlen(validation) < MAX_VALIDATION_LENGTH) {
-                tasks[i].validation_criteria = workflow_strdup(validation);
-            }
+            tasks[idx].validation_criteria = sanitize_llm_string(
+                cJSON_GetStringValue(validation_obj), MAX_VALIDATION_LENGTH);
         }
     }
-    
+
     cJSON_Delete(json);
-    *out_count = array_size;
+
+    // Return NULL if no valid tasks were parsed
+    if (valid_task_count == 0) {
+        free(tasks);
+        return NULL;
+    }
+
+    *out_count = valid_task_count;
     return tasks;
 }
 
@@ -167,12 +234,17 @@ DecomposedTask* task_decompose(
     if (!goal || !out_count) {
         return NULL;
     }
-    
+
     *out_count = 0;
-    
-    // Build prompt for task decomposition
-    char prompt[2048];
-    snprintf(prompt, sizeof(prompt),
+
+    // Security: Validate goal length to prevent excessive memory allocation
+    size_t goal_len = strlen(goal);
+    if (goal_len > 8192) {  // Max 8KB goal
+        return NULL;
+    }
+
+    // Build prompt for task decomposition with dynamic allocation
+    const char* prompt_template =
         "Break down the following goal into actionable subtasks. "
         "Return a JSON object with a 'tasks' array. Each task should have:\n"
         "- 'description': clear task description\n"
@@ -180,19 +252,26 @@ DecomposedTask* task_decompose(
         "- 'prerequisites': array of task indices (0-based) that must complete first\n"
         "- 'validation': how to validate task completion\n\n"
         "Goal: %s\n\n"
-        "Return only valid JSON, no markdown formatting.",
-        goal);
+        "Return only valid JSON, no markdown formatting.";
+
+    size_t prompt_size = strlen(prompt_template) + goal_len + 1;
+    char* prompt = malloc(prompt_size);
+    if (!prompt) {
+        return NULL;
+    }
+    snprintf(prompt, prompt_size, prompt_template, goal);
     
     // Use LLM to decompose
     Provider* provider = provider_get(PROVIDER_ANTHROPIC);
     if (!provider || !provider->chat) {
+        free(prompt);
         return NULL;
     }
-    
-    const char* system_prompt = 
+
+    const char* system_prompt =
         "You are a task decomposition expert. Break down complex goals into "
         "actionable subtasks with clear dependencies. Return only valid JSON.";
-    
+
     TokenUsage usage = {0};
     char* response = provider->chat(
         provider,
@@ -201,17 +280,21 @@ DecomposedTask* task_decompose(
         prompt,
         &usage
     );
-    
+
+    // Free prompt after use
+    free(prompt);
+    prompt = NULL;
+
     if (!response) {
         return NULL;
     }
-    
+
     // Parse response
     DecomposedTask* tasks = parse_decomposition_json(response, out_count);
-    
+
     free(response);
     response = NULL;
-    
+
     return tasks;
 }
 
@@ -671,18 +754,29 @@ static int task_execute_via_agent(DecomposedTask* task) {
         task_mark_failed(task, "Provider not available for task execution");
         return -1;
     }
-    
-    // Build task prompt
-    char task_prompt[2048];
-    snprintf(task_prompt, sizeof(task_prompt),
-        "Task: %s\n\n"
-        "Please execute this task and provide a clear result. "
-        "%s",
-        task->description,
-        task->validation_criteria ? 
-            task->validation_criteria : 
-            "Ensure the task is completed successfully.");
-    
+
+    // Build task prompt with dynamic allocation (security: prevent buffer overflow)
+    const char* validation_text = task->validation_criteria ?
+        task->validation_criteria :
+        "Ensure the task is completed successfully.";
+    size_t desc_len = task->description ? strlen(task->description) : 0;
+    size_t validation_len = strlen(validation_text);
+
+    // Security: Validate lengths to prevent excessive memory allocation
+    if (desc_len > 16384 || validation_len > 4096) {
+        task_mark_failed(task, "Task description or validation too long");
+        return -1;
+    }
+
+    const char* prompt_template = "Task: %s\n\nPlease execute this task and provide a clear result. %s";
+    size_t prompt_size = strlen(prompt_template) + desc_len + validation_len + 1;
+    char* task_prompt = malloc(prompt_size);
+    if (!task_prompt) {
+        task_mark_failed(task, "Memory allocation failed for task prompt");
+        return -1;
+    }
+    snprintf(task_prompt, prompt_size, prompt_template, task->description, validation_text);
+
     // Execute task via agent
     TokenUsage usage = {0};
     char* response = provider->chat(
@@ -692,7 +786,11 @@ static int task_execute_via_agent(DecomposedTask* task) {
         task_prompt,
         &usage
     );
-    
+
+    // Free task prompt after use
+    free(task_prompt);
+    task_prompt = NULL;
+
     if (!response) {
         task_mark_failed(task, "Agent execution failed: no response");
         return -1;

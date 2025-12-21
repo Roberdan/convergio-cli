@@ -13,6 +13,7 @@
 #include "nous/workflow.h"
 #include "nous/orchestrator.h"
 #include "nous/provider.h"
+#include "nous/tools.h"
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
@@ -23,6 +24,9 @@
 
 // workflow_strdup is defined in workflow_types.c
 extern char* workflow_strdup(const char* str);
+
+// Security: Path validation function
+extern bool tools_is_path_safe(const char* path);
 
 // WorkflowErrorType is defined in workflow.h
 
@@ -162,7 +166,12 @@ bool workflow_check_file_readable(const char* filepath) {
     if (!filepath) {
         return false;
     }
-    
+
+    // Security: Validate path to prevent path traversal attacks
+    if (!tools_is_path_safe(filepath)) {
+        return false;
+    }
+
     FILE* fp = fopen(filepath, "r");
     if (fp) {
         fclose(fp);
@@ -180,7 +189,12 @@ bool workflow_check_file_writable(const char* filepath) {
     if (!filepath) {
         return false;
     }
-    
+
+    // Security: Validate path to prevent path traversal attacks
+    if (!tools_is_path_safe(filepath)) {
+        return false;
+    }
+
     // Check if directory exists and is writable
     char* dir = workflow_strdup(filepath);
     char* last_slash = strrchr(dir, '/');
@@ -192,12 +206,12 @@ bool workflow_check_file_writable(const char* filepath) {
         }
     }
     free(dir);
-    
+
     // Check if file exists and is writable
     if (access(filepath, W_OK) == 0) {
         return true;
     }
-    
+
     // Check if we can create the file
     FILE* fp = fopen(filepath, "w");
     if (fp) {
@@ -205,7 +219,7 @@ bool workflow_check_file_writable(const char* filepath) {
         unlink(filepath); // Clean up
         return true;
     }
-    
+
     return false;
 }
 
