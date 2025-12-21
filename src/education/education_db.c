@@ -882,8 +882,115 @@ int education_profile_set_active(int64_t student_id) {
 int education_profile_update(int64_t student_id, const EducationUpdateOptions* options) {
     if (!g_edu_initialized || !options) return -1;
 
-    // TODO: Implement dynamic update based on options
-    (void)student_id;  // Will be used in implementation
+    CONVERGIO_MUTEX_LOCK(&g_edu_db_mutex);
+
+    // Build dynamic UPDATE statement - only update non-NULL fields
+    char sql[1024];
+    char* sql_ptr = sql;
+    int sql_remaining = sizeof(sql);
+    int written = snprintf(sql_ptr, sql_remaining, "UPDATE student_profiles SET updated_at = strftime('%%s','now')");
+    sql_ptr += written;
+    sql_remaining -= written;
+
+    // Track which parameters to bind
+    int param_count = 0;
+    struct {
+        int type;  // 0=string, 1=int
+        union {
+            const char* str;
+            int num;
+        } value;
+    } params[7];
+
+    if (options->name) {
+        written = snprintf(sql_ptr, sql_remaining, ", name = ?");
+        sql_ptr += written;
+        sql_remaining -= written;
+        params[param_count].type = 0;
+        params[param_count].value.str = options->name;
+        param_count++;
+    }
+
+    if (options->age > 0) {
+        written = snprintf(sql_ptr, sql_remaining, ", age = ?");
+        sql_ptr += written;
+        sql_remaining -= written;
+        params[param_count].type = 1;
+        params[param_count].value.num = options->age;
+        param_count++;
+    }
+
+    if (options->grade_level > 0) {
+        written = snprintf(sql_ptr, sql_remaining, ", grade_level = ?");
+        sql_ptr += written;
+        sql_remaining -= written;
+        params[param_count].type = 1;
+        params[param_count].value.num = options->grade_level;
+        param_count++;
+    }
+
+    if (options->curriculum_id) {
+        written = snprintf(sql_ptr, sql_remaining, ", curriculum_id = ?");
+        sql_ptr += written;
+        sql_remaining -= written;
+        params[param_count].type = 0;
+        params[param_count].value.str = options->curriculum_id;
+        param_count++;
+    }
+
+    if (options->parent_name) {
+        written = snprintf(sql_ptr, sql_remaining, ", parent_name = ?");
+        sql_ptr += written;
+        sql_remaining -= written;
+        params[param_count].type = 0;
+        params[param_count].value.str = options->parent_name;
+        param_count++;
+    }
+
+    if (options->parent_email) {
+        written = snprintf(sql_ptr, sql_remaining, ", parent_email = ?");
+        sql_ptr += written;
+        sql_remaining -= written;
+        params[param_count].type = 0;
+        params[param_count].value.str = options->parent_email;
+        param_count++;
+    }
+
+    snprintf(sql_ptr, sql_remaining, " WHERE id = ?");
+
+    sqlite3_stmt* stmt;
+    int rc = sqlite3_prepare_v2(g_edu_db, sql, -1, &stmt, NULL);
+    if (rc != SQLITE_OK) {
+        CONVERGIO_MUTEX_UNLOCK(&g_edu_db_mutex);
+        return -1;
+    }
+
+    // Bind parameters
+    int bind_idx = 1;
+    for (int i = 0; i < param_count; i++) {
+        if (params[i].type == 0) {
+            sqlite3_bind_text(stmt, bind_idx++, params[i].value.str, -1, SQLITE_TRANSIENT);
+        } else {
+            sqlite3_bind_int(stmt, bind_idx++, params[i].value.num);
+        }
+    }
+    sqlite3_bind_int64(stmt, bind_idx, student_id);
+
+    rc = sqlite3_step(stmt);
+    sqlite3_finalize(stmt);
+
+    if (rc != SQLITE_DONE) {
+        CONVERGIO_MUTEX_UNLOCK(&g_edu_db_mutex);
+        return -1;
+    }
+
+    CONVERGIO_MUTEX_UNLOCK(&g_edu_db_mutex);
+
+    // Update accessibility if provided
+    if (options->accessibility) {
+        return education_accessibility_update(student_id, options->accessibility);
+    }
+
     return 0;
 }
 

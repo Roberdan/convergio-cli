@@ -1,6 +1,6 @@
 # Workflow-Orchestration Merge Plan
 
-**Last Updated**: 2025-12-21 | **Status**: ✅ ALL PHASES COMPLETE (70/70 tasks)
+**Last Updated**: 2025-12-21 | **Status**: ✅ ALL PHASES COMPLETE (78/78 tasks)
 
 ---
 
@@ -8,10 +8,10 @@
 
 | Stato | Tasks |
 |-------|-------|
-| ✅ Completati | 70 |
+| ✅ Completati | 78 |
 | ⏳ In corso | 0 |
 | ⬚ Da fare | 0 |
-| **Totale** | **70** |
+| **Totale** | **78** |
 
 ```
 ✅ PHASE 1: MERGE & BUILD ████████████████████ 100% (5/5)
@@ -21,6 +21,7 @@
 ✅ PHASE 5: REFACTORING   ████████████████████ 100% (14/14) - ALL ANALYZED
 ✅ PHASE 6: FIX IMPL      ████████████████████ 100% (18/18) - COMPLETE
 ✅ PHASE 8: EDU SETUP     ████████████████████ 100% (2/2) - COMPLETE
+✅ PHASE 9: EDU TOOLS LLM ████████████████████ 100% (8/8) - COMPLETE
 ```
 
 ---
@@ -336,6 +337,44 @@ Ali ora chiede (in modo naturale, conversazionale):
 
 ---
 
+## ✅ PHASE 9: Education Tools LLM Integration (COMPLETE)
+
+> **Objective**: Replace all placeholder/TODO implementations in education tools with real LLM calls.
+> **Status**: ✅ ALL 8 TASKS COMPLETED (100%)
+
+### Task Summary
+
+| Task ID | File | Fix Applied | Status |
+|---------|------|-------------|--------|
+| ✅ EDU-TOOL-01 | flashcards.c | Database integration, LLM-based card generation with SM-2 | ✅ DONE |
+| ✅ EDU-TOOL-02 | linguistic_tools.c | Dictionary, grammar, conjugation, IPA via LLM | ✅ DONE |
+| ✅ EDU-TOOL-03 | mindmap.c | Real Mermaid mindmap generation via LLM | ✅ DONE |
+| ✅ EDU-TOOL-04 | calculator.c | Step-by-step explanations (borrowing, grid method) | ✅ DONE |
+| ✅ EDU-TOOL-05 | quiz.c | Full quiz generation with JSON parsing | ✅ DONE |
+| ✅ EDU-TOOL-06 | audio_tts.c | LLM-generated spoken summaries | ✅ DONE |
+| ✅ EDU-TOOL-07 | anna_integration.c | Session tracking for break detection | ✅ DONE |
+| ✅ EDU-TOOL-08 | education_db.c | Dynamic profile update implementation | ✅ DONE |
+
+### Changes Made
+
+**Commit 3da5eeb**: `feat(education): implement real LLM integration in all education tools`
+- +854 lines across 6 tool files
+- All tools now call `llm_chat()` with appropriate fallbacks
+
+**Additional fixes**:
+- anna_integration.c: Implemented `anna_needs_break()` with session elapsed time tracking
+- education_db.c: Implemented `education_profile_update()` with dynamic SQL generation
+
+### Verification
+
+```bash
+# Zero TODOs remaining in education module
+rg "TODO|FIXME" src/education/
+# Result: No matches found
+```
+
+---
+
 ## Duplicate Code Details (QA-06)
 
 | File | Location | Duplicate Of |
@@ -499,11 +538,12 @@ Converted core files from `fprintf(stderr)` to `LOG_*` macros:
 
 ## Known TODOs in Code
 
-| File | Line | Description |
-|------|------|-------------|
-| `src/orchestrator/workflow_integration.c` | 144 | Parse plan_output |
-| `src/memory/persistence.c` | 230 | Manager tables per Anna |
-| `src/education/anna_integration.c` | 730 | Session tracking |
+| File | Line | Description | Status |
+|------|------|-------------|--------|
+| `src/orchestrator/workflow_integration.c` | 144 | Parse plan_output | ⬚ Backlog |
+| `src/memory/persistence.c` | 230 | Manager tables per Anna | ⬚ Backlog |
+| ~~`src/education/anna_integration.c`~~ | ~~730~~ | ~~Session tracking~~ | ✅ FIXED (PHASE 9) |
+| ~~`src/education/education_db.c`~~ | ~~885~~ | ~~Dynamic profile update~~ | ✅ FIXED (PHASE 9) |
 
 ---
 
