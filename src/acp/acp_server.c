@@ -20,6 +20,7 @@
 #include <time.h>
 #include <errno.h>
 #include <sys/stat.h>
+#include <sys/resource.h>
 #include <dirent.h>
 #include <cjson/cJSON.h>
 
@@ -29,6 +30,184 @@
 
 #define CONTEXT_DIR "~/.convergio/agent_context"
 #define MAX_CONTEXT_SIZE 2048
+#define SESSIONS_DIR "~/.convergio/sessions"
+
+// ============================================================================
+// RESOURCE LIMITS (Phase 11 S6)
+// ============================================================================
+
+#define MAX_OPEN_FILES 256
+#define MAX_MEMORY_MB 512
+#define MAX_SESSION_BUFFER_SIZE (1024 * 1024)  // 1MB per session
+
+// Global counter for total memory used across all session buffers
+static size_t g_total_buffer_memory = 0;
+static pthread_mutex_t g_memory_mutex = PTHREAD_MUTEX_INITIALIZER;
+
+// ============================================================================
+// CRASH RECOVERY (Phase 11 S5)
+// ============================================================================
+
+#define PID_FILE "~/.convergio/acp.pid"
+
+// Expand ~ to home directory (forward declaration needed for crash recovery)
+static char* expand_path(const char* path);
+
+// Check if a process is running
+static bool is_process_running(pid_t pid) {
+    if (pid <= 0) return false;
+
+    // Use kill(pid, 0) to check if process exists
+    // Returns 0 if process exists, -1 with errno=ESRCH if not
+    return (kill(pid, 0) == 0);
+}
+
+// Read PID from PID file
+static pid_t read_pid_file(void) {
+    char* pid_path = expand_path(PID_FILE);
+    FILE* f = fopen(pid_path, "r");
+    free(pid_path);
+
+    if (!f) {
+        return -1;
+    }
+
+    pid_t pid = -1;
+    if (fscanf(f, "%d", &pid) != 1) {
+        pid = -1;
+    }
+    fclose(f);
+
+    return pid;
+}
+
+// Write current PID to PID file
+static int write_pid_file(void) {
+    char* pid_path = expand_path(PID_FILE);
+    FILE* f = fopen(pid_path, "w");
+    if (!f) {
+        fprintf(stderr, "[ACP] Warning: Failed to create PID file: %s\n", pid_path);
+        free(pid_path);
+        return -1;
+    }
+
+    fprintf(f, "%d\n", getpid());
+    fclose(f);
+    free(pid_path);
+    return 0;
+}
+
+// Remove PID file
+static void remove_pid_file(void) {
+    char* pid_path = expand_path(PID_FILE);
+    unlink(pid_path);
+    free(pid_path);
+}
+
+// Clean up orphaned session files (older than 24 hours)
+static void cleanup_orphaned_sessions(void) {
+    char* sessions_dir = expand_path(SESSIONS_DIR);
+    DIR* d = opendir(sessions_dir);
+    if (!d) {
+        free(sessions_dir);
+        return;
+    }
+
+    int cleaned_count = 0;
+    struct dirent* entry;
+    time_t now = time(NULL);
+
+    while ((entry = readdir(d)) != NULL) {
+        // Skip . and ..
+        if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0) {
+            continue;
+        }
+
+        // Only process .json files
+        if (!strstr(entry->d_name, ".json")) {
+            continue;
+        }
+
+        char filepath[1024];
+        snprintf(filepath, sizeof(filepath), "%s/%s", sessions_dir, entry->d_name);
+
+        struct stat st;
+        if (stat(filepath, &st) == 0) {
+            // Check if file is older than 24 hours
+            // This is a safety measure to avoid deleting active sessions
+            if (now - st.st_mtime > 86400) {
+                unlink(filepath);
+                cleaned_count++;
+            }
+        }
+    }
+
+    closedir(d);
+    free(sessions_dir);
+
+    if (cleaned_count > 0) {
+        fprintf(stderr, "[ACP] Cleaned up %d orphaned session file(s)\n", cleaned_count);
+    }
+}
+
+// Clean up any lock files in ~/.convergio
+static void cleanup_lock_files(void) {
+    char* convergio_dir = expand_path("~/.convergio");
+    DIR* d = opendir(convergio_dir);
+    if (!d) {
+        free(convergio_dir);
+        return;
+    }
+
+    int cleaned_count = 0;
+    struct dirent* entry;
+
+    while ((entry = readdir(d)) != NULL) {
+        // Only process .lock files
+        if (!strstr(entry->d_name, ".lock")) {
+            continue;
+        }
+
+        char filepath[1024];
+        snprintf(filepath, sizeof(filepath), "%s/%s", convergio_dir, entry->d_name);
+        unlink(filepath);
+        cleaned_count++;
+    }
+
+    closedir(d);
+    free(convergio_dir);
+
+    if (cleaned_count > 0) {
+        fprintf(stderr, "[ACP] Cleaned up %d orphaned lock file(s)\n", cleaned_count);
+    }
+}
+
+// Perform crash recovery check on startup
+static void crash_recovery_check(void) {
+    pid_t old_pid = read_pid_file();
+
+    if (old_pid > 0) {
+        // Check if the old process is still running
+        if (is_process_running(old_pid)) {
+            fprintf(stderr, "[ACP] Warning: Another ACP server instance is already running (PID: %d)\n", old_pid);
+            fprintf(stderr, "[ACP] If this is incorrect, remove %s and restart\n", PID_FILE);
+            // Continue anyway - the PID file will be overwritten
+        } else {
+            // Process crashed - perform cleanup
+            fprintf(stderr, "[ACP] Detected crashed ACP server session (PID: %d)\n", old_pid);
+            fprintf(stderr, "[ACP] Performing crash recovery...\n");
+
+            // Clean up orphaned resources
+            cleanup_orphaned_sessions();
+            cleanup_lock_files();
+
+            fprintf(stderr, "[ACP] Crash recovery complete\n");
+        }
+    }
+
+    // Write new PID file
+    write_pid_file();
+}
 
 // Expand ~ to home directory
 static char* expand_path(const char* path) {
@@ -219,8 +398,16 @@ static void cleanup_sessions(void) {
         }
         session->message_count = 0;
 
-        // Free background buffer
+        // Free background buffer and update memory tracking
         if (session->background_buffer) {
+            pthread_mutex_lock(&g_memory_mutex);
+            if (g_total_buffer_memory >= session->background_buffer_cap) {
+                g_total_buffer_memory -= session->background_buffer_cap;
+            } else {
+                g_total_buffer_memory = 0;
+            }
+            pthread_mutex_unlock(&g_memory_mutex);
+
             free(session->background_buffer);
             session->background_buffer = NULL;
             session->background_buffer_len = 0;
@@ -266,20 +453,60 @@ static void worker_stream_callback(const char* chunk, void* user_data) {
     pthread_mutex_unlock(&args->session->mutex);
 
     if (is_background) {
-        // Buffer the chunk instead of sending
+        // Buffer the chunk instead of sending (with resource limits)
         pthread_mutex_lock(&args->session->mutex);
 
         size_t chunk_len = strlen(chunk);
         size_t needed = args->session->background_buffer_len + chunk_len + 1;
 
+        // Check session buffer size limit
+        if (needed > MAX_SESSION_BUFFER_SIZE) {
+            pthread_mutex_unlock(&args->session->mutex);
+            LOG_WARN(LOG_CAT_SYSTEM, "Session buffer would exceed MAX_SESSION_BUFFER_SIZE, dropping chunk");
+            return;
+        }
+
         if (!args->session->background_buffer) {
             args->session->background_buffer_cap = (needed > ACP_BACKGROUND_BUFFER_SIZE)
                 ? needed * 2 : ACP_BACKGROUND_BUFFER_SIZE;
+
+            // Check global memory limit before allocating
+            pthread_mutex_lock(&g_memory_mutex);
+            size_t total_after_alloc = g_total_buffer_memory + args->session->background_buffer_cap;
+            if (total_after_alloc > MAX_MEMORY_MB * 1024 * 1024) {
+                pthread_mutex_unlock(&g_memory_mutex);
+                pthread_mutex_unlock(&args->session->mutex);
+                LOG_WARN(LOG_CAT_SYSTEM, "Total buffer memory would exceed MAX_MEMORY_MB, dropping chunk");
+                return;
+            }
+            g_total_buffer_memory += args->session->background_buffer_cap;
+            pthread_mutex_unlock(&g_memory_mutex);
+
             args->session->background_buffer = malloc(args->session->background_buffer_cap);
             args->session->background_buffer[0] = '\0';
             args->session->background_buffer_len = 0;
         } else if (needed > args->session->background_buffer_cap) {
+            size_t old_cap = args->session->background_buffer_cap;
             args->session->background_buffer_cap = needed * 2;
+
+            // Check if new capacity would exceed session limit
+            if (args->session->background_buffer_cap > MAX_SESSION_BUFFER_SIZE) {
+                args->session->background_buffer_cap = MAX_SESSION_BUFFER_SIZE;
+            }
+
+            // Check global memory limit before expanding
+            pthread_mutex_lock(&g_memory_mutex);
+            size_t additional_memory = args->session->background_buffer_cap - old_cap;
+            size_t total_after_realloc = g_total_buffer_memory + additional_memory;
+            if (total_after_realloc > MAX_MEMORY_MB * 1024 * 1024) {
+                pthread_mutex_unlock(&g_memory_mutex);
+                pthread_mutex_unlock(&args->session->mutex);
+                LOG_WARN(LOG_CAT_SYSTEM, "Total buffer memory would exceed MAX_MEMORY_MB, dropping chunk");
+                return;
+            }
+            g_total_buffer_memory += additional_memory;
+            pthread_mutex_unlock(&g_memory_mutex);
+
             args->session->background_buffer = realloc(args->session->background_buffer,
                                                         args->session->background_buffer_cap);
         }
@@ -602,8 +829,6 @@ void acp_send_notification(const char* method, const char* params_json) {
 // ============================================================================
 // SESSION MANAGEMENT
 // ============================================================================
-
-#define SESSIONS_DIR "~/.convergio/sessions"
 
 // Get session file path
 static char* get_session_filepath(const char* session_id) {
@@ -1047,15 +1272,55 @@ static void buffer_chunk_for_session(ACPSession* session, const char* chunk) {
     size_t chunk_len = strlen(chunk);
     size_t needed = session->background_buffer_len + chunk_len + 1;
 
+    // Check session buffer size limit
+    if (needed > MAX_SESSION_BUFFER_SIZE) {
+        LOG_WARN(LOG_CAT_SYSTEM, "Session buffer would exceed MAX_SESSION_BUFFER_SIZE (%zu > %d), dropping chunk",
+                 needed, MAX_SESSION_BUFFER_SIZE);
+        return;
+    }
+
     // Allocate or expand buffer
     if (!session->background_buffer) {
         session->background_buffer_cap = (needed > ACP_BACKGROUND_BUFFER_SIZE)
                                           ? needed : ACP_BACKGROUND_BUFFER_SIZE;
+
+        // Check global memory limit before allocating
+        pthread_mutex_lock(&g_memory_mutex);
+        size_t total_after_alloc = g_total_buffer_memory + session->background_buffer_cap;
+        if (total_after_alloc > MAX_MEMORY_MB * 1024 * 1024) {
+            pthread_mutex_unlock(&g_memory_mutex);
+            LOG_WARN(LOG_CAT_SYSTEM, "Total buffer memory would exceed MAX_MEMORY_MB (%zu MB > %d MB), dropping chunk",
+                     total_after_alloc / (1024 * 1024), MAX_MEMORY_MB);
+            return;
+        }
+        g_total_buffer_memory += session->background_buffer_cap;
+        pthread_mutex_unlock(&g_memory_mutex);
+
         session->background_buffer = malloc(session->background_buffer_cap);
         session->background_buffer[0] = '\0';
         session->background_buffer_len = 0;
     } else if (needed > session->background_buffer_cap) {
+        size_t old_cap = session->background_buffer_cap;
         session->background_buffer_cap = needed * 2;
+
+        // Check if new capacity would exceed session limit
+        if (session->background_buffer_cap > MAX_SESSION_BUFFER_SIZE) {
+            session->background_buffer_cap = MAX_SESSION_BUFFER_SIZE;
+        }
+
+        // Check global memory limit before expanding
+        pthread_mutex_lock(&g_memory_mutex);
+        size_t additional_memory = session->background_buffer_cap - old_cap;
+        size_t total_after_realloc = g_total_buffer_memory + additional_memory;
+        if (total_after_realloc > MAX_MEMORY_MB * 1024 * 1024) {
+            pthread_mutex_unlock(&g_memory_mutex);
+            LOG_WARN(LOG_CAT_SYSTEM, "Total buffer memory would exceed MAX_MEMORY_MB (%zu MB > %d MB), dropping chunk",
+                     total_after_realloc / (1024 * 1024), MAX_MEMORY_MB);
+            return;
+        }
+        g_total_buffer_memory += additional_memory;
+        pthread_mutex_unlock(&g_memory_mutex);
+
         session->background_buffer = realloc(session->background_buffer,
                                               session->background_buffer_cap);
     }
@@ -1337,8 +1602,16 @@ void acp_handle_session_cancel(int request_id, const char* params_json) {
             }
             session->message_count = 0;
 
-            // Free background buffer
+            // Free background buffer and update memory tracking
             if (session->background_buffer) {
+                pthread_mutex_lock(&g_memory_mutex);
+                if (g_total_buffer_memory >= session->background_buffer_cap) {
+                    g_total_buffer_memory -= session->background_buffer_cap;
+                } else {
+                    g_total_buffer_memory = 0;
+                }
+                pthread_mutex_unlock(&g_memory_mutex);
+
                 free(session->background_buffer);
                 session->background_buffer = NULL;
                 session->background_buffer_len = 0;
@@ -1541,7 +1814,15 @@ void acp_handle_session_foreground(int request_id, const char* params_json) {
         cJSON_AddStringToObject(result, "bufferedContent", session->background_buffer);
         cJSON_AddNumberToObject(result, "bufferedLength", (double)session->background_buffer_len);
 
-        // Clear buffer after sending
+        // Clear buffer after sending and update memory tracking
+        pthread_mutex_lock(&g_memory_mutex);
+        if (g_total_buffer_memory >= session->background_buffer_cap) {
+            g_total_buffer_memory -= session->background_buffer_cap;
+        } else {
+            g_total_buffer_memory = 0;
+        }
+        pthread_mutex_unlock(&g_memory_mutex);
+
         free(session->background_buffer);
         session->background_buffer = NULL;
         session->background_buffer_len = 0;
@@ -1646,6 +1927,21 @@ static void dispatch_request(cJSON* request) {
 // ============================================================================
 
 int acp_server_init(void) {
+    // Perform crash recovery check (Phase 11 S5)
+    crash_recovery_check();
+
+    // Set resource limits (Phase 11 S6)
+    struct rlimit rlim;
+    rlim.rlim_cur = MAX_OPEN_FILES;
+    rlim.rlim_max = MAX_OPEN_FILES;
+    if (setrlimit(RLIMIT_NOFILE, &rlim) != 0) {
+        fprintf(stderr, "Warning: Failed to set RLIMIT_NOFILE to %d: %s\n",
+                MAX_OPEN_FILES, strerror(errno));
+        // Non-fatal, continue with system defaults
+    } else {
+        LOG_DEBUG(LOG_CAT_SYSTEM, "Set RLIMIT_NOFILE to %d", MAX_OPEN_FILES);
+    }
+
     // Initialize config
     if (convergio_config_init() != 0) {
         fprintf(stderr, "Failed to initialize config\n");
@@ -1752,6 +2048,9 @@ int acp_server_run(void) {
 void acp_server_shutdown(void) {
     // Clean up session memory (message contents, background buffers)
     cleanup_sessions();
+
+    // Remove PID file (Phase 11 S5)
+    remove_pid_file();
 
     memory_shutdown();
     orchestrator_shutdown();
