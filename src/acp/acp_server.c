@@ -1265,105 +1265,11 @@ void acp_handle_session_new(int request_id, const char* params_json) {
     }
 }
 
-// Buffer chunk for background session
-static void buffer_chunk_for_session(ACPSession* session, const char* chunk) {
-    if (!session || !chunk) return;
-
-    size_t chunk_len = strlen(chunk);
-    size_t needed = session->background_buffer_len + chunk_len + 1;
-
-    // Check session buffer size limit
-    if (needed > MAX_SESSION_BUFFER_SIZE) {
-        LOG_WARN(LOG_CAT_SYSTEM, "Session buffer would exceed MAX_SESSION_BUFFER_SIZE (%zu > %d), dropping chunk",
-                 needed, MAX_SESSION_BUFFER_SIZE);
-        return;
-    }
-
-    // Allocate or expand buffer
-    if (!session->background_buffer) {
-        session->background_buffer_cap = (needed > ACP_BACKGROUND_BUFFER_SIZE)
-                                          ? needed : ACP_BACKGROUND_BUFFER_SIZE;
-
-        // Check global memory limit before allocating
-        pthread_mutex_lock(&g_memory_mutex);
-        size_t total_after_alloc = g_total_buffer_memory + session->background_buffer_cap;
-        if (total_after_alloc > MAX_MEMORY_MB * 1024 * 1024) {
-            pthread_mutex_unlock(&g_memory_mutex);
-            LOG_WARN(LOG_CAT_SYSTEM, "Total buffer memory would exceed MAX_MEMORY_MB (%zu MB > %d MB), dropping chunk",
-                     total_after_alloc / (1024 * 1024), MAX_MEMORY_MB);
-            return;
-        }
-        g_total_buffer_memory += session->background_buffer_cap;
-        pthread_mutex_unlock(&g_memory_mutex);
-
-        session->background_buffer = malloc(session->background_buffer_cap);
-        session->background_buffer[0] = '\0';
-        session->background_buffer_len = 0;
-    } else if (needed > session->background_buffer_cap) {
-        size_t old_cap = session->background_buffer_cap;
-        session->background_buffer_cap = needed * 2;
-
-        // Check if new capacity would exceed session limit
-        if (session->background_buffer_cap > MAX_SESSION_BUFFER_SIZE) {
-            session->background_buffer_cap = MAX_SESSION_BUFFER_SIZE;
-        }
-
-        // Check global memory limit before expanding
-        pthread_mutex_lock(&g_memory_mutex);
-        size_t additional_memory = session->background_buffer_cap - old_cap;
-        size_t total_after_realloc = g_total_buffer_memory + additional_memory;
-        if (total_after_realloc > MAX_MEMORY_MB * 1024 * 1024) {
-            pthread_mutex_unlock(&g_memory_mutex);
-            LOG_WARN(LOG_CAT_SYSTEM, "Total buffer memory would exceed MAX_MEMORY_MB (%zu MB > %d MB), dropping chunk",
-                     total_after_realloc / (1024 * 1024), MAX_MEMORY_MB);
-            return;
-        }
-        g_total_buffer_memory += additional_memory;
-        pthread_mutex_unlock(&g_memory_mutex);
-
-        session->background_buffer = realloc(session->background_buffer,
-                                              session->background_buffer_cap);
-    }
-
-    // Append chunk using memcpy (safer than strcat)
-    memcpy(session->background_buffer + session->background_buffer_len, chunk, chunk_len + 1);
-    session->background_buffer_len += chunk_len;
-}
-
-// Streaming callback for orchestrator
-static void stream_callback(const char* chunk, void* user_data) {
-    (void)user_data;
-
-    if (!chunk || strlen(chunk) == 0) return;
-
-    // Check if session is in background mode
-    ACPSession* session = find_session(g_current_session_id);
-    if (session && session->is_background) {
-        // Buffer the chunk instead of sending
-        buffer_chunk_for_session(session, chunk);
-        return;
-    }
-
-    // Build session/update notification (ACP schema format)
-    cJSON* params = cJSON_CreateObject();
-    cJSON_AddStringToObject(params, "sessionId", g_current_session_id);
-
-    cJSON* update = cJSON_CreateObject();
-    cJSON_AddStringToObject(update, "sessionUpdate", "agent_message_chunk");
-
-    // Content block: { "type": "text", "text": "..." }
-    cJSON* content = cJSON_CreateObject();
-    cJSON_AddStringToObject(content, "type", "text");
-    cJSON_AddStringToObject(content, "text", chunk);
-    cJSON_AddItemToObject(update, "content", content);
-
-    cJSON_AddItemToObject(params, "update", update);
-
-    char* params_json = cJSON_PrintUnformatted(params);
-    acp_send_notification("session/update", params_json);
-    free(params_json);
-    cJSON_Delete(params);
-}
+// Note: Background buffer management is now handled inline by worker_stream_callback
+// in the worker thread with proper mutex protection and resource limits (Phase 12 B2).
+// The old buffer_chunk_for_session helper has been inlined for better thread safety.
+// The old synchronous stream_callback has been removed as part of Phase 12 B2
+// (async prompt processing implementation)
 
 void acp_handle_session_prompt(int request_id, const char* params_json) {
     if (!params_json) {

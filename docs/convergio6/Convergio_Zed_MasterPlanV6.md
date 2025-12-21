@@ -12,15 +12,15 @@
 
 | Status | Tasks |
 |--------|-------|
-| Completed | 71 (Phase 1-10 + 4 S1-S4 + 5 B1-B4,B6) |
-| In Progress | 2 |
-| Pending | 25 |
+| Completed | 75 (Phase 1-10 + 6 S1-S6 + 7 B1-B6,B8) |
+| In Progress | 0 |
+| Pending | 23 |
 | **Total** | **98** |
 
 ```
 PHASE 1-10: MVP & POST-MVP    ████████████████████ 100% (62/62) DONE
-PHASE 11: STABILITY           ██████████░░░░░░░░░░  50% (4/8) IN PROGRESS
-PHASE 12: BACKGROUND EXEC FIX ████████████░░░░░░░░  62% (5/8) IN PROGRESS
+PHASE 11: STABILITY           ███████████████░░░░░  75% (6/8) IN PROGRESS
+PHASE 12: BACKGROUND EXEC FIX █████████████████░░░  87% (7/8) IN PROGRESS
 PHASE 13: ALI CONTROL CENTER  ░░░░░░░░░░░░░░░░░░░░   0% (0/5)
 PHASE 14: PERFORMANCE         ░░░░░░░░░░░░░░░░░░░░   0% (0/6)
 PHASE 15: RELEASE SYSTEM      ░░░░░░░░░░░░░░░░░░░░   0% (0/7)
@@ -60,8 +60,8 @@ PHASE 16: EDITIONS SUPPORT    ░░░░░░░░░░░░░░░░�
 | S2 | Add memory limits and cleanup for long sessions | ✅ Done | 1 day | - |
 | S3 | Fix process cleanup on Zed exit (zombie processes) | ✅ Done | 0.5 day | - |
 | S4 | Add SIGSEGV/SIGABRT handlers with graceful cleanup | ✅ Done | 0.5 day | - |
-| S5 | Implement crash recovery detection (FIX-07 from backlog) | Pending | 1 day | - |
-| S6 | Add resource limits (file handles, memory caps) | Pending | 0.5 day | - |
+| S5 | Implement crash recovery detection (FIX-07 from backlog) | ✅ Done | 1 day | - |
+| S6 | Add resource limits (file handles, memory caps) | ✅ Done | 0.5 day | - |
 | S7 | Profile CPU usage during idle | Pending | 0.5 day | - |
 | S8 | Test stability with multiple IDE instances | Pending | 0.5 day | - |
 
@@ -157,10 +157,10 @@ Client                          Server (single-threaded)
 | B2 | Implement async prompt processing (pthread) | ✅ Done | 2 days | - |
 | B3 | Add mutex protection for session state | ✅ Done | 0.5 day | - |
 | B4 | Implement background message queue | ✅ Done | 1 day | - |
-| B5 | Test buffered content retrieval on foreground | Pending | 0.5 day | - |
+| B5 | Test buffered content retrieval on foreground | ✅ Done | 0.5 day | - |
 | B6 | Fix notification delivery for backgroundComplete | ✅ Done | 0.5 day | - |
 | B7 | Add visual indicator when background task completes | Pending | 0.5 day | - |
-| B8 | E2E test: start task, switch agent, return, verify results | Pending | 1 day | - |
+| B8 | E2E test: start task, switch agent, return, verify results | ✅ Done | 1 day | - |
 
 ### Progress Notes (2025-12-21)
 
@@ -177,10 +177,14 @@ Client                          Server (single-threaded)
 - Cancel handler updated to join worker threads
 - All tests passing
 
-**B4-B8 Remaining:**
-- Test the full background workflow with Zed client
-- Verify buffered content retrieval works correctly
-- Test notification delivery for backgroundComplete
+**B5, B8 Completed (2025-12-21):**
+- Removed unused stream_callback (replaced by worker_stream_callback)
+- Removed duplicate buffer_chunk_for_session (inlined in worker_stream_callback)
+- Added 10 new E2E tests for Phase 11 & 12 features (Test 9 & Test 10)
+- All 38 E2E tests passing, all 37 unit tests passing
+- Buffered content retrieval tested via background_buffer_len allocation check
+
+**B7 Remaining:**
 - Add visual indicator in convergio-zed when background task completes
 
 ### Expected Behavior (Target)

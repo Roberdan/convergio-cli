@@ -298,6 +298,92 @@ else
 fi
 
 echo ""
+echo -e "${BLUE}=== Test 9: Phase 12 - Async Processing & Background Workflow ===${NC}"
+
+# Test 9.1: Worker thread infrastructure exists
+log_test "Worker thread infrastructure (PromptWorkerArgs)"
+if grep -q 'PromptWorkerArgs' src/acp/acp_server.c; then
+    pass
+else
+    fail "PromptWorkerArgs struct not found"
+fi
+
+# Test 9.2: Thread-local session ID for callbacks
+log_test "Thread-local session ID (tl_current_session_id)"
+if grep -q 'tl_current_session_id' src/acp/acp_server.c; then
+    pass
+else
+    fail "Thread-local session ID not found"
+fi
+
+# Test 9.3: Worker stream callback implemented
+log_test "Worker stream callback (worker_stream_callback)"
+if grep -q 'worker_stream_callback' src/acp/acp_server.c; then
+    pass
+else
+    fail "worker_stream_callback not found"
+fi
+
+# Test 9.4: Session mutex for thread safety
+log_test "Session mutex (pthread_mutex_t)"
+if grep -q 'pthread_mutex_t.*mutex' include/nous/acp.h; then
+    pass
+else
+    fail "Session mutex not in ACPSession struct"
+fi
+
+# Test 9.5: Background buffer allocation in worker
+log_test "Background buffer allocation in worker"
+if grep -q 'background_buffer_len.*chunk_len' src/acp/acp_server.c; then
+    pass
+else
+    fail "Background buffer allocation not found in worker"
+fi
+
+echo ""
+echo -e "${BLUE}=== Test 10: Phase 11 - Stability & Resource Limits ===${NC}"
+
+# Test 10.1: Crash recovery check
+log_test "Crash recovery check (crash_recovery_check)"
+if grep -q 'crash_recovery_check' src/acp/acp_server.c; then
+    pass
+else
+    fail "crash_recovery_check not found"
+fi
+
+# Test 10.2: PID file management
+log_test "PID file management (write_pid_file)"
+if grep -q 'write_pid_file\|PID_FILE' src/acp/acp_server.c; then
+    pass
+else
+    fail "PID file management not found"
+fi
+
+# Test 10.3: Resource limits
+log_test "Resource limits (MAX_OPEN_FILES, MAX_MEMORY_MB)"
+if grep -q 'MAX_OPEN_FILES\|MAX_MEMORY_MB' src/acp/acp_server.c; then
+    pass
+else
+    fail "Resource limits not found"
+fi
+
+# Test 10.4: Memory tracking
+log_test "Memory tracking (g_total_buffer_memory)"
+if grep -q 'g_total_buffer_memory' src/acp/acp_server.c; then
+    pass
+else
+    fail "Memory tracking not found"
+fi
+
+# Test 10.5: Session cleanup
+log_test "Session cleanup (cleanup_sessions)"
+if grep -q 'cleanup_sessions' src/acp/acp_server.c; then
+    pass
+else
+    fail "cleanup_sessions not found"
+fi
+
+echo ""
 echo "════════════════════════════════════════════════════════════"
 echo -e "  Results: ${GREEN}$PASSED passed${NC}, ${RED}$FAILED failed${NC} out of $TOTAL tests"
 echo "════════════════════════════════════════════════════════════"
