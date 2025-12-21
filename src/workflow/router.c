@@ -83,6 +83,15 @@ static bool evaluate_simple_condition(const char* expr, const WorkflowState* sta
         *value_end = '\0';
         value_end--;
     }
+
+    // Remove quotes from value if present (e.g., 'active' or "active" -> active)
+    size_t value_len = strlen(value);
+    if (value_len >= 2 &&
+        ((value[0] == '\'' && value[value_len - 1] == '\'') ||
+         (value[0] == '"' && value[value_len - 1] == '"'))) {
+        value[value_len - 1] = '\0';  // Remove trailing quote
+        value++;                       // Skip leading quote
+    }
     
     // Validate key (security: prevent injection)
     if (!workflow_validate_key_safe(key)) {

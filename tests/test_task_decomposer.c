@@ -44,7 +44,7 @@ static void test_task_decompose_simple_goal(void) {
     TEST_ASSERT(tasks != NULL || count == 0, "task_decompose handles gracefully");
     
     if (tasks) {
-        task_decomposed_free_all(tasks, count);
+        task_free_decomposed(tasks, count);
     }
     printf("\n");
 }

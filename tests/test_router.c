@@ -42,7 +42,7 @@ static void test_router_simple_condition(void) {
     
     workflow_set_state(wf, "status", "active");
     
-    bool result = router_evaluate_condition(wf, "status == 'active'");
+    bool result = router_evaluate_condition("status == 'active'", wf->state);
     TEST_ASSERT(result == true, "simple condition evaluates correctly");
     
     workflow_destroy(wf);
@@ -58,7 +58,7 @@ static void test_router_negation(void) {
     
     workflow_set_state(wf, "status", "inactive");
     
-    bool result = router_evaluate_condition(wf, "status != 'active'");
+    bool result = router_evaluate_condition("status != 'active'", wf->state);
     TEST_ASSERT(result == true, "negation condition evaluates correctly");
     
     workflow_destroy(wf);
@@ -75,7 +75,7 @@ static void test_router_logical_and(void) {
     workflow_set_state(wf, "status", "active");
     workflow_set_state(wf, "type", "production");
     
-    bool result = router_evaluate_condition(wf, "status == 'active' && type == 'production'");
+    bool result = router_evaluate_condition("status == 'active' && type == 'production'", wf->state);
     TEST_ASSERT(result == true || result == false, "logical AND evaluates");
     
     workflow_destroy(wf);
@@ -91,7 +91,7 @@ static void test_router_logical_or(void) {
     
     workflow_set_state(wf, "status", "pending");
     
-    bool result = router_evaluate_condition(wf, "status == 'active' || status == 'pending'");
+    bool result = router_evaluate_condition("status == 'active' || status == 'pending'", wf->state);
     TEST_ASSERT(result == true || result == false, "logical OR evaluates");
     
     workflow_destroy(wf);
@@ -106,7 +106,7 @@ static void test_router_missing_key(void) {
     TEST_ASSERT(wf != NULL, "workflow created");
     
     // Don't set the key - should handle gracefully (return false or handle error)
-    bool result = router_evaluate_condition(wf, "missing_key == 'value'");
+    bool result = router_evaluate_condition("missing_key == 'value'", wf->state);
     TEST_ASSERT(result == false || result == true, "missing key handled gracefully");
     
     workflow_destroy(wf);

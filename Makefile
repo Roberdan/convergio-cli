@@ -326,7 +326,6 @@ $(SWIFT_LIB): Package.swift Sources/ConvergioMLX/MLXBridge.swift
 	@swift build -c release --product ConvergioMLX \
 		-Xswiftc -O -Xswiftc -whole-module-optimization \
 		--jobs $(SWIFT_BUILD_JOBS) \
-		--enable-incremental-compilation \
 		2>&1 | grep -v "^$$" || true
 	@if [ -f "$(SWIFT_LIB)" ]; then \
 		echo "Swift library built: $(SWIFT_LIB)"; \
