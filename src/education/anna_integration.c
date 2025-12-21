@@ -58,6 +58,27 @@ CONVERGIO_MUTEX_DECLARE(g_anna_edu_mutex);
 extern sqlite3* education_get_db_handle(void);  // Forward declaration
 extern bool education_is_initialized(void);
 
+// Study session functions for break tracking
+typedef struct {
+    int64_t id;
+    int64_t student_id;
+    char subject[128];
+    char topic[256];
+    time_t started_at;
+    time_t current_pomodoro_start;
+    int pomodoro_count;
+    int breaks_taken;
+    int work_duration_minutes;
+    int break_duration_minutes;
+    int state;
+    char notes[1024];
+} StudySessionInfo;
+
+// Note: These return the actual StudySession type from education_features.h
+// but we use our compatible StudySessionInfo struct to avoid header dependency
+extern void* study_session_get_active(int64_t student_id);
+extern void study_session_free(void* session);
+
 static sqlite3* anna_get_db(void) {
     // Access the education database directly
     return education_get_db_handle();
@@ -727,9 +748,30 @@ int anna_get_break_interval(int64_t student_id) {
 }
 
 bool anna_needs_break(int64_t student_id, int64_t session_id) {
-    // TODO: Implement session tracking to check elapsed time
-    // For now, always suggest breaks at interval
-    return true;
+    (void)session_id;  // May be used for specific session lookup in future
+
+    // Get the break interval for this student (respects accessibility)
+    int break_interval = anna_get_break_interval(student_id);
+
+    // Get the active study session
+    StudySessionInfo* session = study_session_get_active(student_id);
+    if (!session) {
+        // No active session, no break needed
+        return false;
+    }
+
+    // Calculate elapsed minutes since current pomodoro started
+    time_t now = time(NULL);
+    time_t reference_time = session->current_pomodoro_start > 0
+                          ? session->current_pomodoro_start
+                          : session->started_at;
+
+    int elapsed_minutes = (int)((now - reference_time) / 60);
+
+    study_session_free(session);
+
+    // Need break if elapsed time >= break interval
+    return elapsed_minutes >= break_interval;
 }
 
 int anna_send_accessible_notification(int64_t student_id, const char* title,
