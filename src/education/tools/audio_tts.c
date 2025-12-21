@@ -9,6 +9,7 @@
  */
 
 #include "nous/education.h"
+#include "nous/orchestrator.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -255,15 +256,30 @@ AudioOutput* audio_generate_summary(const char* content,
         snprintf(prompt, prompt_size, AUDIO_SUMMARY_PROMPT,
                  content, length_str, access_req);
 
-        // TODO: Call LLM to get summary text
-        // For now, use the content as-is (truncated)
-        size_t max_len = 2000;
-        size_t content_len = strlen(content);
-        if (content_len > max_len) content_len = max_len;
+        // Call LLM to get summary text
+        TokenUsage usage = {0};
+        char* response = llm_chat(
+            "You are an expert educational narrator. Create spoken summaries that are "
+            "clear, engaging, and appropriate for audio. Write naturally as if speaking "
+            "directly to the listener. Do not include any formatting or markup.",
+            prompt,
+            &usage
+        );
 
-        output->text = malloc(content_len + 1);
-        strncpy(output->text, content, content_len);
-        output->text[content_len] = '\0';
+        if (response && strlen(response) > 0) {
+            // Use LLM-generated summary
+            output->text = response;
+        } else {
+            // Fallback: use the content as-is (truncated)
+            if (response) free(response);
+            size_t max_len = 2000;
+            size_t content_len = strlen(content);
+            if (content_len > max_len) content_len = max_len;
+
+            output->text = malloc(content_len + 1);
+            strncpy(output->text, content, content_len);
+            output->text[content_len] = '\0';
+        }
 
         free(prompt);
     }

@@ -9,12 +9,19 @@
  */
 
 #include "nous/education.h"
+#include "nous/orchestrator.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
 #include <math.h>
 #include <unistd.h>
+
+// External education DB functions
+extern int64_t education_toolkit_save(int64_t student_id, EducationToolkitType type,
+                                       const char* topic, const char* content, const char* format);
+extern int education_flashcard_create_reviews(int64_t toolkit_output_id, int card_count);
+extern int education_flashcard_review(int64_t review_id, int quality);
 
 // ============================================================================
 // SM-2 ALGORITHM CONSTANTS
@@ -188,7 +195,11 @@ FlashcardDeck* flashcard_deck_create(int64_t student_id,
     deck->topic = topic ? strdup(topic) : NULL;
     deck->created_at = time(NULL);
 
-    // TODO: Insert into database and get ID
+    // Save to database and get ID
+    int64_t db_id = education_toolkit_save(student_id, TOOLKIT_FLASHCARD, title, "", "deck");
+    if (db_id > 0) {
+        deck->id = db_id;
+    }
 
     return deck;
 }
@@ -223,7 +234,11 @@ Flashcard* flashcard_add(FlashcardDeck* deck,
 
     deck->card_count++;
 
-    // TODO: Insert into database
+    // Create flashcard review entry in database for spaced repetition tracking
+    if (deck->id > 0) {
+        education_flashcard_create_reviews(deck->id, 1);
+        card->id = deck->card_count;  // Use deck card count as card ID within deck
+    }
 
     return card;
 }
@@ -288,7 +303,104 @@ FlashcardDeck* flashcard_generate_from_llm(int64_t student_id,
                  card_count > 0 ? card_count : 10,
                  access_req);
 
-        // TODO: Send prompt to LLM and parse response
+        // Send prompt to LLM
+        TokenUsage usage = {0};
+        char* response = llm_chat(
+            "You are an expert flashcard creator. Generate educational flashcards in JSON format.",
+            prompt,
+            &usage
+        );
+
+        if (response) {
+            // Parse JSON response and add cards to deck
+            // Expected format: [{"front": "...", "back": "...", "hint": "...", "mnemonic": "..."}]
+            char* ptr = response;
+            int cards_added = 0;
+
+            while ((ptr = strstr(ptr, "\"front\"")) != NULL && cards_added < card_count) {
+                char front[512] = "";
+                char back[512] = "";
+                char hint[256] = "";
+                char mnemonic[256] = "";
+
+                // Extract front
+                char* start = strstr(ptr, ":");
+                if (start) {
+                    start = strchr(start, '"');
+                    if (start) {
+                        start++;
+                        char* end = strchr(start, '"');
+                        if (end && (end - start) < 500) {
+                            strncpy(front, start, end - start);
+                            front[end - start] = '\0';
+                        }
+                    }
+                }
+
+                // Extract back
+                char* back_ptr = strstr(ptr, "\"back\"");
+                if (back_ptr) {
+                    start = strstr(back_ptr, ":");
+                    if (start) {
+                        start = strchr(start, '"');
+                        if (start) {
+                            start++;
+                            char* end = strchr(start, '"');
+                            if (end && (end - start) < 500) {
+                                strncpy(back, start, end - start);
+                                back[end - start] = '\0';
+                            }
+                        }
+                    }
+                }
+
+                // Extract hint (optional)
+                char* hint_ptr = strstr(ptr, "\"hint\"");
+                if (hint_ptr && hint_ptr < strstr(ptr + 1, "\"front\"")) {
+                    start = strstr(hint_ptr, ":");
+                    if (start) {
+                        start = strchr(start, '"');
+                        if (start) {
+                            start++;
+                            char* end = strchr(start, '"');
+                            if (end && (end - start) < 250) {
+                                strncpy(hint, start, end - start);
+                                hint[end - start] = '\0';
+                            }
+                        }
+                    }
+                }
+
+                // Extract mnemonic (optional)
+                char* mnem_ptr = strstr(ptr, "\"mnemonic\"");
+                if (mnem_ptr && mnem_ptr < strstr(ptr + 1, "\"front\"")) {
+                    start = strstr(mnem_ptr, ":");
+                    if (start) {
+                        start = strchr(start, '"');
+                        if (start) {
+                            start++;
+                            char* end = strchr(start, '"');
+                            if (end && (end - start) < 250) {
+                                strncpy(mnemonic, start, end - start);
+                                mnemonic[end - start] = '\0';
+                            }
+                        }
+                    }
+                }
+
+                // Add card if we got valid front and back
+                if (strlen(front) > 0 && strlen(back) > 0) {
+                    flashcard_add(deck, front, back,
+                                  strlen(hint) > 0 ? hint : NULL,
+                                  strlen(mnemonic) > 0 ? mnemonic : NULL);
+                    cards_added++;
+                }
+
+                ptr++;  // Move past current position
+            }
+
+            free(response);
+        }
 
         free(prompt);
     }
@@ -343,7 +455,10 @@ bool flashcard_session_rate(FlashcardSession* session, int quality) {
     // Apply SM-2 algorithm
     sm2_calculate_next_review(card, quality);
 
-    // TODO: Update database
+    // Update database with new review state
+    if (card->id > 0) {
+        education_flashcard_review(card->id, quality);
+    }
 
     session->reviewed_count++;
     if (quality >= 3) session->correct_count++;
@@ -694,15 +809,108 @@ FlashcardDeck* flashcards_auto_generate(int64_t student_id,
              lesson_text,
              (access && access->dyslexia) ? "- Use simple, clear language\n" : "");
 
-    // TODO: Send prompt to LLM and parse response
-    // For now, create a basic deck structure
-
     FlashcardDeck* deck = flashcard_deck_create(student_id, topic, NULL, topic);
     if (!deck) return NULL;
 
-    // In real implementation, parse LLM JSON response and add cards
-    // Example:
-    // flashcard_add(deck, "What is X?", "X is...", "Think about Y", "XYZ mnemonic");
+    // Send prompt to LLM
+    TokenUsage usage = {0};
+    char* response = llm_chat(
+        "You are an expert educator creating flashcards from lesson content. Output only valid JSON.",
+        prompt,
+        &usage
+    );
+
+    if (response) {
+        // Parse JSON response and add cards to deck (same parser as flashcard_generate_from_llm)
+        char* ptr = response;
+        int cards_added = 0;
+        int max_cards = target_count > 0 ? target_count : 10;
+
+        while ((ptr = strstr(ptr, "\"front\"")) != NULL && cards_added < max_cards) {
+            char front[512] = "";
+            char back[512] = "";
+            char hint[256] = "";
+            char mnemonic[256] = "";
+
+            // Extract front
+            char* start = strstr(ptr, ":");
+            if (start) {
+                start = strchr(start, '"');
+                if (start) {
+                    start++;
+                    char* end = strchr(start, '"');
+                    if (end && (end - start) < 500) {
+                        strncpy(front, start, end - start);
+                        front[end - start] = '\0';
+                    }
+                }
+            }
+
+            // Extract back
+            char* back_ptr = strstr(ptr, "\"back\"");
+            if (back_ptr) {
+                start = strstr(back_ptr, ":");
+                if (start) {
+                    start = strchr(start, '"');
+                    if (start) {
+                        start++;
+                        char* end = strchr(start, '"');
+                        if (end && (end - start) < 500) {
+                            strncpy(back, start, end - start);
+                            back[end - start] = '\0';
+                        }
+                    }
+                }
+            }
+
+            // Extract hint (optional)
+            char* hint_ptr = strstr(ptr, "\"hint\"");
+            char* next_front = strstr(ptr + 1, "\"front\"");
+            if (hint_ptr && (!next_front || hint_ptr < next_front)) {
+                start = strstr(hint_ptr, ":");
+                if (start) {
+                    start = strchr(start, '"');
+                    if (start) {
+                        start++;
+                        char* end = strchr(start, '"');
+                        if (end && (end - start) < 250) {
+                            strncpy(hint, start, end - start);
+                            hint[end - start] = '\0';
+                        }
+                    }
+                }
+            }
+
+            // Extract mnemonic (optional)
+            char* mnem_ptr = strstr(ptr, "\"mnemonic\"");
+            if (mnem_ptr && (!next_front || mnem_ptr < next_front)) {
+                start = strstr(mnem_ptr, ":");
+                if (start) {
+                    start = strchr(start, '"');
+                    if (start) {
+                        start++;
+                        char* end = strchr(start, '"');
+                        if (end && (end - start) < 250) {
+                            strncpy(mnemonic, start, end - start);
+                            mnemonic[end - start] = '\0';
+                        }
+                    }
+                }
+            }
+
+            // Add card if we got valid front and back
+            if (strlen(front) > 0 && strlen(back) > 0) {
+                flashcard_add(deck, front, back,
+                              strlen(hint) > 0 ? hint : NULL,
+                              strlen(mnemonic) > 0 ? mnemonic : NULL);
+                cards_added++;
+            }
+
+            ptr++;
+        }
+
+        free(response);
+    }
 
     return deck;
 }

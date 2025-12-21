@@ -9,6 +9,7 @@
  */
 
 #include "nous/education.h"
+#include "nous/orchestrator.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -265,9 +266,6 @@ static const char* MINDMAP_PROMPT_TEMPLATE =
  */
 char* mindmap_generate_from_llm(const char* topic, const char* content,
                                  const EducationAccessibility* access) {
-    // This would call the LLM provider
-    // For now, return a simple placeholder
-
     MindmapAccessibility ma = get_accessibility_settings(access);
 
     int max_branches = ma.simplified ? 4 : 7;
@@ -286,20 +284,45 @@ char* mindmap_generate_from_llm(const char* topic, const char* content,
 
     // Build full prompt
     size_t prompt_size = strlen(MINDMAP_PROMPT_TEMPLATE) + strlen(topic) +
-                         strlen(content) + strlen(access_req) + 100;
+                         (content ? strlen(content) : 10) + strlen(access_req) + 100;
     char* prompt = malloc(prompt_size);
     if (!prompt) return NULL;
 
     snprintf(prompt, prompt_size, MINDMAP_PROMPT_TEMPLATE,
-             topic, content, max_branches, max_sub, access_req);
+             topic, content ? content : "(no additional content)",
+             max_branches, max_sub, access_req);
 
-    // TODO: Call LLM provider here
-    // For now, generate a simple structure
-
-    char* result = mindmap_generate_mermaid(topic, content, &ma);
+    // Call LLM for mindmap generation
+    TokenUsage usage = {0};
+    char* response = llm_chat(
+        "You are an expert at creating educational mind maps. Generate Mermaid mindmap syntax only, no explanations.",
+        prompt,
+        &usage
+    );
 
     free(prompt);
-    return result;
+
+    if (response) {
+        // Check if response contains valid Mermaid mindmap syntax
+        if (strstr(response, "mindmap") || strstr(response, "flowchart")) {
+            return response;
+        }
+        // Try to wrap response in mindmap syntax if it's just branches
+        if (strstr(response, "root") == NULL) {
+            size_t result_size = strlen(response) + strlen(topic) + 100;
+            char* result = malloc(result_size);
+            if (result) {
+                snprintf(result, result_size,
+                    "mindmap\n  root((%s))\n%s", topic, response);
+                free(response);
+                return result;
+            }
+        }
+        return response;
+    }
+
+    // Fallback to local generation if LLM unavailable
+    return mindmap_generate_mermaid(topic, content, &ma);
 }
 
 // ============================================================================

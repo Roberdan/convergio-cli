@@ -9,11 +9,41 @@
  */
 
 #include "nous/education.h"
+#include "nous/orchestrator.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdbool.h>
 #include <ctype.h>
+
+// Helper to extract JSON string value
+static char* extract_json_string(const char* json, const char* key) {
+    if (!json || !key) return NULL;
+
+    char search[128];
+    snprintf(search, sizeof(search), "\"%s\"", key);
+
+    char* pos = strstr(json, search);
+    if (!pos) return NULL;
+
+    pos = strchr(pos, ':');
+    if (!pos) return NULL;
+
+    while (*pos && (*pos == ':' || *pos == ' ' || *pos == '\t')) pos++;
+    if (*pos != '"') return NULL;
+
+    pos++;  // Skip opening quote
+    char* end = strchr(pos, '"');
+    if (!end) return NULL;
+
+    size_t len = end - pos;
+    char* result = malloc(len + 1);
+    if (result) {
+        strncpy(result, pos, len);
+        result[len] = '\0';
+    }
+    return result;
+}
 
 // ============================================================================
 // CONSTANTS
@@ -157,24 +187,69 @@ DictionaryEntry* dictionary_lookup(const char* word, Language language,
     entry->word = strdup(word);
     entry->language = language;
 
-    // Get accessibility settings (used for future adaptive definitions)
-    LinguisticAccessibility la __attribute__((unused)) = get_linguistic_accessibility(access);
+    // Get accessibility settings
+    LinguisticAccessibility la = get_linguistic_accessibility(access);
 
-    // In production, this would query an API or local database
-    // For now, create a placeholder structure
+    // Language names for prompt
+    const char* lang_names[] = {"Italian", "English", "Spanish", "French", "German", "Latin"};
+    const char* lang_name = lang_names[language];
 
-    // Example for demonstration
-    if (strcmp(word, "hello") == 0 && language == LANG_ENGLISH) {
-        entry->part_of_speech = POS_NOUN;
-        entry->definitions[0] = strdup("A greeting or expression of goodwill");
-        entry->definition_count = 1;
-        entry->examples[0] = strdup("Hello, how are you?");
-        entry->example_count = 1;
-        entry->ipa_pronunciation = strdup("/həˈloʊ/");
-        entry->etymology = strdup("From Old English 'hāl' (whole, healthy)");
+    // Build dictionary prompt
+    char prompt[1024];
+    snprintf(prompt, sizeof(prompt),
+        "Define the %s word \"%s\". Respond in JSON format:\n"
+        "{\n"
+        "  \"part_of_speech\": \"noun|verb|adjective|adverb|pronoun|preposition|conjunction|article\",\n"
+        "  \"definition\": \"main definition\",\n"
+        "  \"example\": \"example sentence\",\n"
+        "  \"ipa\": \"/phonetic transcription/\",\n"
+        "  \"etymology\": \"word origin\",\n"
+        "  \"synonyms\": \"word1, word2\"\n"
+        "}%s",
+        lang_name, word,
+        la.simplified_definitions ? "\nUse simple, clear language suitable for students." : "");
+
+    // Call LLM for dictionary lookup
+    TokenUsage usage = {0};
+    char* response = llm_chat(
+        "You are a linguistic expert. Provide accurate dictionary definitions in JSON format only.",
+        prompt,
+        &usage
+    );
+
+    if (response) {
+        // Parse response
+        char* pos = extract_json_string(response, "part_of_speech");
+        if (pos) {
+            if (strstr(pos, "verb")) entry->part_of_speech = POS_VERB;
+            else if (strstr(pos, "adjective")) entry->part_of_speech = POS_ADJECTIVE;
+            else if (strstr(pos, "adverb")) entry->part_of_speech = POS_ADVERB;
+            else if (strstr(pos, "pronoun")) entry->part_of_speech = POS_PRONOUN;
+            else if (strstr(pos, "preposition")) entry->part_of_speech = POS_PREPOSITION;
+            else if (strstr(pos, "conjunction")) entry->part_of_speech = POS_CONJUNCTION;
+            else if (strstr(pos, "article")) entry->part_of_speech = POS_ARTICLE;
+            else entry->part_of_speech = POS_NOUN;
+            free(pos);
+        }
+
+        char* def = extract_json_string(response, "definition");
+        if (def) {
+            entry->definitions[0] = def;
+            entry->definition_count = 1;
+        }
+
+        char* example = extract_json_string(response, "example");
+        if (example) {
+            entry->examples[0] = example;
+            entry->example_count = 1;
+        }
+
+        entry->ipa_pronunciation = extract_json_string(response, "ipa");
+        entry->etymology = extract_json_string(response, "etymology");
+        entry->synonyms = extract_json_string(response, "synonyms");
+
+        free(response);
     }
-
-    // TODO: Integrate with dictionary API (Oxford, Merriam-Webster, etc.)
 
     return entry;
 }
@@ -289,15 +364,60 @@ GrammarAnalysis* grammar_analyze(const char* sentence, Language language,
     }
     analysis->word_count = count;
 
-    // In production, this would use NLP library or LLM
-    // For now, create basic analysis
+    // Language names for prompt
+    const char* lang_names[] = {"Italian", "English", "Spanish", "French", "German", "Latin"};
+    const char* lang_name = lang_names[language];
 
-    // TODO: Integrate with spaCy, NLTK, or LLM for detailed analysis
-    analysis->parsed_structure = strdup("Subject + Verb + Object");
-    analysis->subject = strdup("(Subject)");
-    analysis->predicate = strdup("(Verb phrase)");
-    analysis->objects = strdup("(Object)");
-    analysis->clause_type = strdup("Declarative");
+    // Build grammar analysis prompt
+    char prompt[2048];
+    snprintf(prompt, sizeof(prompt),
+        "Analyze the grammatical structure of this %s sentence:\n\"%s\"\n\n"
+        "Respond in JSON format:\n"
+        "{\n"
+        "  \"structure\": \"grammatical pattern e.g. Subject + Verb + Object\",\n"
+        "  \"subject\": \"the subject of the sentence\",\n"
+        "  \"predicate\": \"the verb phrase\",\n"
+        "  \"objects\": \"direct/indirect objects if any\",\n"
+        "  \"modifiers\": \"adjectives, adverbs, phrases\",\n"
+        "  \"clause_type\": \"Declarative|Interrogative|Imperative|Exclamatory\"\n"
+        "}",
+        lang_name, sentence);
+
+    // Call LLM for grammar analysis
+    TokenUsage usage = {0};
+    char* response = llm_chat(
+        "You are a grammar expert. Analyze sentences and provide detailed grammatical breakdowns in JSON format.",
+        prompt,
+        &usage
+    );
+
+    if (response) {
+        char* structure = extract_json_string(response, "structure");
+        analysis->parsed_structure = structure ? structure : strdup("Subject + Verb + Object");
+
+        char* subject = extract_json_string(response, "subject");
+        analysis->subject = subject ? subject : strdup("(Subject)");
+
+        char* predicate = extract_json_string(response, "predicate");
+        analysis->predicate = predicate ? predicate : strdup("(Verb phrase)");
+
+        char* objects = extract_json_string(response, "objects");
+        analysis->objects = objects ? objects : strdup("(none)");
+
+        analysis->modifiers = extract_json_string(response, "modifiers");
+
+        char* clause = extract_json_string(response, "clause_type");
+        analysis->clause_type = clause ? clause : strdup("Declarative");
+
+        free(response);
+    } else {
+        // Fallback if LLM unavailable
+        analysis->parsed_structure = strdup("Subject + Verb + Object");
+        analysis->subject = strdup("(Analysis unavailable)");
+        analysis->predicate = strdup("(Analysis unavailable)");
+        analysis->objects = strdup("(Analysis unavailable)");
+        analysis->clause_type = strdup("Unknown");
+    }
 
     return analysis;
 }
@@ -384,27 +504,78 @@ VerbTable* verb_conjugate(const char* verb, Language language,
     table->infinitive = strdup(verb);
     table->conjugation_count = 0;
 
-    // In production, this would use a conjugation database or API
-    // For demonstration, create a basic Italian verb conjugation
+    // Language names for prompt
+    const char* lang_names[] = {"Italian", "English", "Spanish", "French", "German", "Latin"};
+    const char* lang_name = lang_names[language];
 
-    if (language == LANG_ITALIAN) {
-        // Example: parlare (to speak) - regular -are verb
-        const char* tenses[] = {"Presente", "Passato", "Futuro"};
-        const char* persons[] = {"io", "tu", "lui/lei", "noi", "voi", "loro"};
+    // Build conjugation prompt
+    char prompt[1024];
+    snprintf(prompt, sizeof(prompt),
+        "Conjugate the %s verb \"%s\" in present, past, and future tenses.\n"
+        "For each form, provide: tense, person (io/tu/lui/noi/voi/loro for Italian, I/you/he/we/they for English), form.\n"
+        "Indicate if the verb is irregular.\n"
+        "Respond in JSON format:\n"
+        "{\n"
+        "  \"irregular\": true/false,\n"
+        "  \"conjugations\": [\n"
+        "    {\"tense\": \"Present\", \"person\": \"io\", \"form\": \"parlo\"},\n"
+        "    ...\n"
+        "  ]\n"
+        "}",
+        lang_name, verb);
 
-        // Simplified conjugation (would be complete in production)
-        if (strcmp(verb, "parlare") == 0) {
-            const char* presente[] = {"parlo", "parli", "parla", "parliamo", "parlate", "parlano"};
+    // Call LLM for conjugation
+    TokenUsage usage = {0};
+    char* response = llm_chat(
+        "You are a linguistics expert specializing in verb conjugation. Provide accurate conjugations in JSON format.",
+        prompt,
+        &usage
+    );
 
-            for (int i = 0; i < 6 && table->conjugation_count < MAX_CONJUGATIONS; i++) {
-                table->conjugations[table->conjugation_count].tense = strdup(tenses[0]);
-                table->conjugations[table->conjugation_count].person = strdup(persons[i]);
-                table->conjugations[table->conjugation_count].form = strdup(presente[i]);
-                table->conjugation_count++;
+    if (response) {
+        // Check if irregular
+        if (strstr(response, "\"irregular\": true") || strstr(response, "\"irregular\":true")) {
+            table->is_irregular = true;
+        }
+
+        // Parse conjugations array
+        char* ptr = strstr(response, "\"conjugations\"");
+        if (ptr) {
+            ptr = strchr(ptr, '[');
+            if (ptr) {
+                // Parse each conjugation entry
+                while ((ptr = strstr(ptr, "{")) != NULL && table->conjugation_count < MAX_CONJUGATIONS) {
+                    char* tense = extract_json_string(ptr, "tense");
+                    char* person = extract_json_string(ptr, "person");
+                    char* form = extract_json_string(ptr, "form");
+
+                    if (tense && person && form) {
+                        table->conjugations[table->conjugation_count].tense = tense;
+                        table->conjugations[table->conjugation_count].person = person;
+                        table->conjugations[table->conjugation_count].form = form;
+                        table->conjugation_count++;
+                    } else {
+                        free(tense);
+                        free(person);
+                        free(form);
+                    }
+
+                    ptr = strchr(ptr, '}');
+                    if (!ptr) break;
+                    ptr++;
+                }
             }
         }
 
-        // TODO: Add all tenses and moods (Indicativo, Congiuntivo, Condizionale, Imperativo)
+        free(response);
+    }
+
+    // Fallback if no conjugations parsed
+    if (table->conjugation_count == 0) {
+        table->conjugations[0].tense = strdup("Present");
+        table->conjugations[0].person = strdup("(all)");
+        table->conjugations[0].form = strdup(verb);
+        table->conjugation_count = 1;
     }
 
     return table;
@@ -469,37 +640,60 @@ char* pronunciation_ipa(const char* word, Language language,
                         const EducationAccessibility* access) {
     if (!word) return NULL;
 
-    char ipa[MAX_IPA_LENGTH];
-    ipa[0] = '\0';
+    // Language names for prompt
+    const char* lang_names[] = {"Italian", "English", "Spanish", "French", "German", "Latin"};
+    const char* lang_name = lang_names[language];
 
-    // In production, this would use a pronunciation API or database
-    // For now, provide basic IPA for common words
+    // Build IPA prompt
+    char prompt[512];
+    snprintf(prompt, sizeof(prompt),
+        "Provide the IPA (International Phonetic Alphabet) transcription for the %s word \"%s\".\n"
+        "Respond with ONLY the IPA transcription in slashes, like: /həˈloʊ/\n"
+        "Do not include any other text.",
+        lang_name, word);
 
-    // English examples
-    if (language == LANG_ENGLISH) {
-        if (strcmp(word, "hello") == 0) {
-            strncpy(ipa, "/həˈloʊ/", sizeof(ipa));
-        } else if (strcmp(word, "water") == 0) {
-            strncpy(ipa, "/ˈwɔːtər/", sizeof(ipa));
-        } else {
-            snprintf(ipa, sizeof(ipa), "/%s/ (IPA not available)", word);
+    // Call LLM for IPA
+    TokenUsage usage = {0};
+    char* response = llm_chat(
+        "You are a phonetics expert. Provide accurate IPA transcriptions.",
+        prompt,
+        &usage
+    );
+
+    char* result = NULL;
+
+    if (response) {
+        // Find IPA between slashes
+        char* start = strchr(response, '/');
+        if (start) {
+            char* end = strchr(start + 1, '/');
+            if (end) {
+                size_t len = end - start + 1;
+                result = malloc(len + 1);
+                if (result) {
+                    strncpy(result, start, len);
+                    result[len] = '\0';
+                }
+            }
+        }
+
+        // If no slashes found, use whole response trimmed
+        if (!result && strlen(response) > 0 && strlen(response) < MAX_IPA_LENGTH) {
+            result = strdup(response);
+        }
+
+        free(response);
+    }
+
+    // Fallback if LLM unavailable
+    if (!result) {
+        result = malloc(MAX_IPA_LENGTH);
+        if (result) {
+            snprintf(result, MAX_IPA_LENGTH, "/%s/", word);
         }
     }
 
-    // Italian examples
-    if (language == LANG_ITALIAN) {
-        if (strcmp(word, "ciao") == 0) {
-            strncpy(ipa, "/ˈtʃaːo/", sizeof(ipa));
-        } else if (strcmp(word, "grazie") == 0) {
-            strncpy(ipa, "/ˈɡrattsje/", sizeof(ipa));
-        } else {
-            snprintf(ipa, sizeof(ipa), "/%s/ (IPA not available)", word);
-        }
-    }
-
-    // TODO: Integrate with pronunciation API or espeak-ng for IPA generation
-
-    return strdup(ipa);
+    return result;
 }
 
 /**

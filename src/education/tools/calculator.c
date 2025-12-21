@@ -313,8 +313,58 @@ Calculation* calc_subtract_steps(double a, double b, const CalculatorAccessibili
     calc->operation = CALC_SUBTRACT;
     calc->result = a - b;
 
-    // Similar step generation as addition
-    // TODO: Implement detailed steps
+    // Generate step-by-step explanation for subtraction
+    if (access && access->show_every_step && a == (int)a && b == (int)b) {
+        int ia = (int)a;
+        int ib = (int)b;
+
+        if (ia >= 0 && ia < 1000 && ib >= 0 && ib < 1000) {
+            int units_a = ia % 10;
+            int tens_a = (ia / 10) % 10;
+            int units_b = ib % 10;
+            int tens_b = (ib / 10) % 10;
+
+            calc->steps = calloc(4, sizeof(CalcStep));
+            calc->step_count = 0;
+
+            // Step 1: Show the numbers
+            calc->steps[calc->step_count].step_description =
+                strdup("Primo passo: separiamo i numeri per posizione");
+            char visual[256];
+            snprintf(visual, sizeof(visual),
+                     "  %d %d\n- %d %d\n------",
+                     tens_a, units_a, tens_b, units_b);
+            calc->steps[calc->step_count].visual = strdup(visual);
+            calc->step_count++;
+
+            // Step 2: Subtract units (with borrow if needed)
+            int borrow = 0;
+            int units_result = units_a - units_b;
+            if (units_result < 0) {
+                borrow = 1;
+                units_result += 10;
+            }
+            snprintf(visual, sizeof(visual),
+                     "Unita: %d - %d = %d%s",
+                     borrow ? units_a + 10 : units_a, units_b, units_result,
+                     borrow ? " (prestito 1 dalla decina)" : "");
+            calc->steps[calc->step_count].step_description = strdup(visual);
+            calc->step_count++;
+
+            // Step 3: Subtract tens
+            int tens_result = tens_a - tens_b - borrow;
+            snprintf(visual, sizeof(visual),
+                     "Decine: %d - %d - %d = %d",
+                     tens_a, tens_b, borrow, tens_result);
+            calc->steps[calc->step_count].step_description = strdup(visual);
+            calc->step_count++;
+
+            // Step 4: Result
+            calc->steps[calc->step_count].step_description = strdup("\nRisultato: ");
+            calc->steps[calc->step_count].intermediate_result = calc->result;
+            calc->step_count++;
+        }
+    }
 
     return calc;
 }
@@ -332,8 +382,90 @@ Calculation* calc_multiply_steps(double a, double b, const CalculatorAccessibili
     calc->result = a * b;
 
     if (access && access->show_every_step && a == (int)a && b == (int)b) {
-        // Show multiplication as repeated addition or grid
-        // TODO: Implement detailed steps
+        int ia = (int)a;
+        int ib = (int)b;
+
+        // Show multiplication as repeated addition for small numbers
+        if (ia > 0 && ia <= 12 && ib > 0 && ib <= 12) {
+            // For small multiplications, show as repeated addition
+            int smaller = ia < ib ? ia : ib;
+            int larger = ia < ib ? ib : ia;
+
+            calc->steps = calloc(smaller + 2, sizeof(CalcStep));
+            calc->step_count = 0;
+
+            // Step 1: Explain the concept
+            char visual[512];
+            snprintf(visual, sizeof(visual),
+                     "Moltiplica %d x %d = aggiungi %d per %d volte",
+                     ia, ib, larger, smaller);
+            calc->steps[calc->step_count].step_description = strdup(visual);
+            calc->step_count++;
+
+            // Steps 2 to N: Show each addition
+            int running_total = 0;
+            for (int i = 1; i <= smaller && calc->step_count < smaller + 1; i++) {
+                running_total += larger;
+                snprintf(visual, sizeof(visual),
+                         "Passo %d: %d + %d = %d",
+                         i, running_total - larger, larger, running_total);
+                calc->steps[calc->step_count].step_description = strdup(visual);
+                calc->steps[calc->step_count].intermediate_result = running_total;
+                calc->step_count++;
+            }
+
+            // Final step: Result
+            calc->steps[calc->step_count].step_description = strdup("\nRisultato finale: ");
+            calc->steps[calc->step_count].intermediate_result = calc->result;
+            calc->step_count++;
+
+        } else if (ia >= 0 && ia < 100 && ib >= 0 && ib < 100) {
+            // For larger numbers, show grid method
+            int units_a = ia % 10;
+            int tens_a = ia / 10;
+            int units_b = ib % 10;
+            int tens_b = ib / 10;
+
+            calc->steps = calloc(6, sizeof(CalcStep));
+            calc->step_count = 0;
+
+            // Step 1: Show decomposition
+            char visual[512];
+            snprintf(visual, sizeof(visual),
+                     "Scomponiamo: %d = %d + %d, %d = %d + %d",
+                     ia, tens_a * 10, units_a, ib, tens_b * 10, units_b);
+            calc->steps[calc->step_count].step_description = strdup(visual);
+            calc->step_count++;
+
+            // Step 2-5: Grid multiplication
+            int p1 = tens_a * 10 * tens_b * 10;
+            int p2 = tens_a * 10 * units_b;
+            int p3 = units_a * tens_b * 10;
+            int p4 = units_a * units_b;
+
+            snprintf(visual, sizeof(visual), "%d x %d = %d", tens_a * 10, tens_b * 10, p1);
+            calc->steps[calc->step_count].step_description = strdup(visual);
+            calc->step_count++;
+
+            snprintf(visual, sizeof(visual), "%d x %d = %d", tens_a * 10, units_b, p2);
+            calc->steps[calc->step_count].step_description = strdup(visual);
+            calc->step_count++;
+
+            snprintf(visual, sizeof(visual), "%d x %d = %d", units_a, tens_b * 10, p3);
+            calc->steps[calc->step_count].step_description = strdup(visual);
+            calc->step_count++;
+
+            snprintf(visual, sizeof(visual), "%d x %d = %d", units_a, units_b, p4);
+            calc->steps[calc->step_count].step_description = strdup(visual);
+            calc->step_count++;
+
+            // Step 6: Sum all parts
+            snprintf(visual, sizeof(visual), "Somma: %d + %d + %d + %d = %.0f",
+                     p1, p2, p3, p4, calc->result);
+            calc->steps[calc->step_count].step_description = strdup(visual);
+            calc->steps[calc->step_count].intermediate_result = calc->result;
+            calc->step_count++;
+        }
     }
 
     return calc;

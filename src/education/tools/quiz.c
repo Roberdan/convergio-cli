@@ -9,12 +9,60 @@
  */
 
 #include "nous/education.h"
+#include "nous/orchestrator.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
 #include <stdbool.h>
 #include <unistd.h>
+
+// Helper to extract JSON string value
+static char* quiz_extract_json_string(const char* json, const char* key) {
+    if (!json || !key) return NULL;
+
+    char search[128];
+    snprintf(search, sizeof(search), "\"%s\"", key);
+
+    char* pos = strstr(json, search);
+    if (!pos) return NULL;
+
+    pos = strchr(pos, ':');
+    if (!pos) return NULL;
+
+    while (*pos && (*pos == ':' || *pos == ' ' || *pos == '\t')) pos++;
+    if (*pos != '"') return NULL;
+
+    pos++;
+    char* end = strchr(pos, '"');
+    if (!end) return NULL;
+
+    size_t len = end - pos;
+    char* result = malloc(len + 1);
+    if (result) {
+        strncpy(result, pos, len);
+        result[len] = '\0';
+    }
+    return result;
+}
+
+// Helper to extract JSON integer value
+static int quiz_extract_json_int(const char* json, const char* key) {
+    if (!json || !key) return -1;
+
+    char search[128];
+    snprintf(search, sizeof(search), "\"%s\"", key);
+
+    char* pos = strstr(json, search);
+    if (!pos) return -1;
+
+    pos = strchr(pos, ':');
+    if (!pos) return -1;
+
+    while (*pos && (*pos == ':' || *pos == ' ' || *pos == '\t')) pos++;
+
+    return atoi(pos);
+}
 
 // ============================================================================
 // TYPES AND STRUCTURES
@@ -304,8 +352,8 @@ Quiz* quiz_generate_from_llm(const char* topic, const char* content,
 
     QuizAccessibility qa = get_quiz_accessibility(access);
 
-    // Determine difficulty string (used when LLM integration is active)
-    const char* diff_str __attribute__((unused)) = "medium";
+    // Determine difficulty string
+    const char* diff_str = "medium";
     switch (difficulty) {
         case DIFFICULTY_EASY: diff_str = "easy"; break;
         case DIFFICULTY_HARD: diff_str = "hard"; break;
@@ -313,8 +361,8 @@ Quiz* quiz_generate_from_llm(const char* topic, const char* content,
         default: break;
     }
 
-    // Determine question types based on accessibility (used when LLM integration is active)
-    const char* types __attribute__((unused)) = "multiple_choice, true_false";
+    // Determine question types based on accessibility
+    const char* types = "multiple_choice, true_false";
     if (!qa.simplified_options) {
         types = "multiple_choice, true_false, cloze, sequence";
     }
@@ -336,9 +384,7 @@ Quiz* quiz_generate_from_llm(const char* topic, const char* content,
         strncat(access_req, "- Keep questions short (max 2 sentences)\n", remaining);
     }
 
-    // Build prompt (in real implementation, send to LLM)
-    // For now, create a sample quiz
-
+    // Create quiz structure
     Quiz* quiz = calloc(1, sizeof(Quiz));
     if (!quiz) return NULL;
 
@@ -348,11 +394,137 @@ Quiz* quiz_generate_from_llm(const char* topic, const char* content,
     quiz->topic = strdup(topic);
     quiz->difficulty = difficulty;
     quiz->adaptive = (difficulty == DIFFICULTY_ADAPTIVE);
-    quiz->question_count = question_count > 0 ? question_count : 5;
-    quiz->questions = calloc(quiz->question_count, sizeof(QuizQuestion));
+    int target_count = question_count > 0 ? question_count : 5;
+    quiz->questions = calloc(target_count, sizeof(QuizQuestion));
+    quiz->question_count = 0;
 
-    // Generate sample questions (placeholder)
-    // In real implementation, parse LLM response
+    // Build prompt
+    size_t prompt_size = strlen(QUIZ_PROMPT_TEMPLATE) + strlen(topic) +
+                         (content ? strlen(content) : 20) + strlen(access_req) + 200;
+    char* prompt = malloc(prompt_size);
+    if (!prompt) {
+        free(quiz->title);
+        free(quiz->topic);
+        free(quiz->questions);
+        free(quiz);
+        return NULL;
+    }
+
+    snprintf(prompt, prompt_size, QUIZ_PROMPT_TEMPLATE,
+             topic,
+             content ? content : "(general knowledge about the topic)",
+             target_count, diff_str, types, access_req);
+
+    // Call LLM for quiz generation
+    TokenUsage usage = {0};
+    char* response = llm_chat(
+        "You are an educational quiz creator. Generate quiz questions in JSON format. Output a JSON array of question objects.",
+        prompt,
+        &usage
+    );
+
+    free(prompt);
+
+    if (response) {
+        // Parse each question object from the response
+        char* ptr = response;
+        while ((ptr = strstr(ptr, "{")) != NULL && quiz->question_count < target_count) {
+            QuizQuestion* q = &quiz->questions[quiz->question_count];
+
+            // Extract question type
+            char* type_str = quiz_extract_json_string(ptr, "type");
+            if (type_str) {
+                if (strstr(type_str, "true_false")) q->type = QUIZ_TRUE_FALSE;
+                else if (strstr(type_str, "cloze")) q->type = QUIZ_CLOZE;
+                else if (strstr(type_str, "sequence")) q->type = QUIZ_SEQUENCE;
+                else q->type = QUIZ_MULTIPLE_CHOICE;
+                free(type_str);
+            }
+
+            // Extract question text
+            q->question_text = quiz_extract_json_string(ptr, "question");
+
+            // Extract explanation
+            q->explanation = quiz_extract_json_string(ptr, "explanation");
+
+            // Extract correct answer index
+            int correct_idx = quiz_extract_json_int(ptr, "correct");
+
+            // Extract options
+            char* options_start = strstr(ptr, "\"options\"");
+            if (options_start && q->question_text) {
+                options_start = strchr(options_start, '[');
+                if (options_start) {
+                    char* options_end = strchr(options_start, ']');
+                    if (options_end) {
+                        // Count options
+                        int opt_count = 0;
+                        char* opt_ptr = options_start;
+                        while ((opt_ptr = strchr(opt_ptr + 1, '"')) != NULL && opt_ptr < options_end) {
+                            opt_count++;
+                        }
+                        opt_count /= 2;  // Each option has opening and closing quotes
+
+                        if (opt_count > 0) {
+                            q->options = calloc(opt_count, sizeof(QuizOption));
+                            q->option_count = 0;
+
+                            opt_ptr = options_start;
+                            while (q->option_count < opt_count) {
+                                opt_ptr = strchr(opt_ptr + 1, '"');
+                                if (!opt_ptr || opt_ptr >= options_end) break;
+
+                                char* opt_end = strchr(opt_ptr + 1, '"');
+                                if (!opt_end || opt_end >= options_end) break;
+
+                                size_t opt_len = opt_end - opt_ptr - 1;
+                                q->options[q->option_count].text = malloc(opt_len + 1);
+                                if (q->options[q->option_count].text) {
+                                    strncpy(q->options[q->option_count].text, opt_ptr + 1, opt_len);
+                                    q->options[q->option_count].text[opt_len] = '\0';
+                                    q->options[q->option_count].is_correct = (q->option_count == correct_idx);
+                                    q->option_count++;
+                                }
+
+                                opt_ptr = opt_end;
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Set difficulty and points
+            q->difficulty = difficulty;
+            q->points = (difficulty == DIFFICULTY_HARD) ? 3 : (difficulty == DIFFICULTY_EASY) ? 1 : 2;
+
+            // Only count as valid if we got question text
+            if (q->question_text) {
+                quiz->question_count++;
+            }
+
+            // Move to next object
+            ptr = strchr(ptr, '}');
+            if (!ptr) break;
+            ptr++;
+        }
+
+        free(response);
+    }
+
+    // If no questions were generated, create at least one placeholder
+    if (quiz->question_count == 0) {
+        quiz->questions[0].type = QUIZ_MULTIPLE_CHOICE;
+        quiz->questions[0].question_text = strdup("What is the main topic of this quiz?");
+        quiz->questions[0].options = calloc(4, sizeof(QuizOption));
+        quiz->questions[0].options[0].text = strdup(topic);
+        quiz->questions[0].options[0].is_correct = true;
+        quiz->questions[0].options[1].text = strdup("Something else");
+        quiz->questions[0].options[2].text = strdup("Another option");
+        quiz->questions[0].options[3].text = strdup("None of the above");
+        quiz->questions[0].option_count = 4;
+        quiz->questions[0].points = 1;
+        quiz->question_count = 1;
+    }
 
     return quiz;
 }
