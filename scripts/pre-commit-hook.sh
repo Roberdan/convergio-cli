@@ -19,6 +19,20 @@ NC='\033[0m' # No Color
 # Track if any check fails
 FAILED=0
 
+# 0. Code formatting check (fast feedback)
+echo "  🎨 Checking code formatting..."
+if command -v clang-format >/dev/null 2>&1; then
+    if make format-check >/dev/null 2>&1; then
+        echo "    ✅ Code formatting OK"
+    else
+        echo "${YELLOW}⚠️  Code formatting issues found${NC}"
+        echo "   Run 'make format' to fix formatting"
+        # Don't fail on format issues, just warn
+    fi
+else
+    echo "    ⚠️  clang-format not found (skipping format check)"
+fi
+
 # 1. Quick build check (fast feedback)
 echo "  📦 Checking build..."
 if ! make clean >/dev/null 2>&1; then
