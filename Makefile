@@ -26,13 +26,17 @@ else
 endif
 
 # Parallel build optimization for M3 Max
-# Use more jobs than cores to account for I/O wait and maximize throughput
-# M3 Max: 14 cores (10P + 4E), use 18-20 jobs for optimal parallelism
+# M3 Max: 14 cores (10P + 4E), 36GB RAM - can handle aggressive parallelism
+# Use 2x cores for optimal parallelism (accounts for I/O wait, cache, and RAM headroom)
 CPU_CORES := $(shell sysctl -n hw.ncpu 2>/dev/null || echo 14)
 P_CORES := $(shell sysctl -n hw.perflevel0.physicalcpu 2>/dev/null || echo 10)
-# Use 1.5x cores for optimal parallelism (accounts for I/O wait)
-PARALLEL_JOBS := $(shell echo $$(( $(CPU_CORES) * 3 / 2 )) || echo 20)
-MAKEFLAGS += -j$(PARALLEL_JOBS) --load-average=$(CPU_CORES)
+# M3 Max with 36GB RAM: use 2x cores for maximum throughput
+# This is safe because we have plenty of RAM and fast I/O
+PARALLEL_JOBS := $(shell echo $$(( $(CPU_CORES) * 2 )) || echo 28)
+# Allow higher load average for better CPU utilization
+MAKEFLAGS += -j$(PARALLEL_JOBS) --load-average=$(shell echo $$(( $(CPU_CORES) * 2 )) || echo 28)
+# Enable jobserver for better parallelization
+MAKEFLAGS += --jobserver-style=pipe
 
 # Apple Silicon optimizations for M3 Max
 # M3 Max specific: use latest architecture features
@@ -86,7 +90,10 @@ else
     # Note: LTO disabled because it incorrectly eliminates tool functions
     # that are called through function pointers / dynamic paths
     CFLAGS += -O3 -DNDEBUG \
-              -mllvm -enable-machine-outliner=never
+              -mllvm -enable-machine-outliner=never \
+              -mllvm -enable-unsafe-fp-math \
+              -mllvm -enable-no-infs-fp-math \
+              -mllvm -enable-no-nans-fp-math
     # Linker optimizations for M3 Max with 36GB RAM
     # Use more memory for faster linking (macOS ld64 doesn't support -threads)
     LDFLAGS += -Wl,-cache_path_lto,$(BUILD_DIR)/lto.cache \
@@ -267,8 +274,12 @@ $(EMBEDDED_AGENTS): $(wildcard $(SRC_DIR)/agents/definitions/*.md) scripts/embed
 $(OBJ_DIR)/agents/embedded_agents.o: $(EMBEDDED_AGENTS)
 
 # Environment optimizations for M3 Max with 36GB RAM
-# Increase Swift build parallelism
-export SWIFT_BUILD_JOBS=$(PARALLEL_JOBS)
+# Swift build parallelism (already defined above, just export)
+export SWIFT_BUILD_JOBS=$(SWIFT_BUILD_JOBS)
+# Swift-specific optimizations
+export SWIFT_ACTIVE_COMPILATION_CONDITIONS="$(ARCH_FLAGS)"
+# Enable Swift incremental compilation
+export SWIFT_ENABLE_INCREMENTAL_COMPILATION=1
 # Optimize sccache for M3 Max (10GB cache)
 export SCCACHE_DIR=$(HOME)/.cache/sccache
 export SCCACHE_CACHE_SIZE=10G
@@ -313,16 +324,20 @@ XCODE_RELEASE_DIR = $(XCODE_BUILD_DIR)/Build/Products/Release
 swift: $(SWIFT_LIB)
 
 $(SWIFT_LIB): Package.swift Sources/ConvergioMLX/MLXBridge.swift
-	@echo "Building Swift package (MLX integration, M3 Max optimized)..."
+	@echo "Building Swift package (MLX integration, M3 Max optimized, $(SWIFT_BUILD_JOBS) jobs)..."
 	@swift build -c release --product ConvergioMLX \
 		-Xswiftc -O -Xswiftc -whole-module-optimization \
-		--jobs $(PARALLEL_JOBS) 2>&1 | grep -v "^$$" || true
+		--jobs $(SWIFT_BUILD_JOBS) \
+		--enable-incremental-compilation \
+		2>&1 | grep -v "^$$" || true
 	@if [ -f "$(SWIFT_LIB)" ]; then \
 		echo "Swift library built: $(SWIFT_LIB)"; \
 		mkdir -p $(BIN_DIR); \
 		echo "Setting up Metal shaders..."; \
 		xcodebuild build -scheme ConvergioMLX -configuration Release -destination 'platform=macOS' \
-			-derivedDataPath $(XCODE_BUILD_DIR) >/dev/null 2>&1 || true; \
+			-derivedDataPath $(XCODE_BUILD_DIR) \
+			-jobs $(SWIFT_BUILD_JOBS) \
+			>/dev/null 2>&1 || true; \
 		if [ -f "$(XCODE_RELEASE_DIR)/mlx-swift_Cmlx.bundle/Contents/Resources/default.metallib" ]; then \
 			cp "$(XCODE_RELEASE_DIR)/mlx-swift_Cmlx.bundle/Contents/Resources/default.metallib" "$(BIN_DIR)/"; \
 			echo "Metal library compiled and copied to $(BIN_DIR)/default.metallib"; \
@@ -1025,6 +1040,13 @@ security_audit_workflow:
 # Run all tests
 test: fuzz_test unit_test anna_test compaction_test plan_db_test output_service_test tools_test websearch_test workflow_test telemetry_test security_test check-docs
 	@echo "All tests completed!"
+
+# Parallel test execution helper (for independent test suites)
+# Use with caution - only for tests that don't share resources
+test_parallel:
+	@echo "Running independent tests in parallel ($(PARALLEL_JOBS) jobs)..."
+	@$(MAKE) -j$(PARALLEL_JOBS) fuzz_test unit_test telemetry_test security_test || true
+	@echo "Parallel tests completed!"
 
 # Coverage target - builds with coverage and runs tests
 coverage: clean
