@@ -276,16 +276,15 @@ static void test_checkpoint_state_persistence(void) {
 
 static void test_checkpoint_fuzz(void) {
     printf("test_checkpoint_fuzz:\n");
-    
-    char db_name[256];
-    snprintf(db_name, sizeof(db_name), "/tmp/test_checkpoint_fuzz_%d.db", getpid());
-    setup_test_db(db_name);
-    
+
+    setup_test_db();
+
     WorkflowNode* entry = workflow_node_create("entry", NODE_TYPE_ACTION);
     Workflow* wf = workflow_create("fuzz_test", "Fuzz test workflow", entry);
     wf->workflow_id = 999; // Manually set ID for testing persistence
-    
-    workflow_save(wf);
+
+    // Create initial checkpoint to persist workflow state
+    workflow_checkpoint(wf, "initial");
     
     // Fuzz test: Create many checkpoints with various state values
     for (int i = 0; i < 100; i++) {
@@ -308,7 +307,7 @@ static void test_checkpoint_fuzz(void) {
     TEST_ASSERT(val != NULL || val == NULL, "fuzz state retrieval works");
     
     workflow_destroy(wf);
-    teardown_test_db(db_name);
+    teardown_test_db();
     printf("\n");
 }
 

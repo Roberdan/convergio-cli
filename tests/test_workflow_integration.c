@@ -41,14 +41,9 @@ static int tests_passed = 0;
         } \
     } while (0)
 
-// Mock functions
-void nous_log(LogLevel level, LogCategory cat, const char* fmt, ...) {
-    (void)level; (void)cat; (void)fmt;
-}
-
-void nous_log_set_level(LogLevel level) { (void)level; }
-LogLevel nous_log_get_level(void) { return LOG_LEVEL_INFO; }
-const char* nous_log_level_name(LogLevel level) { (void)level; return ""; }
+// Mock functions are provided by test_stubs.c (linked via $(TEST_STUBS))
+// nous_log, nous_log_set_level, nous_log_get_level, nous_log_level_name
+// are defined in tests/test_stubs.c to avoid duplicate symbol errors
 
 // ============================================================================
 // E2E INTEGRATION: ALL COMPONENTS TOGETHER
