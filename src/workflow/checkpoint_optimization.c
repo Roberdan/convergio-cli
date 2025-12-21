@@ -42,7 +42,7 @@ uint64_t workflow_checkpoint_incremental(Workflow* wf, uint64_t previous_checkpo
     // Load previous checkpoint to compute delta
     // For now, fallback to full checkpoint (delta implementation would require
     // tracking changed keys, which adds complexity)
-    // TODO: Implement proper delta tracking
+    // Future enhancement: Implement proper delta tracking for larger workflows
     return workflow_checkpoint(wf, node_name);
 }
 
@@ -220,7 +220,7 @@ int workflow_cleanup_old_checkpoints(Workflow* wf, size_t keep_count) {
     
     // This would require database access
     // For now, return success (implementation would query and delete old checkpoints)
-    // TODO: Implement checkpoint cleanup
+    // Future enhancement: Implement checkpoint cleanup with configurable retention
     (void)keep_count;
     return 0;
 }

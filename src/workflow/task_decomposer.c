@@ -126,7 +126,7 @@ static DecomposedTask* parse_decomposition_json(const char* json_str, size_t* ou
         return NULL;
     }
 
-    DecomposedTask* tasks = calloc(array_size, sizeof(DecomposedTask));
+    DecomposedTask* tasks = calloc((size_t)array_size, sizeof(DecomposedTask));
     if (!tasks) {
         cJSON_Delete(json);
         return NULL;
@@ -185,8 +185,8 @@ static DecomposedTask* parse_decomposition_json(const char* json_str, size_t* ou
             }
 
             if (prereq_size > 0) {
-                tasks[idx].prerequisite_capacity = prereq_size;
-                tasks[idx].prerequisite_ids = calloc(prereq_size, sizeof(uint64_t));
+                tasks[idx].prerequisite_capacity = (size_t)prereq_size;
+                tasks[idx].prerequisite_ids = calloc((size_t)prereq_size, sizeof(uint64_t));
                 if (tasks[idx].prerequisite_ids) {
                     for (int j = 0; j < prereq_size; j++) {
                         cJSON* prereq_item = cJSON_GetArrayItem(prereq_obj, j);
@@ -220,7 +220,7 @@ static DecomposedTask* parse_decomposition_json(const char* json_str, size_t* ou
         return NULL;
     }
 
-    *out_count = valid_task_count;
+    *out_count = (size_t)valid_task_count;
     return tasks;
 }
 
@@ -259,7 +259,11 @@ DecomposedTask* task_decompose(
     if (!prompt) {
         return NULL;
     }
+    // Suppress false positive: prompt_template is a controlled literal
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wformat-nonliteral"
     snprintf(prompt, prompt_size, prompt_template, goal);
+#pragma clang diagnostic pop
     
     // Use LLM to decompose
     Provider* provider = provider_get(PROVIDER_ANTHROPIC);
@@ -775,7 +779,11 @@ static int task_execute_via_agent(DecomposedTask* task) {
         task_mark_failed(task, "Memory allocation failed for task prompt");
         return -1;
     }
+    // Suppress false positive: prompt_template is a controlled literal
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wformat-nonliteral"
     snprintf(task_prompt, prompt_size, prompt_template, task->description, validation_text);
+#pragma clang diagnostic pop
 
     // Execute task via agent
     TokenUsage usage = {0};

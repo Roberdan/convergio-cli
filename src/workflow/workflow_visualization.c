@@ -199,7 +199,7 @@ int workflow_export_mermaid(const Workflow* wf, char* output, size_t output_size
     if (written < 0 || (size_t)written >= output_size - pos) {
         return -1;
     }
-    pos += written;
+    pos += (size_t)written;
     
     // Define all nodes
     for (size_t i = 0; i < node_count; i++) {
@@ -219,7 +219,7 @@ int workflow_export_mermaid(const Workflow* wf, char* output, size_t output_size
         if (written < 0 || (size_t)written >= output_size - pos) {
             return -1;
         }
-        pos += written;
+        pos += (size_t)written;
     }
     
     // Define edges
@@ -253,7 +253,7 @@ int workflow_export_mermaid(const Workflow* wf, char* output, size_t output_size
             if (written < 0 || (size_t)written >= output_size - pos) {
                 return -1;
             }
-            pos += written;
+            pos += (size_t)written;
         }
         
         // Fallback node
@@ -265,7 +265,7 @@ int workflow_export_mermaid(const Workflow* wf, char* output, size_t output_size
             if (written < 0 || (size_t)written >= output_size - pos) {
                 return -1;
             }
-            pos += written;
+            pos += (size_t)written;
         }
     }
     
@@ -276,7 +276,7 @@ int workflow_export_mermaid(const Workflow* wf, char* output, size_t output_size
     if (written < 0 || (size_t)written >= output_size - pos) {
         return -1;
     }
-    pos += written;
+    pos += (size_t)written;
     
     output[pos] = '\0';
     return 0;
