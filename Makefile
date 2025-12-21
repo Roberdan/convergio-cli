@@ -33,6 +33,8 @@ P_CORES := $(shell sysctl -n hw.perflevel0.physicalcpu 2>/dev/null || echo 10)
 # M3 Max with 36GB RAM: use 2x cores for maximum throughput
 # This is safe because we have plenty of RAM and fast I/O
 PARALLEL_JOBS := $(shell echo $$(( $(CPU_CORES) * 2 )) || echo 28)
+# Swift build parallelism (default to P_CORES for optimal Swift compilation)
+SWIFT_BUILD_JOBS ?= $(P_CORES)
 # Allow higher load average for better CPU utilization
 MAKEFLAGS += -j$(PARALLEL_JOBS) --load-average=$(shell echo $$(( $(CPU_CORES) * 2 )) || echo 28)
 # Enable jobserver for better parallelization

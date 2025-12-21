@@ -144,6 +144,21 @@ set(NOUS_SOURCES
     src/todo/todo.c
     src/notifications/notify.c
     src/mcp/mcp_client.c
+    # Workflow Orchestration
+    src/core/commands/workflow.c
+    src/core/commands/telemetry.c
+    src/workflow/checkpoint.c
+    src/workflow/checkpoint_optimization.c
+    src/workflow/error_handling.c
+    src/workflow/group_chat.c
+    src/workflow/patterns.c
+    src/workflow/retry.c
+    src/workflow/router.c
+    src/workflow/task_decomposer.c
+    src/workflow/workflow_engine.c
+    src/workflow/workflow_observability.c
+    src/workflow/workflow_types.c
+    src/workflow/workflow_visualization.c
 )
 
 # Objective-C sources
