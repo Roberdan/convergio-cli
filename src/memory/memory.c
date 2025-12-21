@@ -6,7 +6,9 @@
 
 #include "nous/memory.h"
 #include "nous/orchestrator.h"
+#include "nous/safe_path.h"
 #include <stdio.h>
+#include <fcntl.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
@@ -81,7 +83,8 @@ int memory_save(const MemoryEntry* entry) {
     char* json_str = cJSON_Print(json);
     cJSON_Delete(json);
 
-    FILE* f = fopen(filepath, "w");
+    int fd = safe_path_open(filepath, safe_path_get_user_boundary(), O_WRONLY | O_CREAT | O_TRUNC, 0644);
+    FILE* f = fd >= 0 ? fdopen(fd, "w") : NULL;
     if (!f) {
         free(json_str);
         return -1;
@@ -200,7 +203,8 @@ int memory_generate_summary(const char* agent_name,
 
 // Load a single memory entry from file
 static int load_memory_entry(const char* filepath, MemoryEntry* entry) {
-    FILE* f = fopen(filepath, "r");
+    int fd = safe_path_open(filepath, safe_path_get_user_boundary(), O_RDONLY, 0);
+    FILE* f = fd >= 0 ? fdopen(fd, "r") : NULL;
     if (!f) return -1;
 
     fseek(f, 0, SEEK_END);

@@ -39,6 +39,11 @@ typedef enum {
     TELEMETRY_EVENT_ORCHESTRATOR_DELEGATION, // Agent delegation event
     TELEMETRY_EVENT_ORCHESTRATOR_PLANNING,   // Task planning event
     TELEMETRY_EVENT_ORCHESTRATOR_CONVERGENCE, // Response convergence event
+    // Extended telemetry events
+    TELEMETRY_EVENT_PERFORMANCE,     // Performance metrics
+    TELEMETRY_EVENT_SECURITY,        // Security audit event
+    TELEMETRY_EVENT_CHECKPOINT,      // Workflow checkpoint event
+    TELEMETRY_EVENT_RETRY,           // Retry attempt event
 } TelemetryEventType;
 
 /**
@@ -62,6 +67,21 @@ typedef struct {
     // Fallback metrics (type == TELEMETRY_EVENT_FALLBACK)
     char from_provider[64];         // Provider that failed
     char to_provider[64];           // Provider used as fallback
+
+    // Performance metrics (type == TELEMETRY_EVENT_PERFORMANCE)
+    char operation[64];             // Operation type (e.g., "workflow_execute", "checkpoint")
+    double duration_ms;             // Operation duration in milliseconds
+    uint64_t memory_bytes;          // Memory used in bytes (optional)
+
+    // Security metrics (type == TELEMETRY_EVENT_SECURITY)
+    char security_event[64];        // Security event type (e.g., "path_validation", "injection_blocked")
+    char security_context[128];     // Additional context (no PII, e.g., "file_access", "api_call")
+    bool security_success;          // Whether security check passed
+
+    // Retry metrics (type == TELEMETRY_EVENT_RETRY)
+    int retry_attempt;              // Retry attempt number
+    int max_retries;                // Maximum retries configured
+    char retry_reason[64];          // Reason for retry (e.g., "network_error", "rate_limit")
 
 } TelemetryEvent;
 
@@ -154,6 +174,46 @@ void telemetry_record_session_start(void);
  * Only recorded if telemetry is enabled
  */
 void telemetry_record_session_end(void);
+
+/**
+ * Record a performance event
+ * Only recorded if telemetry is enabled
+ */
+void telemetry_record_performance(
+    const char* operation,
+    double duration_ms,
+    uint64_t memory_bytes
+);
+
+/**
+ * Record a security audit event
+ * Only recorded if telemetry is enabled
+ * NOTE: No PII is recorded, only event type and success status
+ */
+void telemetry_record_security(
+    const char* security_event,
+    const char* context,
+    bool success
+);
+
+/**
+ * Record a retry event
+ * Only recorded if telemetry is enabled
+ */
+void telemetry_record_retry(
+    const char* reason,
+    int attempt,
+    int max_retries
+);
+
+/**
+ * Record a checkpoint event
+ * Only recorded if telemetry is enabled
+ */
+void telemetry_record_checkpoint(
+    const char* workflow_type,
+    double duration_ms
+);
 
 // ============================================================================
 // DATA MANAGEMENT

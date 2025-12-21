@@ -18,6 +18,8 @@
 #include "nous/commands.h"
 #include "nous/repl.h"
 #include "nous/signals.h"
+#include "nous/safe_path.h"
+#include <fcntl.h>
 #include "nous/projects.h"
 #include "nous/mlx.h"
 #include "nous/notify.h"
@@ -316,7 +318,8 @@ int main(int argc, char** argv) {
     if (term_program && home_dir) {
         char term_file[PATH_MAX];
         snprintf(term_file, sizeof(term_file), "%s/.convergio/terminal", home_dir);
-        FILE* f = fopen(term_file, "w");
+        int fd = safe_path_open(term_file, safe_path_get_user_boundary(), O_WRONLY | O_CREAT | O_TRUNC, 0644);
+        FILE* f = fd >= 0 ? fdopen(fd, "w") : NULL;
         if (f) {
             fprintf(f, "%s", term_program);
             fclose(f);

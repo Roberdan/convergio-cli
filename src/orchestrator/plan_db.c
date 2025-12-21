@@ -6,7 +6,9 @@
 
 #include "nous/plan_db.h"
 #include "nous/debug_mutex.h"
+#include "nous/safe_path.h"
 #include <stdio.h>
+#include <fcntl.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
@@ -899,7 +901,8 @@ PlanDbError plan_db_export_markdown(const char* plan_id, const char* out_path,
     PlanProgress progress;
     plan_db_get_progress(plan_id, &progress);
 
-    FILE* f = fopen(out_path, "w");
+    int fd = safe_path_open(out_path, safe_path_get_cwd_boundary(), O_WRONLY | O_CREAT | O_TRUNC, 0644);
+    FILE* f = fd >= 0 ? fdopen(fd, "w") : NULL;
     if (!f) {
         plan_record_free(&plan);
         return PLAN_DB_ERROR_IO;
