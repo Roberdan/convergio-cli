@@ -1,6 +1,6 @@
 # Workflow-Orchestration Merge Plan
 
-**Last Updated**: 2025-12-21 | **Status**: ✅ ALL PHASES COMPLETE (68/68 tasks)
+**Last Updated**: 2025-12-21 | **Status**: ✅ ALL PHASES COMPLETE (70/70 tasks)
 
 ---
 
@@ -8,10 +8,10 @@
 
 | Stato | Tasks |
 |-------|-------|
-| ✅ Completati | 68 |
+| ✅ Completati | 70 |
 | ⏳ In corso | 0 |
 | ⬚ Da fare | 0 |
-| **Totale** | **68** |
+| **Totale** | **70** |
 
 ```
 ✅ PHASE 1: MERGE & BUILD ████████████████████ 100% (5/5)
@@ -19,7 +19,8 @@
 ✅ PHASE 3: QUALITY       ████████████████████ 100% (13/13)
 ✅ PHASE 4: DOCS          ████████████████████ 100% (12/12)
 ✅ PHASE 5: REFACTORING   ████████████████████ 100% (14/14) - ALL ANALYZED
-✅ PHASE 6: FIX IMPL      ████████████████████ 100% (14/14) - COMPLETE
+✅ PHASE 6: FIX IMPL      ████████████████████ 100% (18/18) - COMPLETE
+✅ PHASE 8: EDU SETUP     ████████████████████ 100% (2/2) - COMPLETE
 ```
 
 ---
@@ -274,6 +275,64 @@ make clean && make EDITION=education && make test && make education_test
 | 🟢 FIX-12 | REF-02: Centralized Error Handling | Medium-High | ✅ DONE |
 | 🟢 FIX-13 | REF-05: Standardized Logging | Medium | ✅ DONE (26→30 files, core fixed) |
 | 🟢 FIX-14 | REF-08: Agent caching O(n)→O(1) | Low-Medium | ✅ DONE |
+
+---
+
+## ✅ PHASE 8: Education Setup (COMPLETE)
+
+> **Problema risolto**: Il setup wizard Education ora separa correttamente API setup (genitori) da Ali onboarding (studenti).
+
+### Task Completati
+
+| Task ID | Problema | Soluzione | Status |
+|---------|----------|-----------|--------|
+| ✅ EDU-01 | Setup misto (API + onboarding) | Separato in `ali_onboarding.c`: 1) `ali_check_api_setup()` per genitori 2) `ali_conversational_onboarding()` per studenti | ✅ DONE |
+| ✅ EDU-02 | Ali non fa domande allo studente | Creato flusso conversazionale: nome, età/classe, materie preferite, difficoltà, stile apprendimento, obiettivi, accessibilità | ✅ DONE |
+
+### Files Modificati
+
+- `src/education/ali_onboarding.c` (NEW) - Nuovo sistema onboarding a due fasi
+- `src/core/commands/education_commands.c` - Aggiornato per usare Ali onboarding
+- `Makefile` - Aggiunto ali_onboarding.c
+
+### EDU-01: Separazione Setup ✅
+
+**Flusso vecchio** (CORRETTO):
+```
+src/education/setup_wizard.c - Form-based, non coinvolgeva Ali
+```
+
+**Nuovo flusso implementato** (`src/education/ali_onboarding.c`):
+```
+STEP 1 - ali_check_api_setup():
+  ✓ Rileva se API key esiste già
+  ✓ Se no, mostra istruzioni per genitori (in italiano)
+  ✓ Permette di configurare o uscire
+
+STEP 2 - ali_conversational_onboarding():
+  ✓ Ali si presenta come Preside
+  ✓ Chiede nome dello studente (conversazionale)
+  ✓ Chiede età/classe
+  ✓ Chiede materie preferite
+  ✓ Chiede materie difficili
+  ✓ Chiede stile di apprendimento
+  ✓ Chiede obiettivi
+  ✓ Chiede note accessibilità (gentilmente)
+  ✓ Mostra riepilogo e chiede conferma
+  ✓ Salva profilo studente
+  ✓ Presenta i 15 Maestri disponibili
+```
+
+### EDU-02: Domande Ali ✅
+
+Ali ora chiede (in modo naturale, conversazionale):
+1. ✓ "Come ti chiami?"
+2. ✓ "Quanti anni hai? Che classe frequenti?"
+3. ✓ "Quali materie ti piacciono di più?"
+4. ✓ "Ci sono materie in cui fai più fatica?"
+5. ✓ "Come preferisci imparare?" (leggendo, guardando video, ecc.)
+6. ✓ "Cosa vorresti ottenere quest'anno?"
+7. ✓ "C'è qualcosa che dovrei sapere per aiutarti meglio?" (accessibilità)
 
 ---
 

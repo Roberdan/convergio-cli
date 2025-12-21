@@ -22,9 +22,14 @@
 // EXTERNAL FUNCTIONS FROM EDUCATION MODULE
 // ============================================================================
 
-// From setup_wizard.c
+// From setup_wizard.c (legacy)
 extern bool education_setup_wizard(void);
 extern bool education_quick_setup(const char* name, const char* curriculum, int grade);
+
+// From ali_onboarding.c (NEW - EDU-01, EDU-02)
+extern bool ali_education_onboarding(void);
+extern bool ali_needs_onboarding(void);
+extern bool ali_check_api_setup(void);
 
 // From tools/mindmap.c
 extern char* mindmap_generate_from_llm(const char* topic, const char* content,
@@ -90,7 +95,18 @@ int cmd_education(int argc, char** argv) {
     const char* subcommand = argv[1];
 
     if (strcmp(subcommand, "setup") == 0) {
-        // Run full setup wizard
+        // Run Ali's conversational onboarding (EDU-01, EDU-02)
+        // This separates API setup (for parents) from student onboarding (with Ali)
+        if (ali_education_onboarding()) {
+            return 0;
+        } else {
+            fprintf(stderr, "Setup cancelled or failed.\n");
+            return 1;
+        }
+    }
+
+    if (strcmp(subcommand, "setup-legacy") == 0) {
+        // Legacy form-based wizard (kept for compatibility)
         if (education_setup_wizard()) {
             printf("\n✓ Setup completed successfully!\n");
             return 0;
