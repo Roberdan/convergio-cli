@@ -275,7 +275,7 @@ $(OBJ_DIR)/agents/embedded_agents.o: $(EMBEDDED_AGENTS)
 
 # Environment optimizations for M3 Max with 36GB RAM
 # Swift build parallelism (already defined above, just export)
-export SWIFT_BUILD_JOBS=$(SWIFT_BUILD_JOBS)
+export SWIFT_BUILD_JOBS := $(SWIFT_BUILD_JOBS)
 # Swift-specific optimizations
 export SWIFT_ACTIVE_COMPILATION_CONDITIONS="$(ARCH_FLAGS)"
 # Enable Swift incremental compilation
