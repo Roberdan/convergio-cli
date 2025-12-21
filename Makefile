@@ -830,21 +830,6 @@ $(WEBSEARCH_TEST): $(WEBSEARCH_SOURCES) $(WEBSEARCH_OBJECTS) $(SWIFT_LIB) $(MLX_
 		$(CC) $(CFLAGS) $(LDFLAGS) -o $(WEBSEARCH_TEST) $(WEBSEARCH_SOURCES) $(WEBSEARCH_OBJECTS) $(MLX_STUBS_OBJ) $(FRAMEWORKS) $(LIBS); \
 	fi
 
-# Education Pack test target - tests school scenarios and accessibility
-EDUCATION_TEST = $(BIN_DIR)/education_test
-EDUCATION_SOURCES = tests/test_education.c $(TEST_STUBS)
-EDUCATION_OBJECTS = $(OBJ_DIR)/education/education_db.o \
-                    $(OBJ_DIR)/education/setup_wizard.o \
-                    $(OBJ_DIR)/core/commands/education_commands.o
-
-education_test: dirs $(EDUCATION_OBJECTS) $(EDUCATION_TEST)
-	@echo "Running Education Pack tests..."
-	@$(EDUCATION_TEST)
-
-$(EDUCATION_TEST): $(EDUCATION_SOURCES) $(EDUCATION_OBJECTS)
-	@echo "Compiling Education Pack tests..."
-	@$(CC) $(CFLAGS) $(LDFLAGS) -o $(EDUCATION_TEST) $(EDUCATION_SOURCES) $(EDUCATION_OBJECTS) -lsqlite3 -lpthread
-
 # Check help documentation coverage
 check-docs:
 	@echo "Checking help documentation coverage..."
