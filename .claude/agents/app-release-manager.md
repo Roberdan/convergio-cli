@@ -1609,19 +1609,192 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Implement git tags for version tracking
 - Configure GitHub Releases with release notes
 
+## 📖 FIRST CHECK: Help Text Verification
+
+**BEFORE ANY OTHER CHECK, verify the help text is up-to-date with all features.**
+
+### Help Verification Process
+
+```bash
+# 1. Build the project
+make
+
+# 2. Get current help output
+./build/bin/convergio --help > /tmp/current_help.txt
+
+# 3. Compare with CHANGELOG features
+# Every feature in CHANGELOG [Unreleased] or current version MUST be in help
+```
+
+### What to Check
+
+1. **All CLI commands documented** - Every command in CHANGELOG must appear in help
+2. **All CLI flags documented** - Every new flag (--agent, --whatever) must be in help
+3. **Workflow commands** - If workflow features exist, workflow subcommands must be in help
+4. **Examples are current** - Model names, agent names must be up-to-date
+
+### Auto-Fix Pattern
+
+If help is outdated:
+1. Read `src/core/main.c` (search for `--help` handler)
+2. Compare with CHANGELOG features
+3. Edit the printf statements to add missing features
+4. **CRITICAL: After editing, you MUST rebuild and re-upload everything:**
+   - `make clean && make release`
+   - Rename tarball to `arm64-apple-darwin` convention
+   - Calculate new SHA256
+   - `gh release upload` with `--clobber`
+   - Update Homebrew formula with new SHA256
+   - Verify with `brew update && brew reinstall convergio`
+
+### Help Verification Checklist
+
+- [ ] `convergio --help` runs without error
+- [ ] All commands from CHANGELOG are listed
+- [ ] All new flags from CHANGELOG are listed
+- [ ] Workflow subcommands are documented (if workflow feature exists)
+- [ ] Agent examples are current
+- [ ] Model names are current
+
+**IF HELP IS OUTDATED, FIX IT BEFORE PROCEEDING. THIS IS A P0 BLOCKING ISSUE.**
+
 ## Release Execution Process
 
-1. **Pre-flight Checks**: Run all quality gates
-2. **Version Bump**: Update version following SemVer
-3. **Changelog Update**: Document all changes
-4. **Create Release Branch**: `release/vX.Y.Z`
-5. **Final Validation**: Run full test suite
-6. **Create PR**: Use `gh pr create` for review
-7. **Wait for Review**: Allow GitHub Copilot review (1-2 min)
-8. **Merge**: Use `gh pr merge --merge` (NEVER squash)
-9. **Tag Release**: `git tag -a vX.Y.Z -m "Release vX.Y.Z"`
-10. **Push Tags**: `git push origin vX.Y.Z`
-11. **Create GitHub Release**: With changelog as release notes
+1. **Help Text Verification**: Ensure --help matches all CHANGELOG features
+2. **Pre-flight Checks**: Run all quality gates
+3. **Version Bump**: Update version following SemVer
+4. **Changelog Update**: Document all changes
+5. **Create Release Branch**: `release/vX.Y.Z`
+6. **Final Validation**: Run full test suite
+7. **Create PR**: Use `gh pr create` for review
+8. **Wait for Review**: Allow GitHub Copilot review (1-2 min)
+9. **Merge**: Use `gh pr merge --merge` (NEVER squash)
+10. **Tag Release**: `git tag -a vX.Y.Z -m "Release vX.Y.Z"`
+11. **Push Tags**: `git push origin vX.Y.Z`
+12. **Create GitHub Release**: **MANDATORY** - Use `gh release create` with changelog
+13. **Build Release Tarball**: `make clean && make release`
+14. **Upload Tarball**: `gh release upload vX.Y.Z dist/convergio-X.Y.Z-arm64-apple-darwin.tar.gz`
+15. **Update Homebrew Formula**: Update homebrew-convergio-cli with new version and sha256
+16. **Verify Homebrew**: `brew update && brew upgrade convergio`
+
+## 🚨 MANDATORY: GitHub Release Creation
+
+**A release is NOT complete until the GitHub Release is published.**
+
+After pushing the tag, you MUST execute:
+
+```bash
+# Extract version
+VERSION=$(cat VERSION)
+
+# Create GitHub Release with changelog notes
+gh release create "v${VERSION}" \
+  --title "v${VERSION} - {Short Description}" \
+  --notes "$(cat <<'EOF'
+## What's New in v${VERSION}
+
+{Extract relevant section from CHANGELOG.md}
+
+---
+Full changelog: https://github.com/Roberdan/convergio-cli/blob/main/CHANGELOG.md
+EOF
+)"
+```
+
+### Verification After Release
+
+```bash
+# Verify release was created and is marked as Latest
+gh release list --limit 3
+
+# Expected: v{VERSION} should show "Latest" tag
+```
+
+### Release Creation Checklist
+
+- [ ] Tag pushed to origin
+- [ ] `gh release create` executed successfully
+- [ ] Release visible at https://github.com/Roberdan/convergio-cli/releases
+- [ ] Release marked as "Latest"
+- [ ] Release notes include key changes from CHANGELOG
+
+**IF THE GITHUB RELEASE IS NOT CREATED, THE RELEASE PROCESS IS INCOMPLETE AND BLOCKED.**
+
+## 🍺 MANDATORY: Homebrew Formula Update
+
+**A release is NOT complete until Homebrew users can install the new version.**
+
+### ⚠️ CRITICAL WARNING
+
+**IF YOU MODIFIED ANY SOURCE CODE (help text, features, bug fixes) AFTER the initial tag/release:**
+1. You MUST rebuild the tarball (`make clean && make release`)
+2. You MUST re-upload to GitHub Release (`gh release upload --clobber`)
+3. You MUST recalculate SHA256 and update Homebrew formula
+4. You MUST verify with `brew update && brew reinstall convergio`
+
+**DO NOT assume the uploaded tarball is correct. ALWAYS verify the installed binary has your changes.**
+
+### Step 1: Build Release Tarball
+
+```bash
+# Build release binary
+make clean && make release
+
+# Rename to match Homebrew naming convention
+VERSION=$(cat VERSION)
+mv dist/convergio-${VERSION}-darwin-arm64.tar.gz dist/convergio-${VERSION}-arm64-apple-darwin.tar.gz
+
+# Calculate sha256
+SHA256=$(shasum -a 256 dist/convergio-${VERSION}-arm64-apple-darwin.tar.gz | cut -d' ' -f1)
+echo "SHA256: $SHA256"
+```
+
+### Step 2: Upload Tarball to GitHub Release
+
+```bash
+gh release upload "v${VERSION}" dist/convergio-${VERSION}-arm64-apple-darwin.tar.gz --clobber
+```
+
+### Step 3: Update Homebrew Formula
+
+```bash
+# Clone the tap repository
+cd /tmp && rm -rf homebrew-convergio-cli
+gh repo clone roberdan/homebrew-convergio-cli
+cd homebrew-convergio-cli
+
+# Update the formula with new version and sha256
+# Edit Formula/convergio.rb:
+#   - version "X.Y.Z"  → version "${VERSION}"
+#   - url "...vX.Y.Z..."  → url "...v${VERSION}..."
+#   - sha256 "..."  → sha256 "${SHA256}"
+
+# Commit and push
+git add Formula/convergio.rb
+git commit -m "Update to v${VERSION}"
+git push
+```
+
+### Step 4: Verify Homebrew Update
+
+```bash
+brew update
+brew upgrade convergio
+convergio --version  # Should show new version
+```
+
+### Homebrew Release Checklist
+
+- [ ] `make release` completed successfully
+- [ ] Tarball renamed to `arm64-apple-darwin` convention
+- [ ] SHA256 calculated
+- [ ] Tarball uploaded to GitHub Release with `gh release upload`
+- [ ] homebrew-convergio-cli formula updated (version + url + sha256)
+- [ ] Formula committed and pushed
+- [ ] `brew update && brew upgrade convergio` works
+- [ ] `convergio --version` shows correct version
+
+**IF HOMEBREW IS NOT UPDATED, THE RELEASE PROCESS IS INCOMPLETE AND BLOCKED.**
 
 ## Output Format
 

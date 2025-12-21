@@ -8,12 +8,15 @@
  */
 
 #include "nous/config.h"
+#include "nous/edition.h"
 #include "nous/nous.h"
+#include "nous/safe_path.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#include <fcntl.h>
 #include <pwd.h>
 #include <errno.h>
 
@@ -152,6 +155,8 @@ static int parse_config_line(const char* line, char* section, size_t section_siz
             strncpy(g_config.theme, value, sizeof(g_config.theme) - 1);
         } else if (strcmp(key, "style") == 0) {
             strncpy(g_config.style, value, sizeof(g_config.style) - 1);
+        } else if (strcmp(key, "edition") == 0) {
+            strncpy(g_config.edition, value, sizeof(g_config.edition) - 1);
         }
     } else if (strcmp(section, "updates") == 0) {
         if (strcmp(key, "check_on_startup") == 0) {
@@ -177,6 +182,7 @@ static void set_defaults(void) {
     strncpy(g_config.debug_level, "none", sizeof(g_config.debug_level) - 1);
     strncpy(g_config.theme, "Ocean", sizeof(g_config.theme) - 1);  // Default theme
     strncpy(g_config.style, "balanced", sizeof(g_config.style) - 1);  // Default style
+    strncpy(g_config.edition, "master", sizeof(g_config.edition) - 1);  // Default edition
     g_config.check_updates_on_startup = true;
     g_config.auto_update = false;
 }
@@ -226,6 +232,27 @@ int convergio_config_init(void) {
     // Load config file if it exists
     convergio_config_load();
 
+    // Apply edition from config/env (priority: CLI > env > config)
+    // Skip if already set by CLI flag (CLI has highest priority)
+    if (!edition_was_set_by_cli() && edition_is_mutable()) {
+        // Check environment variable first (higher priority than config)
+        const char* env_edition = getenv("CONVERGIO_EDITION");
+        if (env_edition && strlen(env_edition) > 0) {
+            if (!edition_set_by_name(env_edition)) {
+                LOG_WARN(LOG_CAT_SYSTEM,
+                    "Invalid edition '%s' in CONVERGIO_EDITION env var; using default",
+                    env_edition);
+            }
+        } else if (g_config.edition[0]) {
+            // Fall back to config file setting
+            if (!edition_set_by_name(g_config.edition)) {
+                LOG_WARN(LOG_CAT_SYSTEM,
+                    "Invalid edition '%s' in config; using default",
+                    g_config.edition);
+            }
+        }
+    }
+
     g_config.initialized = true;
     return 0;
 }
@@ -241,7 +268,8 @@ void convergio_config_shutdown(void) {
 // ============================================================================
 
 int convergio_config_load(void) {
-    FILE* f = fopen(g_config.config_file, "r");
+    int fd = safe_path_open(g_config.config_file, safe_path_get_user_boundary(), O_RDONLY, 0);
+    FILE* f = fd >= 0 ? fdopen(fd, "r") : NULL;
     if (!f) {
         return -1;  // File doesn't exist, use defaults
     }
@@ -258,7 +286,8 @@ int convergio_config_load(void) {
 }
 
 int convergio_config_save(void) {
-    FILE* f = fopen(g_config.config_file, "w");
+    int fd = safe_path_open(g_config.config_file, safe_path_get_user_boundary(), O_WRONLY | O_CREAT | O_TRUNC, 0644);
+    FILE* f = fd >= 0 ? fdopen(fd, "w") : NULL;
     if (!f) {
         return -1;
     }
@@ -278,7 +307,9 @@ int convergio_config_save(void) {
     fprintf(f, "color = %s\n", g_config.color_enabled ? "true" : "false");
     fprintf(f, "debug_level = \"%s\"\n", g_config.debug_level);
     fprintf(f, "theme = \"%s\"\n", g_config.theme[0] ? g_config.theme : "Ocean");
-    fprintf(f, "style = \"%s\"\n\n", g_config.style[0] ? g_config.style : "balanced");
+    fprintf(f, "style = \"%s\"\n", g_config.style[0] ? g_config.style : "balanced");
+    // Save current runtime edition (may differ from config if set via CLI/env)
+    fprintf(f, "edition = \"%s\"\n\n", edition_get_name(edition_current()));
 
     fprintf(f, "[updates]\n");
     fprintf(f, "check_on_startup = %s\n", g_config.check_updates_on_startup ? "true" : "false");

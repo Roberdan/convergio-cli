@@ -315,24 +315,24 @@ char* cost_get_report(void) {
         // LOCAL MODE REPORT (MLX / Ollama - Free inference)
         // ========================================================================
         SNPRINTF_OFFSET(report, offset, 2048,
-            "\n\033[1m╔════════════════════════════════════════════════════╗\033[0m\n"
-            "\033[1m║  \033[32m🏠 LOCAL MODE - FREE INFERENCE\033[0m                    \033[1m║\033[0m\n"
-            "\033[1m╠════════════════════════════════════════════════════╣\033[0m\n");
+            "\n\033[1m╔══════════════════════════════════════════════════════╗\033[0m\n"
+            "\033[1m║\033[0m  \033[32mLOCAL MODE - FREE INFERENCE\033[0m                        \033[1m║\033[0m\n"
+            "\033[1m╠══════════════════════════════════════════════════════╣\033[0m\n");
 
         // Session section
         SNPRINTF_OFFSET(report, offset, 2048,
-            "\033[36m║ SESSION\033[0m (%d min)\n"
-            "║   Input tokens:  %'12llu\n"
-            "║   Output tokens: %'12llu\n"
-            "║   \033[32m✓ Cost:          $0.00 (local inference)\033[0m\n",
+            "\033[1m║\033[0m \033[36mSESSION\033[0m (%d min)                                    \033[1m║\033[0m\n"
+            "\033[1m║\033[0m   Input tokens:  %12llu                       \033[1m║\033[0m\n"
+            "\033[1m║\033[0m   Output tokens: %12llu                       \033[1m║\033[0m\n"
+            "\033[1m║\033[0m   \033[32mCost:            $0.00 (local inference)\033[0m         \033[1m║\033[0m\n",
             session_minutes,
             (unsigned long long)orch->cost.session_usage.input_tokens,
             (unsigned long long)orch->cost.session_usage.output_tokens);
 
         SNPRINTF_OFFSET(report, offset, 2048,
-            "\033[1m╠════════════════════════════════════════════════════╣\033[0m\n"
-            "║ \033[90mRunning on Apple Silicon with MLX - no API costs!\033[0m\n"
-            "\033[1m╚════════════════════════════════════════════════════╝\033[0m\n");
+            "\033[1m╠══════════════════════════════════════════════════════╣\033[0m\n"
+            "\033[1m║\033[0m \033[90mRunning on Apple Silicon with MLX - no API costs!\033[0m  \033[1m║\033[0m\n"
+            "\033[1m╚══════════════════════════════════════════════════════╝\033[0m\n");
     } else {
         // ========================================================================
         // STANDARD API MODE REPORT (with costs)
@@ -360,16 +360,16 @@ char* cost_get_report(void) {
         }
 
         SNPRINTF_OFFSET(report, offset, 2048,
-            "\n\033[1m╔════════════════════════════════════════════════════╗\033[0m\n"
-            "\033[1m║               COST REPORT                          ║\033[0m\n"
-            "\033[1m╠════════════════════════════════════════════════════╣\033[0m\n");
+            "\n\033[1m╔══════════════════════════════════════════════════════╗\033[0m\n"
+            "\033[1m║                    COST REPORT                       ║\033[0m\n"
+            "\033[1m╠══════════════════════════════════════════════════════╣\033[0m\n");
 
         // Session section
         SNPRINTF_OFFSET(report, offset, 2048,
-            "\033[36m║ SESSION\033[0m (%d min)\n"
-            "║   Input tokens:  %'12llu  ($%.4f)\n"
-            "║   Output tokens: %'12llu  ($%.4f)\n"
-            "║   \033[1mTotal cost:      $%.4f\033[0m\n",
+            "\033[1m║\033[0m \033[36mSESSION\033[0m (%d min)                                    \033[1m║\033[0m\n"
+            "\033[1m║\033[0m   Input tokens:  %12llu    ($%.4f)           \033[1m║\033[0m\n"
+            "\033[1m║\033[0m   Output tokens: %12llu    ($%.4f)           \033[1m║\033[0m\n"
+            "\033[1m║\033[0m   \033[1mTotal cost:      $%.4f\033[0m                         \033[1m║\033[0m\n",
             session_minutes,
             (unsigned long long)orch->cost.session_usage.input_tokens,
             (orch->cost.session_usage.input_tokens / 1000000.0) * CLAUDE_SONNET_INPUT_COST,
@@ -378,14 +378,14 @@ char* cost_get_report(void) {
             orch->cost.session_usage.estimated_cost);
 
         SNPRINTF_OFFSET(report, offset, 2048,
-            "\033[1m╠════════════════════════════════════════════════════╣\033[0m\n");
+            "\033[1m╠══════════════════════════════════════════════════════╣\033[0m\n");
 
         // All-time section
         SNPRINTF_OFFSET(report, offset, 2048,
-            "\033[36m║ ALL-TIME\033[0m\n"
-            "║   Input tokens:  %'12llu  ($%.4f)\n"
-            "║   Output tokens: %'12llu  ($%.4f)\n"
-            "║   \033[1mTotal cost:      $%.4f\033[0m\n",
+            "\033[1m║\033[0m \033[36mALL-TIME\033[0m                                           \033[1m║\033[0m\n"
+            "\033[1m║\033[0m   Input tokens:  %12llu    ($%.4f)           \033[1m║\033[0m\n"
+            "\033[1m║\033[0m   Output tokens: %12llu    ($%.4f)           \033[1m║\033[0m\n"
+            "\033[1m║\033[0m   \033[1mTotal cost:      $%.4f\033[0m                         \033[1m║\033[0m\n",
             (unsigned long long)orch->cost.total_usage.input_tokens,
             (orch->cost.total_usage.input_tokens / 1000000.0) * CLAUDE_SONNET_INPUT_COST,
             (unsigned long long)orch->cost.total_usage.output_tokens,
@@ -393,22 +393,25 @@ char* cost_get_report(void) {
             orch->cost.total_usage.estimated_cost);
 
         SNPRINTF_OFFSET(report, offset, 2048,
-            "\033[1m╠════════════════════════════════════════════════════╣\033[0m\n");
+            "\033[1m╠══════════════════════════════════════════════════════╣\033[0m\n");
 
-        // Budget section
+        // Budget section - pad to fixed width
+        char budget_display[48];
+        snprintf(budget_display, sizeof(budget_display), "%-44s", budget_line);
+
         if (orch->cost.budget_exceeded) {
             SNPRINTF_OFFSET(report, offset, 2048,
-                "\033[31m║ BUDGET: %s\033[0m\n", budget_line);
+                "\033[1m║\033[0m \033[31mBUDGET: %s\033[0m \033[1m║\033[0m\n", budget_display);
         } else if (orch->cost.budget_limit_usd > 0) {
             SNPRINTF_OFFSET(report, offset, 2048,
-                "\033[32m║ BUDGET: %s\033[0m\n", budget_line);
+                "\033[1m║\033[0m \033[32mBUDGET: %s\033[0m \033[1m║\033[0m\n", budget_display);
         } else {
             SNPRINTF_OFFSET(report, offset, 2048,
-                "║ BUDGET: %s\n", budget_line);
+                "\033[1m║\033[0m BUDGET: %s \033[1m║\033[0m\n", budget_display);
         }
 
         SNPRINTF_OFFSET(report, offset, 2048,
-            "\033[1m╚════════════════════════════════════════════════════╝\033[0m\n");
+            "\033[1m╚══════════════════════════════════════════════════════╝\033[0m\n");
     }
 
     CONVERGIO_MUTEX_UNLOCK(&g_cost_mutex);

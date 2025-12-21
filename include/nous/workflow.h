@@ -1,0 +1,260 @@
+/**
+ * CONVERGIO WORKFLOW ENGINE
+ *
+ * State machine-based workflow orchestration system
+ * Supports checkpointing, conditional routing, and multi-agent coordination
+ */
+
+#ifndef CONVERGIO_WORKFLOW_H
+#define CONVERGIO_WORKFLOW_H
+
+#include "nous/nous.h"
+#include "nous/provider.h" // For ProviderType, ProviderError
+#include <stdbool.h>
+#include <stdint.h>
+#include <time.h>
+typedef enum {
+    WORKFLOW_ERROR_NONE = 0,
+    WORKFLOW_ERROR_TIMEOUT,
+    WORKFLOW_ERROR_NETWORK,
+    WORKFLOW_ERROR_FILE_IO,
+    WORKFLOW_ERROR_CREDIT_EXHAUSTED,
+    WORKFLOW_ERROR_LLM_DOWN,
+    WORKFLOW_ERROR_TOOL_FAILED,
+    WORKFLOW_ERROR_AGENT_NOT_FOUND,
+    WORKFLOW_ERROR_PROVIDER_UNAVAILABLE,
+    WORKFLOW_ERROR_AUTHENTICATION,
+    WORKFLOW_ERROR_RATE_LIMIT,
+    WORKFLOW_ERROR_UNKNOWN
+} WorkflowErrorType;
+
+// ============================================================================
+// WORKFLOW TYPES
+// ============================================================================
+
+// Workflow node types
+typedef enum {
+    NODE_TYPE_ACTION = 0,        // Execute agent action
+    NODE_TYPE_DECISION = 1,      // Conditional routing
+    NODE_TYPE_HUMAN_INPUT = 2,   // Wait for user input
+    NODE_TYPE_SUBGRAPH = 3,      // Nested workflow
+    NODE_TYPE_PARALLEL = 4,     // Parallel execution
+    NODE_TYPE_CONVERGE = 5       // Converge parallel results
+} NodeType;
+
+// Workflow status
+typedef enum {
+    WORKFLOW_STATUS_PENDING = 0,
+    WORKFLOW_STATUS_RUNNING = 1,
+    WORKFLOW_STATUS_PAUSED = 2,      // Waiting for human input
+    WORKFLOW_STATUS_COMPLETED = 3,
+    WORKFLOW_STATUS_FAILED = 4,
+    WORKFLOW_STATUS_CANCELLED = 5
+} WorkflowStatus;
+
+// Workflow node structure
+typedef struct WorkflowNode {
+    uint64_t node_id;
+    char* name;
+    NodeType type;
+    SemanticID agent_id;          // Agent to execute (for ACTION nodes)
+    char* action_prompt;          // What the agent should do
+    char* condition_expr;         // Condition for conditional edges
+    struct WorkflowNode** next_nodes;  // Possible next nodes
+    size_t next_node_count;
+    size_t next_node_capacity;
+    struct WorkflowNode* fallback_node; // Fallback if condition fails
+    void* node_data;              // Type-specific data
+    time_t created_at;
+} WorkflowNode;
+
+// Workflow state entry (key-value pair)
+typedef struct {
+    char* key;
+    char* value;
+    time_t updated_at;
+} StateEntry;
+
+// Workflow state (key-value store)
+typedef struct {
+    StateEntry* entries;
+    size_t entry_count;
+    size_t entry_capacity;
+} WorkflowState;
+
+// Workflow checkpoint
+typedef struct {
+    uint64_t checkpoint_id;
+    uint64_t workflow_id;
+    uint64_t node_id;
+    char* state_json;             // Serialized workflow state
+    time_t created_at;
+    char* metadata_json;         // Additional checkpoint metadata
+} Checkpoint;
+
+// Workflow structure
+typedef struct {
+    uint64_t workflow_id;
+    char* name;
+    char* description;
+    WorkflowNode* entry_node;
+    WorkflowState* state;
+    WorkflowStatus status;
+    uint64_t current_node_id;
+    time_t created_at;
+    time_t updated_at;
+    time_t last_checkpoint_at;
+    char* error_message;
+    char* metadata_json;
+} Workflow;
+
+// ============================================================================
+// WORKFLOW LIFECYCLE
+// ============================================================================
+
+// Create and destroy workflows
+Workflow* workflow_create(const char* name, const char* description, WorkflowNode* entry_node);
+void workflow_destroy(Workflow* wf);
+
+// ============================================================================
+// NODE MANAGEMENT
+// ============================================================================
+
+// Create and destroy nodes
+WorkflowNode* workflow_node_create(const char* name, NodeType type);
+void workflow_node_destroy(WorkflowNode* node);
+
+// Node operations
+int workflow_node_add_edge(WorkflowNode* from, WorkflowNode* to, const char* condition);
+int workflow_node_set_agent(WorkflowNode* node, SemanticID agent_id, const char* prompt);
+int workflow_node_set_fallback(WorkflowNode* node, WorkflowNode* fallback);
+
+// ============================================================================
+// STATE MANAGEMENT
+// ============================================================================
+
+// Create and destroy state
+WorkflowState* workflow_state_create(void);
+void workflow_state_destroy(WorkflowState* state);
+
+// State operations
+int workflow_state_set(WorkflowState* state, const char* key, const char* value);
+const char* workflow_state_get(const WorkflowState* state, const char* key);
+int workflow_state_clear(WorkflowState* state);
+int workflow_state_remove(WorkflowState* state, const char* key);
+
+// ============================================================================
+// CHECKPOINT MANAGEMENT
+// ============================================================================
+
+// Checkpoint operations
+uint64_t workflow_checkpoint(Workflow* wf, const char* node_name);
+int workflow_restore_from_checkpoint(Workflow* wf, uint64_t checkpoint_id);
+Checkpoint* workflow_list_checkpoints(Workflow* wf, size_t* count);
+void workflow_free_checkpoints(Checkpoint* checkpoints, size_t count);
+
+// Performance-optimized checkpoint operations
+uint64_t workflow_checkpoint_incremental(Workflow* wf, uint64_t previous_checkpoint_id, const char* node_name);
+int workflow_get_changed_state_entries(const Workflow* wf, time_t last_checkpoint_time, char*** changed_keys, size_t* changed_count);
+int workflow_cleanup_old_checkpoints(Workflow* wf, size_t keep_count);
+
+// ============================================================================
+// WORKFLOW EXECUTION
+// ============================================================================
+
+// State management (convenience functions)
+WorkflowState* workflow_get_state(Workflow* wf);
+int workflow_set_state(Workflow* wf, const char* key, const char* value);
+const char* workflow_get_state_value(Workflow* wf, const char* key);
+int workflow_clear_state(Workflow* wf);
+
+// Core execution
+int workflow_execute(Workflow* wf, const char* input, char** output);
+int workflow_execute_node(Workflow* wf, WorkflowNode* node, const char* input, char** output);
+WorkflowNode* workflow_get_next_node(Workflow* wf, WorkflowNode* current);
+WorkflowNode* workflow_get_current_node(Workflow* wf);
+
+// Workflow control
+int workflow_pause(Workflow* wf);
+int workflow_cancel(Workflow* wf);
+int workflow_resume(Workflow* wf, uint64_t checkpoint_id);
+
+// ============================================================================
+// UTILITY FUNCTIONS
+// ============================================================================
+
+// String validation and allocation helpers
+char* workflow_strdup(const char* str);
+bool workflow_validate_name(const char* name);
+bool workflow_validate_key(const char* key);
+
+// ============================================================================
+// ETHICAL GUARDRAILS
+// ============================================================================
+
+// Ethical validation result
+typedef enum {
+    ETHICAL_OK = 0,              // Content is ethically acceptable
+    ETHICAL_WARN = 1,            // Content has minor concerns, proceed with caution
+    ETHICAL_BLOCK = 2,           // Content violates ethical guidelines, block execution
+    ETHICAL_HUMAN_REVIEW = 3     // Content requires human review before proceeding
+} EthicalResult;
+
+// Sensitive operation categories
+typedef enum {
+    SENSITIVE_NONE = 0,
+    SENSITIVE_FINANCIAL = 1,      // Financial transactions, payments
+    SENSITIVE_PERSONAL_DATA = 2,  // PII, personal information
+    SENSITIVE_SECURITY = 4,       // Security-related operations
+    SENSITIVE_LEGAL = 8,          // Legal/compliance operations
+    SENSITIVE_EXTERNAL_API = 16,  // External API calls
+    SENSITIVE_DATA_DELETE = 32    // Data deletion operations
+} SensitiveCategory;
+
+// Ethical validation functions
+EthicalResult workflow_validate_ethical(const char* content);
+bool workflow_is_sensitive_operation(const char* operation, SensitiveCategory* category);
+bool workflow_requires_human_approval(SensitiveCategory category);
+
+// Human-in-the-loop callback type
+typedef bool (*HumanApprovalCallback)(const char* operation, SensitiveCategory category, void* context);
+
+// Set human approval callback
+void workflow_set_approval_callback(HumanApprovalCallback callback, void* context);
+
+// Request human approval for sensitive operation
+bool workflow_request_human_approval(const char* operation, SensitiveCategory category);
+
+// ============================================================================
+// ERROR HANDLING
+// ============================================================================
+
+// Timeout handling
+bool workflow_check_timeout(time_t start_time, int timeout_seconds);
+int workflow_set_node_timeout(Workflow* wf, WorkflowNode* node, int timeout_seconds);
+
+// Network error handling
+bool workflow_check_network(int timeout_seconds);
+WorkflowErrorType workflow_handle_network_error(Workflow* wf, const char* error_msg);
+
+// File I/O error handling
+bool workflow_check_file_readable(const char* filepath);
+bool workflow_check_file_writable(const char* filepath);
+WorkflowErrorType workflow_handle_file_io_error(Workflow* wf, const char* filepath, const char* operation);
+
+// Credit/budget error handling
+bool workflow_check_budget(Workflow* wf);
+WorkflowErrorType workflow_handle_credit_exhausted(Workflow* wf);
+
+// LLM service error handling
+bool workflow_check_llm_available(ProviderType provider_type);
+WorkflowErrorType workflow_handle_llm_down(Workflow* wf, ProviderType provider_type);
+
+// Tool execution error handling
+WorkflowErrorType workflow_handle_tool_error(Workflow* wf, const char* tool_name, const char* error_msg);
+
+// Comprehensive error handling
+bool workflow_handle_error(Workflow* wf, WorkflowNode* node, WorkflowErrorType error_type, const char* error_msg);
+
+#endif // CONVERGIO_WORKFLOW_H
+

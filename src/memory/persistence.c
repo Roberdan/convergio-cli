@@ -11,6 +11,7 @@
 #include "nous/orchestrator.h"
 #include "nous/config.h"
 #include "nous/nous.h"
+#include "nous/tools.h"
 #include <sqlite3.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -274,6 +275,18 @@ static const char* SCHEMA_SQL =
     "  source TEXT DEFAULT 'cli'"
     ");"
 
+    // Workflow checkpoints for state persistence
+    "CREATE TABLE IF NOT EXISTS workflow_checkpoints ("
+    "  id INTEGER PRIMARY KEY AUTOINCREMENT,"
+    "  workflow_id INTEGER NOT NULL,"
+    "  node_id INTEGER NOT NULL,"
+    "  state_json TEXT NOT NULL,"
+    "  created_at INTEGER NOT NULL,"
+    "  metadata_json TEXT"
+    ");"
+    "CREATE INDEX IF NOT EXISTS idx_checkpoints_workflow ON workflow_checkpoints(workflow_id);"
+    "CREATE INDEX IF NOT EXISTS idx_checkpoints_created ON workflow_checkpoints(created_at DESC);"
+
     // Full-text search for tasks
     "CREATE VIRTUAL TABLE IF NOT EXISTS tasks_fts USING fts5("
     "  title, description, tags, context,"
@@ -338,6 +351,13 @@ int persistence_init(const char* db_path) {
 
     // Use provided path, or get from config, or fallback to default
     const char* path = db_path ? db_path : get_db_path();
+
+    // Security: Verify database path is safe (prevent path traversal attacks)
+    if (!tools_is_path_safe(path)) {
+        LOG_ERROR(LOG_CAT_MEMORY, "Database path not allowed for security reasons: %s", path);
+        CONVERGIO_MUTEX_UNLOCK(&g_db_mutex);
+        return -1;
+    }
 
     // Ensure the directory exists before opening
     ensure_db_directory(path);

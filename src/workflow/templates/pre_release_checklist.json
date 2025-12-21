@@ -1,0 +1,355 @@
+{
+    "name": "pre-release-checklist",
+    "description": "Pre-Release Checklist: Review completa, test paralleli, quality gates con zero tolleranza",
+    "entry_node": "parallel_quality_checks",
+    "nodes": [
+        {
+            "id": "parallel_quality_checks",
+            "name": "Quality Checks Paralleli",
+            "type": "PARALLEL",
+            "description": "Esegue tutti i quality checks in parallelo per massima efficienza",
+            "next_nodes": ["code_review", "security_audit", "static_analysis", "dependency_audit", "documentation_check", "build_verification"]
+        },
+        {
+            "id": "code_review",
+            "name": "Code Review Completo",
+            "type": "ACTION",
+            "agent_role": "CRITIC",
+            "action_prompt": "Esegui code review completo di TUTTO il codice modificato. Verifica: best practices, code smells, design patterns, consistency, maintainability. ZERO TOLERANZA per technical debt, scorciatoie, codice non ottimale. Genera report dettagliato con tutti i problemi trovati.",
+            "next_nodes": ["aggregate_issues"]
+        },
+        {
+            "id": "security_audit",
+            "name": "Security Audit Completo",
+            "type": "ACTION",
+            "agent_role": "CRITIC",
+            "action_prompt": "Esegui security audit completo. Verifica: vulnerabilità, SQL injection, XSS, CSRF, authentication/authorization, data encryption, secrets management, input validation. ZERO TOLERANZA per vulnerabilità. Genera report con CVSS scoring.",
+            "next_nodes": ["aggregate_issues"]
+        },
+        {
+            "id": "static_analysis",
+            "name": "Static Analysis",
+            "type": "ACTION",
+            "agent_role": "CRITIC",
+            "action_prompt": "Esegui static analysis completo. Verifica: clang warnings, clang-tidy, cppcheck, memory leaks, undefined behavior, data races. ZERO TOLERANZA per warnings o errori statici. Genera report con tutti i problemi.",
+            "next_nodes": ["aggregate_issues"]
+        },
+        {
+            "id": "dependency_audit",
+            "name": "Dependency Audit",
+            "type": "ACTION",
+            "agent_role": "ANALYST",
+            "action_prompt": "Esegui audit completo delle dipendenze. Verifica: versioni aggiornate, vulnerabilità note (CVE), licenze compatibili, dipendenze obsolete. ZERO TOLERANZA per dipendenze vulnerabili o obsolete.",
+            "next_nodes": ["aggregate_issues"]
+        },
+        {
+            "id": "documentation_check",
+            "name": "Documentation Check",
+            "type": "ACTION",
+            "agent_role": "WRITER",
+            "action_prompt": "Verifica documentazione completa. Controlla: README aggiornato, API docs complete, changelog, migration guides, user guides. ZERO TOLERANZA per documentazione mancante o obsoleta.",
+            "next_nodes": ["aggregate_issues"]
+        },
+        {
+            "id": "build_verification",
+            "name": "Build Verification",
+            "type": "ACTION",
+            "agent_role": "EXECUTOR",
+            "action_prompt": "Verifica build su tutte le piattaforme target. Esegui: clean build, release build, debug build. Verifica: nessun errore di compilazione, linking corretto, artefatti generati. ZERO TOLERANZA per build failures.",
+            "next_nodes": ["aggregate_issues"]
+        },
+        {
+            "id": "aggregate_issues",
+            "name": "Aggregazione Problemi",
+            "type": "CONVERGE",
+            "description": "Raccoglie tutti i problemi da tutti i quality checks",
+            "action_prompt": "Aggrega TUTTI i problemi trovati da tutti i quality checks. Categorizza per: severity (critical, high, medium, low), tipo (error, warning, technical debt, security), componente. Genera report aggregato completo.",
+            "next_nodes": ["issue_analysis"]
+        },
+        {
+            "id": "issue_analysis",
+            "name": "Analisi Problemi",
+            "type": "ACTION",
+            "agent_role": "ANALYST",
+            "action_prompt": "Analizza tutti i problemi aggregati. Identifica: pattern comuni, root causes, impatto sulla release, priorità di fix. ZERO TOLERANZA significa che QUALSIASI problema deve essere risolto prima del release.",
+            "next_nodes": ["zero_tolerance_check"]
+        },
+        {
+            "id": "zero_tolerance_check",
+            "name": "Zero Tolerance Check",
+            "type": "DECISION",
+            "description": "Verifica zero tolleranza: se c'è QUALSIASI problema, blocca il release",
+            "next_nodes": ["block_release", "parallel_test_execution"]
+        },
+        {
+            "id": "block_release",
+            "name": "Blocca Release",
+            "type": "ACTION",
+            "agent_role": "ORCHESTRATOR",
+            "action_prompt": "BLOCCA IL RELEASE. Genera report dettagliato con TUTTI i problemi che devono essere risolti. Categorizza per priorità: CRITICAL (blocca release), HIGH (blocca release), MEDIUM (blocca release), LOW (blocca release). ZERO TOLERANZA significa che anche un singolo problema LOW blocca il release.",
+            "next_nodes": ["fix_required"]
+        },
+        {
+            "id": "fix_required",
+            "name": "Fix Richiesti",
+            "type": "ACTION",
+            "agent_role": "PLANNER",
+            "action_prompt": "Crea piano di fix dettagliato. Per ogni problema: descrizione, priorità, componente, stima tempo fix, agenti assegnati. Ordina per priorità: critical prima, poi high, medium, low.",
+            "next_nodes": ["conclusion_blocked"]
+        },
+        {
+            "id": "conclusion_blocked",
+            "name": "Conclusione - Release Bloccato",
+            "type": "CONVERGE",
+            "description": "Release bloccato, fix richiesti",
+            "next_nodes": []
+        },
+        {
+            "id": "parallel_test_execution",
+            "name": "Esecuzione Test Paralleli",
+            "type": "PARALLEL",
+            "description": "Esegue tutti i test in parallelo per massima efficienza (test C + script shell)",
+            "next_nodes": ["unit_tests", "integration_tests", "e2e_tests", "fuzz_tests", "sanitizer_tests", "performance_tests", "all_make_tests"]
+        },
+        {
+            "id": "all_make_tests",
+            "name": "All Make Tests",
+            "type": "ACTION",
+            "agent_role": "EXECUTOR",
+            "action_prompt": "Esegui TUTTI i test via Makefile. Comando: make test (include fuzz_test, unit_test, anna_test, compaction_test, plan_db_test, output_service_test, tools_test, websearch_test, workflow_test, check-docs). Verifica: TUTTI i test passano, exit code 0. ZERO TOLERANZA per test falliti. Genera report con risultati dettagliati.",
+            "next_nodes": ["aggregate_test_results"]
+        },
+        {
+            "id": "unit_tests",
+            "name": "Unit Tests (C)",
+            "type": "ACTION",
+            "agent_role": "EXECUTOR",
+            "action_prompt": "Esegui TUTTI gli unit tests C. Comando: make unit_test. Verifica: TUTTI i test passano, coverage >= 80%, nessun test skipped. ZERO TOLERANZA per test falliti o coverage insufficiente. Genera report con risultati dettagliati.",
+            "next_nodes": ["aggregate_test_results"]
+        },
+        {
+            "id": "integration_tests",
+            "name": "Integration Tests (C)",
+            "type": "ACTION",
+            "agent_role": "EXECUTOR",
+            "action_prompt": "Esegui TUTTI gli integration tests C. Comando: make test (include fuzz_test, anna_test, compaction_test, plan_db_test, output_service_test, tools_test, websearch_test, workflow_test). Verifica: TUTTI i test passano, nessun test skipped. ZERO TOLERANZA per test falliti. Genera report con risultati dettagliati.",
+            "next_nodes": ["aggregate_test_results"]
+        },
+        {
+            "id": "e2e_tests",
+            "name": "E2E Tests (Script Shell)",
+            "type": "ACTION",
+            "agent_role": "EXECUTOR",
+            "action_prompt": "Esegui TUTTI gli E2E test script shell. Comandi: ./tests/e2e_test.sh (test CLI completo), ./tests/test_acp_e2e.sh (test ACP protocol), ./tests/test_convergio6_phases.sh (test fasi MVP). Verifica: TUTTI gli script passano, exit code 0, nessun FAILED nel output. ZERO TOLERANZA per test falliti. Genera report con risultati dettagliati di ogni script.",
+            "next_nodes": ["aggregate_test_results"]
+        },
+        {
+            "id": "fuzz_tests",
+            "name": "Fuzz Tests",
+            "type": "ACTION",
+            "agent_role": "EXECUTOR",
+            "action_prompt": "Esegui TUTTI i fuzz tests. Verifica: nessun crash, nessun memory leak, nessun undefined behavior. ZERO TOLERANZA per fuzz test failures. Genera report con risultati dettagliati.",
+            "next_nodes": ["aggregate_test_results"]
+        },
+        {
+            "id": "sanitizer_tests",
+            "name": "Sanitizer Tests",
+            "type": "ACTION",
+            "agent_role": "EXECUTOR",
+            "action_prompt": "Esegui TUTTI i sanitizer tests (ASan, UBSan, TSan). Comando: make DEBUG=1 SANITIZE=address,undefined,thread test. Verifica: nessun memory leak, nessun undefined behavior, nessun data race. ZERO TOLERANZA per sanitizer failures. Genera report con risultati dettagliati.",
+            "next_nodes": ["aggregate_test_results"]
+        },
+        {
+            "id": "performance_tests",
+            "name": "Performance Tests",
+            "type": "ACTION",
+            "agent_role": "EXECUTOR",
+            "action_prompt": "Esegui performance tests. Verifica: latenza, throughput, memory usage, CPU usage. Confronta con baseline. ZERO TOLERANZA per regressioni di performance significative. Genera report con metriche dettagliate.",
+            "next_nodes": ["aggregate_test_results"]
+        },
+        {
+            "id": "aggregate_test_results",
+            "name": "Aggregazione Risultati Test",
+            "type": "CONVERGE",
+            "description": "Raccoglie tutti i risultati dei test",
+            "action_prompt": "Aggrega TUTTI i risultati dei test. Verifica: tutti i test passati, coverage sufficiente, nessun failure. Genera report aggregato completo con statistiche.",
+            "next_nodes": ["test_validation"]
+        },
+        {
+            "id": "test_validation",
+            "name": "Validazione Test",
+            "type": "DECISION",
+            "description": "Verifica che tutti i test siano passati",
+            "next_nodes": ["block_release_tests", "technical_debt_check"]
+        },
+        {
+            "id": "block_release_tests",
+            "name": "Blocca Release - Test Falliti",
+            "type": "ACTION",
+            "agent_role": "ORCHESTRATOR",
+            "action_prompt": "BLOCCA IL RELEASE. Test falliti o coverage insufficiente. Genera report dettagliato con: quali test sono falliti, perché, coverage attuale vs target, cosa manca.",
+            "next_nodes": ["fix_required"]
+        },
+        {
+            "id": "technical_debt_check",
+            "name": "Technical Debt Check",
+            "type": "ACTION",
+            "agent_role": "ANALYST",
+            "action_prompt": "Verifica technical debt. Analizza: code complexity, code duplication, test coverage gaps, documentation gaps, deprecated APIs, TODO/FIXME comments. ZERO TOLERANZA per technical debt aggiunto. Verifica che non ci sia nuovo technical debt rispetto alla baseline.",
+            "next_nodes": ["technical_debt_decision"]
+        },
+        {
+            "id": "technical_debt_decision",
+            "name": "Decisione Technical Debt",
+            "type": "DECISION",
+            "description": "Verifica che non ci sia nuovo technical debt",
+            "next_nodes": ["block_release_debt", "final_quality_gate"]
+        },
+        {
+            "id": "block_release_debt",
+            "name": "Blocca Release - Technical Debt",
+            "type": "ACTION",
+            "agent_role": "ORCHESTRATOR",
+            "action_prompt": "BLOCCA IL RELEASE. È stato introdotto nuovo technical debt. ZERO TOLERANZA significa che non possiamo rilasciare con nuovo technical debt. Genera report dettagliato con: cosa è stato aggiunto, impatto, come risolvere.",
+            "next_nodes": ["fix_required"]
+        },
+        {
+            "id": "final_quality_gate",
+            "name": "Final Quality Gate",
+            "type": "ACTION",
+            "agent_role": "ORCHESTRATOR",
+            "action_prompt": "Esegui final quality gate. Verifica: TUTTI i quality checks passati, TUTTI i test passati, ZERO warnings, ZERO errori, ZERO technical debt aggiunto, documentazione completa, build verificato. Se QUALSIASI cosa non è perfetta, blocca il release.",
+            "next_nodes": ["release_approval"]
+        },
+        {
+            "id": "release_approval",
+            "name": "Approvazione Release",
+            "type": "DECISION",
+            "description": "Final check: tutto perfetto?",
+            "next_nodes": ["release_approved", "block_release_final"]
+        },
+        {
+            "id": "block_release_final",
+            "name": "Blocca Release - Final Check",
+            "type": "ACTION",
+            "agent_role": "ORCHESTRATOR",
+            "action_prompt": "BLOCCA IL RELEASE. Il final quality gate ha identificato problemi. ZERO TOLERANZA significa che non possiamo rilasciare finché TUTTO non è perfetto.",
+            "next_nodes": ["fix_required"]
+        },
+        {
+            "id": "release_approved",
+            "name": "Release Approvato",
+            "type": "ACTION",
+            "agent_role": "ORCHESTRATOR",
+            "action_prompt": "RELEASE APPROVATO. Tutti i quality checks passati, tutti i test passati, zero warnings, zero errori, zero technical debt aggiunto. Genera release notes, tag version, prepara changelog.",
+            "next_nodes": ["generate_release_notes"]
+        },
+        {
+            "id": "generate_release_notes",
+            "name": "Genera Release Notes",
+            "type": "ACTION",
+            "agent_role": "WRITER",
+            "action_prompt": "Genera release notes complete. Include: nuove features, bug fixes, breaking changes, migration guide, upgrade instructions, deprecations.",
+            "next_nodes": ["conclusion_approved"]
+        },
+        {
+            "id": "conclusion_approved",
+            "name": "Conclusione - Release Approvato",
+            "type": "CONVERGE",
+            "description": "Release approvato e pronto",
+            "next_nodes": []
+        }
+    ],
+    "edges": [
+        {"from": "parallel_quality_checks", "to": "code_review"},
+        {"from": "parallel_quality_checks", "to": "security_audit"},
+        {"from": "parallel_quality_checks", "to": "static_analysis"},
+        {"from": "parallel_quality_checks", "to": "dependency_audit"},
+        {"from": "parallel_quality_checks", "to": "documentation_check"},
+        {"from": "parallel_quality_checks", "to": "build_verification"},
+        {"from": "code_review", "to": "aggregate_issues"},
+        {"from": "security_audit", "to": "aggregate_issues"},
+        {"from": "static_analysis", "to": "aggregate_issues"},
+        {"from": "dependency_audit", "to": "aggregate_issues"},
+        {"from": "documentation_check", "to": "aggregate_issues"},
+        {"from": "build_verification", "to": "aggregate_issues"},
+        {"from": "aggregate_issues", "to": "issue_analysis"},
+        {"from": "issue_analysis", "to": "zero_tolerance_check"},
+        {"from": "zero_tolerance_check", "to": "block_release", "condition": "issues_found == true || issues_count > 0"},
+        {"from": "zero_tolerance_check", "to": "parallel_test_execution", "condition": "issues_found == false && issues_count == 0"},
+        {"from": "block_release", "to": "fix_required"},
+        {"from": "fix_required", "to": "conclusion_blocked"},
+        {"from": "parallel_test_execution", "to": "unit_tests"},
+        {"from": "parallel_test_execution", "to": "integration_tests"},
+        {"from": "parallel_test_execution", "to": "e2e_tests"},
+        {"from": "parallel_test_execution", "to": "fuzz_tests"},
+        {"from": "parallel_test_execution", "to": "sanitizer_tests"},
+        {"from": "parallel_test_execution", "to": "performance_tests"},
+        {"from": "parallel_test_execution", "to": "all_make_tests"},
+        {"from": "unit_tests", "to": "aggregate_test_results"},
+        {"from": "integration_tests", "to": "aggregate_test_results"},
+        {"from": "e2e_tests", "to": "aggregate_test_results"},
+        {"from": "fuzz_tests", "to": "aggregate_test_results"},
+        {"from": "sanitizer_tests", "to": "aggregate_test_results"},
+        {"from": "performance_tests", "to": "aggregate_test_results"},
+        {"from": "all_make_tests", "to": "aggregate_test_results"},
+        {"from": "aggregate_test_results", "to": "test_validation"},
+        {"from": "test_validation", "to": "block_release_tests", "condition": "all_tests_passed == false || coverage < 80"},
+        {"from": "test_validation", "to": "technical_debt_check", "condition": "all_tests_passed == true && coverage >= 80"},
+        {"from": "block_release_tests", "to": "fix_required"},
+        {"from": "technical_debt_check", "to": "technical_debt_decision"},
+        {"from": "technical_debt_decision", "to": "block_release_debt", "condition": "new_technical_debt == true"},
+        {"from": "technical_debt_decision", "to": "final_quality_gate", "condition": "new_technical_debt == false"},
+        {"from": "block_release_debt", "to": "fix_required"},
+        {"from": "final_quality_gate", "to": "release_approval"},
+        {"from": "release_approval", "to": "block_release_final", "condition": "all_checks_passed == false"},
+        {"from": "release_approval", "to": "release_approved", "condition": "all_checks_passed == true"},
+        {"from": "block_release_final", "to": "fix_required"},
+        {"from": "release_approved", "to": "generate_release_notes"},
+        {"from": "generate_release_notes", "to": "conclusion_approved"}
+    ],
+    "metadata": {
+        "use_case": "Pre-Release Checklist",
+        "scenario": "Review completa e test paralleli prima del release con zero tolleranza",
+        "participants": [
+            "Release Manager (ORCHESTRATOR) - Coordinamento",
+            "Thor (CRITIC) - Code review, security, static analysis",
+            "Luca (CRITIC) - Security audit",
+            "Domik (ANALYST) - Dependency audit, technical debt",
+            "Sofia (WRITER) - Documentation, release notes",
+            "Marco (EXECUTOR) - Build, test execution"
+        ],
+        "features": [
+            "Parallel quality checks (6 checks simultanei)",
+            "Parallel test execution (6 test suites simultanei)",
+            "Zero tolerance policy (qualsiasi problema blocca release)",
+            "Issue aggregation e analisi",
+            "Technical debt detection",
+            "Final quality gate",
+            "Automatic release notes generation"
+        ],
+        "zero_tolerance_rules": [
+            "ZERO errori di compilazione",
+            "ZERO warnings",
+            "ZERO test falliti (C tests + script shell)",
+            "ZERO vulnerabilità di sicurezza",
+            "ZERO technical debt aggiunto",
+            "ZERO documentazione mancante",
+            "ZERO dipendenze vulnerabili",
+            "Coverage >= 80% (ZERO tolleranza per coverage insufficiente)",
+            "TUTTI i quality checks devono passare",
+            "TUTTI i test devono passare (make test + e2e_test.sh + test_acp_e2e.sh + test_convergio6_phases.sh)",
+            "TUTTI gli script shell devono avere exit code 0",
+            "ZERO FAILED nei log degli script shell"
+        ],
+        "test_commands": {
+            "make_tests": "make test (include: fuzz_test, unit_test, anna_test, compaction_test, plan_db_test, output_service_test, tools_test, websearch_test, workflow_test, check-docs)",
+            "e2e_script": "./tests/e2e_test.sh (test CLI completo con API reali)",
+            "acp_e2e_script": "./tests/test_acp_e2e.sh (test ACP protocol per Zed integration)",
+            "phases_script": "./tests/test_convergio6_phases.sh (test 6 fasi MVP)",
+            "sanitizer_tests": "make DEBUG=1 SANITIZE=address,undefined,thread test",
+            "coverage": "make coverage (genera report coverage, target >= 80%)"
+        }
+    }
+}
+

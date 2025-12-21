@@ -11,6 +11,7 @@
 #include "nous/orchestrator.h"
 #include "nous/tools.h"
 #include "nous/config.h"
+#include "nous/edition.h"
 #include "nous/hardware.h"
 #include "nous/updater.h"
 #include "nous/theme.h"
@@ -18,11 +19,14 @@
 #include "nous/commands.h"
 #include "nous/repl.h"
 #include "nous/signals.h"
+#include "nous/safe_path.h"
+#include <fcntl.h>
 #include "nous/projects.h"
 #include "nous/mlx.h"
 #include "nous/notify.h"
 #include "nous/plan_db.h"
 #include "nous/output_service.h"
+#include "nous/telemetry.h"
 #include "../auth/oauth.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -68,7 +72,7 @@ static const char* LOG_LEVEL_NAMES[] = {
 };
 
 static const char* LOG_CAT_NAMES[] = {
-    "SYSTEM", "AGENT", "TOOL", "API", "MEMORY", "MSGBUS", "COST"
+    "SYSTEM", "AGENT", "TOOL", "API", "MEMORY", "MSGBUS", "COST", "WORKFLOW"
 };
 
 static const char* LOG_CAT_COLORS[] = {
@@ -78,7 +82,8 @@ static const char* LOG_CAT_COLORS[] = {
     "\033[35m",   // Magenta - API
     "\033[34m",   // Blue - MEMORY
     "\033[37m",   // White - MSGBUS
-    "\033[31m"    // Red - COST
+    "\033[31m",   // Red - COST
+    "\033[93m"    // Bright Yellow - WORKFLOW
 };
 
 void nous_log(LogLevel level, LogCategory cat, const char* fmt, ...) {
@@ -264,14 +269,29 @@ int main(int argc, char** argv) {
         } else if ((strcmp(argv[i], "--model") == 0 || strcmp(argv[i], "-m") == 0) && i + 1 < argc) {
             strncpy(g_mlx_model, argv[++i], sizeof(g_mlx_model) - 1);
             g_mlx_model[sizeof(g_mlx_model) - 1] = '\0';
+        } else if ((strcmp(argv[i], "--edition") == 0 || strcmp(argv[i], "-e") == 0) && i + 1 < argc) {
+            const char* ed = argv[++i];
+            if (!edition_set_by_cli(ed)) {
+                // Error already printed by edition_set_by_cli
+                fprintf(stderr, "Valid editions: master, business, developer\n");
+                fprintf(stderr, "(Education edition requires dedicated binary: convergio-edu)\n");
+                return 1;
+            }
         } else if (strcmp(argv[i], "--help") == 0 || strcmp(argv[i], "-h") == 0) {
             printf("Convergio — Human purpose. AI momentum.\n\n");
             printf("Usage: convergio [OPTIONS] [COMMAND]\n\n");
             printf("Commands:\n");
             printf("  setup                   Configure API key, models, and settings\n");
-            printf("  update [check|install]  Check for or install updates\n\n");
+            printf("  update [check|install]  Check for or install updates\n");
+            printf("  workflow <subcommand>   Manage multi-agent workflows\n");
+            printf("    list                  List available workflow templates\n");
+            printf("    show <name>           Show workflow details and Mermaid diagram\n");
+            printf("    execute <name>        Execute a workflow\n");
+            printf("    resume <id>           Resume a checkpointed workflow\n\n");
             printf("Options:\n");
+            printf("  -a, --agent <name>      Start with specific agent (e.g., amy-cfo, rex-code-reviewer)\n");
             printf("  -w, --workspace <path>  Set workspace directory (default: current dir)\n");
+            printf("  -e, --edition <name>    Set edition (master, business, developer)\n");
             printf("  -l, --local             Use MLX local models (Apple Silicon only)\n");
             printf("  -m, --model <model>     Specify model (e.g., llama-3.2-3b, deepseek-r1-7b)\n");
             printf("  -d, --debug             Enable debug logging\n");
@@ -279,6 +299,12 @@ int main(int argc, char** argv) {
             printf("  -q, --quiet             Suppress non-error output\n");
             printf("  -v, --version           Show version\n");
             printf("  -h, --help              Show this help message\n\n");
+            printf("Editions:\n");
+            printf("  master     All 60+ agents (default)\n");
+            printf("  business   Business, sales, marketing agents\n");
+            printf("  developer  Code review, DevOps, security agents\n");
+            printf("  education  Requires dedicated binary (convergio-edu)\n\n");
+            printf("  Can also set via CONVERGIO_EDITION env var or edition in config.toml\n\n");
             printf("Local Models (MLX):\n");
             printf("  Convergio supports 100%% offline operation using MLX on Apple Silicon.\n");
             printf("  Use /setup -> Local Models to download models, or:\n");
@@ -314,7 +340,8 @@ int main(int argc, char** argv) {
     if (term_program && home_dir) {
         char term_file[PATH_MAX];
         snprintf(term_file, sizeof(term_file), "%s/.convergio/terminal", home_dir);
-        FILE* f = fopen(term_file, "w");
+        int fd = safe_path_open(term_file, safe_path_get_user_boundary(), O_WRONLY | O_CREAT | O_TRUNC, 0644);
+        FILE* f = fd >= 0 ? fdopen(fd, "w") : NULL;
         if (f) {
             fprintf(f, "%s", term_program);
             fclose(f);
@@ -340,6 +367,9 @@ int main(int argc, char** argv) {
         fprintf(stderr, "  \033[31m✗ Config initialization failed\033[0m\n");
         init_errors = true;
     }
+
+    // Initialize edition system (displays edition info for non-master)
+    edition_init();
 
     // Initialize theme system
     theme_init();
@@ -567,6 +597,15 @@ int main(int argc, char** argv) {
     // Initialize notification system (for daemon, reminders, etc.)
     notify_init();
 
+    // Initialize telemetry system (privacy-first, opt-in)
+    if (telemetry_init() != 0) {
+        fprintf(stderr, "  \033[33m⚠ Telemetry initialization failed (non-critical)\033[0m\n");
+        // Non-critical: telemetry is optional
+    } else {
+        // Record session start in telemetry
+        telemetry_record_session_start();
+    }
+
     // Only show status if there were errors during initialization
     (void)init_errors;  // Suppress unused warning - errors already printed
 
@@ -721,6 +760,12 @@ int main(int argc, char** argv) {
         nous_destroy_agent(g_assistant);
     }
 
+    // Record session end in telemetry
+    telemetry_record_session_end();
+    
+    // Shutdown telemetry (flushes pending events)
+    telemetry_shutdown();
+    
     nous_gpu_shutdown();
     nous_scheduler_shutdown();
     nous_shutdown();

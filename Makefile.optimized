@@ -1,0 +1,272 @@
+# Convergio Kernel - Optimized Makefile
+# A semantic kernel for human-AI symbiosis
+# Optimized for Apple Silicon (M1, M2, M3, M4) and parallel branch development
+
+# ============================================================================
+# CONFIGURATION - Branch-aware cache optimization
+# ============================================================================
+
+# Detect current branch for cache isolation when working on multiple branches
+GIT_BRANCH := $(shell git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "default")
+CACHE_SUFFIX := $(shell echo $(GIT_BRANCH) | tr '/' '_' | tr -cd '[:alnum:]_')
+
+# Version management
+VERSION := $(shell cat VERSION 2>/dev/null || echo "0.0.0")
+
+# Edition support (master, education, business, developer)
+EDITION ?= master
+ifeq ($(EDITION),education)
+    EDITION_CFLAGS = -DCONVERGIO_EDITION_EDUCATION
+    EDITION_SUFFIX = -edu
+else ifeq ($(EDITION),business)
+    EDITION_CFLAGS =
+    EDITION_SUFFIX = -biz
+else ifeq ($(EDITION),developer)
+    EDITION_CFLAGS =
+    EDITION_SUFFIX = -dev
+else
+    EDITION_CFLAGS =
+    EDITION_SUFFIX =
+endif
+
+# ============================================================================
+# COMPILER SETUP - Optimized cache with branch isolation
+# ============================================================================
+
+SCCACHE = /opt/homebrew/bin/sccache
+CCACHE = /opt/homebrew/bin/ccache
+
+# Branch-aware cache directory (prevents cache conflicts between branches)
+ifeq ($(shell command -v $(SCCACHE) >/dev/null 2>&1 && echo yes),yes)
+    CC = $(SCCACHE) clang
+    OBJC = $(SCCACHE) clang
+    CACHE_INFO = sccache
+    # Use branch-specific cache to avoid conflicts when switching branches
+    export SCCACHE_DIR=$(HOME)/.cache/sccache-$(CACHE_SUFFIX)
+    export SCCACHE_CACHE_SIZE=10G
+else ifeq ($(shell command -v $(CCACHE) >/dev/null 2>&1 && echo yes),yes)
+    CC = $(CCACHE) clang
+    OBJC = $(CCACHE) clang
+    CACHE_INFO = ccache
+    export CCACHE_DIR=$(HOME)/.ccache-$(CACHE_SUFFIX)
+else
+    CC = clang
+    OBJC = clang
+    CACHE_INFO = no-cache
+endif
+
+# ============================================================================
+# PARALLEL BUILD OPTIMIZATION
+# ============================================================================
+
+CPU_CORES := $(shell sysctl -n hw.ncpu 2>/dev/null || echo 14)
+P_CORES := $(shell sysctl -n hw.perflevel0.physicalcpu 2>/dev/null || echo 10)
+PARALLEL_JOBS := $(shell echo $$(( $(CPU_CORES) * 2 )) || echo 28)
+SWIFT_BUILD_JOBS ?= $(P_CORES)
+
+# Adaptive parallelism: reduce if multiple builds running
+# Check if other make processes are running
+MAKE_COUNT := $(shell ps aux | grep -c '[m]ake.*Makefile' || echo 1)
+ifeq ($(shell [ $(MAKE_COUNT) -gt 2 ] && echo yes),yes)
+    # Multiple builds detected - reduce parallelism to avoid thrashing
+    PARALLEL_JOBS := $(shell echo $$(( $(CPU_CORES) )) || echo 14)
+    SWIFT_BUILD_JOBS := $(shell echo $$(( $(P_CORES) / 2 )) || echo 5)
+endif
+
+MAKEFLAGS += -j$(PARALLEL_JOBS) --load-average=$(shell echo $$(( $(CPU_CORES) * 2 )) || echo 28)
+MAKEFLAGS += --jobserver-style=pipe
+
+# ============================================================================
+# ARCHITECTURE & FLAGS
+# ============================================================================
+
+ifeq ($(CI),)
+    ifeq ($(shell sysctl -n hw.ncpu 2>/dev/null),14)
+        ARCH_FLAGS = -arch arm64 -mcpu=apple-m3
+    else
+        ARCH_FLAGS = -arch arm64
+    endif
+else
+    ARCH_FLAGS = -arch arm64
+endif
+
+READLINE_PREFIX = /opt/homebrew/opt/readline
+
+CFLAGS = $(ARCH_FLAGS) \
+         -std=c17 \
+         -Wall -Wextra -Wpedantic \
+         -Wno-unused-parameter \
+         -Wno-overlength-strings \
+         -ffast-math \
+         -fvectorize \
+         -mllvm -enable-machine-outliner=never \
+         -I./include \
+         -I/opt/homebrew/include \
+         -I$(READLINE_PREFIX)/include \
+         -DCONVERGIO_VERSION=\"$(VERSION)\" \
+         $(EDITION_CFLAGS)
+
+OBJCFLAGS = $(CFLAGS) -fobjc-arc
+
+ifeq ($(DEBUG),1)
+    CFLAGS += -g -O0 -DDEBUG \
+              -fsanitize=address,undefined \
+              -Wconversion -Wsign-conversion \
+              -Wdouble-promotion -Wformat=2 \
+              -Wnull-dereference -Wuninitialized \
+              -Wstrict-overflow=2 -fstack-protector-strong
+    LDFLAGS += -fsanitize=address,undefined
+else
+    CFLAGS += -O3 -DNDEBUG \
+              -mllvm -enable-machine-outliner=never \
+              -ffast-math
+    LDFLAGS += -Wl,-cache_path_lto,$(BUILD_DIR)/lto.cache \
+               -Wl,-dead_strip \
+               -Wl,-no_deduplicate
+endif
+
+ifeq ($(COVERAGE),1)
+    CFLAGS += --coverage -fprofile-arcs -ftest-coverage
+    LDFLAGS += --coverage
+endif
+
+# ============================================================================
+# FRAMEWORKS & LIBRARIES
+# ============================================================================
+
+FRAMEWORKS = -framework Metal \
+             -framework MetalKit \
+             -framework MetalPerformanceShaders \
+             -framework Accelerate \
+             -framework Foundation \
+             -framework CoreFoundation \
+             -framework Security \
+             -framework AppKit
+
+LIBS = -lcurl -lsqlite3 /opt/homebrew/opt/cjson/lib/libcjson.a \
+       $(READLINE_PREFIX)/lib/libreadline.a \
+       $(READLINE_PREFIX)/lib/libhistory.a -lncurses
+
+# ============================================================================
+# SWIFT & METAL
+# ============================================================================
+
+SWIFT_BUILD_DIR = .build/release
+SWIFT_LIB = $(SWIFT_BUILD_DIR)/libConvergioMLX.a
+SWIFT_FRAMEWORKS = -Xlinker -rpath -Xlinker @executable_path/../lib
+SWIFT_TOOLCHAIN = /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/macosx
+SWIFT_RUNTIME_LIBS = -L/usr/lib/swift \
+                     -L$(SWIFT_TOOLCHAIN) \
+                     -lswiftCore -lswiftFoundation -lswiftMetal \
+                     -lswiftDispatch -lswiftos -lswiftDarwin \
+                     -lswiftCompatibility56 -lswiftCompatibilityConcurrency \
+                     -lc++
+
+# ============================================================================
+# DIRECTORIES & PATHS
+# ============================================================================
+
+SRC_DIR = src
+BUILD_DIR = build
+OBJ_DIR = $(BUILD_DIR)/obj
+BIN_DIR = $(BUILD_DIR)/bin
+
+# ============================================================================
+# SOURCE FILES (truncated for example - include all your sources)
+# ============================================================================
+
+C_SOURCES = $(SRC_DIR)/core/fabric.c \
+            $(SRC_DIR)/core/main.c \
+            # ... (include all your C sources)
+
+OBJC_SOURCES = $(SRC_DIR)/metal/gpu.m \
+               $(SRC_DIR)/neural/mlx_embed.m \
+               # ... (include all your ObjC sources)
+
+METAL_SOURCES = shaders/similarity.metal
+
+C_OBJECTS = $(patsubst $(SRC_DIR)/%.c,$(OBJ_DIR)/%.o,$(C_SOURCES))
+OBJC_OBJECTS = $(patsubst $(SRC_DIR)/%.m,$(OBJ_DIR)/%.o,$(OBJC_SOURCES))
+OBJECTS = $(C_OBJECTS) $(OBJC_OBJECTS)
+
+METAL_AIR = $(BUILD_DIR)/similarity.air
+METAL_LIB = $(BUILD_DIR)/similarity.metallib
+TARGET = $(BIN_DIR)/convergio$(EDITION_SUFFIX)
+
+# ============================================================================
+# MACRO: Define test target (reduces duplication from ~20x to 1x)
+# ============================================================================
+
+# Usage: $(call define_test,test_name,test_source,test_objects)
+# This macro creates both the test target and compilation rule
+define define_test
+$(1)_TEST = $$(BIN_DIR)/$(1)
+$(1)_SOURCES = $(2) $$(TEST_STUBS)
+$(1)_OBJECTS = $(3)
+
+$(1): dirs swift $$(OBJECTS) $$(MLX_STUBS_OBJ) $$($(1)_TEST)
+	@echo "Running $(1)..."
+	@$$($(1)_TEST)
+
+$$($(1)_TEST): $$($(1)_SOURCES) $$($(1)_OBJECTS) $$(SWIFT_LIB) $$(MLX_STUBS_OBJ)
+	@echo "Compiling $(1)..."
+	@if [ -s "$$(SWIFT_LIB)" ]; then \
+		$$(CC) $$(CFLAGS) $$(LDFLAGS) -o $$($(1)_TEST) $$($(1)_SOURCES) $$($(1)_OBJECTS) $$(SWIFT_LIB) $$(FRAMEWORKS) $$(LIBS) $$(SWIFT_RUNTIME_LIBS); \
+	else \
+		$$(CC) $$(CFLAGS) $$(LDFLAGS) -o $$($(1)_TEST) $$($(1)_SOURCES) $$($(1)_OBJECTS) $$(MLX_STUBS_OBJ) $$(FRAMEWORKS) $$(LIBS); \
+	fi
+endef
+
+# ============================================================================
+# TEST DEFINITIONS - Using macro (much cleaner!)
+# ============================================================================
+
+TEST_STUBS = tests/test_stubs.c
+MLX_STUBS_SRC = $(SRC_DIR)/providers/mlx_stubs.c
+MLX_STUBS_OBJ = $(OBJ_DIR)/providers/mlx_stubs.o
+
+# Define all tests using the macro
+$(eval $(call define_test,fuzz_test,tests/fuzz_test.c,$(filter-out $(OBJ_DIR)/core/main.o,$(OBJECTS))))
+$(eval $(call define_test,unit_test,tests/test_unit.c,$(filter-out $(OBJ_DIR)/core/main.o,$(OBJECTS))))
+$(eval $(call define_test,anna_test,tests/test_anna.c,$(filter-out $(OBJ_DIR)/core/main.o,$(OBJECTS))))
+$(eval $(call define_test,telemetry_test,tests/test_telemetry.c,$(filter-out $(OBJ_DIR)/core/main.o,$(OBJECTS))))
+$(eval $(call define_test,security_test,tests/test_security.c,$(filter-out $(OBJ_DIR)/core/main.o,$(OBJECTS))))
+$(eval $(call define_test,workflow_types_test,tests/test_workflow_types.c,$(filter-out $(OBJ_DIR)/core/main.o,$(OBJECTS))))
+$(eval $(call define_test,workflow_engine_test,tests/test_workflow_engine.c,$(filter-out $(OBJ_DIR)/core/main.o,$(OBJECTS))))
+# ... (add all other tests here)
+
+# ============================================================================
+# COMPILATION RULES
+# ============================================================================
+
+$(OBJ_DIR)/%.o: $(SRC_DIR)/%.c
+	@echo "Compiling $<..."
+	@$(CC) $(CFLAGS) -c $< -o $@
+
+$(OBJ_DIR)/%.o: $(SRC_DIR)/%.m
+	@echo "Compiling $<..."
+	@$(OBJC) $(OBJCFLAGS) -c $< -o $@
+
+$(MLX_STUBS_OBJ): $(MLX_STUBS_SRC)
+	@echo "Compiling MLX stubs..."
+	@$(CC) $(CFLAGS) -c $< -o $@
+
+# ============================================================================
+# DEFAULT TARGET
+# ============================================================================
+
+.DEFAULT_GOAL := all
+
+all: dirs metal swift $(TARGET) notify-helper
+	@echo ""
+	@echo "╔═══════════════════════════════════════════════════╗"
+	@echo "║          CONVERGIO KERNEL v$(VERSION)             ║"
+	@echo "║  Build complete!                                  ║"
+	@echo "║  Branch: $(GIT_BRANCH) | Cache: $(CACHE_INFO) | Jobs: $(PARALLEL_JOBS) ║"
+	@echo "╚═══════════════════════════════════════════════════╝"
+	@echo ""
+
+# ... (include rest of your targets: dirs, metal, swift, notify-helper, etc.)
+
+.PHONY: all clean test
+

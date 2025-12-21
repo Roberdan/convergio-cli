@@ -6,7 +6,9 @@
 
 #include "nous/memory.h"
 #include "nous/orchestrator.h"
+#include "nous/safe_path.h"
 #include <stdio.h>
+#include <fcntl.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
@@ -81,7 +83,8 @@ int memory_save(const MemoryEntry* entry) {
     char* json_str = cJSON_Print(json);
     cJSON_Delete(json);
 
-    FILE* f = fopen(filepath, "w");
+    int fd = safe_path_open(filepath, safe_path_get_user_boundary(), O_WRONLY | O_CREAT | O_TRUNC, 0644);
+    FILE* f = fd >= 0 ? fdopen(fd, "w") : NULL;
     if (!f) {
         free(json_str);
         return -1;
@@ -119,11 +122,12 @@ int memory_generate_summary(const char* agent_name,
         if (!msg) continue;
 
         // Truncate long messages
-        conv_len += snprintf(conversation + conv_len, conv_size - conv_len,
+        int written = snprintf(conversation + conv_len, conv_size - conv_len,
             "%s: %.500s%s\n",
             strcmp(role, "user") == 0 ? "User" : "Agent",
             msg,
             strlen(msg) > 500 ? "..." : "");
+        if (written > 0) conv_len += (size_t)written;
     }
 
     // Build summarization prompt
@@ -200,7 +204,8 @@ int memory_generate_summary(const char* agent_name,
 
 // Load a single memory entry from file
 static int load_memory_entry(const char* filepath, MemoryEntry* entry) {
-    FILE* f = fopen(filepath, "r");
+    int fd = safe_path_open(filepath, safe_path_get_user_boundary(), O_RDONLY, 0);
+    FILE* f = fd >= 0 ? fdopen(fd, "r") : NULL;
     if (!f) return -1;
 
     fseek(f, 0, SEEK_END);
@@ -212,9 +217,9 @@ static int load_memory_entry(const char* filepath, MemoryEntry* entry) {
         return -1;
     }
 
-    char* content = malloc(fsize + 1);
-    fread(content, 1, fsize, f);
-    content[fsize] = '\0';
+    char* content = malloc((size_t)fsize + 1);
+    fread(content, 1, (size_t)fsize, f);
+    content[(size_t)fsize] = '\0';
     fclose(f);
 
     cJSON* json = cJSON_Parse(content);
@@ -292,7 +297,7 @@ int memory_load_recent(int max_entries, MemorySearchResult* result) {
     }
 
     // Allocate space for entries
-    result->capacity = max_entries;
+    result->capacity = (size_t)max_entries;
     result->entries = calloc(result->capacity, sizeof(MemoryEntry));
 
     struct dirent* entry;
@@ -314,7 +319,7 @@ int memory_load_recent(int max_entries, MemorySearchResult* result) {
     free(dir);
 
     // Sort by timestamp (newest first)
-    qsort(temp_entries, temp_count, sizeof(MemoryEntry), compare_memories_by_time);
+    qsort(temp_entries, (size_t)temp_count, sizeof(MemoryEntry), compare_memories_by_time);
 
     // Copy top N entries
     int copy_count = temp_count < max_entries ? temp_count : max_entries;
@@ -341,7 +346,7 @@ int memory_search(const char* query, int max_results, MemorySearchResult* result
         return 0;
     }
 
-    result->capacity = max_results;
+    result->capacity = (size_t)max_results;
     result->entries = calloc(result->capacity, sizeof(MemoryEntry));
 
     // Convert query to lowercase for case-insensitive search
@@ -396,7 +401,7 @@ int memory_load_by_agent(const char* agent_name, int max_entries, MemorySearchRe
         return 0;
     }
 
-    result->capacity = max_entries;
+    result->capacity = (size_t)max_entries;
     result->entries = calloc(result->capacity, sizeof(MemoryEntry));
 
     struct dirent* entry;
@@ -421,7 +426,7 @@ int memory_load_by_agent(const char* agent_name, int max_entries, MemorySearchRe
     free(dir);
 
     // Sort by timestamp (newest first)
-    qsort(temp_entries, temp_count, sizeof(MemoryEntry), compare_memories_by_time);
+    qsort(temp_entries, (size_t)temp_count, sizeof(MemoryEntry), compare_memories_by_time);
 
     // Copy top N entries
     int copy_count = temp_count < max_entries ? temp_count : max_entries;
@@ -439,10 +444,12 @@ char* memory_build_context(const MemorySearchResult* result, size_t max_length) 
 
     char* context = malloc(max_length);
     size_t len = 0;
+    int written;
 
-    len += snprintf(context + len, max_length - len,
+    written = snprintf(context + len, max_length - len,
         "\n## Historical Memory (Cross-Session Context)\n\n"
         "You have access to summaries of past conversations. Use this context to maintain continuity.\n\n");
+    if (written > 0) len += (size_t)written;
 
     for (size_t i = 0; i < result->count && len < max_length - 512; i++) {
         const MemoryEntry* mem = &result->entries[i];
@@ -452,25 +459,29 @@ char* memory_build_context(const MemorySearchResult* result, size_t max_length) 
         struct tm* tm_info = localtime(&mem->timestamp);
         strftime(time_str, sizeof(time_str), "%Y-%m-%d %H:%M", tm_info);
 
-        len += snprintf(context + len, max_length - len,
+        written = snprintf(context + len, max_length - len,
             "### Memory: %s (%s)\n"
             "**Summary**: %s\n"
             "**Topics**: %s\n",
             mem->agent_name, time_str,
             mem->summary,
             mem->topics);
+        if (written > 0) len += (size_t)written;
 
         if (strcmp(mem->decisions, "none") != 0 && mem->decisions[0]) {
-            len += snprintf(context + len, max_length - len,
+            written = snprintf(context + len, max_length - len,
                 "**Decisions**: %s\n", mem->decisions);
+            if (written > 0) len += (size_t)written;
         }
 
         if (strcmp(mem->action_items, "none") != 0 && mem->action_items[0]) {
-            len += snprintf(context + len, max_length - len,
+            written = snprintf(context + len, max_length - len,
                 "**Action Items**: %s\n", mem->action_items);
+            if (written > 0) len += (size_t)written;
         }
 
-        len += snprintf(context + len, max_length - len, "\n");
+        written = snprintf(context + len, max_length - len, "\n");
+        if (written > 0) len += (size_t)written;
     }
 
     return context;

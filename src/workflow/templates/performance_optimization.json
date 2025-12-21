@@ -1,0 +1,163 @@
+{
+    "name": "performance-optimization",
+    "description": "Performance Optimization: analisi, profiling, ottimizzazione e verifica",
+    "entry_node": "performance_analysis",
+    "nodes": [
+        {
+            "id": "performance_analysis",
+            "name": "Analisi Performance",
+            "type": "ACTION",
+            "agent_role": "ANALYST",
+            "action_prompt": "Analizza le performance del sistema. Identifica: bottleneck, slow queries, memory leaks, CPU spikes, network latency, I/O issues. Genera profiling report.",
+            "next_nodes": ["data_analysis"]
+        },
+        {
+            "id": "data_analysis",
+            "name": "Analisi Dati",
+            "type": "ACTION",
+            "agent_role": "ANALYST",
+            "action_prompt": "Analizza metriche e dati di performance. Identifica pattern, correlazioni, anomalie. Determina root cause dei problemi di performance.",
+            "next_nodes": ["optimization_planning"]
+        },
+        {
+            "id": "optimization_planning",
+            "name": "Pianificazione Ottimizzazione",
+            "type": "ACTION",
+            "agent_role": "PLANNER",
+            "action_prompt": "Crea piano di ottimizzazione. Priorità: impatto vs effort, quick wins, long-term improvements. Definisci metriche di successo.",
+            "next_nodes": ["optimization_decision"]
+        },
+        {
+            "id": "optimization_decision",
+            "name": "Decisione Ottimizzazione",
+            "type": "DECISION",
+            "description": "Scegli tipo di ottimizzazione basata su root cause",
+            "next_nodes": ["code_optimization", "database_optimization", "infrastructure_optimization", "algorithm_optimization"]
+        },
+        {
+            "id": "code_optimization",
+            "name": "Ottimizzazione Codice",
+            "type": "ACTION",
+            "agent_role": "CODER",
+            "action_prompt": "Ottimizza il codice. Focus su: algoritmi inefficienti, loop non ottimizzati, memory allocation, caching, lazy loading, async operations.",
+            "next_nodes": ["performance_test"]
+        },
+        {
+            "id": "database_optimization",
+            "name": "Ottimizzazione Database",
+            "type": "ACTION",
+            "agent_role": "CODER",
+            "action_prompt": "Ottimizza database. Focus su: query optimization, indexing, connection pooling, query caching, denormalization, partitioning.",
+            "next_nodes": ["performance_test"]
+        },
+        {
+            "id": "infrastructure_optimization",
+            "name": "Ottimizzazione Infrastruttura",
+            "type": "ACTION",
+            "agent_role": "EXECUTOR",
+            "action_prompt": "Ottimizza infrastruttura. Focus su: scaling, load balancing, CDN, caching layers, resource allocation, auto-scaling policies.",
+            "next_nodes": ["performance_test"]
+        },
+        {
+            "id": "algorithm_optimization",
+            "name": "Ottimizzazione Algoritmi",
+            "type": "ACTION",
+            "agent_role": "CODER",
+            "action_prompt": "Ottimizza algoritmi. Focus su: complexity reduction, data structures, parallelization, memoization, approximation algorithms.",
+            "next_nodes": ["performance_test"]
+        },
+        {
+            "id": "performance_test",
+            "name": "Performance Test",
+            "type": "ACTION",
+            "agent_role": "CRITIC",
+            "action_prompt": "Esegui performance test. Verifica: throughput, latency, resource usage, scalability. Confronta con baseline. Valuta miglioramento.",
+            "next_nodes": ["performance_verification"]
+        },
+        {
+            "id": "performance_verification",
+            "name": "Verifica Performance",
+            "type": "DECISION",
+            "description": "Verifica se gli obiettivi di performance sono stati raggiunti",
+            "next_nodes": ["deployment", "further_optimization"]
+        },
+        {
+            "id": "further_optimization",
+            "name": "Ulteriore Ottimizzazione",
+            "type": "ACTION",
+            "agent_role": "CODER",
+            "action_prompt": "Se gli obiettivi non sono raggiunti, identifica ulteriori ottimizzazioni. Analizza risultati test e pianifica iterazione successiva.",
+            "next_nodes": ["optimization_planning"]
+        },
+        {
+            "id": "deployment",
+            "name": "Deployment",
+            "type": "ACTION",
+            "agent_role": "EXECUTOR",
+            "action_prompt": "Deploy delle ottimizzazioni. Esegui: gradual rollout, A/B testing, monitoraggio intensivo, rollback plan.",
+            "next_nodes": ["monitoring"]
+        },
+        {
+            "id": "monitoring",
+            "name": "Monitoraggio",
+            "type": "ACTION",
+            "agent_role": "ANALYST",
+            "action_prompt": "Monitora performance in produzione. Verifica: metriche migliorate, assenza di regressioni, stabilità, user experience.",
+            "next_nodes": ["performance_report"]
+        },
+        {
+            "id": "performance_report",
+            "name": "Performance Report",
+            "type": "ACTION",
+            "agent_role": "WRITER",
+            "action_prompt": "Genera report completo: baseline vs ottimizzato, metriche migliorate, lezioni apprese, raccomandazioni future.",
+            "next_nodes": ["conclusion"]
+        },
+        {
+            "id": "conclusion",
+            "name": "Conclusione",
+            "type": "CONVERGE",
+            "description": "Finalizza ottimizzazione performance",
+            "next_nodes": []
+        }
+    ],
+    "edges": [
+        {"from": "performance_analysis", "to": "data_analysis"},
+        {"from": "data_analysis", "to": "optimization_planning"},
+        {"from": "optimization_planning", "to": "optimization_decision"},
+        {"from": "optimization_decision", "to": "code_optimization", "condition": "bottleneck_type == 'code'"},
+        {"from": "optimization_decision", "to": "database_optimization", "condition": "bottleneck_type == 'database'"},
+        {"from": "optimization_decision", "to": "infrastructure_optimization", "condition": "bottleneck_type == 'infrastructure'"},
+        {"from": "optimization_decision", "to": "algorithm_optimization", "condition": "bottleneck_type == 'algorithm'"},
+        {"from": "code_optimization", "to": "performance_test"},
+        {"from": "database_optimization", "to": "performance_test"},
+        {"from": "infrastructure_optimization", "to": "performance_test"},
+        {"from": "algorithm_optimization", "to": "performance_test"},
+        {"from": "performance_test", "to": "performance_verification"},
+        {"from": "performance_verification", "to": "deployment", "condition": "performance_targets_met == true"},
+        {"from": "performance_verification", "to": "further_optimization", "condition": "performance_targets_met == false"},
+        {"from": "further_optimization", "to": "optimization_planning"},
+        {"from": "deployment", "to": "monitoring"},
+        {"from": "monitoring", "to": "performance_report"},
+        {"from": "performance_report", "to": "conclusion"}
+    ],
+    "metadata": {
+        "use_case": "Performance Optimization",
+        "scenario": "Ottimizzazione completa delle performance del sistema",
+        "participants": [
+            "Omri (ANALYST) - Data analysis e profiling",
+            "Baccio (CODER) - Code/algorithm optimization",
+            "Marco (EXECUTOR) - Infrastructure optimization",
+            "Thor (CRITIC) - Performance testing"
+        ],
+        "features": [
+            "Performance profiling completo",
+            "Data-driven analysis",
+            "Multi-type optimization (code, DB, infra, algo)",
+            "Iterative optimization loop",
+            "Performance testing e verification",
+            "Production monitoring"
+        ]
+    }
+}
+

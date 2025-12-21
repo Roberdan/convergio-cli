@@ -15,6 +15,7 @@
 #include <string.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#include <fcntl.h>
 #include <errno.h>
 
 // ============================================================================
@@ -233,6 +234,90 @@ void telemetry_record_session_end(void) {
     add_event(&event);
 }
 
+void telemetry_record_performance(
+    const char* operation,
+    double duration_ms,
+    uint64_t memory_bytes
+) {
+    if (!telemetry_is_enabled()) {
+        return;
+    }
+
+    TelemetryEvent event = {0};
+    event.type = TELEMETRY_EVENT_PERFORMANCE;
+    event.timestamp = time(NULL);
+    if (operation) {
+        strncpy(event.operation, operation, sizeof(event.operation) - 1);
+    }
+    event.duration_ms = duration_ms;
+    event.memory_bytes = memory_bytes;
+
+    add_event(&event);
+}
+
+void telemetry_record_security(
+    const char* security_event,
+    const char* context,
+    bool success
+) {
+    if (!telemetry_is_enabled()) {
+        return;
+    }
+
+    TelemetryEvent event = {0};
+    event.type = TELEMETRY_EVENT_SECURITY;
+    event.timestamp = time(NULL);
+    if (security_event) {
+        strncpy(event.security_event, security_event, sizeof(event.security_event) - 1);
+    }
+    if (context) {
+        strncpy(event.security_context, context, sizeof(event.security_context) - 1);
+    }
+    event.security_success = success;
+
+    add_event(&event);
+}
+
+void telemetry_record_retry(
+    const char* reason,
+    int attempt,
+    int max_retries
+) {
+    if (!telemetry_is_enabled()) {
+        return;
+    }
+
+    TelemetryEvent event = {0};
+    event.type = TELEMETRY_EVENT_RETRY;
+    event.timestamp = time(NULL);
+    if (reason) {
+        strncpy(event.retry_reason, reason, sizeof(event.retry_reason) - 1);
+    }
+    event.retry_attempt = attempt;
+    event.max_retries = max_retries;
+
+    add_event(&event);
+}
+
+void telemetry_record_checkpoint(
+    const char* workflow_type,
+    double duration_ms
+) {
+    if (!telemetry_is_enabled()) {
+        return;
+    }
+
+    TelemetryEvent event = {0};
+    event.type = TELEMETRY_EVENT_CHECKPOINT;
+    event.timestamp = time(NULL);
+    if (workflow_type) {
+        strncpy(event.operation, workflow_type, sizeof(event.operation) - 1);
+    }
+    event.duration_ms = duration_ms;
+
+    add_event(&event);
+}
+
 // ============================================================================
 // DATA MANAGEMENT
 // ============================================================================
@@ -306,7 +391,8 @@ int telemetry_flush(void) {
     }
 
     // Open data file for writing
-    FILE* f = fopen(g_telemetry_config.data_path, "w");
+    int fd = safe_path_open(g_telemetry_config.data_path, safe_path_get_user_boundary(), O_WRONLY | O_CREAT | O_TRUNC, 0644);
+    FILE* f = fd >= 0 ? fdopen(fd, "w") : NULL;
     if (!f) {
         fprintf(stderr, "telemetry: Failed to open data file for writing: %s\n",
                 strerror(errno));
@@ -354,6 +440,22 @@ int telemetry_flush(void) {
                 fprintf(f, "\"session_end\",\n");
                 fprintf(f, "      \"timestamp\": %ld\n", e->timestamp);
                 break;
+            case TELEMETRY_EVENT_WORKFLOW_START:
+            case TELEMETRY_EVENT_WORKFLOW_END:
+            case TELEMETRY_EVENT_WORKFLOW_NODE:
+            case TELEMETRY_EVENT_WORKFLOW_ERROR:
+            case TELEMETRY_EVENT_ORCHESTRATOR_DELEGATION:
+            case TELEMETRY_EVENT_ORCHESTRATOR_PLANNING:
+            case TELEMETRY_EVENT_ORCHESTRATOR_CONVERGENCE:
+                // These events are handled by workflow_observability.c
+                // For export, just include basic info
+                fprintf(f, "\"workflow_event\",\n");
+                fprintf(f, "      \"timestamp\": %ld\n", e->timestamp);
+                break;
+            default:
+                fprintf(f, "\"unknown\",\n");
+                fprintf(f, "      \"timestamp\": %ld\n", e->timestamp);
+                break;
         }
 
         fprintf(f, "    }%s\n", (i < g_event_count - 1) ? "," : "");
@@ -371,7 +473,8 @@ int telemetry_flush(void) {
 // ============================================================================
 
 static int load_config(void) {
-    FILE* f = fopen(g_telemetry_config.config_path, "r");
+    int fd = safe_path_open(g_telemetry_config.config_path, safe_path_get_user_boundary(), O_RDONLY, 0);
+    FILE* f = fd >= 0 ? fdopen(fd, "r") : NULL;
     if (!f) {
         return -1;
     }
@@ -407,7 +510,8 @@ static int load_config(void) {
 }
 
 static int save_config(void) {
-    FILE* f = fopen(g_telemetry_config.config_path, "w");
+    int fd = safe_path_open(g_telemetry_config.config_path, safe_path_get_user_boundary(), O_WRONLY | O_CREAT | O_TRUNC, 0644);
+    FILE* f = fd >= 0 ? fdopen(fd, "w") : NULL;
     if (!f) {
         fprintf(stderr, "telemetry: Failed to save config: %s\n", strerror(errno));
         return -1;

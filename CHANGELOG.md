@@ -7,7 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [5.4.0] - 2025-12-21
+
 ### Added
+
+- **Advanced Workflow Orchestration** - Complete multi-agent coordination system
+  - State machine-based workflow execution with checkpointing
+  - Task decomposition with dependency resolution and topological sort
+  - Group chat coordination with consensus detection
+  - Conditional routing with expression evaluation (==, !=, <, >, <=, >=)
+  - Retry logic with exponential backoff and error classification
+  - Mermaid diagram export for workflow visualization
+  - 9 workflow templates and 4 reusable patterns
+  - CLI commands: `workflow list`, `workflow show`, `workflow execute`, `workflow resume`
+  - Comprehensive documentation: USER_GUIDE.md, PATTERN_GUIDE.md, MIGRATION_GUIDE.md
+  - ADR: `docs/adr/018-workflow-orchestration.md`
+
+- **Extended Telemetry Events** - Enhanced observability
+  - Performance metrics (operation duration, memory usage)
+  - Security audit events (validation results, context)
+  - Retry tracking (attempt, reason, max retries)
+  - Checkpoint events (workflow type, duration)
+
+- **Security Enforcement Phase 2** - Safe file operations
+  - Replaced `fopen()` with `safe_path_open()` in 5 core files
+  - Path validation with boundary checking
+  - Consistent security patterns across codebase
 
 - **Web Search Tool** - Multi-provider web search support
   - Anthropic: Native `web_search_20250305` tool with citations
@@ -971,7 +996,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-[Unreleased]: https://github.com/Roberdan/convergio-cli/compare/v5.3.0...HEAD
+[Unreleased]: https://github.com/Roberdan/convergio-cli/compare/v5.4.0...HEAD
+[5.4.0]: https://github.com/Roberdan/convergio-cli/compare/v5.3.1...v5.4.0
+[5.3.1]: https://github.com/Roberdan/convergio-cli/compare/v5.3.0...v5.3.1
 [5.3.0]: https://github.com/Roberdan/convergio-cli/compare/v5.2.2...v5.3.0
 [5.2.2]: https://github.com/Roberdan/convergio-cli/compare/v5.2.1...v5.2.2
 [5.2.1]: https://github.com/Roberdan/convergio-cli/compare/v5.2.0...v5.2.1

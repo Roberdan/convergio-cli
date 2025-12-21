@@ -11,7 +11,7 @@
 
 <p align="center">
   <a href="https://github.com/Roberdan/convergio-cli/actions/workflows/ci.yml"><img src="https://github.com/Roberdan/convergio-cli/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
-  <a href="https://github.com/Roberdan/convergio-cli/releases/latest"><img src="https://img.shields.io/badge/version-5.3.1-blue" alt="Version 5.3.1"></a>
+  <a href="https://github.com/Roberdan/convergio-cli/releases/latest"><img src="https://img.shields.io/badge/version-5.4.0-blue" alt="Version 5.4.0"></a>
   <a href="https://github.com/Roberdan/convergio-cli/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-green.svg" alt="License"></a>
   <a href="https://github.com/Roberdan/convergio-cli"><img src="https://img.shields.io/badge/platform-macOS%20(Apple%20Silicon)-black" alt="Platform"></a>
   <a href="https://github.com/Roberdan/convergio-cli/stargazers"><img src="https://img.shields.io/github/stars/Roberdan/convergio-cli?style=social" alt="Stars"></a>
@@ -19,7 +19,7 @@
 
 <p align="center">
   <img src="https://img.shields.io/badge/coverage-96%25-brightgreen" alt="Coverage 96%">
-  <img src="https://img.shields.io/badge/tests-306%20passing-success" alt="306 Tests">
+  <img src="https://img.shields.io/badge/tests-350%2B%20passing-success" alt="350+ Tests">
   <img src="https://img.shields.io/badge/agents-54%20specialists-purple" alt="54 AI Agents">
   <img src="https://img.shields.io/badge/C17-Standard-blue" alt="C17">
   <img src="https://img.shields.io/badge/Swift-5.9-orange" alt="Swift 5.9">
@@ -64,12 +64,20 @@ brew tap Roberdan/convergio-cli && brew install convergio
 │         Analyzes → Delegates → Coordinates → Synthesizes         │
 └─────────────────────────────────────────────────────────────────┘
                               │
+                              ▼
+┌─────────────────────────────────────────────────────────────────┐
+│              WORKFLOW ENGINE (v5.4)                              │
+│   State Machine → Task Decomposition → Checkpointing → Resume   │
+└─────────────────────────────────────────────────────────────────┘
+                              │
         ┌─────────────────────┼─────────────────────┐
         ▼                     ▼                     ▼
    ┌─────────┐          ┌─────────┐          ┌─────────┐
    │  Domik  │          │  Baccio │          │   Amy   │   ← PARALLEL
    │Strategy │          │  Tech   │          │ Finance │
    └─────────┘          └─────────┘          └─────────┘
+        │                     │                     │
+        ├─────────── GROUP CHAT (Debate) ──────────┤
         │                     │                     │
         └─────────────────────┴─────────────────────┘
                               │
@@ -80,7 +88,7 @@ brew tap Roberdan/convergio-cli && brew install convergio
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-**This is not a chatbot. This is a virtual consulting team.**
+**This is not a chatbot. This is a virtual consulting team with workflow orchestration.**
 
 ---
 
@@ -110,6 +118,48 @@ cd convergio-cli
 git checkout feature/native-app
 cd ConvergioApp && xcodegen && open ConvergioApp.xcodeproj
 ```
+
+---
+
+## What's New in v5.4.0
+
+### Workflow Orchestration - Multi-Agent Collaboration Engine
+
+Full-featured workflow orchestration system for complex multi-agent collaboration:
+
+```bash
+# List available workflows
+> /workflow list
+
+# Execute a workflow
+> /workflow execute security-audit --input "Review src/auth"
+
+# Resume a paused workflow
+> /workflow resume wf-12345
+```
+
+**Workflow Orchestration Features:**
+- **DAG-Based Workflows**: Complex directed acyclic graph execution
+- **State Machine Engine**: Robust state transitions with checkpointing
+- **Multi-Agent Patterns**: Router, Group Chat, Sequential, Parallel
+- **Task Decomposition**: LLM-powered automatic task breakdown
+- **Error Handling**: Comprehensive retry policies with exponential backoff
+- **Conditional Routing**: Dynamic path selection based on results
+- **Checkpointing**: Resume workflows from any point after crashes
+- **Security Hardened**: Path traversal protection, SQL injection prevention, input validation
+
+**9 Workflow Templates Included:**
+- Code Review & Refinement
+- Security Audit Pipeline
+- Bug Triage & Fix
+- Performance Optimization
+- API Design Review
+- Incident Response
+- Product Launch Checklist
+- Pre-Release Quality Gates
+- Class Council (Education)
+
+See [Workflow Orchestration Documentation](docs/workflow-orchestration/USER_GUIDE.md) for complete details.
 
 ---
 
@@ -437,6 +487,49 @@ API keys can be configured via:
 
 ---
 
+## Editions
+
+Convergio is available in multiple editions, each focused on specific use cases:
+
+| Edition | Agents | Target Audience | Installation |
+|---------|--------|-----------------|--------------|
+| **Master** | 60+ | Developers, power users | `brew install convergio` |
+| **Education** | 18 | Students, teachers | `brew install convergio-edu` |
+| **Business** | 10 | SMBs, sales teams | `--edition business` |
+| **Developer** | 10 | DevOps, tech leads | `--edition developer` |
+
+### Switching Editions at Runtime
+
+```bash
+# Via CLI flag
+convergio --edition business
+
+# Via environment variable
+export CONVERGIO_EDITION=developer
+convergio
+
+# Via config.toml
+# Add to ~/.convergio/config.toml:
+# [ui]
+# edition = "business"
+```
+
+**Note:**
+- Edition is set at startup and takes effect immediately for that session
+- To change edition, start a new Convergio session with the desired flag/config
+- Education edition requires a dedicated binary (`convergio-edu`) for child safety compliance
+
+### Building Specific Editions
+
+```bash
+make                      # Master (default)
+make EDITION=education    # Education (outputs convergio-edu)
+make EDITION=business     # Business (outputs convergio-biz)
+make EDITION=developer    # Developer (outputs convergio-dev)
+```
+
+---
+
 ## Commands Reference
 
 ### Core Commands
@@ -525,6 +618,37 @@ API keys can be configured via:
 | `/output size` | Show disk usage |
 | `/output cleanup <days>` | Delete outputs older than N days |
 
+### Workflow Orchestration
+
+| Command | Description |
+|---------|-------------|
+| `/workflow list` | List available workflows |
+| `/workflow show <name>` | Show workflow details |
+| `/workflow execute <name> --input <text>` | Execute a workflow |
+| `/workflow resume <id>` | Resume a paused workflow |
+
+**Workflow Features:**
+- **State Machine Engine**: Complex multi-step agent coordination
+- **Checkpointing**: Resume workflows from any point
+- **Task Decomposition**: Automatic task breakdown with dependency resolution
+- **Group Chat**: Multi-agent discussions with consensus building
+- **Conditional Routing**: Dynamic workflow adaptation based on results
+- **Error Handling**: Comprehensive retry logic and fallback strategies
+- **Observability**: Full logging, telemetry, and security audit trails
+
+**Available Workflow Templates:**
+- Code Review & Refinement
+- Bug Triage & Fix
+- Security Audit
+- Performance Optimization
+- API Design Review
+- Incident Response
+- Product Launch
+- Pre-Release Checklist (Zero Tolerance Policy)
+- Class Council (Education)
+
+See [Workflow Orchestration Documentation](docs/workflow-orchestration/USER_GUIDE.md) for complete details.
+
 ### System
 
 | Command | Description |
@@ -554,6 +678,13 @@ flowchart TB
         Ali["Ali (Chief of Staff)"]
         MsgBus["Message Bus"]
         Conv["Convergence"]
+    end
+
+    subgraph WORKFLOW["Workflow Engine (v5.4)"]
+        StateMachine["State Machine"]
+        TaskDecomp["Task Decomposer"]
+        GroupChat["Group Chat"]
+        Checkpoint["Checkpoint/Resume"]
     end
 
     subgraph ROUTER["Intelligent Routing"]
@@ -599,9 +730,12 @@ flowchart TB
     end
 
     UI --> ORCH
+    ORCH --> WORKFLOW
+    WORKFLOW --> ROUTER
     ORCH --> ROUTER
     ROUTER --> PROVIDERS
     ORCH --> AGENTS
+    WORKFLOW --> AGENTS
     AGENTS --> TOOLS
     TOOLS --> FABRIC
     FABRIC --> SILICON
@@ -613,6 +747,9 @@ flowchart TB
 |---------|-----------|-------------|------|------------------|-----------|
 | **Multi-Provider** | 6 providers | Claude only | Multi | OpenAI only | OpenAI only |
 | **Agents** | 54 specialists | Subagents | Single | Autocomplete | Single |
+| **Workflow Engine** | DAG + State Machine | None | None | None | None |
+| **Group Chat** | Multi-agent debate | None | None | None | None |
+| **Checkpointing** | Resume any point | None | None | None | None |
 | **Inter-Agent Comms** | Message Bus | None | None | None | None |
 | **Parallel Execution** | GCD native | Batched | Sequential | N/A | Sequential |
 | **Convergence** | Automatic | Manual | N/A | N/A | N/A |
@@ -639,14 +776,16 @@ flowchart TB
 
 | Metric | Value |
 |--------|-------|
-| Source Files | 71 C/Objective-C/Swift |
-| Lines of Code | ~58,837 LOC |
+| Source Files | 86+ C/Objective-C/Swift |
+| Lines of Code | ~86,000 LOC |
+| Workflow Engine | 12 workflow modules |
 | AI Agents | 54 specialists |
 | Providers | 6 (Cloud + Local) |
-| Commands | 40+ REPL commands |
+| Commands | 45+ REPL commands |
 | Tools | 15+ execution tools |
 | Models Supported | 300+ across providers |
 | Local Models | 8 MLX models |
+| Test Coverage | 350+ tests passing |
 
 ### Apple Silicon Optimizations
 
@@ -754,7 +893,7 @@ MIT License - see [LICENSE](LICENSE) for details.
 ---
 
 <p align="center">
-  <strong>Convergio CLI v5.1.0</strong><br/>
+  <strong>Convergio CLI v5.4.0</strong><br/>
   <em>Multi-Model AI Orchestration for Apple Silicon</em>
 </p>
 
