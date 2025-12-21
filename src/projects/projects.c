@@ -1146,8 +1146,9 @@ bool project_clear_history(ConvergioProject* project) {
     char history_file[1024];
     snprintf(history_file, sizeof(history_file), "%s/%s", project->storage_path, HISTORY_FILE);
 
-    // Truncate file
-    FILE* f = fopen(history_file, "w");
+    // Truncate file (safe path open)
+    int fd = safe_path_open(history_file, safe_path_get_user_boundary(), O_WRONLY | O_CREAT | O_TRUNC, 0644);
+    FILE* f = fd >= 0 ? fdopen(fd, "w") : NULL;
     if (f) fclose(f);
     return true;
 }
