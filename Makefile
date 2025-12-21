@@ -449,18 +449,16 @@ DEPDIR := $(OBJ_DIR)/.deps
 DEPFLAGS = -MT $@ -MMD -MP -MF $(DEPDIR)/$*.d
 
 # Compile C sources (with cache, parallelization, and dependency tracking)
-$(OBJ_DIR)/%.o: $(SRC_DIR)/%.c | $(DEPDIR)
+$(OBJ_DIR)/%.o: $(SRC_DIR)/%.c
+	@mkdir -p $(dir $(DEPDIR)/$*.d)
 	@echo "Compiling $<..."
 	@$(CC) $(CFLAGS) $(DEPFLAGS) -c $< -o $@
 
 # Compile Objective-C sources (with cache, parallelization, and dependency tracking)
-$(OBJ_DIR)/%.o: $(SRC_DIR)/%.m | $(DEPDIR)
+$(OBJ_DIR)/%.o: $(SRC_DIR)/%.m
+	@mkdir -p $(dir $(DEPDIR)/$*.d)
 	@echo "Compiling $<..."
 	@$(OBJC) $(OBJCFLAGS) $(DEPFLAGS) -c $< -o $@
-
-# Create dependency directory
-$(DEPDIR):
-	@mkdir -p $(DEPDIR)
 
 # Include dependency files (rebuild when headers change)
 -include $(wildcard $(DEPDIR)/*.d)
