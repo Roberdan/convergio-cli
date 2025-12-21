@@ -275,6 +275,18 @@ static const char* SCHEMA_SQL =
     "  source TEXT DEFAULT 'cli'"
     ");"
 
+    // Workflow checkpoints for state persistence
+    "CREATE TABLE IF NOT EXISTS workflow_checkpoints ("
+    "  id INTEGER PRIMARY KEY AUTOINCREMENT,"
+    "  workflow_id INTEGER NOT NULL,"
+    "  node_id INTEGER NOT NULL,"
+    "  state_json TEXT NOT NULL,"
+    "  created_at INTEGER NOT NULL,"
+    "  metadata_json TEXT"
+    ");"
+    "CREATE INDEX IF NOT EXISTS idx_checkpoints_workflow ON workflow_checkpoints(workflow_id);"
+    "CREATE INDEX IF NOT EXISTS idx_checkpoints_created ON workflow_checkpoints(created_at DESC);"
+
     // Full-text search for tasks
     "CREATE VIRTUAL TABLE IF NOT EXISTS tasks_fts USING fts5("
     "  title, description, tags, context,"

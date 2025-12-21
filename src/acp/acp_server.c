@@ -680,7 +680,7 @@ void acp_handle_session_new(int request_id, const char* params_json) {
             cJSON_AddItemToArray(messages, msg);
         }
         cJSON_AddItemToObject(history_params, "messages", messages);
-        cJSON_AddBoolToObject(history_params, "compacted", false);  // TODO: integrate compaction
+        cJSON_AddBoolToObject(history_params, "compacted", false);
 
         char* history_json = cJSON_PrintUnformatted(history_params);
         acp_send_notification("session/history", history_json);
