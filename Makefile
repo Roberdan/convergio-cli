@@ -1049,6 +1049,54 @@ coverage: clean
 		echo "Coverage data not generated. Run 'make coverage' after running tests."; \
 	fi
 
+# ============================================================================
+# GLOBAL QUALITY GATE (Zero Tolerance Policy)
+# ============================================================================
+
+quality_gate: quality_gate_build quality_gate_tests quality_gate_security
+	@echo ""
+	@echo "╔══════════════════════════════════════════════════════════════╗"
+	@echo "║          ✅ GLOBAL QUALITY GATE PASSED                       ║"
+	@echo "╚══════════════════════════════════════════════════════════════╝"
+
+quality_gate_build:
+	@echo "╔══════════════════════════════════════════════════════════════╗"
+	@echo "║          GLOBAL QUALITY GATE - BUILD CHECK                   ║"
+	@echo "╚══════════════════════════════════════════════════════════════╝"
+	@echo ""
+	@echo "=== 1. Build Check (Zero Warnings) ==="
+	@$(MAKE) clean >/dev/null 2>&1
+	@WARNINGS=$$($(MAKE) 2>&1 | grep -i "warning:" | grep -v "jobserver mode" | wc -l | tr -d ' '); \
+	if [ "$$WARNINGS" -gt 0 ]; then \
+		echo "❌ FAILED: Found $$WARNINGS warnings (ZERO TOLERANCE)"; \
+		$(MAKE) 2>&1 | grep -i "warning:" | grep -v "jobserver mode" | head -10; \
+		exit 1; \
+	else \
+		echo "✅ PASSED: Zero warnings"; \
+	fi
+
+quality_gate_tests:
+	@echo ""
+	@echo "=== 2. All Tests Pass ==="
+	@if $(MAKE) test >/dev/null 2>&1; then \
+		echo "✅ PASSED: All tests pass"; \
+	else \
+		echo "❌ FAILED: Some tests failed"; \
+		$(MAKE) test; \
+		exit 1; \
+	fi
+
+quality_gate_security:
+	@echo ""
+	@echo "=== 3. Security Check (Basic) ==="
+	@DANGEROUS=$$(grep -rE "(strcpy|strcat|gets)\s*\(" src/ 2>/dev/null | grep -v "tools_is_command_safe\|test_" | wc -l | tr -d ' '); \
+	if [ "$$DANGEROUS" -gt 0 ]; then \
+		echo "⚠️  WARNING: Found $$DANGEROUS potential security issues"; \
+		echo "   Review use of dangerous functions"; \
+	else \
+		echo "✅ PASSED: No obvious security issues"; \
+	fi
+
 # Cache statistics
 cache-stats:
 	@echo "=== Build Cache Statistics ==="

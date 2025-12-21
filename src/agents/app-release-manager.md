@@ -415,6 +415,43 @@ grep -r "g_" src/workflow/ | grep -v "CONVERGIO_MUTEX" && echo "POTENTIAL RACE C
 
 ---
 
+## Global Quality Gates (All Features)
+
+### Mandatory Global Checks (ZERO TOLERANCE)
+
+**CRITICAL: These checks apply to ALL features, not just workflow orchestration.**
+
+1. **Global Build Check**:
+   ```bash
+   make quality_gate_build
+   ```
+   - ✅ Zero warnings (excluding known false positives like jobserver mode)
+   - ✅ Build succeeds
+   - ❌ FAIL if any warnings found
+
+2. **Global Test Check**:
+   ```bash
+   make quality_gate_tests
+   ```
+   - ✅ All tests pass (unit, integration, fuzz, sanitizer)
+   - ✅ All test suites execute successfully
+   - ❌ FAIL if any test fails
+
+3. **Global Security Check**:
+   ```bash
+   make quality_gate_security
+   ```
+   - ✅ No dangerous functions (strcpy, strcat, gets)
+   - ✅ Security functions used where appropriate
+   - ⚠️  WARN if potential issues found
+
+4. **Complete Quality Gate**:
+   ```bash
+   make quality_gate
+   ```
+   - Runs all global checks above
+   - Must pass before release
+
 ## Workflow-Specific Quality Gates
 
 ### Mandatory Checks (ZERO TOLERANCE)
