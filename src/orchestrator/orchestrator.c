@@ -58,13 +58,16 @@ extern char* agent_get_working_status(void);
 
 // Session management
 static char* g_current_session_id = NULL;
+CONVERGIO_MUTEX_DECLARE(g_session_mutex);
 
 // Helper to save conversation to both persistence and project history
 static void save_conversation(const char* role, const char* content, const char* agent_name) {
     // Save to regular persistence
+    CONVERGIO_MUTEX_LOCK(&g_session_mutex);
     if (g_current_session_id) {
         persistence_save_conversation(g_current_session_id, role, content, (int)strlen(content) / 4);
     }
+    CONVERGIO_MUTEX_UNLOCK(&g_session_mutex);
 
     // Also save to project history if project is active
     ConvergioProject* proj = project_current();
@@ -808,14 +811,19 @@ static char* build_context_prompt(const char* user_input) {
 
     // 3. Load only recent conversation from current session (not full history)
     // Full session summaries are created on quit and loaded via /recall if needed
-    if (g_current_session_id) {
+    CONVERGIO_MUTEX_LOCK(&g_session_mutex);
+    char* session_id_copy = g_current_session_id ? strdup(g_current_session_id) : NULL;
+    CONVERGIO_MUTEX_UNLOCK(&g_session_mutex);
+
+    if (session_id_copy) {
         // Only load last 10 messages for immediate context
-        char* conv_history = persistence_load_conversation_context(g_current_session_id, 10);
+        char* conv_history = persistence_load_conversation_context(session_id_copy, 10);
         if (conv_history && strlen(conv_history) > 0) {
             len += (size_t)snprintf(context + len, capacity - len,
                 "## Recent Conversation\n%s\n", conv_history);
             free(conv_history);
         }
+        free(session_id_copy);
     }
 
     // 4. Add current user input
@@ -1050,10 +1058,12 @@ char* orchestrator_process(const char* user_input) {
 
         if (synthesized) {
             // Save synthesized response
+            CONVERGIO_MUTEX_LOCK(&g_session_mutex);
             if (g_current_session_id) {
                 persistence_save_conversation(g_current_session_id, "assistant", synthesized,
                                                (int)strlen(synthesized) / 4);
             }
+            CONVERGIO_MUTEX_UNLOCK(&g_session_mutex);
 
             Message* response_msg = message_create(MSG_TYPE_AGENT_RESPONSE,
                                                     g_orchestrator->ali->id, 0, synthesized);
@@ -1557,26 +1567,37 @@ char* orchestrator_status(void) {
 // ============================================================================
 
 // Get current session ID (for external use)
+// Note: Caller must not modify or free the returned pointer
 const char* orchestrator_get_session_id(void) {
-    return g_current_session_id;
+    CONVERGIO_MUTEX_LOCK(&g_session_mutex);
+    const char* session_id = g_current_session_id;
+    CONVERGIO_MUTEX_UNLOCK(&g_session_mutex);
+    return session_id;
 }
 
 // Compact current session into a summary (called on quit)
 // Returns 0 on success, -1 on error
 int orchestrator_compact_session(void (*progress_callback)(int percent, const char* msg)) {
-    if (!g_current_session_id) {
+    // Make a protected copy of session ID to avoid holding mutex during I/O
+    CONVERGIO_MUTEX_LOCK(&g_session_mutex);
+    char* session_id = g_current_session_id ? strdup(g_current_session_id) : NULL;
+    CONVERGIO_MUTEX_UNLOCK(&g_session_mutex);
+
+    if (!session_id) {
         return 0;  // No session to compact
     }
 
     // Check if there are enough messages to warrant compaction (use real count, not ID math)
-    int msg_count = persistence_get_session_message_count(g_current_session_id);
+    int msg_count = persistence_get_session_message_count(session_id);
     if (msg_count < 5) {
+        free(session_id);
         return 0;  // Too few messages, skip compaction
     }
 
     // Get message ID range for loading
     int64_t first_msg_id = 0, last_msg_id = 0;
-    if (persistence_get_message_id_range(g_current_session_id, &first_msg_id, &last_msg_id) != 0) {
+    if (persistence_get_message_id_range(session_id, &first_msg_id, &last_msg_id) != 0) {
+        free(session_id);
         return 0;  // No messages
     }
 
@@ -1585,10 +1606,11 @@ int orchestrator_compact_session(void (*progress_callback)(int percent, const ch
     // Load all messages from this session
     size_t count = 0;
     char* messages = persistence_load_messages_range(
-        g_current_session_id, first_msg_id, last_msg_id, &count);
+        session_id, first_msg_id, last_msg_id, &count);
 
     if (!messages || count == 0) {
         if (messages) free(messages);
+        free(session_id);
         return 0;
     }
 
@@ -1596,11 +1618,13 @@ int orchestrator_compact_session(void (*progress_callback)(int percent, const ch
 
     // Create summary using compaction module
     CompactionResult* result = compaction_summarize(
-        g_current_session_id,
+        session_id,
         first_msg_id,
         last_msg_id,
         messages
     );
+
+    free(session_id);
 
     free(messages);
 
