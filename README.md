@@ -528,6 +528,49 @@ make EDITION=business     # Business (outputs convergio-biz)
 make EDITION=developer    # Developer (outputs convergio-dev)
 ```
 
+### Education Pack Features
+
+The Education edition (`convergio-edu`) provides a complete virtual classroom experience:
+
+**15 Historical Maestri (Teachers)**
+- Socrate (Philosophy), Euclide (Math), Feynman (Physics), Darwin (Sciences)
+- Erodoto (History), Humboldt (Geography), Manzoni (Italian), Shakespeare (English)
+- Leonardo (Art), Mozart (Music), Cicerone (Civics), Smith (Economics)
+- Lovelace (Computer Science), Ippocrate (Health), Chris (Storytelling)
+
+**Didactic Toolkit**
+| Command | Description |
+|---------|-------------|
+| `/study <subject>` | Start guided study session |
+| `/homework <topic>` | Anti-cheat homework helper (Socratic method) |
+| `/quiz [subject]` | Generate adaptive quizzes |
+| `/flashcards` | SM-2 spaced repetition flashcards |
+| `/mindmap <topic>` | Visual concept maps |
+| `/define <word>` | Dictionary with etymology |
+| `/conjugate <verb>` | Verb conjugation tables |
+| `/calc <expression>` | Visual calculator with step-by-step |
+
+**Libretto (Student Gradebook)**
+| Command | Description |
+|---------|-------------|
+| `/libretto` | View grades and progress |
+| `/libretto voto <grade>` | Record a new grade |
+| `/libretto diario` | Daily activity log |
+| `/libretto report` | Progress report for parents |
+
+**Accessibility Support (WCAG 2.1 AA)**
+- Dyslexia: OpenDyslexic font, syllabification, cream background
+- Dyscalculia: Color-coded numbers, visual place values
+- ADHD: Chunked content, progress bars, break reminders
+- Autism: Predictable structure, transition warnings
+- Motor difficulties: Extended timeouts, large targets
+
+**Child Safety**
+- Compile-time locked binary (cannot switch editions at runtime)
+- Content filtering for age-appropriate responses
+- Prompt injection protection
+- No external tool execution
+
 ---
 
 ## Commands Reference
