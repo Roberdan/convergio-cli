@@ -1107,6 +1107,45 @@ quality_gate_security:
 		echo "✅ PASSED: No dangerous string functions found"; \
 	fi
 
+# ============================================================================
+# CODE FORMATTING (clang-format)
+# ============================================================================
+
+CLANG_FORMAT ?= clang-format
+CLANG_FORMAT_CHECK := $(shell command -v $(CLANG_FORMAT) 2>/dev/null)
+
+# Format all C source files
+format:
+	@if [ -z "$(CLANG_FORMAT_CHECK)" ]; then \
+		echo "⚠️  clang-format not found. Install with: brew install clang-format"; \
+		echo "   Skipping code formatting."; \
+		exit 0; \
+	fi
+	@echo "Formatting C source files..."
+	@find src -name "*.c" -o -name "*.h" | grep -v ".build" | while read file; do \
+		$(CLANG_FORMAT) -i "$$file"; \
+	done
+	@echo "✅ Code formatting complete"
+
+# Check code formatting (does not modify files)
+format-check:
+	@if [ -z "$(CLANG_FORMAT_CHECK)" ]; then \
+		echo "⚠️  clang-format not found. Install with: brew install clang-format"; \
+		echo "   Skipping format check."; \
+		exit 0; \
+	fi
+	@echo "Checking code formatting..."
+	@UNFORMATTED=$$(find src -name "*.c" -o -name "*.h" | grep -v ".build" | while read file; do \
+		$(CLANG_FORMAT) "$$file" | diff -q "$$file" - >/dev/null || echo "$$file"; \
+	done | wc -l | tr -d ' '); \
+	if [ "$$UNFORMATTED" -gt 0 ]; then \
+		echo "❌ FAILED: Found $$UNFORMATTED unformatted files"; \
+		echo "   Run 'make format' to fix formatting"; \
+		exit 1; \
+	else \
+		echo "✅ PASSED: All files properly formatted"; \
+	fi
+
 # Cache statistics
 cache-stats:
 	@echo "=== Build Cache Statistics ==="
