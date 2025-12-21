@@ -434,6 +434,36 @@ CMakeLists.txt             # CMake (add workflow sources)
 
 ---
 
+## Post-Merge Documentation Tasks
+
+> **DA FARE** dopo che tutto funziona e prima di considerare il merge completo
+
+### README.md Update
+
+- [ ] Aggiungere sezione **Workflow Engine** con features principali
+- [ ] Documentare i nuovi comandi `/workflow list`, `/workflow execute`, `/workflow resume`
+- [ ] Aggiornare lista features con checkpointing, task decomposition, group chat
+- [ ] Documentare i 9 workflow templates disponibili
+- [ ] Aggiungere sezione **Quality Standards** (Zero Tolerance Policy)
+- [ ] Aggiornare sezione **Editions** con tutte le edition supportate
+- [ ] Verificare che tutti i badge/shields siano aggiornati
+
+### Documentation Cleanup
+
+- [ ] Rimuovere documentazione duplicata tra workflow e main
+- [ ] Unificare docs/workflow-orchestration/ con docs/ principale
+- [ ] Aggiornare CHANGELOG.md con tutte le nuove features
+- [ ] Verificare che ADR siano tutti aggiornati e linkati
+- [ ] Creare una pagina "What's New in v5.5" (o versione appropriata)
+
+### Code Documentation
+
+- [ ] Verificare che tutti i nuovi header abbiano documentazione Doxygen
+- [ ] Aggiornare man page se presente
+- [ ] Verificare `--help` output include nuovi comandi
+
+---
+
 **Document Owner**: Roberto
 **Last Updated**: 2025-12-21
 **Next Review**: Before merge execution
