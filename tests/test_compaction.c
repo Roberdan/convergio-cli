@@ -141,6 +141,31 @@ Provider* provider_get(ProviderType type) {
     return NULL;
 }
 
+// Mock LLM functions (required by compaction.c)
+char* llm_chat_with_model(const char* model, const char* system, const char* user, TokenUsage* usage) {
+    (void)model; (void)system; (void)user;
+    if (usage) {
+        usage->input_tokens = 100;
+        usage->output_tokens = 50;
+        usage->cached_tokens = 0;
+        usage->estimated_cost = 0.001;
+    }
+    if (g_mock_llm_response) {
+        return strdup(g_mock_llm_response);
+    }
+    return strdup("Mock summary: This is a test summary of the conversation context.");
+}
+
+size_t llm_estimate_tokens(const char* text) {
+    if (!text) return 0;
+    // Rough estimate: ~4 chars per token
+    return strlen(text) / 4;
+}
+
+bool llm_is_available(void) {
+    return g_provider_available;
+}
+
 // ============================================================================
 // TEST FRAMEWORK
 // ============================================================================
