@@ -1,0 +1,189 @@
+{
+    "name": "class-council",
+    "description": "Consiglio di classe: Ali (preside) coordina gli insegnanti per valutare uno studente",
+    "entry_node": "parallel_evaluations",
+    "nodes": [
+        {
+            "id": "parallel_evaluations",
+            "name": "Valutazioni Parallele",
+            "type": "PARALLEL",
+            "description": "Tutti gli insegnanti valutano lo studente in parallelo nelle loro materie",
+            "next_nodes": ["collect_evaluations"]
+        },
+        {
+            "id": "math_evaluation",
+            "name": "Valutazione Matematica",
+            "type": "ACTION",
+            "agent_role": "TEACHER_MATH",
+            "action_prompt": "Valuta lo studente in matematica. Fornisci voto (1-10), punti di forza, aree di miglioramento e commenti dettagliati.",
+            "next_nodes": []
+        },
+        {
+            "id": "italian_evaluation",
+            "name": "Valutazione Italiano",
+            "type": "ACTION",
+            "agent_role": "TEACHER_ITALIAN",
+            "action_prompt": "Valuta lo studente in italiano. Fornisci voto (1-10), punti di forza, aree di miglioramento e commenti dettagliati.",
+            "next_nodes": []
+        },
+        {
+            "id": "english_evaluation",
+            "name": "Valutazione Inglese",
+            "type": "ACTION",
+            "agent_role": "TEACHER_ENGLISH",
+            "action_prompt": "Valuta lo studente in inglese. Fornisci voto (1-10), punti di forza, aree di miglioramento e commenti dettagliati.",
+            "next_nodes": []
+        },
+        {
+            "id": "science_evaluation",
+            "name": "Valutazione Scienze",
+            "type": "ACTION",
+            "agent_role": "TEACHER_SCIENCE",
+            "action_prompt": "Valuta lo studente in scienze. Fornisci voto (1-10), punti di forza, aree di miglioramento e commenti dettagliati.",
+            "next_nodes": []
+        },
+        {
+            "id": "collect_evaluations",
+            "name": "Raccolta Valutazioni",
+            "type": "CONVERGE",
+            "description": "Raccogli tutte le valutazioni degli insegnanti e calcola la media",
+            "action_prompt": "Raccogli tutte le valutazioni, calcola la media dei voti e identifica eventuali problemi critici.",
+            "next_nodes": ["teacher_discussion"]
+        },
+        {
+            "id": "teacher_discussion",
+            "name": "Discussione Insegnanti",
+            "type": "ACTION",
+            "agent_role": "ORCHESTRATOR",
+            "action_prompt": "Ali coordina una discussione tra gli insegnanti. Analizza tutte le valutazioni, identifica pattern comuni, punti di forza e debolezze dello studente. Raggiungi un consenso sulla situazione generale.",
+            "next_nodes": ["final_decision"]
+        },
+        {
+            "id": "final_decision",
+            "name": "Decisione Finale",
+            "type": "DECISION",
+            "description": "Ali prende la decisione finale basata sulla discussione e sulle valutazioni",
+            "next_nodes": ["positive_outcome", "needs_improvement", "critical_situation"]
+        },
+        {
+            "id": "positive_outcome",
+            "name": "Esito Positivo",
+            "type": "ACTION",
+            "agent_role": "ORCHESTRATOR",
+            "action_prompt": "Prepara una comunicazione positiva per i genitori evidenziando i risultati positivi dello studente e suggerendo come mantenere questo livello.",
+            "next_nodes": ["conclusion"]
+        },
+        {
+            "id": "needs_improvement",
+            "name": "Richiede Miglioramento",
+            "type": "ACTION",
+            "agent_role": "ORCHESTRATOR",
+            "action_prompt": "Prepara un piano di miglioramento per lo studente con supporto aggiuntivo, obiettivi specifici e strategie di intervento.",
+            "next_nodes": ["conclusion"]
+        },
+        {
+            "id": "critical_situation",
+            "name": "Situazione Critica",
+            "type": "ACTION",
+            "agent_role": "ORCHESTRATOR",
+            "action_prompt": "Prepara una comunicazione urgente per i genitori e un piano di intervento immediato con supporto specializzato e monitoraggio intensivo.",
+            "next_nodes": ["conclusion"]
+        },
+        {
+            "id": "conclusion",
+            "name": "Conclusione",
+            "type": "CONVERGE",
+            "description": "Finalizza il consiglio di classe e prepara il verbale",
+            "action_prompt": "Prepara il verbale del consiglio di classe con tutte le valutazioni, la decisione finale e le azioni da intraprendere.",
+            "next_nodes": []
+        }
+    ],
+    "edges": [
+        {
+            "from": "parallel_evaluations",
+            "to": "math_evaluation"
+        },
+        {
+            "from": "parallel_evaluations",
+            "to": "italian_evaluation"
+        },
+        {
+            "from": "parallel_evaluations",
+            "to": "english_evaluation"
+        },
+        {
+            "from": "parallel_evaluations",
+            "to": "science_evaluation"
+        },
+        {
+            "from": "math_evaluation",
+            "to": "collect_evaluations"
+        },
+        {
+            "from": "italian_evaluation",
+            "to": "collect_evaluations"
+        },
+        {
+            "from": "english_evaluation",
+            "to": "collect_evaluations"
+        },
+        {
+            "from": "science_evaluation",
+            "to": "collect_evaluations"
+        },
+        {
+            "from": "collect_evaluations",
+            "to": "teacher_discussion"
+        },
+        {
+            "from": "teacher_discussion",
+            "to": "final_decision"
+        },
+        {
+            "from": "final_decision",
+            "to": "positive_outcome",
+            "condition": "average_grade >= 7 && critical_issues == false"
+        },
+        {
+            "from": "final_decision",
+            "to": "needs_improvement",
+            "condition": "average_grade >= 5 && average_grade < 7"
+        },
+        {
+            "from": "final_decision",
+            "to": "critical_situation",
+            "condition": "average_grade < 5 || critical_issues == true"
+        },
+        {
+            "from": "positive_outcome",
+            "to": "conclusion"
+        },
+        {
+            "from": "needs_improvement",
+            "to": "conclusion"
+        },
+        {
+            "from": "critical_situation",
+            "to": "conclusion"
+        }
+    ],
+    "metadata": {
+        "use_case": "Consiglio di classe",
+        "scenario": "Ali (preside) coordina gli insegnanti per valutare uno studente",
+        "participants": [
+            "Ali (ORCHESTRATOR) - Preside",
+            "Insegnante Matematica",
+            "Insegnante Italiano",
+            "Insegnante Inglese",
+            "Insegnante Scienze"
+        ],
+        "features": [
+            "Valutazioni parallele",
+            "Group chat per discussione",
+            "Consensus building",
+            "Conditional routing basato su voti",
+            "Checkpointing durante la discussione"
+        ]
+    }
+}
+

@@ -9,7 +9,9 @@
  */
 
 #include "nous/orchestrator.h"
+#include "nous/safe_path.h"
 #include <stdio.h>
+#include <fcntl.h>
 #include <stdlib.h>
 #include <string.h>
 #include <dirent.h>
@@ -613,7 +615,7 @@ bool agent_is_known_name(const char* name) {
         // Also match short name (e.g., "amy" matches "amy-cfo")
         const char* hyphen = strchr(agent_name, '-');
         if (hyphen) {
-            size_t short_len = hyphen - agent_name;
+            size_t short_len = (size_t)(hyphen - agent_name);
             if (strlen(name) == short_len && strncasecmp(agent_name, name, short_len) == 0) {
                 return true;
             }
@@ -665,7 +667,8 @@ size_t agent_get_all(ManagedAgent** out_agents, size_t max_count) {
 // Parse markdown agent definition file (reserved for future dynamic agent loading)
 __attribute__((unused))
 static ManagedAgent* parse_agent_md(const char* filepath) {
-    FILE* f = fopen(filepath, "r");
+    int fd = safe_path_open(filepath, safe_path_get_cwd_boundary(), O_RDONLY, 0);
+    FILE* f = fd >= 0 ? fdopen(fd, "r") : NULL;
     if (!f) return NULL;
 
     char line[4096];

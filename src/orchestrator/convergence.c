@@ -7,9 +7,11 @@
 #include "nous/convergence.h"
 #include "nous/orchestrator.h"
 #include "nous/provider.h"
+#include "nous/telemetry.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 
 // Model used for orchestrator convergence (matches previous claude.c default)
 #define ORCHESTRATOR_MODEL "claude-sonnet-4-20250514"
@@ -24,12 +26,22 @@ extern Orchestrator* orchestrator_get(void);
 // Converge results from multiple agents into unified response
 char* orchestrator_converge(ExecutionPlan* plan) {
     Orchestrator* orch = orchestrator_get();
-    if (!orch || !plan) return NULL;
+    if (!orch || !plan) {
+        telemetry_record_error("orchestrator_convergence_invalid_params");
+        return NULL;
+    }
+
+    // Measure latency for telemetry
+    struct timespec start_time, end_time;
+    clock_gettime(CLOCK_MONOTONIC, &start_time);
 
     // Collect all task results
     size_t buf_size = 8192;
     char* combined = malloc(buf_size);
-    if (!combined) return NULL;
+    if (!combined) {
+        telemetry_record_error("orchestrator_convergence_alloc_failed");
+        return NULL;
+    }
 
     size_t offset = (size_t)snprintf(combined, buf_size,
         "Synthesize the following results into a unified response:\n\nGoal: %s\n\n",
@@ -70,9 +82,20 @@ char* orchestrator_converge(ExecutionPlan* plan) {
 
     free(combined);
 
+    // Calculate latency and record telemetry
+    clock_gettime(CLOCK_MONOTONIC, &end_time);
+    double latency_ms = ((end_time.tv_sec - start_time.tv_sec) * 1000.0) +
+                        ((end_time.tv_nsec - start_time.tv_nsec) / 1000000.0);
+
     if (final) {
         plan->final_result = strdup(final);
         plan->is_complete = true;
+        // Record successful convergence
+        telemetry_record_api_call("orchestrator", "convergence", 0, strlen(final) / 4, latency_ms);
+        LOG_DEBUG(LOG_CAT_AGENT, "Convergence completed in %.2f ms", latency_ms);
+    } else {
+        telemetry_record_error("orchestrator_convergence_failed");
+        LOG_ERROR(LOG_CAT_AGENT, "Convergence failed - provider returned NULL");
     }
 
     return final;

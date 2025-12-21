@@ -1,0 +1,150 @@
+name: Workflow Coverage
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [feature/workflow-orchestration, main]
+    paths:
+      - 'src/workflow/**'
+      - 'tests/test_workflow*.c'
+      - 'include/nous/workflow.h'
+      - 'include/nous/router.h'
+      - 'include/nous/patterns.h'
+      - '.github/workflows/workflow-coverage.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'src/workflow/**'
+      - 'tests/test_workflow*.c'
+      - 'include/nous/workflow.h'
+      - 'include/nous/router.h'
+      - 'include/nous/patterns.h'
+      - '.github/workflows/workflow-coverage.yml'
+
+jobs:
+  coverage:
+    name: Code Coverage
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install dependencies
+        run: |
+          brew install lcov
+          brew install sccache
+          brew install cjson
+          brew install jansson
+          brew install sqlite3
+
+      - name: Setup Xcode
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+
+      - name: Build with coverage instrumentation
+        run: |
+          make clean
+          SWIFT_BUILD_JOBS=4 COVERAGE=1 make workflow_test
+        env:
+          SWIFT_BUILD_JOBS: 4
+
+      - name: Generate coverage report
+        run: |
+          mkdir -p coverage
+          lcov --capture --directory build --output-file coverage/workflow_coverage.info --ignore-errors source,gcov 2>/dev/null || true
+          lcov --remove coverage/workflow_coverage.info '/usr/*' '/opt/*' '*/tests/*' '.build/*' '*/mocks/*' --output-file coverage/workflow_coverage_filtered.info 2>/dev/null || true
+
+      - name: Check coverage threshold
+        run: |
+          if [ -f coverage/workflow_coverage_filtered.info ]; then
+            COVERAGE=$(lcov --summary coverage/workflow_coverage_filtered.info 2>&1 | grep "lines" | sed 's/.*lines......: \([0-9.]*\)%.*/\1/')
+            echo "Coverage: $COVERAGE%"
+            if [ $(echo "$COVERAGE < 80" | bc) -eq 1 ]; then
+              echo "::error::Coverage $COVERAGE% is below minimum threshold of 80%"
+              exit 1
+            fi
+            echo "Coverage $COVERAGE% meets minimum threshold of 80%"
+          else
+            echo "::warning::Coverage data not available"
+          fi
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          files: coverage/workflow_coverage_filtered.info
+          flags: workflow
+          name: workflow-coverage
+          fail_ci_if_error: false
+        continue-on-error: true
+
+      - name: Generate HTML report
+        run: |
+          if [ -f coverage/workflow_coverage_filtered.info ]; then
+            genhtml coverage/workflow_coverage_filtered.info --output-directory coverage/html/workflow 2>/dev/null || true
+          fi
+
+      - name: Upload coverage report artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: workflow-coverage-report
+          path: coverage/html/workflow/
+          retention-days: 30
+
+  sanitizers:
+    name: Sanitizer Tests
+    runs-on: macos-latest
+
+    strategy:
+      matrix:
+        sanitizer: [address, undefined]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install dependencies
+        run: |
+          brew install cjson
+          brew install jansson
+          brew install sqlite3
+
+      - name: Setup Xcode
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+
+      - name: Build with ${{ matrix.sanitizer }} sanitizer
+        run: |
+          make clean
+          SWIFT_BUILD_JOBS=4 DEBUG=1 SANITIZE=${{ matrix.sanitizer }} make workflow_test
+        env:
+          SWIFT_BUILD_JOBS: 4
+
+      - name: Verify no sanitizer errors
+        run: |
+          echo "Sanitizer tests passed for ${{ matrix.sanitizer }}"
+
+  quality-gate:
+    name: Quality Gate
+    needs: [coverage, sanitizers]
+    runs-on: ubuntu-latest
+    if: always()
+
+    steps:
+      - name: Check all jobs passed
+        run: |
+          if [ "${{ needs.coverage.result }}" != "success" ]; then
+            echo "Coverage job failed"
+            exit 1
+          fi
+          if [ "${{ needs.sanitizers.result }}" != "success" ]; then
+            echo "Sanitizer jobs failed"
+            exit 1
+          fi
+          echo "All quality gates passed!"

@@ -169,12 +169,12 @@ else
     fail "Ali panel crate not found"
 fi
 
-# Test 5.3: Enter keybinding in Ali panel
-log_test "Enter keybinding configured for AliPanel"
-if grep -q 'KeyBinding::new("enter", SendToAli, Some("AliPanel"))' "$ALI_PANEL" 2>/dev/null; then
+# Test 5.3: Ali panel uses AcpThreadView for chat (includes native Editor input)
+log_test "Ali panel has AcpThreadView chat"
+if grep -q 'AcpThreadView\|thread_view' "$ALI_PANEL" 2>/dev/null; then
     pass
 else
-    fail "Enter keybinding not configured correctly"
+    fail "Ali panel AcpThreadView not configured"
 fi
 
 echo ""

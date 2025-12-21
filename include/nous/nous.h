@@ -63,7 +63,8 @@ typedef enum {
     LOG_CAT_API,           // Claude API calls
     LOG_CAT_MEMORY,        // Memory/persistence operations
     LOG_CAT_MSGBUS,        // Message bus communication
-    LOG_CAT_COST           // Cost tracking
+    LOG_CAT_COST,          // Cost tracking
+    LOG_CAT_WORKFLOW       // Workflow orchestration
 } LogCategory;
 
 // Global log level (set by --debug flag or debug command)

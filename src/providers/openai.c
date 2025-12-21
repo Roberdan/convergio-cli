@@ -12,6 +12,7 @@
 #include "nous/model_loader.h"
 #include "nous/config.h"
 #include "nous/nous.h"
+#include "nous/telemetry.h"
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
@@ -20,6 +21,7 @@
 #include <ctype.h>
 #include <pthread.h>
 #include <signal.h>
+#include <time.h>
 
 // ============================================================================
 // CONFIGURATION
@@ -447,36 +449,57 @@ static char* openai_chat(Provider* self, const char* model, const char* system,
 
     data->request_cancelled = 0;
 
+    // Measure latency for telemetry
+    struct timespec start_time, end_time;
+    clock_gettime(CLOCK_MONOTONIC, &start_time);
+
     LOG_DEBUG(LOG_CAT_API, "OpenAI API call: model=%s", api_model);
     CURLcode res = curl_easy_perform(curl);
+
+    // Calculate latency
+    clock_gettime(CLOCK_MONOTONIC, &end_time);
+    double latency_ms = ((end_time.tv_sec - start_time.tv_sec) * 1000.0) +
+                        ((end_time.tv_nsec - start_time.tv_nsec) / 1000000.0);
 
     long http_code = 0;
     curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &http_code);
     data->last_error.http_status = (int)http_code;
 
     char* result = NULL;
+    uint64_t tokens_input = 0;
+    uint64_t tokens_output = 0;
 
     if (res == CURLE_ABORTED_BY_CALLBACK) {
         data->last_error.code = PROVIDER_ERR_TIMEOUT;
         data->last_error.message = strdup("Request cancelled");
+        telemetry_record_error("provider_timeout");
     } else if (res != CURLE_OK) {
         data->last_error.code = PROVIDER_ERR_NETWORK;
         data->last_error.message = strdup(curl_easy_strerror(res));
+        telemetry_record_error("provider_network_error");
     } else if (http_code != 200) {
         data->last_error.code = provider_map_http_error(http_code);
         data->last_error.message = strdup(response.data ? response.data : "Unknown error");
         LOG_WARN(LOG_CAT_API, "OpenAI API error: HTTP %ld -> %d", http_code, data->last_error.code);
+        telemetry_record_error("provider_api_error");
     } else {
         result = extract_response_content(response.data);
         if (!result) {
             data->last_error.code = PROVIDER_ERR_INVALID_REQUEST;
             data->last_error.message = strdup("Failed to parse response");
+            telemetry_record_error("provider_parse_error");
         } else if (usage) {
             memset(usage, 0, sizeof(TokenUsage));
             extract_token_usage(response.data, usage);
             usage->estimated_cost = model_estimate_cost(model, usage->input_tokens, usage->output_tokens);
+            tokens_input = usage->input_tokens;
+            tokens_output = usage->output_tokens;
             LOG_DEBUG(LOG_CAT_COST, "Tokens: in=%zu out=%zu cost=$%.6f",
                      usage->input_tokens, usage->output_tokens, usage->estimated_cost);
+        }
+        // Record successful API call in telemetry
+        if (result) {
+            telemetry_record_api_call("openai", api_model, tokens_input, tokens_output, latency_ms);
         }
     }
 
@@ -632,7 +655,16 @@ static char* openai_chat_with_tools(Provider* self, const char* model, const cha
 
     data->request_cancelled = 0;
 
+    // Measure latency for telemetry
+    struct timespec start_time, end_time;
+    clock_gettime(CLOCK_MONOTONIC, &start_time);
+
     CURLcode res = curl_easy_perform(curl);
+
+    // Calculate latency
+    clock_gettime(CLOCK_MONOTONIC, &end_time);
+    double latency_ms = ((end_time.tv_sec - start_time.tv_sec) * 1000.0) +
+                        ((end_time.tv_nsec - start_time.tv_nsec) / 1000000.0);
 
     curl_slist_free_all(headers);
     curl_easy_cleanup(curl);
@@ -642,6 +674,7 @@ static char* openai_chat_with_tools(Provider* self, const char* model, const cha
         free(response.data);
         data->last_error.code = PROVIDER_ERR_NETWORK;
         data->last_error.message = strdup(curl_easy_strerror(res));
+        telemetry_record_error("provider_network_error");
         return NULL;
     }
 
@@ -655,9 +688,20 @@ static char* openai_chat_with_tools(Provider* self, const char* model, const cha
 
     // Extract text response
     char* result = extract_response_content(response.data);
+    uint64_t tokens_input = 0;
+    uint64_t tokens_output = 0;
     if (usage) {
         memset(usage, 0, sizeof(TokenUsage));
         extract_token_usage(response.data, usage);
+        tokens_input = usage->input_tokens;
+        tokens_output = usage->output_tokens;
+    }
+
+    // Record successful API call in telemetry
+    if (result) {
+        telemetry_record_api_call("openai", api_model, tokens_input, tokens_output, latency_ms);
+    } else {
+        telemetry_record_error("provider_parse_error");
     }
 
     free(response.data);
@@ -903,8 +947,17 @@ float* openai_embed_text(const char* text, size_t* out_dim) {
     curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response);
     curl_easy_setopt(curl, CURLOPT_TIMEOUT, 30L);
 
+    // Measure latency for telemetry
+    struct timespec start_time, end_time;
+    clock_gettime(CLOCK_MONOTONIC, &start_time);
+
     LOG_DEBUG(LOG_CAT_API, "OpenAI embeddings API call: model=%s dim=%d", OPENAI_EMBED_MODEL, OPENAI_EMBED_DIM);
     CURLcode res = curl_easy_perform(curl);
+
+    // Calculate latency
+    clock_gettime(CLOCK_MONOTONIC, &end_time);
+    double latency_ms = ((end_time.tv_sec - start_time.tv_sec) * 1000.0) +
+                        ((end_time.tv_nsec - start_time.tv_nsec) / 1000000.0);
 
     long http_code = 0;
     curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &http_code);
@@ -915,15 +968,20 @@ float* openai_embed_text(const char* text, size_t* out_dim) {
 
     if (res != CURLE_OK) {
         LOG_ERROR(LOG_CAT_API, "OpenAI embeddings: curl error: %s", curl_easy_strerror(res));
+        telemetry_record_error("provider_network_error");
         free(response.data);
         return NULL;
     }
 
     if (http_code != 200) {
         LOG_ERROR(LOG_CAT_API, "OpenAI embeddings: HTTP %ld: %s", http_code, response.data);
+        telemetry_record_error("provider_api_error");
         free(response.data);
         return NULL;
     }
+
+    // Record successful embeddings API call (no tokens for embeddings)
+    telemetry_record_api_call("openai", OPENAI_EMBED_MODEL, 0, 0, latency_ms);
 
     // Parse embedding from response
     // Format: {"data":[{"embedding":[0.1,0.2,...]}]}

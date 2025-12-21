@@ -1,0 +1,173 @@
+{
+    "name": "security-audit",
+    "description": "Security Audit completo: analisi, identificazione vulnerabilità, fix prioritizzazione",
+    "entry_node": "security_scan",
+    "nodes": [
+        {
+            "id": "security_scan",
+            "name": "Security Scan",
+            "type": "ACTION",
+            "agent_role": "CRITIC",
+            "action_prompt": "Esegui scan completo di sicurezza. Identifica: vulnerabilità note (CVE), configurazioni errate, best practices non rispettate, accessi non autorizzati potenziali.",
+            "next_nodes": ["vulnerability_analysis"]
+        },
+        {
+            "id": "vulnerability_analysis",
+            "name": "Analisi Vulnerabilità",
+            "type": "ACTION",
+            "agent_role": "CRITIC",
+            "action_prompt": "Analizza ogni vulnerabilità identificata. Valuta: CVSS score, exploitability, impatto business, rischio di compromissione, superficie di attacco.",
+            "next_nodes": ["risk_assessment"]
+        },
+        {
+            "id": "risk_assessment",
+            "name": "Risk Assessment",
+            "type": "DECISION",
+            "description": "Categorizza le vulnerabilità per priorità di fix",
+            "next_nodes": ["critical_vuln_fix", "high_risk_fix", "medium_risk_fix", "low_risk_fix"]
+        },
+        {
+            "id": "critical_vuln_fix",
+            "name": "Fix Vulnerabilità Critica",
+            "type": "ACTION",
+            "agent_role": "CODER",
+            "action_prompt": "Implementa fix immediato per vulnerabilità critica. Focus su: patch, mitigazioni temporanee, monitoraggio, incident response plan.",
+            "next_nodes": ["security_review_critical"]
+        },
+        {
+            "id": "high_risk_fix",
+            "name": "Fix Alto Rischio",
+            "type": "ACTION",
+            "agent_role": "CODER",
+            "action_prompt": "Implementa fix per vulnerabilità ad alto rischio. Assicurati che il fix sia completo e testato.",
+            "next_nodes": ["security_review"]
+        },
+        {
+            "id": "medium_risk_fix",
+            "name": "Fix Medio Rischio",
+            "type": "ACTION",
+            "agent_role": "CODER",
+            "action_prompt": "Implementa fix per vulnerabilità a medio rischio. Pianifica per prossima release.",
+            "next_nodes": ["security_review"]
+        },
+        {
+            "id": "low_risk_fix",
+            "name": "Fix Basso Rischio",
+            "type": "ACTION",
+            "agent_role": "CODER",
+            "action_prompt": "Implementa fix per vulnerabilità a basso rischio. Può essere incluso in release future.",
+            "next_nodes": ["security_review"]
+        },
+        {
+            "id": "security_review_critical",
+            "name": "Security Review Critico",
+            "type": "ACTION",
+            "agent_role": "CRITIC",
+            "action_prompt": "Review approfondito del fix critico. Verifica: chiusura completa della vulnerabilità, assenza di regressioni, test di sicurezza, penetration testing.",
+            "next_nodes": ["immediate_deployment"]
+        },
+        {
+            "id": "security_review",
+            "name": "Security Review",
+            "type": "ACTION",
+            "agent_role": "CRITIC",
+            "action_prompt": "Review del fix di sicurezza. Verifica chiusura vulnerabilità, test, conformità agli standard di sicurezza.",
+            "next_nodes": ["deployment"]
+        },
+        {
+            "id": "immediate_deployment",
+            "name": "Deployment Immediato",
+            "type": "ACTION",
+            "agent_role": "EXECUTOR",
+            "action_prompt": "Deploy immediato del fix critico. Esegui: hotfix build, test critici, deploy emergenza, monitoraggio intensivo, rollback plan pronto.",
+            "next_nodes": ["verification"]
+        },
+        {
+            "id": "deployment",
+            "name": "Deployment",
+            "type": "ACTION",
+            "agent_role": "EXECUTOR",
+            "action_prompt": "Deploy del fix di sicurezza. Esegui: build, test, deploy staging, security testing, deploy produzione.",
+            "next_nodes": ["verification"]
+        },
+        {
+            "id": "verification",
+            "name": "Verifica Sicurezza",
+            "type": "ACTION",
+            "agent_role": "CRITIC",
+            "action_prompt": "Verifica che il fix risolva la vulnerabilità. Esegui: re-scan, penetration test, verifica log, monitoraggio anomalie.",
+            "next_nodes": ["security_report", "re_audit"]
+        },
+        {
+            "id": "security_report",
+            "name": "Security Report",
+            "type": "ACTION",
+            "agent_role": "WRITER",
+            "action_prompt": "Genera report completo di sicurezza: vulnerabilità trovate, fix applicati, raccomandazioni, compliance status, prossimi passi.",
+            "next_nodes": ["compliance_check"]
+        },
+        {
+            "id": "compliance_check",
+            "name": "Compliance Check",
+            "type": "ACTION",
+            "agent_role": "CRITIC",
+            "action_prompt": "Verifica conformità a standard di sicurezza (OWASP, ISO 27001, GDPR, SOC2). Identifica gap e azioni correttive.",
+            "next_nodes": ["conclusion"]
+        },
+        {
+            "id": "re_audit",
+            "name": "Re-Audit",
+            "type": "ACTION",
+            "agent_role": "CRITIC",
+            "action_prompt": "Se il fix non è completo, esegui re-audit per identificare vulnerabilità residue.",
+            "next_nodes": ["vulnerability_analysis"]
+        },
+        {
+            "id": "conclusion",
+            "name": "Conclusione Audit",
+            "type": "CONVERGE",
+            "description": "Finalizza audit di sicurezza",
+            "next_nodes": []
+        }
+    ],
+    "edges": [
+        {"from": "security_scan", "to": "vulnerability_analysis"},
+        {"from": "vulnerability_analysis", "to": "risk_assessment"},
+        {"from": "risk_assessment", "to": "critical_vuln_fix", "condition": "cvss_score >= 9.0 || exploit_available == true"},
+        {"from": "risk_assessment", "to": "high_risk_fix", "condition": "cvss_score >= 7.0 && cvss_score < 9.0"},
+        {"from": "risk_assessment", "to": "medium_risk_fix", "condition": "cvss_score >= 4.0 && cvss_score < 7.0"},
+        {"from": "risk_assessment", "to": "low_risk_fix", "condition": "cvss_score < 4.0"},
+        {"from": "critical_vuln_fix", "to": "security_review_critical"},
+        {"from": "high_risk_fix", "to": "security_review"},
+        {"from": "medium_risk_fix", "to": "security_review"},
+        {"from": "low_risk_fix", "to": "security_review"},
+        {"from": "security_review_critical", "to": "immediate_deployment"},
+        {"from": "security_review", "to": "deployment"},
+        {"from": "immediate_deployment", "to": "verification"},
+        {"from": "deployment", "to": "verification"},
+        {"from": "verification", "to": "security_report", "condition": "vulnerability_fixed == true"},
+        {"from": "verification", "to": "re_audit", "condition": "vulnerability_fixed == false"},
+        {"from": "security_report", "to": "compliance_check"},
+        {"from": "compliance_check", "to": "conclusion"},
+        {"from": "re_audit", "to": "vulnerability_analysis"}
+    ],
+    "metadata": {
+        "use_case": "Security Audit",
+        "scenario": "Audit completo di sicurezza con identificazione e fix di vulnerabilità",
+        "participants": [
+            "Luca (CRITIC) - Security Expert",
+            "Baccio (CODER) - Fix implementation",
+            "Thor (CRITIC) - Quality verification",
+            "Marco (EXECUTOR) - Deployment"
+        ],
+        "features": [
+            "Security scanning completo",
+            "CVSS-based risk assessment",
+            "Priority-based fix routing",
+            "Security review approfondito",
+            "Compliance verification",
+            "Re-audit loop per fix incompleti"
+        ]
+    }
+}
+

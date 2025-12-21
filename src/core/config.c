@@ -10,11 +10,13 @@
 #include "nous/config.h"
 #include "nous/edition.h"
 #include "nous/nous.h"
+#include "nous/safe_path.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#include <fcntl.h>
 #include <pwd.h>
 #include <errno.h>
 
@@ -266,7 +268,8 @@ void convergio_config_shutdown(void) {
 // ============================================================================
 
 int convergio_config_load(void) {
-    FILE* f = fopen(g_config.config_file, "r");
+    int fd = safe_path_open(g_config.config_file, safe_path_get_user_boundary(), O_RDONLY, 0);
+    FILE* f = fd >= 0 ? fdopen(fd, "r") : NULL;
     if (!f) {
         return -1;  // File doesn't exist, use defaults
     }
@@ -283,7 +286,8 @@ int convergio_config_load(void) {
 }
 
 int convergio_config_save(void) {
-    FILE* f = fopen(g_config.config_file, "w");
+    int fd = safe_path_open(g_config.config_file, safe_path_get_user_boundary(), O_WRONLY | O_CREAT | O_TRUNC, 0644);
+    FILE* f = fd >= 0 ? fdopen(fd, "w") : NULL;
     if (!f) {
         return -1;
     }

@@ -8,6 +8,7 @@
 #include "nous/planning.h"
 #include "nous/orchestrator.h"
 #include "nous/plan_db.h"
+#include "nous/telemetry.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -30,12 +31,16 @@ static const char* get_agent_name(SemanticID id) {
 
 ExecutionPlan* orch_plan_create(const char* goal) {
     ExecutionPlan* plan = calloc(1, sizeof(ExecutionPlan));
-    if (!plan) return NULL;
+    if (!plan) {
+        telemetry_record_error("orchestrator_planning_alloc_failed");
+        return NULL;
+    }
 
     plan->id = __sync_fetch_and_add(&g_next_plan_id, 1);
     plan->goal = strdup(goal);
     if (!plan->goal) {
         free(plan);
+        telemetry_record_error("orchestrator_planning_goal_alloc_failed");
         return NULL;
     }
     plan->created_at = time(NULL);
@@ -49,6 +54,9 @@ ExecutionPlan* orch_plan_create(const char* goal) {
             plan->db_id[sizeof(plan->db_id) - 1] = '\0';
         }
     }
+
+    // Record planning event (using API call format with goal length as tokens)
+    telemetry_record_api_call("orchestrator", "planning", strlen(goal) / 4, 0, 0.0);
 
     return plan;
 }
