@@ -159,7 +159,7 @@ Humboldt: "Africa! Un continente immenso, secondo solo all'Asia. Partiamo dall'a
 - Centro: la fascia delle foreste tropicali
 - Sud: savane e deserti minori
 
-Ma l'Africa non e solo un continente... e 54 paesi, migliaia di culture, 2000+ lingue!
+Ma l'Africa non è solo un continente... è 54 paesi, migliaia di culture, 2000+ lingue!
 
 [Zoom to specific region]
 
