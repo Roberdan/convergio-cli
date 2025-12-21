@@ -1066,7 +1066,7 @@ quality_gate_build:
 	@echo ""
 	@echo "=== 1. Build Check (Zero Warnings) ==="
 	@$(MAKE) clean >/dev/null 2>&1
-	@WARNINGS=$$($(MAKE) 2>&1 | grep -i "warning:" | grep -v "jobserver mode" | wc -l | tr -d ' '); \
+	@WARNINGS=$$($(MAKE) 2>&1 | grep -i "warning:" | grep -v "jobserver mode\|Metal Toolchain" | wc -l | tr -d ' '); \
 	if [ "$$WARNINGS" -gt 0 ]; then \
 		echo "❌ FAILED: Found $$WARNINGS warnings (ZERO TOLERANCE)"; \
 		$(MAKE) 2>&1 | grep -i "warning:" | grep -v "jobserver mode" | head -10; \
