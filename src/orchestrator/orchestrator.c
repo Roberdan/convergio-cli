@@ -1643,3 +1643,105 @@ int orchestrator_compact_session(void (*progress_callback)(int percent, const ch
 
     return 0;
 }
+
+// ============================================================================
+// LLM FACADE IMPLEMENTATION
+// ============================================================================
+// Provides simplified access to LLM providers for higher-level modules
+// (workflow, education, context) without requiring direct provider access.
+
+// Thread-safe error storage
+static __thread char g_llm_last_error[512] = {0};
+
+char* llm_chat(const char* system, const char* user, TokenUsage* usage) {
+    return llm_chat_with_model(ORCHESTRATOR_MODEL, system, user, usage);
+}
+
+char* llm_chat_with_model(const char* model, const char* system, const char* user, TokenUsage* usage) {
+    if (!system || !user) {
+        snprintf(g_llm_last_error, sizeof(g_llm_last_error), "Invalid arguments: system or user is NULL");
+        return NULL;
+    }
+
+    // Try providers in priority order: Anthropic, OpenAI, Gemini, Ollama
+    ProviderType providers[] = {PROVIDER_ANTHROPIC, PROVIDER_OPENAI, PROVIDER_GEMINI, PROVIDER_OLLAMA};
+    size_t provider_count = sizeof(providers) / sizeof(providers[0]);
+
+    for (size_t i = 0; i < provider_count; i++) {
+        Provider* provider = provider_get(providers[i]);
+        if (!provider) continue;
+
+        // Initialize provider if needed
+        if (!provider->initialized && provider->init) {
+            ProviderError err = provider->init(provider);
+            if (err != PROVIDER_OK) continue;
+        }
+
+        if (!provider->initialized || !provider->chat) continue;
+
+        // Make the chat call
+        TokenUsage local_usage = {0};
+        char* response = provider->chat(provider, model, system, user, &local_usage);
+
+        if (response) {
+            // Track cost through orchestrator
+            cost_record_usage(local_usage.input_tokens, local_usage.output_tokens);
+
+            // Return usage to caller if requested
+            if (usage) {
+                *usage = local_usage;
+            }
+
+            nous_log(LOG_LEVEL_DEBUG, LOG_CAT_API, "LLM chat: %zu in, %zu out tokens via %s",
+                     local_usage.input_tokens, local_usage.output_tokens, provider->name);
+
+            g_llm_last_error[0] = '\0';
+            return response;
+        }
+
+        // Try to get error info for logging
+        if (provider->get_last_error) {
+            ProviderErrorInfo* err = provider->get_last_error(provider);
+            if (err && err->message) {
+                snprintf(g_llm_last_error, sizeof(g_llm_last_error), "%s: %s",
+                         provider->name, err->message);
+            }
+        }
+    }
+
+    // All providers failed
+    if (g_llm_last_error[0] == '\0') {
+        snprintf(g_llm_last_error, sizeof(g_llm_last_error), "All LLM providers unavailable");
+    }
+    return NULL;
+}
+
+size_t llm_estimate_tokens(const char* text) {
+    if (!text) return 0;
+
+    // Try to use a provider's token estimation
+    ProviderType providers[] = {PROVIDER_ANTHROPIC, PROVIDER_OPENAI, PROVIDER_GEMINI};
+    for (size_t i = 0; i < 3; i++) {
+        Provider* provider = provider_get(providers[i]);
+        if (provider && provider->initialized && provider->estimate_tokens) {
+            return provider->estimate_tokens(provider, text);
+        }
+    }
+
+    // Fallback: approximate 4 characters per token
+    return strlen(text) / 4;
+}
+
+bool llm_is_available(void) {
+    ProviderType providers[] = {PROVIDER_ANTHROPIC, PROVIDER_OPENAI, PROVIDER_GEMINI, PROVIDER_OLLAMA};
+    for (size_t i = 0; i < 4; i++) {
+        if (provider_is_available(providers[i])) {
+            return true;
+        }
+    }
+    return false;
+}
+
+const char* llm_get_last_error(void) {
+    return g_llm_last_error[0] ? g_llm_last_error : NULL;
+}
