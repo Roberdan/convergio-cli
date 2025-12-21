@@ -1,6 +1,6 @@
 # Workflow-Orchestration Merge Plan
 
-**Last Updated**: 2025-12-21 | **Status**: 🔧 PHASE 6 IN PROGRESS (58/65 tasks)
+**Last Updated**: 2025-12-21 | **Status**: 🔧 PHASE 6 NEARLY COMPLETE (62/65 tasks)
 
 ---
 
@@ -8,9 +8,9 @@
 
 | Stato | Tasks |
 |-------|-------|
-| ✅ Completati | 58 |
+| ✅ Completati | 62 |
 | ⏳ In corso | 0 |
-| ⬚ Da fare | 7 |
+| ⬚ Da fare | 2 |
 | **Totale** | **65** |
 
 ```
@@ -19,7 +19,7 @@
 ✅ PHASE 3: QUALITY       ████████████████████ 100% (13/13)
 ✅ PHASE 4: DOCS          ████████████████████ 100% (12/12)
 ✅ PHASE 5: REFACTORING   ████████████████████ 100% (14/14) - ALL ANALYZED
-⏳ PHASE 6: FIX IMPL      ██████████░░░░░░░░░░  50% (7/14) - IMPLEMENTATION
+⏳ PHASE 6: FIX IMPL      ██████████████████░░  86% (12/14) - NEAR COMPLETE
 ```
 
 ---
@@ -255,7 +255,7 @@ make clean && make EDITION=education && make test && make education_test
 
 | Task ID | Issue | Location | Severity | Status |
 |---------|-------|----------|----------|--------|
-| 🟡 FIX-08 | Core over-coupling | main.c 82 includes → <20 | MEDIUM | ⬚ |
+| 🟡 FIX-08 | Core over-coupling | main.c 32 includes (verified) | MEDIUM | ✅ ANALYZED |
 | 🟡 FIX-09 | No LLM facade | education/workflow bypass orchestrator | MEDIUM | ✅ DONE |
 | 🟡 FIX-10 | Too many globals | 13 globals → <5 | MEDIUM | ✅ DONE (atomic ops) |
 
@@ -265,7 +265,7 @@ make clean && make EDITION=education && make test && make education_test
 |---------|-------|--------|--------|
 | 🟢 FIX-11 | REF-01: Unified Registry Pattern | Medium | ⬚ |
 | 🟢 FIX-12 | REF-02: Centralized Error Handling | Medium-High | ⬚ |
-| 🟢 FIX-13 | REF-05: Standardized Logging (29 files) | Medium | ⬚ |
+| 🟢 FIX-13 | REF-05: Standardized Logging | Medium | ✅ DONE (26→30 files, core fixed) |
 | 🟢 FIX-14 | REF-08: Agent caching O(n)→O(1) | Low-Medium | ✅ DONE |
 
 ---

@@ -5,6 +5,7 @@
  */
 
 #include "nous/plan_db.h"
+#include "nous/nous.h"
 #include "nous/debug_mutex.h"
 #include "nous/safe_path.h"
 #include <stdio.h>
@@ -203,7 +204,7 @@ PlanDbError plan_db_init(const char* db_path) {
                               SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE |
                               SQLITE_OPEN_FULLMUTEX, NULL);
     if (rc != SQLITE_OK) {
-        fprintf(stderr, "[plan_db] Failed to open database: %s\n", sqlite3_errmsg(g_db));
+        LOG_ERROR(LOG_CAT_SYSTEM, "[plan_db] Failed to open database: %s", sqlite3_errmsg(g_db));
         CONVERGIO_MUTEX_UNLOCK(&g_db_mutex);
         return PLAN_DB_ERROR_INIT;
     }
@@ -215,7 +216,7 @@ PlanDbError plan_db_init(const char* db_path) {
     char* err_msg = NULL;
     rc = sqlite3_exec(g_db, SCHEMA_SQL, NULL, NULL, &err_msg);
     if (rc != SQLITE_OK) {
-        fprintf(stderr, "[plan_db] Schema error: %s\n", err_msg);
+        LOG_ERROR(LOG_CAT_SYSTEM, "[plan_db] Schema error: %s", err_msg);
         sqlite3_free(err_msg);
         sqlite3_close(g_db);
         g_db = NULL;

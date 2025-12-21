@@ -12,6 +12,7 @@
  */
 
 #include "nous/edition.h"
+#include "nous/nous.h"
 #include <string.h>
 #include <stdio.h>
 
@@ -234,19 +235,19 @@ bool edition_is_mutable(void) {
 bool edition_set(ConvergioEdition edition) {
     // Education binary cannot change edition
     if (g_edition_locked) {
-        fprintf(stderr, "[Edition] Cannot change edition: binary is locked to Education\n");
+        LOG_WARN(LOG_CAT_SYSTEM, "[Edition] Cannot change edition: binary is locked to Education");
         return false;
     }
 
     // Cannot switch TO education at runtime (security)
     if (edition == EDITION_EDUCATION) {
-        fprintf(stderr, "[Edition] Cannot switch to Education at runtime\n");
+        LOG_WARN(LOG_CAT_SYSTEM, "[Edition] Cannot switch to Education at runtime");
         return false;
     }
 
     // Validate edition
     if (edition < EDITION_MASTER || edition > EDITION_DEVELOPER) {
-        fprintf(stderr, "[Edition] Invalid edition: %d\n", edition);
+        LOG_WARN(LOG_CAT_SYSTEM, "[Edition] Invalid edition: %d", edition);
         return false;
     }
 
@@ -256,13 +257,13 @@ bool edition_set(ConvergioEdition edition) {
     }
 
     g_current_edition = edition;
-    fprintf(stderr, "[Edition] Switched to %s\n", EDITIONS[edition].name);
+    LOG_INFO(LOG_CAT_SYSTEM, "[Edition] Switched to %s", EDITIONS[edition].name);
     return true;
 }
 
 bool edition_set_by_name(const char *name) {
     if (!name) {
-        fprintf(stderr, "[Edition] Edition name cannot be NULL\n");
+        LOG_WARN(LOG_CAT_SYSTEM, "[Edition] Edition name cannot be NULL");
         return false;
     }
 
@@ -277,7 +278,7 @@ bool edition_set_by_name(const char *name) {
         return edition_set(EDITION_DEVELOPER);
     }
 
-    fprintf(stderr, "[Edition] Unknown edition name: '%s'\n", name);
+    LOG_WARN(LOG_CAT_SYSTEM, "[Edition] Unknown edition name: '%s'", name);
     return false;
 }
 
@@ -378,9 +379,9 @@ const char *edition_system_prompt(void) {
 void edition_init(void) {
     const EditionInfo *info = edition_get_current_info();
     if (g_current_edition != EDITION_MASTER) {
-        fprintf(stderr, "[Edition] %s v%s%s\n",
-                info->name,
-                CONVERGIO_VERSION,
-                info->version_suffix);
+        LOG_INFO(LOG_CAT_SYSTEM, "[Edition] %s v%s%s",
+                 info->name,
+                 CONVERGIO_VERSION,
+                 info->version_suffix);
     }
 }

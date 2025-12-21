@@ -102,8 +102,8 @@ static int prepare_statement(StmtIndex idx, const char* sql) {
         &g_stmts[idx],
         NULL);
     if (rc != SQLITE_OK) {
-        fprintf(stderr, "todo_init: failed to prepare %s (rc=%d): %s\n",
-                g_stmt_names[idx], rc, sqlite3_errmsg(g_db));
+        LOG_WARN(LOG_CAT_SYSTEM, "todo_init: failed to prepare %s (rc=%d): %s",
+                 g_stmt_names[idx], rc, sqlite3_errmsg(g_db));
     }
     return rc;
 }
@@ -207,7 +207,7 @@ static time_t parse_iso8601_field(const char* value, const char* field_name) {
     time_t parsed = 0;
     int rc = todo_parse_iso8601(value, &parsed);
     if (rc == TODO_ISO8601_INVALID) {
-        fprintf(stderr, "todo: invalid ISO8601 value for %s: %s\n", field_name, value ? value : "(null)");
+        LOG_WARN(LOG_CAT_SYSTEM, "todo: invalid ISO8601 value for %s: %s", field_name, value ? value : "(null)");
     }
     return parsed;
 }

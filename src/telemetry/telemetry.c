@@ -8,6 +8,7 @@
  */
 
 #include "nous/telemetry.h"
+#include "nous/nous.h"
 #include "nous/config.h"
 #include "nous/safe_path.h"
 #include <stdio.h>
@@ -99,7 +100,7 @@ int telemetry_init(void) {
     g_event_capacity = MAX_EVENTS_IN_MEMORY;
     g_events = calloc(g_event_capacity, sizeof(TelemetryEvent));
     if (!g_events) {
-        fprintf(stderr, "telemetry: Failed to allocate event buffer\n");
+        LOG_ERROR(LOG_CAT_SYSTEM, "telemetry: Failed to allocate event buffer");
         return -1;
     }
     g_event_count = 0;
@@ -394,8 +395,8 @@ int telemetry_flush(void) {
     int fd = safe_path_open(g_telemetry_config.data_path, safe_path_get_user_boundary(), O_WRONLY | O_CREAT | O_TRUNC, 0644);
     FILE* f = fd >= 0 ? fdopen(fd, "w") : NULL;
     if (!f) {
-        fprintf(stderr, "telemetry: Failed to open data file for writing: %s\n",
-                strerror(errno));
+        LOG_ERROR(LOG_CAT_SYSTEM, "telemetry: Failed to open data file for writing: %s",
+                  strerror(errno));
         return -1;
     }
 
@@ -513,7 +514,7 @@ static int save_config(void) {
     int fd = safe_path_open(g_telemetry_config.config_path, safe_path_get_user_boundary(), O_WRONLY | O_CREAT | O_TRUNC, 0644);
     FILE* f = fd >= 0 ? fdopen(fd, "w") : NULL;
     if (!f) {
-        fprintf(stderr, "telemetry: Failed to save config: %s\n", strerror(errno));
+        LOG_ERROR(LOG_CAT_SYSTEM, "telemetry: Failed to save config: %s", strerror(errno));
         return -1;
     }
 

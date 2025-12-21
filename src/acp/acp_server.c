@@ -1077,31 +1077,31 @@ static void dispatch_request(cJSON* request) {
 int acp_server_init(void) {
     // Initialize config
     if (convergio_config_init() != 0) {
-        fprintf(stderr, "Failed to initialize config\n");
+        LOG_ERROR(LOG_CAT_SYSTEM, "Failed to initialize config");
         return -1;
     }
 
     // Initialize auth
     extern int auth_init(void);
     if (auth_init() != 0) {
-        fprintf(stderr, "Warning: No API key configured\n");
+        LOG_WARN(LOG_CAT_SYSTEM, "No API key configured");
     }
 
     // Initialize core systems
     if (nous_init() != 0) {
-        fprintf(stderr, "Failed to initialize nous\n");
+        LOG_ERROR(LOG_CAT_SYSTEM, "Failed to initialize nous");
         return -1;
     }
 
     // Initialize orchestrator with generous budget for ACP sessions
     if (orchestrator_init(100.0) != 0) {
-        fprintf(stderr, "Failed to initialize orchestrator\n");
+        LOG_ERROR(LOG_CAT_SYSTEM, "Failed to initialize orchestrator");
         return -1;
     }
 
     // Initialize memory system for Ali's historical memory
     if (memory_init() != 0) {
-        fprintf(stderr, "Warning: Failed to initialize memory system\n");
+        LOG_WARN(LOG_CAT_SYSTEM, "Failed to initialize memory system");
         // Non-fatal, continue without memory
     }
 
