@@ -304,7 +304,8 @@ int convergio_config_save(void) {
     fprintf(f, "debug_level = \"%s\"\n", g_config.debug_level);
     fprintf(f, "theme = \"%s\"\n", g_config.theme[0] ? g_config.theme : "Ocean");
     fprintf(f, "style = \"%s\"\n", g_config.style[0] ? g_config.style : "balanced");
-    fprintf(f, "edition = \"%s\"\n\n", g_config.edition[0] ? g_config.edition : "master");
+    // Save current runtime edition (may differ from config if set via CLI/env)
+    fprintf(f, "edition = \"%s\"\n\n", edition_get_name(edition_current()));
 
     fprintf(f, "[updates]\n");
     fprintf(f, "check_on_startup = %s\n", g_config.check_updates_on_startup ? "true" : "false");
