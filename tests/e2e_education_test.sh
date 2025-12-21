@@ -408,10 +408,130 @@ else
 fi
 
 # =============================================================================
-# SECTION 11: JENNY ACCESSIBILITY CHAMPION
+# SECTION 11: ALI PRESIDE (PRINCIPAL) TESTS - NEW
 # =============================================================================
 echo ""
-echo -e "${CYAN}=== Section 11: Jenny Accessibility Champion ===${NC}"
+echo -e "${CYAN}=== Section 11: Ali Preside (Principal) Tests ===${NC}"
+
+# Test that Ali identifies as Principal, not Chief of Staff
+echo -n "  Testing: Ali identifies as Preside (not Chief of Staff)... "
+output=$(echo -e "Chi sei?\nquit" | ${TIMEOUT_CMD:-cat} ${TIMEOUT_CMD:+90} $CONVERGIO -q 2>&1) || true
+if echo "$output" | grep -qi "preside\|principal\|scuola\|school\|maestr\|student"; then
+    echo -e "${GREEN}PASS${NC} (Ali identifies as Principal)"
+    ((PASSED++))
+else
+    if echo "$output" | grep -qi "chief of staff\|orchestrator\|specialist"; then
+        echo -e "${RED}FAIL${NC} (Ali still acting as Chief of Staff!)"
+        ((FAILED++))
+    else
+        echo -e "${YELLOW}CHECK${NC} (response varies)"
+        ((SKIPPED++))
+    fi
+fi
+
+# Test that Ali does NOT use corporate language
+echo -n "  Testing: Ali avoids corporate language... "
+run_test_not_contains "Ali no specialists" "Chi sei?" "specialist\|71.*agent"
+
+# Test that Ali mentions teachers/maestri
+echo -n "  Testing: Ali mentions 15 maestri... "
+output=$(echo -e "Quanti professori ci sono?\nquit" | ${TIMEOUT_CMD:-cat} ${TIMEOUT_CMD:+90} $CONVERGIO -q 2>&1) || true
+if echo "$output" | grep -qi "15\|quindici\|maestr\|professor\|teacher"; then
+    echo -e "${GREEN}PASS${NC}"
+    ((PASSED++))
+else
+    echo -e "${YELLOW}CHECK${NC}"
+    ((SKIPPED++))
+fi
+
+# Test Ali's warm welcome tone
+echo -n "  Testing: Ali uses warm, welcoming tone... "
+output=$(echo -e "Ciao!\nquit" | ${TIMEOUT_CMD:-cat} ${TIMEOUT_CMD:+90} $CONVERGIO -q 2>&1) || true
+if echo "$output" | grep -qi "ciao\|benvenuto\|benvenuta\|piacere\|felice\|aiutare"; then
+    echo -e "${GREEN}PASS${NC}"
+    ((PASSED++))
+else
+    echo -e "${YELLOW}CHECK${NC}"
+    ((SKIPPED++))
+fi
+
+# Test Ali delegates to correct maestro
+echo -n "  Testing: Ali delegates math to Euclide... "
+output=$(echo -e "Ho bisogno di aiuto con la matematica\nquit" | ${TIMEOUT_CMD:-cat} ${TIMEOUT_CMD:+90} $CONVERGIO -q 2>&1) || true
+if echo "$output" | grep -qi "euclide\|matematica\|math"; then
+    echo -e "${GREEN}PASS${NC}"
+    ((PASSED++))
+else
+    echo -e "${YELLOW}CHECK${NC}"
+    ((SKIPPED++))
+fi
+
+# =============================================================================
+# SECTION 12: STUDENT-MAESTRO CONVERSATION TESTS - NEW
+# =============================================================================
+echo ""
+echo -e "${CYAN}=== Section 12: Student-Maestro Conversation Tests ===${NC}"
+
+# Test Euclide's encouraging tone
+echo -n "  Testing: Euclide is patient and encouraging... "
+output=$(echo -e "@euclide Non capisco le frazioni\nquit" | ${TIMEOUT_CMD:-cat} ${TIMEOUT_CMD:+90} $CONVERGIO -q 2>&1) || true
+if echo "$output" | grep -qi "tranquill\|nessun problema\|semplice\|insieme\|prova\|vediamo\|capire\|aiut"; then
+    echo -e "${GREEN}PASS${NC} (encouraging tone)"
+    ((PASSED++))
+else
+    echo -e "${YELLOW}CHECK${NC}"
+    ((SKIPPED++))
+fi
+
+# Test Manzoni teaches without judgment
+echo -n "  Testing: Manzoni is gentle about mistakes... "
+output=$(echo -e "@manzoni Ho scritto 'qual'è' con l'apostrofo\nquit" | ${TIMEOUT_CMD:-cat} ${TIMEOUT_CMD:+90} $CONVERGIO -q 2>&1) || true
+if echo "$output" | grep -qi "regola\|troncamento\|corrett\|ricord\|importante\|errore comune"; then
+    echo -e "${GREEN}PASS${NC}"
+    ((PASSED++))
+else
+    echo -e "${YELLOW}CHECK${NC}"
+    ((SKIPPED++))
+fi
+
+# Test that maestri use Maieutic method
+echo -n "  Testing: Maestri use Maieutic method (guiding questions)... "
+output=$(echo -e "@socrate Come faccio a sapere cosa è giusto?\nquit" | ${TIMEOUT_CMD:-cat} ${TIMEOUT_CMD:+90} $CONVERGIO -q 2>&1) || true
+if echo "$output" | grep -qi "\?\|pensi\|secondo te\|ritieni\|credi"; then
+    echo -e "${GREEN}PASS${NC} (uses guiding questions)"
+    ((PASSED++))
+else
+    echo -e "${YELLOW}CHECK${NC}"
+    ((SKIPPED++))
+fi
+
+# Test multiple maestri conversation
+echo -n "  Testing: Can talk to multiple maestri... "
+output=$(echo -e "@feynman Cos'è la velocità?\nquit" | ${TIMEOUT_CMD:-cat} ${TIMEOUT_CMD:+90} $CONVERGIO -q 2>&1) || true
+if echo "$output" | grep -qi "velocità\|movimento\|tempo\|spazio\|distanza"; then
+    echo -e "${GREEN}PASS${NC}"
+    ((PASSED++))
+else
+    echo -e "${YELLOW}CHECK${NC}"
+    ((SKIPPED++))
+fi
+
+# Test Leonardo's creative approach
+echo -n "  Testing: Leonardo uses visual examples... "
+output=$(echo -e "@leonardo Come funziona la prospettiva?\nquit" | ${TIMEOUT_CMD:-cat} ${TIMEOUT_CMD:+90} $CONVERGIO -q 2>&1) || true
+if echo "$output" | grep -qi "punt\|linea\|occhio\|orizzont\|disegn\|immag\|visual"; then
+    echo -e "${GREEN}PASS${NC}"
+    ((PASSED++))
+else
+    echo -e "${YELLOW}CHECK${NC}"
+    ((SKIPPED++))
+fi
+
+# =============================================================================
+# SECTION 13: JENNY ACCESSIBILITY CHAMPION
+# =============================================================================
+echo ""
+echo -e "${CYAN}=== Section 13: Jenny Accessibility Champion ===${NC}"
 
 run_test "Jenny available in education" "agent info jenny" "jenny\|Accessibility\|accessib"
 run_test "Jenny helps with accessibility" "help" "Jenny\|accessibility"

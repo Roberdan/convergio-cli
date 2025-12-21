@@ -845,50 +845,70 @@ int agent_load_definitions(const char* dir_path) {
     }
 
     int loaded = 0;
+    bool is_education = (edition_current() == EDITION_EDUCATION);
 
     for (size_t i = 0; i < agent_count; i++) {
         const EmbeddedAgent* ea = &agents[i];
 
-        // Skip common files and Ali (Ali is created manually)
+        // Skip common files and safety guidelines
         if (strcmp(ea->filename, "CommonValuesAndPrinciples.md") == 0) {
             continue;
         }
-        if (strstr(ea->filename, "ali-chief-of-staff") != NULL) {
-            continue;  // Ali is created manually in orchestrator_init
+        if (strstr(ea->filename, "SAFETY_AND_INCLUSIVITY") != NULL) {
+            continue;
         }
 
-        ManagedAgent* agent = parse_embedded_agent(ea->filename, ea->content);
-        if (agent) {
-            Orchestrator* orch = orchestrator_get();
-            if (orch) {
-                CONVERGIO_MUTEX_LOCK(&g_registry_mutex);
-
-                // Check capacity
-                if (orch->agent_count >= orch->agent_capacity) {
-                    size_t new_capacity = orch->agent_capacity * 2;
-                    ManagedAgent** new_agents = realloc(orch->agents, sizeof(ManagedAgent*) * new_capacity);
-                    if (new_agents) {
-                        orch->agents = new_agents;
-                        orch->agent_capacity = new_capacity;
-                    }
-                }
-
-                if (orch->agent_count < orch->agent_capacity) {
-                    orch->agents[orch->agent_count++] = agent;
-
-                    // Add to hash tables for O(1) lookup
-                    if (orch->agent_by_id) {
-                        agent_hash_insert_by_id(orch->agent_by_id, agent);
-                    }
-                    if (orch->agent_by_name) {
-                        agent_hash_insert_by_name(orch->agent_by_name, agent);
-                    }
-
-                    loaded++;
-                }
-
-                CONVERGIO_MUTEX_UNLOCK(&g_registry_mutex);
+        // Skip Ali - created manually in orchestrator_init with correct edition prompt
+        if (is_education) {
+            if (strstr(ea->filename, "ali-principal") != NULL) {
+                continue;
             }
+        } else {
+            if (strstr(ea->filename, "ali-chief-of-staff") != NULL) {
+                continue;
+            }
+        }
+
+        // Parse agent to get name for edition filtering
+        ManagedAgent* agent = parse_embedded_agent(ea->filename, ea->content);
+        if (!agent) continue;
+
+        // CRITICAL: Filter by edition - only load agents available for this edition
+        if (!edition_has_agent(agent->name)) {
+            agent_destroy(agent);  // Clean up agent we won't use
+            continue;
+        }
+
+        // Agent passed edition filter - add to orchestrator
+        Orchestrator* orch = orchestrator_get();
+        if (orch) {
+            CONVERGIO_MUTEX_LOCK(&g_registry_mutex);
+
+            // Check capacity
+            if (orch->agent_count >= orch->agent_capacity) {
+                size_t new_capacity = orch->agent_capacity * 2;
+                ManagedAgent** new_agents = realloc(orch->agents, sizeof(ManagedAgent*) * new_capacity);
+                if (new_agents) {
+                    orch->agents = new_agents;
+                    orch->agent_capacity = new_capacity;
+                }
+            }
+
+            if (orch->agent_count < orch->agent_capacity) {
+                orch->agents[orch->agent_count++] = agent;
+
+                // Add to hash tables for O(1) lookup
+                if (orch->agent_by_id) {
+                    agent_hash_insert_by_id(orch->agent_by_id, agent);
+                }
+                if (orch->agent_by_name) {
+                    agent_hash_insert_by_name(orch->agent_by_name, agent);
+                }
+
+                loaded++;
+            }
+
+            CONVERGIO_MUTEX_UNLOCK(&g_registry_mutex);
         }
     }
 

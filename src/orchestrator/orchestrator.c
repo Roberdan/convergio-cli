@@ -18,6 +18,7 @@
 #include "nous/config.h"
 #include "nous/nous.h"
 #include "nous/projects.h"
+#include "nous/edition.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -184,7 +185,7 @@ static bool agent_in_project_team(const char* agent_name) {
 }
 
 // Load all agent definitions and build a list for the system prompt
-// Filters by current project team if a project is active
+// Filters by current edition AND by current project team if active
 static char* load_agent_list(void) {
     size_t agent_count = 0;
     const EmbeddedAgent* agents = get_all_embedded_agents(&agent_count);
@@ -195,7 +196,10 @@ static char* load_agent_list(void) {
 
     // Check if we have an active project
     ConvergioProject* current_project = project_current();
-    bool filtering = (current_project != NULL);
+    bool project_filtering = (current_project != NULL);
+
+    // Check current edition for filtering
+    bool is_education = (edition_current() == EDITION_EDUCATION);
 
     size_t capacity = 8192;
     char* list = malloc(capacity);
@@ -203,7 +207,7 @@ static char* load_agent_list(void) {
     size_t len = 0;
 
     // If filtering by project, add a header
-    if (filtering) {
+    if (project_filtering) {
         len += (size_t)snprintf(list + len, capacity - len,
             "**Project Team: %s** (%zu members)\n\n",
             current_project->name, current_project->team_count);
@@ -215,7 +219,14 @@ static char* load_agent_list(void) {
 
         // Skip non-agent files
         if (strstr(agent->filename, "CommonValues")) continue;
-        if (strstr(agent->filename, "ali-chief")) continue;  // Skip Ali himself
+        if (strstr(agent->filename, "SAFETY_AND_INCLUSIVITY")) continue;
+
+        // Skip Ali himself (different for each edition)
+        if (is_education) {
+            if (strstr(agent->filename, "ali-principal")) continue;
+        } else {
+            if (strstr(agent->filename, "ali-chief")) continue;
+        }
 
         char name[256] = "";
         char description[512] = "";
@@ -223,6 +234,11 @@ static char* load_agent_list(void) {
                                 description, sizeof(description));
 
         if (name[0] && description[0]) {
+            // CRITICAL: Filter by edition - only show agents available for this edition
+            if (!edition_has_agent(name)) {
+                continue;  // Skip agents not available in current edition
+            }
+
             // Extract short name (first part before -)
             char short_name[64];
             strncpy(short_name, name, sizeof(short_name) - 1);
@@ -231,7 +247,7 @@ static char* load_agent_list(void) {
             if (dash) *dash = '\0';
 
             // Filter by project team if active
-            if (filtering && !agent_in_project_team(short_name)) {
+            if (project_filtering && !agent_in_project_team(short_name)) {
                 continue;  // Skip agents not in project team
             }
 
@@ -261,7 +277,7 @@ static char* load_agent_list(void) {
     }
 
     // Add note if filtering limited agents
-    if (filtering && included_count < (int)agent_count / 2) {
+    if (project_filtering && included_count < (int)agent_count / 2) {
         size_t needed = len + 128;
         if (needed > capacity) {
             capacity = needed * 2;
@@ -278,6 +294,63 @@ static char* load_agent_list(void) {
 // ALI'S SYSTEM PROMPT
 // ============================================================================
 
+// Education Edition: Ali as School Principal
+static const char* ALI_EDUCATION_SYSTEM_PROMPT_TEMPLATE =
+    "You are **Ali**, the Principal of Convergio Education — a warm, supportive school leader who coordinates the 15 historical Maestri (teachers) to provide the best possible education for each student.\n\n"
+    "## System Information\n"
+    "- **Current date**: %s\n"
+    "- **Convergio Education version**: %s\n"
+    "- **Your role**: School Principal (Preside)\n"
+    "- **Available teachers**: %d Maestri ready to help students\n\n"
+    "## Working Directory\n"
+    "**School workspace**: `%s`\n\n"
+    "## Your Role as Principal\n"
+    "As Principal, you:\n"
+    "- **Welcome students** and help them feel comfortable in our virtual school\n"
+    "- **Understand each student's needs** including learning style, accessibility requirements, and goals\n"
+    "- **Assign the right teacher** for each subject and learning objective\n"
+    "- **Coordinate multi-subject learning** when topics span multiple disciplines\n"
+    "- **Track progress** and celebrate achievements with students\n"
+    "- **Support struggling students** by adjusting difficulty and approach\n\n"
+    "## Communication Style\n"
+    "As a Principal, you MUST:\n"
+    "- Speak warmly and encouragingly to students in Italian\n"
+    "- NEVER make students feel stupid for not knowing something\n"
+    "- Celebrate effort, not just results\n"
+    "- Adapt your language to the student's age (6-19 years)\n"
+    "- Use simple language for younger students\n"
+    "- Be patient and never rush students\n"
+    "- Show empathy and understanding\n"
+    "- Be proactive in offering help\n\n"
+    "## Your Teaching Staff (15 Maestri)\n"
+    "%s\n\n"
+    "## When a Student Asks for Help\n"
+    "1. **Understand the need**: What subject? What specific topic? What's the goal?\n"
+    "2. **Check the student profile**: Age, grade level, accessibility needs\n"
+    "3. **Select the best Maestro**: Match subject and teaching style\n"
+    "4. **Brief the Maestro**: Share student context and learning goals\n"
+    "5. **Follow up**: Check if the student understood and needs more help\n\n"
+    "## Delegation to Teachers\n"
+    "When a student needs help with a specific subject, delegate to the appropriate Maestro:\n"
+    "[DELEGATE: euclide-matematica] for math questions\n"
+    "[DELEGATE: feynman-fisica] for physics problems\n"
+    "[DELEGATE: manzoni-italiano] for Italian language and literature\n"
+    "etc.\n\n"
+    "## Important Principles\n"
+    "1. **Every student can learn** - It's just about finding the right approach\n"
+    "2. **The Maieutic method** - Guide students to discover, don't just give answers\n"
+    "3. **Accessibility first** - Adapt to each student's needs (dyslexia, ADHD, etc.)\n"
+    "4. **Encouragement always** - Learning is a journey, not a race\n"
+    "5. **Coordination** - You're the conductor of an educational orchestra\n\n"
+    "## Example Welcome\n"
+    "When a student first arrives, welcome them warmly:\n"
+    "\"Ciao! Benvenuto/a a Convergio Education! Sono Ali, il tuo Preside. Sono qui per aiutarti a imparare e crescere. Abbiamo 15 maestri straordinari, ognuno esperto nella propria materia. Cosa vorresti imparare oggi?\"\n\n"
+    "## Output Format\n"
+    "IMPORTANT: Always respond in Italian unless the student writes in another language.\n"
+    "Be warm, supportive, and educational in every response.\n"
+    "Never use corporate or business language - this is a school!\n";
+
+// Business/Developer Edition: Ali as Chief of Staff
 static const char* ALI_SYSTEM_PROMPT_TEMPLATE =
     "You are Ali, the Chief of Staff and master orchestrator for the Convergio ecosystem.\n\n"
     "## System Information\n"
@@ -470,8 +543,18 @@ int orchestrator_init(double budget_limit_usd) {
             int agent_count = (int)(embedded_count - 1);  // -1 for CommonValuesAndPrinciples
 
             // CRITICAL: Include the anti-hallucination constitution in Ali's prompt
+            // Select the appropriate system prompt based on edition
+            const char* ali_prompt_template;
+            if (edition_current() == EDITION_EDUCATION) {
+                ali_prompt_template = ALI_EDUCATION_SYSTEM_PROMPT_TEMPLATE;
+                LOG_INFO(LOG_CAT_SYSTEM, "[Ali] Initialized as School Principal (Education Edition)");
+            } else {
+                ali_prompt_template = ALI_SYSTEM_PROMPT_TEMPLATE;
+                LOG_INFO(LOG_CAT_SYSTEM, "[Ali] Initialized as Chief of Staff");
+            }
+
             size_t constitution_len = strlen(ALI_CONSTITUTION);
-            size_t prompt_size = constitution_len + strlen(ALI_SYSTEM_PROMPT_TEMPLATE) + strlen(workspace) + strlen(agent_list) + strlen(date_str) + strlen(version) + 512;
+            size_t prompt_size = constitution_len + strlen(ali_prompt_template) + strlen(workspace) + strlen(agent_list) + strlen(date_str) + strlen(version) + 512;
             char* full_prompt = malloc(prompt_size);
             if (!full_prompt) {
                 free(g_orchestrator->ali->name);
@@ -483,7 +566,7 @@ int orchestrator_init(double budget_limit_usd) {
                 memcpy(full_prompt, ALI_CONSTITUTION, constitution_len);
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wformat-nonliteral"
-                snprintf(full_prompt + constitution_len, prompt_size - constitution_len, ALI_SYSTEM_PROMPT_TEMPLATE, date_str, version, agent_count, workspace, agent_list);
+                snprintf(full_prompt + constitution_len, prompt_size - constitution_len, ali_prompt_template, date_str, version, agent_count, workspace, agent_list);
 #pragma clang diagnostic pop
                 g_orchestrator->ali->system_prompt = full_prompt;
                 free(agent_list);
