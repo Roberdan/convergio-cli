@@ -571,18 +571,16 @@ ManagedAgent* agent_find_by_name(const char* name) {
     CONVERGIO_MUTEX_LOCK(&g_registry_mutex);
 
     ManagedAgent* found = NULL;
-    size_t name_len = strlen(name);
 
-    // First try exact match (case-insensitive)
-    for (size_t i = 0; i < orch->agent_count; i++) {
-        if (strcasecmp(orch->agents[i]->name, name) == 0) {
-            found = orch->agents[i];
-            break;
-        }
+    // FIX-14: Use O(1) hash table lookup first (exact match)
+    if (orch->agent_by_name) {
+        found = agent_hash_find_by_name(orch->agent_by_name, name);
     }
 
-    // If not found, try prefix match (e.g., "baccio" matches "Baccio-tech-architect")
+    // If not found in hash, try prefix match (e.g., "baccio" matches "Baccio-tech-architect")
+    // This is still O(n) but only used as fallback for short names
     if (!found) {
+        size_t name_len = strlen(name);
         for (size_t i = 0; i < orch->agent_count; i++) {
             const char* agent_name = orch->agents[i]->name;
             // Check if name is a prefix (case-insensitive)
