@@ -1639,7 +1639,13 @@ If help is outdated:
 1. Read `src/core/main.c` (search for `--help` handler)
 2. Compare with CHANGELOG features
 3. Edit the printf statements to add missing features
-4. Rebuild and verify
+4. **CRITICAL: After editing, you MUST rebuild and re-upload everything:**
+   - `make clean && make release`
+   - Rename tarball to `arm64-apple-darwin` convention
+   - Calculate new SHA256
+   - `gh release upload` with `--clobber`
+   - Update Homebrew formula with new SHA256
+   - Verify with `brew update && brew reinstall convergio`
 
 ### Help Verification Checklist
 
@@ -1717,6 +1723,16 @@ gh release list --limit 3
 ## 🍺 MANDATORY: Homebrew Formula Update
 
 **A release is NOT complete until Homebrew users can install the new version.**
+
+### ⚠️ CRITICAL WARNING
+
+**IF YOU MODIFIED ANY SOURCE CODE (help text, features, bug fixes) AFTER the initial tag/release:**
+1. You MUST rebuild the tarball (`make clean && make release`)
+2. You MUST re-upload to GitHub Release (`gh release upload --clobber`)
+3. You MUST recalculate SHA256 and update Homebrew formula
+4. You MUST verify with `brew update && brew reinstall convergio`
+
+**DO NOT assume the uploaded tarball is correct. ALWAYS verify the installed binary has your changes.**
 
 ### Step 1: Build Release Tarball
 
