@@ -289,7 +289,7 @@ int main(int argc, char* argv[]) {
     (void)argv;
 
     printf("\n\033[1m╔══════════════════════════════════════════════════════════════╗\033[0m\n");
-    printf("\033[1m║           CONVERGIO WEB SEARCH TEST SUITE                     ║\033[0m\n");
+    printf("\033[1m║           CONVERGIO WEB SEARCH TEST SUITE                    ║\033[0m\n");
     printf("\033[1m╚══════════════════════════════════════════════════════════════╝\033[0m\n");
 
     // Run all test suites

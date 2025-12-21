@@ -11,6 +11,7 @@
 #include "nous/embedded_agents.h"
 #include "nous/nous.h"
 #include "nous/updater.h"
+#include "nous/memory.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -545,7 +546,7 @@ void acp_handle_initialize(int request_id, const char* params_json) {
     cJSON* prompt_caps = cJSON_CreateObject();
     cJSON_AddBoolToObject(prompt_caps, "image", false);
     cJSON_AddBoolToObject(prompt_caps, "audio", false);
-    cJSON_AddBoolToObject(prompt_caps, "embeddedContext", false);
+    cJSON_AddBoolToObject(prompt_caps, "embeddedContext", true);  // X3: Enable editor context
     cJSON_AddItemToObject(caps, "promptCapabilities", prompt_caps);
 
     cJSON* session_caps = cJSON_CreateObject();
@@ -662,6 +663,33 @@ void acp_handle_session_new(int request_id, const char* params_json) {
     acp_send_response(request_id, result_json);
     free(result_json);
     cJSON_Delete(result);
+
+    // Send session/history notification for resumed sessions with history
+    // This is a custom Convergio extension - standard ACP clients will ignore it
+    if (resumed && session->message_count > 0) {
+        cJSON* history_params = cJSON_CreateObject();
+        cJSON_AddStringToObject(history_params, "sessionId", session->session_id);
+
+        cJSON* messages = cJSON_CreateArray();
+        for (int i = 0; i < session->message_count; i++) {
+            cJSON* msg = cJSON_CreateObject();
+            cJSON_AddStringToObject(msg, "role", session->messages[i].role);
+            cJSON_AddStringToObject(msg, "content",
+                session->messages[i].content ? session->messages[i].content : "");
+            cJSON_AddNumberToObject(msg, "timestamp", session->messages[i].timestamp);
+            cJSON_AddItemToArray(messages, msg);
+        }
+        cJSON_AddItemToObject(history_params, "messages", messages);
+        cJSON_AddBoolToObject(history_params, "compacted", false);
+
+        char* history_json = cJSON_PrintUnformatted(history_params);
+        acp_send_notification("session/history", history_json);
+        free(history_json);
+        cJSON_Delete(history_params);
+
+        LOG_INFO(LOG_CAT_SYSTEM, "Sent session/history notification with %d messages",
+                 session->message_count);
+    }
 }
 
 // Streaming callback for orchestrator
@@ -722,22 +750,61 @@ void acp_handle_session_prompt(int request_id, const char* params_json) {
         return;
     }
 
-    // Extract prompt text (ACP format: prompt[].text)
+    // Extract prompt text and context (ACP format: prompt[])
     cJSON* prompt_array = cJSON_GetObjectItem(params, "prompt");
-    char prompt_text[8192] = {0};
+    char prompt_text[16384] = {0};  // Larger buffer for context
+    char context_text[8192] = {0};  // Buffer for embedded context
 
     if (prompt_array && cJSON_IsArray(prompt_array)) {
         cJSON* item;
         cJSON_ArrayForEach(item, prompt_array) {
             cJSON* type = cJSON_GetObjectItem(item, "type");
-            if (type && cJSON_IsString(type) && strcmp(type->valuestring, "text") == 0) {
+            if (!type || !cJSON_IsString(type)) continue;
+
+            if (strcmp(type->valuestring, "text") == 0) {
                 // ACP format: { "type": "text", "text": "..." }
                 cJSON* text = cJSON_GetObjectItem(item, "text");
                 if (text && cJSON_IsString(text)) {
                     strncat(prompt_text, text->valuestring, sizeof(prompt_text) - strlen(prompt_text) - 1);
                 }
+            } else if (strcmp(type->valuestring, "context") == 0) {
+                // X3: Handle embedded context (file, selection, cursor)
+                // ACP format: { "type": "context", "path": "...", "content": "...", "selection": {...} }
+                cJSON* path = cJSON_GetObjectItem(item, "path");
+                cJSON* content = cJSON_GetObjectItem(item, "content");
+                cJSON* selection = cJSON_GetObjectItem(item, "selection");
+
+                size_t ctx_remaining = sizeof(context_text) - strlen(context_text) - 1;
+                if (path && cJSON_IsString(path) && ctx_remaining > 0) {
+                    char ctx_header[512];
+                    snprintf(ctx_header, sizeof(ctx_header), "\n[File: %s]\n", path->valuestring);
+                    strncat(context_text, ctx_header, ctx_remaining);
+                }
+                if (content && cJSON_IsString(content)) {
+                    ctx_remaining = sizeof(context_text) - strlen(context_text) - 1;
+                    strncat(context_text, content->valuestring, ctx_remaining);
+                    strncat(context_text, "\n", ctx_remaining - 1);
+                }
+                if (selection && cJSON_IsObject(selection)) {
+                    cJSON* sel_text = cJSON_GetObjectItem(selection, "text");
+                    if (sel_text && cJSON_IsString(sel_text)) {
+                        ctx_remaining = sizeof(context_text) - strlen(context_text) - 1;
+                        char sel_header[64] = "\n[Selection]:\n";
+                        strncat(context_text, sel_header, ctx_remaining);
+                        strncat(context_text, sel_text->valuestring, ctx_remaining - 20);
+                        strncat(context_text, "\n", 1);
+                    }
+                }
             }
         }
+    }
+
+    // Prepend context to prompt if available
+    if (strlen(context_text) > 0) {
+        char combined[24576];
+        snprintf(combined, sizeof(combined), "[Editor Context]%s\n[User Message]\n%s",
+                 context_text, prompt_text);
+        strncpy(prompt_text, combined, sizeof(prompt_text) - 1);
     }
 
     cJSON_Delete(params);
@@ -812,19 +879,45 @@ void acp_handle_session_prompt(int request_id, const char* params_json) {
         // Default: orchestrator (Ali) with streaming
         // F2: Load context from other agent conversations
         char* agent_contexts = load_all_agent_contexts();
-        if (agent_contexts) {
-            // Prepend context info to the prompt for Ali
-            size_t enhanced_len = strlen(prompt_text) + strlen(agent_contexts) + 256;
-            char* enhanced_prompt = malloc(enhanced_len);
-            snprintf(enhanced_prompt, enhanced_len,
-                "%s\n\n---\n[Context: Recent conversations with other agents]\n%s\n---\n",
-                prompt_text, agent_contexts);
-            free(agent_contexts);
-            response = orchestrator_process_stream(enhanced_prompt, stream_callback, NULL);
-            free(enhanced_prompt);
-        } else {
-            response = orchestrator_process_stream(prompt_text, stream_callback, NULL);
+
+        // H5: Load historical memory for Ali
+        char* historical_memory = NULL;
+        MemorySearchResult memory_result = {0};
+        if (memory_load_recent(10, &memory_result) == 0 && memory_result.count > 0) {
+            historical_memory = memory_build_context(&memory_result, 8192);
+            memory_free_result(&memory_result);
         }
+
+        // Build enhanced prompt with all context
+        size_t enhanced_len = strlen(prompt_text) + 1024;
+        if (agent_contexts) enhanced_len += strlen(agent_contexts);
+        if (historical_memory) enhanced_len += strlen(historical_memory);
+
+        char* enhanced_prompt = malloc(enhanced_len);
+        size_t pos = 0;
+
+        // Add historical memory first (long-term context)
+        if (historical_memory) {
+            pos += snprintf(enhanced_prompt + pos, enhanced_len - pos,
+                "[Historical Memory - Cross-Session Context]\n%s\n---\n\n",
+                historical_memory);
+            free(historical_memory);
+        }
+
+        // Add recent agent conversations (short-term context)
+        if (agent_contexts) {
+            pos += snprintf(enhanced_prompt + pos, enhanced_len - pos,
+                "[Recent Agent Conversations]\n%s\n---\n\n",
+                agent_contexts);
+            free(agent_contexts);
+        }
+
+        // Add the actual user prompt
+        pos += snprintf(enhanced_prompt + pos, enhanced_len - pos,
+            "[User Message]\n%s", prompt_text);
+
+        response = orchestrator_process_stream(enhanced_prompt, stream_callback, NULL);
+        free(enhanced_prompt);
     }
 
     // Save messages to session history for resume support
@@ -835,6 +928,23 @@ void acp_handle_session_prompt(int request_id, const char* params_json) {
 
     // Persist session to disk
     acp_session_save(session);
+
+    // H3: Generate memory summary for significant conversations (4+ messages = 2+ exchanges)
+    if (session->message_count >= 4 && session->message_count % 4 == 0) {
+        // Prepare messages for summary generation
+        const char* messages[ACP_MAX_MESSAGES];
+        const char* roles[ACP_MAX_MESSAGES];
+        for (int i = 0; i < session->message_count; i++) {
+            messages[i] = session->messages[i].content;
+            roles[i] = session->messages[i].role;
+        }
+
+        MemoryEntry mem_entry;
+        if (memory_generate_summary(session->agent_name, messages, roles,
+                                    session->message_count, &mem_entry) == 0) {
+            memory_save(&mem_entry);
+        }
+    }
 
     // Cleanup history context
     if (history_context) {
@@ -858,10 +968,63 @@ void acp_handle_session_prompt(int request_id, const char* params_json) {
 }
 
 void acp_handle_session_cancel(int request_id, const char* params_json) {
-    (void)params_json;
-    // TODO: Implement cancellation
+    const char* session_id = NULL;
+    char session_id_from_params[64] = {0};
+
+    // Parse session_id from params if provided
+    if (params_json) {
+        cJSON* params = cJSON_Parse(params_json);
+        if (params) {
+            cJSON* sid = cJSON_GetObjectItem(params, "sessionId");
+            if (sid && cJSON_IsString(sid)) {
+                strncpy(session_id_from_params, sid->valuestring, sizeof(session_id_from_params) - 1);
+                session_id = session_id_from_params;
+            }
+            cJSON_Delete(params);
+        }
+    }
+
+    // Fallback to current session if no session_id provided
+    if (!session_id || session_id[0] == '\0') {
+        session_id = g_current_session_id;
+    }
+
+    // Find and cancel the session
+    bool cancelled = false;
+    if (session_id && session_id[0] != '\0') {
+        ACPSession* session = find_session(session_id);
+        if (session) {
+            // Free message memory
+            for (int i = 0; i < session->message_count; i++) {
+                if (session->messages[i].content) {
+                    free(session->messages[i].content);
+                    session->messages[i].content = NULL;
+                }
+            }
+            session->message_count = 0;
+
+            // Mark session as inactive
+            session->active = false;
+
+            // Remove persistence file
+            char* filepath = get_session_filepath(session_id);
+            if (filepath) {
+                unlink(filepath);
+                free(filepath);
+            }
+
+            // Clear current session if it was the cancelled one
+            if (strcmp(g_current_session_id, session_id) == 0) {
+                g_current_session_id[0] = '\0';
+            }
+
+            cancelled = true;
+            LOG_DEBUG(LOG_CAT_SYSTEM, "Session cancelled: %s", session_id);
+        }
+    }
+
     cJSON* result = cJSON_CreateObject();
-    cJSON_AddBoolToObject(result, "cancelled", true);
+    cJSON_AddBoolToObject(result, "cancelled", cancelled);
 
     char* result_json = cJSON_PrintUnformatted(result);
     acp_send_response(request_id, result_json);
@@ -936,6 +1099,12 @@ int acp_server_init(void) {
         return -1;
     }
 
+    // Initialize memory system for Ali's historical memory
+    if (memory_init() != 0) {
+        fprintf(stderr, "Warning: Failed to initialize memory system\n");
+        // Non-fatal, continue without memory
+    }
+
     // Reset session to clear any budget_exceeded state from previous runs
     extern void cost_reset_session(void);
     cost_reset_session();
@@ -995,6 +1164,7 @@ int acp_server_run(void) {
 }
 
 void acp_server_shutdown(void) {
+    memory_shutdown();
     orchestrator_shutdown();
     nous_shutdown();
     convergio_config_shutdown();

@@ -568,6 +568,37 @@ make EDITION=developer    # Developer (outputs convergio-dev)
 | `/output size` | Show disk usage |
 | `/output cleanup <days>` | Delete outputs older than N days |
 
+### Workflow Orchestration
+
+| Command | Description |
+|---------|-------------|
+| `/workflow list` | List available workflows |
+| `/workflow show <name>` | Show workflow details |
+| `/workflow execute <name> --input <text>` | Execute a workflow |
+| `/workflow resume <id>` | Resume a paused workflow |
+
+**Workflow Features:**
+- **State Machine Engine**: Complex multi-step agent coordination
+- **Checkpointing**: Resume workflows from any point
+- **Task Decomposition**: Automatic task breakdown with dependency resolution
+- **Group Chat**: Multi-agent discussions with consensus building
+- **Conditional Routing**: Dynamic workflow adaptation based on results
+- **Error Handling**: Comprehensive retry logic and fallback strategies
+- **Observability**: Full logging, telemetry, and security audit trails
+
+**Available Workflow Templates:**
+- Code Review & Refinement
+- Bug Triage & Fix
+- Security Audit
+- Performance Optimization
+- API Design Review
+- Incident Response
+- Product Launch
+- Pre-Release Checklist (Zero Tolerance Policy)
+- Class Council (Education)
+
+See [Workflow Orchestration Documentation](docs/workflow-orchestration/USER_GUIDE.md) for complete details.
+
 ### System
 
 | Command | Description |

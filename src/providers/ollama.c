@@ -11,6 +11,7 @@
 #include "nous/provider.h"
 #include "nous/provider_common.h"
 #include "nous/nous.h"
+#include "nous/telemetry.h"
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
@@ -19,6 +20,7 @@
 #include <ctype.h>
 #include <pthread.h>
 #include <signal.h>
+#include <time.h>
 
 // ============================================================================
 // CONFIGURATION
@@ -468,25 +470,39 @@ static char* ollama_chat(Provider* self, const char* model, const char* system,
 
     data->request_cancelled = 0;
 
+    // Measure latency for telemetry
+    struct timespec start_time, end_time;
+    clock_gettime(CLOCK_MONOTONIC, &start_time);
+
     LOG_DEBUG(LOG_CAT_API, "Ollama API call: model=%s", api_model);
     CURLcode res = curl_easy_perform(curl);
+
+    // Calculate latency
+    clock_gettime(CLOCK_MONOTONIC, &end_time);
+    double latency_ms = ((end_time.tv_sec - start_time.tv_sec) * 1000.0) +
+                        ((end_time.tv_nsec - start_time.tv_nsec) / 1000000.0);
 
     long http_code = 0;
     curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &http_code);
     data->last_error.http_status = (int)http_code;
 
     char* result = NULL;
+    uint64_t tokens_input = 0;
+    uint64_t tokens_output = 0;
 
     if (res == CURLE_ABORTED_BY_CALLBACK) {
         data->last_error.code = PROVIDER_ERR_TIMEOUT;
         data->last_error.message = strdup("Request cancelled");
+        telemetry_record_error("provider_timeout");
     } else if (res != CURLE_OK) {
         data->last_error.code = PROVIDER_ERR_NETWORK;
         data->last_error.message = strdup(curl_easy_strerror(res));
+        telemetry_record_error("provider_network_error");
     } else if (http_code != 200) {
         data->last_error.code = PROVIDER_ERR_UNKNOWN;
         data->last_error.message = strdup(response.data ? response.data : "Unknown error");
         LOG_WARN(LOG_CAT_API, "Ollama API error: HTTP %ld", http_code);
+        telemetry_record_error("provider_api_error");
     } else {
         result = extract_ollama_chat_content(response.data);
         if (!result) {
@@ -496,13 +512,20 @@ static char* ollama_chat(Provider* self, const char* model, const char* system,
         if (!result) {
             data->last_error.code = PROVIDER_ERR_INVALID_REQUEST;
             data->last_error.message = strdup("Failed to parse response");
+            telemetry_record_error("provider_parse_error");
         } else if (usage) {
             memset(usage, 0, sizeof(TokenUsage));
             extract_ollama_token_usage(response.data, usage);
             // Local models are free
             usage->estimated_cost = 0.0;
+            tokens_input = usage->input_tokens;
+            tokens_output = usage->output_tokens;
             LOG_DEBUG(LOG_CAT_COST, "Tokens: in=%zu out=%zu cost=$0.00 (local)",
                      usage->input_tokens, usage->output_tokens);
+        }
+        // Record successful API call in telemetry (local models, cost=0)
+        if (result) {
+            telemetry_record_api_call("ollama", api_model, tokens_input, tokens_output, latency_ms);
         }
     }
 
@@ -688,18 +711,30 @@ static ProviderError ollama_stream_chat(Provider* self, const char* model, const
 
     data->request_cancelled = 0;
 
+    // Measure latency for telemetry
+    struct timespec start_time, end_time;
+    clock_gettime(CLOCK_MONOTONIC, &start_time);
+
     LOG_DEBUG(LOG_CAT_API, "Starting Ollama stream: model=%s", api_model);
     CURLcode res = curl_easy_perform(curl);
+
+    // Calculate latency
+    clock_gettime(CLOCK_MONOTONIC, &end_time);
+    double latency_ms = ((end_time.tv_sec - start_time.tv_sec) * 1000.0) +
+                        ((end_time.tv_nsec - start_time.tv_nsec) / 1000000.0);
 
     ProviderError result = PROVIDER_OK;
     if (res != CURLE_OK) {
         data->last_error.code = PROVIDER_ERR_NETWORK;
         data->last_error.message = strdup(curl_easy_strerror(res));
         result = PROVIDER_ERR_NETWORK;
+        telemetry_record_error("provider_network_error");
         if (handler && handler->on_error) {
             handler->on_error(curl_easy_strerror(res), handler->user_ctx);
         }
     } else {
+        // Record successful streaming API call (local models, cost=0, tokens estimated)
+        telemetry_record_api_call("ollama", api_model, 0, 0, latency_ms);
         if (handler && handler->on_complete) {
             handler->on_complete("", handler->user_ctx);
         }

@@ -1,0 +1,65 @@
+{
+  "name": "Product Launch Workflow",
+  "description": "Comprehensive product launch planning and execution",
+  "entry_node": "market_research",
+  "nodes": [
+    {
+      "id": "market_research",
+      "name": "Market Research",
+      "type": "action",
+      "agent_role": "analyst",
+      "action_prompt": "Research target market, competitors, and customer needs"
+    },
+    {
+      "id": "strategy_planning",
+      "name": "Strategy Planning",
+      "type": "action",
+      "agent_role": "planner",
+      "action_prompt": "Develop launch strategy based on market research"
+    },
+    {
+      "id": "content_creation",
+      "name": "Content Creation",
+      "type": "action",
+      "agent_role": "writer",
+      "action_prompt": "Create marketing materials, documentation, and launch content"
+    },
+    {
+      "id": "technical_preparation",
+      "name": "Technical Preparation",
+      "type": "action",
+      "agent_role": "coder",
+      "action_prompt": "Prepare technical infrastructure and deployment"
+    },
+    {
+      "id": "final_review",
+      "name": "Final Review",
+      "type": "action",
+      "agent_role": "critic",
+      "action_prompt": "Review all launch components and validate readiness"
+    }
+  ],
+  "edges": [
+    {
+      "from": "market_research",
+      "to": "strategy_planning"
+    },
+    {
+      "from": "strategy_planning",
+      "to": "content_creation"
+    },
+    {
+      "from": "strategy_planning",
+      "to": "technical_preparation"
+    },
+    {
+      "from": "content_creation",
+      "to": "final_review"
+    },
+    {
+      "from": "technical_preparation",
+      "to": "final_review"
+    }
+  ]
+}
+

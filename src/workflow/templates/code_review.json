@@ -1,0 +1,54 @@
+{
+  "name": "Code Review Workflow",
+  "description": "Multi-agent code review with analysis, security check, and quality validation",
+  "entry_node": "analyze_code",
+  "nodes": [
+    {
+      "id": "analyze_code",
+      "name": "Analyze Code",
+      "type": "action",
+      "agent_role": "analyst",
+      "action_prompt": "Analyze the code structure, identify potential issues, and provide initial assessment"
+    },
+    {
+      "id": "security_check",
+      "name": "Security Check",
+      "type": "action",
+      "agent_role": "critic",
+      "action_prompt": "Review code for security vulnerabilities, injection risks, and best practices"
+    },
+    {
+      "id": "quality_validation",
+      "name": "Quality Validation",
+      "type": "action",
+      "agent_role": "critic",
+      "action_prompt": "Validate code quality, style consistency, and adherence to standards"
+    },
+    {
+      "id": "generate_report",
+      "name": "Generate Report",
+      "type": "action",
+      "agent_role": "writer",
+      "action_prompt": "Synthesize all review findings into a comprehensive report"
+    }
+  ],
+  "edges": [
+    {
+      "from": "analyze_code",
+      "to": "security_check"
+    },
+    {
+      "from": "analyze_code",
+      "to": "quality_validation"
+    },
+    {
+      "from": "security_check",
+      "to": "generate_report"
+    },
+    {
+      "from": "quality_validation",
+      "to": "generate_report"
+    }
+  ]
+}
+

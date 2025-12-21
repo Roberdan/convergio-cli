@@ -23,6 +23,7 @@
 #include "nous/mcp_client.h"
 #include "nous/plan_db.h"
 #include "nous/output_service.h"
+#include "nous/workflow.h"
 #include "../../auth/oauth.h"
 #include <cjson/cJSON.h>
 #include <stdio.h>
@@ -88,6 +89,9 @@ int cmd_plan(int argc, char** argv);
 // Forward declaration for output command
 int cmd_output(int argc, char** argv);
 
+// Forward declaration for workflow command (implemented in workflow.c)
+extern int cmd_workflow(int argc, char** argv);
+
 static const ReplCommand COMMANDS[] = {
     {"help",        "Show available commands",           cmd_help},
     {"agent",       "Manage agents",                     cmd_agent},
@@ -135,6 +139,8 @@ static const ReplCommand COMMANDS[] = {
     {"plan",        "Manage execution plans (list/status/export)", cmd_plan},
     // Output Service
     {"output",      "Manage generated outputs (list/open/delete)", cmd_output},
+    // Workflow orchestration
+    {"workflow",    "Manage workflows (list/show/execute/resume)", cmd_workflow},
     {"quit",        "Exit Convergio",                    cmd_quit},
     {"exit",        "Exit Convergio",                    cmd_quit},
     {NULL, NULL, NULL}
@@ -791,6 +797,24 @@ static const CommandHelp DETAILED_HELP[] = {
         "/plan status abc123          # Show plan details\n"
         "/plan export abc123          # Export to /tmp/plan-abc123.md\n"
         "/plan cleanup 7              # Delete plans older than 7 days"
+    },
+    {
+        "workflow",
+        "workflow <list|show|execute|resume> [args]",
+        "Manage workflow orchestration",
+        "Workflow orchestration system for multi-agent coordination.\n\n"
+        "Subcommands:\n"
+        "  list                    List all available workflows\n"
+        "  show <name>             Show workflow details and Mermaid diagram\n"
+        "  execute <name> [input]  Execute a workflow with optional input\n"
+        "  resume <id> [checkpoint] Resume workflow from checkpoint\n\n"
+        "Workflows enable complex multi-step agent collaboration with\n"
+        "state machine execution, checkpointing, and conditional routing.",
+        "workflow list\n"
+        "workflow show code-review\n"
+        "workflow execute parallel-analysis \"Analyze this project\"\n"
+        "workflow resume 12345\n"
+        "workflow resume 12345 2"
     },
     {
         "output",
