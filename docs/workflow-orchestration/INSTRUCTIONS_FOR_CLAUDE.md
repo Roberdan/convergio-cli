@@ -78,17 +78,63 @@ Questo è il **master plan ufficiale** che contiene:
 
 ### PRIORITÀ ALTA (Fare PRIMA)
 
-#### 1. Fix Linking Error
+#### 1. Fix Linking Error ⚠️ CRITICAL - BLOCKS COVERAGE
+
 **Location**: `/Users/roberdan/GitHub/ConvergioCLI-workflow`  
 **Branch**: `feature/workflow-orchestration`  
-**Problema**: `duplicate symbol '_nous_log'` in `test_workflow_integration.c` e `test_stubs.c`  
-**Comando per verificare**: `make coverage_workflow 2>&1 | grep "duplicate symbol"`  
-**Azione**: 
-- Trovare dove `_nous_log` è definito due volte
-- Rimuovere definizione duplicata o usare `extern` dove appropriato
-- Verificare: `make coverage_workflow` deve compilare senza errori
+**Status**: 🔴 **BLOCKING** - Questo errore blocca l'esecuzione di `make coverage_workflow`
 
-**Documentazione**: Vedi `PENDING_TASKS_EXECUTABLE.md` sezione "6.1 Fix Linking Error"
+**Problema**: 
+```
+duplicate symbol '_nous_log' in:
+    /private/var/folders/.../test_workflow_integration-*.o
+    /private/var/folders/.../test_stubs-*.o
+ld: 4 duplicate symbols
+```
+
+**File coinvolti**:
+- `tests/test_workflow_integration.c` - Probabilmente include `test_stubs.c` direttamente
+- `tests/unit/test_stubs.c` - Contiene definizioni di stub functions
+
+**Comando per verificare l'errore**: 
+```bash
+cd /Users/roberdan/GitHub/ConvergioCLI-workflow
+make coverage_workflow 2>&1 | grep -A 5 "duplicate symbol"
+```
+
+**Azione da eseguire**:
+
+1. **Verifica il problema**:
+   ```bash
+   # Controlla se test_workflow_integration.c include test_stubs.c
+   grep -n "test_stubs" tests/test_workflow_integration.c
+   
+   # Controlla le definizioni di nous_log
+   grep -n "nous_log\|_nous_log" tests/test_workflow_integration.c tests/unit/test_stubs.c
+   ```
+
+2. **Soluzione probabile**:
+   - Se `test_workflow_integration.c` include `test_stubs.c` direttamente con `#include`, rimuovi l'include
+   - Assicurati che `test_stubs.c` sia compilato separatamente e linkato (non incluso)
+   - Verifica che nel Makefile `test_workflow_integration` linki `test_stubs.o` invece di includere il file
+
+3. **Verifica la fix**:
+   ```bash
+   make clean
+   make coverage_workflow
+   # Deve compilare senza errori di linking
+   ```
+
+4. **Se l'errore persiste**:
+   - Cerca altre definizioni duplicate di `nous_log` o altre funzioni
+   - Verifica che le funzioni stub siano dichiarate `static` se usate solo in un file
+   - Usa `extern` per dichiarazioni in header se necessario
+
+**Documentazione**: 
+- Vedi `PENDING_TASKS_EXECUTABLE.md` sezione "6.1 Fix Linking Error"
+- Vedi `MASTER_PLAN.md` sezione "Code Quality & Optimization"
+
+**Nota**: Questo errore deve essere risolto PRIMA di poter eseguire le verifiche di coverage.
 
 ---
 
