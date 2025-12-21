@@ -104,6 +104,7 @@ static CheckpointPool g_checkpoint_pool = {0};
  * @brief Allocate checkpoint from pool
  * @return Checkpoint pointer, or NULL if pool exhausted
  */
+__attribute__((unused))
 static Checkpoint* checkpoint_pool_alloc(void) {
     for (size_t i = 0; i < CHECKPOINT_POOL_SIZE; i++) {
         if (!g_checkpoint_pool.in_use[i]) {
@@ -122,6 +123,7 @@ static Checkpoint* checkpoint_pool_alloc(void) {
  * @brief Free checkpoint to pool
  * @param checkpoint Checkpoint to free
  */
+__attribute__((unused))
 static void checkpoint_pool_free(Checkpoint* checkpoint) {
     if (!checkpoint) {
         return;
@@ -155,9 +157,10 @@ static void checkpoint_pool_free(Checkpoint* checkpoint) {
  * @brief Optimized state serialization (minimal JSON)
  * @param state Workflow state
  * @return JSON string (caller must free), or NULL on failure
- * 
+ *
  * Creates minimal JSON by omitting default values and using short keys.
  */
+__attribute__((unused))
 static char* serialize_workflow_state_optimized(const WorkflowState* state) {
     if (!state) {
         return NULL;
