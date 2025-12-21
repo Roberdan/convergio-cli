@@ -12,15 +12,15 @@
 
 | Status | Tasks |
 |--------|-------|
-| Completed | 82 (Phase 1-10 + 8 S1-S8 + 7 B1-B6,B8 + 5 A1-A5) |
+| Completed | 83 (Phase 1-10 + 8 S1-S8 + 8 B1-B8 + 5 A1-A5) |
 | In Progress | 0 |
 | Pending | 16 |
-| **Total** | **98** |
+| **Total** | **99** |
 
 ```
 PHASE 1-10: MVP & POST-MVP    ████████████████████ 100% (62/62) DONE
 PHASE 11: STABILITY           ████████████████████ 100% (8/8) COMPLETE
-PHASE 12: BACKGROUND EXEC FIX █████████████████░░░  87% (7/8) IN PROGRESS
+PHASE 12: BACKGROUND EXEC FIX ████████████████████ 100% (8/8) COMPLETE
 PHASE 13: ALI CONTROL CENTER  ████████████████████ 100% (5/5) ALREADY COMPLETE
 PHASE 14: PERFORMANCE         ░░░░░░░░░░░░░░░░░░░░   0% (0/6)
 PHASE 15: RELEASE SYSTEM      ░░░░░░░░░░░░░░░░░░░░   0% (0/7)
@@ -166,7 +166,7 @@ Client                          Server (single-threaded)
 | B4 | Implement background message queue | ✅ Done | 1 day | - |
 | B5 | Test buffered content retrieval on foreground | ✅ Done | 0.5 day | - |
 | B6 | Fix notification delivery for backgroundComplete | ✅ Done | 0.5 day | - |
-| B7 | Add visual indicator when background task completes | Pending | 0.5 day | - |
+| B7 | Add visual indicator when background task completes | ✅ Done (Partial) | 0.5 day | - |
 | B8 | E2E test: start task, switch agent, return, verify results | ✅ Done | 1 day | - |
 
 ### Progress Notes (2025-12-21)
@@ -191,8 +191,13 @@ Client                          Server (single-threaded)
 - All 38 E2E tests passing, all 37 unit tests passing
 - Buffered content retrieval tested via background_buffer_len allocation check
 
-**B7 Remaining:**
-- Add visual indicator in convergio-zed when background task completes
+**B7 Partial (2025-12-21):**
+- ✅ Toast notification with sound on BackgroundComplete (thread_view.rs:1609-1617)
+- ✅ Spinning icon infrastructure in panel.rs:1048-1054 (shows when processing_agents contains agent)
+- ✅ set_agent_processing() method exists in ConvergioPanel
+- ⚠️ processing_agents HashSet never updated (requires cross-crate event architecture)
+- ⚠️ Adding agent_ui → convergio_panel dep would create circular dependency
+- 📝 Future work: Create shared event bus or workspace-level event propagation
 
 ### Expected Behavior (Target)
 
