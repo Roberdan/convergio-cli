@@ -33,6 +33,12 @@ extern ExecutionPlan* orch_plan_create(const char* goal);
 extern Task* orch_task_create(const char* description, SemanticID assignee);
 extern void orch_plan_add_task(ExecutionPlan* plan, Task* task);
 extern void orch_task_complete(Task* task, const char* result);
+extern ManagedAgent* agent_find_by_role(AgentRole role);
+extern ManagedAgent* agent_spawn(AgentRole role, const char* name, const char* context);
+extern void cost_record_agent_usage(ManagedAgent* agent, uint64_t input_tokens, uint64_t output_tokens);
+
+// workflow_strdup is defined in workflow_types.c
+extern char* workflow_strdup(const char* str);
 
 // ============================================================================
 // TASK DECOMPOSITION (LLM-based)
@@ -88,7 +94,7 @@ static DecomposedTask* parse_decomposition_json(const char* json_str, size_t* ou
         if (cJSON_IsString(desc_obj)) {
             const char* desc = cJSON_GetStringValue(desc_obj);
             if (desc && strlen(desc) < MAX_DESCRIPTION_LENGTH) {
-                tasks[i].description = strdup(desc);
+                tasks[i].description = workflow_strdup(desc);
             }
         }
         
@@ -141,7 +147,7 @@ static DecomposedTask* parse_decomposition_json(const char* json_str, size_t* ou
         if (cJSON_IsString(validation_obj)) {
             const char* validation = cJSON_GetStringValue(validation_obj);
             if (validation && strlen(validation) < MAX_VALIDATION_LENGTH) {
-                tasks[i].validation_criteria = strdup(validation);
+                tasks[i].validation_criteria = workflow_strdup(validation);
             }
         }
     }
@@ -591,7 +597,7 @@ int task_mark_completed(DecomposedTask* task, const char* result) {
             free(task->result);
             task->result = NULL;
         }
-        task->result = strdup(result);
+        task->result = workflow_strdup(result);
     }
     
     return 0;
@@ -610,7 +616,7 @@ int task_mark_failed(DecomposedTask* task, const char* error) {
             free(task->result);
             task->result = NULL;
         }
-        task->result = strdup(error);
+        task->result = workflow_strdup(error);
     }
     
     return 0;
@@ -619,6 +625,83 @@ int task_mark_failed(DecomposedTask* task, const char* error) {
 // ============================================================================
 // PARALLEL EXECUTION
 // ============================================================================
+
+// Execute a single task via agent
+static int task_execute_via_agent(DecomposedTask* task) {
+    if (!task || !task->description) {
+        return -1;
+    }
+    
+    // Find or spawn agent for the required role
+    ManagedAgent* agent = agent_find_by_role(task->required_role);
+    
+    if (!agent) {
+        // Spawn new agent for this role
+        const char* role_names[] = {
+            "analyst", "coder", "writer", "critic", "planner", "executor"
+        };
+        const char* role_name = (task->required_role < 6) ? 
+            role_names[task->required_role] : "executor";
+        
+        char agent_name[128];
+        snprintf(agent_name, sizeof(agent_name), "%s-agent", role_name);
+        
+        agent = agent_spawn(task->required_role, agent_name, 
+                           "Execute the assigned task efficiently and accurately.");
+        
+        if (!agent) {
+            task_mark_failed(task, "Failed to spawn agent for task execution");
+            return -1;
+        }
+    }
+    
+    // Get provider for agent execution
+    Provider* provider = provider_get(PROVIDER_ANTHROPIC);
+    if (!provider || !provider->chat) {
+        task_mark_failed(task, "Provider not available for task execution");
+        return -1;
+    }
+    
+    // Build task prompt
+    char task_prompt[2048];
+    snprintf(task_prompt, sizeof(task_prompt),
+        "Task: %s\n\n"
+        "Please execute this task and provide a clear result. "
+        "%s",
+        task->description,
+        task->validation_criteria ? 
+            task->validation_criteria : 
+            "Ensure the task is completed successfully.");
+    
+    // Execute task via agent
+    TokenUsage usage = {0};
+    char* response = provider->chat(
+        provider,
+        "claude-sonnet-4-20250514",
+        agent->system_prompt ? agent->system_prompt : "You are a helpful assistant.",
+        task_prompt,
+        &usage
+    );
+    
+    if (!response) {
+        task_mark_failed(task, "Agent execution failed: no response");
+        return -1;
+    }
+    
+    // Record cost
+    if (agent) {
+        cost_record_agent_usage(agent, usage.input_tokens, usage.output_tokens);
+    }
+    
+    // Mark task as completed with result
+    task->assigned_agent_id = agent->id;
+    task_mark_completed(task, response);
+    
+    // Free response (task_mark_completed makes a copy)
+    free(response);
+    
+    return 0;
+}
 
 int task_execute_parallel(
     DecomposedTask* tasks,
@@ -647,9 +730,13 @@ int task_execute_parallel(
             // Mark as in progress
             task->status = TASK_STATUS_IN_PROGRESS;
             
-            // TODO: Execute task via agent
-            // For now, just mark as completed
-            task_mark_completed(task, "Task executed");
+            // Execute task via agent
+            int result = task_execute_via_agent(task);
+            
+            if (result != 0) {
+                // Error already logged by task_execute_via_agent
+                // Task is marked as failed
+            }
         });
     }
     

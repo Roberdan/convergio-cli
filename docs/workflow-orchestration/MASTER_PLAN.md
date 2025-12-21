@@ -1,7 +1,7 @@
 # Advanced Workflow Orchestration - Master Plan
 
 **Created**: 2025-12-18  
-**Last Updated**: 2025-12-20  
+**Last Updated**: 2025-12-21  
 **Status**: ⚠️ **PARTIAL COMPLETE** - Core implementation ~80%, Testing ~50%, Verifications 0%, Documentation ~60%  
 **Version**: 1.3.0  
 **Branch**: `feature/workflow-orchestration`  
@@ -146,6 +146,10 @@ This implementation will deliver:
 - ✅ Task decomposer core (task_decomposer.c with LLM integration)
 - ✅ Dependency resolution and topological sort
 - ✅ Template library (code_review.json, product_launch.json)
+- ✅ Task execution via agents (task_execute_via_agent)
+  - ✅ Agent finding/spawning by role
+  - ✅ Provider integration for agent execution
+  - ✅ Cost tracking integration
 
 **Phase 3 - Group Chat:**
 - ✅ Group chat manager (group_chat.c)
@@ -154,12 +158,23 @@ This implementation will deliver:
 
 **Phase 4 - Conditional Routing:**
 - ✅ Conditional router (router.c with condition evaluation)
+  - ✅ Fixed routing logic bug (conditions now correctly evaluated on next nodes)
+  - ✅ Security validation for condition expressions (prevents code injection)
+  - ✅ Enhanced condition evaluation (supports ==, !=, <, >, <=, >= operators)
+  - ✅ Integrated with `workflow_get_next_node` for seamless conditional routing
 - ✅ Pattern library (patterns.c: Review-Refine, Parallel Analysis, Sequential Planning, Consensus Building)
 
 **Phase 5 - Integration:**
 - ✅ CLI commands (workflow.c: list, show, execute, resume)
 - ✅ Retry logic (retry.c)
+  - ✅ Exponential backoff (base_delay * 2^(attempt-1), max 60s)
+  - ✅ Error classification (retryable vs non-retryable)
+  - ✅ Enhanced retry logging
 - ✅ Error handling (error_handling.c: comprehensive error scenarios)
+  - ✅ Network check with configurable timeout (default 5s, max 30s)
+  - ✅ Enhanced error handling with explicit timeout detection
+  - ✅ Network check with configurable timeout (default 5s, max 30s)
+  - ✅ Enhanced error handling with explicit timeout detection
 - ✅ Observability integration (workflow_observability.c: logging, telemetry, security, audit)
 - ✅ Security validation (input validation, sanitization, security logging)
 - ✅ Complete test suite (11 test files, 80+ test cases)
@@ -231,11 +246,33 @@ This implementation will deliver:
 - ⏳ Security audit logging - enhanced security event logging
 
 **Code Quality & Optimization (NEW):**
+- ✅ Router improvements (2025-12-21):
+  - ✅ Fixed `router_get_next_node` bug (now correctly evaluates conditions on next nodes)
+  - ✅ Added security validation in `router_evaluate_condition` (prevents code injection)
+  - ✅ Enhanced `evaluate_simple_condition` to support more operators (==, !=, <, >, <=, >=)
+  - ✅ Integrated `router_get_next_node` into `workflow_get_next_node` for conditional routing
+- ✅ Retry logic improvements (2025-12-21):
+  - ✅ Exponential backoff implementation (base_delay * 2^(attempt-1), max 60s)
+  - ✅ Error classification (retryable vs non-retryable errors)
+  - ✅ Enhanced retry logging with attempt details
+- ✅ Validation unification (2025-12-21):
+  - ✅ Unified `workflow_validate_name` and `workflow_validate_key` to use `_safe` versions for security
+- ✅ Task execution via agents (2025-12-21):
+  - ✅ Implemented `task_execute_via_agent` in `task_decomposer.c`
+  - ✅ Agent finding/spawning by role
+  - ✅ Task execution using provider interface
+  - ✅ Cost tracking integration
+- ✅ Network check improvements (2025-12-21):
+  - ✅ Added configurable timeout (default 5s, max 30s)
+  - ✅ Enhanced error handling with explicit timeout detection
+  - ✅ Better error reporting
 - ⏳ Comprehensive codebase audit - full review for issues, duplicates, conflicts, optimization opportunities
   - See [CODEBASE_AUDIT.md](CODEBASE_AUDIT.md) for detailed plan
   - Zero tolerance for code quality issues
   - LLM cost and token usage optimization
   - Code reorganization and refactoring where beneficial
+  - ⏳ Simplify `task_decomposer.c` (104 nesting points - too complex, needs function extraction)
+  - ⏳ Simplify `workflow_engine.c` (60 nesting points - needs refactoring)
 
 **Best Practices & Development Standards (NEW):**
 - ⏳ Pre-commit hooks - automated quality checks before commit

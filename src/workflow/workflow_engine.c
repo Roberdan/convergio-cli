@@ -8,6 +8,7 @@
 #include "nous/workflow.h"
 #include "nous/orchestrator.h"
 #include "nous/provider.h"
+#include "nous/router.h"
 #include "nous/nous.h"
 #include "nous/telemetry.h"
 #include <stdlib.h>
@@ -144,7 +145,7 @@ static int execute_action_node(Workflow* wf, WorkflowNode* node, const char* inp
     time_t start_time = time(NULL);
     
     // Check network connectivity
-    if (!workflow_check_network()) {
+    if (!workflow_check_network(5)) {
         workflow_handle_network_error(wf, "Network unavailable: Cannot connect to required services");
         free(effective_prompt);
         return -1;
@@ -286,8 +287,14 @@ WorkflowNode* workflow_get_next_node(Workflow* wf, WorkflowNode* current) {
         return NULL;
     }
     
-    // For now, handle simple linear workflows (first next node)
-    // Conditional routing will be implemented in Phase 4
+    // Use router for conditional routing (if conditions are present)
+    // Otherwise, use simple linear routing
+    if (current->condition_expr || current->fallback_node) {
+        // Use conditional router
+        return router_get_next_node(wf, current, wf->state);
+    }
+    
+    // Simple linear routing: return first next node
     if (current->next_node_count > 0) {
         return current->next_nodes[0];
     }

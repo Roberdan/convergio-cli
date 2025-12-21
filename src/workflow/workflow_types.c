@@ -52,50 +52,16 @@ char* workflow_strdup(const char* str) {
     return copy;
 }
 
-// Validate workflow name
+// Validate workflow name (unified with _safe version for security)
 bool workflow_validate_name(const char* name) {
-    if (!name) {
-        return false;
-    }
-    
-    size_t len = strlen(name);
-    if (len == 0 || len > MAX_NAME_LENGTH) {
-        return false;
-    }
-    
-    // Name must not contain control characters
-    for (size_t i = 0; i < len; i++) {
-        if (name[i] < 32 && name[i] != '\t' && name[i] != '\n') {
-            return false;
-        }
-    }
-    
-    return true;
+    // Use the safe version which has better security checks
+    return workflow_validate_name_safe(name);
 }
 
-// Validate state key
+// Validate state key (unified with _safe version for security)
 bool workflow_validate_key(const char* key) {
-    if (!key) {
-        return false;
-    }
-    
-    size_t len = strlen(key);
-    if (len == 0 || len > MAX_KEY_LENGTH) {
-        return false;
-    }
-    
-    // Key must be alphanumeric with underscores
-    for (size_t i = 0; i < len; i++) {
-        char c = key[i];
-        if (!((c >= 'a' && c <= 'z') ||
-              (c >= 'A' && c <= 'Z') ||
-              (c >= '0' && c <= '9') ||
-              c == '_')) {
-            return false;
-        }
-    }
-    
-    return true;
+    // Use the safe version which has better security checks
+    return workflow_validate_key_safe(key);
 }
 
 // ============================================================================

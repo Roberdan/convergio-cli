@@ -197,7 +197,7 @@ bool workflow_check_timeout(time_t start_time, int timeout_seconds);
 int workflow_set_node_timeout(Workflow* wf, WorkflowNode* node, int timeout_seconds);
 
 // Network error handling
-bool workflow_check_network(void);
+bool workflow_check_network(int timeout_seconds);
 WorkflowErrorType workflow_handle_network_error(Workflow* wf, const char* error_msg);
 
 // File I/O error handling

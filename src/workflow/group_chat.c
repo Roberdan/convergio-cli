@@ -11,6 +11,9 @@
 #include <string.h>
 #include <time.h>
 
+// workflow_strdup is defined in workflow_types.c
+extern char* workflow_strdup(const char* str);
+
 // ============================================================================
 // GROUP CHAT CREATION
 // ============================================================================
@@ -260,7 +263,7 @@ int group_chat_vote(GroupChat* chat, SemanticID voter, const char* proposal, boo
 
 char* group_chat_get_summary(GroupChat* chat) {
     if (!chat || chat->message_count == 0) {
-        return strdup("No messages in chat");
+        return workflow_strdup("No messages in chat");
     }
     
     // Build summary from messages
