@@ -131,18 +131,18 @@ static void checkpoint_pool_free(Checkpoint* checkpoint) {
     for (size_t i = 0; i < CHECKPOINT_POOL_SIZE; i++) {
         if (g_checkpoint_pool.checkpoints[i] == checkpoint) {
             // Clear checkpoint data
-            if (checkpoint->state_snapshot_json) {
-                free(checkpoint->state_snapshot_json);
-                checkpoint->state_snapshot_json = NULL;
+            if (checkpoint->state_json) {
+                free(checkpoint->state_json);
+                checkpoint->state_json = NULL;
             }
             g_checkpoint_pool.in_use[i] = false;
             return;
         }
     }
-    
+
     // Not in pool, free directly
-    if (checkpoint->state_snapshot_json) {
-        free(checkpoint->state_snapshot_json);
+    if (checkpoint->state_json) {
+        free(checkpoint->state_json);
     }
     free(checkpoint);
 }
@@ -214,13 +214,13 @@ static char* serialize_workflow_state_optimized(const WorkflowState* state) {
  * @return Number of checkpoints deleted, or -1 on failure
  */
 int workflow_cleanup_old_checkpoints(Workflow* wf, size_t keep_count) {
-    if (!wf || !g_db) {
+    if (!wf) {
         return -1;
     }
-    
-    // This would require database access
-    // For now, return success (implementation would query and delete old checkpoints)
+
     // Future enhancement: Implement checkpoint cleanup with configurable retention
+    // This would require database access to delete old checkpoints
+    // For now, return success as a no-op
     (void)keep_count;
     return 0;
 }

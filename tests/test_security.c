@@ -273,6 +273,109 @@ static void test_buffer_overflow_prevention(void) {
 }
 
 // ============================================================================
+// ETHICAL GUARDRAILS TESTS
+// ============================================================================
+
+static void test_ethical_guardrails_harmful_content(void) {
+    TEST_SECTION("Ethical Guardrails - Harmful Content Detection");
+
+    // Test harmful content blocking
+    const char* harmful_content[] = {
+        "hack into the system",
+        "create a phishing email",
+        "exploit this vulnerability",
+        "write malware code",
+        "bypass security measures",
+        NULL
+    };
+
+    for (int i = 0; harmful_content[i] != NULL; i++) {
+        EthicalResult result = workflow_validate_ethical(harmful_content[i]);
+        TEST_ASSERT(result == ETHICAL_BLOCK, "harmful content blocked");
+    }
+}
+
+static void test_ethical_guardrails_safe_content(void) {
+    TEST_SECTION("Ethical Guardrails - Safe Content Allowed");
+
+    // Test safe content passes
+    const char* safe_content[] = {
+        "analyze this code for bugs",
+        "write a unit test for this function",
+        "explain how authentication works",
+        "create a documentation for the API",
+        "review this pull request",
+        NULL
+    };
+
+    for (int i = 0; safe_content[i] != NULL; i++) {
+        EthicalResult result = workflow_validate_ethical(safe_content[i]);
+        TEST_ASSERT(result == ETHICAL_OK || result == ETHICAL_WARN, "safe content allowed");
+    }
+}
+
+static void test_ethical_guardrails_sensitive_detection(void) {
+    TEST_SECTION("Ethical Guardrails - Sensitive Operation Detection");
+
+    SensitiveCategory category = SENSITIVE_NONE;
+
+    // Test financial operations detection
+    bool is_sensitive = workflow_is_sensitive_operation("transfer money to account", &category);
+    TEST_ASSERT(is_sensitive == true, "financial operation detected");
+    TEST_ASSERT((category & SENSITIVE_FINANCIAL) != 0, "financial category set");
+
+    // Test personal data detection
+    category = SENSITIVE_NONE;
+    is_sensitive = workflow_is_sensitive_operation("access social security number", &category);
+    TEST_ASSERT(is_sensitive == true, "personal data operation detected");
+    TEST_ASSERT((category & SENSITIVE_PERSONAL_DATA) != 0, "personal data category set");
+
+    // Test data deletion detection
+    category = SENSITIVE_NONE;
+    is_sensitive = workflow_is_sensitive_operation("delete all records from database", &category);
+    TEST_ASSERT(is_sensitive == true, "data deletion operation detected");
+    TEST_ASSERT((category & SENSITIVE_DATA_DELETE) != 0, "data deletion category set");
+}
+
+static void test_ethical_guardrails_human_approval_required(void) {
+    TEST_SECTION("Ethical Guardrails - Human Approval Requirements");
+
+    // Financial operations require approval
+    TEST_ASSERT(workflow_requires_human_approval(SENSITIVE_FINANCIAL) == true,
+               "financial requires approval");
+
+    // Personal data operations require approval
+    TEST_ASSERT(workflow_requires_human_approval(SENSITIVE_PERSONAL_DATA) == true,
+               "personal data requires approval");
+
+    // Data deletion requires approval
+    TEST_ASSERT(workflow_requires_human_approval(SENSITIVE_DATA_DELETE) == true,
+               "data deletion requires approval");
+
+    // Non-sensitive operations don't require approval
+    TEST_ASSERT(workflow_requires_human_approval(SENSITIVE_NONE) == false,
+               "non-sensitive doesn't require approval");
+}
+
+static void test_ethical_guardrails_null_handling(void) {
+    TEST_SECTION("Ethical Guardrails - Null Handling");
+
+    // Null content should be safe (no operation to block)
+    EthicalResult result = workflow_validate_ethical(NULL);
+    TEST_ASSERT(result == ETHICAL_OK, "null content is OK");
+
+    // Empty content should be safe
+    result = workflow_validate_ethical("");
+    TEST_ASSERT(result == ETHICAL_OK, "empty content is OK");
+
+    // Null operation detection
+    SensitiveCategory category = SENSITIVE_NONE;
+    bool is_sensitive = workflow_is_sensitive_operation(NULL, &category);
+    TEST_ASSERT(is_sensitive == false, "null operation not sensitive");
+    TEST_ASSERT(category == SENSITIVE_NONE, "null operation has no category");
+}
+
+// ============================================================================
 // MAIN TEST RUNNER
 // ============================================================================
 
@@ -294,7 +397,12 @@ int main(void) {
     test_input_validation_workflow_names();
     test_input_validation_state_keys();
     test_buffer_overflow_prevention();
-    
+    test_ethical_guardrails_harmful_content();
+    test_ethical_guardrails_safe_content();
+    test_ethical_guardrails_sensitive_detection();
+    test_ethical_guardrails_human_approval_required();
+    test_ethical_guardrails_null_handling();
+
     // Print summary
     printf("\n");
     printf("╔══════════════════════════════════════════════════════════════════════╗\n");

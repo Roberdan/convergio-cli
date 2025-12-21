@@ -25,6 +25,9 @@ extern void workflow_security_log(const Workflow* wf, const char* security_event
 #define MAX_NAME_LENGTH 256
 #define MAX_KEY_LENGTH 128
 #define MAX_VALUE_LENGTH 4096
+#define MAX_NODES_PER_WORKFLOW 1024
+#define MAX_EDGES_PER_NODE 64
+#define MAX_STATE_ENTRIES 4096
 #define INITIAL_STATE_CAPACITY 16
 #define INITIAL_NODE_CAPACITY 4
 
@@ -32,23 +35,29 @@ extern void workflow_security_log(const Workflow* wf, const char* security_event
 // UTILITY FUNCTIONS
 // ============================================================================
 
-// Safe string duplication with validation
+// Safe string duplication with validation and length limit
 char* workflow_strdup(const char* str) {
     if (!str) {
         return NULL;
     }
-    
+
     size_t len = strlen(str);
     if (len == 0) {
         return NULL;
     }
-    
+
+    // MEDIUM-02: Enforce maximum string length to prevent resource exhaustion
+    if (len > MAX_VALUE_LENGTH) {
+        len = MAX_VALUE_LENGTH;
+    }
+
     char* copy = malloc(len + 1);
     if (!copy) {
         return NULL;
     }
-    
-    memcpy(copy, str, len + 1);
+
+    memcpy(copy, str, len);
+    copy[len] = '\0';
     return copy;
 }
 
@@ -140,9 +149,17 @@ int workflow_state_set(WorkflowState* state, const char* key, const char* value)
     }
     
     // Add new entry
+    // MEDIUM-02: Enforce maximum state entries to prevent resource exhaustion
+    if (state->entry_count >= MAX_STATE_ENTRIES) {
+        return -1;
+    }
+
     if (state->entry_count >= state->entry_capacity) {
         // Grow capacity
         size_t new_capacity = state->entry_capacity * 2;
+        if (new_capacity > MAX_STATE_ENTRIES) {
+            new_capacity = MAX_STATE_ENTRIES;
+        }
         StateEntry* new_entries = realloc(state->entries, new_capacity * sizeof(StateEntry));
         if (!new_entries) {
             return -1;
@@ -304,11 +321,19 @@ int workflow_node_add_edge(WorkflowNode* from, WorkflowNode* to, const char* con
     if (!from || !to) {
         return -1;
     }
-    
+
+    // MEDIUM-02: Enforce maximum edges per node to prevent resource exhaustion
+    if (from->next_node_count >= MAX_EDGES_PER_NODE) {
+        return -1;
+    }
+
     // Grow array if needed
     if (from->next_node_count >= from->next_node_capacity) {
-        size_t new_capacity = from->next_node_capacity == 0 ? 
+        size_t new_capacity = from->next_node_capacity == 0 ?
             INITIAL_NODE_CAPACITY : from->next_node_capacity * 2;
+        if (new_capacity > MAX_EDGES_PER_NODE) {
+            new_capacity = MAX_EDGES_PER_NODE;
+        }
         WorkflowNode** new_nodes = realloc(from->next_nodes, 
                                            new_capacity * sizeof(WorkflowNode*));
         if (!new_nodes) {

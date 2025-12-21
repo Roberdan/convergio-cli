@@ -246,6 +246,8 @@ C_SOURCES = $(SRC_DIR)/core/fabric.c \
             $(SRC_DIR)/workflow/error_handling.c \
             $(SRC_DIR)/workflow/workflow_observability.c \
             $(SRC_DIR)/workflow/workflow_visualization.c \
+            $(SRC_DIR)/workflow/ethical_guardrails.c \
+            $(SRC_DIR)/workflow/checkpoint_optimization.c \
             $(SRC_DIR)/core/commands/workflow.c
 
 OBJC_SOURCES = $(SRC_DIR)/metal/gpu.m \
@@ -881,6 +883,23 @@ $(SECURITY_TEST): $(SECURITY_SOURCES) $(SECURITY_OBJECTS) $(SWIFT_LIB) $(MLX_STU
 		$(CC) $(CFLAGS) $(LDFLAGS) -o $(SECURITY_TEST) $(SECURITY_SOURCES) $(SECURITY_OBJECTS) $(SWIFT_LIB) $(FRAMEWORKS) $(LIBS) $(SWIFT_RUNTIME_LIBS); \
 	else \
 		$(CC) $(CFLAGS) $(LDFLAGS) -o $(SECURITY_TEST) $(SECURITY_SOURCES) $(SECURITY_OBJECTS) $(MLX_STUBS_OBJ) $(FRAMEWORKS) $(LIBS); \
+	fi
+
+# Stress test (concurrent execution)
+STRESS_TEST = $(BIN_DIR)/stress_test
+STRESS_SOURCES = tests/test_stress.c $(TEST_STUBS)
+STRESS_OBJECTS = $(filter-out $(OBJ_DIR)/core/main.o,$(OBJECTS))
+
+stress_test: dirs swift $(OBJECTS) $(MLX_STUBS_OBJ) $(STRESS_TEST)
+	@echo "Running stress tests..."
+	@$(STRESS_TEST)
+
+$(STRESS_TEST): $(STRESS_SOURCES) $(STRESS_OBJECTS) $(SWIFT_LIB) $(MLX_STUBS_OBJ)
+	@echo "Compiling stress tests..."
+	@if [ -s "$(SWIFT_LIB)" ]; then \
+		$(CC) $(CFLAGS) $(LDFLAGS) -o $(STRESS_TEST) $(STRESS_SOURCES) $(STRESS_OBJECTS) $(SWIFT_LIB) $(FRAMEWORKS) $(LIBS) $(SWIFT_RUNTIME_LIBS); \
+	else \
+		$(CC) $(CFLAGS) $(LDFLAGS) -o $(STRESS_TEST) $(STRESS_SOURCES) $(STRESS_OBJECTS) $(MLX_STUBS_OBJ) $(FRAMEWORKS) $(LIBS); \
 	fi
 
 # Workflow migration test

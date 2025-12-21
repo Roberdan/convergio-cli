@@ -44,6 +44,9 @@ typedef struct {
     double consensus_threshold;
     time_t created_at;
     time_t last_message_at;
+    // Fair agent selection tracking
+    size_t* participation_count;     // Messages sent by each participant
+    size_t total_participations;     // Total messages in this chat
 } GroupChat;
 
 // ============================================================================
