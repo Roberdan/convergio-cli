@@ -131,10 +131,12 @@ make coverage_workflow 2>&1 | grep -A 5 "duplicate symbol"
    - **Opzione C**: Rendi `static` una delle definizioni se è usata solo in quel file
      - Ma questo potrebbe non funzionare se è usata da altri file di test
    
-   - **Verifica Makefile**: Assicurati che `WORKFLOW_INTEGRATION_SOURCES` non includa entrambi i file che definiscono `nous_log`
-     - Attualmente: `WORKFLOW_INTEGRATION_SOURCES = tests/test_workflow_integration.c $(TEST_STUBS)`
+   - **Verifica Makefile**: 
+     - `WORKFLOW_INTEGRATION_SOURCES = tests/test_workflow_integration.c $(TEST_STUBS)`
      - `TEST_STUBS = tests/test_stubs.c` (non `tests/unit/test_stubs.c`)
-     - Verifica se `tests/unit/test_stubs.c` viene compilato separatamente e linkato
+     - **Problema**: `test_workflow_integration.c` definisce `nous_log` ma anche `$(TEST_STUBS)` (che è `tests/test_stubs.c`) potrebbe definirlo
+     - **Verifica**: Controlla se `tests/test_stubs.c` o `tests/unit/test_stubs.c` vengono compilati come oggetti separati e linkati
+     - **Soluzione**: Rimuovi la definizione di `nous_log` da `test_workflow_integration.c` (riga 45-47) e usa quella da `tests/test_stubs.c` o `tests/unit/test_stubs.c`
 
 3. **Verifica la fix**:
    ```bash
