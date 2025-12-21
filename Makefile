@@ -1135,9 +1135,12 @@ format-check:
 		exit 0; \
 	fi
 	@echo "Checking code formatting..."
-	@UNFORMATTED=$$(find src -name "*.c" -o -name "*.h" | grep -v ".build" | while read file; do \
-		$(CLANG_FORMAT) "$$file" | diff -q "$$file" - >/dev/null || echo "$$file"; \
-	done | wc -l | tr -d ' '); \
+	@UNFORMATTED=0; \
+	for file in $$(find src -name "*.c" -o -name "*.h" | grep -v ".build"); do \
+		if ! $(CLANG_FORMAT) "$$file" | diff -q "$$file" - >/dev/null 2>&1; then \
+			UNFORMATTED=$$((UNFORMATTED + 1)); \
+		fi; \
+	done; \
 	if [ "$$UNFORMATTED" -gt 0 ]; then \
 		echo "❌ FAILED: Found $$UNFORMATTED unformatted files"; \
 		echo "   Run 'make format' to fix formatting"; \
