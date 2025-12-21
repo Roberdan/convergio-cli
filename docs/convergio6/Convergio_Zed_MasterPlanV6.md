@@ -12,9 +12,9 @@
 
 | Status | Tasks |
 |--------|-------|
-| Completed | 96 (Phase 1-10 + 8 S1-S8 + 8 B1-B8 + 5 A1-A5 + 7 R1-R7 + 6 P1-P6) |
+| Completed | 99 (Phase 1-10 + 8 S1-S8 + 8 B1-B8 + 5 A1-A5 + 7 R1-R7 + 6 P1-P6 + 3 E1-E3) |
 | In Progress | 0 |
-| Pending | 3 |
+| Pending | 0 |
 | **Total** | **99** |
 
 ```
@@ -24,7 +24,7 @@ PHASE 12: BACKGROUND EXEC FIX ████████████████�
 PHASE 13: ALI CONTROL CENTER  ████████████████████ 100% (5/5) ALREADY COMPLETE
 PHASE 14: PERFORMANCE         ████████████████████ 100% (6/6) COMPLETE
 PHASE 15: RELEASE SYSTEM      ████████████████████ 100% (7/7) COMPLETE
-PHASE 16: EDITIONS SUPPORT    ░░░░░░░░░░░░░░░░░░░░   0% (0/3)
+PHASE 16: EDITIONS SUPPORT    ████████████████████ 100% (3/3) COMPLETE
 ```
 
 ---
@@ -359,9 +359,24 @@ convergio-zed/VERSION    → Zed upstream version
 
 | ID | Task | Status | Effort | Owner |
 |----|------|--------|--------|-------|
-| E1 | Design edition-aware agent filtering for Zed | Pending | 1 day | - |
-| E2 | Add edition configuration to convergio-zed settings | Pending | 0.5 day | - |
-| E3 | Create build variants for different editions | Pending | 1 day | - |
+| E1 | Design edition-aware agent filtering for Zed | ✅ Done | 1 day | - |
+| E2 | Add edition configuration to convergio-zed settings | ✅ Done | 0.5 day | - |
+| E3 | Create build variants for different editions | ✅ Done | 1 day | - |
+
+### Implementation (2025-12-21)
+
+**E1 - Edition-aware agent filtering:**
+- Added `Education` pack to `AgentPack` enum with 12 accessibility-focused agents
+- Agents: ali, jenny-inclusive-accessibility-champion, coach-team-coach, riccardo-storyteller, behice-cultural-coach, socrates-first-principles-reasoning, stefano-design-thinking-facilitator, sara-ux-ui-designer, thor-quality-assurance-guardian, marcello-pm, davide-project-manager, anna-executive-assistant
+
+**E2 - Edition configuration:**
+- Added `ConvergioEdition` enum in settings.rs (Base, Education, Enterprise)
+- Each edition has display name and default pack
+
+**E3 - Build variants:**
+- Added feature flags: `convergio-education`, `convergio-enterprise`
+- `detect_edition()` selects edition at compile time via cfg attributes
+- Build commands: `cargo build --features convergio-education`
 
 ### Edition Strategy
 
