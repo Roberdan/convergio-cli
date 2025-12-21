@@ -16,7 +16,7 @@ Timeline of events, decisions, and significant changes.
 
 ### 14:15 - Voice Infrastructure Complete
 - Infrastructure complete: voice.h, voice_gateway.c, openai_realtime.c, azure_realtime.c
-- Azure deployment `gpt-4o-realtime` created on your-resource-name (swedencentral)
+- Azure deployment `gpt-4o-realtime` created (swedencentral region)
 - Using gpt-realtime GA (2025-08-28)
 - 15 voice profiles defined for all teachers
 - VOICE_SETUP.md created, .env.example updated

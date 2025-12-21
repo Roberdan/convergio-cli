@@ -139,7 +139,7 @@ The Realtime API only works in:
 - East US 2
 - Sweden Central
 
-The `your-resource-name` resource is in Sweden Central and works correctly.
+Ensure your resource is in a supported region (Sweden Central or East US 2).
 
 ### "Model not available"
 Ensure the deployment uses one of:
