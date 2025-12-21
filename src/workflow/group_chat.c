@@ -13,20 +13,17 @@
 #include <string.h>
 #include <time.h>
 #include <stdint.h>
+#include <stdatomic.h>
 
 // workflow_strdup is defined in workflow_types.c
 extern char* workflow_strdup(const char* str);
 
-// MEDIUM-03: Thread-safe chat ID generation
-CONVERGIO_MUTEX_DECLARE(g_chat_id_mutex);
-static uint64_t g_next_chat_id = 1;
+// FIX-02: Atomic chat ID generation to prevent race conditions
+static _Atomic uint64_t g_next_chat_id = 1;
 
-// MEDIUM-03: Thread-safe chat ID allocation
+// FIX-02: Thread-safe atomic chat ID allocation
 static uint64_t allocate_chat_id(void) {
-    CONVERGIO_MUTEX_LOCK(&g_chat_id_mutex);
-    uint64_t id = g_next_chat_id++;
-    CONVERGIO_MUTEX_UNLOCK(&g_chat_id_mutex);
-    return id;
+    return atomic_fetch_add(&g_next_chat_id, 1);
 }
 
 // ============================================================================
