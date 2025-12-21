@@ -13,7 +13,7 @@
 
 #include "nous/workflow.h"
 #include "nous/provider.h"
-#include "tests/test_stubs.c"
+#include "test_stubs.c"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -70,7 +70,7 @@ void test_network_check(void) {
     printf("\n=== Testing Network Error Handling ===\n");
     
     // Test: Network check (might pass or fail depending on actual network)
-    bool network_available = workflow_check_network();
+    bool network_available = workflow_check_network(5);
     printf("  ℹ Network available: %s\n", network_available ? "yes" : "no");
     
     // Test: Network error handling
