@@ -315,12 +315,143 @@ make coverage_workflow 2>&1 | grep -A 5 "duplicate symbol"
 
 ## 🎯 ORDINE DI ESECUZIONE CONSIGLIATO
 
-1. **Fix linking error** (blocca coverage)
+1. **Fix linking error** (blocca coverage) - ⚠️ **DEVE essere fatto PRIMA**
 2. **Eseguire verifiche** (coverage, sanitizers)
 3. **Creare documentazione mancante** (4 file)
 4. **CI/CD coverage tracking** (automazione)
 5. **Security enforcement Phase 2** (5 file)
 6. **Future enhancements** (4 task)
+
+---
+
+## ⚡ OTTIMIZZAZIONE E PARALLELIZZAZIONE
+
+### Strategia di Parallelizzazione
+
+**Claude può lavorare in parallelo su task INDIPENDENTI** per ottimizzare il tempo di esecuzione.
+
+### Task che possono essere parallelizzati:
+
+#### Gruppo A: Documentazione (PARALLELO)
+Questi 4 task sono **completamente indipendenti** e possono essere fatti in parallelo:
+- `architecture.md` - System architecture
+- `ADR/018-workflow-orchestration.md` - Architecture Decision Record
+- `MIGRATION_GUIDE.md` - Migration guide
+- `PATTERN_GUIDE.md` - Pattern library guide
+
+**Come parallelizzare**:
+- Crea 4 sezioni separate nel tuo workflow
+- Lavora su tutti e 4 contemporaneamente
+- Ogni documento è indipendente dagli altri
+
+#### Gruppo B: Security Enforcement Phase 2 (PARALLELO)
+Questi 5 file possono essere aggiornati in parallelo (sono indipendenti):
+- `src/core/main.c`
+- `src/core/commands/commands.c`
+- `src/orchestrator/registry.c`
+- `src/orchestrator/plan_db.c`
+- `src/memory/memory.c`
+
+**Come parallelizzare**:
+- Analizza tutti i file insieme per trovare `fopen()` / `open()`
+- Applica la stessa fix pattern a tutti
+- Testa tutti insieme alla fine
+
+#### Gruppo C: Future Enhancements (PARALLELO PARZIALE)
+Alcuni possono essere fatti in parallelo:
+- **Extended Telemetry Events** + **Performance Telemetry** (stesso file: `workflow_observability.c`)
+- **Security Audit Logging** (stesso file: `workflow_observability.c`)
+- **Workflow Execution History UI** (file separato, può essere fatto in parallelo)
+
+**Come parallelizzare**:
+- Lavora su `workflow_observability.c` per tutti e 3 i task insieme
+- Lavora su `workflow_history_ui.c` in parallelo
+
+### Task che DEVONO essere sequenziali:
+
+#### Sequenza OBBLIGATORIA:
+1. **Fix linking error** → DEVE essere fatto PRIMA (blocca tutto)
+2. **Code coverage** → Richiede linking fix
+3. **Sanitizer tests** → Possono essere fatti in parallelo con coverage (dopo fix)
+4. **CI/CD workflow** → Richiede che coverage funzioni
+
+### Strategia di Ottimizzazione:
+
+#### 1. Batch Processing
+Raggruppa task simili:
+- **Batch Documentazione**: Fai tutti i 4 documenti insieme
+- **Batch Security**: Fai tutti i 5 file security insieme
+- **Batch Telemetry**: Fai tutti i task telemetry insieme
+
+#### 2. Pre-Analysis
+Prima di iniziare, analizza tutti i file insieme:
+```bash
+# Analizza tutti i file che devono essere modificati
+grep -r "fopen\|open(" src/core/main.c src/core/commands/commands.c src/orchestrator/registry.c src/orchestrator/plan_db.c src/memory/memory.c
+
+# Analizza tutti i documenti da creare
+ls docs/workflow-orchestration/architecture.md docs/workflow-orchestration/ADR/018-workflow-orchestration.md
+```
+
+#### 3. Test Batch
+Dopo aver fatto modifiche simili, testa insieme:
+```bash
+# Dopo security fixes, testa tutti insieme
+make clean && make
+make security_audit_workflow
+
+# Dopo documentazione, verifica tutti insieme
+# (manuale - leggi i file)
+```
+
+#### 4. Commit Strategy
+- **Commit per batch**: Fai un commit per ogni gruppo di task completati
+  - `docs(workflow): create all missing documentation files`
+  - `security(workflow): complete Phase 2 security enforcement`
+  - `feat(workflow): add extended telemetry and performance metrics`
+
+### Esempio di Workflow Ottimizzato:
+
+**Fase 1 (Sequenziale - OBBLIGATORIO)**:
+1. Fix linking error (30 min)
+
+**Fase 2 (Parallelo - dopo fix)**:
+2a. Code coverage measurement (10 min) ║ 2b. Sanitizer tests (15 min)
+
+**Fase 3 (Parallelo - documentazione)**:
+3a. architecture.md (20 min) ║ 3b. ADR 018 (15 min) ║ 3c. MIGRATION_GUIDE.md (25 min) ║ 3d. PATTERN_GUIDE.md (20 min)
+→ **Tempo totale: 25 min** (invece di 80 min sequenziale)
+
+**Fase 4 (Parallelo - security)**:
+4a-4e. Tutti i 5 file security insieme (30 min totali invece di 150 min)
+
+**Fase 5 (Parallelo - enhancements)**:
+5a. Telemetry enhancements (workflow_observability.c) (20 min) ║ 5b. History UI (workflow_history_ui.c) (30 min)
+
+**Risparmio tempo**: ~60% più veloce rispetto a sequenziale
+
+### Comandi Utili per Parallelizzazione:
+
+```bash
+# Analizza tutti i file da modificare insieme
+find src -name "*.c" -exec grep -l "fopen\|open(" {} \; | grep -E "(main|commands|registry|plan_db|memory)\.c"
+
+# Verifica tutti i documenti mancanti
+ls -la docs/workflow-orchestration/architecture.md \
+        docs/workflow-orchestration/ADR/018-workflow-orchestration.md \
+        docs/workflow-orchestration/MIGRATION_GUIDE.md \
+        docs/workflow-orchestration/PATTERN_GUIDE.md
+
+# Test batch dopo modifiche
+make clean && make && make test
+```
+
+### Note Importanti:
+
+- ⚠️ **NON parallelizzare task che dipendono l'uno dall'altro**
+- ✅ **Parallelizza solo task completamente indipendenti**
+- ✅ **Testa sempre dopo modifiche batch**
+- ✅ **Fai commit per batch, non per singolo file** (più efficiente)
 
 ---
 
