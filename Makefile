@@ -301,6 +301,7 @@ OBJC_SOURCES = $(SRC_DIR)/metal/gpu.m \
                $(SRC_DIR)/core/hardware.m \
                $(SRC_DIR)/core/clipboard.m \
                $(SRC_DIR)/providers/mlx.m \
+               $(SRC_DIR)/education/camera.m \
                $(VOICE_OBJC_SOURCES)
 
 METAL_SOURCES = shaders/similarity.metal

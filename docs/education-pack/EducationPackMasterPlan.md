@@ -385,7 +385,7 @@ AFTER:  "Euclide: Mi dispiace, ho avuto qualche difficoltà a creare
 | DU02 | Simple folder navigation UI | [x] | P0 | document_upload.c |
 | DU03 | Use Claude Files API for upload | [x] | P0 | Stub ready, API in beta |
 | DU04 | Use OpenAI file input for vision | [x] | P1 | document_create_vision_data_url() for base64 encoding |
-| DU05 | Camera access for photo capture | [~] | P1 | Stub ready, needs AVFoundation implementation |
+| DU05 | Camera access for photo capture | [x] | P1 | AVFoundation camera.m complete |
 | DU06 | OCR via LLM vision (native) | [x] | P1 | LLM-based via document_generate_ocr_prompt() |
 | DU07 | Document context injection | [x] | P0 | document_get_current_file_id() |
 | DU08 | Topic extraction from document | [x] | P1 | LLM-based via document_generate_topic_extraction_prompt() |

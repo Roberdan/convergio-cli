@@ -821,32 +821,34 @@ char* document_create_vision_data_url(const char* filepath) {
 }
 
 // ============================================================================
-// DU05: CAMERA ACCESS (macOS AVFoundation stub)
+// DU05: CAMERA ACCESS (macOS AVFoundation)
 // ============================================================================
 
-/**
- * DU05: Capture photo from camera.
- *
- * Note: Full camera access requires AVFoundation (Objective-C/Swift).
- * This stub provides the interface; implementation in camera.m
- *
- * @return Path to captured image (caller must free), or NULL on error
- */
-char* document_capture_from_camera(void) {
-    // Full implementation requires AVFoundation integration
-    // For now, prompt user to use file upload instead
-    printf("\n📷 Camera capture is not yet available.\n");
-    printf("   Please use /upload to select an existing photo.\n");
-    printf("   Or use your phone's camera and transfer the photo.\n\n");
-    return NULL;
-}
+// External functions from camera.m (AVFoundation implementation)
+extern int education_camera_available(void);
+extern char* education_camera_capture(void);
 
 /**
  * Check if camera is available.
  */
 bool document_camera_available(void) {
-    // Would check AVCaptureDevice.authorizationStatus in real implementation
-    return false;
+    return education_camera_available() == 1;
+}
+
+/**
+ * DU05: Capture photo from camera.
+ * Uses AVFoundation via camera.m for macOS camera access.
+ *
+ * @return Path to captured image (caller must free), or NULL on error
+ */
+char* document_capture_from_camera(void) {
+    if (!document_camera_available()) {
+        printf("\n❌ Camera not available on this device.\n");
+        printf("   Please use /upload to select an existing photo.\n\n");
+        return NULL;
+    }
+
+    return education_camera_capture();
 }
 
 // ============================================================================
@@ -859,6 +861,7 @@ bool document_camera_available(void) {
  * Usage:
  *   /upload          - Open file picker
  *   /upload <path>   - Upload specific file
+ *   /camera          - Capture photo from camera
  *   /doc             - Show uploaded documents
  *   /doc list        - List all uploaded documents
  *   /doc <n>         - Select document n
@@ -867,6 +870,17 @@ bool document_camera_available(void) {
 int document_command_handler(int argc, char** argv) {
     if (edition_current() != EDITION_EDUCATION) {
         printf("Document upload is only available in Education edition.\n");
+        return 1;
+    }
+
+    // /camera - capture from camera
+    if (argc >= 1 && strcmp(argv[0], "camera") == 0) {
+        char* filepath = document_capture_from_camera();
+        if (filepath) {
+            bool success = document_upload(filepath);
+            free(filepath);
+            return success ? 0 : 1;
+        }
         return 1;
     }
 
@@ -908,6 +922,6 @@ int document_command_handler(int argc, char** argv) {
         return 1;
     }
 
-    printf("Unknown command. Use /upload or /doc.\n");
+    printf("Unknown command. Use /upload, /camera, or /doc.\n");
     return 1;
 }
