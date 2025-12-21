@@ -12,7 +12,33 @@
 **Branch**: `feature/workflow-orchestration`  
 **PR**: #72 - "feat(workflow): Advanced Workflow Orchestration - Feature Complete"
 
-**Current Status**: 
+---
+
+## 📋 MASTER PLAN DI RIFERIMENTO
+
+**⚠️ IMPORTANTE: Il documento principale di riferimento è:**
+
+**`docs/workflow-orchestration/MASTER_PLAN.md`**
+
+Questo è il **master plan ufficiale** che contiene:
+- Status completo di tutte le fasi
+- Definition of Done
+- Tutti i task completati e pendenti
+- Riferimenti a tutti gli altri documenti
+- Statistiche e metriche
+
+**Usa MASTER_PLAN.md come fonte di verità** per:
+- Verificare lo status attuale
+- Capire cosa è completato e cosa manca
+- Aggiornare lo status dopo ogni task completato
+
+**Altri documenti importanti** (ma secondari rispetto al master plan):
+- `PENDING_TASKS_EXECUTABLE.md` - Lista esecutiva dei task (derivata dal master plan)
+- `INSTRUCTIONS_FOR_CLAUDE.md` - Questo documento (istruzioni operative)
+
+---
+
+**Current Status** (dal MASTER_PLAN.md): 
 - ✅ Core implementation: 100% complete
 - ✅ Testing: 100% complete (all test files created)
 - ⏳ Verifications: 0% (not executed)
@@ -24,10 +50,18 @@
 
 ## 📖 DOCUMENTI DA LEGGERE (IN ORDINE)
 
-### 1. PRIMA DI INIZIARE
-- **PENDING_TASKS_EXECUTABLE.md** - Lista completa di tutti i task con location, comandi, documentazione
-- **MASTER_PLAN.md** - Piano generale con status e overview
-- **ZERO_TOLERANCE_POLICY.md** - Standard di qualità (zero tolleranza)
+### 1. PRIMA DI INIZIARE (OBBLIGATORIO)
+
+**🎯 MASTER PLAN (LEGGI PRIMA DI TUTTO):**
+- **MASTER_PLAN.md** - ⭐ **DOCUMENTO PRINCIPALE DI RIFERIMENTO**
+  - Contiene lo status completo di tutto il progetto
+  - Definition of Done
+  - Tutti i task completati e pendenti
+  - Aggiorna questo documento dopo ogni task completato
+
+**📋 DOCUMENTI OPERATIVI:**
+- **PENDING_TASKS_EXECUTABLE.md** - Lista esecutiva dei task (derivata dal master plan)
+- **ZERO_TOLERANCE_POLICY.md** - Standard di qualità (zero tolleranza) - **MANDATORY**
 
 ### 2. PER OGNI TASK
 - **BEST_PRACTICES.md** - Best practices per implementazione
@@ -177,13 +211,16 @@
 
 ### Per ogni task:
 
-1. **Leggi la documentazione** indicata nel task
-2. **Verifica il branch**: `git branch --show-current` deve essere `feature/workflow-orchestration`
-3. **Esegui il task** seguendo le istruzioni
-4. **Testa**: Assicurati che tutto compili e funzioni
-5. **Commit**: Usa conventional commits (es. `fix(workflow): resolve linking error`)
-6. **Aggiorna MASTER_PLAN.md**: Marca il task come completato
-7. **Aggiorna PENDING_TASKS_EXECUTABLE.md**: Marca il task come completato
+1. **Leggi MASTER_PLAN.md** per capire il contesto del task
+2. **Leggi la documentazione** specifica indicata nel task
+3. **Verifica il branch**: `git branch --show-current` deve essere `feature/workflow-orchestration`
+4. **Esegui il task** seguendo le istruzioni
+5. **Testa**: Assicurati che tutto compili e funzioni
+6. **Commit**: Usa conventional commits (es. `fix(workflow): resolve linking error`)
+7. **Aggiorna MASTER_PLAN.md**: ⭐ **OBBLIGATORIO** - Marca il task come completato nella sezione appropriata
+8. **Aggiorna PENDING_TASKS_EXECUTABLE.md**: Opzionale - per tracciamento
+
+**⚠️ IMPORTANTE**: MASTER_PLAN.md è la fonte di verità. Aggiornalo sempre dopo ogni task.
 
 ### Standard di qualità (ZERO TOLERANCE):
 
