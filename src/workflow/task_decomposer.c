@@ -6,8 +6,7 @@
  */
 
 #include "nous/task_decomposer.h"
-#include "nous/orchestrator.h"
-#include "nous/provider.h"
+#include "nous/orchestrator.h"  // For llm_chat, llm_chat_with_model, etc.
 #include "nous/planning.h"
 #include "nous/nous.h"
 #include <cjson/cJSON.h>
@@ -28,7 +27,6 @@
 // FORWARD DECLARATIONS
 // ============================================================================
 
-extern Provider* provider_get(ProviderType type);
 extern ExecutionPlan* orch_plan_create(const char* goal);
 extern Task* orch_task_create(const char* description, SemanticID assignee);
 extern void orch_plan_add_task(ExecutionPlan* plan, Task* task);
@@ -265,9 +263,8 @@ DecomposedTask* task_decompose(
     snprintf(prompt, prompt_size, prompt_template, goal);
 #pragma clang diagnostic pop
     
-    // Use LLM to decompose
-    Provider* provider = provider_get(PROVIDER_ANTHROPIC);
-    if (!provider || !provider->chat) {
+    // Use LLM facade to decompose
+    if (!llm_is_available()) {
         free(prompt);
         return NULL;
     }
@@ -277,8 +274,7 @@ DecomposedTask* task_decompose(
         "actionable subtasks with clear dependencies. Return only valid JSON.";
 
     TokenUsage usage = {0};
-    char* response = provider->chat(
-        provider,
+    char* response = llm_chat_with_model(
         "claude-sonnet-4-20250514",
         system_prompt,
         prompt,
@@ -752,10 +748,9 @@ static int task_execute_via_agent(DecomposedTask* task) {
         }
     }
     
-    // Get provider for agent execution
-    Provider* provider = provider_get(PROVIDER_ANTHROPIC);
-    if (!provider || !provider->chat) {
-        task_mark_failed(task, "Provider not available for task execution");
+    // Check LLM availability via facade
+    if (!llm_is_available()) {
+        task_mark_failed(task, "LLM not available for task execution");
         return -1;
     }
 
@@ -785,10 +780,9 @@ static int task_execute_via_agent(DecomposedTask* task) {
     snprintf(task_prompt, prompt_size, prompt_template, task->description, validation_text);
 #pragma clang diagnostic pop
 
-    // Execute task via agent
+    // Execute task via LLM facade
     TokenUsage usage = {0};
-    char* response = provider->chat(
-        provider,
+    char* response = llm_chat_with_model(
         "claude-sonnet-4-20250514",
         agent->system_prompt ? agent->system_prompt : "You are a helpful assistant.",
         task_prompt,

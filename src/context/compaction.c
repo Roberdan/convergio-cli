@@ -10,8 +10,7 @@
  */
 
 #include "nous/compaction.h"
-#include "nous/provider.h"
-#include "nous/orchestrator.h"
+#include "nous/orchestrator.h"  // For llm_chat, llm_estimate_tokens, etc.
 #include "nous/nous.h"
 #include "nous/config.h"
 #include <stdio.h>
@@ -60,9 +59,9 @@ int compaction_init(void) {
         return 0;  // Already initialized
     }
 
-    // Verify provider is available for summarization
-    if (!provider_is_available(PROVIDER_ANTHROPIC)) {
-        LOG_WARN(LOG_CAT_MEMORY, "Compaction: Anthropic provider not available, "
+    // Verify LLM is available for summarization
+    if (!llm_is_available()) {
+        LOG_WARN(LOG_CAT_MEMORY, "Compaction: No LLM provider available, "
                  "summarization will use fallback truncation");
     }
 
@@ -160,20 +159,14 @@ CompactionResult* compaction_summarize(
     CompactionResult* result = calloc(1, sizeof(CompactionResult));
     if (!result) return NULL;
 
-    // Estimate original tokens
-    Provider* provider = provider_get(PROVIDER_ANTHROPIC);
-    if (provider && provider->estimate_tokens) {
-        result->original_tokens = provider->estimate_tokens(provider, messages_text);
-    } else {
-        // Fallback: estimate ~4 chars per token
-        result->original_tokens = strlen(messages_text) / 4;
-    }
+    // Estimate original tokens using LLM facade
+    result->original_tokens = llm_estimate_tokens(messages_text);
 
     // Try to get LLM summary
     char* summary = NULL;
     TokenUsage usage = {0};
 
-    if (provider && provider->chat) {
+    if (llm_is_available()) {
         // Build summarization prompt
         size_t prompt_len = strlen(SUMMARIZATION_PROMPT) + strlen(messages_text) + 100;
         char* full_prompt = malloc(prompt_len);
@@ -184,9 +177,8 @@ CompactionResult* compaction_summarize(
             snprintf(full_prompt, prompt_len, SUMMARIZATION_PROMPT, messages_text);
             #pragma clang diagnostic pop
 
-            // Call cheap model for summarization
-            summary = provider->chat(
-                provider,
+            // Call LLM via facade for summarization (uses best available provider)
+            summary = llm_chat_with_model(
                 COMPACTION_MODEL,
                 "You are a precise and concise summarizer.",
                 full_prompt,
@@ -229,12 +221,8 @@ CompactionResult* compaction_summarize(
         return NULL;
     }
 
-    // Calculate compressed tokens
-    if (provider && provider->estimate_tokens) {
-        result->compressed_tokens = provider->estimate_tokens(provider, summary);
-    } else {
-        result->compressed_tokens = strlen(summary) / 4;
-    }
+    // Calculate compressed tokens using LLM facade
+    result->compressed_tokens = llm_estimate_tokens(summary);
 
     // Fill result
     result->summary = summary;
@@ -312,14 +300,8 @@ char* compaction_build_context(
         return strdup("");  // No conversation yet
     }
 
-    // Estimate tokens
-    Provider* provider = provider_get(PROVIDER_ANTHROPIC);
-    size_t conv_tokens = 0;
-    if (provider && provider->estimate_tokens) {
-        conv_tokens = provider->estimate_tokens(provider, full_conv);
-    } else {
-        conv_tokens = strlen(full_conv) / 4;
-    }
+    // Estimate tokens using LLM facade
+    size_t conv_tokens = llm_estimate_tokens(full_conv);
 
     // Check if compaction needed
     if (!compaction_needed(session_id, conv_tokens)) {

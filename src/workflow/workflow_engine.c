@@ -6,8 +6,7 @@
  */
 
 #include "nous/workflow.h"
-#include "nous/orchestrator.h"
-#include "nous/provider.h"
+#include "nous/orchestrator.h"  // For llm_chat, llm_chat_with_model, etc.
 #include "nous/router.h"
 #include "nous/nous.h"
 #include "nous/telemetry.h"
@@ -36,7 +35,6 @@ extern bool workflow_validate_condition_safe(const char* condition);
 // FORWARD DECLARATIONS
 // ============================================================================
 
-extern Provider* provider_get(ProviderType type);
 extern size_t agent_get_all(ManagedAgent** out_agents, size_t max_count);
 
 // ============================================================================
@@ -187,31 +185,22 @@ static int execute_action_node(Workflow* wf, WorkflowNode* node, const char* inp
         return -1;
     }
     
-    // Execute agent via provider
-    Provider* provider = provider_get(PROVIDER_ANTHROPIC);
-    if (!provider || !provider->chat) {
+    // Execute agent via LLM facade
+    if (!llm_is_available()) {
         free(effective_prompt);
-        workflow_handle_error(wf, node, WORKFLOW_ERROR_PROVIDER_UNAVAILABLE, "Provider not available");
+        workflow_handle_error(wf, node, WORKFLOW_ERROR_PROVIDER_UNAVAILABLE, "LLM not available");
         return -1;
     }
-    
-    // Check if LLM service is available
-    if (!workflow_check_llm_available(PROVIDER_ANTHROPIC)) {
-        workflow_handle_llm_down(wf, PROVIDER_ANTHROPIC);
-        free(effective_prompt);
-        return -1;
-    }
-    
+
     // Check timeout before execution
     int timeout_seconds = 300; // Default 5 minutes
     const char* timeout_str = workflow_get_state_value(wf, "node_timeout");
     if (timeout_str) {
         timeout_seconds = atoi(timeout_str);
     }
-    
+
     TokenUsage usage = {0};
-    char* response = provider->chat(
-        provider,
+    char* response = llm_chat_with_model(
         "claude-sonnet-4-20250514",
         agent->system_prompt,
         effective_prompt,

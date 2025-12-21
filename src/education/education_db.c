@@ -1968,10 +1968,10 @@ int education_maestro_broadcast_profile(int64_t student_id) {
 }
 
 // ============================================================================
-// LLM GENERATION (Uses Convergio Provider System)
+// LLM GENERATION (Uses Convergio LLM Facade)
 // ============================================================================
 
-#include "nous/provider.h"
+#include "nous/orchestrator.h"  // For llm_chat_with_model, llm_is_available, etc.
 
 // Default model for education - use a cost-effective model
 #define EDUCATION_DEFAULT_MODEL "claude-3-5-haiku-20241022"
@@ -1980,25 +1980,14 @@ __attribute__((weak))
 char* llm_generate(const char* prompt, const char* system_prompt) {
     if (!prompt) return NULL;
 
-    // Get Claude provider
-    Provider* provider = provider_get(PROVIDER_ANTHROPIC);
-    if (!provider) {
-        // Try OpenAI as fallback
-        provider = provider_get(PROVIDER_OPENAI);
-    }
-    if (!provider) {
-        // Try Ollama for local models
-        provider = provider_get(PROVIDER_OLLAMA);
-    }
-
-    if (!provider || !provider->initialized) {
+    // Check LLM availability via facade
+    if (!llm_is_available()) {
         return strdup("[Error: No LLM provider configured. Set ANTHROPIC_API_KEY or OPENAI_API_KEY]");
     }
 
-    // Use the chat function
+    // Use the LLM facade chat function (handles provider fallback internally)
     TokenUsage usage = {0};
-    char* response = provider->chat(
-        provider,
+    char* response = llm_chat_with_model(
         EDUCATION_DEFAULT_MODEL,
         system_prompt ? system_prompt : "You are an educational assistant. Respond clearly and pedagogically.",
         prompt,
@@ -2006,10 +1995,10 @@ char* llm_generate(const char* prompt, const char* system_prompt) {
     );
 
     if (!response) {
-        ProviderErrorInfo* err = provider->get_last_error(provider);
-        if (err && err->message) {
+        const char* err = llm_get_last_error();
+        if (err && strlen(err) > 0) {
             char error_msg[512];
-            snprintf(error_msg, sizeof(error_msg), "[Errore LLM: %s]", err->message);
+            snprintf(error_msg, sizeof(error_msg), "[Errore LLM: %s]", err);
             return strdup(error_msg);
         }
         return strdup("[Errore: Generazione LLM fallita]");
