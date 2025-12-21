@@ -256,8 +256,8 @@ make clean && make EDITION=education && make test && make education_test
 | Task ID | Issue | Location | Severity | Status |
 |---------|-------|----------|----------|--------|
 | 🟡 FIX-08 | Core over-coupling | main.c 82 includes → <20 | MEDIUM | ⬚ |
-| 🟡 FIX-09 | No LLM facade | education/workflow bypass orchestrator | MEDIUM | ⬚ |
-| 🟡 FIX-10 | Too many globals | 13 globals → <5 | MEDIUM | ⬚ |
+| 🟡 FIX-09 | No LLM facade | education/workflow bypass orchestrator | MEDIUM | ✅ DONE |
+| 🟡 FIX-10 | Too many globals | 13 globals → <5 | MEDIUM | ✅ DONE (atomic ops) |
 
 ### Batch 6E - Refactoring (parallel, lower priority)
 
@@ -266,7 +266,7 @@ make clean && make EDITION=education && make test && make education_test
 | 🟢 FIX-11 | REF-01: Unified Registry Pattern | Medium | ⬚ |
 | 🟢 FIX-12 | REF-02: Centralized Error Handling | Medium-High | ⬚ |
 | 🟢 FIX-13 | REF-05: Standardized Logging (29 files) | Medium | ⬚ |
-| 🟢 FIX-14 | REF-08: Agent caching O(n)→O(1) | Low-Medium | ⬚ |
+| 🟢 FIX-14 | REF-08: Agent caching O(n)→O(1) | Low-Medium | ✅ DONE |
 
 ---
 
@@ -293,11 +293,11 @@ make clean && make EDITION=education && make test && make education_test
 | Issue | Severity | Location |
 |-------|----------|----------|
 | Core over-coupling | CRITICAL | main.c (33 includes), commands.c (27 includes) |
-| Education bypasses orchestrator | HIGH | education_db.c directly imports provider.h |
-| Workflow bypasses orchestrator | HIGH | workflow_engine.c, error_handling.c import provider.h |
-| Context bypasses orchestrator | MEDIUM | compaction.c imports provider.h |
+| ~~Education bypasses orchestrator~~ | ~~HIGH~~ | ✅ FIXED: Now uses LLM facade via orchestrator.h |
+| ~~Workflow bypasses orchestrator~~ | ~~HIGH~~ | ✅ FIXED: Now uses LLM facade via orchestrator.h |
+| ~~Context bypasses orchestrator~~ | ~~MEDIUM~~ | ✅ FIXED: Now uses LLM facade via orchestrator.h |
 
-**Recommendation**: Create orchestrator facade for LLM access, reduce core imports to <5.
+**Status**: LLM facade implemented (FIX-09). Education, workflow, context modules now use llm_chat_with_model() instead of direct provider access.
 
 ### ARCH-02: Cyclic Dependencies
 
