@@ -945,6 +945,6 @@ MIT License - see [LICENSE](LICENSE) for details.
 </p>
 
 <p align="center">
-  <strong>Built with love for Mario by the Convergio Team</strong><br/>
+  <strong>Built with ❤️ for Mario by the Convergio Team</strong><br/>
   <em>Making AI work for humans, not the other way around.</em>
 </p>
