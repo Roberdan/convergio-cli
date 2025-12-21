@@ -1,9 +1,9 @@
 /**
  * CONVERGIO KERNEL - EDITION SYSTEM
  *
- * Verticalization implementation for multiple Convergio editions.
- * Supports runtime switching for Master/Business/Developer.
- * Education edition is compile-time locked.
+ * Implements verticalization for multiple Convergio editions.
+ * Supports runtime switching between Master, Business, and Developer editions.
+ * Education edition is compile-time locked for child safety.
  *
  * Build with: make EDITION=education (or business, developer)
  *
