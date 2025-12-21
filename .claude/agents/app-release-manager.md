@@ -578,8 +578,11 @@ FAST SECURITY SCAN - Convergio CLI:
 2. Unsafe functions: rg "strcpy|strcat|sprintf|gets\(" --type c --type objc src/
 3. Buffer overflow risks: rg "malloc|alloc" -A3 --type c src/ | grep -v "if.*NULL"
 4. .gitignore check: grep -E "\.env|\.key|credentials" .gitignore
-5. Return: PASS/FAIL with issues + auto-fix suggestions
-FORMAT: JSON {"status": "PASS|FAIL", "issues": [...], "auto_fixable": [...]}
+5. GIT HISTORY SECRET SCAN (CRITICAL - prevents past leaks from staying in repo):
+   git log --all -p | grep -iE "(sk-ant|sk-proj|api[._-]?key|password|secret|\.azure\.com|openai\.azure)" | head -20
+   If ANY matches: BLOCKING - Use git filter-repo to remove before release!
+6. Return: PASS/FAIL with issues + auto-fix suggestions
+FORMAT: JSON {"status": "PASS|FAIL", "issues": [...], "auto_fixable": [...], "git_history_leaks": [...]}
 ```
 
 #### Wave 1C: Static Analysis Sub-Agent
@@ -1031,12 +1034,21 @@ rg "https?://[^\s\)\]\"']+" *.md docs/*.md 2>/dev/null | head -20
 # Check for security scanning configuration
 ls -la .snyk sonar-project.properties .trivyignore .gitleaks.toml 2>/dev/null
 
-# Scan for hardcoded secrets
+# Scan for hardcoded secrets in current files
 rg -i "password|secret|api.key|token|sk-ant" --type c --type py --type js -g '!*.md' 2>/dev/null | head -10
+
+# CRITICAL: Scan git history for leaked secrets (even if removed from current files!)
+git log --all -p | grep -iE "(sk-ant|sk-proj|api[._-]?key|password|secret|\.azure\.com|openai\.azure|credentials)" | head -20
+# If matches found: BLOCKING! Use git filter-repo to remove before any release!
 
 # Check for security headers/config
 rg -i "cors|csp|x-frame|x-content-type" 2>/dev/null | head -5
 ```
+
+#### Git History Security (MANDATORY)
+- [ ] **Git history scan**: No secrets in git history (use `git filter-repo --replace-text` to clean)
+- [ ] **Sensitive URLs removed**: No internal Azure/AWS/GCP resource names in history
+- [ ] **.env.example clean**: Contains only placeholder values, not real credentials
 
 ### EF-9: Source Control Standards
 
