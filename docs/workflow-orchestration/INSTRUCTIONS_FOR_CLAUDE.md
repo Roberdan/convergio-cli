@@ -119,10 +119,21 @@ make coverage_workflow 2>&1 | grep -A 5 "duplicate symbol"
    grep -n "nous_log\|_nous_log" tests/test_workflow_integration.c tests/unit/test_stubs.c
    ```
 
-2. **Soluzione**:
-   - **Opzione A (Raccomandata)**: Rimuovi la definizione di `nous_log` da `test_workflow_integration.c` (riga 45-48)
-     - Usa invece quella in `tests/unit/test_stubs.c` o `tests/test_stubs.c`
-     - Oppure aggiungi `extern` declaration se necessario
+2. **Soluzione (RACCOMANDATA)**:
+   - **Rimuovi la definizione di `nous_log` da `test_workflow_integration.c` (righe 45-51)**
+     - `tests/test_stubs.c` (riga 23) già definisce `nous_log(LogLevel level, LogCategory cat, ...)` con la stessa signature
+     - `$(TEST_STUBS)` include `tests/test_stubs.c` che viene compilato insieme
+     - Rimuovi le righe 45-51 da `test_workflow_integration.c`:
+       ```c
+       // RIMUOVI QUESTE RIGHE:
+       void nous_log(LogLevel level, LogCategory cat, const char* fmt, ...) {
+           (void)level; (void)cat; (void)fmt;
+       }
+       void nous_log_set_level(LogLevel level) { (void)level; }
+       LogLevel nous_log_get_level(void) { return LOG_LEVEL_INFO; }
+       const char* nous_log_level_name(LogLevel level) { (void)level; return ""; }
+       ```
+     - Le funzioni sono già definite in `tests/test_stubs.c` che viene linkato
    
    - **Opzione B**: Unifica le signature - assicurati che entrambe le definizioni abbiano la stessa signature
      - Verifica quale signature è corretta guardando `include/nous/nous.h`
