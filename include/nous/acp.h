@@ -13,6 +13,7 @@
 
 #include <stdbool.h>
 #include <stddef.h>
+#include <pthread.h>
 
 // Protocol version
 #define ACP_PROTOCOL_VERSION 1
@@ -55,6 +56,11 @@ typedef struct {
     char* background_buffer;    // Buffered output while in background
     size_t background_buffer_len;
     size_t background_buffer_cap;
+    // Async prompt processing (Phase 12 fix)
+    pthread_t worker_thread;    // Worker thread for async prompt
+    bool has_worker;            // True if worker_thread is valid
+    bool worker_cancelled;      // Signal cancellation to worker
+    pthread_mutex_t mutex;      // Protects session state
 } ACPSession;
 
 // Server state

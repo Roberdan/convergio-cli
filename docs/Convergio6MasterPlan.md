@@ -1,10 +1,12 @@
 # Execution Plan: Convergio 6.0 - Zed Integration
 
 **Created**: 2025-12-18
-**Last Updated**: 2025-12-20 20:40
-**Status**: ✅ MVP + POST-MVP COMPLETE - Release 0.1.0 Ready
+**Last Updated**: 2025-12-21
+**Status**: MVP COMPLETE - V6 IN PROGRESS (Stability, Performance, Release)
 **Version**: 0.1.0
 **Branch**: `feature/acp-zed-integration` (ConvergioCLI), `main` (convergio-zed)
+
+> **NEW**: See [Convergio_Zed_MasterPlanV6.md](convergio6/Convergio_Zed_MasterPlanV6.md) for Phase 11-17 (Stability, Background Fix, Ali Control Center, Performance, Release System, Editions)
 
 ---
 
@@ -93,7 +95,20 @@
 
 ## NEXT STEPS
 
-### Deferred
+### Active Work (V6 Plan)
+
+See [Convergio_Zed_MasterPlanV6.md](convergio6/Convergio_Zed_MasterPlanV6.md) for full details.
+
+| Phase | Priority | Status | Focus |
+|-------|----------|--------|-------|
+| PHASE 11 | P0 | Pending | Stability & Crash Fixes |
+| PHASE 12 | P1 | Pending | Background Execution Fix |
+| PHASE 13 | P1 | Pending | Ali Control Center (self-contained chat) |
+| PHASE 14 | P2 | Pending | Performance Optimization |
+| PHASE 15 | P2 | Pending | Release System (CLI + Zed fork) |
+| PHASE 16 | P3 | Pending | Edition Support (edu, enterprise) |
+
+### Deferred (Education Worktree)
 
 | ID | Task | Status | Note |
 |----|------|--------|------|

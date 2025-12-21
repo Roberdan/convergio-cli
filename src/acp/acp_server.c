@@ -184,6 +184,94 @@ static void handle_signal(int sig) {
     g_running = 0;
 }
 
+// Crash signal handler - attempt graceful cleanup
+static void handle_crash_signal(int sig) {
+    // Signal-safe write
+    const char* msg = "\n[ACP] Crash detected, cleaning up...\n";
+    (void)write(STDERR_FILENO, msg, strlen(msg));
+
+    // Re-raise with default handler for core dump
+    signal(sig, SIG_DFL);
+    raise(sig);
+}
+
+// Free all session resources (called on shutdown)
+static void cleanup_sessions(void) {
+    for (int i = 0; i < g_server.session_count; i++) {
+        ACPSession* session = &g_server.sessions[i];
+
+        // Cancel and join any active worker thread
+        if (session->has_worker) {
+            session->worker_cancelled = true;
+            pthread_join(session->worker_thread, NULL);
+            session->has_worker = false;
+        }
+
+        // Destroy session mutex
+        pthread_mutex_destroy(&session->mutex);
+
+        // Free message contents
+        for (int j = 0; j < session->message_count; j++) {
+            if (session->messages[j].content) {
+                free(session->messages[j].content);
+                session->messages[j].content = NULL;
+            }
+        }
+        session->message_count = 0;
+
+        // Free background buffer
+        if (session->background_buffer) {
+            free(session->background_buffer);
+            session->background_buffer = NULL;
+            session->background_buffer_len = 0;
+            session->background_buffer_cap = 0;
+        }
+
+        session->active = false;
+    }
+    g_server.session_count = 0;
+}
+
+// ============================================================================
+// ASYNC PROMPT PROCESSING (Phase 12 fix)
+// ============================================================================
+
+// Global mutex for thread-safe stdout writes
+static pthread_mutex_t g_stdout_mutex = PTHREAD_MUTEX_INITIALIZER;
+
+// Worker thread arguments
+typedef struct {
+    ACPSession* session;
+    char* prompt_text;
+    int request_id;
+    char* selected_agent;
+    char session_id[64];
+} PromptWorkerArgs;
+
+// Forward declaration
+static void process_prompt_internal(PromptWorkerArgs* args);
+
+// Worker thread function
+static void* prompt_worker_thread(void* arg) {
+    PromptWorkerArgs* args = (PromptWorkerArgs*)arg;
+
+    // Process the prompt (this is the blocking part)
+    process_prompt_internal(args);
+
+    // Mark session as no longer processing
+    pthread_mutex_lock(&args->session->mutex);
+    args->session->is_processing = false;
+    args->session->has_worker = false;
+    pthread_mutex_unlock(&args->session->mutex);
+
+    // Free worker args
+    if (args->prompt_text) free(args->prompt_text);
+    if (args->selected_agent) free(args->selected_agent);
+    free(args);
+
+    return NULL;
+}
+
 // ============================================================================
 // JSON-RPC RESPONSE HELPERS
 // ============================================================================
@@ -205,8 +293,12 @@ void acp_send_response(int id, const char* result_json) {
     }
 
     char* json = cJSON_PrintUnformatted(response);
+
+    // Thread-safe stdout write
+    pthread_mutex_lock(&g_stdout_mutex);
     fprintf(stdout, "%s\n", json);
     fflush(stdout);
+    pthread_mutex_unlock(&g_stdout_mutex);
 
     free(json);
     cJSON_Delete(response);
@@ -223,8 +315,12 @@ void acp_send_error(int id, int code, const char* message) {
     cJSON_AddItemToObject(response, "error", error);
 
     char* json = cJSON_PrintUnformatted(response);
+
+    // Thread-safe stdout write
+    pthread_mutex_lock(&g_stdout_mutex);
     fprintf(stdout, "%s\n", json);
     fflush(stdout);
+    pthread_mutex_unlock(&g_stdout_mutex);
 
     free(json);
     cJSON_Delete(response);
@@ -243,8 +339,12 @@ void acp_send_notification(const char* method, const char* params_json) {
     }
 
     char* json = cJSON_PrintUnformatted(notification);
+
+    // Thread-safe stdout write
+    pthread_mutex_lock(&g_stdout_mutex);
     fprintf(stdout, "%s\n", json);
     fflush(stdout);
+    pthread_mutex_unlock(&g_stdout_mutex);
 
     free(json);
     cJSON_Delete(notification);
@@ -476,6 +576,11 @@ static ACPSession* create_session(const char* cwd, const char* agent_name) {
     session->active = true;
     session->orchestrator_ctx = NULL;
     session->message_count = 0;
+
+    // Initialize async processing state
+    session->has_worker = false;
+    session->worker_cancelled = false;
+    pthread_mutex_init(&session->mutex, NULL);
 
     return session;
 }
@@ -1409,11 +1514,18 @@ int acp_server_run(void) {
     char line[ACP_MAX_LINE_LENGTH];
     size_t line_pos = 0;
 
-    // Setup signal handlers
+    // Setup signal handlers for graceful shutdown
     signal(SIGINT, handle_signal);
     signal(SIGTERM, handle_signal);
 
+    // Setup crash signal handlers for cleanup attempt
+    signal(SIGSEGV, handle_crash_signal);
+    signal(SIGABRT, handle_crash_signal);
+
     // Main loop - read JSON-RPC from stdin byte by byte
+    int eof_count = 0;
+    const int MAX_EOF_RETRIES = 10;  // Exit after 1 second of EOF
+
     while (g_running) {
         char c;
         ssize_t n = read(STDIN_FILENO, &c, 1);
@@ -1424,10 +1536,18 @@ int acp_server_run(void) {
         }
 
         if (n == 0) {
-            // EOF - wait a bit and retry (pipe might not be ready yet)
-            usleep(100000);
+            // EOF - parent process likely terminated
+            eof_count++;
+            if (eof_count >= MAX_EOF_RETRIES) {
+                // Too many consecutive EOFs, exit cleanly
+                break;
+            }
+            usleep(100000);  // Wait 100ms before retry
             continue;
         }
+
+        // Reset EOF counter on successful read
+        eof_count = 0;
 
         // Build line
         if (c == '\n') {
@@ -1457,6 +1577,9 @@ int acp_server_run(void) {
 }
 
 void acp_server_shutdown(void) {
+    // Clean up session memory (message contents, background buffers)
+    cleanup_sessions();
+
     memory_shutdown();
     orchestrator_shutdown();
     nous_shutdown();
