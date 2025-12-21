@@ -280,12 +280,14 @@ char* group_chat_get_summary(GroupChat* chat) {
     }
     
     size_t pos = 0;
-    pos += snprintf(summary + pos, summary_len - pos, "Group Chat Summary:\n");
-    
+    int written = snprintf(summary + pos, summary_len - pos, "Group Chat Summary:\n");
+    if (written > 0) pos += (size_t)written;
+
     for (size_t i = 0; i < chat->message_count && pos < summary_len - 1; i++) {
         if (chat->message_history[i] && chat->message_history[i]->content) {
-            pos += snprintf(summary + pos, summary_len - pos, "%s\n", 
+            written = snprintf(summary + pos, summary_len - pos, "%s\n",
                            chat->message_history[i]->content);
+            if (written > 0) pos += (size_t)written;
         }
     }
     

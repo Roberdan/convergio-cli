@@ -144,7 +144,7 @@ int workflow_execute_with_retry(
             
             // Wait before retry (exponential backoff)
             if (delay > 0) {
-                sleep(delay);
+                sleep((unsigned int)delay);
             }
             
             // Log retry attempt

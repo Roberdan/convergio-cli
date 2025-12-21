@@ -64,12 +64,20 @@ brew tap Roberdan/convergio-cli && brew install convergio
 │         Analyzes → Delegates → Coordinates → Synthesizes         │
 └─────────────────────────────────────────────────────────────────┘
                               │
+                              ▼
+┌─────────────────────────────────────────────────────────────────┐
+│              WORKFLOW ENGINE (v5.4)                              │
+│   State Machine → Task Decomposition → Checkpointing → Resume   │
+└─────────────────────────────────────────────────────────────────┘
+                              │
         ┌─────────────────────┼─────────────────────┐
         ▼                     ▼                     ▼
    ┌─────────┐          ┌─────────┐          ┌─────────┐
    │  Domik  │          │  Baccio │          │   Amy   │   ← PARALLEL
    │Strategy │          │  Tech   │          │ Finance │
    └─────────┘          └─────────┘          └─────────┘
+        │                     │                     │
+        ├─────────── GROUP CHAT (Debate) ──────────┤
         │                     │                     │
         └─────────────────────┴─────────────────────┘
                               │
@@ -80,7 +88,7 @@ brew tap Roberdan/convergio-cli && brew install convergio
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-**This is not a chatbot. This is a virtual consulting team.**
+**This is not a chatbot. This is a virtual consulting team with workflow orchestration.**
 
 ---
 
@@ -672,6 +680,13 @@ flowchart TB
         Conv["Convergence"]
     end
 
+    subgraph WORKFLOW["Workflow Engine (v5.4)"]
+        StateMachine["State Machine"]
+        TaskDecomp["Task Decomposer"]
+        GroupChat["Group Chat"]
+        Checkpoint["Checkpoint/Resume"]
+    end
+
     subgraph ROUTER["Intelligent Routing"]
         ModelRouter["Model Router"]
         CostOpt["Cost Optimizer"]
@@ -715,9 +730,12 @@ flowchart TB
     end
 
     UI --> ORCH
+    ORCH --> WORKFLOW
+    WORKFLOW --> ROUTER
     ORCH --> ROUTER
     ROUTER --> PROVIDERS
     ORCH --> AGENTS
+    WORKFLOW --> AGENTS
     AGENTS --> TOOLS
     TOOLS --> FABRIC
     FABRIC --> SILICON
@@ -729,6 +747,9 @@ flowchart TB
 |---------|-----------|-------------|------|------------------|-----------|
 | **Multi-Provider** | 6 providers | Claude only | Multi | OpenAI only | OpenAI only |
 | **Agents** | 54 specialists | Subagents | Single | Autocomplete | Single |
+| **Workflow Engine** | DAG + State Machine | None | None | None | None |
+| **Group Chat** | Multi-agent debate | None | None | None | None |
+| **Checkpointing** | Resume any point | None | None | None | None |
 | **Inter-Agent Comms** | Message Bus | None | None | None | None |
 | **Parallel Execution** | GCD native | Batched | Sequential | N/A | Sequential |
 | **Convergence** | Automatic | Manual | N/A | N/A | N/A |
