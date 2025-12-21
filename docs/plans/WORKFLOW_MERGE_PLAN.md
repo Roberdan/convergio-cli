@@ -1,6 +1,6 @@
 # Workflow-Orchestration Merge Plan
 
-**Last Updated**: 2025-12-21 | **Status**: ✅ PHASE 6 COMPLETE (64/65 tasks)
+**Last Updated**: 2025-12-21 | **Status**: ✅ ALL PHASES COMPLETE (68/68 tasks)
 
 ---
 
@@ -8,10 +8,10 @@
 
 | Stato | Tasks |
 |-------|-------|
-| ✅ Completati | 64 |
+| ✅ Completati | 68 |
 | ⏳ In corso | 0 |
 | ⬚ Da fare | 0 |
-| **Totale** | **65** |
+| **Totale** | **68** |
 
 ```
 ✅ PHASE 1: MERGE & BUILD ████████████████████ 100% (5/5)
@@ -222,11 +222,11 @@ make clean && make EDITION=education && make test && make education_test
 |---------|----------|------------|--------|
 | 🔧 REF-01 | 4 registries senza interfaccia comune | **FIX-11**: include/nous/registry.h | ✅ IMPLEMENTATO |
 | 🔧 REF-02 | 3 error types (Workflow, Provider, MLX) | **FIX-12**: include/nous/error.h + src/core/error.c | ✅ IMPLEMENTATO |
-| 🔧 REF-03 | Config Loading (TOML+JSON+env+Keychain) | Backlog | ⬚ FUTURO |
-| 🔧 REF-04 | Telemetry (no metrics layer) | Backlog | ⬚ FUTURO |
+| 🔧 REF-03 | Config Loading (TOML+JSON+env+Keychain) | **FIX-15**: config_orchestrator.h/.c | ✅ IMPLEMENTATO |
+| 🔧 REF-04 | Telemetry (no metrics layer) | **FIX-16**: metrics.h/.c | ✅ IMPLEMENTATO |
 | 🔧 REF-05 | 29 files usano fprintf vs nous_log() | **FIX-13**: Convertiti core files a LOG_* | ✅ IMPLEMENTATO |
-| 🔧 REF-06 | Test infrastructure (31 files, no framework) | Backlog | ⬚ FUTURO |
-| 🔧 REF-07 | Build system cleanup | Backlog | ⬚ FUTURO |
+| 🔧 REF-06 | Test infrastructure (31 files, no framework) | **FIX-17**: test_utils.h | ✅ IMPLEMENTATO |
+| 🔧 REF-07 | Build system cleanup | **FIX-18**: Makefile.test | ✅ IMPLEMENTATO |
 | 🔧 REF-08 | Agent lookup O(n) per 72 agents | **FIX-14**: LRU cache / hash table | ✅ IMPLEMENTATO |
 
 ---

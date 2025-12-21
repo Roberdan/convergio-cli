@@ -188,6 +188,7 @@ C_SOURCES = $(SRC_DIR)/core/fabric.c \
             $(SRC_DIR)/core/main.c \
             $(SRC_DIR)/core/signals.c \
             $(SRC_DIR)/core/error.c \
+            $(SRC_DIR)/core/config_orchestrator.c \
             $(SRC_DIR)/core/repl.c \
             $(SRC_DIR)/core/edition.c \
             $(SRC_DIR)/core/commands/commands.c \
@@ -247,6 +248,7 @@ C_SOURCES = $(SRC_DIR)/core/fabric.c \
             $(SRC_DIR)/telemetry/telemetry.c \
             $(SRC_DIR)/telemetry/consent.c \
             $(SRC_DIR)/telemetry/export.c \
+            $(SRC_DIR)/telemetry/metrics.c \
             $(SRC_DIR)/agentic/tool_detector.c \
             $(SRC_DIR)/agentic/tool_installer.c \
             $(SRC_DIR)/agentic/approval.c \
