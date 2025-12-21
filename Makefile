@@ -1149,6 +1149,16 @@ format-check:
 		echo "✅ PASSED: All files properly formatted"; \
 	fi
 
+# ============================================================================
+# CODE COMPLEXITY METRICS
+# ============================================================================
+
+complexity-check:
+	@echo "╔══════════════════════════════════════════════════════════════╗"
+	@echo "║          CODE COMPLEXITY ANALYSIS                            ║"
+	@echo "╚══════════════════════════════════════════════════════════════╝"
+	@./scripts/complexity_check.sh
+
 # Cache statistics
 cache-stats:
 	@echo "=== Build Cache Statistics ==="
