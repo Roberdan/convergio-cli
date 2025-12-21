@@ -330,6 +330,74 @@ int task_resolve_dependencies(DecomposedTask* tasks, size_t task_count) {
 }
 
 // ============================================================================
+// TOPOLOGICAL SORT (Kahn's Algorithm) - Helper Functions
+// ============================================================================
+
+// Find task index by ID
+static size_t find_task_index_by_id(DecomposedTask* tasks, size_t task_count, uint64_t task_id) {
+    for (size_t i = 0; i < task_count; i++) {
+        if (tasks[i].task_id == task_id) {
+            return i;
+        }
+    }
+    return SIZE_MAX;
+}
+
+// Calculate in-degrees for all tasks
+static int calculate_in_degrees(DecomposedTask* tasks, size_t task_count, size_t* in_degree) {
+    for (size_t i = 0; i < task_count; i++) {
+        in_degree[i] = 0;
+    }
+    
+    for (size_t i = 0; i < task_count; i++) {
+        for (size_t j = 0; j < tasks[i].prerequisite_count; j++) {
+            uint64_t prereq_id = tasks[i].prerequisite_ids[j];
+            size_t prereq_idx = find_task_index_by_id(tasks, task_count, prereq_id);
+            if (prereq_idx != SIZE_MAX) {
+                in_degree[prereq_idx]++;
+            }
+        }
+    }
+    
+    return 0;
+}
+
+// Initialize queue with tasks that have no prerequisites
+static int initialize_queue(DecomposedTask* tasks, size_t task_count, 
+                           size_t* in_degree, uint64_t* queue, size_t* queue_back) {
+    *queue_back = 0;
+    for (size_t i = 0; i < task_count; i++) {
+        if (in_degree[i] == 0) {
+            queue[(*queue_back)++] = tasks[i].task_id;
+        }
+    }
+    return 0;
+}
+
+// Reduce in-degree of tasks that depend on current task
+static void reduce_dependent_in_degrees(DecomposedTask* tasks, size_t task_count,
+                                       uint64_t current_id, size_t* in_degree,
+                                       uint64_t* queue, size_t* queue_back) {
+    for (size_t i = 0; i < task_count; i++) {
+        // Check if this task depends on current_id
+        bool depends_on_current = false;
+        for (size_t j = 0; j < tasks[i].prerequisite_count; j++) {
+            if (tasks[i].prerequisite_ids[j] == current_id) {
+                depends_on_current = true;
+                break;
+            }
+        }
+        
+        if (depends_on_current && in_degree[i] > 0) {
+            in_degree[i]--;
+            if (in_degree[i] == 0) {
+                queue[(*queue_back)++] = tasks[i].task_id;
+            }
+        }
+    }
+}
+
+// ============================================================================
 // TOPOLOGICAL SORT (Kahn's Algorithm)
 // ============================================================================
 
@@ -345,98 +413,40 @@ int task_topological_sort(
     
     *out_count = 0;
     
-    // Count incoming edges for each task
+    // Allocate in-degree array
     size_t* in_degree = calloc(task_count, sizeof(size_t));
     if (!in_degree) {
         return -1;
     }
     
-    // Build task ID to index map
-    uint64_t* id_to_idx = calloc(task_count, sizeof(uint64_t));
-    if (!id_to_idx) {
+    // Calculate in-degrees
+    if (calculate_in_degrees(tasks, task_count, in_degree) != 0) {
         free(in_degree);
         return -1;
     }
     
-    for (size_t i = 0; i < task_count; i++) {
-        id_to_idx[i] = tasks[i].task_id;
-    }
-    
-    // Calculate in-degrees
-    for (size_t i = 0; i < task_count; i++) {
-        for (size_t j = 0; j < tasks[i].prerequisite_count; j++) {
-            uint64_t prereq_id = tasks[i].prerequisite_ids[j];
-            for (size_t k = 0; k < task_count; k++) {
-                if (tasks[k].task_id == prereq_id) {
-                    in_degree[k]++;
-                    break;
-                }
-            }
-        }
-    }
-    
-    // Find tasks with no prerequisites (in-degree = 0)
+    // Initialize queue with tasks that have no prerequisites
     uint64_t* queue = calloc(task_count, sizeof(uint64_t));
     size_t queue_front = 0;
     size_t queue_back = 0;
     
     if (!queue) {
         free(in_degree);
-        free(id_to_idx);
         return -1;
     }
     
-    for (size_t i = 0; i < task_count; i++) {
-        if (in_degree[i] == 0) {
-            queue[queue_back++] = tasks[i].task_id;
-        }
-    }
+    initialize_queue(tasks, task_count, in_degree, queue, &queue_back);
     
     // Process queue
     while (queue_front < queue_back) {
         uint64_t current_id = queue[queue_front++];
         sorted_ids[(*out_count)++] = current_id;
         
-        // Find current task and reduce in-degree of dependents
-        size_t current_idx = SIZE_MAX;
-        for (size_t i = 0; i < task_count; i++) {
-            if (tasks[i].task_id == current_id) {
-                current_idx = i;
-                break;
-            }
-        }
-        
-        if (current_idx == SIZE_MAX) {
-            continue;
-        }
-        
         // Reduce in-degree of tasks that depend on current
-        for (size_t i = 0; i < task_count; i++) {
-            for (size_t j = 0; j < tasks[i].prerequisite_count; j++) {
-                if (tasks[i].prerequisite_ids[j] == current_id) {
-                    // Find index of task i
-                    size_t dep_idx = SIZE_MAX;
-                    for (size_t k = 0; k < task_count; k++) {
-                        if (tasks[k].task_id == tasks[i].task_id) {
-                            dep_idx = k;
-                            break;
-                        }
-                    }
-                    
-                    if (dep_idx != SIZE_MAX && in_degree[dep_idx] > 0) {
-                        in_degree[dep_idx]--;
-                        if (in_degree[dep_idx] == 0) {
-                            queue[queue_back++] = tasks[dep_idx].task_id;
-                        }
-                    }
-                    break;
-                }
-            }
-        }
+        reduce_dependent_in_degrees(tasks, task_count, current_id, in_degree, queue, &queue_back);
     }
     
     free(in_degree);
-    free(id_to_idx);
     free(queue);
     
     // Check if all tasks were sorted (no cycles)
