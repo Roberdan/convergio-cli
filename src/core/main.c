@@ -27,7 +27,6 @@
 #include "nous/plan_db.h"
 #include "nous/output_service.h"
 #include "nous/telemetry.h"
-#include "nous/edition.h"
 #include "../auth/oauth.h"
 #include <stdio.h>
 #include <stdlib.h>
