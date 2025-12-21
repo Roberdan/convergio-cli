@@ -437,6 +437,46 @@ API keys can be configured via:
 
 ---
 
+## Editions
+
+Convergio is available in multiple editions, each focused on specific use cases:
+
+| Edition | Agents | Target Audience | Installation |
+|---------|--------|-----------------|--------------|
+| **Master** | 60+ | Developers, power users | `brew install convergio` |
+| **Education** | 18 | Students, teachers | `brew install convergio-edu` |
+| **Business** | 10 | SMBs, sales teams | `--edition business` |
+| **Developer** | 10 | DevOps, tech leads | `--edition developer` |
+
+### Switching Editions at Runtime
+
+```bash
+# Via CLI flag
+convergio --edition business
+
+# Via environment variable
+export CONVERGIO_EDITION=developer
+convergio
+
+# Via config.toml
+# Add to ~/.convergio/config.toml:
+# [ui]
+# edition = "business"
+```
+
+**Note:** Education edition requires a dedicated binary (`convergio-edu`) for child safety compliance. It cannot be switched at runtime.
+
+### Building Specific Editions
+
+```bash
+make                      # Master (default)
+make EDITION=education    # Education (outputs convergio-edu)
+make EDITION=business     # Business (outputs convergio-biz)
+make EDITION=developer    # Developer (outputs convergio-dev)
+```
+
+---
+
 ## Commands Reference
 
 ### Core Commands

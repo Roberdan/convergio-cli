@@ -11,6 +11,7 @@
 #include "nous/orchestrator.h"
 #include "nous/tools.h"
 #include "nous/config.h"
+#include "nous/edition.h"
 #include "nous/hardware.h"
 #include "nous/updater.h"
 #include "nous/theme.h"
@@ -264,6 +265,14 @@ int main(int argc, char** argv) {
         } else if ((strcmp(argv[i], "--model") == 0 || strcmp(argv[i], "-m") == 0) && i + 1 < argc) {
             strncpy(g_mlx_model, argv[++i], sizeof(g_mlx_model) - 1);
             g_mlx_model[sizeof(g_mlx_model) - 1] = '\0';
+        } else if ((strcmp(argv[i], "--edition") == 0 || strcmp(argv[i], "-e") == 0) && i + 1 < argc) {
+            const char* ed = argv[++i];
+            if (!edition_set_by_name(ed)) {
+                fprintf(stderr, "Error: Cannot set edition to '%s'\n", ed);
+                fprintf(stderr, "Valid editions: master, business, developer\n");
+                fprintf(stderr, "(Education edition requires dedicated binary)\n");
+                return 1;
+            }
         } else if (strcmp(argv[i], "--help") == 0 || strcmp(argv[i], "-h") == 0) {
             printf("Convergio — Human purpose. AI momentum.\n\n");
             printf("Usage: convergio [OPTIONS] [COMMAND]\n\n");
@@ -272,6 +281,7 @@ int main(int argc, char** argv) {
             printf("  update [check|install]  Check for or install updates\n\n");
             printf("Options:\n");
             printf("  -w, --workspace <path>  Set workspace directory (default: current dir)\n");
+            printf("  -e, --edition <name>    Set edition (master, business, developer)\n");
             printf("  -l, --local             Use MLX local models (Apple Silicon only)\n");
             printf("  -m, --model <model>     Specify model (e.g., llama-3.2-3b, deepseek-r1-7b)\n");
             printf("  -d, --debug             Enable debug logging\n");
@@ -279,6 +289,12 @@ int main(int argc, char** argv) {
             printf("  -q, --quiet             Suppress non-error output\n");
             printf("  -v, --version           Show version\n");
             printf("  -h, --help              Show this help message\n\n");
+            printf("Editions:\n");
+            printf("  master     All 60+ agents (default)\n");
+            printf("  business   Business, sales, marketing agents\n");
+            printf("  developer  Code review, DevOps, security agents\n");
+            printf("  education  Requires dedicated binary (convergio-edu)\n\n");
+            printf("  Can also set via CONVERGIO_EDITION env var or edition in config.toml\n\n");
             printf("Local Models (MLX):\n");
             printf("  Convergio supports 100%% offline operation using MLX on Apple Silicon.\n");
             printf("  Use /setup -> Local Models to download models, or:\n");

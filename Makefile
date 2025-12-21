@@ -5,6 +5,24 @@
 # Version management
 VERSION := $(shell cat VERSION 2>/dev/null || echo "0.0.0")
 
+# Edition support (master, education, business, developer)
+# Usage: make EDITION=education
+EDITION ?= master
+
+ifeq ($(EDITION),education)
+    EDITION_CFLAGS = -DCONVERGIO_EDITION_EDUCATION
+    EDITION_SUFFIX = -edu
+else ifeq ($(EDITION),business)
+    EDITION_CFLAGS = -DCONVERGIO_EDITION_BUSINESS
+    EDITION_SUFFIX = -biz
+else ifeq ($(EDITION),developer)
+    EDITION_CFLAGS = -DCONVERGIO_EDITION_DEVELOPER
+    EDITION_SUFFIX = -dev
+else
+    EDITION_CFLAGS =
+    EDITION_SUFFIX =
+endif
+
 # Compiler settings
 CC = clang
 OBJC = clang
@@ -27,7 +45,8 @@ CFLAGS = $(ARCH_FLAGS) \
          -I./include \
          -I/opt/homebrew/include \
          -I$(READLINE_PREFIX)/include \
-         -DCONVERGIO_VERSION=\"$(VERSION)\"
+         -DCONVERGIO_VERSION=\"$(VERSION)\" \
+         $(EDITION_CFLAGS)
 
 OBJCFLAGS = $(CFLAGS) -fobjc-arc
 
@@ -98,6 +117,7 @@ C_SOURCES = $(SRC_DIR)/core/fabric.c \
             $(SRC_DIR)/core/stream_md.c \
             $(SRC_DIR)/core/theme.c \
             $(SRC_DIR)/core/config.c \
+            $(SRC_DIR)/core/edition.c \
             $(SRC_DIR)/core/updater.c \
             $(SRC_DIR)/core/safe_path.c \
             $(SRC_DIR)/intent/parser.c \
@@ -174,8 +194,8 @@ OBJECTS = $(C_OBJECTS) $(OBJC_OBJECTS)
 METAL_AIR = $(BUILD_DIR)/similarity.air
 METAL_LIB = $(BUILD_DIR)/similarity.metallib
 
-# Target
-TARGET = $(BIN_DIR)/convergio
+# Target (with edition suffix)
+TARGET = $(BIN_DIR)/convergio$(EDITION_SUFFIX)
 
 # Notification helper app
 NOTIFY_HELPER_SRC = $(SRC_DIR)/notifications/helper/main.swift
