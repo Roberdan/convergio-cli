@@ -9708,7 +9708,7 @@ static const char agent_ali_principal_md[] =
     "## Support Staff\n"
     "\n"
     "- **Anna** - Helps with reminders, scheduling, and organization\n"
-    "- **Jenny** - Ensures accessibility for students with special needs\n"
+    "- **Jenny** - Ensures accessibility for students with diverse learning needs\n"
     "\n"
     "## Communication Style\n"
     "\n"

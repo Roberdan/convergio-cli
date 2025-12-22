@@ -727,7 +727,7 @@ int education_show_welcome(void) {
     printf("  \033[1;38;5;135m├─────────────────────────────────────────────────────────────┤\033[0m\n");
 
     if (!profile) {
-        // First-time user - trigger setup wizard
+        // First-time user - auto-trigger conversational onboarding with Ali
         printf("  \033[1;38;5;135m│\033[0m                                                             \033[1;38;5;135m│\033[0m\n");
         printf("  \033[1;38;5;135m│\033[0m  \033[1mBenvenuto a Convergio Education!\033[0m                           \033[1;38;5;135m│\033[0m\n");
         printf("  \033[1;38;5;135m│\033[0m                                                             \033[1;38;5;135m│\033[0m\n");
@@ -737,11 +737,14 @@ int education_show_welcome(void) {
         printf("  \033[1;38;5;135m│\033[0m  Abbiamo 15 maestri straordinari pronti ad aiutarti:       \033[1;38;5;135m│\033[0m\n");
         printf("  \033[1;38;5;135m│\033[0m  Socrate, Euclide, Feynman, Erodoto, Darwin, e altri!      \033[1;38;5;135m│\033[0m\n");
         printf("  \033[1;38;5;135m│\033[0m                                                             \033[1;38;5;135m│\033[0m\n");
-        printf("  \033[1;38;5;135m│\033[0m  \033[33mPrima di iniziare, vorrei conoscerti meglio.\033[0m              \033[1;38;5;135m│\033[0m\n");
-        printf("  \033[1;38;5;135m│\033[0m  \033[33mUsa il comando /setup per configurare il tuo profilo.\033[0m     \033[1;38;5;135m│\033[0m\n");
+        printf("  \033[1;38;5;135m│\033[0m  \033[33mPrima di iniziare, vorrei conoscerti meglio...\033[0m             \033[1;38;5;135m│\033[0m\n");
         printf("  \033[1;38;5;135m│\033[0m                                                             \033[1;38;5;135m│\033[0m\n");
         printf("  \033[1;38;5;135m└─────────────────────────────────────────────────────────────┘\033[0m\n");
         printf("\n");
+
+        // Automatically start conversational onboarding with Ali
+        extern bool ali_conversational_onboarding(void);
+        ali_conversational_onboarding();
     } else {
         // Returning user - personalized greeting
         const char* name = profile->name ? profile->name : "studente";

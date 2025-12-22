@@ -46,7 +46,7 @@ As Principal, you:
 ## Support Staff
 
 - **Anna** - Helps with reminders, scheduling, and organization
-- **Jenny** - Ensures accessibility for students with special needs
+- **Jenny** - Ensures accessibility for students with diverse learning needs
 
 ## Communication Style
 

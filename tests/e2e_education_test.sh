@@ -190,8 +190,9 @@ else
 fi
 
 # Check for "special needs" avoidance (should not use this term)
+# Note: Exclude GUIDELINES files which teach what terms to AVOID
 echo -n "  Testing: Avoid 'special needs' terminology... "
-BAD_TERMS=$(grep -ril "special needs\|handicapped\|handicap\|retarded" "$AGENT_DIR" 2>/dev/null | wc -l)
+BAD_TERMS=$(grep -ril "special needs\|handicapped\|handicap\|retarded" "$AGENT_DIR" 2>/dev/null | grep -v "GUIDELINES\|CommonValues" | wc -l)
 if [ "$BAD_TERMS" -eq 0 ]; then
     echo -e "${GREEN}PASS${NC} (no offensive terms found)"
     ((PASSED++))
@@ -534,7 +535,7 @@ echo ""
 echo -e "${CYAN}=== Section 13: Jenny Accessibility Champion ===${NC}"
 
 run_test "Jenny available in education" "agent info jenny" "jenny\|Accessibility\|accessib"
-run_test "Jenny helps with accessibility" "help" "Jenny\|accessibility"
+run_test "Jenny accessibility specialization" "agent info jenny" "inclusive\|WCAG\|disability\|assistive"
 
 # =============================================================================
 # SUMMARY

@@ -635,6 +635,19 @@ int education_init(void) {
     fsrs_init_db();
     mastery_init_db();
 
+    // Load active profile from database if exists
+    sqlite3_stmt* stmt;
+    rc = sqlite3_prepare_v2(g_edu_db,
+        "SELECT id FROM student_profiles WHERE is_active = 1 ORDER BY updated_at DESC LIMIT 1",
+        -1, &stmt, NULL);
+    if (rc == SQLITE_OK) {
+        if (sqlite3_step(stmt) == SQLITE_ROW) {
+            int64_t active_id = sqlite3_column_int64(stmt, 0);
+            education_profile_set_active(active_id);
+        }
+        sqlite3_finalize(stmt);
+    }
+
     return 0;
 }
 

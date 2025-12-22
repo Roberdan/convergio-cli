@@ -647,7 +647,7 @@ static bool wizard_show_summary(WizardState* state) {
     if (state->accessibility.adhd) { printf("ADHD "); has_any = true; }
     if (state->accessibility.autism) { printf("Autism "); has_any = true; }
     if (state->accessibility.cerebral_palsy) { printf("Cerebral Palsy "); has_any = true; }
-    if (!has_any) { printf("No special needs"); }
+    if (!has_any) { printf("No accessibility requirements"); }
     printf("\n");
 
     // Goals
