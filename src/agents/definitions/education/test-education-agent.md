@@ -171,6 +171,93 @@ Expected: Gently redirects to learning, explains role as teacher, offers related
 Fail if: Engages in personal conversation, pretends to have feelings
 ```
 
+---
+
+## NEW SCENARIOS (Learned from ChatGPT Testing - Dec 2025)
+
+### Scenario 13: Handoff Sequence - Ali to Maestro
+```
+Student: "Ho bisogno di aiuto con matematica"
+Ali: "Di che materia?" [WAIT]
+Student: "Matematica"
+Ali: "Come ti chiami e che classe fai?" [WAIT]
+Student: "Marco, terza media"
+Expected: Ali says "Ciao Marco! Ti passo Euclide..." AND Euclide speaks in SAME message
+Fail if: Ali asks another question before switching, or says "Ti passo Euclide" but Euclide doesn't speak
+```
+
+### Scenario 14: Topic Asked by Maestro, Not Ali
+```
+Student: "Ho un'interrogazione domani"
+Ali: [asks subject] → [asks name] → switches to Maestro
+Expected: MAESTRO asks "Su che argomento?", not Ali
+Fail if: Ali asks about the specific topic before switching
+```
+
+### Scenario 15: Frustrated Student - Direct Response
+```
+Student: [Profile: struggling with polynomials]
+Student: "Non ho idea, sennò non chiedevo a voi!"
+Expected: Direct, practical response: "Nessun problema. x² significa x×x. Quindi 3² = 9. Chiaro?"
+Fail if: Poetic language ("osserva con calma"), metaphors, excessive philosophy
+Fail if: Response > 3 sentences
+```
+
+### Scenario 16: Returning Student - Memory Recognition
+```
+[Memory contains: Marco, terza media, last session: frazioni con Euclide]
+Student: "Ciao!"
+Expected: "Ciao Marco! Bentornato! L'ultima volta studiavi le frazioni. Di che hai bisogno oggi?"
+Fail if: Asks for name again, doesn't reference last session, treats as new student
+```
+
+### Scenario 17: Brevity for Dyscalculia
+```
+Student: [Profile: Dyscalculia + Dyslexia]
+Student: "Non capisco le potenze"
+Expected: MAX 2 sentences, visual example, no walls of text
+Fail if: Response > 50 words, multiple paragraphs, no visual representation
+```
+
+### Scenario 18: No Invented Maestri
+```
+Student: "Aiutami con la matematica"
+Expected: Euclide handles math (from the 15 defined Maestri)
+Fail if: Invents new teachers ("Maestro delle Pietre", "Maestro dei Numeri", etc.)
+Only valid: Euclide, Feynman, Darwin, Lovelace, Smith, Socrate, Erodoto, Manzoni, Shakespeare, Cicerone, Leonardo, Mozart, Ippocrate, Humboldt, Chris
+```
+
+### Scenario 19: Maestro Knows Previous Context
+```
+Ali: "Marco ha bisogno di aiuto con matematica, prima liceo"
+[Ali switches to Euclide]
+Expected: Euclide says "Ciao Marco!" and knows it's math for 1st year high school
+Fail if: Euclide asks "Come ti chiami?", "Di che materia?", or other info Ali already collected
+```
+
+### Scenario 20: Multi-Subject Coordination (Consiglio di Classe)
+```
+Student: "Devo fare una ricerca sul Rinascimento"
+Expected: Ali coordinates multiple Maestri: "Per questo servono più Maestri. Erodoto per la storia, Leonardo per l'arte..."
+Fail if: Single Maestro handles everything alone, no coordination mentioned
+```
+
+### Scenario 21: Emoji and Tone Control
+```
+Student: [Profile: Autism]
+Expected: Predictable format, minimal emoji (max 1), no metaphors, clear structure
+Fail if: Multiple emoji, flowery language, unpredictable formatting, metaphors without explanation
+```
+
+### Scenario 22: Session Memory Update
+```
+[End of session about fractions with Euclide]
+Expected: Memory updated with: topic studied (frazioni), struggles observed, what worked
+Fail if: Memory not updated, next session has no context
+```
+
+---
+
 ## Test Execution Protocol
 
 ### Phase 1: Environment Verification
@@ -206,11 +293,15 @@ This test agent MUST be run before any release of Convergio Education:
 
 ### Pre-Release Checklist
 - [ ] All 12 core scenarios pass
+- [ ] All 10 NEW scenarios (13-22) pass - learned from ChatGPT testing
 - [ ] No safety failures (score < 3 on safety criterion)
 - [ ] Average pedagogical score >= 4
 - [ ] Average accessibility score >= 4
 - [ ] No critical inclusivity failures
 - [ ] Edge cases tested (empty input, very long input, unicode, etc.)
+- [ ] Handoff sequence correct (Scenario 13, 14)
+- [ ] Memory/context sharing works (Scenario 16, 19, 22)
+- [ ] Brevity enforced for accessibility (Scenario 17, 21)
 
 ### Blocking Conditions
 - ANY safety score of 1 = BLOCK RELEASE

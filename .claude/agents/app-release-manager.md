@@ -193,9 +193,11 @@ Phase 2: PARALLEL WAVE 2 - QUALITY & TESTS (spawn ALL at once)
 ├── Sub-agent B1: Code Quality (TODO/FIXME, debug prints)
 ├── Sub-agent B2: Unit Tests (make test - includes fuzz, unit, anna, compaction, plan_db, output_service)
 ├── Sub-agent B3: E2E Tests (./tests/e2e_test.sh) ← NOW GUARANTEED FRESH
-├── Sub-agent B4: Education Tests (make education_test - school scenarios) ⚠️ BLOCKING
-├── Sub-agent B5: Fuzz Tests
-└── Sub-agent B6: Documentation Completeness
+├── Sub-agent B4: Education Unit Tests (make education_test - school scenarios) ⚠️ BLOCKING
+├── Sub-agent B5: Education E2E Tests (./tests/e2e_education_test.sh) ⚠️ BLOCKING
+├── Sub-agent B6: Education LLM Tests (./tests/education_llm_test.sh) ⚠️ BLOCKING - natural language quality
+├── Sub-agent B8: Fuzz Tests
+└── Sub-agent B9: Documentation Completeness
 
 Phase 2: PARALLEL WAVE 3 - HARDWARE & HYGIENE (spawn ALL at once)
 ├── Sub-agent C1: Apple Silicon Freshness (WebSearch latest specs)
@@ -623,12 +625,16 @@ FORMAT: JSON {"status": "PASS|FAIL", "todos": N, "debug_prints": [...], "comment
 FAST TEST RUN - Convergio CLI:
 1. Run: cd /Users/roberdan/GitHub/ConvergioCLI && make test 2>&1 | tee /tmp/test.log
 2. Check for failures: grep -i "FAIL\|ERROR\|failed" /tmp/test.log
-3. Run Education Tests: make education_test 2>&1 | tee /tmp/education.log
+3. Run Education Unit Tests: make education_test 2>&1 | tee /tmp/education.log
 4. Check Education results (MUST show "Passed: 9, Failed: 0")
 5. Run E2E: ./tests/e2e_test.sh 2>&1 | tee /tmp/e2e.log
 6. Check E2E results: grep "FAILED" /tmp/e2e.log
-7. Return: PASS/FAIL with test counts
-FORMAT: JSON {"status": "PASS|FAIL", "unit_passed": N, "unit_failed": N, "education_passed": 9, "education_failed": 0, "e2e_passed": N, "e2e_failed": N}
+7. Run Education E2E: ./tests/e2e_education_test.sh 2>&1 | tee /tmp/edu_e2e.log ⚠️ BLOCKING
+8. Check Education E2E results (MUST be >= 95% pass rate, ~54 tests)
+9. Run Education LLM: ./tests/education_llm_test.sh 2>&1 | tee /tmp/edu_llm.log ⚠️ BLOCKING
+10. Check Education LLM results (ALL ~21 tests must pass - safety, pedagogy, accessibility)
+11. Return: PASS/FAIL with test counts
+FORMAT: JSON {"status": "PASS|FAIL", "unit_passed": N, "unit_failed": N, "education_unit": 9, "education_e2e": N, "education_llm": N, "e2e_passed": N, "e2e_failed": N}
 ```
 
 #### Wave 3A: AI Model Freshness Sub-Agent (WebSearch Required)
@@ -2090,7 +2096,9 @@ After creating GitHub Release:
 - [ ] CHANGELOG.md updated with all changes
 - [ ] **ZERO WARNINGS** (BLOCKING): `make clean && make DEBUG=1 2>&1 | grep -c "warning:"` MUST be 0
 - [ ] ALL TESTS PASS: `make test` (fuzz + unit + anna + education tests)
-- [ ] EDUCATION TESTS PASS: `make education_test` (school scenarios: Mario, Sofia, Luca, Giulia) ⚠️ BLOCKING
+- [ ] EDUCATION UNIT TESTS PASS: `make education_test` (school scenarios: Mario, Sofia, Luca, Giulia) ⚠️ BLOCKING
+- [ ] EDUCATION E2E TESTS PASS: `./tests/e2e_education_test.sh` (~54 tests, >= 95%) ⚠️ BLOCKING
+- [ ] EDUCATION LLM TESTS PASS: `./tests/education_llm_test.sh` (~21 tests - safety, pedagogy, accessibility) ⚠️ BLOCKING
 - [ ] E2E TESTS PASS: `./tests/e2e_test.sh` (real API tests) ⚠️ BLOCKING
 - [ ] Debug build works: `make debug`
 - [ ] Static analysis clean: check clang-tidy output
