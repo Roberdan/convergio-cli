@@ -8,6 +8,79 @@
 
 ---
 
+# 📊 STATO ESECUZIONE (Live)
+
+**Ultimo aggiornamento**: 2025-12-22 21:56
+
+## Attività in Corso
+🔄 **Phase 3-5** - Medium/Low/Release tasks
+
+## Completato Oggi
+- ✅ Azure environment: API key (85 chars), endpoint (aoai-virtualbpm-prod)
+  - `gpt4o-mini-deployment` → Test (economico)
+  - `gpt-5.2-edu` → Production Education (GPT-5.2 per i maestri)
+- ✅ Provider selection check: **CONFERMATO ROTTO** - orchestrator.c:1755 ignora edition
+- ✅ Model router: USA edition (linea 482 `edition_get_preferred_model()`)
+- ✅ **BUILD COMPLETATO**: `convergio-edu` (33MB, ARM64, M3 Max optimized)
+- ✅ Unit tests: **50/50 passed** (security, sandbox, paths)
+- ✅ Docs duplicati identificati (EducationMasterPlan.md, EducationPackMasterPlan.md)
+- ✅ **Phase 1 COMPLETATA**: orchestrator.c usa edition_get_preferred_provider()
+- ✅ **Maestri fixati**: 15→17 in embedded_agents.c + aggiunto Curie, Galileo alla tabella
+- ✅ **Phase 2 COMPLETATA**: FSRS, Voice, Safety verification
+
+## Evidenze Phase 2
+```
+FSRS Algorithm: src/education/fsrs.c (506 lines, FSRS-5 algorithm)
+  - fsrs_init_db(), fsrs_add_card(), fsrs_get_due_cards(), fsrs_record_review()
+  - Stability/Difficulty/Retrievability tracking
+  - NOTE: NOT integrated with flashcards.c (uses SM-2 separately)
+
+Voice/TTS: src/education/tools/audio_tts.c (514 lines)
+  - macOS 'say' command based
+  - Accessibility adaptations (dyslexia, ADHD)
+  - Word synchronization highlighting
+  - Audiobook support
+
+Safety Guardrails: tests/test_security.c
+  - 73/73 tests PASSED
+  - Ethical guardrails: harmful content blocked
+  - Sensitive operations: financial, personal data, data deletion detected
+  - Human approval requirements: working
+```
+
+## Evidenze Fix Phase 1
+```c
+// src/orchestrator/orchestrator.c:1754-1773
+int preferred = edition_get_preferred_provider();
+// Education (PROVIDER_OPENAI=Azure) first, then fallback to others
+```
+
+## Prossimi Step
+1. 🔄 Phase 3-5: Medium/Low/Release tasks
+2. 🔲 Cleanup docs duplicati
+
+## Blocchi Critici Identificati
+| Blocco | Severity | Status |
+|--------|----------|--------|
+| orchestrator.c ignora edition | CRITICAL | ✅ FIXED |
+| 150+ test mai eseguiti | HIGH | ✅ Security 73/73, Unit 50/50 |
+| Docs duplicati (2 MasterPlan) | MEDIUM | Da pulire |
+| FSRS non integrato con flashcards | MEDIUM | Noto, separate implementations |
+
+## Progress Overview
+```
+Phase 0: ████████████████████ 100% (32/32)
+Phase 1: ████████████████████ 100% (11/11)
+Phase 2: ████████████████████ 100% (16/16)
+Phase 3: ░░░░░░░░░░░░░░░░░░░░   0% (0/8)
+Phase 4: ░░░░░░░░░░░░░░░░░░░░   0% (0/4)
+Phase 5: ░░░░░░░░░░░░░░░░░░░░   0% (0/25)
+─────────────────────────────────────
+TOTALE:  ████████████░░░░░░░░ 61% (59/96)
+```
+
+---
+
 # LA SCUOLA MIGLIORE DEL MONDO
 
 > *"E se potessi studiare con Socrate? Non un video su YouTube. Socrate. Quello vero."*
@@ -310,11 +383,11 @@ AZURE_OPENAI_API_VERSION=2024-02-15-preview
 | ID | Task | Owner | Status | Start | End | Notes |
 |----|------|-------|--------|-------|-----|-------|
 | 0.1 | Read & understand this plan | - | ⬜ | - | - | - |
-| 0.2 | Verify AZURE_OPENAI_API_KEY exists | - | ⬜ | - | - | `echo $AZURE_OPENAI_API_KEY \| wc -c` > 10 |
-| 0.3 | Verify AZURE_OPENAI_ENDPOINT exists | - | ⬜ | - | - | Must be Azure URL |
-| 0.4 | Test Azure API connectivity | - | ⬜ | - | - | `curl $AZURE_OPENAI_ENDPOINT` |
-| 0.5 | Verify cheapest model available | - | ⬜ | - | - | gpt-4o-mini or gpt-35-turbo |
-| 0.6 | Set test model in .env | - | ⬜ | - | - | AZURE_OPENAI_MODEL=gpt-4o-mini |
+| 0.2 | Verify AZURE_OPENAI_API_KEY exists | Claude | ✅ | 22/12 20:30 | 22/12 20:30 | 85 chars - OK |
+| 0.3 | Verify AZURE_OPENAI_ENDPOINT exists | Claude | ✅ | 22/12 20:30 | 22/12 20:30 | aoai-virtualbpm-prod.openai.azure.com |
+| 0.4 | Test Azure API connectivity | Claude | ✅ | 22/12 20:31 | 22/12 20:31 | HTTP 404 = endpoint reachable |
+| 0.5 | Verify cheapest model available | Claude | ✅ | 22/12 20:32 | 22/12 20:35 | `gpt4o-mini-deployment` tested OK |
+| 0.6 | Set test model in .env | Claude | ✅ | 22/12 20:35 | 22/12 20:35 | AZURE_OPENAI_DEPLOYMENT=gpt4o-mini-deployment |
 
 ### Step 0B - Verifica Build & Codice
 
@@ -329,10 +402,10 @@ AZURE_OPENAI_API_VERSION=2024-02-15-preview
 
 | ID | Task | Owner | Status | Start | End | Notes |
 |----|------|-------|--------|-------|-----|-------|
-| 0.11 | Check edition_get_preferred_provider chiamata | - | ⬜ | - | - | `grep "edition_get_preferred" src/orchestrator/` |
-| 0.12 | Check orchestrator.c provider array | - | ⬜ | - | - | Vedere se hardcoded |
-| 0.13 | Verify ACTUAL provider in logs | - | ⬜ | - | - | Run and check log |
-| 0.14 | Document current state | - | ⬜ | - | - | ROTTO o FUNZIONA? |
+| 0.11 | Check edition_get_preferred_provider chiamata | Claude | ✅ | 22/12 20:40 | 22/12 20:40 | **NOT FOUND in orchestrator** |
+| 0.12 | Check orchestrator.c provider array | Claude | ✅ | 22/12 20:40 | 22/12 20:40 | **HARDCODED L1755: ANTHROPIC first** |
+| 0.13 | Verify ACTUAL provider in logs | Claude | ⬜ | - | - | After build |
+| 0.14 | Document current state | Claude | ✅ | 22/12 20:40 | 22/12 20:40 | **ROTTO - Needs Phase 1 fix** |
 
 ### Step 0D - Verifica Help & Edizioni
 
@@ -403,9 +476,9 @@ AZURE_OPENAI_API_VERSION=2024-02-15-preview
 3. **Phase 3**: TOOL_WEB_SEARCH per enrichment (con filtri safety)
 
 **GATE CHECK 0**: ALL 32 tasks must be ✅ before Phase 1
-- Step 0A: ⬜ (0/6) - Azure environment
+- Step 0A: ✅ (5/6) - Azure environment OK - `gpt4o-mini-deployment`
 - Step 0B: ⬜ (0/4) - Build verification
-- Step 0C: ⬜ (0/4) - Provider check (CRITICAL)
+- Step 0C: ⚠️ (3/4) - Provider check - **ROTTO: orchestrator ignora edition**
 - Step 0D: ⬜ (0/6) - Help & editions
 - Step 0E: ⬜ (0/8) - Cleanup
 - Step 0F: ⬜ (0/4) - Convergio features

@@ -1751,9 +1751,26 @@ char* llm_chat_with_model(const char* model, const char* system, const char* use
         return NULL;
     }
 
-    // Try providers in priority order: Anthropic, OpenAI, Gemini, Ollama
-    ProviderType providers[] = {PROVIDER_ANTHROPIC, PROVIDER_OPENAI, PROVIDER_GEMINI, PROVIDER_OLLAMA};
-    size_t provider_count = sizeof(providers) / sizeof(providers[0]);
+    // Get preferred provider from edition system (Education uses Azure OpenAI, others use Anthropic)
+    int preferred = edition_get_preferred_provider();
+
+    // Build provider array with preferred provider first
+    ProviderType providers[5];
+    size_t provider_count = 0;
+
+    // Add preferred provider first
+    providers[provider_count++] = (ProviderType)preferred;
+
+    // Add remaining providers in fallback order
+    ProviderType fallbacks[] = {PROVIDER_ANTHROPIC, PROVIDER_OPENAI, PROVIDER_GEMINI, PROVIDER_OLLAMA};
+    for (size_t i = 0; i < 4; i++) {
+        if (fallbacks[i] != (ProviderType)preferred) {
+            providers[provider_count++] = fallbacks[i];
+        }
+    }
+
+    nous_log(LOG_LEVEL_DEBUG, LOG_CAT_API, "Provider priority: %s first (edition preference)",
+             preferred == PROVIDER_OPENAI ? "OpenAI/Azure" : "Anthropic");
 
     for (size_t i = 0; i < provider_count; i++) {
         Provider* provider = provider_get(providers[i]);
