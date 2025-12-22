@@ -727,7 +727,7 @@ int education_show_welcome(void) {
     printf("  \033[1;38;5;135m├─────────────────────────────────────────────────────────────┤\033[0m\n");
 
     if (!profile) {
-        // First-time user - auto-trigger conversational onboarding with Ali
+        // First-time user
         printf("  \033[1;38;5;135m│\033[0m                                                             \033[1;38;5;135m│\033[0m\n");
         printf("  \033[1;38;5;135m│\033[0m  \033[1mBenvenuto a Convergio Education!\033[0m                           \033[1;38;5;135m│\033[0m\n");
         printf("  \033[1;38;5;135m│\033[0m                                                             \033[1;38;5;135m│\033[0m\n");
@@ -737,14 +737,25 @@ int education_show_welcome(void) {
         printf("  \033[1;38;5;135m│\033[0m  Abbiamo 15 maestri straordinari pronti ad aiutarti:       \033[1;38;5;135m│\033[0m\n");
         printf("  \033[1;38;5;135m│\033[0m  Socrate, Euclide, Feynman, Erodoto, Darwin, e altri!      \033[1;38;5;135m│\033[0m\n");
         printf("  \033[1;38;5;135m│\033[0m                                                             \033[1;38;5;135m│\033[0m\n");
-        printf("  \033[1;38;5;135m│\033[0m  \033[33mPrima di iniziare, vorrei conoscerti meglio...\033[0m             \033[1;38;5;135m│\033[0m\n");
-        printf("  \033[1;38;5;135m│\033[0m                                                             \033[1;38;5;135m│\033[0m\n");
-        printf("  \033[1;38;5;135m└─────────────────────────────────────────────────────────────┘\033[0m\n");
-        printf("\n");
 
-        // Automatically start conversational onboarding with Ali
-        extern bool ali_conversational_onboarding(void);
-        ali_conversational_onboarding();
+        // Check if LLM is available for conversational onboarding
+        extern bool llm_is_available(void);
+        if (llm_is_available()) {
+            printf("  \033[1;38;5;135m│\033[0m  \033[33mPrima di iniziare, vorrei conoscerti meglio...\033[0m             \033[1;38;5;135m│\033[0m\n");
+            printf("  \033[1;38;5;135m│\033[0m                                                             \033[1;38;5;135m│\033[0m\n");
+            printf("  \033[1;38;5;135m└─────────────────────────────────────────────────────────────┘\033[0m\n");
+            printf("\n");
+
+            // Automatically start conversational onboarding with Ali
+            extern bool ali_conversational_onboarding(void);
+            ali_conversational_onboarding();
+        } else {
+            // LLM not available - show setup instructions
+            printf("  \033[1;38;5;135m│\033[0m  \033[33mUsa /setup per creare il tuo profilo studente.\033[0m            \033[1;38;5;135m│\033[0m\n");
+            printf("  \033[1;38;5;135m│\033[0m  \033[2m(Configura ANTHROPIC_API_KEY per l'onboarding AI)\033[0m         \033[1;38;5;135m│\033[0m\n");
+            printf("  \033[1;38;5;135m│\033[0m                                                             \033[1;38;5;135m│\033[0m\n");
+            printf("  \033[1;38;5;135m└─────────────────────────────────────────────────────────────┘\033[0m\n");
+        }
     } else {
         // Returning user - personalized greeting
         const char* name = profile->name ? profile->name : "studente";
@@ -768,8 +779,8 @@ int education_show_welcome(void) {
         for (int i = 0; i < padding; i++) printf(" ");
         printf("\033[1;38;5;135m│\033[0m\n");
         printf("  \033[1;38;5;135m│\033[0m                                                             \033[1;38;5;135m│\033[0m\n");
-        printf("  \033[1;38;5;135m│\033[0m  Bentornato/a! Sono pronto ad aiutarti con i tuoi studi.   \033[1;38;5;135m│\033[0m\n");
-        printf("  \033[1;38;5;135m│\033[0m  I nostri 15 maestri sono a tua disposizione.              \033[1;38;5;135m│\033[0m\n");
+        printf("  \033[1;38;5;135m│\033[0m  Bentornato/a nella nostra Scuola Virtuale!                \033[1;38;5;135m│\033[0m\n");
+        printf("  \033[1;38;5;135m│\033[0m  I nostri 17 maestri sono a tua disposizione.              \033[1;38;5;135m│\033[0m\n");
         printf("  \033[1;38;5;135m│\033[0m                                                             \033[1;38;5;135m│\033[0m\n");
         printf("  \033[1;38;5;135m│\033[0m  \033[36mCosa vorresti imparare oggi?\033[0m                              \033[1;38;5;135m│\033[0m\n");
         printf("  \033[1;38;5;135m│\033[0m                                                             \033[1;38;5;135m│\033[0m\n");

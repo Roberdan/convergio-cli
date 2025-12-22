@@ -42,7 +42,7 @@ static bool g_edition_set_by_cli = false;
 // ============================================================================
 
 static const char *EDUCATION_AGENTS[] = {
-    // 15 Maestri (matching embedded agent filenames)
+    // 17 Maestri (teaching agents)
     "euclide-matematica",
     "feynman-fisica",
     "manzoni-italiano",
@@ -58,6 +58,8 @@ static const char *EDUCATION_AGENTS[] = {
     "ippocrate-corpo",
     "socrate-filosofia",
     "chris-storytelling",
+    "curie-chimica",
+    "galileo-astronomia",
     // Coordination
     "ali-principal",
     "anna-executive-assistant",
@@ -384,4 +386,58 @@ void edition_init(void) {
                  CONVERGIO_VERSION,
                  info->version_suffix);
     }
+}
+
+// ============================================================================
+// EDITION-SPECIFIC PROVIDER CONFIGURATION
+// ============================================================================
+
+/**
+ * Get the preferred LLM provider for the current edition.
+ * Education edition uses Azure OpenAI exclusively for GDPR compliance
+ * and built-in content safety filters.
+ *
+ * @return Preferred provider type (PROVIDER_OPENAI for Azure, etc.)
+ */
+int edition_get_preferred_provider(void) {
+    switch (g_current_edition) {
+        case EDITION_EDUCATION:
+            // Education uses Azure OpenAI exclusively (GDPR, content safety)
+            return 1;  // PROVIDER_OPENAI
+        case EDITION_BUSINESS:
+            // Business prefers Claude for complex reasoning
+            return 0;  // PROVIDER_ANTHROPIC
+        case EDITION_DEVELOPER:
+            // Developer prefers Claude for code generation
+            return 0;  // PROVIDER_ANTHROPIC
+        default:
+            // Master uses best available
+            return 0;  // PROVIDER_ANTHROPIC
+    }
+}
+
+/**
+ * Get the preferred model for the current edition.
+ * Returns a model ID string that should be used.
+ */
+const char* edition_get_preferred_model(void) {
+    switch (g_current_edition) {
+        case EDITION_EDUCATION:
+            // Azure OpenAI GPT-5-Mini for education (cost-effective, good safety)
+            // Use gpt-5.2-edu for complex queries, gpt-5-nano for fast responses
+            return "gpt-5-edu-mini";
+        case EDITION_BUSINESS:
+            return "claude-sonnet-4";
+        case EDITION_DEVELOPER:
+            return "claude-sonnet-4";
+        default:
+            return "claude-opus-4";
+    }
+}
+
+/**
+ * Check if education edition should use Azure OpenAI.
+ */
+bool edition_uses_azure_openai(void) {
+    return g_current_edition == EDITION_EDUCATION;
 }

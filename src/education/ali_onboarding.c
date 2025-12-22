@@ -176,6 +176,14 @@ static bool check_info_gathered(ConversationState* state, const char* response) 
 // ============================================================================
 
 static bool check_api_configured(void) {
+    // Education Edition uses Azure OpenAI, so check for Azure credentials first
+    const char* azure_key = getenv("AZURE_OPENAI_API_KEY");
+    const char* azure_endpoint = getenv("AZURE_OPENAI_ENDPOINT");
+    if (azure_key && azure_endpoint && strlen(azure_key) > 10 && strlen(azure_endpoint) > 10) {
+        return true;
+    }
+
+    // Fallback to Anthropic for development/testing
     const char* api_key = getenv("ANTHROPIC_API_KEY");
     return (api_key && strlen(api_key) > 10);
 }
@@ -191,11 +199,12 @@ bool ali_check_api_setup(void) {
     printf("  " ANSI_CYAN "└─────────────────────────────────────────────────────────────┘" ANSI_RESET "\n");
     printf("\n");
 
-    printf("  " ANSI_YELLOW "Per iniziare serve una chiave API Anthropic." ANSI_RESET "\n\n");
-    printf("  1. Vai su " ANSI_CYAN "console.anthropic.com" ANSI_RESET "\n");
-    printf("  2. Crea una chiave API\n");
+    printf("  " ANSI_YELLOW "Per iniziare serve una configurazione Azure OpenAI." ANSI_RESET "\n\n");
+    printf("  1. Vai su " ANSI_CYAN "portal.azure.com" ANSI_RESET "\n");
+    printf("  2. Crea una risorsa Azure OpenAI\n");
     printf("  3. Aggiungi al ~/.zshrc:\n");
-    printf("     " ANSI_YELLOW "export ANTHROPIC_API_KEY=\"sk-ant-...\"" ANSI_RESET "\n");
+    printf("     " ANSI_YELLOW "export AZURE_OPENAI_API_KEY=\"your-key\"" ANSI_RESET "\n");
+    printf("     " ANSI_YELLOW "export AZURE_OPENAI_ENDPOINT=\"https://...\"" ANSI_RESET "\n");
     printf("  4. Esegui: source ~/.zshrc\n\n");
 
     printf("  Premi Invio dopo aver configurato, o 'esci' per uscire: ");

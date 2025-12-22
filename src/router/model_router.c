@@ -14,6 +14,7 @@
 #include "nous/nous.h"
 #include "nous/config.h"
 #include "nous/debug_mutex.h"
+#include "nous/edition.h"
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
@@ -477,10 +478,24 @@ ModelSelection router_select_model_for_agent(const char* agent_name,
         }
     }
 
-    // 3. Use system default
-    const char* default_model = "anthropic/claude-sonnet-4";
-    if (provider_is_available(PROVIDER_ANTHROPIC)) {
-        selection.model_id = default_model;
+    // 3. Use edition-preferred model (education uses Azure OpenAI GPT-5)
+    const char* edition_model = edition_get_preferred_model();
+    if (edition_model && strlen(edition_model) > 0) {
+        // Edition has a preferred model - use it
+        selection.model_id = edition_model;
+        // Determine provider from model ID
+        if (strstr(edition_model, "gpt") || strstr(edition_model, "azure")) {
+            selection.provider = PROVIDER_OPENAI;  // Azure OpenAI uses OpenAI provider
+        } else if (strstr(edition_model, "claude")) {
+            selection.provider = PROVIDER_ANTHROPIC;
+        } else if (strstr(edition_model, "gemini")) {
+            selection.provider = PROVIDER_GEMINI;
+        } else {
+            selection.provider = PROVIDER_OPENAI;  // Default to OpenAI for education
+        }
+        LOG_INFO(LOG_CAT_API, "Using edition-preferred model: %s", edition_model);
+    } else if (provider_is_available(PROVIDER_ANTHROPIC)) {
+        selection.model_id = "anthropic/claude-sonnet-4";
         selection.provider = PROVIDER_ANTHROPIC;
     } else if (provider_is_available(PROVIDER_OPENAI)) {
         selection.model_id = "openai/gpt-4o";

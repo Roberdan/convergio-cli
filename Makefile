@@ -199,6 +199,7 @@ C_SOURCES = $(SRC_DIR)/core/fabric.c \
             $(SRC_DIR)/core/config.c \
             $(SRC_DIR)/core/updater.c \
             $(SRC_DIR)/core/safe_path.c \
+            $(SRC_DIR)/core/conversational_config.c \
             $(SRC_DIR)/intent/parser.c \
             $(SRC_DIR)/intent/interpreter.c \
             $(SRC_DIR)/agents/agent.c \
@@ -695,6 +696,7 @@ $(eval $(call define_standard_test,workflow_integration_test,tests/test_workflow
 $(eval $(call define_simple_test,compaction_test,tests/test_compaction.c,$(OBJ_DIR)/context/compaction.o))
 $(eval $(call define_simple_test,plan_db_test,tests/test_plan_db.c,$(OBJ_DIR)/orchestrator/plan_db.o $(OBJ_DIR)/core/safe_path.o,-lsqlite3 -lpthread))
 $(eval $(call define_simple_test,output_service_test,tests/test_output_service.c,$(OBJ_DIR)/tools/output_service.o $(OBJ_DIR)/ui/hyperlink.o $(OBJ_DIR)/core/safe_path.o))
+$(eval $(call define_simple_test,conversational_config_test,tests/test_conversational_config.c,$(OBJ_DIR)/core/conversational_config.o,/opt/homebrew/opt/cjson/lib/libcjson.a))
 
 
 # Run all workflow tests
@@ -1080,4 +1082,63 @@ install-acp: convergio-acp
 	@echo "Installed. Configure Zed with:"
 	@echo '  {"agent_servers": {"Convergio": {"type": "custom", "command": "/usr/local/bin/convergio-acp"}}}'
 
-.PHONY: all dirs metal run clean debug install uninstall hwinfo help fuzz_test unit_test anna_test plan_db_test output_service_test check-docs test version dist release convergio-acp install-acp cache-stats
+# =============================================================================
+# EDUCATION EDITION TARGETS
+# =============================================================================
+
+build-edu:
+	@$(MAKE) EDITION=education
+
+test-edu:
+	@if [ ! -x "$(BIN_DIR)/convergio-edu" ]; then $(MAKE) EDITION=education; fi
+	@./tests/e2e_education_comprehensive_test.sh
+
+test-edu-llm:
+	@if [ ! -x "$(BIN_DIR)/convergio-edu" ]; then $(MAKE) EDITION=education; fi
+	@./tests/e2e_education_llm_test.sh
+
+test-edu-verbose:
+	@if [ ! -x "$(BIN_DIR)/convergio-edu" ]; then $(MAKE) EDITION=education; fi
+	@./tests/e2e_education_comprehensive_test.sh --verbose
+	@./tests/e2e_education_llm_test.sh --verbose
+
+test-edu-full:
+	@if [ ! -x "$(BIN_DIR)/convergio-edu" ]; then $(MAKE) EDITION=education; fi
+	@./tests/e2e_education_comprehensive_test.sh --verbose
+	@./tests/e2e_education_llm_test.sh --full
+
+test-edu-llm-full:
+	@if [ ! -x "$(BIN_DIR)/convergio-edu" ]; then $(MAKE) EDITION=education; fi
+	@./tests/e2e_education_llm_test.sh --full
+
+test-edu-save:
+	@if [ ! -x "$(BIN_DIR)/convergio-edu" ]; then $(MAKE) EDITION=education; fi
+	@./tests/e2e_education_llm_test.sh --save
+
+clean-edu:
+	@rm -f $(BIN_DIR)/convergio-edu
+	@echo "Cleaned education binary"
+
+# =============================================================================
+# BUSINESS EDITION TARGETS
+# =============================================================================
+
+build-biz:
+	@$(MAKE) EDITION=business
+
+test-biz:
+	@if [ ! -x "$(BIN_DIR)/convergio-biz" ]; then $(MAKE) EDITION=business; fi
+	@if [ -f "./tests/e2e_business_test.sh" ]; then ./tests/e2e_business_test.sh; fi
+
+# =============================================================================
+# DEVELOPER EDITION TARGETS
+# =============================================================================
+
+build-dev:
+	@$(MAKE) EDITION=developer
+
+test-dev:
+	@if [ ! -x "$(BIN_DIR)/convergio-dev" ]; then $(MAKE) EDITION=developer; fi
+	@if [ -f "./tests/e2e_developer_test.sh" ]; then ./tests/e2e_developer_test.sh; fi
+
+.PHONY: all dirs metal run clean debug install uninstall hwinfo help fuzz_test unit_test anna_test plan_db_test output_service_test check-docs test version dist release convergio-acp install-acp cache-stats build-edu test-edu test-edu-llm test-edu-verbose test-edu-full build-biz test-biz build-dev test-dev

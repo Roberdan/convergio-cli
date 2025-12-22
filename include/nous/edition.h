@@ -144,4 +144,31 @@ const char *edition_get_name(ConvergioEdition edition);
  */
 ConvergioEdition edition_from_name(const char *name);
 
+// ============================================================================
+// EDITION-SPECIFIC PROVIDER CONFIGURATION
+// ============================================================================
+
+/**
+ * Get the preferred LLM provider for the current edition.
+ * Education: Azure OpenAI (GDPR, content safety)
+ * Business: Anthropic Claude
+ * Developer: Anthropic Claude
+ * Master: Best available
+ *
+ * @return Provider type (0=Anthropic, 1=OpenAI, etc.)
+ */
+int edition_get_preferred_provider(void);
+
+/**
+ * Get the preferred model for the current edition.
+ * @return Model ID string
+ */
+const char* edition_get_preferred_model(void);
+
+/**
+ * Check if the current edition uses Azure OpenAI.
+ * Only true for Education edition.
+ */
+bool edition_uses_azure_openai(void);
+
 #endif /* NOUS_EDITION_H */

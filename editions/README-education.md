@@ -133,16 +133,33 @@ Students must achieve 80% mastery before advancing. This ensures:
 
 ```bash
 # Build Education Edition
-make EDITION=education
+make build-edu
+# or: make EDITION=education
 
 # Run
-./build/bin/convergio
+./build/bin/convergio-edu
 
 # Start a study session
 /study quadratic equations
 
 # Choose your teacher
 @euclide Can you help me understand this problem?
+```
+
+## Testing
+
+```bash
+# Run all static tests (100+)
+make test-edu
+
+# Run real LLM interaction tests (requires Azure OpenAI)
+make test-edu-llm
+
+# Run all tests with verbose output
+make test-edu-verbose
+
+# Run full test suite with JSON output
+make test-edu-full
 ```
 
 ---

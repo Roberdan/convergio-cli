@@ -516,7 +516,12 @@ int orchestrator_init(double budget_limit_usd) {
     g_orchestrator->ali = calloc(1, sizeof(ManagedAgent));
     if (g_orchestrator->ali) {
         g_orchestrator->ali->id = 1;
-        g_orchestrator->ali->name = strdup("Ali");
+        // Use the correct agent ID for edition filtering
+        if (edition_current() == EDITION_EDUCATION) {
+            g_orchestrator->ali->name = strdup("ali-principal");
+        } else {
+            g_orchestrator->ali->name = strdup("ali-chief-of-staff");
+        }
         if (!g_orchestrator->ali->name) {
             free(g_orchestrator->ali);
             g_orchestrator->ali = NULL;

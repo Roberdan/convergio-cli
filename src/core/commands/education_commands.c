@@ -838,6 +838,35 @@ int cmd_html(int argc, char** argv) {
 }
 
 // ============================================================================
+// COMMAND: /onboarding
+// ============================================================================
+
+/**
+ * /onboarding - Shortcut to start Ali's conversational onboarding
+ *
+ * This is a direct alias for /education setup that provides quick access
+ * to the initial student onboarding experience.
+ */
+int cmd_onboarding(int argc, char** argv) {
+    (void)argc;
+    (void)argv;
+
+    // Initialize education system
+    if (education_init() != 0) {
+        fprintf(stderr, "Error: Failed to initialize education system\n");
+        return 1;
+    }
+
+    // Run Ali's conversational onboarding directly
+    if (ali_education_onboarding()) {
+        return 0;
+    } else {
+        fprintf(stderr, "Onboarding cancelled or failed.\n");
+        return 1;
+    }
+}
+
+// ============================================================================
 // COMMAND: /calc
 // ============================================================================
 

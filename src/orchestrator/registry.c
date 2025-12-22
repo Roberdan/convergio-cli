@@ -1310,10 +1310,12 @@ static int get_education_category(const ManagedAgent* agent) {
     // 0: School Leadership (Direzione Scolastica)
     if (strcasestr(n, "ali-principal") || strcasestr(n, "preside")) return 0;
 
-    // 1: Sciences (Scienze) - math, physics, biology, computer science, geography, health
+    // 1: Sciences (Scienze) - math, physics, chemistry, astronomy, biology, computer science, geography, health
     if (strcasestr(n, "euclide") || strcasestr(n, "matematica") ||
         strcasestr(n, "feynman") || strcasestr(n, "fisica") ||
         strcasestr(n, "darwin") || strcasestr(n, "scienze") ||
+        strcasestr(n, "curie") || strcasestr(n, "chimica") ||
+        strcasestr(n, "galileo") || strcasestr(n, "astronomia") ||
         strcasestr(n, "lovelace") || strcasestr(n, "informatica") ||
         strcasestr(n, "humboldt") || strcasestr(n, "geografia") ||
         strcasestr(n, "ippocrate") || strcasestr(n, "corpo")) return 1;

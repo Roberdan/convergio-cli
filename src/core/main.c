@@ -578,6 +578,18 @@ int main(int argc, char** argv) {
         agent_config_load_directory(config_path);
     }
 
+    // Initialize workspace sandbox BEFORE orchestrator (persistence needs allowed paths)
+    tools_init_workspace(workspace);
+
+    // Also allow the home .convergio directory for database persistence
+    extern void tools_add_allowed_path(const char* path);
+    char convergio_home[PATH_MAX];
+    const char* home = getenv("HOME");
+    if (home) {
+        snprintf(convergio_home, sizeof(convergio_home), "%s/.convergio", home);
+        tools_add_allowed_path(convergio_home);
+    }
+
     // Initialize Orchestrator with budget from config (or default)
     double budget = g_config.budget_limit > 0 ? g_config.budget_limit : DEFAULT_BUDGET_USD;
     if (orchestrator_init(budget) != 0) {
@@ -645,8 +657,7 @@ int main(int argc, char** argv) {
         }
     }
 
-    // Initialize workspace sandbox
-    tools_init_workspace(workspace);
+    // Workspace sandbox already initialized before orchestrator_init
 
     // Initialize projects
     projects_init();
