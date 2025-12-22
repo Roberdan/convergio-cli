@@ -1126,6 +1126,7 @@ void acp_handle_initialize(int request_id, const char* params_json) {
 void acp_handle_session_new(int request_id, const char* params_json) {
     char cwd[1024] = ".";
     char resume_session_id[64] = {0};
+    char agent_name_from_meta[128] = {0};
 
     if (params_json) {
         cJSON* params = cJSON_Parse(params_json);
@@ -1138,6 +1139,17 @@ void acp_handle_session_new(int request_id, const char* params_json) {
             cJSON* resume_item = cJSON_GetObjectItem(params, "resumeSessionId");
             if (resume_item && cJSON_IsString(resume_item)) {
                 strncpy(resume_session_id, resume_item->valuestring, sizeof(resume_session_id) - 1);
+            }
+            // Convergio extension: read agentName from _meta for session resume
+            cJSON* meta = cJSON_GetObjectItem(params, "_meta");
+            if (meta && cJSON_IsObject(meta)) {
+                cJSON* agent_name_item = cJSON_GetObjectItem(meta, "agentName");
+                if (agent_name_item && cJSON_IsString(agent_name_item)) {
+                    strncpy(agent_name_from_meta, agent_name_item->valuestring, sizeof(agent_name_from_meta) - 1);
+                    // Also update selected_agent for other parts of the code
+                    strncpy(g_server.selected_agent, agent_name_item->valuestring, sizeof(g_server.selected_agent) - 1);
+                    log_message(LOG_INFO, "ACP: Received agent name from _meta: %s", agent_name_from_meta);
+                }
             }
             cJSON_Delete(params);
         }

@@ -2303,6 +2303,22 @@ grep -E "FAILED|failed|Error" test.log && echo "TESTS FAILED!" && exit 1
 # E2E tests must pass (check for failures)
 grep -E "FAILED|fail|Error" e2e-test.log && echo "E2E TESTS FAILED!" && exit 1
 echo "✅ E2E tests passed"
+
+# MANDATORY: Run Education Edition E2E tests (if applicable)
+if [ -f ./tests/e2e_education_comprehensive_test.sh ]; then
+  echo "Running Education Edition comprehensive tests..."
+  ./tests/e2e_education_comprehensive_test.sh 2>&1 | tee edu-e2e-test.log
+  grep -E "FAILED|fail|Error" edu-e2e-test.log && echo "EDUCATION E2E TESTS FAILED!" && exit 1
+  echo "✅ Education E2E tests passed (100+ tests)"
+fi
+
+# OPTIONAL: Run Education LLM tests (requires Azure OpenAI)
+if [ -f ./tests/e2e_education_llm_test.sh ] && [ -n "$AZURE_OPENAI_API_KEY" ]; then
+  echo "Running Education LLM interaction tests..."
+  ./tests/e2e_education_llm_test.sh 2>&1 | tee edu-llm-test.log
+  grep -E "FAILED|fail|Error" edu-llm-test.log && echo "EDUCATION LLM TESTS FAILED!" && exit 1
+  echo "✅ Education LLM tests passed (50+ tests)"
+fi
 ```
 
 #### 12. Static Analysis with clang-tidy
