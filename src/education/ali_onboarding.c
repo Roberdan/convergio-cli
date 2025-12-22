@@ -248,9 +248,9 @@ static int64_t create_profile_from_json(const char* json_str) {
 
     const char* name = (name_obj && cJSON_IsString(name_obj)) ? name_obj->valuestring : "Studente";
     int age = (age_obj && cJSON_IsNumber(age_obj)) ? age_obj->valueint : 12;
-    const char* grade = (grade_obj && cJSON_IsString(grade_obj)) ? grade_obj->valuestring : "";
     const char* school_type = (school_type_obj && cJSON_IsString(school_type_obj)) ? school_type_obj->valuestring : "medie";
     const char* goals = (goals_obj && cJSON_IsString(goals_obj)) ? goals_obj->valuestring : "";
+    (void)grade_obj; // Grade is determined from school_type
 
     // Determine grade level from school type
     int grade_level = 6; // default middle school
