@@ -2099,6 +2099,15 @@ After creating GitHub Release:
 - [ ] EDUCATION UNIT TESTS PASS: `make education_test` (school scenarios: Mario, Sofia, Luca, Giulia) ⚠️ BLOCKING
 - [ ] EDUCATION E2E TESTS PASS: `./tests/e2e_education_test.sh` (~54 tests, >= 95%) ⚠️ BLOCKING
 - [ ] EDUCATION LLM TESTS PASS: `./tests/education_llm_test.sh` (~21 tests - safety, pedagogy, accessibility) ⚠️ BLOCKING
+- [ ] EDUCATION SAFETY TESTS PASS: `make education_safety_test` (25/25 SAF01-SAF10) ⚠️ BLOCKING
+- [ ] AZURE OPENAI PROVIDER VERIFIED: Education edition uses Azure OpenAI (check logs) ⚠️ BLOCKING
+- [ ] EDITION ISOLATION VERIFIED: Education edition shows only 20 agents (17+3), no business/dev agents ⚠️ BLOCKING
+- [ ] MAIEUTIC METHOD VERIFIED: All 17 maestri prompts include maieutic/guide/anti-cheating language ⚠️ BLOCKING
+- [ ] PERSON-FIRST LANGUAGE AUDIT: All prompts use person-first language (users with disabilities, not disabled users) ⚠️ BLOCKING
+- [ ] OFFENSIVE TERMS AUDIT: No offensive terms found in agent definitions (per SAFETY_GUIDELINES) ⚠️ BLOCKING
+- [ ] FSRS INTEGRATION VERIFIED: flashcards.c uses fsrs_get_due_cards() and fsrs_record_review() ⚠️ BLOCKING
+- [ ] MASTERY 80% THRESHOLD VERIFIED: mastery_gate.c enforces 80% threshold (not 85%) ⚠️ BLOCKING
+- [ ] ACCESSIBILITY TESTS PASS: `make education_test` includes accessibility tests (39/39) ⚠️ BLOCKING
 - [ ] E2E TESTS PASS: `./tests/e2e_test.sh` (real API tests) ⚠️ BLOCKING
 - [ ] Debug build works: `make debug`
 - [ ] Static analysis clean: check clang-tidy output

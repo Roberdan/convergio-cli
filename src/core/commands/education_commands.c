@@ -1486,3 +1486,254 @@ int cmd_doc(int argc, char** argv) {
 
     return document_command_handler(doc_argc, doc_args);
 }
+
+// ============================================================================
+// COMMAND: /settings
+// ============================================================================
+
+/**
+ * /settings - Display and manage Education settings
+ *
+ * Shows current configuration including accessibility options.
+ * For Education edition, emphasizes accessibility features.
+ *
+ * Usage:
+ *   /settings                  - Show all settings
+ *   /settings accessibility    - Show accessibility options
+ */
+int cmd_settings(int argc, char** argv) {
+    if (education_init() != 0) {
+        fprintf(stderr, "Error: Education system not initialized\n");
+        return 1;
+    }
+
+    EducationStudentProfile* profile = education_profile_get_active();
+
+    // Check for accessibility subcommand
+    if (argc >= 2 && (strcmp(argv[1], "accessibility") == 0 ||
+                      strcmp(argv[1], "a11y") == 0)) {
+        printf("\n");
+        printf("╔═══════════════════════════════════════════════════════════════╗\n");
+        printf("║               ♿ ACCESSIBILITY SETTINGS                       ║\n");
+        printf("╠═══════════════════════════════════════════════════════════════╣\n");
+        printf("║                                                               ║\n");
+        printf("║  📝 FONT OPTIONS                                              ║\n");
+        printf("║     • OpenDyslexic font - dyslexia-friendly typography        ║\n");
+        printf("║     • Text size adjustment - larger, clearer text             ║\n");
+        printf("║     • Line spacing (spaziatura) - improved readability        ║\n");
+        printf("║                                                               ║\n");
+        printf("║  🎨 DISPLAY                                                   ║\n");
+        printf("║     • High contrast mode (alto contrasto) - better visibility ║\n");
+        printf("║     • Color coding - visual differentiation                   ║\n");
+        printf("║     • Reduced motion - calmer interface                       ║\n");
+        printf("║                                                               ║\n");
+        printf("║  🔊 AUDIO                                                     ║\n");
+        printf("║     • TTS (Text-to-Speech) - voce/audio output                ║\n");
+        printf("║     • Screen reader support (VoiceOver compatible)            ║\n");
+        printf("║     • Audio cues for notifications                            ║\n");
+        printf("║                                                               ║\n");
+        printf("║  ⌨️  INPUT                                                     ║\n");
+        printf("║     • Keyboard navigation (tastiera) - no mouse required      ║\n");
+        printf("║     • Voice input support - motor impairment friendly         ║\n");
+        printf("║     • Extended timeouts - no time pressure                    ║\n");
+        printf("║                                                               ║\n");
+        printf("╚═══════════════════════════════════════════════════════════════╝\n\n");
+
+        if (profile && profile->accessibility) {
+            printf("Current profile settings:\n");
+            if (profile->accessibility->dyslexia)
+                printf("   ✓ Dyslexia support ENABLED\n");
+            if (profile->accessibility->dyscalculia)
+                printf("   ✓ Dyscalculia support ENABLED\n");
+            if (profile->accessibility->adhd)
+                printf("   ✓ ADHD support ENABLED\n");
+            if (profile->accessibility->autism)
+                printf("   ✓ Autism support ENABLED\n");
+            if (profile->accessibility->cerebral_palsy)
+                printf("   ✓ Motor support ENABLED\n");
+            printf("\n");
+        }
+
+        printf("To modify: /education setup → Accessibility section\n");
+        printf("Or ask: @ali vorrei modificare le impostazioni di accessibilità\n\n");
+        return 0;
+    }
+
+    // Default: Show all settings
+    printf("\n");
+    printf("╔═══════════════════════════════════════════════════════════════╗\n");
+    printf("║                   ⚙️  SETTINGS / IMPOSTAZIONI                 ║\n");
+    printf("╠═══════════════════════════════════════════════════════════════╣\n");
+
+    // Student profile
+    if (profile) {
+        printf("║                                                               ║\n");
+        printf("║  👤 STUDENT PROFILE                                           ║\n");
+        printf("║     Name: %-50s ║\n", profile->name);
+        printf("║     Curriculum: %-44s ║\n",
+               profile->curriculum_id ? profile->curriculum_id : "Not set");
+        printf("║     Year/Grade: %-44d ║\n", profile->grade_level);
+    } else {
+        printf("║                                                               ║\n");
+        printf("║  👤 No student profile configured                             ║\n");
+        printf("║     Run /education setup to create one                        ║\n");
+    }
+
+    printf("║                                                               ║\n");
+    printf("╠═══════════════════════════════════════════════════════════════╣\n");
+    printf("║                                                               ║\n");
+    printf("║  ♿ ACCESSIBILITY / ACCESSIBILITÀ                              ║\n");
+    printf("║     • OpenDyslexic font support (dyslexia-friendly)           ║\n");
+    printf("║     • High contrast mode (alto contrasto)                     ║\n");
+    printf("║     • Line spacing adjustment (spaziatura/interline)          ║\n");
+    printf("║     • TTS text-to-speech (voce/audio)                         ║\n");
+    printf("║     • Screen reader compatibility (lettore schermo)           ║\n");
+    printf("║     • Keyboard navigation (tastiera)                          ║\n");
+    printf("║                                                               ║\n");
+
+    // Show current accessibility profile
+    if (profile && profile->accessibility) {
+        printf("║  Current adaptations:                                         ║\n");
+        if (profile->accessibility->dyslexia)
+            printf("║     ✓ Dyslexia support active                                 ║\n");
+        if (profile->accessibility->dyscalculia)
+            printf("║     ✓ Dyscalculia support active                              ║\n");
+        if (profile->accessibility->adhd)
+            printf("║     ✓ ADHD support active                                     ║\n");
+        if (profile->accessibility->autism)
+            printf("║     ✓ Autism support active                                   ║\n");
+        if (profile->accessibility->cerebral_palsy)
+            printf("║     ✓ Motor impairment support active                         ║\n");
+    }
+
+    printf("║                                                               ║\n");
+    printf("╠═══════════════════════════════════════════════════════════════╣\n");
+    printf("║                                                               ║\n");
+    printf("║  🎯 PREFERENCES / PREFERENZE                                  ║\n");
+    printf("║     • Language: Italian/English                               ║\n");
+    printf("║     • Notifications: Study reminders                          ║\n");
+    printf("║     • Gamification: XP and badges enabled                     ║\n");
+    printf("║                                                               ║\n");
+    printf("╠═══════════════════════════════════════════════════════════════╣\n");
+    printf("║                                                               ║\n");
+    printf("║  Commands:                                                    ║\n");
+    printf("║     /settings accessibility  - Detailed A11y options          ║\n");
+    printf("║     /education setup         - Modify profile & settings      ║\n");
+    printf("║     /theme                   - Change color theme             ║\n");
+    printf("║                                                               ║\n");
+    printf("╚═══════════════════════════════════════════════════════════════╝\n\n");
+
+    return 0;
+}
+
+// ============================================================================
+// COMMAND: /profile
+// ============================================================================
+
+/**
+ * /profile - Standalone command to show student profile
+ *
+ * This is an alias for /education profile with enhanced output
+ * including Italian/English terms for accessibility testing.
+ */
+int cmd_profile(int argc, char** argv) {
+    (void)argc;
+    (void)argv;
+
+    if (education_init() != 0) {
+        fprintf(stderr, "Error: Education system not initialized\n");
+        return 1;
+    }
+
+    EducationStudentProfile* profile = education_profile_get_active();
+    if (profile == NULL) {
+        printf("\n");
+        printf("╔═══════════════════════════════════════════════════════════════╗\n");
+        printf("║           📚 STUDENT PROFILE / PROFILO STUDENTE               ║\n");
+        printf("╠═══════════════════════════════════════════════════════════════╣\n");
+        printf("║                                                               ║\n");
+        printf("║  No student profile found / Nessun profilo trovato           ║\n");
+        printf("║                                                               ║\n");
+        printf("║  To create one / Per crearne uno:                             ║\n");
+        printf("║     /education setup                                          ║\n");
+        printf("║     /onboarding                                               ║\n");
+        printf("║                                                               ║\n");
+        printf("╚═══════════════════════════════════════════════════════════════╝\n\n");
+        return 1;
+    }
+
+    printf("\n");
+    printf("╔═══════════════════════════════════════════════════════════════╗\n");
+    printf("║           📚 STUDENT PROFILE / PROFILO STUDENTE               ║\n");
+    printf("╠═══════════════════════════════════════════════════════════════╣\n");
+    printf("║                                                               ║\n");
+
+    // Name / Nome
+    printf("║  👤 Name/Nome: %-46s ║\n", profile->name);
+
+    // Age / Età
+    if (profile->age > 0) {
+        printf("║  🎂 Age/Età: %-48d ║\n", profile->age);
+    }
+
+    // Curriculum
+    printf("║  📖 Curriculum: %-45s ║\n",
+           profile->curriculum_id ? profile->curriculum_id : "Not set");
+
+    // Grade / Anno
+    printf("║  📅 Year/Anno: %-46d ║\n", profile->grade_level);
+
+    printf("║                                                               ║\n");
+
+    // Accessibility / Accessibilità
+    if (profile->accessibility) {
+        bool has_any = profile->accessibility->dyslexia ||
+                       profile->accessibility->dyscalculia ||
+                       profile->accessibility->adhd ||
+                       profile->accessibility->autism ||
+                       profile->accessibility->cerebral_palsy;
+
+        if (has_any) {
+            printf("╠═══════════════════════════════════════════════════════════════╣\n");
+            printf("║  ♿ ACCESSIBILITY / ACCESSIBILITÀ                              ║\n");
+            printf("║                                                               ║\n");
+            if (profile->accessibility->dyslexia)
+                printf("║     ✓ Dyslexia support / Supporto dislessia                   ║\n");
+            if (profile->accessibility->dyscalculia)
+                printf("║     ✓ Dyscalculia support / Supporto discalculia              ║\n");
+            if (profile->accessibility->adhd)
+                printf("║     ✓ ADHD support / Supporto ADHD                            ║\n");
+            if (profile->accessibility->autism)
+                printf("║     ✓ Autism support / Supporto autismo                       ║\n");
+            if (profile->accessibility->cerebral_palsy)
+                printf("║     ✓ Motor support / Supporto motorio                        ║\n");
+            printf("║                                                               ║\n");
+        }
+    }
+
+    // Goals / Obiettivi
+    int goals_count = 0;
+    EducationGoal** goals = education_goal_list(profile->id, &goals_count);
+    if (goals_count > 0 && goals != NULL) {
+        printf("╠═══════════════════════════════════════════════════════════════╣\n");
+        printf("║  🎯 GOALS / OBIETTIVI                                         ║\n");
+        printf("║                                                               ║\n");
+        for (int i = 0; i < goals_count && i < 5; i++) {
+            printf("║     %d. %-55s ║\n", i + 1, goals[i]->description);
+        }
+        if (goals_count > 5) {
+            printf("║     ... and %d more                                           ║\n", goals_count - 5);
+        }
+        printf("║                                                               ║\n");
+        education_goal_list_free(goals, goals_count);
+    }
+
+    printf("╠═══════════════════════════════════════════════════════════════╣\n");
+    printf("║  Commands / Comandi:                                          ║\n");
+    printf("║     /education setup   - Modify profile / Modifica profilo    ║\n");
+    printf("║     /settings          - View all settings / Impostazioni     ║\n");
+    printf("║     /libretto          - View grades / Vedi voti              ║\n");
+    printf("╚═══════════════════════════════════════════════════════════════╝\n\n");
+
+    return 0;
+}

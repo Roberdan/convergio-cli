@@ -169,7 +169,7 @@ CONVERGIO (main logo)
 
 The `/help` command shows different content based on edition:
 
-1. **Education Edition**: Shows 15 Maestri (teachers), study tools, language tools, progress tracking
+1. **Education Edition**: Shows 17 Maestri (teachers), study tools, language tools, progress tracking
 2. **Business Edition**: Shows business agents, CRM tools, analytics (placeholder)
 3. **Developer Edition**: Shows dev agents, code review tools, CI/CD (placeholder)
 4. **Master Edition**: Shows all 53 agents and all features
@@ -183,7 +183,7 @@ The `/help` command shows different content based on edition:
 
 The `/agents` command respects edition whitelists:
 - Only shows agents available in current edition
-- Education shows 18 agents (15 Maestri + Ali Principal + Anna + Jenny)
+- Education shows 20 agents (17 Maestri + Ali Principal + Anna + Jenny)
 - Master shows all 53+ agents
 
 ---

@@ -209,15 +209,15 @@ All Maestri follow these teaching principles:
 
 | Tool | Purpose | Implementation Status |
 |------|---------|----------------------|
-| Quiz | Self-assessment tests | Planned |
-| Flashcards | Memory reinforcement | Planned |
-| Mindmap | Visual organization | Planned |
-| Notes | Structured note-taking | Planned |
-| Summary | Text summarization | Planned |
-| Timeline | Historical chronology | Planned |
-| Pomodoro | Study timer | Planned |
-| Calculator | Math assistance | Planned |
-| Dictionary | Word definitions | Planned |
+| Quiz | Self-assessment tests | ✅ Implemented |
+| Flashcards | Memory reinforcement | ✅ Implemented (FSRS) |
+| Mindmap | Visual organization | ✅ Implemented |
+| Notes | Structured note-taking | ✅ Implemented |
+| Summary | Text summarization | ✅ Implemented |
+| Timeline | Historical chronology | ✅ Implemented |
+| Pomodoro | Study timer | ✅ Implemented |
+| Calculator | Math assistance | ✅ Implemented |
+| Dictionary | Word definitions | ✅ Implemented |
 
 ---
 
@@ -459,7 +459,7 @@ These commands are NOT available in Education Edition:
 ### COMPLETED
 | Task | Evidence |
 |------|----------|
-| 15 Maestri agent definitions | Files in `src/agents/definitions/education/` |
+| 17 Maestri agent definitions | Files in `src/agents/definitions/education/` |
 | Edition isolation architecture | `src/core/edition.c` with whitelist |
 | Basic safety filtering | `edition_has_agent()` filtering |
 | Ali Preside implementation | Agent file exists |
@@ -491,7 +491,7 @@ These commands are NOT available in Education Edition:
 ## Roadmap
 
 ### Phase 1: Foundation (Current)
-- [x] 15 Maestri definitions
+- [x] 17 Maestri definitions
 - [x] Edition isolation
 - [x] Basic safety filtering
 - [x] Ali Preside implementation
@@ -577,5 +577,5 @@ Before any release:
 
 ### v1.0.0 (2025-12-22)
 - Initial Education Master Plan
-- 15 Maestri definitions
+- 17 Maestri definitions
 - Edition isolation architecture

@@ -1,15 +1,15 @@
-# Phase 2 - The 15 Historical Teachers
+# Phase 2 - The 17 Historical Teachers
 
 **Status**: DONE
 **Progress**: 100%
-**Last Updated**: 2025-12-20
+**Last Updated**: 2025-12-23
 **Parallelization**: 7 threads (2 teachers per thread)
 
 ---
 
 ## Objective
 
-Create 15 educational agents based on historical figures, each specialized in a subject, with capability to generate interactive HTML content and adapt to accessibility profiles.
+Create 17 educational agents based on historical figures, each specialized in a subject, with capability to generate interactive HTML content and adapt to accessibility profiles.
 
 ---
 
@@ -32,6 +32,8 @@ Create 15 educational agents based on historical figures, each specialized in a 
 | ED13 | Lovelace | Computer Science | Coding sandbox, Flowchart, Debug | echo |
 | ED14 | Hippocrates | Sports/Body | 3D Anatomy, Exercise timer, Video | alloy |
 | ED15 | Chris | Storytelling | TED framework, Public speaking | echo |
+| ED16 | Curie | Chemistry | Periodic table, Experiments, Lab safety | alloy |
+| ED17 | Galileo | Astronomy | Star charts, Observations, Scientific method | sage |
 
 ---
 
@@ -91,7 +93,7 @@ Create 15 educational agents based on historical figures, each specialized in a 
 
 ## Modified Files
 
-- `src/agents/definitions/education/*.md` (15 files)
+- `src/agents/definitions/education/*.md` (17 files)
 - `src/agents/embedded_agents.c` (agent registration)
 - `src/education/education.h` (teacher enum)
 
@@ -101,7 +103,7 @@ Create 15 educational agents based on historical figures, each specialized in a 
 
 | ID | Test | Status | Note |
 |----|------|--------|------|
-| MT01 | Verify 15 teacher files exist | [x] | `test_maestri_exist()` |
+| MT01 | Verify 17 teacher files exist | [x] | `test_maestri_exist()` |
 | MT02 | Test maieutic response for each teacher | [x] | `test_maestri_maieutic_prompts()` |
 | MT03 | Test accessibility adaptation in responses | [x] | `test_maestri_accessibility_adaptation()` |
 
@@ -109,7 +111,7 @@ Create 15 educational agents based on historical figures, each specialized in a 
 
 ## Acceptance Criteria
 
-- [x] 15 .md files created in `src/agents/definitions/education/`
+- [x] 17 .md files created in `src/agents/definitions/education/`
 - [x] Each teacher has primary tools defined
 - [x] Each teacher has voice profile assigned
 - [x] Interactive HTML available for all
@@ -119,4 +121,4 @@ Create 15 educational agents based on historical figures, each specialized in a 
 
 ## Result
 
-15 teachers operational with complete definitions. Voice profiles assigned. Interactive HTML via LLM. All tests passing (MT01-MT03).
+17 teachers operational with complete definitions (15 original + Curie + Galileo). Voice profiles assigned. Interactive HTML via LLM. All tests passing (MT01-MT03).

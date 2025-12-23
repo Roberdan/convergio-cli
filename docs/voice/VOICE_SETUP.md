@@ -5,7 +5,7 @@
 
 ## Overview
 
-The Education Pack supports real-time voice interaction with all 15 maestri using either:
+The Education Pack supports real-time voice interaction with all 17 maestri using either:
 1. **Azure OpenAI Realtime API** (recommended, GDPR-compliant, free with Azure credits)
 2. **OpenAI Realtime API** (direct, simpler setup)
 
@@ -83,6 +83,10 @@ wss://your-resource-name.openai.azure.com/openai/v1/realtime?model=gpt-4o-realti
 | Ippocrate | sage | Caring, soothing |
 | Socrate | alloy | Questioning, wise |
 | Chris | echo | Dynamic, inspiring |
+| Curie | alloy | Methodical, safety-focused |
+| Galileo | sage | Observational, precise |
+| Curie | shimmer | Precise, scientific |
+| Galileo | alloy | Curious, revolutionary |
 
 ## Cost Estimation
 

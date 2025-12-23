@@ -22,12 +22,12 @@ A virtual classroom council with the greatest historical teachers, equipped with
 | # | Phase | Status | Progress | Blocking Issues | Link |
 |---|-------|:------:|----------|-----------------|------|
 | 1 | System Setup | ✅ | 100% | All P0 complete | [phase-01-setup.md](phases/phase-01-setup.md) |
-| 2 | 15 Historical Teachers | ✅ | 100% | - | [phase-02-maestri.md](phases/phase-02-maestri.md) |
+| 2 | 17 Historical Teachers | ✅ | 100% | - | [phase-02-maestri.md](phases/phase-02-maestri.md) |
 | 3 | Educational Toolkit | ✅ | 100% P0 | TKT01-06 tests done | [phase-03-toolkit.md](phases/phase-03-toolkit.md) |
 | 4 | Italian Curricula | ✅ | 100% | JSON parser working | [phase-04-curriculum.md](phases/phase-04-curriculum.md) |
 | 5 | Educational Features | ✅ | 100% | All fixed | [phase-05-features.md](phases/phase-05-features.md) |
 | 6 | Accessibility | ✅ | 100% | AT04-09 tests done | [phase-06-accessibility.md](phases/phase-06-accessibility.md) |
-| 7 | Coordination | ✅ | 100% | Ali fixed with 15 maestri | [phase-07-coordination.md](phases/phase-07-coordination.md) |
+| 7 | Coordination | ✅ | 100% | Ali fixed with 17 maestri | [phase-07-coordination.md](phases/phase-07-coordination.md) |
 | 8 | Testing | ✅ | 100% | 36 education tests | [phase-08-testing.md](phases/phase-08-testing.md) |
 | 9 | Verticalization | ✅ | 100% | Edition system complete | [phase-09-verticalization.md](phases/phase-09-verticalization.md) |
 | 10 | Voice Interaction | ✅ | 100% | A11y profile loads | [phase-10-voice.md](phases/phase-10-voice.md) |
@@ -60,7 +60,7 @@ A virtual classroom council with the greatest historical teachers, equipped with
 
 ## Definition of Done
 
-- [x] 15 teachers operational and tested
+- [x] 17 teachers operational and tested
 - [x] P0 Toolkit complete (mindmaps, quiz, flashcards, audio, calc)
 - [x] Setup wizard working
 - [x] 8 curricula complete (JSON files)
@@ -86,7 +86,7 @@ A virtual classroom council with the greatest historical teachers, equipped with
 - Agent filtering integrated into `registry.c`
 - Edition-specific system prompts for Education, Business, Developer
 - Build with `make EDITION=education` produces filtered binary
-- 18 education agents (15 maestri + Ali, Anna, Jenny)
+- 20 education agents (17 maestri + Ali, Anna, Jenny)
 - Ali (Chief of Staff) included in ALL editions
 - Anna (Executive Assistant) included in ALL editions
 - Translated Italian strings in registry.c to English
@@ -139,7 +139,7 @@ A virtual classroom council with the greatest historical teachers, equipped with
 - Translated all Italian strings to English in storytelling.c
 - Fixed story hooks to use correct English slug IDs (socrates-philosophy, etc.)
 - Added Humboldt and Chris hooks (was missing)
-- Now 15 maestri have story hooks with correct IDs
+- Now 17 maestri have story hooks with correct IDs
 - Curriculum parser now loads real JSON data
 
 ### 2025-12-20 - Brutal Reality Check

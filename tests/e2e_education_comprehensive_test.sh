@@ -87,6 +87,40 @@ run_convergio() {
     echo "$LAST_OUTPUT"
 }
 
+# Run without -q flag to see banner
+run_convergio_with_banner() {
+    local commands="$1"
+    if [ -n "$TIMEOUT_CMD" ]; then
+        LAST_OUTPUT=$(echo -e "$commands\nquit" | $TIMEOUT_CMD $TIMEOUT_SEC $CONVERGIO 2>&1) || true
+    else
+        LAST_OUTPUT=$(echo -e "$commands\nquit" | $CONVERGIO 2>&1) || true
+    fi
+    echo "$LAST_OUTPUT"
+}
+
+# Special test for banner (runs without -q flag)
+run_banner_test() {
+    local name="$1"
+    local expected="$2"
+
+    ((TOTAL_TESTS++))
+    printf "  [%02d] %s... " $TOTAL_TESTS "$name"
+
+    output=$(run_convergio_with_banner "")
+
+    if echo "$output" | grep -qiE "$expected"; then
+        echo -e "${GREEN}PASS${NC}"
+        ((PASSED++))
+        return 0
+    else
+        echo -e "${RED}FAIL${NC}"
+        echo "    Expected: $expected"
+        echo "    Got: $(echo "$output" | head -10 | tr '\n' ' ')"
+        ((FAILED++))
+        return 1
+    fi
+}
+
 run_test() {
     local name="$1"
     local commands="$2"
@@ -230,9 +264,9 @@ run_test "Binary is education edition" \
     "version" \
     "edu"
 
-run_test "Banner shows Education" \
-    "" \
-    "EDUC\|Education\|Scuola"
+# Banner test needs to run without -q flag to actually see the banner
+run_banner_test "Banner shows Education" \
+    "EDUC|Education|Scuola"
 
 run_test "Help shows Maestri not agents" \
     "help" \

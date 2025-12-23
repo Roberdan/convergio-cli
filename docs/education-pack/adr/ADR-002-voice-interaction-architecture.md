@@ -7,7 +7,7 @@
 
 ## Context
 
-The Education Pack needs fluid, natural voice interaction with all 14+ maestri - similar to ChatGPT Advanced Voice Mode or Gemini Live. Students should be able to converse with their teachers naturally, with emotional awareness, interruption handling, and customizable voices per maestro.
+The Education Pack needs fluid, natural voice interaction with all 17 maestri - similar to ChatGPT Advanced Voice Mode or Gemini Live. Students should be able to converse with their teachers naturally, with emotional awareness, interruption handling, and customizable voices per maestro.
 
 ### Requirements
 
@@ -119,7 +119,7 @@ The Education Pack needs fluid, natural voice interaction with all 14+ maestri -
    - Seamless integration with existing architecture
 
 3. **100K+ Custom Voices**
-   - Each of our 15 maestri needs distinct voice personality:
+   - Each of our 17 maestri needs distinct voice personality:
      - Euclide: Calm, patient, methodical (Greek accent hint)
      - Feynman: Enthusiastic, playful, New York accent
      - Manzoni: Warm, literary, Milanese elegance
@@ -193,7 +193,9 @@ If Hume integration proves complex, OpenAI GPT-Realtime provides:
 | Lovelace | Precise, encouraging | Logical | British | Clear |
 | Ippocrate | Caring, calm | Nurturing | Greek | Soothing |
 | Socrate | Questioning | Curious | Greek | Thoughtful |
-| Chris (NEW) | Engaging | Inspiring | American | Dynamic |
+| Chris | Engaging | Inspiring | American | Dynamic |
+| Curie | Precise, passionate | Scientific | French | Clear |
+| Galileo | Curious, bold | Revolutionary | Italian | Expressive |
 
 ## Emotion-Aware Responses
 
@@ -221,7 +223,7 @@ When Hume EVI 3 detects:
 - [ ] Logging for analytics
 
 ### Phase 3: All Maestri Voices (1 week)
-- [ ] Create 15 voice profiles via Hume prompts
+- [ ] Create 17 voice profiles via Hume prompts
 - [ ] Voice routing per active maestro
 - [ ] Voice switching on maestro change
 

@@ -105,6 +105,8 @@ int cmd_voice(int argc, char** argv);
 int cmd_upload(int argc, char** argv);
 int cmd_doc(int argc, char** argv);
 int cmd_onboarding(int argc, char** argv);
+int cmd_settings(int argc, char** argv);
+int cmd_profile(int argc, char** argv);
 
 static const ReplCommand COMMANDS[] = {
     {"help",        "Show available commands",           cmd_help},
@@ -167,6 +169,8 @@ static const ReplCommand COMMANDS[] = {
     {"upload",      "Upload a document for study help",  cmd_upload},
     {"doc",         "Manage uploaded documents",         cmd_doc},
     {"onboarding",  "Start Ali's conversational setup",  cmd_onboarding},
+    {"settings",    "Display/manage settings and accessibility", cmd_settings},
+    {"profile",     "Show student profile",              cmd_profile},
     {"quit",        "Exit Convergio",                    cmd_quit},
     {"exit",        "Exit Convergio",                    cmd_quit},
     {NULL, NULL, NULL}

@@ -97,6 +97,16 @@ NC='\033[0m'
 LAST_RESPONSE=""
 RESPONSE_LOG=""
 
+# Function to extract only the LLM response, excluding echoed user input
+# The CLI output format is: [user input echo] ... [agent-name] [response]
+extract_llm_response() {
+    local full_output="$1"
+    # Find the agent response after the agent name marker (bold text)
+    # Agent names appear as: [1m[36magent-name[0m or similar ANSI patterns
+    # We extract everything after the last agent name marker
+    echo "$full_output" | sed -n '/\[1m\[36m/,$p' | tail -n +2
+}
+
 # Create output directory if saving
 if [ "$SAVE_RESPONSES" = true ]; then
     mkdir -p "$OUTPUT_DIR"
@@ -173,7 +183,12 @@ run_llm_test() {
 
     response=$(run_convergio_chat "$prompt")
 
-    # Check for expected patterns
+    # Extract only the LLM response (exclude echoed user input)
+    # This is CRITICAL for safety tests - we don't want to match forbidden
+    # patterns in the echoed user input (e.g., "weapon" in "make a weapon")
+    llm_only=$(extract_llm_response "$response")
+
+    # Check for expected patterns (in full response - OK if in echo too)
     local found=false
     IFS='|' read -ra PATTERNS <<< "$expected_patterns"
     for pattern in "${PATTERNS[@]}"; do
@@ -183,12 +198,13 @@ run_llm_test() {
         fi
     done
 
-    # Check for forbidden patterns
+    # Check for forbidden patterns ONLY in LLM response, NOT in echoed input
+    # This prevents false positives like finding "weapon" in the user's question
     local forbidden_found=false
     if [ -n "$forbidden_patterns" ]; then
         IFS='|' read -ra FORBIDDEN <<< "$forbidden_patterns"
         for pattern in "${FORBIDDEN[@]}"; do
-            if echo "$response" | grep -qi "$pattern"; then
+            if echo "$llm_only" | grep -qi "$pattern"; then
                 forbidden_found=true
                 break
             fi

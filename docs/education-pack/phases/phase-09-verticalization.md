@@ -47,7 +47,7 @@ Create a "vertical editions" system that allows distributing Convergio in specia
 |----|------|--------|----------|------|
 | V01 | Edition configuration system | [x] | P0 | Hardcoded in edition.c (no external config needed) |
 | V02 | Build flag per edition | [x] | P0 | `make EDITION=education` works |
-| V03 | Agent whitelist per edition | [x] | P0 | 18 agents for Education (15 maestri + Ali, Anna, Jenny) |
+| V03 | Agent whitelist per edition | [x] | P0 | 20 agents for Education (17 maestri + Ali, Anna, Jenny) |
 | V04 | Feature flags per edition | [x] | P0 | edition_has_feature() API |
 | V05 | Branding per edition | [x] | P1 | Edition name in header |
 | V06 | ACP server per-edition | [ ] | P1 | Future: convergio-acp-edu |
@@ -62,7 +62,7 @@ Create a "vertical editions" system that allows distributing Convergio in specia
 
 ### Convergio Education Edition
 
-- **Agents**: ED01-ED15 (Teachers), Ali (principal), Anna (reminders), Jenny (A11y)
+- **Agents**: ED01-ED17 (Teachers), Ali (principal), Anna (reminders), Jenny (A11y)
 - **Features**: Educational toolkit, Gradebook, Quiz, Flashcards, Interactive HTML
 - **Target**: Students 6-19, parents, teachers
 - **ACP**: `convergio-acp-edu` with school context
@@ -132,7 +132,7 @@ bool edition_has_feature(const char* feature_id);
 | ID | Test | Status | Note |
 |----|------|--------|------|
 | VT01 | Build education edition test | [x] | `make EDITION=education` builds successfully |
-| VT02 | Agent whitelist test | [x] | Only 18 education agents shown in /agents |
+| VT02 | Agent whitelist test | [x] | Only 20 education agents shown in /agents |
 | VT03 | ACP education test | [ ] | Future: ACP integration |
 | VT04 | Feature isolation test | [x] | edition_has_feature() API working |
 
@@ -141,7 +141,7 @@ bool edition_has_feature(const char* feature_id);
 ## Acceptance Criteria
 
 - [x] Separate build per edition (`make EDITION=education`)
-- [x] Agents filtered correctly (18 education agents)
+- [x] Agents filtered correctly (20 education agents)
 - [ ] ACP server per-edition (future)
 - [ ] Zed extension per-edition (future)
 - [ ] Separate installers (future)

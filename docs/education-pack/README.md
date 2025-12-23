@@ -6,7 +6,7 @@
 
 | Section | Description |
 |---------|-------------|
-| [Maestri (Teachers)](#maestri-ai-teachers) | 15 AI master teachers with unique personalities |
+| [Maestri (Teachers)](#maestri-ai-teachers) | 17 AI master teachers with unique personalities |
 | [Voice Interaction](#voice-interaction) | Real-time voice conversations with emotion detection |
 | [Learning Science](#learning-science) | Khan Academy + Duolingo engagement techniques |
 | [Accessibility](#accessibility) | Support for dyslexia, ADHD, autism, and more |
@@ -18,7 +18,7 @@
 
 ## Maestri (AI Teachers)
 
-Our 15 master teachers, each inspired by historical figures with distinct teaching styles:
+Our 17 master teachers, each inspired by historical figures with distinct teaching styles:
 
 ### Core Subjects
 
@@ -280,7 +280,7 @@ src/education/
 ## Roadmap
 
 ### Completed
-- 15 Maestri with unique personalities
+- 17 Maestri with unique personalities
 - Accessibility runtime (6 conditions)
 - Core tools (calculator, linguistics, periodic table)
 - Gamification basics (XP, badges, streaks)

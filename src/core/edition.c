@@ -81,7 +81,8 @@ static const char *EDUCATION_COMMANDS[] = {
     "xp", "video", "periodic", "convert",
     "help", "agent", "agents", "status", "quit", "exit",
     "setup", "debug", "theme", "style", "cost",
-    "todo", "remind", "reminders",
+    "todo", "remind", "reminders", "settings", "profile",
+    "onboarding", "upload", "doc",
     NULL
 };
 
