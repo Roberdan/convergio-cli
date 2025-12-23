@@ -59,3 +59,17 @@ char* llm_generate(const char* prompt, const char* system_prompt) {
     // Return a test response
     return strdup("[Test Mode] LLM risposta di test per: prompt ricevuto");
 }
+
+// ============================================================================
+// MESSAGE BUS STUBS FOR TESTS
+// ============================================================================
+
+// Stub for message_send - do NOT destroy message since tests store them in history
+// This fixes the sanitizer issue where message_send would free memory still in use
+__attribute__((weak))
+void message_send(void* msg) {
+    (void)msg;
+    // In tests, we don't actually send messages - just keep them in memory
+    // The original implementation would destroy msg if orchestrator is NULL,
+    // causing use-after-free when tests access message_history
+}
