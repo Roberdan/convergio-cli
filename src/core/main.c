@@ -425,6 +425,30 @@ int main(int argc, char** argv) {
     // Initialize edition system (displays edition info for non-master)
     edition_init();
 
+    // Validate Azure OpenAI credentials for Education edition
+    if (edition_uses_azure_openai()) {
+        const char* azure_key = getenv("AZURE_OPENAI_API_KEY");
+        const char* azure_endpoint = getenv("AZURE_OPENAI_ENDPOINT");
+
+        if (!azure_key || !azure_endpoint) {
+            fprintf(stderr, "\n");
+            fprintf(stderr, "  \033[31m✗ ERROR: Education edition requires Azure OpenAI\033[0m\n");
+            fprintf(stderr, "\n");
+            fprintf(stderr, "  ┌─────────────────────────────────────────────────────────────┐\n");
+            fprintf(stderr, "  │  \033[1mAzure OpenAI Configuration Required\033[0m                          │\n");
+            fprintf(stderr, "  │                                                             │\n");
+            fprintf(stderr, "  │  Education edition uses Azure OpenAI for GDPR compliance    │\n");
+            fprintf(stderr, "  │  and content safety for minors.                            │\n");
+            fprintf(stderr, "  │                                                             │\n");
+            fprintf(stderr, "  │  Please set the following environment variables:           │\n");
+            fprintf(stderr, "  │    AZURE_OPENAI_API_KEY=<your-key>                         │\n");
+            fprintf(stderr, "  │    AZURE_OPENAI_ENDPOINT=https://<region>.openai.azure.com/│\n");
+            fprintf(stderr, "  └─────────────────────────────────────────────────────────────┘\n");
+            fprintf(stderr, "\n");
+            return 1;
+        }
+    }
+
     // Initialize theme system
     theme_init();
 

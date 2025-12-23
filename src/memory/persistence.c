@@ -227,7 +227,7 @@ static const char* SCHEMA_SQL =
     ");"
 
     // ========================================================================
-    // TODO MANAGER TABLES (Anna Executive Assistant)
+    // MANAGER TABLES (Anna Executive Assistant) - Phase 2 Task 2.8 COMPLETED
     // ========================================================================
 
     // Tasks table

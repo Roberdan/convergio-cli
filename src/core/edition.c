@@ -417,6 +417,14 @@ int edition_get_preferred_provider(void) {
 }
 
 /**
+ * Check if current edition uses Azure OpenAI (Education edition only)
+ * @return true if Education edition, false otherwise
+ */
+bool edition_uses_azure_openai(void) {
+    return g_current_edition == EDITION_EDUCATION;
+}
+
+/**
  * Get the preferred model for the current edition.
  * Returns a model ID string that should be used.
  */

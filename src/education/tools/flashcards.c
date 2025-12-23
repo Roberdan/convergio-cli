@@ -23,6 +23,35 @@ extern int64_t education_toolkit_save(int64_t student_id, EducationToolkitType t
 extern int education_flashcard_create_reviews(int64_t toolkit_output_id, int card_count);
 extern int education_flashcard_review(int64_t review_id, int quality);
 
+// FSRS integration (Phase 2 - Learning Science)
+// Forward declarations for FSRS functions (from src/education/fsrs.c)
+typedef struct {
+    int64_t card_id;
+    int64_t student_id;
+    char* topic_id;
+    char* front;
+    char* back;
+    float stability;
+    float difficulty;
+    float retrievability;
+    int reps;
+    int lapses;
+    time_t last_review;
+    time_t next_review;
+    time_t created_at;
+} FSRSCard;
+
+typedef struct {
+    FSRSCard* cards;
+    int count;
+    int capacity;
+} FSRSCardList;
+
+// External FSRS functions
+extern FSRSCardList* fsrs_get_due_cards(int64_t student_id, int limit);
+extern int fsrs_record_review(int64_t card_id, int quality);
+extern void fsrs_free_cards(FSRSCardList* list);
+
 // ============================================================================
 // SM-2 ALGORITHM CONSTANTS
 // ============================================================================
@@ -155,14 +184,76 @@ void sm2_calculate_next_review(Flashcard* card, int quality) {
 }
 
 /**
- * Get cards due for review
+ * Get cards due for review using FSRS algorithm (Phase 2 integration)
  */
 Flashcard** flashcard_get_due(int64_t deck_id, int64_t student_id,
                                int max_cards, int* count) {
-    // This would query the database
-    // For now, return empty array
     *count = 0;
-    return NULL;
+    
+    // Use FSRS to get due cards
+    FSRSCardList* fsrs_list = fsrs_get_due_cards(student_id, max_cards);
+    if (!fsrs_list || fsrs_list->count == 0) {
+        if (fsrs_list) fsrs_free_cards(fsrs_list);
+        return NULL;
+    }
+    
+    // Allocate array for Flashcard pointers
+    Flashcard** cards = calloc(fsrs_list->count, sizeof(Flashcard*));
+    if (!cards) {
+        fsrs_free_cards(fsrs_list);
+        return NULL;
+    }
+    
+    // Convert FSRSCard to Flashcard
+    for (int i = 0; i < fsrs_list->count; i++) {
+        FSRSCard* fsrs_card = &fsrs_list->cards[i];
+        
+        Flashcard* card = calloc(1, sizeof(Flashcard));
+        if (!card) {
+            // Free already allocated cards
+            for (int j = 0; j < i; j++) {
+                if (cards[j]) {
+                    free(cards[j]->front);
+                    free(cards[j]->back);
+                    free(cards[j]);
+                }
+            }
+            free(cards);
+            fsrs_free_cards(fsrs_list);
+            return NULL;
+        }
+        
+        card->id = fsrs_card->card_id;
+        card->deck_id = deck_id;
+        card->student_id = fsrs_card->student_id;
+        card->front = fsrs_card->front ? strdup(fsrs_card->front) : NULL;
+        card->back = fsrs_card->back ? strdup(fsrs_card->back) : NULL;
+        card->next_review = fsrs_card->next_review;
+        card->last_review = fsrs_card->last_review;
+        card->created_at = fsrs_card->created_at;
+        
+        // Map FSRS state to Flashcard state
+        card->repetition_count = fsrs_card->reps;
+        card->interval_days = (int)round(fsrs_card->stability);
+        card->easiness_factor = 2.5f + (1.0f - fsrs_card->difficulty) * 0.5f; // Approximate mapping
+        
+        // Determine status from FSRS state
+        if (fsrs_card->reps == 0) {
+            card->status = CARD_NEW;
+        } else if (fsrs_card->stability >= 21.0f && fsrs_card->reps >= 3) {
+            card->status = CARD_MASTERED;
+        } else if (fsrs_card->reps > 0) {
+            card->status = CARD_REVIEWING;
+        } else {
+            card->status = CARD_LEARNING;
+        }
+        
+        cards[i] = card;
+    }
+    
+    *count = fsrs_list->count;
+    fsrs_free_cards(fsrs_list);
+    return cards;
 }
 
 /**
@@ -442,22 +533,25 @@ Flashcard* flashcard_session_current(FlashcardSession* session) {
 }
 
 /**
- * Rate current card and move to next
+ * Rate current card and move to next using FSRS algorithm (Phase 2 integration)
  */
 bool flashcard_session_rate(FlashcardSession* session, int quality) {
-    if (!session || quality < 0 || quality > 5) {
+    if (!session || quality < 1 || quality > 5) {
         return false;
     }
 
     Flashcard* card = flashcard_session_current(session);
     if (!card) return false;
 
-    // Apply SM-2 algorithm
-    sm2_calculate_next_review(card, quality);
-
-    // Update database with new review state
+    // Use FSRS algorithm instead of SM-2 (Phase 2 integration)
     if (card->id > 0) {
-        education_flashcard_review(card->id, quality);
+        // Record review using FSRS algorithm
+        int result = fsrs_record_review(card->id, quality);
+        if (result == 0) {
+            // FSRS updated successfully, also update legacy review table
+            education_flashcard_review(card->id, quality);
+        }
+        // Note: FSRS handles all scheduling internally, no need for SM-2 calculation
     }
 
     session->reviewed_count++;
