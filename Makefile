@@ -278,6 +278,8 @@ C_SOURCES = $(SRC_DIR)/core/fabric.c \
             $(SRC_DIR)/education/accessibility_runtime.c \
             $(SRC_DIR)/education/fsrs.c \
             $(SRC_DIR)/education/mastery.c \
+            $(SRC_DIR)/education/mastery_gate.c \
+            $(SRC_DIR)/education/mastery_visualization.c \
             $(SRC_DIR)/education/periodic_table.c \
             $(SRC_DIR)/education/feature_flags.c \
             $(SRC_DIR)/education/storytelling.c \
@@ -679,6 +681,7 @@ $(eval $(call define_standard_test,tools_test,tests/test_tools.c))
 $(eval $(call define_standard_test,websearch_test,tests/test_websearch.c))
 $(eval $(call define_standard_test,telemetry_test,tests/test_telemetry.c))
 $(eval $(call define_standard_test,security_test,tests/test_security.c))
+$(eval $(call define_standard_test,education_safety_test,tests/test_education_safety.c))
 $(eval $(call define_standard_test,stress_test,tests/test_stress.c))
 $(eval $(call define_standard_test,education_test,tests/test_education.c))
 $(eval $(call define_standard_test,workflow_types_test,tests/test_workflow_types.c))
@@ -847,7 +850,7 @@ security_audit_workflow:
 	@echo "╚══════════════════════════════════════════════════════════════╝"
 
 # Run all tests
-test: fuzz_test unit_test anna_test compaction_test plan_db_test output_service_test tools_test websearch_test workflow_test education_test telemetry_test security_test check-docs
+test: fuzz_test unit_test anna_test compaction_test plan_db_test output_service_test tools_test websearch_test workflow_test education_test telemetry_test security_test education_safety_test check-docs
 	@echo "All tests completed!"
 
 # Parallel test execution helper (for independent test suites)

@@ -35,7 +35,7 @@ extern char* llm_generate(const char* prompt, const char* system_prompt);
 // CONSTANTS
 // ============================================================================
 
-#define SKILL_MASTERY_THRESHOLD 0.85f
+#define SKILL_MASTERY_THRESHOLD 0.80f  // Aligned with mastery.c MASTERY_THRESHOLD
 #define SKILL_COMPLETED_THRESHOLD 0.70f
 #define SKILL_IN_PROGRESS_THRESHOLD 0.30f
 

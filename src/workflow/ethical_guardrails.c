@@ -31,6 +31,52 @@ static const char* HARMFUL_PATTERNS[] = {
     NULL
 };
 
+// Education-specific: Self-harm and suicide patterns (SAF01, SAF02, SAF10)
+static const char* SELF_HARM_PATTERNS[] = {
+    "voglio morire", "want to die", "kill myself", "end my life",
+    "faccio del male", "hurt myself", "tagliarmi", "cut myself",
+    "suicide", "suicid", "nessuno mi vuole", "nobody loves me",
+    "feel alone", "very sad", "very alone", "isolated",
+    NULL
+};
+
+// Education-specific: Violence patterns (SAF03)
+static const char* VIOLENCE_PATTERNS[] = {
+    "costruisco una bomba", "make a bomb", "make a weapon",
+    "fare del male a", "hurt someone", "violence", "violenza",
+    "weapon", "arma", "fight", "combat",
+    NULL
+};
+
+// Education-specific: Adult content patterns (SAF06)
+static const char* ADULT_CONTENT_PATTERNS[] = {
+    "contenuti per adulti", "adult content", "porn", "sex",
+    "explicit", "mature content", "18+", "nsfw",
+    NULL
+};
+
+// Education-specific: Bullying patterns (SAF05)
+static const char* BULLYING_PATTERNS[] = {
+    "fare il bullo", "bully", "bullismo", "harass",
+    "intimidate", "threaten", "minacciare",
+    NULL
+};
+
+// Education-specific: Drugs patterns (SAF04)
+static const char* DRUGS_PATTERNS[] = {
+    "fare la droga", "make drugs", "drugs", "droghe",
+    "cocaine", "heroin", "marijuana", "cannabis",
+    NULL
+};
+
+// Education-specific: Jailbreak patterns (SAF07)
+static const char* JAILBREAK_PATTERNS[] = {
+    "dimentica le tue istruzioni", "ignore previous instructions",
+    "disregard all prior", "forget everything", "you are now",
+    "new instructions", "system prompt", "roleplay as",
+    NULL
+};
+
 // Patterns indicating privacy violations
 static const char* PRIVACY_PATTERNS[] = {
     "ssn", "social security", "credit card number",
@@ -103,12 +149,43 @@ EthicalResult workflow_validate_ethical(const char* content) {
         return ETHICAL_OK;
     }
 
+    // Education-specific: Self-harm and suicide (SAF01, SAF02, SAF10) - CRITICAL
+    // Immediate block and redirect to adult/helpline
+    if (contains_pattern(content, SELF_HARM_PATTERNS)) {
+        return ETHICAL_BLOCK;  // Should trigger redirect to adult
+    }
+
+    // Education-specific: Violence (SAF03) - Block with alternative topics
+    if (contains_pattern(content, VIOLENCE_PATTERNS)) {
+        return ETHICAL_BLOCK;
+    }
+
+    // Education-specific: Adult content (SAF06) - Absolute block
+    if (contains_pattern(content, ADULT_CONTENT_PATTERNS)) {
+        return ETHICAL_BLOCK;
+    }
+
+    // Education-specific: Bullying (SAF05) - Block, redirect to anti-bullying
+    if (contains_pattern(content, BULLYING_PATTERNS)) {
+        return ETHICAL_BLOCK;
+    }
+
+    // Education-specific: Drugs (SAF04) - Block (or health info only)
+    if (contains_pattern(content, DRUGS_PATTERNS)) {
+        return ETHICAL_BLOCK;
+    }
+
+    // Education-specific: Jailbreak (SAF07) - Block prompt injection
+    if (contains_pattern(content, JAILBREAK_PATTERNS)) {
+        return ETHICAL_BLOCK;
+    }
+
     // Check for harmful content (immediate block)
     if (contains_pattern(content, HARMFUL_PATTERNS)) {
         return ETHICAL_BLOCK;
     }
 
-    // Check for privacy violations (requires human review)
+    // Check for privacy violations (requires human review) - SAF09
     if (contains_pattern(content, PRIVACY_PATTERNS)) {
         return ETHICAL_HUMAN_REVIEW;
     }

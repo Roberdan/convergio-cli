@@ -2,7 +2,7 @@
 
 ## Learn from History's Greatest Teachers
 
-Imagine having Socrates guide you through philosophy, Einstein explain physics, or Ada Lovelace teach you programming. **Convergio Education** brings 15 historical masters to life as AI tutors, each with their authentic teaching style and deep subject expertise.
+Imagine having Socrates guide you through philosophy, Einstein explain physics, or Ada Lovelace teach you programming. **Convergio Education** brings 17 historical masters to life as AI tutors, each with their authentic teaching style and deep subject expertise.
 
 ---
 
@@ -28,7 +28,7 @@ Mapped to Italian educational curricula from elementary to high school, includin
 
 ---
 
-## The 15 Maestri
+## The 17 Maestri
 
 | Maestro | Subject | Why They're Amazing |
 |---------|---------|---------------------|
@@ -47,6 +47,8 @@ Mapped to Italian educational curricula from elementary to high school, includin
 | **Ippocrate** | Health | "First, do no harm" - wellness wisdom |
 | **Socrate** | Philosophy | Ask the right questions |
 | **Chris** | Storytelling | Modern master of narrative craft |
+| **Curie** | Chemistry | Nobel laureate in physics and chemistry |
+| **Galileo** | Astronomy | Father of modern observational astronomy |
 
 ---
 
@@ -167,7 +169,7 @@ make test-edu-full
 ## Technical Specs
 
 - **Version Suffix**: `-edu`
-- **Total Agents**: 18
+- **Total Agents**: 20 (17 Maestri + 3 Coordinators)
 - **Curricula Supported**: 8 Italian school types
 - **Accessibility**: WCAG 2.1 AA compliant
 - **Voice**: TTS (say) + STT (optional Whisper)

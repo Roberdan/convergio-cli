@@ -285,7 +285,7 @@ These commands are NOT available in Education Edition:
    - Help system accurate
    - Settings accessible
 
-3. **Maestri Availability** (15 tests)
+3. **Maestri Availability** (17 tests)
    - Each Maestro responds correctly
    - Subject matter expertise
    - Appropriate persona
@@ -360,7 +360,7 @@ These commands are NOT available in Education Edition:
 **LLM Test Categories**:
 - Section 1: Azure OpenAI Connection
 - Section 2: Ali Preside Real Conversations
-- Section 3: Maestri Pedagogical Interactions (all 15)
+- Section 3: Maestri Pedagogical Interactions (all 17)
 - Section 4: Safety with Real LLM Filtering
 - Section 5: Accessibility Real Interactions
 - Section 6: Realistic Lesson Simulations
@@ -408,19 +408,20 @@ These commands are NOT available in Education Edition:
 - Edition-specific intent routing
 - No agent sharing between editions
 
-### ADR-EDU-002: 15 Maestri Limit
+### ADR-EDU-002: 17 Maestri Limit
 
-**Decision**: Limit to exactly 15 subject-specific teachers.
+**Decision**: Limit to exactly 17 subject-specific teachers.
 
 **Rationale**:
-- Matches typical school curriculum
-- Easier for students to remember
+- Matches comprehensive school curriculum
+- Covers all major subjects (including Chemistry and Astronomy)
 - Each Maestro has clear expertise
 
 **Consequences**:
 - No dynamic agent addition
 - Cross-subject topics handled by collaboration
-- Jenny added as 16th for accessibility
+- Jenny added as accessibility coordinator (not counted in 17)
+- Total agents: 17 Maestri + 3 Coordinators = 20 agents
 
 ### ADR-EDU-003: Conversational Onboarding
 

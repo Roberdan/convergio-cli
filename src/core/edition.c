@@ -442,10 +442,3 @@ const char* edition_get_preferred_model(void) {
             return "claude-opus-4";
     }
 }
-
-/**
- * Check if education edition should use Azure OpenAI.
- */
-bool edition_uses_azure_openai(void) {
-    return g_current_edition == EDITION_EDUCATION;
-}

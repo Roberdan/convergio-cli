@@ -31,7 +31,7 @@ A virtual classroom council with the greatest historical teachers, equipped with
 | 8 | Testing | ✅ | 100% | 36 education tests | [phase-08-testing.md](phases/phase-08-testing.md) |
 | 9 | Verticalization | ✅ | 100% | Edition system complete | [phase-09-verticalization.md](phases/phase-09-verticalization.md) |
 | 10 | Voice Interaction | ✅ | 100% | A11y profile loads | [phase-10-voice.md](phases/phase-10-voice.md) |
-| 11 | Learning Science | ✅ | 100% | FSRS + Mastery done | [phase-11-learning-science.md](phases/phase-11-learning-science.md) |
+| 11 | Learning Science | 🔄 | 60% | FSRS + Mastery core done, integration in progress | [phase-11-learning-science.md](phases/phase-11-learning-science.md) |
 | 12 | Storytelling | ✅ | 100% | All strings in English | [phase-12-storytelling.md](phases/phase-12-storytelling.md) |
 | 13 | Localization | ⬜ | 0% | Architecture needed | [phase-13-localization.md](phases/phase-13-localization.md) |
 | 14 | Proactive Teaching | ✅ | 100% | Profile, Wizard, Errors, Upload | See section 14 below |
