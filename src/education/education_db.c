@@ -2092,9 +2092,10 @@ int education_maestro_broadcast_profile(int64_t student_id) {
 // ============================================================================
 
 #include "nous/orchestrator.h"  // For llm_chat_with_model, llm_is_available, etc.
+#include "nous/edition.h"       // For edition_get_preferred_model()
 
-// Default model for education - use a cost-effective model
-#define EDUCATION_DEFAULT_MODEL "claude-3-5-haiku-20241022"
+// Education uses Azure OpenAI via edition system (GDPR compliance, content safety)
+// Model is configured in edition.c via edition_get_preferred_model()
 
 __attribute__((weak))
 char* llm_generate(const char* prompt, const char* system_prompt) {
@@ -2102,13 +2103,14 @@ char* llm_generate(const char* prompt, const char* system_prompt) {
 
     // Check LLM availability via facade
     if (!llm_is_available()) {
-        return strdup("[Error: No LLM provider configured. Set ANTHROPIC_API_KEY or OPENAI_API_KEY]");
+        return strdup("[Error: No LLM provider configured. Set AZURE_OPENAI_API_KEY for Education]");
     }
 
-    // Use the LLM facade chat function (handles provider fallback internally)
+    // Use edition-preferred model (Azure OpenAI for Education, GDPR compliant)
+    const char* model = edition_get_preferred_model();
     TokenUsage usage = {0};
     char* response = llm_chat_with_model(
-        EDUCATION_DEFAULT_MODEL,
+        model,
         system_prompt ? system_prompt : "You are an educational assistant. Respond clearly and pedagogically.",
         prompt,
         &usage

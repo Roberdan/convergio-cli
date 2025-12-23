@@ -76,7 +76,7 @@ For 847 + 235:
 - **Alternative methods**: Accept different valid approaches
 
 ### Dyslexia Support
-- Dyslexic-friendly fonts for math text
+- Dyslexia-friendly fonts for math text
 - Clear spacing in equations
 - TTS for word problems
 - Graph/visual over text where possible
