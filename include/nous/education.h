@@ -1368,6 +1368,90 @@ const char* html_template_prompt_quiz(void);
 const char* html_template_prompt_flashcards(void);
 
 // ============================================================================
+// MASTERY LEARNING API (Phase 11 - Learning Science)
+// ============================================================================
+
+/**
+ * @brief Skill mastery status levels
+ */
+typedef enum {
+    MASTERY_SKILL_NOT_STARTED = 0,
+    MASTERY_SKILL_ATTEMPTED = 1,
+    MASTERY_SKILL_FAMILIAR = 2,
+    MASTERY_SKILL_PROFICIENT = 3,
+    MASTERY_SKILL_MASTERED = 4
+} MasterySkillStatus;
+
+/**
+ * @brief Individual skill mastery tracking
+ */
+typedef struct {
+    int64_t id;
+    int64_t student_id;
+    char* skill_id;           // e.g., "math.fractions.addition"
+    char* skill_name;         // Display name
+    char* parent_skill_id;    // Parent in skill tree
+    int attempts;
+    int correct;
+    float mastery_level;      // 0.0 - 1.0
+    float current_difficulty; // Adaptive difficulty
+    MasterySkillStatus status;
+    time_t last_practice;
+    time_t mastered_at;
+} MasterySkill;
+
+/**
+ * @brief List of mastery skills
+ */
+typedef struct {
+    MasterySkill* skills;
+    int count;
+    int capacity;
+} MasterySkillList;
+
+/**
+ * @brief Get mastery level for a skill (0.0 - 1.0)
+ */
+float education_mastery_get_level(int64_t student_id, const char* skill_id);
+
+/**
+ * @brief Check if skill is mastered (80%+)
+ */
+bool education_mastery_is_mastered(int64_t student_id, const char* skill_id);
+
+/**
+ * @brief Identify skill gaps for a student in a subject
+ * @return List of skills below proficient level (caller must free with mastery_free_skills)
+ */
+MasterySkillList* mastery_identify_gaps(int64_t student_id, const char* subject);
+
+/**
+ * @brief Free a mastery skill list
+ */
+void mastery_free_skills(MasterySkillList* list);
+
+/**
+ * @brief Check if student can advance to next skill (80% mastery gate)
+ */
+bool mastery_can_advance(int64_t student_id, const char* target_skill_id,
+                         const char** prerequisite_skills, int prereq_count);
+
+/**
+ * @brief Print mastery visualization for a skill
+ */
+void mastery_print_skill(int64_t student_id, const char* skill_id, const char* skill_name);
+
+/**
+ * @brief Print mastery summary for a subject
+ */
+void mastery_print_subject_summary(int64_t student_id, const char* subject);
+
+/**
+ * @brief Print full mastery tree visualization
+ */
+void mastery_print_tree(int64_t student_id);
+
+// ============================================================================
 // GAMIFICATION API
 // ============================================================================
 

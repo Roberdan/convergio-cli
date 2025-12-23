@@ -13,11 +13,7 @@
 #include <string.h>
 #include <stdbool.h>
 
-// Forward declarations
-extern MasterySkillList* mastery_identify_gaps(int64_t student_id, const char* subject);
-extern void mastery_free_skills(MasterySkillList* list);
-extern float education_mastery_get_level(int64_t student_id, const char* skill_id);
-extern bool education_mastery_is_mastered(int64_t student_id, const char* skill_id);
+// Types and functions now declared in nous/education.h
 
 // Helper to get all skills (simplified - uses gaps function which returns all)
 static MasterySkillList* get_all_skills_for_subject(int64_t student_id, const char* subject) {

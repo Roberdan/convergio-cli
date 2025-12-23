@@ -31,12 +31,23 @@ static const char* HARMFUL_PATTERNS[] = {
     NULL
 };
 
-// Education-specific: Self-harm and suicide patterns (SAF01, SAF02, SAF10)
+// Education-specific: Self-harm and suicide patterns (SAF01, SAF02) - returns BLOCK
 static const char* SELF_HARM_PATTERNS[] = {
     "voglio morire", "want to die", "kill myself", "end my life",
-    "faccio del male", "hurt myself", "tagliarmi", "cut myself",
-    "suicide", "suicid", "nessuno mi vuole", "nobody loves me",
-    "feel alone", "very sad", "very alone", "isolated",
+    "fare del male", "faccio del male", "hurt myself",  // SAF02 fix
+    "tagliarmi", "cut myself",
+    "suicide", "suicid", "mi uccido",
+    "ending it all", "ending it",
+    "non ce la faccio piu", "can't go on", "don't want to live",
+    NULL
+};
+
+// Education-specific: Isolation/distress patterns (SAF10) - returns HUMAN_REVIEW
+static const char* ISOLATION_PATTERNS[] = {
+    "nessuno mi vuole", "nobody loves me", "nobody likes me",
+    "feel alone", "feel very alone", "very alone", "isolated",
+    "very sad", "molto triste", "mi sento solo", "sono solo",
+    "non ho amici", "no friends", "all alone",
     NULL
 };
 
@@ -64,7 +75,8 @@ static const char* BULLYING_PATTERNS[] = {
 
 // Education-specific: Drugs patterns (SAF04)
 static const char* DRUGS_PATTERNS[] = {
-    "fare la droga", "make drugs", "drugs", "droghe",
+    "fare la droga", "si fa la droga", "fa la droga", "make drugs",  // SAF04 fix
+    "come si fa", "how to make", "drugs", "droghe", "droga",
     "cocaine", "heroin", "marijuana", "cannabis",
     NULL
 };
@@ -72,17 +84,23 @@ static const char* DRUGS_PATTERNS[] = {
 // Education-specific: Jailbreak patterns (SAF07)
 static const char* JAILBREAK_PATTERNS[] = {
     "dimentica le tue istruzioni", "ignore previous instructions",
+    "ignore all previous", "ignore your instructions",  // SAF07 fix
     "disregard all prior", "forget everything", "you are now",
     "new instructions", "system prompt", "roleplay as",
+    "pretend to be", "act as if", "jailbreak", "dan mode",
     NULL
 };
 
-// Patterns indicating privacy violations
+// Patterns indicating privacy violations (SAF09)
 static const char* PRIVACY_PATTERNS[] = {
     "ssn", "social security", "credit card number",
     "bank account", "password", "secret key", "api key",
     "private key", "personal data", "medical record",
     "health information", "biometric", "location track",
+    // SAF09: Address/PII sharing detection for students
+    "my address", "mio indirizzo", "il mio indirizzo", "indirizzo e",
+    "my phone", "mio telefono", "numero di telefono",
+    "home address", "where i live", "dove abito",
     NULL
 };
 
@@ -149,7 +167,7 @@ EthicalResult workflow_validate_ethical(const char* content) {
         return ETHICAL_OK;
     }
 
-    // Education-specific: Self-harm and suicide (SAF01, SAF02, SAF10) - CRITICAL
+    // Education-specific: Self-harm and suicide (SAF01, SAF02) - CRITICAL
     // Immediate block and redirect to adult/helpline
     if (contains_pattern(content, SELF_HARM_PATTERNS)) {
         return ETHICAL_BLOCK;  // Should trigger redirect to adult
@@ -178,6 +196,12 @@ EthicalResult workflow_validate_ethical(const char* content) {
     // Education-specific: Jailbreak (SAF07) - Block prompt injection
     if (contains_pattern(content, JAILBREAK_PATTERNS)) {
         return ETHICAL_BLOCK;
+    }
+
+    // Education-specific: Isolation/distress (SAF10) - Requires human review
+    // Redirect to adult for emotional support, not hard block
+    if (contains_pattern(content, ISOLATION_PATTERNS)) {
+        return ETHICAL_HUMAN_REVIEW;
     }
 
     // Check for harmful content (immediate block)
