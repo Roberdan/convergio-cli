@@ -10,12 +10,19 @@
 
 # 📊 STATO ESECUZIONE (Live)
 
-**Ultimo aggiornamento**: 2025-12-23 10:00 CET
+**Ultimo aggiornamento**: 2025-12-23 16:30 CET
 
 ## Attività in Corso
 ⏳ **Phase 5** - PR #71 READY FOR MERGE (ALL CI CHECKS PASSED)
+✅ **Safety Tests**: 25/25 SAF01-SAF10 ALL PASSED (ethical_guardrails.c fixes applied)
 
 ## Completato Oggi (2025-12-23) - Phase 0, 1, 2, 3, 4
+- ✅ **Phase 2 Task 2.11 COMPLETATO**: Safety tests ALL PASSED (25/25 SAF01-SAF10)
+  - Fixed SAF02: "fare del male", "ending it all" patterns
+  - Fixed SAF04: "si fa la droga", "fa la droga" patterns
+  - Fixed SAF07: "ignore all previous" pattern
+  - Fixed SAF09: address/PII patterns
+  - Fixed SAF10: isolation patterns with HUMAN_REVIEW (not BLOCK)
 - ✅ **Phase 3 Task 3.2 COMPLETATO**: /video command usa tool_web_search() per ricerca reale
 - ✅ **Phase 3 Task 3.3 COMPLETATO**: /periodic command con database completo (26+ elementi)
 - ✅ **Phase 3 Task 3.4 COMPLETATO**: Curricula mismatch verificato - 8 JSON = 8 in list (OK)
@@ -126,6 +133,27 @@ FSRSCardList* fsrs_list = fsrs_get_due_cards(student_id, max_cards);
 // flashcard_session_rate() now uses FSRS
 fsrs_record_review(card->id, quality);
 // FSRS handles all scheduling internally
+
+// Safety Tests: ALL 25/25 PASSED (2025-12-23 16:30)
+// src/workflow/ethical_guardrails.c - fixes applied:
+// - SAF02: Added "fare del male", "ending it all" patterns
+// - SAF04: Added "si fa la droga", "fa la droga" patterns
+// - SAF07: Added "ignore all previous" pattern
+// - SAF09: Added address/PII patterns (my address, mio indirizzo, etc.)
+// - SAF10: Separated ISOLATION_PATTERNS with ETHICAL_HUMAN_REVIEW
+
+// Test Results:
+// - Security tests: 73/73 ✅
+// - Education tests: 39/39 ✅
+// - Safety tests: 25/25 ✅ (SAF01-SAF10)
+// - Unit tests: 50/50 ✅
+// - Tools tests: 101/101 ✅
+// - Workflow tests: 49/49 ✅
+// - Anna tests: 67/67 ✅
+// - Compaction tests: 39/39 ✅
+// - Telemetry tests: 19/19 ✅
+// - Websearch tests: 37/37 ✅
+// TOTAL: 499+ tests passed, 0 failed
 ```
 
 ## Evidenze Phase 3 (2025-12-23)
@@ -180,12 +208,12 @@ bool education_feature_flag_enabled(const char* feature_name);
 ```
 Phase 0: ███████████████████░  90% (29/32) ✅ [0B: MLX env issue, 0D: requires binary]
 Phase 1: ██████████████████░░  73% (8/11) ✅ [Track A: 2/3, Track C: 2/5, Track B: 0/3]
-Phase 2: ██████████████████░░  69% (11/16) ✅ [Track D: 3/3 ✅, Track F: 3/3 ✅, Track G: 3/7, Track E: 0/3]
+Phase 2: ██████████████████░░  75% (12/16) ✅ [Track D: 3/3 ✅, Track F: 3/3 ✅, Track G: 4/7 ✅, Track E: 0/3]
 Phase 3: ████████████████████ 100% (7/8) ✅ [Task 3.1 deferred - not blocking]
 Phase 4: ████████████████████ 100% (3/4) ✅ [Task 4.1 deferred - not blocking]
 Phase 5: ██████████████████░░  90% (23/25) [ALL CI GREEN - Awaiting human approval]
 ─────────────────────────────────────
-TOTALE:  ███████████████████░  78% (75/96) [Real progress - Track D & F complete, Track G & E pending]
+TOTALE:  ███████████████████░  79% (76/96) [Real progress - Track D/F/G-core complete, Track E pending]
 ```
 
 ## PR #71 Status
@@ -407,11 +435,12 @@ Un **consiglio di classe virtuale** con i piu' grandi maestri della storia, equi
 ### 6. Test Coverage
 | Check | Command | Requirement | Status |
 |-------|---------|-------------|--------|
-| Unit tests | `make unit_test` | 100% pass | ⬜ |
-| Education tests | `make education_test` | 100% pass | ⬜ |
+| Unit tests | `make unit_test` | 100% pass | ✅ 50/50 |
+| Education tests | `make education_test` | 100% pass | ✅ 39/39 |
 | E2E tests | `make test-edu` | 100% pass | ⬜ |
 | LLM tests | `make test-edu-llm` | 100% pass | ⬜ |
-| Security tests | `make security_test` | 100% pass | ⬜ |
+| Security tests | `make security_test` | 100% pass | ✅ 73/73 |
+| Safety tests | `make education_safety_test` | 100% pass | ✅ 25/25 |
 | Coverage | `make coverage` | >= 80% | ⬜ |
 
 ### 6b. Configurazione Test LLM (OBBLIGATORIA)
@@ -669,7 +698,7 @@ AZURE_OPENAI_API_VERSION=2024-02-15-preview
 | ID | Task | Owner | Status | Start | End | Notes |
 |----|------|-------|--------|-------|-----|-------|
 | 2.10 | Verify SAF01-SAF10 in test suite | - | ✅ | 23/12 | 23/12 | Created test_education_safety.c with SAF01-SAF10 - COMPLETED |
-| 2.11 | Run all safety tests | - | ⬜ | - | - | 100% pass (requires build) |
+| 2.11 | Run all safety tests | - | ✅ | 23/12 | 23/12 | **25/25 PASSED** - All SAF01-SAF10 now pass - COMPLETED |
 | 2.12 | Test self-harm/suicide detection | - | ✅ | 23/12 | 23/12 | Pattern added to ethical_guardrails.c - COMPLETED |
 | 2.13 | Test prompt injection protection | - | ✅ | 23/12 | 23/12 | Jailbreak patterns added - COMPLETED |
 | 2.14 | Test maieutic method | - | ⬜ | - | - | No direct answers (requires LLM test) |
@@ -680,7 +709,7 @@ AZURE_OPENAI_API_VERSION=2024-02-15-preview
 - Track D: ✅ (3/3) - 2.1 ✅ (FSRS), 2.2 ✅ (mastery_gate.c), 2.3 ✅ (visualization) - COMPLETE
 - Track E: ⬜ (0/3) - Validation tests (requires binary)
 - Track F: ✅ (3/3) - 2.7 ✅ (plan parsing), 2.8 ✅ (TODO fix), 2.9 ✅ (session tracking) - COMPLETE
-- Track G: ✅ (3/7) - 2.10 ✅ (tests created), 2.12 ✅, 2.13 ✅, 2.11/2.14-2.16 ⬜
+- Track G: ✅ (4/7) - 2.10 ✅, 2.11 ✅ **25/25 PASSED**, 2.12 ✅, 2.13 ✅, 2.14-2.16 ⬜ (LLM tests)
 
 ---
 
