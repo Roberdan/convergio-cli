@@ -161,8 +161,13 @@ int group_chat_add_message(GroupChat* chat, SemanticID sender, const char* conte
         }
     }
 
-    // Send message via message bus
-    message_send(msg);
+    // Send message via message bus (only if orchestrator is active)
+    // Note: message_send destroys the message if orchestrator is NULL,
+    // but we've already stored it in our history, so skip if no orchestrator
+    Orchestrator* orch = orchestrator_get();
+    if (orch) {
+        message_send(msg);
+    }
 
     return 0;
 }
