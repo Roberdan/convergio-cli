@@ -278,6 +278,8 @@ C_SOURCES = $(SRC_DIR)/core/fabric.c \
             $(SRC_DIR)/education/accessibility_runtime.c \
             $(SRC_DIR)/education/fsrs.c \
             $(SRC_DIR)/education/mastery.c \
+            $(SRC_DIR)/education/periodic_table.c \
+            $(SRC_DIR)/education/feature_flags.c \
             $(SRC_DIR)/education/storytelling.c \
             $(SRC_DIR)/education/features/study_session.c \
             $(SRC_DIR)/education/features/homework.c \

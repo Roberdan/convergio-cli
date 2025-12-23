@@ -10,6 +10,7 @@
 #include "nous/commands.h"
 #include "nous/education.h"
 #include "nous/nous.h"
+#include "nous/tools.h"  // For tool_web_search
 
 // Include education features header from src/education/features/
 // This provides HomeworkRequest, HomeworkResponse, StudySession, etc.
@@ -28,6 +29,9 @@ extern bool education_quick_setup(const char* name, const char* curriculum, int 
 
 // From ali_onboarding.c (NEW - EDU-01, EDU-02)
 extern bool ali_education_onboarding(void);
+
+// From education_db.c - Libretto export (Phase 3 Task 3.5)
+extern char* libretto_export_pdf_report(int64_t student_id, const char* report_type);
 extern bool ali_needs_onboarding(void);
 extern bool ali_check_api_setup(void);
 
@@ -493,6 +497,7 @@ int cmd_libretto(int argc, char** argv) {
         printf("║    /libretto diary    - Daily activity log                    ║\n");
         printf("║    /libretto progress - Improvement graphs                    ║\n");
         printf("║    /libretto average  - Averages by subject                   ║\n");
+        printf("║    /libretto export  - Export PDF report for parents         ║\n");
         printf("╚═══════════════════════════════════════════════════════════════╝\n\n");
 
         if (report) libretto_report_free(report);
@@ -698,8 +703,37 @@ int cmd_libretto(int argc, char** argv) {
         return 0;
     }
 
+    // -------------------------------------------------------------------------
+    // /libretto export [type] (Phase 3 Task 3.5 - PDF export)
+    // -------------------------------------------------------------------------
+    if (strcmp(subcommand, "export") == 0 || strcmp(subcommand, "esporta") == 0) {
+        const char* report_type = (argc >= 3) ? argv[2] : "complete";
+        
+        printf("\n📄 Exporting Report...\n");
+        printf("─────────────────────────────────────────────────────────────────\n");
+        
+        // Generate PDF report (returns HTML path, can be converted to PDF)
+        char* html_path = libretto_export_pdf_report(profile->id, report_type);
+        
+        if (html_path) {
+            printf("✅ Report generated successfully!\n\n");
+            printf("File: %s\n", html_path);
+            printf("\n");
+            printf("To convert to PDF:\n");
+            printf("  • Open in browser and print to PDF\n");
+            printf("  • Or use: wkhtmltopdf %s report.pdf\n\n", html_path);
+            free(html_path);
+        } else {
+            printf("❌ Failed to generate report.\n");
+            printf("Make sure you have grades and activity data.\n\n");
+        }
+        
+        if (report) libretto_report_free(report);
+        return 0;
+    }
+
     fprintf(stderr, "Unknown subcommand: %s\n", subcommand);
-    fprintf(stderr, "Usage: /libretto [grades|diary|progress|average]\n");
+    fprintf(stderr, "Usage: /libretto [grades|diary|progress|average|export]\n");
 
     if (report) libretto_report_free(report);
     return 1;
@@ -1168,10 +1202,11 @@ int cmd_xp(int argc, char** argv) {
 // COMMAND: /video
 // ============================================================================
 
+#include "nous/tools.h"  // For tool_web_search
+
 /**
- * /video - Search educational YouTube videos
- * Note: This is a planned feature. Full implementation requires YouTube API.
- * For now, provide guidance on finding educational videos.
+ * /video - Search educational YouTube videos (Phase 3 Task 3.2 - Real implementation)
+ * Uses web_search tool to find educational content
  */
 int cmd_video(int argc, char** argv) {
     if (education_init() != 0) {
@@ -1179,36 +1214,57 @@ int cmd_video(int argc, char** argv) {
         return 1;
     }
 
-    EducationStudentProfile* profile = education_profile_get_active();
-    (void)profile;  // Will be used when YouTube API is integrated
-
     printf("\n🎬 Educational Video Search\n\n");
 
     if (argc < 2) {
         printf("Usage: /video <topic>\n");
-        printf("Example: /video \"pythagorean theorem\"\n\n");
-    } else {
-        const char* topic = argv[1];
-        printf("Topic: %s\n\n", topic);
+        printf("Example: /video \"pythagorean theorem\"\n");
+        printf("         /video \"photosynthesis\"\n\n");
+        printf("📺 Trusted Educational Channels:\n\n");
+        printf("  • Khan Academy - https://www.khanacademy.org\n");
+        printf("  • 3Blue1Brown - https://www.3blue1brown.com\n");
+        printf("  • CrashCourse - https://www.youtube.com/crashcourse\n");
+        printf("  • Kurzgesagt - https://www.youtube.com/kurzgesagt\n");
+        printf("  • Veritasium - https://www.youtube.com/veritasium\n\n");
+        return 0;
     }
 
-    printf("📺 Recommended Educational Channels:\n\n");
-    printf("  • Khan Academy - Comprehensive courses in math, science, more\n");
-    printf("    https://www.khanacademy.org\n\n");
-    printf("  • 3Blue1Brown - Visual math explanations\n");
-    printf("    https://www.3blue1brown.com\n\n");
-    printf("  • CrashCourse - History, science, literature\n");
-    printf("    https://www.youtube.com/crashcourse\n\n");
-    printf("  • Kurzgesagt - Animated science videos\n");
-    printf("    https://www.youtube.com/kurzgesagt\n\n");
-    printf("  • Veritasium - Science and engineering\n");
-    printf("    https://www.youtube.com/veritasium\n\n");
-
-    printf("💡 Tip: Search for \"%s\" on these channels for quality content.\n\n",
-           argc >= 2 ? argv[1] : "your topic");
-
-    printf("Note: Full video search integration is coming soon.\n");
-    printf("      For now, visit these trusted educational resources.\n\n");
+    const char* topic = argv[1];
+    
+    // Build educational search query
+    char query[512];
+    snprintf(query, sizeof(query), "educational video %s site:youtube.com OR site:khanacademy.org", topic);
+    
+    printf("🔍 Searching for educational videos about: %s\n\n", topic);
+    
+    // Use web_search tool to find educational content
+    ToolResult* result = tool_web_search(query, 5);
+    
+    if (result && result->success && result->output) {
+        printf("📹 Found Educational Videos:\n\n");
+        printf("%s\n", result->output);
+        
+        // Free result
+        if (result->output) free(result->output);
+        if (result->error) free(result->error);
+        free(result);
+    } else {
+        printf("⚠️  Could not search online. Here are trusted educational channels:\n\n");
+        printf("  • Khan Academy - Comprehensive courses\n");
+        printf("    https://www.khanacademy.org\n\n");
+        printf("  • 3Blue1Brown - Visual math explanations\n");
+        printf("    https://www.3blue1brown.com\n\n");
+        printf("  • CrashCourse - History, science, literature\n");
+        printf("    https://www.youtube.com/crashcourse\n\n");
+        
+        if (result) {
+            if (result->error) {
+                printf("Error: %s\n\n", result->error);
+                free(result->error);
+            }
+            free(result);
+        }
+    }
 
     return 0;
 }
@@ -1217,49 +1273,52 @@ int cmd_video(int argc, char** argv) {
 // COMMAND: /periodic
 // ============================================================================
 
+// Forward declarations for periodic table functions (from src/education/periodic_table.c)
+typedef struct {
+    int atomic_number;
+    const char* symbol;
+    const char* name;
+    const char* name_it;
+    double atomic_mass;
+    const char* category;
+    const char* electron_config;
+    double melting_point_c;
+    double boiling_point_c;
+    double density;
+    const char* discovered;
+    const char* fun_fact;
+} PeriodicElement;
+
+extern const PeriodicElement* periodic_find_element(const char* query);
+extern void periodic_print_element(const PeriodicElement* el);
+
 /**
- * /periodic - Interactive periodic table
+ * /periodic - Interactive periodic table (Phase 3 Task 3.3 - Real database)
  */
 int cmd_periodic(int argc, char** argv) {
     if (argc < 2) {
-        printf("\n⚗️ Interactive Periodic Table\n\n");
+        printf("\n⚗️  Interactive Periodic Table\n\n");
         printf("Usage: /periodic <element>\n");
         printf("Example: /periodic Fe\n");
-        printf("         /periodic gold\n\n");
+        printf("         /periodic iron\n");
+        printf("         /periodic ferro\n");
+        printf("         /periodic H\n");
+        printf("         /periodic carbon\n\n");
+        printf("Supports: symbol (Fe), English name (iron), Italian name (ferro)\n\n");
         return 0;
     }
 
-    const char* element = argv[1];
-
-    // Simple element lookup (would be more comprehensive)
-    printf("\n⚗️ Element: %s\n\n", element);
-
-    // Example for common elements
-    if (strcasecmp(element, "Fe") == 0 || strcasecmp(element, "iron") == 0) {
-        printf("┌─────────────────────────────────┐\n");
-        printf("│  26                             │\n");
-        printf("│  Fe     Iron                    │\n");
-        printf("│  55.845 g/mol                   │\n");
-        printf("│  Transition metal               │\n");
-        printf("└─────────────────────────────────┘\n\n");
-        printf("Properties:\n");
-        printf("  • Melting point: 1538°C\n");
-        printf("  • Density: 7.87 g/cm³\n");
-        printf("  • Configuration: [Ar] 3d⁶ 4s²\n\n");
-        printf("Fun fact:\n");
-        printf("  Iron is the 4th most abundant element in Earth's crust.\n\n");
-    } else if (strcasecmp(element, "O") == 0 || strcasecmp(element, "oxygen") == 0) {
-        printf("┌─────────────────────────────────┐\n");
-        printf("│  8                              │\n");
-        printf("│  O      Oxygen                  │\n");
-        printf("│  15.999 g/mol                   │\n");
-        printf("│  Non-metal                      │\n");
-        printf("└─────────────────────────────────┘\n\n");
-        printf("Properties:\n");
-        printf("  • Boiling point: -183°C\n");
-        printf("  • 21%% of the atmosphere\n\n");
+    const char* query = argv[1];
+    const PeriodicElement* el = periodic_find_element(query);
+    
+    if (el) {
+        periodic_print_element(el);
     } else {
-        printf("Element not found. Try with symbol (Fe) or name (iron).\n");
+        printf("\n❌ Element not found: %s\n\n", query);
+        printf("Try with:\n");
+        printf("  • Symbol: Fe, H, O, C, Na, etc.\n");
+        printf("  • English name: iron, hydrogen, oxygen, carbon\n");
+        printf("  • Italian name: ferro, idrogeno, ossigeno, carbonio\n\n");
     }
 
     return 0;

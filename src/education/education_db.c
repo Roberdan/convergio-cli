@@ -3793,7 +3793,13 @@ char* libretto_export_pdf_report(int64_t student_id, const char* report_type) {
 
     // Save to file
     char path[512];
-    snprintf(path, sizeof(path), "%s/.convergio/reports", getenv("HOME"));
+    const char* home = getenv("HOME");
+    if (!home) {
+        free(html);
+        return NULL;
+    }
+    
+    snprintf(path, sizeof(path), "%s/.convergio/reports", home);
     mkdir(path, 0755);
 
     char filename[640];
@@ -3804,9 +3810,15 @@ char* libretto_export_pdf_report(int64_t student_id, const char* report_type) {
     if (f) {
         fputs(html, f);
         fclose(f);
+        
+        // Return allocated path string (caller must free)
+        char* result = strdup(filename);
+        free(html);  // Free HTML, return path
+        return result;
     }
 
-    return html;
+    free(html);
+    return NULL;
 }
 
 // ============================================================================
