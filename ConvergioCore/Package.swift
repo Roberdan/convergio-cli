@@ -23,17 +23,18 @@ let package = Package(
             path: "Sources/CConvergio",
             publicHeadersPath: ".",
             cSettings: [
-                .headerSearchPath("../../include"),
+                .headerSearchPath("../include"),
                 .define("CONVERGIO_NATIVE_APP", to: "1")
             ],
             linkerSettings: [
                 // Link against the static library (built by CMake)
-                .unsafeFlags(["-L../../build/lib"]),
+                .unsafeFlags(["-L../build/lib"]),
                 .linkedLibrary("convergio"),
                 // System dependencies
                 .linkedFramework("Accelerate"),
                 .linkedFramework("Metal"),
                 .linkedFramework("Foundation"),
+                .linkedFramework("AppKit"),
                 .linkedLibrary("curl"),
                 .linkedLibrary("sqlite3"),
                 .linkedLibrary("z")

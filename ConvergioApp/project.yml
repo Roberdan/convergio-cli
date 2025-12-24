@@ -90,6 +90,8 @@ targets:
       base:
         INFOPLIST_FILE: ConvergioAppTests/Info.plist
         PRODUCT_BUNDLE_IDENTIFIER: com.convergio.app.tests
+        PRODUCT_NAME: ConvergioAppTests
+        PRODUCT_MODULE_NAME: ConvergioAppTests
         TEST_HOST: "$(BUILT_PRODUCTS_DIR)/Convergio.app/Contents/MacOS/Convergio"
         BUNDLE_LOADER: "$(TEST_HOST)"
     dependencies:
@@ -105,6 +107,8 @@ targets:
       base:
         INFOPLIST_FILE: ConvergioAppUITests/Info.plist
         PRODUCT_BUNDLE_IDENTIFIER: com.convergio.app.uitests
+        PRODUCT_NAME: ConvergioAppUITests
+        PRODUCT_MODULE_NAME: ConvergioAppUITests
         TEST_TARGET_NAME: ConvergioApp
     dependencies:
       - target: ConvergioApp

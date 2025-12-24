@@ -33,7 +33,7 @@ final class ConversationUITests: XCTestCase {
         }
 
         inputField.click()
-        XCTAssertTrue(inputField.hasFocus || inputField.isHittable)
+        XCTAssertTrue(inputField.exists && inputField.isHittable)
     }
 
     func testInputFieldAcceptsMultilineText() throws {

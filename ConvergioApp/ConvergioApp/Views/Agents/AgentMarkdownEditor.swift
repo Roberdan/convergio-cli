@@ -13,7 +13,7 @@ import ConvergioCore
 // MARK: - Agent Configuration Model
 
 /// Editable agent configuration stored locally
-struct AgentConfiguration: Identifiable, Codable, Equatable {
+struct AgentConfiguration: Identifiable, Codable, Equatable, Hashable {
     let id: UUID
     var agentId: UInt64
     var name: String
@@ -46,7 +46,8 @@ struct AgentConfiguration: Identifiable, Codable, Equatable {
         self.maxTokens = maxTokens
     }
 
-    /// Create from existing agent
+    /// Create from existing agent (MainActor required for Agent properties)
+    @MainActor
     init(from agent: Agent) {
         self.id = UUID()
         self.agentId = agent.id
@@ -57,6 +58,10 @@ struct AgentConfiguration: Identifiable, Codable, Equatable {
         self.isEnabled = true
         self.temperature = 0.7
         self.maxTokens = 4096
+    }
+
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(id)
     }
 
     static func defaultSystemPrompt(for role: AgentRole) -> String {
@@ -255,6 +260,7 @@ class AgentConfigManager: ObservableObject {
     }
 
     /// Initialize configurations from agents
+    @MainActor
     func initializeFromAgents(_ agents: [Agent]) {
         for agent in agents {
             if getConfiguration(for: agent.id) == nil {

@@ -8,6 +8,7 @@
  */
 
 import XCTest
+@testable import Convergio
 @testable import ConvergioCore
 
 @MainActor

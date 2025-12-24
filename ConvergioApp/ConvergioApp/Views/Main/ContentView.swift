@@ -13,30 +13,41 @@ import ConvergioCore
 struct ContentView: View {
     @EnvironmentObject var orchestratorVM: OrchestratorViewModel
     @EnvironmentObject var conversationVM: ConversationViewModel
+    @StateObject private var editionManager = EditionManager.shared
 
     @State private var columnVisibility: NavigationSplitViewVisibility = .all
     @State private var selectedAgent: Agent?
+    @State private var selectedMaestro: Maestro?
+    @State private var educationSection: EducationSection = .maestri
 
     var body: some View {
-        NavigationSplitView(columnVisibility: $columnVisibility) {
-            // Sidebar - Agent list
-            SidebarView(selectedAgent: $selectedAgent)
-                .navigationSplitViewColumnWidth(min: 200, ideal: 250, max: 300)
-        } content: {
-            // Content - Agent detail or empty state
-            if let agent = selectedAgent {
-                AgentDetailView(agent: agent)
+        Group {
+            if editionManager.currentEdition == .education {
+                educationLayout
             } else {
-                AgentGridView()
+                businessLayout
             }
-        } detail: {
-            // Detail - Conversation
-            ConversationView()
-                .navigationSplitViewColumnWidth(min: 400, ideal: 600)
         }
-        .navigationSplitViewStyle(.balanced)
         .toolbar {
             ToolbarItemGroup(placement: .primaryAction) {
+                // Edition indicator
+                Menu {
+                    ForEach(ConvergioEdition.allCases, id: \.self) { edition in
+                        Button {
+                            editionManager.setEdition(edition)
+                        } label: {
+                            HStack {
+                                Text(edition.displayName)
+                                if edition == editionManager.currentEdition {
+                                    Image(systemName: "checkmark")
+                                }
+                            }
+                        }
+                    }
+                } label: {
+                    Label(editionManager.currentEdition.displayName, systemImage: editionManager.currentEdition == .education ? "graduationcap.fill" : "briefcase.fill")
+                }
+
                 // Model selector
                 Menu {
                     ForEach(orchestratorVM.availableModels, id: \.self) { model in
@@ -61,6 +72,135 @@ struct ContentView: View {
                 }
             }
         }
+    }
+
+    // MARK: - Education Layout
+
+    private var educationLayout: some View {
+        NavigationSplitView(columnVisibility: $columnVisibility) {
+            EducationSidebarView(selectedSection: $educationSection, selectedMaestro: $selectedMaestro)
+                .navigationSplitViewColumnWidth(min: 180, ideal: 220, max: 280)
+        } detail: {
+            educationMainContent
+                .frame(minWidth: 600)
+        }
+        .navigationSplitViewStyle(.balanced)
+    }
+
+    @ViewBuilder
+    private var educationMainContent: some View {
+        switch educationSection {
+        case .maestri:
+            if let maestro = selectedMaestro {
+                MaestroDetailView(maestro: maestro)
+            } else {
+                MaestriGridView(selectedMaestro: $selectedMaestro)
+            }
+        case .flashcards:
+            FlashcardDecksListView()
+        case .quiz:
+            QuizSelectionView()
+        case .libretto:
+            LibrettoView()
+        case .progress:
+            ProgressDashboard()
+        case .voice:
+            VoiceSessionView(maestro: selectedMaestro)
+        case .homework:
+            HomeworkAssistantView()
+        case .mindmap:
+            MindmapView()
+        }
+    }
+
+    // MARK: - Business Layout (Original)
+
+    private var businessLayout: some View {
+        NavigationSplitView(columnVisibility: $columnVisibility) {
+            SidebarView(selectedAgent: $selectedAgent)
+                .navigationSplitViewColumnWidth(min: 200, ideal: 250, max: 300)
+        } content: {
+            if let agent = selectedAgent {
+                AgentDetailView(agent: agent)
+            } else {
+                AgentGridView()
+            }
+        } detail: {
+            ConversationView()
+                .navigationSplitViewColumnWidth(min: 400, ideal: 600)
+        }
+        .navigationSplitViewStyle(.balanced)
+    }
+}
+
+// MARK: - Education Section Enum
+
+enum EducationSection: String, CaseIterable, Identifiable {
+    case maestri = "Maestri"
+    case voice = "Voce"
+    case flashcards = "Flashcard"
+    case quiz = "Quiz"
+    case homework = "Compiti"
+    case mindmap = "Mappe"
+    case libretto = "Libretto"
+    case progress = "Progressi"
+
+    var id: String { rawValue }
+
+    var icon: String {
+        switch self {
+        case .maestri: return "person.3.fill"
+        case .voice: return "waveform.circle.fill"
+        case .flashcards: return "rectangle.stack.fill"
+        case .quiz: return "questionmark.circle.fill"
+        case .homework: return "book.fill"
+        case .mindmap: return "arrow.triangle.branch"
+        case .libretto: return "text.book.closed.fill"
+        case .progress: return "chart.bar.fill"
+        }
+    }
+}
+
+// MARK: - Education Sidebar
+
+struct EducationSidebarView: View {
+    @Binding var selectedSection: EducationSection
+    @Binding var selectedMaestro: Maestro?
+
+    var body: some View {
+        List(selection: $selectedSection) {
+            Section("Scuola 2026") {
+                ForEach(EducationSection.allCases) { section in
+                    Label(section.rawValue, systemImage: section.icon)
+                        .tag(section)
+                }
+            }
+
+            Section("Maestri Recenti") {
+                ForEach(Maestro.previewMaestri.prefix(5)) { maestro in
+                    Button {
+                        selectedMaestro = maestro
+                        selectedSection = .maestri
+                    } label: {
+                        HStack(spacing: 10) {
+                            ZStack {
+                                Circle()
+                                    .fill(maestro.color.opacity(0.2))
+                                    .frame(width: 28, height: 28)
+                                Image(systemName: maestro.icon)
+                                    .font(.system(size: 12))
+                                    .foregroundStyle(maestro.color)
+                            }
+                            Text(maestro.name)
+                                .font(.subheadline)
+                        }
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+        }
+        .listStyle(.sidebar)
+        .navigationTitle("Education")
     }
 }
 
@@ -114,9 +254,9 @@ struct CostBadge: View {
     }
 }
 
-// MARK: - Settings View (Placeholder)
+// MARK: - Quick Settings View (Placeholder for ContentView)
 
-struct SettingsView: View {
+struct QuickSettingsView: View {
     @EnvironmentObject var orchestratorVM: OrchestratorViewModel
 
     var body: some View {

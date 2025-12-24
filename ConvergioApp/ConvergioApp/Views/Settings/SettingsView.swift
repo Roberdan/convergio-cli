@@ -697,7 +697,7 @@ struct AdvancedSettingsTab: View {
 // MARK: - MCP Services Settings Tab
 
 /// Model Context Protocol server configuration
-struct MCPServerConfig: Identifiable, Codable, Equatable {
+struct MCPServerConfig: Identifiable, Codable, Equatable, Hashable {
     let id: UUID
     var name: String
     var command: String  // Command to launch the server (e.g., "npx -y @modelcontextprotocol/server-filesystem")
@@ -714,6 +714,10 @@ struct MCPServerConfig: Identifiable, Codable, Equatable {
         self.env = env
         self.isEnabled = isEnabled
         self.transportType = transportType
+    }
+
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(id)
     }
 }
 

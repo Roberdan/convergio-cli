@@ -12,7 +12,7 @@ import ConvergioCore
 
 // MARK: - Help Topic Model
 
-struct HelpTopic: Identifiable {
+struct HelpTopic: Identifiable, Hashable {
     let id = UUID()
     let title: String
     let icon: String
@@ -20,6 +20,14 @@ struct HelpTopic: Identifiable {
     let content: String
     let relatedTopics: [String]
     let keywords: [String]
+
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(id)
+    }
+
+    static func == (lhs: HelpTopic, rhs: HelpTopic) -> Bool {
+        lhs.id == rhs.id
+    }
 }
 
 enum HelpCategory: String, CaseIterable {
