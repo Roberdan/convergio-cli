@@ -293,6 +293,8 @@ private struct ProviderDetailView: View {
             return ["llama-3.1-sonar-large-128k-online", "llama-3.1-sonar-small-128k-online"]
         case .grok:
             return ["grok-2", "grok-2-mini"]
+        case .azureRealtimeKey, .azureRealtimeEndpoint, .azureRealtimeDeployment:
+            return ["gpt-4o-realtime"]
         }
     }
 

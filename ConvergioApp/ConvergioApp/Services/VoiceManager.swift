@@ -143,6 +143,7 @@ class VoiceManager: NSObject, ObservableObject {
     // MARK: - Public Methods
 
     /// Connect to OpenAI Realtime API with optional maestro configuration
+    /// Prefers Azure OpenAI if configured, falls back to direct OpenAI
     func connect(apiKey: String, maestro: Maestro? = nil) async throws {
         guard !isConnected else {
             logger.warning("Already connected to OpenAI Realtime")
@@ -150,9 +151,29 @@ class VoiceManager: NSObject, ObservableObject {
         }
 
         self.currentMaestro = maestro
-        logger.info("Connecting to OpenAI Realtime...")
 
-        webSocket = OpenAIRealtimeWebSocket(apiKey: apiKey)
+        // Check for Azure configuration first (preferred for GDPR compliance)
+        let azureEndpoint = KeychainManager.shared.getKey(for: .azureRealtimeEndpoint)
+        let azureApiKey = KeychainManager.shared.getKey(for: .azureRealtimeKey)
+        let azureDeployment = KeychainManager.shared.getKey(for: .azureRealtimeDeployment) ?? "gpt-4o-realtime"
+
+        if let endpoint = azureEndpoint, !endpoint.isEmpty,
+           let azKey = azureApiKey, !azKey.isEmpty {
+            // Use Azure OpenAI
+            logger.info("Connecting to Azure OpenAI Realtime...")
+            webSocket = OpenAIRealtimeWebSocket(
+                azureApiKey: azKey,
+                endpoint: endpoint,
+                deployment: azureDeployment
+            )
+        } else if !apiKey.isEmpty {
+            // Fall back to direct OpenAI
+            logger.info("Connecting to OpenAI Realtime (direct)...")
+            webSocket = OpenAIRealtimeWebSocket(apiKey: apiKey)
+        } else {
+            throw VoiceError.webSocketError("No API key configured. Please configure Azure OpenAI or OpenAI in Settings → Providers.")
+        }
+
         webSocket?.delegate = self
 
         // Configure voice and system prompt based on maestro
@@ -162,7 +183,7 @@ class VoiceManager: NSObject, ObservableObject {
         try await webSocket?.connect(voice: voice, systemPrompt: systemPrompt)
 
         isConnected = true
-        logger.info("Connected to OpenAI Realtime successfully with voice: \(voice.rawValue)")
+        logger.info("Connected to voice service successfully with voice: \(voice.rawValue)")
     }
 
     /// Disconnect from OpenAI Realtime API

@@ -20,6 +20,9 @@ public enum APIProvider: String, CaseIterable, Identifiable {
     case openrouter = "OPENROUTER_API_KEY"
     case perplexity = "PERPLEXITY_API_KEY"
     case grok = "GROK_API_KEY"
+    case azureRealtimeKey = "AZURE_OPENAI_REALTIME_API_KEY"
+    case azureRealtimeEndpoint = "AZURE_OPENAI_REALTIME_ENDPOINT"
+    case azureRealtimeDeployment = "AZURE_OPENAI_REALTIME_DEPLOYMENT"
 
     public var id: String { rawValue }
 
@@ -31,6 +34,9 @@ public enum APIProvider: String, CaseIterable, Identifiable {
         case .openrouter: return "OpenRouter"
         case .perplexity: return "Perplexity"
         case .grok: return "Grok"
+        case .azureRealtimeKey: return "Azure Realtime API Key"
+        case .azureRealtimeEndpoint: return "Azure Realtime Endpoint"
+        case .azureRealtimeDeployment: return "Azure Realtime Deployment"
         }
     }
 
@@ -42,10 +48,19 @@ public enum APIProvider: String, CaseIterable, Identifiable {
         case .openrouter: return "arrow.triangle.branch"
         case .perplexity: return "magnifyingglass"
         case .grok: return "bolt"
+        case .azureRealtimeKey, .azureRealtimeEndpoint, .azureRealtimeDeployment: return "cloud"
         }
     }
 
     public var envVariable: String { rawValue }
+
+    /// Whether this provider is for Azure voice services
+    public var isAzureVoice: Bool {
+        switch self {
+        case .azureRealtimeKey, .azureRealtimeEndpoint, .azureRealtimeDeployment: return true
+        default: return false
+        }
+    }
 }
 
 // MARK: - Keychain Manager
@@ -234,6 +249,15 @@ public final class KeychainManager: ObservableObject {
         case .grok:
             // Grok keys format
             return key.count > 20
+        case .azureRealtimeKey:
+            // Azure API keys are typically 32 characters
+            return key.count >= 32
+        case .azureRealtimeEndpoint:
+            // Azure endpoint should be a valid URL
+            return key.hasPrefix("https://") && key.contains(".openai.azure.com")
+        case .azureRealtimeDeployment:
+            // Deployment name should be alphanumeric with dashes
+            return key.count > 0 && key.range(of: "^[a-zA-Z0-9-]+$", options: .regularExpression) != nil
         }
     }
 

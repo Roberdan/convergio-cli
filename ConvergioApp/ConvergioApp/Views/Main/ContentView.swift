@@ -92,7 +92,32 @@ struct ContentView: View {
         switch educationSection {
         case .maestri:
             if let maestro = selectedMaestro {
-                MaestroDetailView(maestro: maestro)
+                VStack(spacing: 0) {
+                    // Back button bar
+                    HStack {
+                        Button {
+                            withAnimation(.spring(duration: 0.3)) {
+                                selectedMaestro = nil
+                            }
+                        } label: {
+                            HStack(spacing: 6) {
+                                Image(systemName: "chevron.left")
+                                    .font(.body.weight(.medium))
+                                Text("Tutti i Maestri")
+                                    .font(.body)
+                            }
+                            .foregroundStyle(.secondary)
+                        }
+                        .buttonStyle(.plain)
+                        .padding(.horizontal, 20)
+                        .padding(.vertical, 12)
+
+                        Spacer()
+                    }
+                    .background(.ultraThinMaterial)
+
+                    MaestroDetailView(maestro: maestro)
+                }
             } else {
                 MaestriGridView(selectedMaestro: $selectedMaestro)
             }
@@ -171,8 +196,22 @@ struct EducationSidebarView: View {
         List(selection: $selectedSection) {
             Section("Scuola 2026") {
                 ForEach(EducationSection.allCases) { section in
-                    Label(section.rawValue, systemImage: section.icon)
-                        .tag(section)
+                    Button {
+                        selectedSection = section
+                        // Clear maestro selection when clicking Maestri to go back to grid
+                        if section == .maestri {
+                            selectedMaestro = nil
+                        }
+                    } label: {
+                        Label(section.rawValue, systemImage: section.icon)
+                    }
+                    .buttonStyle(.plain)
+                    .tag(section)
+                    .listRowBackground(
+                        selectedSection == section
+                            ? Color.accentColor.opacity(0.15)
+                            : Color.clear
+                    )
                 }
             }
 

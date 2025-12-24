@@ -63,6 +63,12 @@ private actor AudioBufferActor {
 
 // MARK: - OpenAI Realtime WebSocket
 
+/// Voice provider type
+enum VoiceProviderType {
+    case openAI
+    case azure(endpoint: String, deployment: String)
+}
+
 final class OpenAIRealtimeWebSocket: NSObject {
 
     // MARK: - Properties
@@ -70,12 +76,14 @@ final class OpenAIRealtimeWebSocket: NSObject {
     weak var delegate: OpenAIRealtimeDelegate?
 
     private let apiKey: String
+    private let providerType: VoiceProviderType
     private var webSocketTask: URLSessionWebSocketTask?
     private var urlSession: URLSession?
     private var isConnected = false
 
     private let model = "gpt-4o-realtime-preview-2024-12-17"
-    private let realtimeURL = "wss://api.openai.com/v1/realtime"
+    private let openAIRealtimeURL = "wss://api.openai.com/v1/realtime"
+    private let azureAPIVersion = "2024-10-01-preview"
 
     // Voice configuration
     private(set) var currentVoice: OpenAIVoice = .sage
@@ -90,8 +98,17 @@ final class OpenAIRealtimeWebSocket: NSObject {
 
     // MARK: - Initialization
 
+    /// Initialize with direct OpenAI API key
     init(apiKey: String) {
         self.apiKey = apiKey
+        self.providerType = .openAI
+        super.init()
+    }
+
+    /// Initialize with Azure OpenAI configuration
+    init(azureApiKey: String, endpoint: String, deployment: String) {
+        self.apiKey = azureApiKey
+        self.providerType = .azure(endpoint: endpoint, deployment: deployment)
         super.init()
     }
 
@@ -106,34 +123,58 @@ final class OpenAIRealtimeWebSocket: NSObject {
         // Validate API key
         guard !apiKey.isEmpty else {
             logError("OpenAI Realtime: API key is empty")
-            throw OpenAIRealtimeError.serverError("OpenAI API key is not configured. Please add your API key in Settings → Providers.")
-        }
-
-        guard apiKey.hasPrefix("sk-") else {
-            logError("OpenAI Realtime: Invalid API key format")
-            throw OpenAIRealtimeError.serverError("Invalid OpenAI API key format. Key should start with 'sk-'")
+            throw OpenAIRealtimeError.serverError("API key is not configured. Please add your API key in Settings → Providers.")
         }
 
         self.currentVoice = voice
         self.systemPrompt = systemPrompt
 
-        logInfo("OpenAI Realtime: Connecting to \(realtimeURL)...")
-        logInfo("OpenAI Realtime: Using voice: \(voice.rawValue)")
+        // Build URL and request based on provider type
+        let request: URLRequest
+        switch providerType {
+        case .openAI:
+            // Validate OpenAI key format
+            guard apiKey.hasPrefix("sk-") else {
+                logError("OpenAI Realtime: Invalid API key format")
+                throw OpenAIRealtimeError.serverError("Invalid OpenAI API key format. Key should start with 'sk-'")
+            }
 
-        // Build URL with model parameter
-        guard var urlComponents = URLComponents(string: realtimeURL) else {
-            throw OpenAIRealtimeError.invalidURL
+            logInfo("OpenAI Realtime: Connecting to OpenAI...")
+            logInfo("OpenAI Realtime: Using voice: \(voice.rawValue)")
+
+            guard var urlComponents = URLComponents(string: openAIRealtimeURL) else {
+                throw OpenAIRealtimeError.invalidURL
+            }
+            urlComponents.queryItems = [URLQueryItem(name: "model", value: model)]
+
+            guard let url = urlComponents.url else {
+                throw OpenAIRealtimeError.invalidURL
+            }
+
+            var req = URLRequest(url: url)
+            req.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
+            req.setValue("realtime=v1", forHTTPHeaderField: "OpenAI-Beta")
+            request = req
+
+        case .azure(let endpoint, let deployment):
+            logInfo("OpenAI Realtime: Connecting to Azure OpenAI...")
+            logInfo("OpenAI Realtime: Endpoint: \(endpoint), Deployment: \(deployment)")
+            logInfo("OpenAI Realtime: Using voice: \(voice.rawValue)")
+
+            // Azure URL format: wss://endpoint/openai/realtime?api-version=X&deployment=Y
+            let cleanEndpoint = endpoint.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+            let wsEndpoint = cleanEndpoint.replacingOccurrences(of: "https://", with: "wss://")
+            let urlString = "\(wsEndpoint)/openai/realtime?api-version=\(azureAPIVersion)&deployment=\(deployment)"
+
+            guard let url = URL(string: urlString) else {
+                logError("OpenAI Realtime: Invalid Azure URL: \(urlString)")
+                throw OpenAIRealtimeError.invalidURL
+            }
+
+            var req = URLRequest(url: url)
+            req.setValue(apiKey, forHTTPHeaderField: "api-key")
+            request = req
         }
-        urlComponents.queryItems = [URLQueryItem(name: "model", value: model)]
-
-        guard let url = urlComponents.url else {
-            throw OpenAIRealtimeError.invalidURL
-        }
-
-        // Create request with authorization
-        var request = URLRequest(url: url)
-        request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
-        request.setValue("realtime=v1", forHTTPHeaderField: "OpenAI-Beta")
 
         // Reset connection state
         connectionError = nil

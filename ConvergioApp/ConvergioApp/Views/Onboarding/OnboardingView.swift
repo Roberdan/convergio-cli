@@ -319,6 +319,7 @@ private struct ProviderSetupStep: View {
         case .openrouter: return "Multi-provider"
         case .perplexity: return "Search AI"
         case .grok: return "Grok models"
+        case .azureRealtimeKey, .azureRealtimeEndpoint, .azureRealtimeDeployment: return "Azure Voice"
         }
     }
 }
