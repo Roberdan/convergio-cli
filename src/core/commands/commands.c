@@ -1098,6 +1098,7 @@ static void print_help_education(void) {
     printf("\n");
     printf("\033[32m┌──────────────────────────────────────────────────────────────┐\033[0m\n");
     printf("\033[32m│  \033[1;37mCONVERGIO EDUCATION\033[0;32m - Learn from History's Greatest       │\033[0m\n");
+    printf("\033[32m│  \033[2mAvailable Commands / Comandi Disponibili\033[0;32m                   │\033[0m\n");
     printf("\033[32m└──────────────────────────────────────────────────────────────┘\033[0m\n\n");
 
     // 1. YOUR TEACHERS - The 15 Maestri
@@ -1245,6 +1246,44 @@ static void print_help_master(void) {
 int cmd_help(int argc, char** argv) {
     // If a specific command is requested, show detailed help
     if (argc >= 2) {
+        // Special handling for "help accessibility" in Education edition
+        if (strcmp(argv[1], "accessibility") == 0 || strcmp(argv[1], "a11y") == 0) {
+            if (edition_current() == EDITION_EDUCATION) {
+                printf("\n");
+                printf("╔═══════════════════════════════════════════════════════════════╗\n");
+                printf("║           ♿ ACCESSIBILITY SUPPORT / ACCESSIBILITÀ            ║\n");
+                printf("╠═══════════════════════════════════════════════════════════════╣\n");
+                printf("║                                                               ║\n");
+                printf("║  🎯 VISUAL / VISIVO                                           ║\n");
+                printf("║  • OpenDyslexic font for dyslexia / Font per dislessia        ║\n");
+                printf("║  • High contrast mode / Modalità alto contrasto               ║\n");
+                printf("║  • Adjustable line spacing / Spaziatura regolabile            ║\n");
+                printf("║  • Screen reader compatible / Compatibile con lettori         ║\n");
+                printf("║  • VoiceOver support on macOS                                 ║\n");
+                printf("║                                                               ║\n");
+                printf("║  🖥️ MOTOR / MOTORIO                                            ║\n");
+                printf("║  • Full keyboard navigation / Navigazione da tastiera         ║\n");
+                printf("║  • Voice commands support / Supporto comandi voce             ║\n");
+                printf("║  • No fine motor skills required                              ║\n");
+                printf("║                                                               ║\n");
+                printf("║  🧠 COGNITIVE / COGNITIVO                                      ║\n");
+                printf("║  • ADHD-friendly short responses / Risposte brevi per ADHD    ║\n");
+                printf("║  • Simplified language options / Linguaggio semplificato      ║\n");
+                printf("║  • Step-by-step breakdowns / Suddivisione passo passo         ║\n");
+                printf("║                                                               ║\n");
+                printf("║  🔊 AUDIO                                                      ║\n");
+                printf("║  • Text-to-speech (TTS) / Sintesi vocale                      ║\n");
+                printf("║  • Audio descriptions / Descrizioni audio                     ║\n");
+                printf("║                                                               ║\n");
+                printf("╠═══════════════════════════════════════════════════════════════╣\n");
+                printf("║  Configure with: /settings accessibility                      ║\n");
+                printf("║  Contact: Jenny (Accessibility Champion) @jenny               ║\n");
+                printf("╚═══════════════════════════════════════════════════════════════╝\n");
+                printf("\n");
+                return 0;
+            }
+        }
+
         // Check if command is available in current edition
         if (!edition_has_command(argv[1])) {
             printf("\n\033[33mCommand '%s' is not available in %s.\033[0m\n\n",
