@@ -1148,7 +1148,7 @@ void acp_handle_session_new(int request_id, const char* params_json) {
                     strncpy(agent_name_from_meta, agent_name_item->valuestring, sizeof(agent_name_from_meta) - 1);
                     // Also update selected_agent for other parts of the code
                     strncpy(g_server.selected_agent, agent_name_item->valuestring, sizeof(g_server.selected_agent) - 1);
-                    log_message(LOG_INFO, "ACP: Received agent name from _meta: %s", agent_name_from_meta);
+                    fprintf(stderr, "[ACP] Received agent name from _meta: %s\n", agent_name_from_meta);
                 }
             }
             cJSON_Delete(params);
