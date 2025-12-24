@@ -22,11 +22,22 @@ struct VoiceSessionView: View {
     @State private var waveformAnimation: Bool = false
     @State private var pulseAnimation: Bool = false
 
+    // API key state
+    private let hasApiKey: Bool
+
     // MARK: - Initialization
 
     init(maestro: Maestro? = nil, apiKey: String? = nil) {
         self.maestro = maestro
-        let key = apiKey ?? ProcessInfo.processInfo.environment["OPENAI_API_KEY"] ?? ""
+        // Try: 1) passed apiKey, 2) KeychainManager, 3) environment variable
+        let key: String
+        if let providedKey = apiKey, !providedKey.isEmpty {
+            key = providedKey
+        } else {
+            // Use MainActor.assumeIsolated for KeychainManager access during init
+            key = KeychainManager.shared.getKey(for: .openai) ?? ""
+        }
+        self.hasApiKey = !key.isEmpty
         _viewModel = StateObject(wrappedValue: VoiceViewModel(apiKey: key))
     }
 
@@ -45,34 +56,41 @@ struct VoiceSessionView: View {
             )
             .ignoresSafeArea()
 
-            VStack(spacing: 0) {
-                // Header
-                headerView
-                    .padding(.horizontal, 20)
-                    .padding(.top, 20)
+            if !hasApiKey {
+                // Missing API key view
+                missingApiKeyView
+            } else {
+                VStack(spacing: 0) {
+                    // Header
+                    headerView
+                        .padding(.horizontal, 20)
+                        .padding(.top, 20)
 
-                Spacer()
+                    Spacer()
 
-                // Main content
-                mainContentView
-                    .padding(.horizontal, 40)
+                    // Main content
+                    mainContentView
+                        .padding(.horizontal, 40)
 
-                Spacer()
+                    Spacer()
 
-                // Transcript overlay
-                transcriptView
-                    .padding(.horizontal, 20)
-                    .padding(.bottom, 20)
+                    // Transcript overlay
+                    transcriptView
+                        .padding(.horizontal, 20)
+                        .padding(.bottom, 20)
 
-                // Controls
-                controlsView
-                    .padding(.horizontal, 40)
-                    .padding(.bottom, 40)
+                    // Controls
+                    controlsView
+                        .padding(.horizontal, 40)
+                        .padding(.bottom, 40)
+                }
             }
         }
         .onAppear {
-            Task {
-                await viewModel.startSession(maestro: maestro)
+            if hasApiKey {
+                Task {
+                    await viewModel.startSession(maestro: maestro)
+                }
             }
         }
         .onDisappear {
@@ -378,6 +396,69 @@ struct VoiceSessionView: View {
     private var currentEmotionColor: Color {
         let rgb = viewModel.currentEmotion.color
         return Color(red: rgb.red, green: rgb.green, blue: rgb.blue)
+    }
+
+    // MARK: - Missing API Key View
+
+    private var missingApiKeyView: some View {
+        VStack(spacing: 24) {
+            // Icon
+            Image(systemName: "key.slash")
+                .font(.system(size: 64))
+                .foregroundColor(.orange)
+
+            // Title
+            Text("OpenAI API Key Required")
+                .font(.title2.bold())
+                .foregroundColor(.white)
+
+            // Description
+            Text("To use voice conversations, you need to configure your OpenAI API key in Settings.")
+                .font(.body)
+                .foregroundColor(.gray)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 40)
+
+            // Instructions
+            VStack(alignment: .leading, spacing: 12) {
+                instructionRow(number: 1, text: "Go to Settings (⌘,)")
+                instructionRow(number: 2, text: "Select 'Providers' tab")
+                instructionRow(number: 3, text: "Enter your OpenAI API key")
+            }
+            .padding()
+            .background(Color.white.opacity(0.1))
+            .cornerRadius(12)
+
+            // Close button
+            Button(action: {
+                dismiss()
+            }) {
+                Text("Close")
+                    .font(.headline)
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 32)
+                    .padding(.vertical, 12)
+                    .background(Color.blue.opacity(0.8))
+                    .cornerRadius(10)
+            }
+            .buttonStyle(.plain)
+            .padding(.top, 16)
+        }
+        .padding(40)
+    }
+
+    private func instructionRow(number: Int, text: String) -> some View {
+        HStack(spacing: 12) {
+            Text("\(number)")
+                .font(.caption.bold())
+                .foregroundColor(.white)
+                .frame(width: 24, height: 24)
+                .background(Circle().fill(Color.blue))
+
+            Text(text)
+                .font(.subheadline)
+                .foregroundColor(.white.opacity(0.9))
+        }
     }
 }
 
