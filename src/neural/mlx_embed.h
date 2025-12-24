@@ -13,18 +13,18 @@
 #ifndef CONVERGIO_MLX_EMBED_H
 #define CONVERGIO_MLX_EMBED_H
 
+#include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
-#include <stdbool.h>
 
 // Model configuration (MiniLM-L6-v2 compatible)
-#define MLX_VOCAB_SIZE      30522
-#define MLX_HIDDEN_DIM      384
-#define MLX_NUM_LAYERS      6
-#define MLX_NUM_HEADS       12
-#define MLX_HEAD_DIM        32      // HIDDEN_DIM / NUM_HEADS
-#define MLX_MAX_SEQ_LEN     512
-#define MLX_INTERMEDIATE    1536    // 4 * HIDDEN_DIM
+#define MLX_VOCAB_SIZE 30522
+#define MLX_HIDDEN_DIM 384
+#define MLX_NUM_LAYERS 6
+#define MLX_NUM_HEADS 12
+#define MLX_HEAD_DIM 32 // HIDDEN_DIM / NUM_HEADS
+#define MLX_MAX_SEQ_LEN 512
+#define MLX_INTERMEDIATE 1536 // 4 * HIDDEN_DIM
 
 // ============================================================================
 // TYPES
@@ -38,22 +38,22 @@ typedef struct {
     float* position_embeddings;
 
     // Layer norm params
-    float* ln_gamma;  // [HIDDEN_DIM]
-    float* ln_beta;   // [HIDDEN_DIM]
+    float* ln_gamma; // [HIDDEN_DIM]
+    float* ln_beta;  // [HIDDEN_DIM]
 
     // Transformer layers (6 layers)
     struct {
         // Self-attention
-        float* q_weight;  // [HIDDEN_DIM, HIDDEN_DIM]
-        float* k_weight;  // [HIDDEN_DIM, HIDDEN_DIM]
-        float* v_weight;  // [HIDDEN_DIM, HIDDEN_DIM]
-        float* o_weight;  // [HIDDEN_DIM, HIDDEN_DIM]
+        float* q_weight; // [HIDDEN_DIM, HIDDEN_DIM]
+        float* k_weight; // [HIDDEN_DIM, HIDDEN_DIM]
+        float* v_weight; // [HIDDEN_DIM, HIDDEN_DIM]
+        float* o_weight; // [HIDDEN_DIM, HIDDEN_DIM]
         float* attn_ln_gamma;
         float* attn_ln_beta;
 
         // FFN
-        float* ffn_up;    // [HIDDEN_DIM, INTERMEDIATE]
-        float* ffn_down;  // [INTERMEDIATE, HIDDEN_DIM]
+        float* ffn_up;   // [HIDDEN_DIM, INTERMEDIATE]
+        float* ffn_down; // [INTERMEDIATE, HIDDEN_DIM]
         float* ffn_ln_gamma;
         float* ffn_ln_beta;
     } layers[MLX_NUM_LAYERS];
@@ -63,8 +63,8 @@ typedef struct {
     float* final_ln_beta;
 
     // Pooler (for sentence embedding)
-    float* pooler_weight;  // [HIDDEN_DIM, HIDDEN_DIM]
-    float* pooler_bias;    // [HIDDEN_DIM]
+    float* pooler_weight; // [HIDDEN_DIM, HIDDEN_DIM]
+    float* pooler_bias;   // [HIDDEN_DIM]
 
     // Metal resources
     void* metal_device;

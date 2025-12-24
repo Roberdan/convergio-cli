@@ -4,17 +4,18 @@
  * WebSocket client for Azure OpenAI GPT-4o Realtime API.
  * Uses existing Azure infrastructure from VirtualBPM project.
  *
- * Documentation: https://learn.microsoft.com/en-us/azure/ai-foundry/openai/how-to/realtime-audio-websockets
+ * Documentation:
+ * https://learn.microsoft.com/en-us/azure/ai-foundry/openai/how-to/realtime-audio-websockets
  *
  * Copyright (c) 2025 Convergio.io
  * Licensed under Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International
  */
 
 #include "nous/voice.h"
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <stdbool.h>
 
 // ============================================================================
 // AZURE OPENAI REALTIME API CONSTANTS
@@ -22,7 +23,8 @@
 
 // WebSocket URL formats
 // GA: wss://{resource}.openai.azure.com/openai/v1/realtime?model={deployment}
-// Preview: wss://{resource}.openai.azure.com/openai/realtime?api-version=2025-04-01-preview&deployment={deployment}
+// Preview:
+// wss://{resource}.openai.azure.com/openai/realtime?api-version=2025-04-01-preview&deployment={deployment}
 
 #define AZURE_REALTIME_PATH_GA "/openai/v1/realtime"
 #define AZURE_REALTIME_PATH_PREVIEW "/openai/realtime"
@@ -35,10 +37,7 @@
 #define AZURE_REALTIME_MODEL_GA_MINI "gpt-realtime-mini"
 
 // Available regions for Realtime API
-static const char* AZURE_REALTIME_REGIONS[] = {
-    "eastus2",
-    "swedencentral"
-};
+static const char* AZURE_REALTIME_REGIONS[] = {"eastus2", "swedencentral"};
 static const size_t AZURE_REALTIME_REGIONS_COUNT = 2;
 
 // Audio settings (same as OpenAI)
@@ -50,11 +49,11 @@ static const size_t AZURE_REALTIME_REGIONS_COUNT = 2;
 // ============================================================================
 
 typedef struct {
-    char endpoint[256];          // e.g., "your-resource-name.openai.azure.com"
+    char endpoint[256]; // e.g., "your-resource-name.openai.azure.com"
     char api_key[256];
-    char deployment_name[64];    // e.g., "gpt-4o-realtime-deployment"
+    char deployment_name[64]; // e.g., "gpt-4o-realtime-deployment"
     char api_version[32];
-    bool use_preview_api;        // true = preview, false = GA
+    bool use_preview_api; // true = preview, false = GA
 } AzureRealtimeConfig;
 
 /**
@@ -62,22 +61,25 @@ typedef struct {
  * First tries AZURE_OPENAI_REALTIME_* variables, then falls back to standard AZURE_OPENAI_*
  */
 bool azure_realtime_load_config(AzureRealtimeConfig* config) {
-    if (!config) return false;
+    if (!config)
+        return false;
 
     memset(config, 0, sizeof(AzureRealtimeConfig));
 
     // Realtime-specific endpoint (recommended: create separate resource in eastus2)
     const char* endpoint = getenv("AZURE_OPENAI_REALTIME_ENDPOINT");
-    if (!endpoint) endpoint = getenv("AZURE_OPENAI_ENDPOINT");
+    if (!endpoint)
+        endpoint = getenv("AZURE_OPENAI_ENDPOINT");
     if (!endpoint) {
-        fprintf(stderr, "[Azure Realtime] No endpoint configured. Set AZURE_OPENAI_REALTIME_ENDPOINT\n");
+        fprintf(stderr,
+                "[Azure Realtime] No endpoint configured. Set AZURE_OPENAI_REALTIME_ENDPOINT\n");
         return false;
     }
 
     // Extract hostname from URL
     const char* host_start = strstr(endpoint, "://");
     if (host_start) {
-        host_start += 3;  // Skip "://"
+        host_start += 3; // Skip "://"
     } else {
         host_start = endpoint;
     }
@@ -91,9 +93,11 @@ bool azure_realtime_load_config(AzureRealtimeConfig* config) {
 
     // API Key
     const char* api_key = getenv("AZURE_OPENAI_REALTIME_API_KEY");
-    if (!api_key) api_key = getenv("AZURE_OPENAI_API_KEY");
+    if (!api_key)
+        api_key = getenv("AZURE_OPENAI_API_KEY");
     if (!api_key) {
-        fprintf(stderr, "[Azure Realtime] No API key configured. Set AZURE_OPENAI_REALTIME_API_KEY\n");
+        fprintf(stderr,
+                "[Azure Realtime] No API key configured. Set AZURE_OPENAI_REALTIME_API_KEY\n");
         return false;
     }
     strncpy(config->api_key, api_key, sizeof(config->api_key) - 1);
@@ -111,7 +115,8 @@ bool azure_realtime_load_config(AzureRealtimeConfig* config) {
 
     // API Version
     const char* version = getenv("AZURE_OPENAI_REALTIME_API_VERSION");
-    if (!version) version = AZURE_REALTIME_API_VERSION;
+    if (!version)
+        version = AZURE_REALTIME_API_VERSION;
     strncpy(config->api_version, version, sizeof(config->api_version) - 1);
 
     // Check if using preview or GA API
@@ -124,47 +129,35 @@ bool azure_realtime_load_config(AzureRealtimeConfig* config) {
  * Build WebSocket URL for Azure OpenAI Realtime
  */
 void azure_realtime_build_ws_url(const AzureRealtimeConfig* config, char* buffer, size_t size) {
-    if (!config || !buffer || size == 0) return;
+    if (!config || !buffer || size == 0)
+        return;
 
     if (config->use_preview_api) {
         // Preview API format
-        snprintf(buffer, size,
-            "wss://%s%s?api-version=%s&deployment=%s",
-            config->endpoint,
-            AZURE_REALTIME_PATH_PREVIEW,
-            config->api_version,
-            config->deployment_name);
+        snprintf(buffer, size, "wss://%s%s?api-version=%s&deployment=%s", config->endpoint,
+                 AZURE_REALTIME_PATH_PREVIEW, config->api_version, config->deployment_name);
     } else {
         // GA API format
-        snprintf(buffer, size,
-            "wss://%s%s?model=%s",
-            config->endpoint,
-            AZURE_REALTIME_PATH_GA,
-            config->deployment_name);
+        snprintf(buffer, size, "wss://%s%s?model=%s", config->endpoint, AZURE_REALTIME_PATH_GA,
+                 config->deployment_name);
     }
 }
 
 /**
  * Build WebSocket URL with API key in query string (for environments without header support)
  */
-void azure_realtime_build_ws_url_with_key(const AzureRealtimeConfig* config, char* buffer, size_t size) {
-    if (!config || !buffer || size == 0) return;
+void azure_realtime_build_ws_url_with_key(const AzureRealtimeConfig* config, char* buffer,
+                                          size_t size) {
+    if (!config || !buffer || size == 0)
+        return;
 
     if (config->use_preview_api) {
-        snprintf(buffer, size,
-            "wss://%s%s?api-version=%s&deployment=%s&api-key=%s",
-            config->endpoint,
-            AZURE_REALTIME_PATH_PREVIEW,
-            config->api_version,
-            config->deployment_name,
-            config->api_key);
+        snprintf(buffer, size, "wss://%s%s?api-version=%s&deployment=%s&api-key=%s",
+                 config->endpoint, AZURE_REALTIME_PATH_PREVIEW, config->api_version,
+                 config->deployment_name, config->api_key);
     } else {
-        snprintf(buffer, size,
-            "wss://%s%s?model=%s&api-key=%s",
-            config->endpoint,
-            AZURE_REALTIME_PATH_GA,
-            config->deployment_name,
-            config->api_key);
+        snprintf(buffer, size, "wss://%s%s?model=%s&api-key=%s", config->endpoint,
+                 AZURE_REALTIME_PATH_GA, config->deployment_name, config->api_key);
     }
 }
 
@@ -195,7 +188,8 @@ typedef struct AzureRealtimeSession {
  */
 AzureRealtimeSession* azure_realtime_create(void) {
     AzureRealtimeSession* session = calloc(1, sizeof(AzureRealtimeSession));
-    if (!session) return NULL;
+    if (!session)
+        return NULL;
 
     if (!azure_realtime_load_config(&session->config)) {
         free(session);
@@ -218,7 +212,8 @@ AzureRealtimeSession* azure_realtime_create(void) {
  * Destroy Azure Realtime session
  */
 void azure_realtime_destroy(AzureRealtimeSession* session) {
-    if (!session) return;
+    if (!session)
+        return;
     free(session->input_buffer);
     free(session);
 }
@@ -227,7 +222,8 @@ void azure_realtime_destroy(AzureRealtimeSession* session) {
  * Connect to Azure OpenAI Realtime API
  */
 bool azure_realtime_connect(AzureRealtimeSession* session, const char* maestro_prompt) {
-    if (!session) return false;
+    if (!session)
+        return false;
 
     char ws_url[1024];
     azure_realtime_build_ws_url(&session->config, ws_url, sizeof(ws_url));
@@ -256,7 +252,8 @@ bool azure_realtime_connect(AzureRealtimeSession* session, const char* maestro_p
  * Disconnect from Azure Realtime API
  */
 void azure_realtime_disconnect(AzureRealtimeSession* session) {
-    if (!session) return;
+    if (!session)
+        return;
     session->connected = false;
 }
 
@@ -264,16 +261,17 @@ void azure_realtime_disconnect(AzureRealtimeSession* session) {
  * Set maestro for voice
  */
 void azure_realtime_set_maestro(AzureRealtimeSession* session, const char* maestro_id) {
-    if (!session || !maestro_id) return;
+    if (!session || !maestro_id)
+        return;
     strncpy(session->current_maestro, maestro_id, sizeof(session->current_maestro) - 1);
 }
 
 /**
  * Send audio to Azure
  */
-bool azure_realtime_send_audio(AzureRealtimeSession* session,
-                                const uint8_t* audio, size_t length) {
-    if (!session || !session->connected || !audio || length == 0) return false;
+bool azure_realtime_send_audio(AzureRealtimeSession* session, const uint8_t* audio, size_t length) {
+    if (!session || !session->connected || !audio || length == 0)
+        return false;
 
     size_t available = session->input_buffer_size - session->input_buffer_pos;
     size_t to_copy = length < available ? length : available;
@@ -290,7 +288,8 @@ bool azure_realtime_send_audio(AzureRealtimeSession* session,
  * Commit audio (finalize user turn)
  */
 bool azure_realtime_commit_audio(AzureRealtimeSession* session) {
-    if (!session || !session->connected) return false;
+    if (!session || !session->connected)
+        return false;
 
     fprintf(stderr, "[Azure Realtime] Committing %zu bytes of audio\n", session->input_buffer_pos);
     session->input_buffer_pos = 0;
@@ -302,7 +301,8 @@ bool azure_realtime_commit_audio(AzureRealtimeSession* session) {
  * Cancel current response
  */
 void azure_realtime_cancel(AzureRealtimeSession* session) {
-    if (!session || !session->connected) return;
+    if (!session || !session->connected)
+        return;
     fprintf(stderr, "[Azure Realtime] Response cancelled (barge-in)\n");
 }
 
@@ -354,8 +354,10 @@ bool azure_realtime_is_configured(void) {
     const char* api_key = getenv("AZURE_OPENAI_REALTIME_API_KEY");
 
     // Also check standard Azure OpenAI variables
-    if (!endpoint) endpoint = getenv("AZURE_OPENAI_ENDPOINT");
-    if (!api_key) api_key = getenv("AZURE_OPENAI_API_KEY");
+    if (!endpoint)
+        endpoint = getenv("AZURE_OPENAI_ENDPOINT");
+    if (!api_key)
+        api_key = getenv("AZURE_OPENAI_API_KEY");
 
     return (endpoint != NULL && api_key != NULL);
 }
@@ -364,7 +366,8 @@ bool azure_realtime_is_configured(void) {
  * Check if the endpoint is in a supported region
  */
 bool azure_realtime_check_region(const char* endpoint) {
-    if (!endpoint) return false;
+    if (!endpoint)
+        return false;
 
     for (size_t i = 0; i < AZURE_REALTIME_REGIONS_COUNT; i++) {
         if (strstr(endpoint, AZURE_REALTIME_REGIONS[i]) != NULL) {
@@ -417,22 +420,22 @@ bool azure_realtime_init(void) {
 /**
  * Generate Azure CLI command to create realtime deployment
  */
-void azure_realtime_generate_cli_command(const char* resource_group,
-                                          const char* resource_name,
-                                          char* buffer, size_t size) {
-    if (!buffer || size == 0) return;
+void azure_realtime_generate_cli_command(const char* resource_group, const char* resource_name,
+                                         char* buffer, size_t size) {
+    if (!buffer || size == 0)
+        return;
 
     snprintf(buffer, size,
-        "# Create Azure OpenAI Realtime deployment\n"
-        "az cognitiveservices account deployment create \\\n"
-        "  --resource-group \"%s\" \\\n"
-        "  --name \"%s\" \\\n"
-        "  --deployment-name \"gpt-4o-realtime\" \\\n"
-        "  --model-name \"gpt-4o-realtime-preview\" \\\n"
-        "  --model-version \"2024-12-17\" \\\n"
-        "  --model-format OpenAI \\\n"
-        "  --sku-capacity 1 \\\n"
-        "  --sku-name \"GlobalStandard\"\n",
-        resource_group ? resource_group : "rg-convergio-education",
-        resource_name ? resource_name : "aoai-convergio-eastus2");
+             "# Create Azure OpenAI Realtime deployment\n"
+             "az cognitiveservices account deployment create \\\n"
+             "  --resource-group \"%s\" \\\n"
+             "  --name \"%s\" \\\n"
+             "  --deployment-name \"gpt-4o-realtime\" \\\n"
+             "  --model-name \"gpt-4o-realtime-preview\" \\\n"
+             "  --model-version \"2024-12-17\" \\\n"
+             "  --model-format OpenAI \\\n"
+             "  --sku-capacity 1 \\\n"
+             "  --sku-name \"GlobalStandard\"\n",
+             resource_group ? resource_group : "rg-convergio-education",
+             resource_name ? resource_name : "aoai-convergio-eastus2");
 }

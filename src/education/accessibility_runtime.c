@@ -14,11 +14,11 @@
  */
 
 #include "nous/education.h"
+#include <ctype.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <stdbool.h>
-#include <ctype.h>
 
 // ============================================================================
 // CONSTANTS
@@ -104,12 +104,14 @@ int a11y_get_max_line_width(const EducationAccessibility* access) {
  * DY03: Wrap text to max line width
  */
 char* a11y_wrap_text(const char* text, int max_width) {
-    if (!text || max_width <= 0) return NULL;
+    if (!text || max_width <= 0)
+        return NULL;
 
     size_t len = strlen(text);
     // Worst case: every char needs a newline
     char* result = malloc(len * 2 + 1);
-    if (!result) return NULL;
+    if (!result)
+        return NULL;
 
     int line_pos = 0;
     size_t out_pos = 0;
@@ -152,7 +154,7 @@ const char* a11y_get_background_color(const EducationAccessibility* access) {
         return BG_CREAM;
     }
     if (access && access->high_contrast) {
-        return "#000000";  // Black for high contrast
+        return "#000000"; // Black for high contrast
     }
     return BG_DEFAULT;
 }
@@ -181,12 +183,14 @@ bool a11y_wants_tts_highlight(const EducationAccessibility* access) {
  * DY06: Syllabify Italian word
  */
 char* a11y_syllabify_word(const char* word) {
-    if (!word || strlen(word) < 2) return strdup(word ? word : "");
+    if (!word || strlen(word) < 2)
+        return strdup(word ? word : "");
 
     size_t len = strlen(word);
     // Max: original + separator after each char
     char* result = malloc(len * 2 + 1);
-    if (!result) return NULL;
+    if (!result)
+        return NULL;
 
     size_t out = 0;
     const char* vowels = "aeiouAEIOU";
@@ -197,8 +201,8 @@ char* a11y_syllabify_word(const char* word) {
         // Simple Italian syllabification rules
         if (i < len - 1) {
             bool curr_vowel = (strchr(vowels, word[i]) != NULL);
-            bool next_vowel = (strchr(vowels, word[i+1]) != NULL);
-            bool next_next_vowel = (i < len - 2) ? (strchr(vowels, word[i+2]) != NULL) : false;
+            bool next_vowel = (strchr(vowels, word[i + 1]) != NULL);
+            bool next_next_vowel = (i < len - 2) ? (strchr(vowels, word[i + 2]) != NULL) : false;
 
             // Break after vowel if followed by consonant + vowel
             if (curr_vowel && !next_vowel && (i < len - 2) && next_next_vowel) {
@@ -218,11 +222,13 @@ char* a11y_syllabify_word(const char* word) {
  * DY06: Syllabify entire text
  */
 char* a11y_syllabify_text(const char* text) {
-    if (!text) return NULL;
+    if (!text)
+        return NULL;
 
     size_t len = strlen(text);
     char* result = malloc(len * 2 + 1);
-    if (!result) return NULL;
+    if (!result)
+        return NULL;
 
     size_t out = 0;
     size_t word_start = 0;
@@ -270,33 +276,43 @@ char* a11y_format_number_colored(double number, bool use_colors) {
     char buffer[64];
     snprintf(buffer, sizeof(buffer), "%.0f", number);
 
-    if (!use_colors) return strdup(buffer);
+    if (!use_colors)
+        return strdup(buffer);
 
     size_t len = strlen(buffer);
     // Each digit can have ANSI codes (~10 chars)
     char* result = malloc(len * 15 + 20);
-    if (!result) return strdup(buffer);
+    if (!result)
+        return strdup(buffer);
 
     result[0] = '\0';
 
     for (size_t i = 0; i < len; i++) {
         if (buffer[i] == '-') {
-            strncat(result, "\033[36m-\033[0m", 20);  // Cyan for negative
+            strncat(result, "\033[36m-\033[0m", 20); // Cyan for negative
             continue;
         }
         if (buffer[i] == '.') {
-            strncat(result, "\033[33m.\033[0m", 20);  // Yellow for decimal
+            strncat(result, "\033[33m.\033[0m", 20); // Yellow for decimal
             continue;
         }
 
-        int place = (int)(len - i - 1);  // 0=units, 1=tens, etc.
+        int place = (int)(len - i - 1); // 0=units, 1=tens, etc.
         const char* color;
 
         switch (place % 3) {
-            case 0: color = "\033[34m"; break;  // Blue - units
-            case 1: color = "\033[32m"; break;  // Green - tens
-            case 2: color = "\033[31m"; break;  // Red - hundreds
-            default: color = "\033[0m"; break;
+        case 0:
+            color = "\033[34m";
+            break; // Blue - units
+        case 1:
+            color = "\033[32m";
+            break; // Green - tens
+        case 2:
+            color = "\033[31m";
+            break; // Red - hundreds
+        default:
+            color = "\033[0m";
+            break;
         }
 
         char digit_buf[20];
@@ -311,7 +327,8 @@ char* a11y_format_number_colored(double number, bool use_colors) {
  * DC01: Generate visual blocks for number
  */
 char* a11y_generate_place_value_blocks(int number) {
-    if (number < 0) number = -number;
+    if (number < 0)
+        number = -number;
 
     int thousands = number / 1000;
     int hundreds = (number % 1000) / 100;
@@ -320,7 +337,8 @@ char* a11y_generate_place_value_blocks(int number) {
 
     // Allocate enough space
     char* result = malloc(1024);
-    if (!result) return NULL;
+    if (!result)
+        return NULL;
 
     result[0] = '\0';
 
@@ -328,7 +346,8 @@ char* a11y_generate_place_value_blocks(int number) {
         char buf[64];
         snprintf(buf, sizeof(buf), "Thousands: ");
         strncat(result, buf, 64);
-        for (int i = 0; i < thousands; i++) strncat(result, "[████] ", 10);
+        for (int i = 0; i < thousands; i++)
+            strncat(result, "[████] ", 10);
         strncat(result, "\n", 2);
     }
 
@@ -336,7 +355,8 @@ char* a11y_generate_place_value_blocks(int number) {
         char buf[64];
         snprintf(buf, sizeof(buf), "Hundreds: ");
         strncat(result, buf, 64);
-        for (int i = 0; i < hundreds; i++) strncat(result, "[███] ", 10);
+        for (int i = 0; i < hundreds; i++)
+            strncat(result, "[███] ", 10);
         strncat(result, "\n", 2);
     }
 
@@ -344,7 +364,8 @@ char* a11y_generate_place_value_blocks(int number) {
         char buf[64];
         snprintf(buf, sizeof(buf), "Tens: ");
         strncat(result, buf, 64);
-        for (int i = 0; i < tens; i++) strncat(result, "[██] ", 8);
+        for (int i = 0; i < tens; i++)
+            strncat(result, "[██] ", 8);
         strncat(result, "\n", 2);
     }
 
@@ -352,7 +373,8 @@ char* a11y_generate_place_value_blocks(int number) {
         char buf[64];
         snprintf(buf, sizeof(buf), "Units: ");
         strncat(result, buf, 64);
-        for (int i = 0; i < units; i++) strncat(result, "[█] ", 6);
+        for (int i = 0; i < units; i++)
+            strncat(result, "[█] ", 6);
         strncat(result, "\n", 2);
     }
 
@@ -374,8 +396,7 @@ bool a11y_disable_math_timer(const EducationAccessibility* access) {
  * CP01: Check if voice input is primary
  */
 bool a11y_prefers_voice_input(const EducationAccessibility* access) {
-    return access && access->cerebral_palsy &&
-           access->preferred_input == INPUT_VOICE;
+    return access && access->cerebral_palsy && access->preferred_input == INPUT_VOICE;
 }
 
 /**
@@ -384,10 +405,14 @@ bool a11y_prefers_voice_input(const EducationAccessibility* access) {
 int a11y_get_timeout_multiplier(const EducationAccessibility* access) {
     if (access && access->cerebral_palsy) {
         switch (access->cerebral_palsy_severity) {
-            case SEVERITY_SEVERE: return 5;
-            case SEVERITY_MODERATE: return 3;
-            case SEVERITY_MILD: return 2;
-            default: return 1;
+        case SEVERITY_SEVERE:
+            return 5;
+        case SEVERITY_MODERATE:
+            return 3;
+        case SEVERITY_MILD:
+            return 2;
+        default:
+            return 1;
         }
     }
     return 1;
@@ -404,7 +429,8 @@ int a11y_get_adjusted_timeout(const EducationAccessibility* access, int base_tim
  * CP04: Check if break should be suggested
  */
 bool a11y_suggest_break(const EducationAccessibility* access, int minutes_elapsed) {
-    if (!access) return false;
+    if (!access)
+        return false;
 
     // CP users: suggest break every 15 minutes
     if (access->cerebral_palsy && minutes_elapsed >= 15 && minutes_elapsed % 15 == 0) {
@@ -427,10 +453,14 @@ bool a11y_suggest_break(const EducationAccessibility* access, int minutes_elapse
 int a11y_get_max_bullets(const EducationAccessibility* access) {
     if (access && access->adhd) {
         switch (access->adhd_severity) {
-            case SEVERITY_SEVERE: return 2;
-            case SEVERITY_MODERATE: return 3;
-            case SEVERITY_MILD: return 4;
-            default: return ADHD_MAX_BULLETS;
+        case SEVERITY_SEVERE:
+            return 2;
+        case SEVERITY_MODERATE:
+            return 3;
+        case SEVERITY_MILD:
+            return 4;
+        default:
+            return ADHD_MAX_BULLETS;
         }
     }
     return DEFAULT_MAX_BULLETS;
@@ -440,17 +470,19 @@ int a11y_get_max_bullets(const EducationAccessibility* access) {
  * AD01: Truncate text to bullet point limit
  */
 char* a11y_limit_bullets(const char* text, int max_bullets) {
-    if (!text || max_bullets <= 0) return strdup(text ? text : "");
+    if (!text || max_bullets <= 0)
+        return strdup(text ? text : "");
 
     char* result = strdup(text);
-    if (!result) return NULL;
+    if (!result)
+        return NULL;
 
     int bullet_count = 0;
     char* ptr = result;
     char* last_bullet_end = result;
 
     while (*ptr && bullet_count < max_bullets) {
-        if (*ptr == '-' || *ptr == '*' || *ptr == '\xe2') {  // UTF-8 bullet
+        if (*ptr == '-' || *ptr == '*' || *ptr == '\xe2') { // UTF-8 bullet
             bullet_count++;
         }
         if (*ptr == '\n' && bullet_count > 0) {
@@ -470,14 +502,18 @@ char* a11y_limit_bullets(const char* text, int max_bullets) {
  * AD02: Generate ASCII progress bar
  */
 char* a11y_generate_progress_bar(int current, int total, int width) {
-    if (total <= 0) total = 1;
-    if (width <= 0) width = PROGRESS_BAR_WIDTH;
+    if (total <= 0)
+        total = 1;
+    if (width <= 0)
+        width = PROGRESS_BAR_WIDTH;
 
     char* result = malloc(width + 20);
-    if (!result) return NULL;
+    if (!result)
+        return NULL;
 
     int filled = (current * width) / total;
-    if (filled > width) filled = width;
+    if (filled > width)
+        filled = width;
 
     result[0] = '[';
     for (int i = 0; i < width; i++) {
@@ -495,16 +531,14 @@ char* a11y_generate_progress_bar(int current, int total, int width) {
  * AD03: Generate micro-celebration message
  */
 const char* a11y_get_celebration_message(int achievement_level) {
-    static const char* messages[] = {
-        "Great! Keep it up!",
-        "Fantastic! You're doing amazing!",
-        "Wow! You're a champion!",
-        "Incredible! You nailed it!",
-        "Perfect! You're unstoppable!"
-    };
+    static const char* messages[] = {"Great! Keep it up!", "Fantastic! You're doing amazing!",
+                                     "Wow! You're a champion!", "Incredible! You nailed it!",
+                                     "Perfect! You're unstoppable!"};
 
-    if (achievement_level < 0) achievement_level = 0;
-    if (achievement_level > 4) achievement_level = 4;
+    if (achievement_level < 0)
+        achievement_level = 0;
+    if (achievement_level > 4)
+        achievement_level = 4;
 
     return messages[achievement_level];
 }
@@ -530,22 +564,15 @@ bool a11y_avoid_metaphors(const EducationAccessibility* access) {
 /**
  * AU01: List of common metaphors to avoid
  */
-static const char* METAPHORS_TO_AVOID[] = {
-    "as if",
-    "like",
-    "basically",
-    "in a sense",
-    "so to speak",
-    "figuratively",
-    "kind of",
-    NULL
-};
+static const char* METAPHORS_TO_AVOID[] = {"as if",       "like",         "basically", "in a sense",
+                                           "so to speak", "figuratively", "kind of",   NULL};
 
 /**
  * AU01: Check text for metaphors
  */
 bool a11y_contains_metaphors(const char* text) {
-    if (!text) return false;
+    if (!text)
+        return false;
 
     for (int i = 0; METAPHORS_TO_AVOID[i] != NULL; i++) {
         if (strstr(text, METAPHORS_TO_AVOID[i]) != NULL) {
@@ -559,7 +586,8 @@ bool a11y_contains_metaphors(const char* text) {
  * AU02: Get structure prefix for autism
  */
 const char* a11y_get_structure_prefix(const char* section_type) {
-    if (!section_type) return "";
+    if (!section_type)
+        return "";
 
     if (strcmp(section_type, "intro") == 0) {
         return "INTRODUCTION: We will now explain the following topic.\n";
@@ -584,15 +612,15 @@ const char* a11y_get_structure_prefix(const char* section_type) {
  */
 char* a11y_get_topic_change_warning(const char* old_topic, const char* new_topic) {
     char* result = malloc(256);
-    if (!result) return NULL;
+    if (!result)
+        return NULL;
 
     snprintf(result, 256,
-        "\n[NOTICE: Topic change]\n"
-        "We have finished talking about: %s\n"
-        "We will now talk about: %s\n"
-        "Are you ready to continue?\n\n",
-        old_topic ? old_topic : "previous topic",
-        new_topic ? new_topic : "new topic");
+             "\n[NOTICE: Topic change]\n"
+             "We have finished talking about: %s\n"
+             "We will now talk about: %s\n"
+             "Are you ready to continue?\n\n",
+             old_topic ? old_topic : "previous topic", new_topic ? new_topic : "new topic");
 
     return result;
 }
@@ -619,10 +647,12 @@ bool a11y_reduce_motion(const EducationAccessibility* access) {
  * Apply all text adaptations based on accessibility profile
  */
 char* a11y_adapt_text_full(const char* text, const EducationAccessibility* access) {
-    if (!text) return NULL;
+    if (!text)
+        return NULL;
 
     char* result = strdup(text);
-    if (!result) return NULL;
+    if (!result)
+        return NULL;
 
     // DY03: Wrap text to max line width
     if (access && access->dyslexia) {
@@ -666,8 +696,10 @@ float a11y_get_speech_rate(const EducationAccessibility* access, float maestro_d
     }
 
     // Clamp to valid range
-    if (rate < 0.5f) rate = 0.5f;
-    if (rate > 2.0f) rate = 2.0f;
+    if (rate < 0.5f)
+        rate = 0.5f;
+    if (rate > 2.0f)
+        rate = 2.0f;
 
     return rate;
 }
@@ -687,8 +719,10 @@ float a11y_get_pitch_offset(const EducationAccessibility* access, float maestro_
     }
 
     // Clamp to valid range
-    if (pitch < -1.0f) pitch = -1.0f;
-    if (pitch > 1.0f) pitch = 1.0f;
+    if (pitch < -1.0f)
+        pitch = -1.0f;
+    if (pitch > 1.0f)
+        pitch = 1.0f;
 
     return pitch;
 }
@@ -731,29 +765,28 @@ typedef struct {
 } A11ySettings;
 
 A11ySettings a11y_get_all_settings(const EducationAccessibility* access) {
-    A11ySettings settings = {
-        .font_family = a11y_get_font(access),
-        .line_spacing = a11y_get_line_spacing(access),
-        .max_line_width = a11y_get_max_line_width(access),
-        .background_color = a11y_get_background_color(access),
-        .ansi_bg = a11y_get_background_ansi(access),
-        .reduce_motion = a11y_reduce_motion(access),
-        .use_tts = access ? access->tts_enabled : false,
-        .tts_highlight = a11y_wants_tts_highlight(access),
-        .tts_speed = access ? access->tts_speed : 1.0f,
-        .tts_pitch = access ? access->tts_pitch : 0.0f,
-        .show_place_blocks = access ? access->dyscalculia : false,
-        .color_numbers = access ? access->dyscalculia : false,
-        .disable_timer = a11y_disable_math_timer(access),
-        .max_bullets = a11y_get_max_bullets(access),
-        .avoid_metaphors = a11y_avoid_metaphors(access),
-        .enhance_gamification = a11y_enhance_gamification(access),
-        .timeout_multiplier = a11y_get_timeout_multiplier(access),
-        .break_interval_minutes = (access && access->adhd) ? 10 :
-                                  (access && access->cerebral_palsy) ? 15 : 30,
-        .prefer_voice = a11y_prefers_voice_input(access),
-        .voice_commands = access && access->cerebral_palsy
-    };
+    A11ySettings settings = {.font_family = a11y_get_font(access),
+                             .line_spacing = a11y_get_line_spacing(access),
+                             .max_line_width = a11y_get_max_line_width(access),
+                             .background_color = a11y_get_background_color(access),
+                             .ansi_bg = a11y_get_background_ansi(access),
+                             .reduce_motion = a11y_reduce_motion(access),
+                             .use_tts = access ? access->tts_enabled : false,
+                             .tts_highlight = a11y_wants_tts_highlight(access),
+                             .tts_speed = access ? access->tts_speed : 1.0f,
+                             .tts_pitch = access ? access->tts_pitch : 0.0f,
+                             .show_place_blocks = access ? access->dyscalculia : false,
+                             .color_numbers = access ? access->dyscalculia : false,
+                             .disable_timer = a11y_disable_math_timer(access),
+                             .max_bullets = a11y_get_max_bullets(access),
+                             .avoid_metaphors = a11y_avoid_metaphors(access),
+                             .enhance_gamification = a11y_enhance_gamification(access),
+                             .timeout_multiplier = a11y_get_timeout_multiplier(access),
+                             .break_interval_minutes = (access && access->adhd)             ? 10
+                                                       : (access && access->cerebral_palsy) ? 15
+                                                                                            : 30,
+                             .prefer_voice = a11y_prefers_voice_input(access),
+                             .voice_commands = access && access->cerebral_palsy};
 
     return settings;
 }

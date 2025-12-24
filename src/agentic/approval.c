@@ -8,12 +8,12 @@
  */
 
 #include "nous/agentic.h"
+#include <ctype.h>
+#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <ctype.h>
 #include <sys/stat.h>
-#include <errno.h>
 #include <unistd.h>
 
 #define APPROVALS_FILE "approvals.txt"
@@ -56,10 +56,12 @@ bool is_action_approved(const char* action) {
     }
 
     const char* path = get_approvals_path();
-    if (!path) return false;
+    if (!path)
+        return false;
 
     FILE* f = fopen(path, "r");
-    if (!f) return false;
+    if (!f)
+        return false;
 
     char line[MAX_LINE];
     bool approved = false;
@@ -90,7 +92,8 @@ int store_approval(const char* action, bool approved, bool remember) {
     ensure_config_dir();
 
     const char* path = get_approvals_path();
-    if (!path) return -1;
+    if (!path)
+        return -1;
 
     // Read existing approvals
     FILE* f = fopen(path, "r");
@@ -102,8 +105,7 @@ int store_approval(const char* action, bool approved, bool remember) {
     if (f) {
         while (count < 100 && fgets(lines[count], MAX_LINE, f)) {
             // Update if action already exists
-            if (strncmp(lines[count], action, action_len) == 0 &&
-                lines[count][action_len] == '=') {
+            if (strncmp(lines[count], action, action_len) == 0 && lines[count][action_len] == '=') {
                 snprintf(lines[count], MAX_LINE, "%s=%d\n", action, approved ? 1 : 0);
                 found = true;
             }
@@ -120,7 +122,8 @@ int store_approval(const char* action, bool approved, bool remember) {
 
     // Write back
     f = fopen(path, "w");
-    if (!f) return -1;
+    if (!f)
+        return -1;
 
     for (int i = 0; i < count; i++) {
         fputs(lines[i], f);
@@ -188,31 +191,31 @@ bool request_user_approval(ApprovalRequest* req) {
     char c = (char)tolower(input[0]);
 
     switch (c) {
-        case 'y':
-            // Yes - approve once
-            return true;
+    case 'y':
+        // Yes - approve once
+        return true;
 
-        case 'a':
-            // Always - approve and remember
-            store_approval(req->action, true, true);
-            printf("\033[32m✓ Approved and remembered.\033[0m\n");
-            return true;
+    case 'a':
+        // Always - approve and remember
+        store_approval(req->action, true, true);
+        printf("\033[32m✓ Approved and remembered.\033[0m\n");
+        return true;
 
-        case 'n':
-        case '\n':
-        case '\0':
-            // No - deny once (default)
-            return false;
+    case 'n':
+    case '\n':
+    case '\0':
+        // No - deny once (default)
+        return false;
 
-        case 'N':
-            // Never - deny and remember
-            store_approval(req->action, false, true);
-            printf("\033[31m✗ Denied and remembered.\033[0m\n");
-            return false;
+    case 'N':
+        // Never - deny and remember
+        store_approval(req->action, false, true);
+        printf("\033[31m✗ Denied and remembered.\033[0m\n");
+        return false;
 
-        default:
-            // Unknown - default to no
-            printf("Unknown response. Defaulting to No.\n");
-            return false;
+    default:
+        // Unknown - default to no
+        printf("Unknown response. Defaulting to No.\n");
+        return false;
     }
 }

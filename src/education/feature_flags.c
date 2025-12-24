@@ -8,10 +8,10 @@
  */
 
 #include "nous/education.h"
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <stdbool.h>
 
 // Feature flag definitions
 typedef enum {
@@ -27,44 +27,38 @@ typedef enum {
     FEATURE_FLAG_COUNT
 } EducationFeatureFlag;
 
-static const char* FEATURE_FLAG_NAMES[] = {
-    "voice_interaction",
-    "fsrs_integration",
-    "mastery_tracking",
-    "accessibility_runtime",
-    "video_search",
-    "periodic_table",
-    "pdf_export",
-    "certificates",
-    "active_breaks",
-    NULL
-};
+static const char* FEATURE_FLAG_NAMES[] = {"voice_interaction", "fsrs_integration",
+                                           "mastery_tracking",  "accessibility_runtime",
+                                           "video_search",      "periodic_table",
+                                           "pdf_export",        "certificates",
+                                           "active_breaks",     NULL};
 
 // Default states (false = disabled by default for unverified features)
 static bool g_feature_flags[FEATURE_FLAG_COUNT] = {
-    false,  // voice_interaction - not fully tested
-    true,   // fsrs_integration - verified working
-    false,  // mastery_tracking - not fully integrated
-    false,  // accessibility_runtime - not fully tested
-    true,   // video_search - implemented
-    true,   // periodic_table - implemented
-    true,   // pdf_export - implemented
-    true,   // certificates - implemented
-    true,   // active_breaks - implemented
+    false, // voice_interaction - not fully tested
+    true,  // fsrs_integration - verified working
+    false, // mastery_tracking - not fully integrated
+    false, // accessibility_runtime - not fully tested
+    true,  // video_search - implemented
+    true,  // periodic_table - implemented
+    true,  // pdf_export - implemented
+    true,  // certificates - implemented
+    true,  // active_breaks - implemented
 };
 
 /**
  * Check if a feature flag is enabled
  */
 bool education_feature_flag_enabled(const char* feature_name) {
-    if (!feature_name) return false;
-    
+    if (!feature_name)
+        return false;
+
     for (int i = 0; i < FEATURE_FLAG_COUNT; i++) {
         if (strcmp(feature_name, FEATURE_FLAG_NAMES[i]) == 0) {
             return g_feature_flags[i];
         }
     }
-    
+
     return false;
 }
 
@@ -72,15 +66,16 @@ bool education_feature_flag_enabled(const char* feature_name) {
  * Enable a feature flag
  */
 int education_feature_flag_enable(const char* feature_name) {
-    if (!feature_name) return -1;
-    
+    if (!feature_name)
+        return -1;
+
     for (int i = 0; i < FEATURE_FLAG_COUNT; i++) {
         if (strcmp(feature_name, FEATURE_FLAG_NAMES[i]) == 0) {
             g_feature_flags[i] = true;
             return 0;
         }
     }
-    
+
     return -1;
 }
 
@@ -88,15 +83,16 @@ int education_feature_flag_enable(const char* feature_name) {
  * Disable a feature flag
  */
 int education_feature_flag_disable(const char* feature_name) {
-    if (!feature_name) return -1;
-    
+    if (!feature_name)
+        return -1;
+
     for (int i = 0; i < FEATURE_FLAG_COUNT; i++) {
         if (strcmp(feature_name, FEATURE_FLAG_NAMES[i]) == 0) {
             g_feature_flags[i] = false;
             return 0;
         }
     }
-    
+
     return -1;
 }
 
@@ -106,11 +102,11 @@ int education_feature_flag_disable(const char* feature_name) {
 void education_feature_flags_list(void) {
     printf("\n🔧 Feature Flags Status\n");
     printf("─────────────────────────────────────────────────────────────────\n");
-    
+
     for (int i = 0; i < FEATURE_FLAG_COUNT; i++) {
         const char* status = g_feature_flags[i] ? "✅ ENABLED" : "❌ DISABLED";
         printf("  %-30s %s\n", FEATURE_FLAG_NAMES[i], status);
     }
-    
+
     printf("─────────────────────────────────────────────────────────────────\n\n");
 }

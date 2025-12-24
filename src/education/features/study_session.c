@@ -18,13 +18,13 @@
 
 #include "education_features.h"
 #include "nous/education.h"
+#include <pthread.h>
+#include <sqlite3.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
-#include <pthread.h>
-#include <sqlite3.h>
 
 // ============================================================================
 // EXTERNAL DEPENDENCIES
@@ -40,16 +40,15 @@ extern int education_xp_add(int64_t student_id, int xp_amount, const char* reaso
 // Libretto integration for automatic activity logging
 extern int64_t libretto_add_log_entry(int64_t student_id, const char* maestro_id,
                                       const char* activity_type, const char* subject,
-                                      const char* topic, int duration_minutes,
-                                      const char* notes);
+                                      const char* topic, int duration_minutes, const char* notes);
 
 // ============================================================================
 // CONSTANTS
 // ============================================================================
 
-#define DEFAULT_WORK_DURATION 25      // minutes
-#define DEFAULT_BREAK_DURATION 5      // minutes
-#define LONG_BREAK_DURATION 15        // minutes after 4 pomodoros
+#define DEFAULT_WORK_DURATION 25 // minutes
+#define DEFAULT_BREAK_DURATION 5 // minutes
+#define LONG_BREAK_DURATION 15   // minutes after 4 pomodoros
 #define POMODOROS_BEFORE_LONG_BREAK 4
 
 #define XP_PER_POMODORO 20
@@ -75,8 +74,8 @@ int native_notification(const char* title, const char* message) {
     // Use osascript to trigger macOS notification
     char command[1024];
     snprintf(command, sizeof(command),
-        "osascript -e 'display notification \"%s\" with title \"%s\" sound name \"Glass\"'",
-        message, title);
+             "osascript -e 'display notification \"%s\" with title \"%s\" sound name \"Glass\"'",
+             message, title);
 
     int result = system(command);
     return (result == 0) ? 0 : -1;
@@ -117,9 +116,8 @@ int pomodoro_timer(int64_t session_id, bool is_break) {
         return -1;
     }
 
-    int duration_minutes = is_break ?
-        g_active_session->break_duration_minutes :
-        g_active_session->work_duration_minutes;
+    int duration_minutes = is_break ? g_active_session->break_duration_minutes
+                                    : g_active_session->work_duration_minutes;
 
     // Check if it's time for a long break
     if (is_break && g_active_session->pomodoro_count > 0 &&
@@ -151,12 +149,10 @@ int pomodoro_timer(int64_t session_id, bool is_break) {
     // Send start notification
     char message[256];
     if (is_break) {
-        snprintf(message, sizeof(message),
-            "Break time! Relax for %d minutes.", duration_minutes);
+        snprintf(message, sizeof(message), "Break time! Relax for %d minutes.", duration_minutes);
         native_notification("Break Started", message);
     } else {
-        snprintf(message, sizeof(message),
-            "Focus time! Work for %d minutes.", duration_minutes);
+        snprintf(message, sizeof(message), "Focus time! Work for %d minutes.", duration_minutes);
         native_notification("Pomodoro Started", message);
     }
 
@@ -185,14 +181,14 @@ char* session_end_quiz(int64_t session_id) {
     // Generate quick review quiz
     char prompt[1024];
     snprintf(prompt, sizeof(prompt),
-        "Create a quick 3-question review quiz for:\n"
-        "Subject: %s\n"
-        "Topic: %s\n\n"
-        "Questions should be concise and test key concepts. "
-        "Return as JSON array with format:\n"
-        "[{\"question\": \"...\", \"type\": \"multiple_choice\", "
-        "\"options\": [...], \"correct\": 0}]",
-        subject, topic);
+             "Create a quick 3-question review quiz for:\n"
+             "Subject: %s\n"
+             "Topic: %s\n\n"
+             "Questions should be concise and test key concepts. "
+             "Return as JSON array with format:\n"
+             "[{\"question\": \"...\", \"type\": \"multiple_choice\", "
+             "\"options\": [...], \"correct\": 0}]",
+             subject, topic);
 
     const char* system_prompt =
         "You are a quiz generator. Create engaging, educational questions "
@@ -205,20 +201,20 @@ char* session_end_quiz(int64_t session_id) {
         quiz = malloc(2048);
         if (quiz) {
             snprintf(quiz, 2048,
-                "[\n"
-                "  {\n"
-                "    \"question\": \"What was the main concept we studied?\",\n"
-                "    \"type\": \"open\"\n"
-                "  },\n"
-                "  {\n"
-                "    \"question\": \"Can you explain one key takeaway?\",\n"
-                "    \"type\": \"open\"\n"
-                "  },\n"
-                "  {\n"
-                "    \"question\": \"How would you apply this concept?\",\n"
-                "    \"type\": \"open\"\n"
-                "  }\n"
-                "]");
+                     "[\n"
+                     "  {\n"
+                     "    \"question\": \"What was the main concept we studied?\",\n"
+                     "    \"type\": \"open\"\n"
+                     "  },\n"
+                     "  {\n"
+                     "    \"question\": \"Can you explain one key takeaway?\",\n"
+                     "    \"type\": \"open\"\n"
+                     "  },\n"
+                     "  {\n"
+                     "    \"question\": \"How would you apply this concept?\",\n"
+                     "    \"type\": \"open\"\n"
+                     "  }\n"
+                     "]");
         }
     }
 
@@ -310,8 +306,8 @@ int64_t study_command_handler(int64_t student_id, const char* subject, const cha
     printf("\n✓ Study session started!\n");
     printf("Subject: %s\n", subject);
     printf("Topic: %s\n", topic);
-    printf("Pomodoro: %d minutes work, %d minutes break\n",
-           DEFAULT_WORK_DURATION, DEFAULT_BREAK_DURATION);
+    printf("Pomodoro: %d minutes work, %d minutes break\n", DEFAULT_WORK_DURATION,
+           DEFAULT_BREAK_DURATION);
     printf("\nFocus on your studies. You'll get a notification when time's up!\n\n");
 
     return session_id;
@@ -357,8 +353,8 @@ int study_session_end(int64_t session_id, const StudySessionStats* stats) {
     char notes[256];
     snprintf(notes, sizeof(notes), "%d pomodori completati, %d min focus",
              g_active_session->pomodoro_count, duration_minutes);
-    libretto_add_log_entry(student_id, NULL, "study", subject,
-                           g_active_session->topic, duration_minutes, notes);
+    libretto_add_log_entry(student_id, NULL, "study", subject, g_active_session->topic,
+                           duration_minutes, notes);
 
     // Calculate XP
     int xp_earned = g_active_session->pomodoro_count * XP_PER_POMODORO;
@@ -398,7 +394,8 @@ void study_session_free(StudySession* session) {
 }
 
 void study_session_stats_free(StudySessionStats* stats) {
-    if (!stats) return;
+    if (!stats)
+        return;
     free(stats->summary);
     free(stats);
 }

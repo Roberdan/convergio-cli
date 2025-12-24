@@ -6,10 +6,10 @@
 
 #include "nous/config_orchestrator.h"
 #include "nous/nous.h"
+#include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <pthread.h>
 
 // ============================================================================
 // CONFIG ENTRY
@@ -60,8 +60,8 @@ static ConfigEntry* config_find_entry(const char* key) {
     return NULL;
 }
 
-static void config_set_internal(const char* key, ConfigValueType type,
-                                 const void* value, ConfigSource source) {
+static void config_set_internal(const char* key, ConfigValueType type, const void* value,
+                                ConfigSource source) {
     pthread_mutex_lock(&g_config_mutex);
 
     ConfigEntry* entry = config_find_entry(key);
@@ -84,18 +84,18 @@ static void config_set_internal(const char* key, ConfigValueType type,
         entry->value.source = source;
 
         switch (type) {
-            case CONFIG_TYPE_STRING:
-                entry->value.value.str_val = strdup((const char*)value);
-                break;
-            case CONFIG_TYPE_INT:
-                entry->value.value.int_val = *(const int*)value;
-                break;
-            case CONFIG_TYPE_BOOL:
-                entry->value.value.bool_val = *(const bool*)value;
-                break;
-            case CONFIG_TYPE_DOUBLE:
-                entry->value.value.double_val = *(const double*)value;
-                break;
+        case CONFIG_TYPE_STRING:
+            entry->value.value.str_val = strdup((const char*)value);
+            break;
+        case CONFIG_TYPE_INT:
+            entry->value.value.int_val = *(const int*)value;
+            break;
+        case CONFIG_TYPE_BOOL:
+            entry->value.value.bool_val = *(const bool*)value;
+            break;
+        case CONFIG_TYPE_DOUBLE:
+            entry->value.value.double_val = *(const double*)value;
+            break;
         }
     }
 
@@ -112,13 +112,17 @@ static void config_load_defaults(void) {
     double default_temp = 0.7;
     bool default_telemetry = true;
 
-    config_set_internal(CONFIG_KEY_MODEL, CONFIG_TYPE_STRING, "claude-sonnet-4-20250514", CONFIG_SOURCE_DEFAULT);
-    config_set_internal(CONFIG_KEY_MAX_TOKENS, CONFIG_TYPE_INT, &default_max_tokens, CONFIG_SOURCE_DEFAULT);
-    config_set_internal(CONFIG_KEY_TEMPERATURE, CONFIG_TYPE_DOUBLE, &default_temp, CONFIG_SOURCE_DEFAULT);
+    config_set_internal(CONFIG_KEY_MODEL, CONFIG_TYPE_STRING, "claude-sonnet-4-20250514",
+                        CONFIG_SOURCE_DEFAULT);
+    config_set_internal(CONFIG_KEY_MAX_TOKENS, CONFIG_TYPE_INT, &default_max_tokens,
+                        CONFIG_SOURCE_DEFAULT);
+    config_set_internal(CONFIG_KEY_TEMPERATURE, CONFIG_TYPE_DOUBLE, &default_temp,
+                        CONFIG_SOURCE_DEFAULT);
     config_set_internal(CONFIG_KEY_EDITION, CONFIG_TYPE_STRING, "master", CONFIG_SOURCE_DEFAULT);
     config_set_internal(CONFIG_KEY_THEME, CONFIG_TYPE_STRING, "dark", CONFIG_SOURCE_DEFAULT);
     config_set_internal(CONFIG_KEY_LOG_LEVEL, CONFIG_TYPE_STRING, "info", CONFIG_SOURCE_DEFAULT);
-    config_set_internal(CONFIG_KEY_TELEMETRY, CONFIG_TYPE_BOOL, &default_telemetry, CONFIG_SOURCE_DEFAULT);
+    config_set_internal(CONFIG_KEY_TELEMETRY, CONFIG_TYPE_BOOL, &default_telemetry,
+                        CONFIG_SOURCE_DEFAULT);
 }
 
 // ============================================================================
@@ -170,9 +174,9 @@ int config_orchestrator_init(void) {
     memset(g_config_table, 0, sizeof(g_config_table));
 
     // Load in priority order
-    config_load_defaults();     // Lowest priority
+    config_load_defaults(); // Lowest priority
     // config_load_file();      // Would load TOML here if available
-    config_load_env();          // Highest priority (before CLI)
+    config_load_env(); // Highest priority (before CLI)
 
     g_config_initialized = true;
     LOG_INFO(LOG_CAT_SYSTEM, "Config orchestrator initialized");
@@ -203,7 +207,8 @@ const char* config_get_string(const char* key, const char* default_val) {
     pthread_mutex_lock(&g_config_mutex);
     ConfigEntry* entry = config_find_entry(key);
     const char* result = (entry && entry->value.type == CONFIG_TYPE_STRING)
-                          ? entry->value.value.str_val : default_val;
+                             ? entry->value.value.str_val
+                             : default_val;
     pthread_mutex_unlock(&g_config_mutex);
     return result;
 }
@@ -211,8 +216,8 @@ const char* config_get_string(const char* key, const char* default_val) {
 int config_get_int(const char* key, int default_val) {
     pthread_mutex_lock(&g_config_mutex);
     ConfigEntry* entry = config_find_entry(key);
-    int result = (entry && entry->value.type == CONFIG_TYPE_INT)
-                  ? entry->value.value.int_val : default_val;
+    int result =
+        (entry && entry->value.type == CONFIG_TYPE_INT) ? entry->value.value.int_val : default_val;
     pthread_mutex_unlock(&g_config_mutex);
     return result;
 }
@@ -220,8 +225,8 @@ int config_get_int(const char* key, int default_val) {
 bool config_get_bool(const char* key, bool default_val) {
     pthread_mutex_lock(&g_config_mutex);
     ConfigEntry* entry = config_find_entry(key);
-    bool result = (entry && entry->value.type == CONFIG_TYPE_BOOL)
-                   ? entry->value.value.bool_val : default_val;
+    bool result = (entry && entry->value.type == CONFIG_TYPE_BOOL) ? entry->value.value.bool_val
+                                                                   : default_val;
     pthread_mutex_unlock(&g_config_mutex);
     return result;
 }
@@ -230,7 +235,8 @@ double config_get_double(const char* key, double default_val) {
     pthread_mutex_lock(&g_config_mutex);
     ConfigEntry* entry = config_find_entry(key);
     double result = (entry && entry->value.type == CONFIG_TYPE_DOUBLE)
-                     ? entry->value.value.double_val : default_val;
+                        ? entry->value.value.double_val
+                        : default_val;
     pthread_mutex_unlock(&g_config_mutex);
     return result;
 }
@@ -264,18 +270,19 @@ void config_dump(void) {
         while (entry) {
             printf("  %s = ", entry->key);
             switch (entry->value.type) {
-                case CONFIG_TYPE_STRING:
-                    printf("\"%s\"", entry->value.value.str_val ? entry->value.value.str_val : "(null)");
-                    break;
-                case CONFIG_TYPE_INT:
-                    printf("%d", entry->value.value.int_val);
-                    break;
-                case CONFIG_TYPE_BOOL:
-                    printf("%s", entry->value.value.bool_val ? "true" : "false");
-                    break;
-                case CONFIG_TYPE_DOUBLE:
-                    printf("%.2f", entry->value.value.double_val);
-                    break;
+            case CONFIG_TYPE_STRING:
+                printf("\"%s\"",
+                       entry->value.value.str_val ? entry->value.value.str_val : "(null)");
+                break;
+            case CONFIG_TYPE_INT:
+                printf("%d", entry->value.value.int_val);
+                break;
+            case CONFIG_TYPE_BOOL:
+                printf("%s", entry->value.value.bool_val ? "true" : "false");
+                break;
+            case CONFIG_TYPE_DOUBLE:
+                printf("%.2f", entry->value.value.double_val);
+                break;
             }
             printf(" [%s]\n", source_names[entry->value.source]);
             entry = entry->next;

@@ -11,13 +11,13 @@
  */
 
 #include "nous/voice.h"
+#include <pthread.h>
+#include <stdbool.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <pthread.h>
 #include <unistd.h>
-#include <stdint.h>
-#include <stdbool.h>
 
 // ============================================================================
 // OPENAI REALTIME API CONSTANTS
@@ -30,14 +30,14 @@
 
 // Available OpenAI voices (as of Dec 2025)
 static const char* OPENAI_VOICES[] = {
-    "alloy",    // Neutral, balanced
-    "ash",      // Warm, friendly
-    "ballad",   // Melodic, expressive
-    "coral",    // Clear, professional
-    "echo",     // Energetic, enthusiastic
-    "sage",     // Calm, wise
-    "shimmer",  // Light, cheerful
-    "verse"     // Deep, authoritative
+    "alloy",   // Neutral, balanced
+    "ash",     // Warm, friendly
+    "ballad",  // Melodic, expressive
+    "coral",   // Clear, professional
+    "echo",    // Energetic, enthusiastic
+    "sage",    // Calm, wise
+    "shimmer", // Light, cheerful
+    "verse"    // Deep, authoritative
 };
 static const size_t OPENAI_VOICE_COUNT = 8;
 
@@ -56,41 +56,41 @@ typedef struct {
     const char* output_audio_format;
     float temperature;
     bool input_audio_transcription;
-    bool turn_detection;  // VAD (Voice Activity Detection)
+    bool turn_detection; // VAD (Voice Activity Detection)
 } OpenAISessionConfig;
 
 /**
  * Create session.update message
  */
 static void openai_create_session_update(const OpenAISessionConfig* config,
-                                          const char* maestro_prompt,
-                                          char* buffer, size_t buffer_size) {
+                                         const char* maestro_prompt, char* buffer,
+                                         size_t buffer_size) {
     snprintf(buffer, buffer_size,
-        "{"
-        "\"type\":\"session.update\","
-        "\"session\":{"
-            "\"modalities\":[\"text\",\"audio\"],"
-            "\"instructions\":\"%s\","
-            "\"voice\":\"%s\","
-            "\"input_audio_format\":\"%s\","
-            "\"output_audio_format\":\"%s\","
-            "\"input_audio_transcription\":{\"model\":\"whisper-1\"},"
-            "\"turn_detection\":{\"type\":\"server_vad\",\"threshold\":0.5,\"prefix_padding_ms\":300,\"silence_duration_ms\":500}"
-        "}"
-        "}",
-        maestro_prompt ? maestro_prompt : "You are a helpful educational assistant.",
-        config->voice ? config->voice : "sage",
-        config->input_audio_format ? config->input_audio_format : OPENAI_AUDIO_FORMAT_PCM16,
-        config->output_audio_format ? config->output_audio_format : OPENAI_AUDIO_FORMAT_PCM16
-    );
+             "{"
+             "\"type\":\"session.update\","
+             "\"session\":{"
+             "\"modalities\":[\"text\",\"audio\"],"
+             "\"instructions\":\"%s\","
+             "\"voice\":\"%s\","
+             "\"input_audio_format\":\"%s\","
+             "\"output_audio_format\":\"%s\","
+             "\"input_audio_transcription\":{\"model\":\"whisper-1\"},"
+             "\"turn_detection\":{\"type\":\"server_vad\",\"threshold\":0.5,\"prefix_padding_ms\":"
+             "300,\"silence_duration_ms\":500}"
+             "}"
+             "}",
+             maestro_prompt ? maestro_prompt : "You are a helpful educational assistant.",
+             config->voice ? config->voice : "sage",
+             config->input_audio_format ? config->input_audio_format : OPENAI_AUDIO_FORMAT_PCM16,
+             config->output_audio_format ? config->output_audio_format : OPENAI_AUDIO_FORMAT_PCM16);
 }
 
 /**
  * Create audio input append message
  * Audio must be base64-encoded PCM16 at 24kHz
  */
-static void openai_create_audio_append(const uint8_t* audio_data, size_t length,
-                                        char* buffer, size_t buffer_size) {
+static void openai_create_audio_append(const uint8_t* audio_data, size_t length, char* buffer,
+                                       size_t buffer_size) {
     // Base64 encode audio data
     static const char b64[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 
@@ -104,8 +104,10 @@ static void openai_create_audio_append(const uint8_t* audio_data, size_t length,
     size_t j = 0;
     for (size_t i = 0; i < length; i += 3) {
         uint32_t n = ((uint32_t)audio_data[i]) << 16;
-        if (i + 1 < length) n |= ((uint32_t)audio_data[i + 1]) << 8;
-        if (i + 2 < length) n |= audio_data[i + 2];
+        if (i + 1 < length)
+            n |= ((uint32_t)audio_data[i + 1]) << 8;
+        if (i + 2 < length)
+            n |= audio_data[i + 2];
 
         b64_audio[j++] = b64[(n >> 18) & 63];
         b64_audio[j++] = b64[(n >> 12) & 63];
@@ -114,9 +116,8 @@ static void openai_create_audio_append(const uint8_t* audio_data, size_t length,
     }
     b64_audio[j] = '\0';
 
-    snprintf(buffer, buffer_size,
-        "{\"type\":\"input_audio_buffer.append\",\"audio\":\"%s\"}",
-        b64_audio);
+    snprintf(buffer, buffer_size, "{\"type\":\"input_audio_buffer.append\",\"audio\":\"%s\"}",
+             b64_audio);
 
     free(b64_audio);
 }
@@ -124,8 +125,7 @@ static void openai_create_audio_append(const uint8_t* audio_data, size_t length,
 /**
  * Create audio commit message (finalize user turn)
  */
-static const char* openai_audio_commit_msg =
-    "{\"type\":\"input_audio_buffer.commit\"}";
+static const char* openai_audio_commit_msg = "{\"type\":\"input_audio_buffer.commit\"}";
 
 /**
  * Create response.create message (request assistant response)
@@ -136,8 +136,7 @@ static const char* openai_response_create_msg =
 /**
  * Create cancel message (barge-in)
  */
-static const char* openai_cancel_msg =
-    "{\"type\":\"response.cancel\"}";
+static const char* openai_cancel_msg = "{\"type\":\"response.cancel\"}";
 
 // ============================================================================
 // MAESTRO-TO-OPENAI VOICE MAPPING
@@ -208,8 +207,7 @@ static const MaestroVoiceMapping MAESTRO_VOICE_MAP[] = {
 
     {"chris-storytelling", "echo",
      "Speak with dynamic TED-talk energy. Inspiring and confident voice. "
-     "Model public speaking techniques being taught."}
-};
+     "Model public speaking techniques being taught."}};
 
 static const size_t MAESTRO_VOICE_MAP_COUNT =
     sizeof(MAESTRO_VOICE_MAP) / sizeof(MAESTRO_VOICE_MAP[0]);
@@ -218,21 +216,23 @@ static const size_t MAESTRO_VOICE_MAP_COUNT =
  * Get OpenAI voice for a maestro
  */
 const char* openai_get_voice_for_maestro(const char* maestro_id) {
-    if (!maestro_id) return "sage";
+    if (!maestro_id)
+        return "sage";
 
     for (size_t i = 0; i < MAESTRO_VOICE_MAP_COUNT; i++) {
         if (strcmp(MAESTRO_VOICE_MAP[i].maestro_id, maestro_id) == 0) {
             return MAESTRO_VOICE_MAP[i].openai_voice;
         }
     }
-    return "sage";  // Default
+    return "sage"; // Default
 }
 
 /**
  * Get voice instructions for a maestro
  */
 const char* openai_get_voice_instructions(const char* maestro_id) {
-    if (!maestro_id) return "";
+    if (!maestro_id)
+        return "";
 
     for (size_t i = 0; i < MAESTRO_VOICE_MAP_COUNT; i++) {
         if (strcmp(MAESTRO_VOICE_MAP[i].maestro_id, maestro_id) == 0) {
@@ -279,13 +279,15 @@ typedef struct {
  * Create OpenAI Realtime session
  */
 OpenAIRealtimeSession* openai_realtime_create(const char* api_key) {
-    if (!api_key) return NULL;
+    if (!api_key)
+        return NULL;
 
     OpenAIRealtimeSession* session = calloc(1, sizeof(OpenAIRealtimeSession));
-    if (!session) return NULL;
+    if (!session)
+        return NULL;
 
     session->api_key = strdup(api_key);
-    session->input_buffer_size = 1024 * 1024;  // 1MB
+    session->input_buffer_size = 1024 * 1024; // 1MB
     session->output_buffer_size = 1024 * 1024;
     session->input_buffer = malloc(session->input_buffer_size);
     session->output_buffer = malloc(session->output_buffer_size);
@@ -308,7 +310,8 @@ OpenAIRealtimeSession* openai_realtime_create(const char* api_key) {
  * Destroy OpenAI Realtime session
  */
 void openai_realtime_destroy(OpenAIRealtimeSession* session) {
-    if (!session) return;
+    if (!session)
+        return;
 
     session->should_stop = true;
 
@@ -331,10 +334,9 @@ void openai_realtime_set_callbacks(
     OpenAIRealtimeSession* session,
     void (*on_audio)(const uint8_t* data, size_t length, void* user_data),
     void (*on_transcript)(const char* text, bool is_final, void* user_data),
-    void (*on_error)(const char* message, void* user_data),
-    void* user_data
-) {
-    if (!session) return;
+    void (*on_error)(const char* message, void* user_data), void* user_data) {
+    if (!session)
+        return;
 
     pthread_mutex_lock(&session->mutex);
     session->on_audio = on_audio;
@@ -348,7 +350,8 @@ void openai_realtime_set_callbacks(
  * Set current maestro
  */
 void openai_realtime_set_maestro(OpenAIRealtimeSession* session, const char* maestro_id) {
-    if (!session || !maestro_id) return;
+    if (!session || !maestro_id)
+        return;
 
     pthread_mutex_lock(&session->mutex);
     strncpy(session->current_maestro, maestro_id, sizeof(session->current_maestro) - 1);
@@ -370,7 +373,8 @@ static void openai_get_ws_url(char* buffer, size_t size) {
  * - Or the OpenAI SDK for your platform
  */
 bool openai_realtime_connect(OpenAIRealtimeSession* session, const char* maestro_prompt) {
-    if (!session) return false;
+    if (!session)
+        return false;
 
     char ws_url[512];
     openai_get_ws_url(ws_url, sizeof(ws_url));
@@ -386,27 +390,25 @@ bool openai_realtime_connect(OpenAIRealtimeSession* session, const char* maestro
 
     // Create session.update message
     char session_update[4096];
-    OpenAISessionConfig config = {
-        .model = OPENAI_REALTIME_MODEL,
-        .voice = openai_get_voice_for_maestro(session->current_maestro),
-        .input_audio_format = OPENAI_AUDIO_FORMAT_PCM16,
-        .output_audio_format = OPENAI_AUDIO_FORMAT_PCM16,
-        .temperature = 0.7f,
-        .input_audio_transcription = true,
-        .turn_detection = true
-    };
+    OpenAISessionConfig config = {.model = OPENAI_REALTIME_MODEL,
+                                  .voice = openai_get_voice_for_maestro(session->current_maestro),
+                                  .input_audio_format = OPENAI_AUDIO_FORMAT_PCM16,
+                                  .output_audio_format = OPENAI_AUDIO_FORMAT_PCM16,
+                                  .temperature = 0.7f,
+                                  .input_audio_transcription = true,
+                                  .turn_detection = true};
 
     // Build full maestro prompt
     char full_prompt[2048];
-    snprintf(full_prompt, sizeof(full_prompt),
-        "%s\n\nVoice style instructions: %s",
-        maestro_prompt ? maestro_prompt : "",
-        openai_get_voice_instructions(session->current_maestro));
+    snprintf(full_prompt, sizeof(full_prompt), "%s\n\nVoice style instructions: %s",
+             maestro_prompt ? maestro_prompt : "",
+             openai_get_voice_instructions(session->current_maestro));
 
     openai_create_session_update(&config, full_prompt, session_update, sizeof(session_update));
 
     // In production: send session_update over WebSocket
-    fprintf(stderr, "[OpenAI Realtime] Session update prepared: %zu bytes\n", strlen(session_update));
+    fprintf(stderr, "[OpenAI Realtime] Session update prepared: %zu bytes\n",
+            strlen(session_update));
 
     session->connected = true;
     return true;
@@ -416,7 +418,8 @@ bool openai_realtime_connect(OpenAIRealtimeSession* session, const char* maestro
  * Disconnect from OpenAI Realtime API
  */
 void openai_realtime_disconnect(OpenAIRealtimeSession* session) {
-    if (!session) return;
+    if (!session)
+        return;
 
     session->connected = false;
     session->should_stop = true;
@@ -425,9 +428,10 @@ void openai_realtime_disconnect(OpenAIRealtimeSession* session) {
 /**
  * Send audio to OpenAI
  */
-bool openai_realtime_send_audio(OpenAIRealtimeSession* session,
-                                 const uint8_t* audio, size_t length) {
-    if (!session || !session->connected || !audio || length == 0) return false;
+bool openai_realtime_send_audio(OpenAIRealtimeSession* session, const uint8_t* audio,
+                                size_t length) {
+    if (!session || !session->connected || !audio || length == 0)
+        return false;
 
     // Buffer audio
     pthread_mutex_lock(&session->mutex);
@@ -452,14 +456,15 @@ bool openai_realtime_send_audio(OpenAIRealtimeSession* session,
  * Commit audio (finalize user turn)
  */
 bool openai_realtime_commit_audio(OpenAIRealtimeSession* session) {
-    if (!session || !session->connected) return false;
+    if (!session || !session->connected)
+        return false;
 
     // In production: send input_audio_buffer.commit and response.create
     fprintf(stderr, "[OpenAI Realtime] Committing audio buffer: %zu bytes\n",
             session->input_buffer_pos);
 
     pthread_mutex_lock(&session->mutex);
-    session->input_buffer_pos = 0;  // Reset buffer
+    session->input_buffer_pos = 0; // Reset buffer
     pthread_mutex_unlock(&session->mutex);
 
     return true;
@@ -469,7 +474,8 @@ bool openai_realtime_commit_audio(OpenAIRealtimeSession* session) {
  * Cancel current response (barge-in)
  */
 void openai_realtime_cancel(OpenAIRealtimeSession* session) {
-    if (!session || !session->connected) return;
+    if (!session || !session->connected)
+        return;
 
     // In production: send response.cancel over WebSocket
     fprintf(stderr, "[OpenAI Realtime] Cancelling response (barge-in)\n");

@@ -20,11 +20,11 @@
 
 #include "education_features.h"
 #include "nous/education.h"
+#include <sqlite3.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
-#include <sqlite3.h>
 
 // ============================================================================
 // EXTERNAL DEPENDENCIES
@@ -78,7 +78,7 @@ HomeworkRequest* homework_parse_request(int64_t student_id, const char* input) {
     }
 
     request->student_id = student_id;
-    request->anti_cheat_mode = true;  // Always enabled by default
+    request->anti_cheat_mode = true; // Always enabled by default
     request->context_files = NULL;
     request->context_file_count = 0;
 
@@ -104,7 +104,8 @@ HomeworkRequest* homework_parse_request(int64_t student_id, const char* input) {
 
         // Rest is the question
         const char* question_start = colon + 1;
-        while (*question_start == ' ') question_start++;
+        while (*question_start == ' ')
+            question_start++;
         strncpy(request->question, question_start, sizeof(request->question) - 1);
     } else {
         // No subject specified, use "General"
@@ -115,8 +116,7 @@ HomeworkRequest* homework_parse_request(int64_t student_id, const char* input) {
     // Extract topic from question (first few words or key phrases)
     char* space = strchr(request->question, ' ');
     if (space) {
-        size_t topic_len = (space - request->question < 50) ?
-                          (space - request->question) : 50;
+        size_t topic_len = (space - request->question < 50) ? (space - request->question) : 50;
         strncpy(request->topic, request->question, topic_len);
         request->topic[topic_len] = '\0';
     }
@@ -136,13 +136,11 @@ char* homework_anti_cheat_mode(const HomeworkRequest* request) {
     // Build prompt for LLM
     char prompt[4096];
     snprintf(prompt, sizeof(prompt),
-        "Subject: %s\n"
-        "Question: %s\n\n"
-        "Guide the student to solve this themselves using the Socratic method. "
-        "Ask questions that help them think through the problem step by step.",
-        request->subject,
-        request->question
-    );
+             "Subject: %s\n"
+             "Question: %s\n\n"
+             "Guide the student to solve this themselves using the Socratic method. "
+             "Ask questions that help them think through the problem step by step.",
+             request->subject, request->question);
 
     // Generate guidance using LLM
     char* guidance = llm_generate(prompt, ANTI_CHEAT_SYSTEM_PROMPT);
@@ -152,10 +150,10 @@ char* homework_anti_cheat_mode(const HomeworkRequest* request) {
         guidance = malloc(MAX_GUIDANCE_LENGTH);
         if (guidance) {
             snprintf(guidance, MAX_GUIDANCE_LENGTH,
-                "Let's work through this together. First, what do you think is "
-                "the key concept in this problem? What information are you given, "
-                "and what are you trying to find? Can you break this into smaller "
-                "steps?");
+                     "Let's work through this together. First, what do you think is "
+                     "the key concept in this problem? What information are you given, "
+                     "and what are you trying to find? Can you break this into smaller "
+                     "steps?");
         }
     }
 
@@ -176,13 +174,10 @@ char* homework_progressive_hints(const HomeworkRequest* request, int level) {
 
     char prompt[4096];
     snprintf(prompt, sizeof(prompt),
-        "Subject: %s\n"
-        "Question: %s\n\n"
-        "Provide hint level %d.",
-        request->subject,
-        request->question,
-        level
-    );
+             "Subject: %s\n"
+             "Question: %s\n\n"
+             "Provide hint level %d.",
+             request->subject, request->question, level);
 
     char* hint = llm_generate(prompt, system_prompt);
 
@@ -191,29 +186,28 @@ char* homework_progressive_hints(const HomeworkRequest* request, int level) {
         hint = malloc(MAX_HINT_LENGTH);
         if (hint) {
             switch (level) {
-                case 0:
-                    snprintf(hint, MAX_HINT_LENGTH,
-                        "What's the first thing you notice about this problem?");
-                    break;
-                case 1:
-                    snprintf(hint, MAX_HINT_LENGTH,
-                        "Think about which concepts from %s apply here.",
-                        request->subject);
-                    break;
-                case 2:
-                    snprintf(hint, MAX_HINT_LENGTH,
-                        "Try approaching this problem by: 1) Identifying what you know, "
-                        "2) Determining what you need to find, 3) Choosing a method.");
-                    break;
-                case 3:
-                    snprintf(hint, MAX_HINT_LENGTH,
-                        "Here's a similar problem to consider: [similar example]");
-                    break;
-                case 4:
-                    snprintf(hint, MAX_HINT_LENGTH,
-                        "Break it down: Step 1 - [identify], Step 2 - [apply], "
-                        "Step 3 - [solve], Step 4 - [verify]");
-                    break;
+            case 0:
+                snprintf(hint, MAX_HINT_LENGTH,
+                         "What's the first thing you notice about this problem?");
+                break;
+            case 1:
+                snprintf(hint, MAX_HINT_LENGTH, "Think about which concepts from %s apply here.",
+                         request->subject);
+                break;
+            case 2:
+                snprintf(hint, MAX_HINT_LENGTH,
+                         "Try approaching this problem by: 1) Identifying what you know, "
+                         "2) Determining what you need to find, 3) Choosing a method.");
+                break;
+            case 3:
+                snprintf(hint, MAX_HINT_LENGTH,
+                         "Here's a similar problem to consider: [similar example]");
+                break;
+            case 4:
+                snprintf(hint, MAX_HINT_LENGTH,
+                         "Break it down: Step 1 - [identify], Step 2 - [apply], "
+                         "Step 3 - [solve], Step 4 - [verify]");
+                break;
             }
         }
     }
@@ -232,14 +226,11 @@ char* homework_verify_understanding(const HomeworkRequest* request) {
 
     char prompt[4096];
     snprintf(prompt, sizeof(prompt),
-        "Subject: %s\n"
-        "Topic: %s\n"
-        "Question: %s\n\n"
-        "Create 3 conceptual questions to verify understanding.",
-        request->subject,
-        request->topic,
-        request->question
-    );
+             "Subject: %s\n"
+             "Topic: %s\n"
+             "Question: %s\n\n"
+             "Create 3 conceptual questions to verify understanding.",
+             request->subject, request->topic, request->question);
 
     char* quiz = llm_generate(prompt, VERIFY_SYSTEM_PROMPT);
 
@@ -247,7 +238,8 @@ char* homework_verify_understanding(const HomeworkRequest* request) {
         // Fallback: generic verification questions
         quiz = malloc(MAX_QUIZ_LENGTH);
         if (quiz) {
-            snprintf(quiz, MAX_QUIZ_LENGTH,
+            snprintf(
+                quiz, MAX_QUIZ_LENGTH,
                 "[\n"
                 "  {\n"
                 "    \"question\": \"Explain in your own words what this problem is asking.\",\n"
@@ -279,10 +271,9 @@ int homework_log_for_parents(int64_t student_id, const HomeworkRequest* request,
     }
 
     // Create log entry in database
-    const char* sql =
-        "INSERT INTO homework_logs (student_id, subject, topic, question, "
-        "guidance_provided, hints_used, timestamp) "
-        "VALUES (?, ?, ?, ?, ?, ?, ?)";
+    const char* sql = "INSERT INTO homework_logs (student_id, subject, topic, question, "
+                      "guidance_provided, hints_used, timestamp) "
+                      "VALUES (?, ?, ?, ?, ?, ?, ?)";
 
     sqlite3_stmt* stmt;
     int rc = sqlite3_prepare_v2(g_edu_db, sql, -1, &stmt, NULL);
@@ -341,21 +332,17 @@ HomeworkResponse* homework_command_handler(const HomeworkRequest* request) {
         strftime(timestamp, sizeof(timestamp), "%Y-%m-%d %H:%M:%S", tm_info);
 
         snprintf(response->parent_log, 2048,
-            "=== Homework Assistance Log ===\n"
-            "Timestamp: %s\n"
-            "Subject: %s\n"
-            "Topic: %s\n"
-            "Question: %s\n\n"
-            "Assistance Type: Socratic Guidance (No Direct Answers)\n"
-            "Hints Available: 5 progressive levels\n"
-            "Verification: Understanding quiz generated\n\n"
-            "Note: Student was guided to discover the solution through "
-            "thoughtful questions and progressive hints, not given direct answers.",
-            timestamp,
-            request->subject,
-            request->topic,
-            request->question
-        );
+                 "=== Homework Assistance Log ===\n"
+                 "Timestamp: %s\n"
+                 "Subject: %s\n"
+                 "Topic: %s\n"
+                 "Question: %s\n\n"
+                 "Assistance Type: Socratic Guidance (No Direct Answers)\n"
+                 "Hints Available: 5 progressive levels\n"
+                 "Verification: Understanding quiz generated\n\n"
+                 "Note: Student was guided to discover the solution through "
+                 "thoughtful questions and progressive hints, not given direct answers.",
+                 timestamp, request->subject, request->topic, request->question);
     }
 
     // Log to database
@@ -369,7 +356,8 @@ HomeworkResponse* homework_command_handler(const HomeworkRequest* request) {
 // ============================================================================
 
 void homework_request_free(HomeworkRequest* request) {
-    if (!request) return;
+    if (!request)
+        return;
 
     if (request->context_files) {
         for (int i = 0; i < request->context_file_count; i++) {
@@ -382,7 +370,8 @@ void homework_request_free(HomeworkRequest* request) {
 }
 
 void homework_response_free(HomeworkResponse* response) {
-    if (!response) return;
+    if (!response)
+        return;
 
     free(response->guidance);
 

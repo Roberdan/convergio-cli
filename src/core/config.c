@@ -11,14 +11,14 @@
 #include "nous/edition.h"
 #include "nous/nous.h"
 #include "nous/safe_path.h"
+#include <errno.h>
+#include <fcntl.h>
+#include <pwd.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
 #include <unistd.h>
-#include <fcntl.h>
-#include <pwd.h>
-#include <errno.h>
 
 // ============================================================================
 // GLOBAL CONFIG
@@ -52,7 +52,7 @@ static const char* get_home_dir(void) {
         return pw->pw_dir;
     }
 
-    return "/tmp";  // Last resort fallback
+    return "/tmp"; // Last resort fallback
 }
 
 static int ensure_directory(const char* path) {
@@ -73,11 +73,13 @@ static int ensure_directory(const char* path) {
 // ============================================================================
 
 static void trim_whitespace(char* str) {
-    if (!str) return;
+    if (!str)
+        return;
 
     // Trim leading
     char* start = str;
-    while (*start == ' ' || *start == '\t') start++;
+    while (*start == ' ' || *start == '\t')
+        start++;
 
     // Trim trailing
     char* end = start + strlen(start) - 1;
@@ -93,10 +95,11 @@ static void trim_whitespace(char* str) {
 }
 
 static void remove_quotes(char* str) {
-    if (!str) return;
+    if (!str)
+        return;
     size_t len = strlen(str);
-    if (len >= 2 && ((str[0] == '"' && str[len-1] == '"') ||
-                     (str[0] == '\'' && str[len-1] == '\''))) {
+    if (len >= 2 &&
+        ((str[0] == '"' && str[len - 1] == '"') || (str[0] == '\'' && str[len - 1] == '\''))) {
         memmove(str, str + 1, len - 2);
         str[len - 2] = '\0';
     }
@@ -126,7 +129,8 @@ static int parse_config_line(const char* line, char* section, size_t section_siz
 
     // Key = value
     char* eq = strchr(buf, '=');
-    if (!eq) return 0;
+    if (!eq)
+        return 0;
 
     *eq = '\0';
     char* key = buf;
@@ -160,7 +164,8 @@ static int parse_config_line(const char* line, char* section, size_t section_siz
         }
     } else if (strcmp(section, "updates") == 0) {
         if (strcmp(key, "check_on_startup") == 0) {
-            g_config.check_updates_on_startup = (strcmp(value, "true") == 0 || strcmp(value, "1") == 0);
+            g_config.check_updates_on_startup =
+                (strcmp(value, "true") == 0 || strcmp(value, "1") == 0);
         } else if (strcmp(key, "auto_update") == 0) {
             g_config.auto_update = (strcmp(value, "true") == 0 || strcmp(value, "1") == 0);
         }
@@ -180,9 +185,9 @@ static void set_defaults(void) {
     g_config.budget_warn_percent = 80;
     g_config.color_enabled = true;
     strncpy(g_config.debug_level, "none", sizeof(g_config.debug_level) - 1);
-    strncpy(g_config.theme, "Ocean", sizeof(g_config.theme) - 1);  // Default theme
-    strncpy(g_config.style, "balanced", sizeof(g_config.style) - 1);  // Default style
-    strncpy(g_config.edition, "master", sizeof(g_config.edition) - 1);  // Default edition
+    strncpy(g_config.theme, "Ocean", sizeof(g_config.theme) - 1);      // Default theme
+    strncpy(g_config.style, "balanced", sizeof(g_config.style) - 1);   // Default style
+    strncpy(g_config.edition, "master", sizeof(g_config.edition) - 1); // Default edition
     g_config.check_updates_on_startup = true;
     g_config.auto_update = false;
 }
@@ -191,10 +196,12 @@ static int setup_paths(void) {
     const char* home = get_home_dir();
 
     snprintf(g_config.config_dir, sizeof(g_config.config_dir), "%s/.convergio", home);
-    snprintf(g_config.config_file, sizeof(g_config.config_file), "%s/config.toml", g_config.config_dir);
+    snprintf(g_config.config_file, sizeof(g_config.config_file), "%s/config.toml",
+             g_config.config_dir);
     snprintf(g_config.db_path, sizeof(g_config.db_path), "%s/convergio.db", g_config.config_dir);
     snprintf(g_config.notes_dir, sizeof(g_config.notes_dir), "%s/notes", g_config.config_dir);
-    snprintf(g_config.knowledge_dir, sizeof(g_config.knowledge_dir), "%s/knowledge", g_config.config_dir);
+    snprintf(g_config.knowledge_dir, sizeof(g_config.knowledge_dir), "%s/knowledge",
+             g_config.config_dir);
     snprintf(g_config.cache_dir, sizeof(g_config.cache_dir), "%s/cache", g_config.config_dir);
 
     return 0;
@@ -240,15 +247,14 @@ int convergio_config_init(void) {
         if (env_edition && strlen(env_edition) > 0) {
             if (!edition_set_by_name(env_edition)) {
                 LOG_WARN(LOG_CAT_SYSTEM,
-                    "Invalid edition '%s' in CONVERGIO_EDITION env var; using default",
-                    env_edition);
+                         "Invalid edition '%s' in CONVERGIO_EDITION env var; using default",
+                         env_edition);
             }
         } else if (g_config.edition[0]) {
             // Fall back to config file setting
             if (!edition_set_by_name(g_config.edition)) {
-                LOG_WARN(LOG_CAT_SYSTEM,
-                    "Invalid edition '%s' in config; using default",
-                    g_config.edition);
+                LOG_WARN(LOG_CAT_SYSTEM, "Invalid edition '%s' in config; using default",
+                         g_config.edition);
             }
         }
     }
@@ -271,7 +277,7 @@ int convergio_config_load(void) {
     int fd = safe_path_open(g_config.config_file, safe_path_get_user_boundary(), O_RDONLY, 0);
     FILE* f = fd >= 0 ? fdopen(fd, "r") : NULL;
     if (!f) {
-        return -1;  // File doesn't exist, use defaults
+        return -1; // File doesn't exist, use defaults
     }
 
     char line[512];
@@ -286,7 +292,8 @@ int convergio_config_load(void) {
 }
 
 int convergio_config_save(void) {
-    int fd = safe_path_open(g_config.config_file, safe_path_get_user_boundary(), O_WRONLY | O_CREAT | O_TRUNC, 0644);
+    int fd = safe_path_open(g_config.config_file, safe_path_get_user_boundary(),
+                            O_WRONLY | O_CREAT | O_TRUNC, 0644);
     FILE* f = fd >= 0 ? fdopen(fd, "w") : NULL;
     if (!f) {
         return -1;
@@ -329,7 +336,8 @@ void convergio_config_reset(void) {
 // ============================================================================
 
 const char* convergio_config_get(const char* key) {
-    if (!key) return NULL;
+    if (!key)
+        return NULL;
 
     if (strcmp(key, "api_key") == 0) {
         return convergio_get_api_key();
@@ -360,7 +368,8 @@ const char* convergio_config_get(const char* key) {
 }
 
 int convergio_config_set(const char* key, const char* value) {
-    if (!key || !value) return -1;
+    if (!key || !value)
+        return -1;
 
     if (strcmp(key, "budget_limit") == 0) {
         g_config.budget_limit = atof(value);
@@ -383,7 +392,7 @@ int convergio_config_set(const char* key, const char* value) {
         return 0;
     }
 
-    return -1;  // Unknown key
+    return -1; // Unknown key
 }
 
 // ============================================================================
@@ -467,8 +476,8 @@ int convergio_setup_wizard(void) {
 
     // Trim newline
     size_t len = strlen(api_key);
-    if (len > 0 && api_key[len-1] == '\n') {
-        api_key[len-1] = '\0';
+    if (len > 0 && api_key[len - 1] == '\n') {
+        api_key[len - 1] = '\0';
         len--;
     }
 
@@ -523,10 +532,10 @@ typedef struct {
 } StyleDef;
 
 static const StyleDef STYLE_DEFS[] = {
-    {"flash",    1024,  0.3, false},
-    {"concise",  2048,  0.5, true},
-    {"balanced", 4096,  0.7, true},
-    {"detailed", 8192,  0.9, true},
+    {"flash", 1024, 0.3, false},
+    {"concise", 2048, 0.5, true},
+    {"balanced", 4096, 0.7, true},
+    {"detailed", 8192, 0.9, true},
 };
 #define STYLE_DEF_COUNT 4
 
@@ -535,20 +544,14 @@ StyleSettings convergio_get_style_settings(void) {
 
     for (int i = 0; i < STYLE_DEF_COUNT; i++) {
         if (strcmp(STYLE_DEFS[i].name, style) == 0) {
-            return (StyleSettings){
-                .max_tokens = STYLE_DEFS[i].max_tokens,
-                .temperature = STYLE_DEFS[i].temperature,
-                .markdown = STYLE_DEFS[i].markdown
-            };
+            return (StyleSettings){.max_tokens = STYLE_DEFS[i].max_tokens,
+                                   .temperature = STYLE_DEFS[i].temperature,
+                                   .markdown = STYLE_DEFS[i].markdown};
         }
     }
 
     // Default to balanced
-    return (StyleSettings){
-        .max_tokens = 4096,
-        .temperature = 0.7,
-        .markdown = true
-    };
+    return (StyleSettings){.max_tokens = 4096, .temperature = 0.7, .markdown = true};
 }
 
 const char* convergio_get_style_name(void) {

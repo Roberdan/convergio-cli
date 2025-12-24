@@ -6,10 +6,10 @@
 
 #include "nous/metrics.h"
 #include "nous/nous.h"
+#include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <pthread.h>
 #include <time.h>
 #include <uuid/uuid.h>
 
@@ -53,7 +53,8 @@ static void correlation_key_create(void) {
 // ============================================================================
 
 int metrics_init(void) {
-    if (g_metrics_initialized) return 0;
+    if (g_metrics_initialized)
+        return 0;
 
     pthread_once(&g_correlation_once, correlation_key_create);
 
@@ -236,38 +237,35 @@ char* metrics_export_prometheus(void) {
         Metric* m = &g_metrics[i];
 
         // Help line
-        offset += snprintf(buf + offset, buf_size - offset,
-                          "# HELP %s %s\n", m->name, m->description);
+        offset +=
+            snprintf(buf + offset, buf_size - offset, "# HELP %s %s\n", m->name, m->description);
 
         // Type line
-        const char* type_str = (m->type == METRIC_TYPE_COUNTER) ? "counter" :
-                               (m->type == METRIC_TYPE_GAUGE) ? "gauge" : "histogram";
-        offset += snprintf(buf + offset, buf_size - offset,
-                          "# TYPE %s %s\n", m->name, type_str);
+        const char* type_str = (m->type == METRIC_TYPE_COUNTER) ? "counter"
+                               : (m->type == METRIC_TYPE_GAUGE) ? "gauge"
+                                                                : "histogram";
+        offset += snprintf(buf + offset, buf_size - offset, "# TYPE %s %s\n", m->name, type_str);
 
         // Value
         switch (m->type) {
-            case METRIC_TYPE_COUNTER:
-                offset += snprintf(buf + offset, buf_size - offset,
-                                  "%s %llu\n", m->name, (unsigned long long)m->value.counter);
-                break;
-            case METRIC_TYPE_GAUGE:
-                offset += snprintf(buf + offset, buf_size - offset,
-                                  "%s %.2f\n", m->name, m->value.gauge);
-                break;
-            case METRIC_TYPE_HISTOGRAM:
-                for (int j = 0; j < HISTOGRAM_BUCKET_COUNT; j++) {
-                    offset += snprintf(buf + offset, buf_size - offset,
-                                      "%s_bucket{le=\"%.0f\"} %llu\n",
-                                      m->name,
-                                      m->value.histogram.buckets[j].upper_bound,
-                                      (unsigned long long)m->value.histogram.buckets[j].count);
-                }
-                offset += snprintf(buf + offset, buf_size - offset,
-                                  "%s_sum %.2f\n%s_count %llu\n",
-                                  m->name, m->value.histogram.sum,
-                                  m->name, (unsigned long long)m->value.histogram.count);
-                break;
+        case METRIC_TYPE_COUNTER:
+            offset += snprintf(buf + offset, buf_size - offset, "%s %llu\n", m->name,
+                               (unsigned long long)m->value.counter);
+            break;
+        case METRIC_TYPE_GAUGE:
+            offset +=
+                snprintf(buf + offset, buf_size - offset, "%s %.2f\n", m->name, m->value.gauge);
+            break;
+        case METRIC_TYPE_HISTOGRAM:
+            for (int j = 0; j < HISTOGRAM_BUCKET_COUNT; j++) {
+                offset += snprintf(buf + offset, buf_size - offset, "%s_bucket{le=\"%.0f\"} %llu\n",
+                                   m->name, m->value.histogram.buckets[j].upper_bound,
+                                   (unsigned long long)m->value.histogram.buckets[j].count);
+            }
+            offset += snprintf(buf + offset, buf_size - offset, "%s_sum %.2f\n%s_count %llu\n",
+                               m->name, m->value.histogram.sum, m->name,
+                               (unsigned long long)m->value.histogram.count);
+            break;
         }
     }
 
@@ -289,29 +287,28 @@ char* metrics_export_json(void) {
 
     for (int i = 0; i < g_metric_count; i++) {
         Metric* m = &g_metrics[i];
-        if (i > 0) offset += snprintf(buf + offset, buf_size - offset, ",");
+        if (i > 0)
+            offset += snprintf(buf + offset, buf_size - offset, ",");
 
-        offset += snprintf(buf + offset, buf_size - offset,
-                          "{\"name\":\"%s\",\"type\":\"%s\",",
-                          m->name,
-                          (m->type == METRIC_TYPE_COUNTER) ? "counter" :
-                          (m->type == METRIC_TYPE_GAUGE) ? "gauge" : "histogram");
+        offset +=
+            snprintf(buf + offset, buf_size - offset, "{\"name\":\"%s\",\"type\":\"%s\",", m->name,
+                     (m->type == METRIC_TYPE_COUNTER) ? "counter"
+                     : (m->type == METRIC_TYPE_GAUGE) ? "gauge"
+                                                      : "histogram");
 
         switch (m->type) {
-            case METRIC_TYPE_COUNTER:
-                offset += snprintf(buf + offset, buf_size - offset,
-                                  "\"value\":%llu}", (unsigned long long)m->value.counter);
-                break;
-            case METRIC_TYPE_GAUGE:
-                offset += snprintf(buf + offset, buf_size - offset,
-                                  "\"value\":%.2f}", m->value.gauge);
-                break;
-            case METRIC_TYPE_HISTOGRAM:
-                offset += snprintf(buf + offset, buf_size - offset,
-                                  "\"sum\":%.2f,\"count\":%llu}",
-                                  m->value.histogram.sum,
-                                  (unsigned long long)m->value.histogram.count);
-                break;
+        case METRIC_TYPE_COUNTER:
+            offset += snprintf(buf + offset, buf_size - offset, "\"value\":%llu}",
+                               (unsigned long long)m->value.counter);
+            break;
+        case METRIC_TYPE_GAUGE:
+            offset += snprintf(buf + offset, buf_size - offset, "\"value\":%.2f}", m->value.gauge);
+            break;
+        case METRIC_TYPE_HISTOGRAM:
+            offset +=
+                snprintf(buf + offset, buf_size - offset, "\"sum\":%.2f,\"count\":%llu}",
+                         m->value.histogram.sum, (unsigned long long)m->value.histogram.count);
+            break;
         }
     }
 
@@ -326,7 +323,8 @@ char* metrics_export_json(void) {
 
 const char* metrics_new_correlation_id(void) {
     char* id = malloc(37);
-    if (!id) return NULL;
+    if (!id)
+        return NULL;
 
     uuid_t uuid;
     uuid_generate(uuid);
@@ -334,7 +332,8 @@ const char* metrics_new_correlation_id(void) {
 
     // Store in thread-local
     char* old = pthread_getspecific(g_correlation_key);
-    if (old) free(old);
+    if (old)
+        free(old);
     pthread_setspecific(g_correlation_key, id);
 
     return id;
@@ -345,10 +344,12 @@ const char* metrics_get_correlation_id(void) {
 }
 
 void metrics_set_correlation_id(const char* id) {
-    if (!id) return;
+    if (!id)
+        return;
 
     char* copy = strdup(id);
     char* old = pthread_getspecific(g_correlation_key);
-    if (old) free(old);
+    if (old)
+        free(old);
     pthread_setspecific(g_correlation_key, copy);
 }

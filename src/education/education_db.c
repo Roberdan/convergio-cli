@@ -8,21 +8,21 @@
  * Licensed under Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International
  */
 
-#include "nous/education.h"
 #include "nous/debug_mutex.h"
+#include "nous/education.h"
+#include <cjson/cJSON.h>
+#include <inttypes.h>
+#include <limits.h>
+#include <math.h>
+#include <pthread.h>
+#include <sqlite3.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <inttypes.h>
-#include <unistd.h>
-#include <sys/stat.h>
 #include <sys/param.h>
-#include <limits.h>
-#include <pthread.h>
+#include <sys/stat.h>
 #include <time.h>
-#include <math.h>
-#include <sqlite3.h>
-#include <cjson/cJSON.h>
+#include <unistd.h>
 
 // ============================================================================
 // CONSTANTS
@@ -41,7 +41,7 @@
 // GLOBAL STATE
 // ============================================================================
 
-sqlite3* g_edu_db = NULL;  // Exported for feature modules
+sqlite3* g_edu_db = NULL; // Exported for feature modules
 CONVERGIO_MUTEX_DECLARE(g_edu_db_mutex);
 static bool g_edu_initialized = false;
 static char g_edu_db_path[PATH_MAX] = {0};
@@ -75,7 +75,8 @@ static const char* EDUCATION_SCHEMA_SQL =
     "    parent_email TEXT,\n"
     "    preferred_language TEXT DEFAULT 'it',\n"
     "    study_method TEXT,\n"
-    "    learning_style TEXT CHECK(learning_style IN ('visual', 'auditory', 'kinesthetic', 'reading', 'mixed')),\n"
+    "    learning_style TEXT CHECK(learning_style IN ('visual', 'auditory', 'kinesthetic', "
+    "'reading', 'mixed')),\n"
     "    session_duration_preference INTEGER DEFAULT 25,\n"
     "    break_duration_preference INTEGER DEFAULT 5,\n"
     "    is_active INTEGER DEFAULT 1,\n"
@@ -93,7 +94,8 @@ static const char* EDUCATION_SCHEMA_SQL =
     "    student_id INTEGER NOT NULL REFERENCES student_profiles(id) ON DELETE CASCADE,\n"
     "    -- Dyslexia settings\n"
     "    dyslexia INTEGER DEFAULT 0,\n"
-    "    dyslexia_severity INTEGER DEFAULT 0 CHECK(dyslexia_severity >= 0 AND dyslexia_severity <= 3),\n"
+    "    dyslexia_severity INTEGER DEFAULT 0 CHECK(dyslexia_severity >= 0 AND dyslexia_severity <= "
+    "3),\n"
     "    use_dyslexic_font INTEGER DEFAULT 0,\n"
     "    line_spacing REAL DEFAULT 1.0,\n"
     "    max_chars_per_line INTEGER DEFAULT 80,\n"
@@ -131,8 +133,10 @@ static const char* EDUCATION_SCHEMA_SQL =
     "    allow_detailed_mode INTEGER DEFAULT 0,\n"
     "    no_social_pressure INTEGER DEFAULT 0,\n"
     "    -- General preferences\n"
-    "    preferred_input TEXT DEFAULT 'keyboard' CHECK(preferred_input IN ('keyboard', 'voice', 'touch', 'switch', 'eye_tracking')),\n"
-    "    preferred_output TEXT DEFAULT 'visual' CHECK(preferred_output IN ('visual', 'audio', 'braille', 'haptic')),\n"
+    "    preferred_input TEXT DEFAULT 'keyboard' CHECK(preferred_input IN ('keyboard', 'voice', "
+    "'touch', 'switch', 'eye_tracking')),\n"
+    "    preferred_output TEXT DEFAULT 'visual' CHECK(preferred_output IN ('visual', 'audio', "
+    "'braille', 'haptic')),\n"
     "    tts_enabled INTEGER DEFAULT 0,\n"
     "    tts_speed REAL DEFAULT 1.0 CHECK(tts_speed >= 0.5 AND tts_speed <= 2.0),\n"
     "    tts_pitch REAL DEFAULT 0.0 CHECK(tts_pitch >= -1.0 AND tts_pitch <= 1.0),\n"
@@ -153,12 +157,15 @@ static const char* EDUCATION_SCHEMA_SQL =
     "CREATE TABLE IF NOT EXISTS student_goals (\n"
     "    id INTEGER PRIMARY KEY AUTOINCREMENT,\n"
     "    student_id INTEGER NOT NULL REFERENCES student_profiles(id) ON DELETE CASCADE,\n"
-    "    goal_type TEXT NOT NULL CHECK(goal_type IN ('short_term', 'medium_term', 'long_term', 'exam', 'personal')),\n"
+    "    goal_type TEXT NOT NULL CHECK(goal_type IN ('short_term', 'medium_term', 'long_term', "
+    "'exam', 'personal')),\n"
     "    subject TEXT,\n"
     "    description TEXT NOT NULL,\n"
     "    target_date INTEGER,\n"
-    "    progress_percent INTEGER DEFAULT 0 CHECK(progress_percent >= 0 AND progress_percent <= 100),\n"
-    "    status TEXT DEFAULT 'active' CHECK(status IN ('active', 'completed', 'abandoned', 'on_hold')),\n"
+    "    progress_percent INTEGER DEFAULT 0 CHECK(progress_percent >= 0 AND progress_percent <= "
+    "100),\n"
+    "    status TEXT DEFAULT 'active' CHECK(status IN ('active', 'completed', 'abandoned', "
+    "'on_hold')),\n"
     "    created_at INTEGER DEFAULT (strftime('%s','now')),\n"
     "    updated_at INTEGER DEFAULT (strftime('%s','now')),\n"
     "    completed_at INTEGER\n"
@@ -194,7 +201,8 @@ static const char* EDUCATION_SCHEMA_SQL =
     "    id INTEGER PRIMARY KEY AUTOINCREMENT,\n"
     "    student_id INTEGER NOT NULL REFERENCES student_profiles(id) ON DELETE CASCADE,\n"
     "    maestro_id TEXT,\n"
-    "    session_type TEXT NOT NULL CHECK(session_type IN ('study', 'quiz', 'homework', 'review', 'flashcards', 'exploration')),\n"
+    "    session_type TEXT NOT NULL CHECK(session_type IN ('study', 'quiz', 'homework', 'review', "
+    "'flashcards', 'exploration')),\n"
     "    subject TEXT,\n"
     "    topic TEXT,\n"
     "    started_at INTEGER NOT NULL DEFAULT (strftime('%s','now')),\n"
@@ -215,12 +223,14 @@ static const char* EDUCATION_SCHEMA_SQL =
     "CREATE TABLE IF NOT EXISTS toolkit_outputs (\n"
     "    id INTEGER PRIMARY KEY AUTOINCREMENT,\n"
     "    student_id INTEGER NOT NULL REFERENCES student_profiles(id) ON DELETE CASCADE,\n"
-    "    output_type TEXT NOT NULL CHECK(output_type IN ('mindmap', 'quiz', 'flashcard_deck', 'audio', 'summary', 'formula', 'graph', 'flowchart', 'timeline')),\n"
+    "    output_type TEXT NOT NULL CHECK(output_type IN ('mindmap', 'quiz', 'flashcard_deck', "
+    "'audio', 'summary', 'formula', 'graph', 'flowchart', 'timeline')),\n"
     "    subject TEXT,\n"
     "    topic TEXT NOT NULL,\n"
     "    title TEXT,\n"
     "    content TEXT NOT NULL,\n"
-    "    format TEXT CHECK(format IN ('svg', 'png', 'pdf', 'm4a', 'mp3', 'json', 'md', 'html', 'mermaid')),\n"
+    "    format TEXT CHECK(format IN ('svg', 'png', 'pdf', 'm4a', 'mp3', 'json', 'md', 'html', "
+    "'mermaid')),\n"
     "    file_path TEXT,\n"
     "    is_favorite INTEGER DEFAULT 0,\n"
     "    view_count INTEGER DEFAULT 0,\n"
@@ -266,7 +276,8 @@ static const char* EDUCATION_SCHEMA_SQL =
     "    last_review_at INTEGER,\n"
     "    last_quality INTEGER CHECK(last_quality >= 0 AND last_quality <= 5),\n"
     "    -- Status\n"
-    "    status TEXT DEFAULT 'new' CHECK(status IN ('new', 'learning', 'reviewing', 'mastered', 'suspended')),\n"
+    "    status TEXT DEFAULT 'new' CHECK(status IN ('new', 'learning', 'reviewing', 'mastered', "
+    "'suspended')),\n"
     "    created_at INTEGER DEFAULT (strftime('%s','now'))\n"
     ");\n"
     "\n"
@@ -279,7 +290,8 @@ static const char* EDUCATION_SCHEMA_SQL =
     "    student_id INTEGER NOT NULL REFERENCES student_profiles(id) ON DELETE CASCADE,\n"
     "    subject TEXT NOT NULL,\n"
     "    topic TEXT NOT NULL,\n"
-    "    quiz_type TEXT CHECK(quiz_type IN ('multiple_choice', 'true_false', 'open', 'sequence', 'matching', 'cloze', 'image_identify')),\n"
+    "    quiz_type TEXT CHECK(quiz_type IN ('multiple_choice', 'true_false', 'open', 'sequence', "
+    "'matching', 'cloze', 'image_identify')),\n"
     "    question_count INTEGER NOT NULL,\n"
     "    correct_count INTEGER NOT NULL,\n"
     "    score_percent REAL NOT NULL,\n"
@@ -321,7 +333,8 @@ static const char* EDUCATION_SCHEMA_SQL =
     "    subject TEXT NOT NULL,\n"
     "    unit_id TEXT NOT NULL,\n"
     "    unit_title TEXT,\n"
-    "    status TEXT DEFAULT 'not_started' CHECK(status IN ('not_started', 'in_progress', 'completed', 'skipped')),\n"
+    "    status TEXT DEFAULT 'not_started' CHECK(status IN ('not_started', 'in_progress', "
+    "'completed', 'skipped')),\n"
     "    completion_percent INTEGER DEFAULT 0,\n"
     "    started_at INTEGER,\n"
     "    completed_at INTEGER,\n"
@@ -404,7 +417,8 @@ static const char* EDUCATION_SCHEMA_SQL =
     "    maestro_id TEXT NOT NULL,\n"
     "    subject TEXT NOT NULL,\n"
     "    topic TEXT,\n"
-    "    grade_type TEXT NOT NULL CHECK(grade_type IN ('quiz', 'homework', 'oral', 'project', 'participation')),\n"
+    "    grade_type TEXT NOT NULL CHECK(grade_type IN ('quiz', 'homework', 'oral', 'project', "
+    "'participation')),\n"
     "    grade REAL NOT NULL CHECK(grade >= 1.0 AND grade <= 10.0),\n"
     "    grade_percentage REAL CHECK(grade_percentage >= 0 AND grade_percentage <= 100),\n"
     "    comment TEXT,\n"
@@ -422,7 +436,8 @@ static const char* EDUCATION_SCHEMA_SQL =
     "    student_id INTEGER NOT NULL REFERENCES student_profiles(id) ON DELETE CASCADE,\n"
     "    maestro_id TEXT,\n"
     "    subject TEXT,\n"
-    "    activity_type TEXT NOT NULL CHECK(activity_type IN ('study', 'quiz', 'homework', 'flashcards', 'review', 'project', 'exploration', 'break')),\n"
+    "    activity_type TEXT NOT NULL CHECK(activity_type IN ('study', 'quiz', 'homework', "
+    "'flashcards', 'review', 'project', 'exploration', 'break')),\n"
     "    topic TEXT,\n"
     "    notes TEXT,\n"
     "    duration_minutes INTEGER DEFAULT 0,\n"
@@ -458,24 +473,30 @@ static const char* EDUCATION_SCHEMA_SQL =
     "-- TRIGGERS FOR FTS SYNC\n"
     "-- =====================================================================\n"
     "CREATE TRIGGER IF NOT EXISTS toolkit_ai AFTER INSERT ON toolkit_outputs BEGIN\n"
-    "    INSERT INTO toolkit_fts(rowid, title, topic, content) VALUES (NEW.id, NEW.title, NEW.topic, NEW.content);\n"
+    "    INSERT INTO toolkit_fts(rowid, title, topic, content) VALUES (NEW.id, NEW.title, "
+    "NEW.topic, NEW.content);\n"
     "END;\n"
     "\n"
     "CREATE TRIGGER IF NOT EXISTS toolkit_ad AFTER DELETE ON toolkit_outputs BEGIN\n"
-    "    INSERT INTO toolkit_fts(toolkit_fts, rowid, title, topic, content) VALUES ('delete', OLD.id, OLD.title, OLD.topic, OLD.content);\n"
+    "    INSERT INTO toolkit_fts(toolkit_fts, rowid, title, topic, content) VALUES ('delete', "
+    "OLD.id, OLD.title, OLD.topic, OLD.content);\n"
     "END;\n"
     "\n"
     "CREATE TRIGGER IF NOT EXISTS toolkit_au AFTER UPDATE ON toolkit_outputs BEGIN\n"
-    "    INSERT INTO toolkit_fts(toolkit_fts, rowid, title, topic, content) VALUES ('delete', OLD.id, OLD.title, OLD.topic, OLD.content);\n"
-    "    INSERT INTO toolkit_fts(rowid, title, topic, content) VALUES (NEW.id, NEW.title, NEW.topic, NEW.content);\n"
+    "    INSERT INTO toolkit_fts(toolkit_fts, rowid, title, topic, content) VALUES ('delete', "
+    "OLD.id, OLD.title, OLD.topic, OLD.content);\n"
+    "    INSERT INTO toolkit_fts(rowid, title, topic, content) VALUES (NEW.id, NEW.title, "
+    "NEW.topic, NEW.content);\n"
     "END;\n"
     "\n"
     "CREATE TRIGGER IF NOT EXISTS flashcard_ai AFTER INSERT ON flashcard_reviews BEGIN\n"
-    "    INSERT INTO flashcard_fts(rowid, front, back, hint, mnemonic) VALUES (NEW.id, NEW.front, NEW.back, NEW.hint, NEW.mnemonic);\n"
+    "    INSERT INTO flashcard_fts(rowid, front, back, hint, mnemonic) VALUES (NEW.id, NEW.front, "
+    "NEW.back, NEW.hint, NEW.mnemonic);\n"
     "END;\n"
     "\n"
     "CREATE TRIGGER IF NOT EXISTS flashcard_ad AFTER DELETE ON flashcard_reviews BEGIN\n"
-    "    INSERT INTO flashcard_fts(flashcard_fts, rowid, front, back, hint, mnemonic) VALUES ('delete', OLD.id, OLD.front, OLD.back, OLD.hint, OLD.mnemonic);\n"
+    "    INSERT INTO flashcard_fts(flashcard_fts, rowid, front, back, hint, mnemonic) VALUES "
+    "('delete', OLD.id, OLD.front, OLD.back, OLD.hint, OLD.mnemonic);\n"
     "END;\n"
     "\n"
     "-- =====================================================================\n"
@@ -515,72 +536,106 @@ static char* safe_strdup(const char* str) {
 
 static const char* severity_to_string(EducationSeverity severity) {
     switch (severity) {
-        case SEVERITY_MILD: return "mild";
-        case SEVERITY_MODERATE: return "moderate";
-        case SEVERITY_SEVERE: return "severe";
-        default: return "none";
+    case SEVERITY_MILD:
+        return "mild";
+    case SEVERITY_MODERATE:
+        return "moderate";
+    case SEVERITY_SEVERE:
+        return "severe";
+    default:
+        return "none";
     }
 }
 
 static EducationSeverity string_to_severity(int level) {
     switch (level) {
-        case 1: return SEVERITY_MILD;
-        case 2: return SEVERITY_MODERATE;
-        case 3: return SEVERITY_SEVERE;
-        default: return SEVERITY_NONE;
+    case 1:
+        return SEVERITY_MILD;
+    case 2:
+        return SEVERITY_MODERATE;
+    case 3:
+        return SEVERITY_SEVERE;
+    default:
+        return SEVERITY_NONE;
     }
 }
 
 static const char* input_method_to_string(EducationInputMethod method) {
     switch (method) {
-        case INPUT_VOICE: return "voice";
-        case INPUT_TOUCH: return "touch";
-        case INPUT_SWITCH: return "switch";
-        case INPUT_EYE_TRACKING: return "eye_tracking";
-        default: return "keyboard";
+    case INPUT_VOICE:
+        return "voice";
+    case INPUT_TOUCH:
+        return "touch";
+    case INPUT_SWITCH:
+        return "switch";
+    case INPUT_EYE_TRACKING:
+        return "eye_tracking";
+    default:
+        return "keyboard";
     }
 }
 
 static EducationInputMethod string_to_input_method(const char* str) {
-    if (!str) return INPUT_KEYBOARD;
-    if (strcmp(str, "voice") == 0) return INPUT_VOICE;
-    if (strcmp(str, "touch") == 0) return INPUT_TOUCH;
-    if (strcmp(str, "switch") == 0) return INPUT_SWITCH;
-    if (strcmp(str, "eye_tracking") == 0) return INPUT_EYE_TRACKING;
+    if (!str)
+        return INPUT_KEYBOARD;
+    if (strcmp(str, "voice") == 0)
+        return INPUT_VOICE;
+    if (strcmp(str, "touch") == 0)
+        return INPUT_TOUCH;
+    if (strcmp(str, "switch") == 0)
+        return INPUT_SWITCH;
+    if (strcmp(str, "eye_tracking") == 0)
+        return INPUT_EYE_TRACKING;
     return INPUT_KEYBOARD;
 }
 
 static const char* output_method_to_string(EducationOutputMethod method) {
     switch (method) {
-        case OUTPUT_AUDIO: return "audio";
-        case OUTPUT_BRAILLE: return "braille";
-        case OUTPUT_HAPTIC: return "haptic";
-        default: return "visual";
+    case OUTPUT_AUDIO:
+        return "audio";
+    case OUTPUT_BRAILLE:
+        return "braille";
+    case OUTPUT_HAPTIC:
+        return "haptic";
+    default:
+        return "visual";
     }
 }
 
 static EducationOutputMethod string_to_output_method(const char* str) {
-    if (!str) return OUTPUT_VISUAL;
-    if (strcmp(str, "audio") == 0) return OUTPUT_AUDIO;
-    if (strcmp(str, "braille") == 0) return OUTPUT_BRAILLE;
-    if (strcmp(str, "haptic") == 0) return OUTPUT_HAPTIC;
+    if (!str)
+        return OUTPUT_VISUAL;
+    if (strcmp(str, "audio") == 0)
+        return OUTPUT_AUDIO;
+    if (strcmp(str, "braille") == 0)
+        return OUTPUT_BRAILLE;
+    if (strcmp(str, "haptic") == 0)
+        return OUTPUT_HAPTIC;
     return OUTPUT_VISUAL;
 }
 
 static const char* adhd_type_to_string(EducationAdhdType type) {
     switch (type) {
-        case ADHD_INATTENTIVE: return "inattentive";
-        case ADHD_HYPERACTIVE: return "hyperactive";
-        case ADHD_COMBINED: return "combined";
-        default: return NULL;
+    case ADHD_INATTENTIVE:
+        return "inattentive";
+    case ADHD_HYPERACTIVE:
+        return "hyperactive";
+    case ADHD_COMBINED:
+        return "combined";
+    default:
+        return NULL;
     }
 }
 
 static EducationAdhdType string_to_adhd_type(const char* str) {
-    if (!str) return ADHD_NONE;
-    if (strcmp(str, "inattentive") == 0) return ADHD_INATTENTIVE;
-    if (strcmp(str, "hyperactive") == 0) return ADHD_HYPERACTIVE;
-    if (strcmp(str, "combined") == 0) return ADHD_COMBINED;
+    if (!str)
+        return ADHD_NONE;
+    if (strcmp(str, "inattentive") == 0)
+        return ADHD_INATTENTIVE;
+    if (strcmp(str, "hyperactive") == 0)
+        return ADHD_HYPERACTIVE;
+    if (strcmp(str, "combined") == 0)
+        return ADHD_COMBINED;
     return ADHD_NONE;
 }
 
@@ -598,7 +653,8 @@ int education_init(void) {
 
     // Determine database path
     const char* home = getenv("HOME");
-    if (!home) home = "/tmp";
+    if (!home)
+        home = "/tmp";
     snprintf(g_edu_db_path, sizeof(g_edu_db_path), "%s/.convergio/education.db", home);
 
     // Create directory if needed
@@ -607,9 +663,9 @@ int education_init(void) {
     mkdir(dir_path, 0755);
 
     // Open database
-    int rc = sqlite3_open_v2(g_edu_db_path, &g_edu_db,
-                             SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE | SQLITE_OPEN_FULLMUTEX,
-                             NULL);
+    int rc =
+        sqlite3_open_v2(g_edu_db_path, &g_edu_db,
+                        SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE | SQLITE_OPEN_FULLMUTEX, NULL);
     if (rc != SQLITE_OK) {
         fprintf(stderr, "[education] Failed to open database: %s\n", sqlite3_errmsg(g_edu_db));
         CONVERGIO_MUTEX_UNLOCK(&g_edu_db_mutex);
@@ -637,9 +693,10 @@ int education_init(void) {
 
     // Load active profile from database if exists
     sqlite3_stmt* stmt;
-    rc = sqlite3_prepare_v2(g_edu_db,
-        "SELECT id FROM student_profiles WHERE is_active = 1 ORDER BY updated_at DESC LIMIT 1",
-        -1, &stmt, NULL);
+    rc = sqlite3_prepare_v2(
+        g_edu_db,
+        "SELECT id FROM student_profiles WHERE is_active = 1 ORDER BY updated_at DESC LIMIT 1", -1,
+        &stmt, NULL);
     if (rc == SQLITE_OK) {
         if (sqlite3_step(stmt) == SQLITE_ROW) {
             int64_t active_id = sqlite3_column_int64(stmt, 0);
@@ -684,9 +741,9 @@ int64_t education_profile_create(const EducationCreateOptions* options) {
     CONVERGIO_MUTEX_LOCK(&g_edu_db_mutex);
 
     // Insert profile
-    const char* sql =
-        "INSERT INTO student_profiles (name, age, grade_level, curriculum_id, parent_name, parent_email, learning_style) "
-        "VALUES (?, ?, ?, ?, ?, ?, ?)";
+    const char* sql = "INSERT INTO student_profiles (name, age, grade_level, curriculum_id, "
+                      "parent_name, parent_email, learning_style) "
+                      "VALUES (?, ?, ?, ?, ?, ?, ?)";
 
     sqlite3_stmt* stmt;
     int rc = sqlite3_prepare_v2(g_edu_db, sql, -1, &stmt, NULL);
@@ -790,16 +847,16 @@ int64_t education_profile_create(const EducationCreateOptions* options) {
 }
 
 EducationStudentProfile* education_profile_get(int64_t student_id) {
-    if (!g_edu_initialized) return NULL;
+    if (!g_edu_initialized)
+        return NULL;
 
     CONVERGIO_MUTEX_LOCK(&g_edu_db_mutex);
 
-    const char* sql =
-        "SELECT p.id, p.name, p.age, p.grade_level, p.curriculum_id, p.parent_name, "
-        "p.parent_email, p.preferred_language, p.study_method, p.learning_style, "
-        "p.session_duration_preference, p.break_duration_preference, p.is_active, "
-        "p.created_at, p.updated_at, p.last_session_at "
-        "FROM student_profiles p WHERE p.id = ?";
+    const char* sql = "SELECT p.id, p.name, p.age, p.grade_level, p.curriculum_id, p.parent_name, "
+                      "p.parent_email, p.preferred_language, p.study_method, p.learning_style, "
+                      "p.session_duration_preference, p.break_duration_preference, p.is_active, "
+                      "p.created_at, p.updated_at, p.last_session_at "
+                      "FROM student_profiles p WHERE p.id = ?";
 
     sqlite3_stmt* stmt;
     int rc = sqlite3_prepare_v2(g_edu_db, sql, -1, &stmt, NULL);
@@ -858,8 +915,10 @@ EducationStudentProfile* education_profile_get(int64_t student_id) {
                 a->adhd_severity = string_to_severity(sqlite3_column_int(stmt, 8));
                 a->autism = sqlite3_column_int(stmt, 9);
                 a->autism_severity = string_to_severity(sqlite3_column_int(stmt, 10));
-                a->preferred_input = string_to_input_method((const char*)sqlite3_column_text(stmt, 11));
-                a->preferred_output = string_to_output_method((const char*)sqlite3_column_text(stmt, 12));
+                a->preferred_input =
+                    string_to_input_method((const char*)sqlite3_column_text(stmt, 11));
+                a->preferred_output =
+                    string_to_output_method((const char*)sqlite3_column_text(stmt, 12));
                 a->tts_enabled = sqlite3_column_int(stmt, 13);
                 a->tts_speed = (float)sqlite3_column_double(stmt, 14);
                 a->tts_pitch = (float)sqlite3_column_double(stmt, 15);
@@ -879,7 +938,8 @@ EducationStudentProfile* education_profile_get_active(void) {
 }
 
 int education_profile_set_active(int64_t student_id) {
-    if (!g_edu_initialized) return -1;
+    if (!g_edu_initialized)
+        return -1;
 
     // Free existing active profile
     if (g_active_profile) {
@@ -893,7 +953,8 @@ int education_profile_set_active(int64_t student_id) {
 }
 
 int education_profile_update(int64_t student_id, const EducationUpdateOptions* options) {
-    if (!g_edu_initialized || !options) return -1;
+    if (!g_edu_initialized || !options)
+        return -1;
 
     CONVERGIO_MUTEX_LOCK(&g_edu_db_mutex);
 
@@ -901,14 +962,15 @@ int education_profile_update(int64_t student_id, const EducationUpdateOptions* o
     char sql[1024];
     char* sql_ptr = sql;
     int sql_remaining = sizeof(sql);
-    int written = snprintf(sql_ptr, sql_remaining, "UPDATE student_profiles SET updated_at = strftime('%%s','now')");
+    int written = snprintf(sql_ptr, sql_remaining,
+                           "UPDATE student_profiles SET updated_at = strftime('%%s','now')");
     sql_ptr += written;
     sql_remaining -= written;
 
     // Track which parameters to bind
     int param_count = 0;
     struct {
-        int type;  // 0=string, 1=int
+        int type; // 0=string, 1=int
         union {
             const char* str;
             int num;
@@ -1008,12 +1070,14 @@ int education_profile_update(int64_t student_id, const EducationUpdateOptions* o
 }
 
 int education_profile_delete(int64_t student_id) {
-    if (!g_edu_initialized) return -1;
+    if (!g_edu_initialized)
+        return -1;
 
     CONVERGIO_MUTEX_LOCK(&g_edu_db_mutex);
 
     sqlite3_stmt* stmt;
-    int rc = sqlite3_prepare_v2(g_edu_db, "DELETE FROM student_profiles WHERE id = ?", -1, &stmt, NULL);
+    int rc =
+        sqlite3_prepare_v2(g_edu_db, "DELETE FROM student_profiles WHERE id = ?", -1, &stmt, NULL);
     if (rc != SQLITE_OK) {
         CONVERGIO_MUTEX_UNLOCK(&g_edu_db_mutex);
         return -1;
@@ -1028,7 +1092,8 @@ int education_profile_delete(int64_t student_id) {
 }
 
 void education_profile_free(EducationStudentProfile* profile) {
-    if (!profile) return;
+    if (!profile)
+        return;
     free(profile->name);
     free(profile->curriculum_id);
     free(profile->parent_name);
@@ -1040,14 +1105,16 @@ void education_profile_free(EducationStudentProfile* profile) {
 }
 
 EducationStudentProfile** education_profile_list(int* count) {
-    if (!g_edu_initialized || !count) return NULL;
+    if (!g_edu_initialized || !count)
+        return NULL;
     *count = 0;
 
     CONVERGIO_MUTEX_LOCK(&g_edu_db_mutex);
 
     // First, count profiles
     sqlite3_stmt* count_stmt;
-    int rc = sqlite3_prepare_v2(g_edu_db, "SELECT COUNT(*) FROM student_profiles", -1, &count_stmt, NULL);
+    int rc = sqlite3_prepare_v2(g_edu_db, "SELECT COUNT(*) FROM student_profiles", -1, &count_stmt,
+                                NULL);
     if (rc != SQLITE_OK) {
         CONVERGIO_MUTEX_UNLOCK(&g_edu_db_mutex);
         return NULL;
@@ -1072,11 +1139,10 @@ EducationStudentProfile** education_profile_list(int* count) {
     }
 
     // Fetch all profiles
-    const char* sql =
-        "SELECT p.id, p.name, p.age, p.grade_level, p.curriculum_id, "
-        "p.parent_name, p.parent_email, p.preferred_language, p.learning_style, "
-        "p.is_active, p.created_at, p.updated_at, p.last_session_at "
-        "FROM student_profiles p ORDER BY p.name";
+    const char* sql = "SELECT p.id, p.name, p.age, p.grade_level, p.curriculum_id, "
+                      "p.parent_name, p.parent_email, p.preferred_language, p.learning_style, "
+                      "p.is_active, p.created_at, p.updated_at, p.last_session_at "
+                      "FROM student_profiles p ORDER BY p.name";
 
     sqlite3_stmt* stmt;
     rc = sqlite3_prepare_v2(g_edu_db, sql, -1, &stmt, NULL);
@@ -1089,7 +1155,8 @@ EducationStudentProfile** education_profile_list(int* count) {
     int idx = 0;
     while (sqlite3_step(stmt) == SQLITE_ROW && idx < total) {
         EducationStudentProfile* p = calloc(1, sizeof(EducationStudentProfile));
-        if (!p) continue;
+        if (!p)
+            continue;
 
         p->id = sqlite3_column_int64(stmt, 0);
         p->name = safe_strdup((const char*)sqlite3_column_text(stmt, 1));
@@ -1115,7 +1182,8 @@ EducationStudentProfile** education_profile_list(int* count) {
 }
 
 void education_profile_list_free(EducationStudentProfile** profiles, int count) {
-    if (!profiles) return;
+    if (!profiles)
+        return;
     for (int i = 0; i < count; i++) {
         education_profile_free(profiles[i]);
     }
@@ -1123,7 +1191,8 @@ void education_profile_list_free(EducationStudentProfile** profiles, int count) 
 }
 
 int education_profile_count(void) {
-    if (!g_edu_initialized) return 0;
+    if (!g_edu_initialized)
+        return 0;
 
     CONVERGIO_MUTEX_LOCK(&g_edu_db_mutex);
 
@@ -1153,20 +1222,20 @@ bool education_is_first_run(void) {
 // ============================================================================
 
 int education_accessibility_update(int64_t student_id, const EducationAccessibility* settings) {
-    if (!g_edu_initialized || !settings) return -1;
+    if (!g_edu_initialized || !settings)
+        return -1;
 
     CONVERGIO_MUTEX_LOCK(&g_edu_db_mutex);
 
-    const char* sql =
-        "UPDATE student_accessibility SET "
-        "dyslexia = ?, dyslexia_severity = ?, "
-        "dyscalculia = ?, dyscalculia_severity = ?, "
-        "cerebral_palsy = ?, cp_severity = ?, "
-        "adhd = ?, adhd_type = ?, "
-        "autism = ?, autism_severity = ?, "
-        "preferred_input = ?, preferred_output = ?, "
-        "tts_enabled = ?, tts_speed = ? "
-        "WHERE student_id = ?";
+    const char* sql = "UPDATE student_accessibility SET "
+                      "dyslexia = ?, dyslexia_severity = ?, "
+                      "dyscalculia = ?, dyscalculia_severity = ?, "
+                      "cerebral_palsy = ?, cp_severity = ?, "
+                      "adhd = ?, adhd_type = ?, "
+                      "autism = ?, autism_severity = ?, "
+                      "preferred_input = ?, preferred_output = ?, "
+                      "tts_enabled = ?, tts_speed = ? "
+                      "WHERE student_id = ?";
 
     sqlite3_stmt* stmt;
     int rc = sqlite3_prepare_v2(g_edu_db, sql, -1, &stmt, NULL);
@@ -1185,8 +1254,10 @@ int education_accessibility_update(int64_t student_id, const EducationAccessibil
     sqlite3_bind_text(stmt, 8, adhd_type_to_string(settings->adhd_type), -1, SQLITE_STATIC);
     sqlite3_bind_int(stmt, 9, settings->autism);
     sqlite3_bind_int(stmt, 10, (int)settings->autism_severity);
-    sqlite3_bind_text(stmt, 11, input_method_to_string(settings->preferred_input), -1, SQLITE_STATIC);
-    sqlite3_bind_text(stmt, 12, output_method_to_string(settings->preferred_output), -1, SQLITE_STATIC);
+    sqlite3_bind_text(stmt, 11, input_method_to_string(settings->preferred_input), -1,
+                      SQLITE_STATIC);
+    sqlite3_bind_text(stmt, 12, output_method_to_string(settings->preferred_output), -1,
+                      SQLITE_STATIC);
     sqlite3_bind_int(stmt, 13, settings->tts_enabled);
     sqlite3_bind_double(stmt, 14, settings->tts_speed);
     sqlite3_bind_int64(stmt, 15, student_id);
@@ -1200,7 +1271,8 @@ int education_accessibility_update(int64_t student_id, const EducationAccessibil
 
 EducationAccessibility* education_accessibility_get(int64_t student_id) {
     EducationStudentProfile* profile = education_profile_get(student_id);
-    if (!profile) return NULL;
+    if (!profile)
+        return NULL;
 
     EducationAccessibility* settings = profile->accessibility;
     profile->accessibility = NULL; // Prevent double-free
@@ -1213,15 +1285,17 @@ EducationAccessibility* education_accessibility_get(int64_t student_id) {
 // LEARNING PROGRESS (S17, S18)
 // ============================================================================
 
-int education_progress_record(int64_t student_id, const char* maestro_id,
-                              const char* topic, float skill_level, int time_spent) {
-    if (!g_edu_initialized || !maestro_id || !topic) return -1;
+int education_progress_record(int64_t student_id, const char* maestro_id, const char* topic,
+                              float skill_level, int time_spent) {
+    if (!g_edu_initialized || !maestro_id || !topic)
+        return -1;
 
     CONVERGIO_MUTEX_LOCK(&g_edu_db_mutex);
 
     // Upsert progress
     const char* sql =
-        "INSERT INTO learning_progress (student_id, maestro_id, subject, topic, skill_level, total_time_spent, interaction_count, last_interaction) "
+        "INSERT INTO learning_progress (student_id, maestro_id, subject, topic, skill_level, "
+        "total_time_spent, interaction_count, last_interaction) "
         "VALUES (?, ?, ?, ?, ?, ?, 1, strftime('%s','now')) "
         "ON CONFLICT(student_id, maestro_id, topic) DO UPDATE SET "
         "skill_level = ?, total_time_spent = total_time_spent + ?, "
@@ -1255,14 +1329,14 @@ int education_progress_record(int64_t student_id, const char* maestro_id,
 }
 
 EducationProgress* education_progress_get(int64_t student_id, const char* topic) {
-    if (!g_edu_initialized || !topic) return NULL;
+    if (!g_edu_initialized || !topic)
+        return NULL;
 
     CONVERGIO_MUTEX_LOCK(&g_edu_db_mutex);
 
-    const char* sql =
-        "SELECT id, maestro_id, subject, topic, skill_level, confidence, "
-        "total_time_spent, interaction_count, quiz_score_avg, last_interaction "
-        "FROM learning_progress WHERE student_id = ? AND topic = ?";
+    const char* sql = "SELECT id, maestro_id, subject, topic, skill_level, confidence, "
+                      "total_time_spent, interaction_count, quiz_score_avg, last_interaction "
+                      "FROM learning_progress WHERE student_id = ? AND topic = ?";
 
     sqlite3_stmt* stmt;
     int rc = sqlite3_prepare_v2(g_edu_db, sql, -1, &stmt, NULL);
@@ -1298,7 +1372,8 @@ EducationProgress* education_progress_get(int64_t student_id, const char* topic)
 }
 
 void education_progress_free(EducationProgress* progress) {
-    if (!progress) return;
+    if (!progress)
+        return;
     free(progress->maestro_id);
     free(progress->subject);
     free(progress->topic);
@@ -1316,23 +1391,23 @@ void education_progress_free(EducationProgress* progress) {
  * Returns a JSON string with recommendations, caller must free
  */
 char* education_adaptive_analyze(int64_t student_id) {
-    if (!g_edu_initialized) return NULL;
+    if (!g_edu_initialized)
+        return NULL;
 
     CONVERGIO_MUTEX_LOCK(&g_edu_db_mutex);
 
     // Query learning patterns
-    const char* sql =
-        "SELECT "
-        "  subject, "
-        "  AVG(skill_level) as avg_skill, "
-        "  AVG(quiz_score_avg) as avg_quiz, "
-        "  SUM(total_time_spent) as total_time, "
-        "  COUNT(*) as topic_count, "
-        "  MAX(last_interaction) as last_active "
-        "FROM learning_progress "
-        "WHERE student_id = ? "
-        "GROUP BY subject "
-        "ORDER BY avg_skill ASC";
+    const char* sql = "SELECT "
+                      "  subject, "
+                      "  AVG(skill_level) as avg_skill, "
+                      "  AVG(quiz_score_avg) as avg_quiz, "
+                      "  SUM(total_time_spent) as total_time, "
+                      "  COUNT(*) as topic_count, "
+                      "  MAX(last_interaction) as last_active "
+                      "FROM learning_progress "
+                      "WHERE student_id = ? "
+                      "GROUP BY subject "
+                      "ORDER BY avg_skill ASC";
 
     sqlite3_stmt* stmt;
     int rc = sqlite3_prepare_v2(g_edu_db, sql, -1, &stmt, NULL);
@@ -1365,8 +1440,9 @@ char* education_adaptive_analyze(int64_t student_id) {
         const char* subject = (const char*)sqlite3_column_text(stmt, 0);
         double avg_skill = sqlite3_column_double(stmt, 1);
 
-        if (avg_skill < 0.5 && subject) {  // Below 50% is considered weak
-            if (!first) strlcat(json, ",", json_size);
+        if (avg_skill < 0.5 && subject) { // Below 50% is considered weak
+            if (!first)
+                strlcat(json, ",", json_size);
             strlcat(json, "\"", json_size);
             strlcat(json, subject, json_size);
             strlcat(json, "\"", json_size);
@@ -1384,8 +1460,9 @@ char* education_adaptive_analyze(int64_t student_id) {
         const char* subject = (const char*)sqlite3_column_text(stmt, 0);
         double avg_skill = sqlite3_column_double(stmt, 1);
 
-        if (avg_skill >= 0.75 && subject) {  // Above 75% is strong
-            if (!first) strlcat(json, ",", json_size);
+        if (avg_skill >= 0.75 && subject) { // Above 75% is strong
+            if (!first)
+                strlcat(json, ",", json_size);
             strlcat(json, "\"", json_size);
             strlcat(json, subject, json_size);
             strlcat(json, "\"", json_size);
@@ -1418,9 +1495,9 @@ char* education_adaptive_analyze(int64_t student_id) {
     }
 
     // Get study time recommendation
-    const char* time_sql =
-        "SELECT AVG(julianday('now') - julianday(datetime(last_interaction, 'unixepoch'))) as days_since "
-        "FROM learning_progress WHERE student_id = ?";
+    const char* time_sql = "SELECT AVG(julianday('now') - julianday(datetime(last_interaction, "
+                           "'unixepoch'))) as days_since "
+                           "FROM learning_progress WHERE student_id = ?";
     rc = sqlite3_prepare_v2(g_edu_db, time_sql, -1, &stmt, NULL);
     if (rc == SQLITE_OK) {
         sqlite3_bind_int64(stmt, 1, student_id);
@@ -1450,7 +1527,8 @@ char* education_adaptive_analyze(int64_t student_id) {
         while (sqlite3_step(stmt) == SQLITE_ROW) {
             const char* subject = (const char*)sqlite3_column_text(stmt, 0);
             if (subject) {
-                if (has_rec) strlcat(json, ",", json_size);
+                if (has_rec)
+                    strlcat(json, ",", json_size);
                 strlcat(json, "{\"type\":\"review\",\"subject\":\"", json_size);
                 strlcat(json, subject, json_size);
                 strlcat(json, "\",\"reason\":\"Not studied in over a week\"}", json_size);
@@ -1471,10 +1549,12 @@ char* education_adaptive_analyze(int64_t student_id) {
  * Returns 0 on success, -1 on error
  */
 int education_adaptive_update_profile(int64_t student_id) {
-    if (!g_edu_initialized) return -1;
+    if (!g_edu_initialized)
+        return -1;
 
     char* analysis = education_adaptive_analyze(student_id);
-    if (!analysis) return -1;
+    if (!analysis)
+        return -1;
 
     // For now, just log the analysis. In production, this would
     // update session_duration_preference, break_duration_preference,
@@ -1494,7 +1574,8 @@ int education_adaptive_update_profile(int64_t student_id) {
  * Returns topic name, caller must free
  */
 char* education_adaptive_next_topic(int64_t student_id, const char* subject) {
-    if (!g_edu_initialized) return NULL;
+    if (!g_edu_initialized)
+        return NULL;
 
     CONVERGIO_MUTEX_LOCK(&g_edu_db_mutex);
 
@@ -1519,7 +1600,8 @@ char* education_adaptive_next_topic(int64_t student_id, const char* subject) {
     char* topic = NULL;
     if (sqlite3_step(stmt) == SQLITE_ROW) {
         const char* t = (const char*)sqlite3_column_text(stmt, 0);
-        if (t) topic = strdup(t);
+        if (t)
+            topic = strdup(t);
     }
 
     sqlite3_finalize(stmt);
@@ -1531,24 +1613,45 @@ char* education_adaptive_next_topic(int64_t student_id, const char* subject) {
 // TOOLKIT OUTPUTS
 // ============================================================================
 
-int64_t education_toolkit_save(int64_t student_id, EducationToolkitType type,
-                               const char* topic, const char* content, const char* format) {
-    if (!g_edu_initialized || !topic || !content) return -1;
+int64_t education_toolkit_save(int64_t student_id, EducationToolkitType type, const char* topic,
+                               const char* content, const char* format) {
+    if (!g_edu_initialized || !topic || !content)
+        return -1;
 
     CONVERGIO_MUTEX_LOCK(&g_edu_db_mutex);
 
     const char* type_str;
     switch (type) {
-        case TOOLKIT_MINDMAP: type_str = "mindmap"; break;
-        case TOOLKIT_QUIZ: type_str = "quiz"; break;
-        case TOOLKIT_FLASHCARD: type_str = "flashcard_deck"; break;
-        case TOOLKIT_AUDIO: type_str = "audio"; break;
-        case TOOLKIT_SUMMARY: type_str = "summary"; break;
-        case TOOLKIT_FORMULA: type_str = "formula"; break;
-        case TOOLKIT_GRAPH: type_str = "graph"; break;
-        case TOOLKIT_FLOWCHART: type_str = "flowchart"; break;
-        case TOOLKIT_TIMELINE: type_str = "timeline"; break;
-        default: type_str = "summary"; break;
+    case TOOLKIT_MINDMAP:
+        type_str = "mindmap";
+        break;
+    case TOOLKIT_QUIZ:
+        type_str = "quiz";
+        break;
+    case TOOLKIT_FLASHCARD:
+        type_str = "flashcard_deck";
+        break;
+    case TOOLKIT_AUDIO:
+        type_str = "audio";
+        break;
+    case TOOLKIT_SUMMARY:
+        type_str = "summary";
+        break;
+    case TOOLKIT_FORMULA:
+        type_str = "formula";
+        break;
+    case TOOLKIT_GRAPH:
+        type_str = "graph";
+        break;
+    case TOOLKIT_FLOWCHART:
+        type_str = "flowchart";
+        break;
+    case TOOLKIT_TIMELINE:
+        type_str = "timeline";
+        break;
+    default:
+        type_str = "summary";
+        break;
     }
 
     const char* sql =
@@ -1581,12 +1684,14 @@ int64_t education_toolkit_save(int64_t student_id, EducationToolkitType type,
 // ============================================================================
 
 int education_flashcard_review(int64_t review_id, int quality) {
-    if (!g_edu_initialized || quality < 0 || quality > 5) return -1;
+    if (!g_edu_initialized || quality < 0 || quality > 5)
+        return -1;
 
     CONVERGIO_MUTEX_LOCK(&g_edu_db_mutex);
 
     // Get current card state
-    const char* sql = "SELECT easiness_factor, interval_days, repetition_count FROM flashcard_reviews WHERE id = ?";
+    const char* sql = "SELECT easiness_factor, interval_days, repetition_count FROM "
+                      "flashcard_reviews WHERE id = ?";
     sqlite3_stmt* stmt;
     int rc = sqlite3_prepare_v2(g_edu_db, sql, -1, &stmt, NULL);
     if (rc != SQLITE_OK) {
@@ -1626,7 +1731,8 @@ int education_flashcard_review(int64_t review_id, int quality) {
 
     // Update easiness factor
     ef = ef + (0.1f - (5 - quality) * (0.08f + (5 - quality) * 0.02f));
-    if (ef < SM2_MIN_EASINESS) ef = SM2_MIN_EASINESS;
+    if (ef < SM2_MIN_EASINESS)
+        ef = SM2_MIN_EASINESS;
 
     // Calculate next review timestamp
     time_t now = time(NULL);
@@ -1634,9 +1740,12 @@ int education_flashcard_review(int64_t review_id, int quality) {
 
     // Determine status
     const char* status;
-    if (reps == 0) status = "learning";
-    else if (interval >= 21) status = "mastered";
-    else status = "reviewing";
+    if (reps == 0)
+        status = "learning";
+    else if (interval >= 21)
+        status = "mastered";
+    else
+        status = "reviewing";
 
     // Update database
     sql = "UPDATE flashcard_reviews SET "
@@ -1670,15 +1779,15 @@ int education_flashcard_review(int64_t review_id, int quality) {
 // SESSION MANAGEMENT
 // ============================================================================
 
-int64_t education_session_start(int64_t student_id, const char* session_type,
-                                const char* subject, const char* topic) {
-    if (!g_edu_initialized || !session_type) return -1;
+int64_t education_session_start(int64_t student_id, const char* session_type, const char* subject,
+                                const char* topic) {
+    if (!g_edu_initialized || !session_type)
+        return -1;
 
     CONVERGIO_MUTEX_LOCK(&g_edu_db_mutex);
 
-    const char* sql =
-        "INSERT INTO learning_sessions (student_id, session_type, subject, topic) "
-        "VALUES (?, ?, ?, ?)";
+    const char* sql = "INSERT INTO learning_sessions (student_id, session_type, subject, topic) "
+                      "VALUES (?, ?, ?, ?)";
 
     sqlite3_stmt* stmt;
     int rc = sqlite3_prepare_v2(g_edu_db, sql, -1, &stmt, NULL);
@@ -1689,10 +1798,14 @@ int64_t education_session_start(int64_t student_id, const char* session_type,
 
     sqlite3_bind_int64(stmt, 1, student_id);
     sqlite3_bind_text(stmt, 2, session_type, -1, SQLITE_STATIC);
-    if (subject) sqlite3_bind_text(stmt, 3, subject, -1, SQLITE_STATIC);
-    else sqlite3_bind_null(stmt, 3);
-    if (topic) sqlite3_bind_text(stmt, 4, topic, -1, SQLITE_STATIC);
-    else sqlite3_bind_null(stmt, 4);
+    if (subject)
+        sqlite3_bind_text(stmt, 3, subject, -1, SQLITE_STATIC);
+    else
+        sqlite3_bind_null(stmt, 3);
+    if (topic)
+        sqlite3_bind_text(stmt, 4, topic, -1, SQLITE_STATIC);
+    else
+        sqlite3_bind_null(stmt, 4);
 
     rc = sqlite3_step(stmt);
     int64_t session_id = (rc == SQLITE_DONE) ? sqlite3_last_insert_rowid(g_edu_db) : -1;
@@ -1703,16 +1816,16 @@ int64_t education_session_start(int64_t student_id, const char* session_type,
 }
 
 int education_session_end(int64_t session_id, int xp_earned) {
-    if (!g_edu_initialized) return -1;
+    if (!g_edu_initialized)
+        return -1;
 
     CONVERGIO_MUTEX_LOCK(&g_edu_db_mutex);
 
-    const char* sql =
-        "UPDATE learning_sessions SET "
-        "ended_at = strftime('%s','now'), "
-        "duration_seconds = strftime('%s','now') - started_at, "
-        "completed = 1, xp_earned = ? "
-        "WHERE id = ?";
+    const char* sql = "UPDATE learning_sessions SET "
+                      "ended_at = strftime('%s','now'), "
+                      "duration_seconds = strftime('%s','now') - started_at, "
+                      "completed = 1, xp_earned = ? "
+                      "WHERE id = ?";
 
     sqlite3_stmt* stmt;
     int rc = sqlite3_prepare_v2(g_edu_db, sql, -1, &stmt, NULL);
@@ -1736,17 +1849,17 @@ int education_session_end(int64_t session_id, int xp_earned) {
 // ============================================================================
 
 int education_xp_add(int64_t student_id, int xp_amount, const char* reason) {
-    if (!g_edu_initialized || xp_amount <= 0) return -1;
+    if (!g_edu_initialized || xp_amount <= 0)
+        return -1;
 
-    (void)reason;  // Reserved for future XP history logging
+    (void)reason; // Reserved for future XP history logging
     CONVERGIO_MUTEX_LOCK(&g_edu_db_mutex);
 
     // Update XP and check for level up
-    const char* sql =
-        "UPDATE gamification SET "
-        "total_xp = total_xp + ?, "
-        "current_level = (total_xp + ?) / 1000 + 1 "
-        "WHERE student_id = ?";
+    const char* sql = "UPDATE gamification SET "
+                      "total_xp = total_xp + ?, "
+                      "current_level = (total_xp + ?) / 1000 + 1 "
+                      "WHERE student_id = ?";
 
     sqlite3_stmt* stmt;
     int rc = sqlite3_prepare_v2(g_edu_db, sql, -1, &stmt, NULL);
@@ -1767,12 +1880,14 @@ int education_xp_add(int64_t student_id, int xp_amount, const char* reason) {
 }
 
 int education_streak_update(int64_t student_id) {
-    if (!g_edu_initialized) return -1;
+    if (!g_edu_initialized)
+        return -1;
 
     CONVERGIO_MUTEX_LOCK(&g_edu_db_mutex);
 
     // Get current streak info
-    const char* sql = "SELECT current_streak, longest_streak, last_activity_date FROM gamification WHERE student_id = ?";
+    const char* sql = "SELECT current_streak, longest_streak, last_activity_date FROM gamification "
+                      "WHERE student_id = ?";
     sqlite3_stmt* stmt;
     int rc = sqlite3_prepare_v2(g_edu_db, sql, -1, &stmt, NULL);
     if (rc != SQLITE_OK) {
@@ -1823,7 +1938,8 @@ int education_streak_update(int64_t student_id) {
     }
 
     // Update database
-    sql = "UPDATE gamification SET current_streak = ?, longest_streak = ?, last_activity_date = ? WHERE student_id = ?";
+    sql = "UPDATE gamification SET current_streak = ?, longest_streak = ?, last_activity_date = ? "
+          "WHERE student_id = ?";
     rc = sqlite3_prepare_v2(g_edu_db, sql, -1, &stmt, NULL);
     if (rc == SQLITE_OK) {
         sqlite3_bind_int(stmt, 1, current_streak);
@@ -1843,53 +1959,50 @@ int education_streak_update(int64_t student_id) {
 // ============================================================================
 
 char* education_profile_to_json(const EducationStudentProfile* profile) {
-    if (!profile) return NULL;
+    if (!profile)
+        return NULL;
 
     // Build JSON string (simplified)
     size_t buf_size = 4096;
     char* json = malloc(buf_size);
-    if (!json) return NULL;
+    if (!json)
+        return NULL;
 
     EducationAccessibility* a = profile->accessibility;
 
     snprintf(json, buf_size,
-        "{"
-        "\"id\":%" PRId64 ","
-        "\"name\":\"%s\","
-        "\"age\":%d,"
-        "\"grade_level\":%d,"
-        "\"curriculum_id\":\"%s\","
-        "\"accessibility\":{"
-        "\"dyslexia\":%s,"
-        "\"dyslexia_severity\":\"%s\","
-        "\"dyscalculia\":%s,"
-        "\"cerebral_palsy\":%s,"
-        "\"adhd\":%s,"
-        "\"adhd_type\":\"%s\","
-        "\"autism\":%s,"
-        "\"preferred_input\":\"%s\","
-        "\"preferred_output\":\"%s\","
-        "\"tts_enabled\":%s,"
-        "\"tts_speed\":%.2f"
-        "}"
-        "}",
-        profile->id,
-        profile->name ? profile->name : "",
-        profile->age,
-        profile->grade_level,
-        profile->curriculum_id ? profile->curriculum_id : "",
-        a && a->dyslexia ? "true" : "false",
-        a ? severity_to_string(a->dyslexia_severity) : "none",
-        a && a->dyscalculia ? "true" : "false",
-        a && a->cerebral_palsy ? "true" : "false",
-        a && a->adhd ? "true" : "false",
-        a ? (adhd_type_to_string(a->adhd_type) ? adhd_type_to_string(a->adhd_type) : "none") : "none",
-        a && a->autism ? "true" : "false",
-        a ? input_method_to_string(a->preferred_input) : "keyboard",
-        a ? output_method_to_string(a->preferred_output) : "visual",
-        a && a->tts_enabled ? "true" : "false",
-        a ? a->tts_speed : 1.0f
-    );
+             "{"
+             "\"id\":%" PRId64 ","
+             "\"name\":\"%s\","
+             "\"age\":%d,"
+             "\"grade_level\":%d,"
+             "\"curriculum_id\":\"%s\","
+             "\"accessibility\":{"
+             "\"dyslexia\":%s,"
+             "\"dyslexia_severity\":\"%s\","
+             "\"dyscalculia\":%s,"
+             "\"cerebral_palsy\":%s,"
+             "\"adhd\":%s,"
+             "\"adhd_type\":\"%s\","
+             "\"autism\":%s,"
+             "\"preferred_input\":\"%s\","
+             "\"preferred_output\":\"%s\","
+             "\"tts_enabled\":%s,"
+             "\"tts_speed\":%.2f"
+             "}"
+             "}",
+             profile->id, profile->name ? profile->name : "", profile->age, profile->grade_level,
+             profile->curriculum_id ? profile->curriculum_id : "",
+             a && a->dyslexia ? "true" : "false",
+             a ? severity_to_string(a->dyslexia_severity) : "none",
+             a && a->dyscalculia ? "true" : "false", a && a->cerebral_palsy ? "true" : "false",
+             a && a->adhd ? "true" : "false",
+             a ? (adhd_type_to_string(a->adhd_type) ? adhd_type_to_string(a->adhd_type) : "none")
+               : "none",
+             a && a->autism ? "true" : "false",
+             a ? input_method_to_string(a->preferred_input) : "keyboard",
+             a ? output_method_to_string(a->preferred_output) : "visual",
+             a && a->tts_enabled ? "true" : "false", a ? a->tts_speed : 1.0f);
 
     return json;
 }
@@ -1906,15 +2019,16 @@ sqlite3* education_get_db_handle(void) {
 // GOAL MANAGEMENT
 // ============================================================================
 
-int64_t education_goal_add(int64_t student_id, EducationGoalType goal_type,
-                           const char* description, time_t target_date) {
-    if (!g_edu_db || !description) return -1;
+int64_t education_goal_add(int64_t student_id, EducationGoalType goal_type, const char* description,
+                           time_t target_date) {
+    if (!g_edu_db || !description)
+        return -1;
 
     CONVERGIO_MUTEX_LOCK(&g_edu_db_mutex);
 
-    const char* sql =
-        "INSERT INTO student_goals (student_id, goal_type, description, target_date, status, created_at) "
-        "VALUES (?, ?, ?, ?, 'active', strftime('%s','now'))";
+    const char* sql = "INSERT INTO student_goals (student_id, goal_type, description, target_date, "
+                      "status, created_at) "
+                      "VALUES (?, ?, ?, ?, 'active', strftime('%s','now'))";
 
     sqlite3_stmt* stmt;
     int rc = sqlite3_prepare_v2(g_edu_db, sql, -1, &stmt, NULL);
@@ -1925,9 +2039,15 @@ int64_t education_goal_add(int64_t student_id, EducationGoalType goal_type,
 
     const char* goal_type_str = "short_term";
     switch (goal_type) {
-        case GOAL_SHORT_TERM: goal_type_str = "short_term"; break;
-        case GOAL_MEDIUM_TERM: goal_type_str = "medium_term"; break;
-        case GOAL_LONG_TERM: goal_type_str = "long_term"; break;
+    case GOAL_SHORT_TERM:
+        goal_type_str = "short_term";
+        break;
+    case GOAL_MEDIUM_TERM:
+        goal_type_str = "medium_term";
+        break;
+    case GOAL_LONG_TERM:
+        goal_type_str = "long_term";
+        break;
     }
 
     sqlite3_bind_int64(stmt, 1, student_id);
@@ -1945,7 +2065,8 @@ int64_t education_goal_add(int64_t student_id, EducationGoalType goal_type,
 }
 
 EducationGoal** education_goal_list(int64_t student_id, int* count) {
-    if (!g_edu_db || !count) return NULL;
+    if (!g_edu_db || !count)
+        return NULL;
     *count = 0;
 
     CONVERGIO_MUTEX_LOCK(&g_edu_db_mutex);
@@ -1965,7 +2086,8 @@ EducationGoal** education_goal_list(int64_t student_id, int* count) {
 
     // Count rows first
     int goal_count = 0;
-    while (sqlite3_step(stmt) == SQLITE_ROW) goal_count++;
+    while (sqlite3_step(stmt) == SQLITE_ROW)
+        goal_count++;
 
     if (goal_count == 0) {
         sqlite3_finalize(stmt);
@@ -1985,16 +2107,20 @@ EducationGoal** education_goal_list(int64_t student_id, int* count) {
     int i = 0;
     while (sqlite3_step(stmt) == SQLITE_ROW && i < goal_count) {
         EducationGoal* goal = calloc(1, sizeof(EducationGoal));
-        if (!goal) continue;
+        if (!goal)
+            continue;
 
         goal->id = sqlite3_column_int64(stmt, 0);
         goal->student_id = student_id;
 
         const char* type_str = (const char*)sqlite3_column_text(stmt, 1);
         if (type_str) {
-            if (strcmp(type_str, "medium_term") == 0) goal->goal_type = GOAL_MEDIUM_TERM;
-            else if (strcmp(type_str, "long_term") == 0) goal->goal_type = GOAL_LONG_TERM;
-            else goal->goal_type = GOAL_SHORT_TERM;
+            if (strcmp(type_str, "medium_term") == 0)
+                goal->goal_type = GOAL_MEDIUM_TERM;
+            else if (strcmp(type_str, "long_term") == 0)
+                goal->goal_type = GOAL_LONG_TERM;
+            else
+                goal->goal_type = GOAL_SHORT_TERM;
         }
 
         const char* desc = (const char*)sqlite3_column_text(stmt, 2);
@@ -2007,9 +2133,12 @@ EducationGoal** education_goal_list(int64_t student_id, int* count) {
 
         const char* status_str = (const char*)sqlite3_column_text(stmt, 4);
         if (status_str) {
-            if (strcmp(status_str, "achieved") == 0) goal->status = GOAL_ACHIEVED;
-            else if (strcmp(status_str, "abandoned") == 0) goal->status = GOAL_ABANDONED;
-            else goal->status = GOAL_ACTIVE;
+            if (strcmp(status_str, "achieved") == 0)
+                goal->status = GOAL_ACHIEVED;
+            else if (strcmp(status_str, "abandoned") == 0)
+                goal->status = GOAL_ABANDONED;
+            else
+                goal->status = GOAL_ACTIVE;
         }
 
         goals[i++] = goal;
@@ -2023,7 +2152,8 @@ EducationGoal** education_goal_list(int64_t student_id, int* count) {
 }
 
 int education_goal_achieve(int64_t goal_id) {
-    if (!g_edu_db) return -1;
+    if (!g_edu_db)
+        return -1;
 
     CONVERGIO_MUTEX_LOCK(&g_edu_db_mutex);
 
@@ -2044,7 +2174,8 @@ int education_goal_achieve(int64_t goal_id) {
 }
 
 int education_goal_delete(int64_t goal_id) {
-    if (!g_edu_db) return -1;
+    if (!g_edu_db)
+        return -1;
 
     CONVERGIO_MUTEX_LOCK(&g_edu_db_mutex);
 
@@ -2065,7 +2196,8 @@ int education_goal_delete(int64_t goal_id) {
 }
 
 void education_goal_list_free(EducationGoal** goals, int count) {
-    if (!goals) return;
+    if (!goals)
+        return;
     for (int i = 0; i < count; i++) {
         if (goals[i]) {
             // description is a fixed array, no need to free
@@ -2091,19 +2223,20 @@ int education_maestro_broadcast_profile(int64_t student_id) {
 // LLM GENERATION (Uses Convergio LLM Facade)
 // ============================================================================
 
-#include "nous/orchestrator.h"  // For llm_chat_with_model, llm_is_available, etc.
-#include "nous/edition.h"       // For edition_get_preferred_model()
+#include "nous/edition.h"      // For edition_get_preferred_model()
+#include "nous/orchestrator.h" // For llm_chat_with_model, llm_is_available, etc.
 
 // Education uses Azure OpenAI via edition system (GDPR compliance, content safety)
 // Model is configured in edition.c via edition_get_preferred_model()
 
-__attribute__((weak))
-char* llm_generate(const char* prompt, const char* system_prompt) {
-    if (!prompt) return NULL;
+__attribute__((weak)) char* llm_generate(const char* prompt, const char* system_prompt) {
+    if (!prompt)
+        return NULL;
 
     // Check LLM availability via facade
     if (!llm_is_available()) {
-        return strdup("[Error: No LLM provider configured. Set AZURE_OPENAI_API_KEY for Education]");
+        return strdup(
+            "[Error: No LLM provider configured. Set AZURE_OPENAI_API_KEY for Education]");
     }
 
     // Use edition-preferred model (Azure OpenAI for Education, GDPR compliant)
@@ -2111,10 +2244,9 @@ char* llm_generate(const char* prompt, const char* system_prompt) {
     TokenUsage usage = {0};
     char* response = llm_chat_with_model(
         model,
-        system_prompt ? system_prompt : "You are an educational assistant. Respond clearly and pedagogically.",
-        prompt,
-        &usage
-    );
+        system_prompt ? system_prompt
+                      : "You are an educational assistant. Respond clearly and pedagogically.",
+        prompt, &usage);
 
     if (!response) {
         const char* err = llm_get_last_error();
@@ -2135,35 +2267,46 @@ char* llm_generate(const char* prompt, const char* system_prompt) {
 
 static const char* grade_type_to_string(EducationGradeType type) {
     switch (type) {
-        case GRADE_TYPE_QUIZ: return "quiz";
-        case GRADE_TYPE_HOMEWORK: return "homework";
-        case GRADE_TYPE_ORAL: return "oral";
-        case GRADE_TYPE_PROJECT: return "project";
-        case GRADE_TYPE_PARTICIPATION: return "participation";
-        default: return "quiz";
+    case GRADE_TYPE_QUIZ:
+        return "quiz";
+    case GRADE_TYPE_HOMEWORK:
+        return "homework";
+    case GRADE_TYPE_ORAL:
+        return "oral";
+    case GRADE_TYPE_PROJECT:
+        return "project";
+    case GRADE_TYPE_PARTICIPATION:
+        return "participation";
+    default:
+        return "quiz";
     }
 }
 
 static EducationGradeType string_to_grade_type(const char* str) {
-    if (!str) return GRADE_TYPE_QUIZ;
-    if (strcmp(str, "homework") == 0) return GRADE_TYPE_HOMEWORK;
-    if (strcmp(str, "oral") == 0) return GRADE_TYPE_ORAL;
-    if (strcmp(str, "project") == 0) return GRADE_TYPE_PROJECT;
-    if (strcmp(str, "participation") == 0) return GRADE_TYPE_PARTICIPATION;
+    if (!str)
+        return GRADE_TYPE_QUIZ;
+    if (strcmp(str, "homework") == 0)
+        return GRADE_TYPE_HOMEWORK;
+    if (strcmp(str, "oral") == 0)
+        return GRADE_TYPE_ORAL;
+    if (strcmp(str, "project") == 0)
+        return GRADE_TYPE_PROJECT;
+    if (strcmp(str, "participation") == 0)
+        return GRADE_TYPE_PARTICIPATION;
     return GRADE_TYPE_QUIZ;
 }
 
-int64_t libretto_add_grade(int64_t student_id, const char* maestro_id,
-                           const char* subject, const char* topic,
-                           EducationGradeType grade_type, float grade,
+int64_t libretto_add_grade(int64_t student_id, const char* maestro_id, const char* subject,
+                           const char* topic, EducationGradeType grade_type, float grade,
                            const char* comment) {
-    if (!g_edu_db || !subject || grade < 1.0f || grade > 10.0f) return -1;
+    if (!g_edu_db || !subject || grade < 1.0f || grade > 10.0f)
+        return -1;
 
     CONVERGIO_MUTEX_LOCK(&g_edu_db_mutex);
 
-    const char* sql =
-        "INSERT INTO student_gradebook (student_id, maestro_id, subject, topic, grade_type, grade, comment) "
-        "VALUES (?, ?, ?, ?, ?, ?, ?)";
+    const char* sql = "INSERT INTO student_gradebook (student_id, maestro_id, subject, topic, "
+                      "grade_type, grade, comment) "
+                      "VALUES (?, ?, ?, ?, ?, ?, ?)";
 
     sqlite3_stmt* stmt;
     int rc = sqlite3_prepare_v2(g_edu_db, sql, -1, &stmt, NULL);
@@ -2175,12 +2318,16 @@ int64_t libretto_add_grade(int64_t student_id, const char* maestro_id,
     sqlite3_bind_int64(stmt, 1, student_id);
     sqlite3_bind_text(stmt, 2, maestro_id ? maestro_id : "ED00", -1, SQLITE_STATIC);
     sqlite3_bind_text(stmt, 3, subject, -1, SQLITE_STATIC);
-    if (topic) sqlite3_bind_text(stmt, 4, topic, -1, SQLITE_STATIC);
-    else sqlite3_bind_null(stmt, 4);
+    if (topic)
+        sqlite3_bind_text(stmt, 4, topic, -1, SQLITE_STATIC);
+    else
+        sqlite3_bind_null(stmt, 4);
     sqlite3_bind_text(stmt, 5, grade_type_to_string(grade_type), -1, SQLITE_STATIC);
     sqlite3_bind_double(stmt, 6, grade);
-    if (comment) sqlite3_bind_text(stmt, 7, comment, -1, SQLITE_STATIC);
-    else sqlite3_bind_null(stmt, 7);
+    if (comment)
+        sqlite3_bind_text(stmt, 7, comment, -1, SQLITE_STATIC);
+    else
+        sqlite3_bind_null(stmt, 7);
 
     rc = sqlite3_step(stmt);
     int64_t grade_id = (rc == SQLITE_DONE) ? sqlite3_last_insert_rowid(g_edu_db) : -1;
@@ -2190,22 +2337,28 @@ int64_t libretto_add_grade(int64_t student_id, const char* maestro_id,
     return grade_id;
 }
 
-int64_t libretto_add_quiz_grade(int64_t student_id, const char* maestro_id,
-                                const char* subject, const char* topic,
-                                int correct, int total, const char* comment) {
-    if (!g_edu_db || !subject || total <= 0) return -1;
+int64_t libretto_add_quiz_grade(int64_t student_id, const char* maestro_id, const char* subject,
+                                const char* topic, int correct, int total, const char* comment) {
+    if (!g_edu_db || !subject || total <= 0)
+        return -1;
 
     float percentage = (float)correct / (float)total * 100.0f;
     // Convert percentage to Italian grade (1-10 scale)
     // 0-49%: insufficiente (4-5), 50-59%: sufficiente (6), 60-69%: discreto (7)
     // 70-79%: buono (8), 80-89%: ottimo (9), 90-100%: eccellente (10)
     float grade;
-    if (percentage < 50.0f) grade = 4.0f + (percentage / 50.0f);
-    else if (percentage < 60.0f) grade = 6.0f;
-    else if (percentage < 70.0f) grade = 7.0f;
-    else if (percentage < 80.0f) grade = 8.0f;
-    else if (percentage < 90.0f) grade = 9.0f;
-    else grade = 10.0f;
+    if (percentage < 50.0f)
+        grade = 4.0f + (percentage / 50.0f);
+    else if (percentage < 60.0f)
+        grade = 6.0f;
+    else if (percentage < 70.0f)
+        grade = 7.0f;
+    else if (percentage < 80.0f)
+        grade = 8.0f;
+    else if (percentage < 90.0f)
+        grade = 9.0f;
+    else
+        grade = 10.0f;
 
     CONVERGIO_MUTEX_LOCK(&g_edu_db_mutex);
 
@@ -2224,14 +2377,18 @@ int64_t libretto_add_quiz_grade(int64_t student_id, const char* maestro_id,
     sqlite3_bind_int64(stmt, 1, student_id);
     sqlite3_bind_text(stmt, 2, maestro_id ? maestro_id : "ED00", -1, SQLITE_STATIC);
     sqlite3_bind_text(stmt, 3, subject, -1, SQLITE_STATIC);
-    if (topic) sqlite3_bind_text(stmt, 4, topic, -1, SQLITE_STATIC);
-    else sqlite3_bind_null(stmt, 4);
+    if (topic)
+        sqlite3_bind_text(stmt, 4, topic, -1, SQLITE_STATIC);
+    else
+        sqlite3_bind_null(stmt, 4);
     sqlite3_bind_double(stmt, 5, grade);
     sqlite3_bind_double(stmt, 6, percentage);
     sqlite3_bind_int(stmt, 7, total);
     sqlite3_bind_int(stmt, 8, correct);
-    if (comment) sqlite3_bind_text(stmt, 9, comment, -1, SQLITE_STATIC);
-    else sqlite3_bind_null(stmt, 9);
+    if (comment)
+        sqlite3_bind_text(stmt, 9, comment, -1, SQLITE_STATIC);
+    else
+        sqlite3_bind_null(stmt, 9);
 
     rc = sqlite3_step(stmt);
     int64_t grade_id = (rc == SQLITE_DONE) ? sqlite3_last_insert_rowid(g_edu_db) : -1;
@@ -2242,10 +2399,10 @@ int64_t libretto_add_quiz_grade(int64_t student_id, const char* maestro_id,
 }
 
 int64_t libretto_add_log_entry(int64_t student_id, const char* maestro_id,
-                               const char* activity_type, const char* subject,
-                               const char* topic, int duration_minutes,
-                               const char* notes) {
-    if (!g_edu_db || !activity_type) return -1;
+                               const char* activity_type, const char* subject, const char* topic,
+                               int duration_minutes, const char* notes) {
+    if (!g_edu_db || !activity_type)
+        return -1;
 
     CONVERGIO_MUTEX_LOCK(&g_edu_db_mutex);
 
@@ -2265,15 +2422,23 @@ int64_t libretto_add_log_entry(int64_t student_id, const char* maestro_id,
     }
 
     sqlite3_bind_int64(stmt, 1, student_id);
-    if (maestro_id) sqlite3_bind_text(stmt, 2, maestro_id, -1, SQLITE_STATIC);
-    else sqlite3_bind_null(stmt, 2);
-    if (subject) sqlite3_bind_text(stmt, 3, subject, -1, SQLITE_STATIC);
-    else sqlite3_bind_null(stmt, 3);
+    if (maestro_id)
+        sqlite3_bind_text(stmt, 2, maestro_id, -1, SQLITE_STATIC);
+    else
+        sqlite3_bind_null(stmt, 2);
+    if (subject)
+        sqlite3_bind_text(stmt, 3, subject, -1, SQLITE_STATIC);
+    else
+        sqlite3_bind_null(stmt, 3);
     sqlite3_bind_text(stmt, 4, activity_type, -1, SQLITE_STATIC);
-    if (topic) sqlite3_bind_text(stmt, 5, topic, -1, SQLITE_STATIC);
-    else sqlite3_bind_null(stmt, 5);
-    if (notes) sqlite3_bind_text(stmt, 6, notes, -1, SQLITE_STATIC);
-    else sqlite3_bind_null(stmt, 6);
+    if (topic)
+        sqlite3_bind_text(stmt, 5, topic, -1, SQLITE_STATIC);
+    else
+        sqlite3_bind_null(stmt, 5);
+    if (notes)
+        sqlite3_bind_text(stmt, 6, notes, -1, SQLITE_STATIC);
+    else
+        sqlite3_bind_null(stmt, 6);
     sqlite3_bind_int(stmt, 7, duration_minutes);
     sqlite3_bind_int64(stmt, 8, started_at);
     sqlite3_bind_int64(stmt, 9, now);
@@ -2286,9 +2451,10 @@ int64_t libretto_add_log_entry(int64_t student_id, const char* maestro_id,
     return log_id;
 }
 
-EducationGrade** libretto_get_grades(int64_t student_id, const char* subject,
-                                     time_t from_date, time_t to_date, int* count) {
-    if (!g_edu_db || !count) return NULL;
+EducationGrade** libretto_get_grades(int64_t student_id, const char* subject, time_t from_date,
+                                     time_t to_date, int* count) {
+    if (!g_edu_db || !count)
+        return NULL;
     *count = 0;
 
     CONVERGIO_MUTEX_LOCK(&g_edu_db_mutex);
@@ -2296,12 +2462,11 @@ EducationGrade** libretto_get_grades(int64_t student_id, const char* subject,
     // Build dynamic query based on filters
     char sql[1024];
     snprintf(sql, sizeof(sql),
-        "SELECT id, maestro_id, subject, topic, grade_type, grade, grade_percentage, "
-        "comment, questions_total, questions_correct, recorded_at "
-        "FROM student_gradebook WHERE student_id = ?%s%s%s ORDER BY recorded_at DESC",
-        subject ? " AND subject = ?" : "",
-        from_date > 0 ? " AND recorded_at >= ?" : "",
-        to_date > 0 ? " AND recorded_at <= ?" : "");
+             "SELECT id, maestro_id, subject, topic, grade_type, grade, grade_percentage, "
+             "comment, questions_total, questions_correct, recorded_at "
+             "FROM student_gradebook WHERE student_id = ?%s%s%s ORDER BY recorded_at DESC",
+             subject ? " AND subject = ?" : "", from_date > 0 ? " AND recorded_at >= ?" : "",
+             to_date > 0 ? " AND recorded_at <= ?" : "");
 
     sqlite3_stmt* stmt;
     int rc = sqlite3_prepare_v2(g_edu_db, sql, -1, &stmt, NULL);
@@ -2312,13 +2477,17 @@ EducationGrade** libretto_get_grades(int64_t student_id, const char* subject,
 
     int param_idx = 1;
     sqlite3_bind_int64(stmt, param_idx++, student_id);
-    if (subject) sqlite3_bind_text(stmt, param_idx++, subject, -1, SQLITE_STATIC);
-    if (from_date > 0) sqlite3_bind_int64(stmt, param_idx++, from_date);
-    if (to_date > 0) sqlite3_bind_int64(stmt, param_idx++, to_date);
+    if (subject)
+        sqlite3_bind_text(stmt, param_idx++, subject, -1, SQLITE_STATIC);
+    if (from_date > 0)
+        sqlite3_bind_int64(stmt, param_idx++, from_date);
+    if (to_date > 0)
+        sqlite3_bind_int64(stmt, param_idx++, to_date);
 
     // Count rows first
     int grade_count = 0;
-    while (sqlite3_step(stmt) == SQLITE_ROW) grade_count++;
+    while (sqlite3_step(stmt) == SQLITE_ROW)
+        grade_count++;
 
     if (grade_count == 0) {
         sqlite3_finalize(stmt);
@@ -2338,26 +2507,31 @@ EducationGrade** libretto_get_grades(int64_t student_id, const char* subject,
     int i = 0;
     while (sqlite3_step(stmt) == SQLITE_ROW && i < grade_count) {
         EducationGrade* grade = calloc(1, sizeof(EducationGrade));
-        if (!grade) continue;
+        if (!grade)
+            continue;
 
         grade->id = sqlite3_column_int64(stmt, 0);
         grade->student_id = student_id;
 
         const char* maestro = (const char*)sqlite3_column_text(stmt, 1);
-        if (maestro) strncpy(grade->maestro_id, maestro, sizeof(grade->maestro_id) - 1);
+        if (maestro)
+            strncpy(grade->maestro_id, maestro, sizeof(grade->maestro_id) - 1);
 
         const char* subj = (const char*)sqlite3_column_text(stmt, 2);
-        if (subj) strncpy(grade->subject, subj, sizeof(grade->subject) - 1);
+        if (subj)
+            strncpy(grade->subject, subj, sizeof(grade->subject) - 1);
 
         const char* top = (const char*)sqlite3_column_text(stmt, 3);
-        if (top) strncpy(grade->topic, top, sizeof(grade->topic) - 1);
+        if (top)
+            strncpy(grade->topic, top, sizeof(grade->topic) - 1);
 
         grade->grade_type = string_to_grade_type((const char*)sqlite3_column_text(stmt, 4));
         grade->grade = (float)sqlite3_column_double(stmt, 5);
         grade->grade_percentage = (float)sqlite3_column_double(stmt, 6);
 
         const char* comm = (const char*)sqlite3_column_text(stmt, 7);
-        if (comm) strncpy(grade->comment, comm, sizeof(grade->comment) - 1);
+        if (comm)
+            strncpy(grade->comment, comm, sizeof(grade->comment) - 1);
 
         grade->questions_total = sqlite3_column_int(stmt, 8);
         grade->questions_correct = sqlite3_column_int(stmt, 9);
@@ -2373,21 +2547,21 @@ EducationGrade** libretto_get_grades(int64_t student_id, const char* subject,
     return grades;
 }
 
-EducationDailyLogEntry** libretto_get_daily_log(int64_t student_id,
-                                                 time_t from_date, time_t to_date,
-                                                 int* count) {
-    if (!g_edu_db || !count) return NULL;
+EducationDailyLogEntry** libretto_get_daily_log(int64_t student_id, time_t from_date,
+                                                time_t to_date, int* count) {
+    if (!g_edu_db || !count)
+        return NULL;
     *count = 0;
 
     CONVERGIO_MUTEX_LOCK(&g_edu_db_mutex);
 
     char sql[512];
     snprintf(sql, sizeof(sql),
-        "SELECT id, maestro_id, subject, activity_type, topic, notes, "
-        "duration_minutes, xp_earned, started_at, ended_at "
-        "FROM daily_log WHERE student_id = ?%s%s ORDER BY started_at DESC",
-        from_date > 0 ? " AND started_at >= ?" : "",
-        to_date > 0 ? " AND started_at <= ?" : "");
+             "SELECT id, maestro_id, subject, activity_type, topic, notes, "
+             "duration_minutes, xp_earned, started_at, ended_at "
+             "FROM daily_log WHERE student_id = ?%s%s ORDER BY started_at DESC",
+             from_date > 0 ? " AND started_at >= ?" : "",
+             to_date > 0 ? " AND started_at <= ?" : "");
 
     sqlite3_stmt* stmt;
     int rc = sqlite3_prepare_v2(g_edu_db, sql, -1, &stmt, NULL);
@@ -2398,12 +2572,15 @@ EducationDailyLogEntry** libretto_get_daily_log(int64_t student_id,
 
     int param_idx = 1;
     sqlite3_bind_int64(stmt, param_idx++, student_id);
-    if (from_date > 0) sqlite3_bind_int64(stmt, param_idx++, from_date);
-    if (to_date > 0) sqlite3_bind_int64(stmt, param_idx++, to_date);
+    if (from_date > 0)
+        sqlite3_bind_int64(stmt, param_idx++, from_date);
+    if (to_date > 0)
+        sqlite3_bind_int64(stmt, param_idx++, to_date);
 
     // Count rows
     int log_count = 0;
-    while (sqlite3_step(stmt) == SQLITE_ROW) log_count++;
+    while (sqlite3_step(stmt) == SQLITE_ROW)
+        log_count++;
 
     if (log_count == 0) {
         sqlite3_finalize(stmt);
@@ -2422,25 +2599,31 @@ EducationDailyLogEntry** libretto_get_daily_log(int64_t student_id,
     int i = 0;
     while (sqlite3_step(stmt) == SQLITE_ROW && i < log_count) {
         EducationDailyLogEntry* entry = calloc(1, sizeof(EducationDailyLogEntry));
-        if (!entry) continue;
+        if (!entry)
+            continue;
 
         entry->id = sqlite3_column_int64(stmt, 0);
         entry->student_id = student_id;
 
         const char* maestro = (const char*)sqlite3_column_text(stmt, 1);
-        if (maestro) strncpy(entry->maestro_id, maestro, sizeof(entry->maestro_id) - 1);
+        if (maestro)
+            strncpy(entry->maestro_id, maestro, sizeof(entry->maestro_id) - 1);
 
         const char* subj = (const char*)sqlite3_column_text(stmt, 2);
-        if (subj) strncpy(entry->subject, subj, sizeof(entry->subject) - 1);
+        if (subj)
+            strncpy(entry->subject, subj, sizeof(entry->subject) - 1);
 
         const char* act = (const char*)sqlite3_column_text(stmt, 3);
-        if (act) strncpy(entry->activity_type, act, sizeof(entry->activity_type) - 1);
+        if (act)
+            strncpy(entry->activity_type, act, sizeof(entry->activity_type) - 1);
 
         const char* top = (const char*)sqlite3_column_text(stmt, 4);
-        if (top) strncpy(entry->topic, top, sizeof(entry->topic) - 1);
+        if (top)
+            strncpy(entry->topic, top, sizeof(entry->topic) - 1);
 
         const char* notes = (const char*)sqlite3_column_text(stmt, 5);
-        if (notes) strncpy(entry->notes, notes, sizeof(entry->notes) - 1);
+        if (notes)
+            strncpy(entry->notes, notes, sizeof(entry->notes) - 1);
 
         entry->duration_minutes = sqlite3_column_int(stmt, 6);
         entry->xp_earned = sqlite3_column_int(stmt, 7);
@@ -2457,18 +2640,18 @@ EducationDailyLogEntry** libretto_get_daily_log(int64_t student_id,
     return logs;
 }
 
-float libretto_get_average(int64_t student_id, const char* subject,
-                           time_t from_date, time_t to_date) {
-    if (!g_edu_db) return -1.0f;
+float libretto_get_average(int64_t student_id, const char* subject, time_t from_date,
+                           time_t to_date) {
+    if (!g_edu_db)
+        return -1.0f;
 
     CONVERGIO_MUTEX_LOCK(&g_edu_db_mutex);
 
     char sql[512];
     snprintf(sql, sizeof(sql),
-        "SELECT AVG(grade) FROM student_gradebook WHERE student_id = ?%s%s%s",
-        subject ? " AND subject = ?" : "",
-        from_date > 0 ? " AND recorded_at >= ?" : "",
-        to_date > 0 ? " AND recorded_at <= ?" : "");
+             "SELECT AVG(grade) FROM student_gradebook WHERE student_id = ?%s%s%s",
+             subject ? " AND subject = ?" : "", from_date > 0 ? " AND recorded_at >= ?" : "",
+             to_date > 0 ? " AND recorded_at <= ?" : "");
 
     sqlite3_stmt* stmt;
     int rc = sqlite3_prepare_v2(g_edu_db, sql, -1, &stmt, NULL);
@@ -2479,9 +2662,12 @@ float libretto_get_average(int64_t student_id, const char* subject,
 
     int param_idx = 1;
     sqlite3_bind_int64(stmt, param_idx++, student_id);
-    if (subject) sqlite3_bind_text(stmt, param_idx++, subject, -1, SQLITE_STATIC);
-    if (from_date > 0) sqlite3_bind_int64(stmt, param_idx++, from_date);
-    if (to_date > 0) sqlite3_bind_int64(stmt, param_idx++, to_date);
+    if (subject)
+        sqlite3_bind_text(stmt, param_idx++, subject, -1, SQLITE_STATIC);
+    if (from_date > 0)
+        sqlite3_bind_int64(stmt, param_idx++, from_date);
+    if (to_date > 0)
+        sqlite3_bind_int64(stmt, param_idx++, to_date);
 
     float avg = -1.0f;
     if (sqlite3_step(stmt) == SQLITE_ROW) {
@@ -2494,18 +2680,21 @@ float libretto_get_average(int64_t student_id, const char* subject,
     return avg;
 }
 
-EducationProgressReport* libretto_get_progress_report(int64_t student_id,
-                                                       time_t from_date,
-                                                       time_t to_date) {
-    if (!g_edu_db) return NULL;
+EducationProgressReport* libretto_get_progress_report(int64_t student_id, time_t from_date,
+                                                      time_t to_date) {
+    if (!g_edu_db)
+        return NULL;
 
     // Default to last 30 days
     time_t now = time(NULL);
-    if (to_date == 0) to_date = now;
-    if (from_date == 0) from_date = now - (30 * 24 * 60 * 60);
+    if (to_date == 0)
+        to_date = now;
+    if (from_date == 0)
+        from_date = now - (30 * 24 * 60 * 60);
 
     EducationProgressReport* report = calloc(1, sizeof(EducationProgressReport));
-    if (!report) return NULL;
+    if (!report)
+        return NULL;
 
     report->student_id = student_id;
     report->period_start = from_date;
@@ -2515,20 +2704,23 @@ EducationProgressReport* libretto_get_progress_report(int64_t student_id,
 
     // Get student name
     sqlite3_stmt* stmt;
-    int rc = sqlite3_prepare_v2(g_edu_db, "SELECT name FROM student_profiles WHERE id = ?", -1, &stmt, NULL);
+    int rc = sqlite3_prepare_v2(g_edu_db, "SELECT name FROM student_profiles WHERE id = ?", -1,
+                                &stmt, NULL);
     if (rc == SQLITE_OK) {
         sqlite3_bind_int64(stmt, 1, student_id);
         if (sqlite3_step(stmt) == SQLITE_ROW) {
             const char* name = (const char*)sqlite3_column_text(stmt, 0);
-            if (name) strncpy(report->student_name, name, sizeof(report->student_name) - 1);
+            if (name)
+                strncpy(report->student_name, name, sizeof(report->student_name) - 1);
         }
         sqlite3_finalize(stmt);
     }
 
     // Get overall average
     rc = sqlite3_prepare_v2(g_edu_db,
-        "SELECT AVG(grade) FROM student_gradebook WHERE student_id = ? AND recorded_at BETWEEN ? AND ?",
-        -1, &stmt, NULL);
+                            "SELECT AVG(grade) FROM student_gradebook WHERE student_id = ? AND "
+                            "recorded_at BETWEEN ? AND ?",
+                            -1, &stmt, NULL);
     if (rc == SQLITE_OK) {
         sqlite3_bind_int64(stmt, 1, student_id);
         sqlite3_bind_int64(stmt, 2, from_date);
@@ -2541,9 +2733,9 @@ EducationProgressReport* libretto_get_progress_report(int64_t student_id,
 
     // Get total study hours
     rc = sqlite3_prepare_v2(g_edu_db,
-        "SELECT SUM(duration_minutes) / 60, COUNT(*) FROM daily_log "
-        "WHERE student_id = ? AND started_at BETWEEN ? AND ?",
-        -1, &stmt, NULL);
+                            "SELECT SUM(duration_minutes) / 60, COUNT(*) FROM daily_log "
+                            "WHERE student_id = ? AND started_at BETWEEN ? AND ?",
+                            -1, &stmt, NULL);
     if (rc == SQLITE_OK) {
         sqlite3_bind_int64(stmt, 1, student_id);
         sqlite3_bind_int64(stmt, 2, from_date);
@@ -2556,7 +2748,8 @@ EducationProgressReport* libretto_get_progress_report(int64_t student_id,
     }
 
     // Get quizzes taken
-    rc = sqlite3_prepare_v2(g_edu_db,
+    rc = sqlite3_prepare_v2(
+        g_edu_db,
         "SELECT COUNT(*) FROM student_gradebook "
         "WHERE student_id = ? AND grade_type = 'quiz' AND recorded_at BETWEEN ? AND ?",
         -1, &stmt, NULL);
@@ -2571,7 +2764,8 @@ EducationProgressReport* libretto_get_progress_report(int64_t student_id,
     }
 
     // Get goals achieved
-    rc = sqlite3_prepare_v2(g_edu_db,
+    rc = sqlite3_prepare_v2(
+        g_edu_db,
         "SELECT COUNT(*) FROM student_goals "
         "WHERE student_id = ? AND status = 'achieved' AND completed_at BETWEEN ? AND ?",
         -1, &stmt, NULL);
@@ -2586,9 +2780,8 @@ EducationProgressReport* libretto_get_progress_report(int64_t student_id,
     }
 
     // Get current streak
-    rc = sqlite3_prepare_v2(g_edu_db,
-        "SELECT current_streak FROM gamification WHERE student_id = ?",
-        -1, &stmt, NULL);
+    rc = sqlite3_prepare_v2(
+        g_edu_db, "SELECT current_streak FROM gamification WHERE student_id = ?", -1, &stmt, NULL);
     if (rc == SQLITE_OK) {
         sqlite3_bind_int64(stmt, 1, student_id);
         if (sqlite3_step(stmt) == SQLITE_ROW) {
@@ -2599,11 +2792,11 @@ EducationProgressReport* libretto_get_progress_report(int64_t student_id,
 
     // Get subject stats
     rc = sqlite3_prepare_v2(g_edu_db,
-        "SELECT subject, maestro_id, AVG(grade), COUNT(*) "
-        "FROM student_gradebook "
-        "WHERE student_id = ? AND recorded_at BETWEEN ? AND ? "
-        "GROUP BY subject ORDER BY AVG(grade) DESC",
-        -1, &stmt, NULL);
+                            "SELECT subject, maestro_id, AVG(grade), COUNT(*) "
+                            "FROM student_gradebook "
+                            "WHERE student_id = ? AND recorded_at BETWEEN ? AND ? "
+                            "GROUP BY subject ORDER BY AVG(grade) DESC",
+                            -1, &stmt, NULL);
     if (rc == SQLITE_OK) {
         sqlite3_bind_int64(stmt, 1, student_id);
         sqlite3_bind_int64(stmt, 2, from_date);
@@ -2611,7 +2804,8 @@ EducationProgressReport* libretto_get_progress_report(int64_t student_id,
 
         // Count subjects
         int subject_count = 0;
-        while (sqlite3_step(stmt) == SQLITE_ROW) subject_count++;
+        while (sqlite3_step(stmt) == SQLITE_ROW)
+            subject_count++;
 
         if (subject_count > 0) {
             sqlite3_reset(stmt);
@@ -2620,10 +2814,14 @@ EducationProgressReport* libretto_get_progress_report(int64_t student_id,
                 int i = 0;
                 while (sqlite3_step(stmt) == SQLITE_ROW && i < subject_count) {
                     const char* subj = (const char*)sqlite3_column_text(stmt, 0);
-                    if (subj) strncpy(report->subjects[i].subject, subj, sizeof(report->subjects[i].subject) - 1);
+                    if (subj)
+                        strncpy(report->subjects[i].subject, subj,
+                                sizeof(report->subjects[i].subject) - 1);
 
                     const char* maestro = (const char*)sqlite3_column_text(stmt, 1);
-                    if (maestro) strncpy(report->subjects[i].maestro_id, maestro, sizeof(report->subjects[i].maestro_id) - 1);
+                    if (maestro)
+                        strncpy(report->subjects[i].maestro_id, maestro,
+                                sizeof(report->subjects[i].maestro_id) - 1);
 
                     report->subjects[i].average_grade = (float)sqlite3_column_double(stmt, 2);
                     report->subjects[i].grade_count = sqlite3_column_int(stmt, 3);
@@ -2639,21 +2837,21 @@ EducationProgressReport* libretto_get_progress_report(int64_t student_id,
     return report;
 }
 
-EducationSubjectStats** libretto_get_study_stats(int64_t student_id,
-                                                  time_t from_date, time_t to_date,
-                                                  int* count) {
-    if (!g_edu_db || !count) return NULL;
+EducationSubjectStats** libretto_get_study_stats(int64_t student_id, time_t from_date,
+                                                 time_t to_date, int* count) {
+    if (!g_edu_db || !count)
+        return NULL;
     *count = 0;
 
     CONVERGIO_MUTEX_LOCK(&g_edu_db_mutex);
 
     char sql[512];
     snprintf(sql, sizeof(sql),
-        "SELECT subject, maestro_id, SUM(duration_minutes), COUNT(*) "
-        "FROM daily_log WHERE student_id = ?%s%s AND subject IS NOT NULL "
-        "GROUP BY subject ORDER BY SUM(duration_minutes) DESC",
-        from_date > 0 ? " AND started_at >= ?" : "",
-        to_date > 0 ? " AND started_at <= ?" : "");
+             "SELECT subject, maestro_id, SUM(duration_minutes), COUNT(*) "
+             "FROM daily_log WHERE student_id = ?%s%s AND subject IS NOT NULL "
+             "GROUP BY subject ORDER BY SUM(duration_minutes) DESC",
+             from_date > 0 ? " AND started_at >= ?" : "",
+             to_date > 0 ? " AND started_at <= ?" : "");
 
     sqlite3_stmt* stmt;
     int rc = sqlite3_prepare_v2(g_edu_db, sql, -1, &stmt, NULL);
@@ -2664,12 +2862,15 @@ EducationSubjectStats** libretto_get_study_stats(int64_t student_id,
 
     int param_idx = 1;
     sqlite3_bind_int64(stmt, param_idx++, student_id);
-    if (from_date > 0) sqlite3_bind_int64(stmt, param_idx++, from_date);
-    if (to_date > 0) sqlite3_bind_int64(stmt, param_idx++, to_date);
+    if (from_date > 0)
+        sqlite3_bind_int64(stmt, param_idx++, from_date);
+    if (to_date > 0)
+        sqlite3_bind_int64(stmt, param_idx++, to_date);
 
     // Count rows
     int stats_count = 0;
-    while (sqlite3_step(stmt) == SQLITE_ROW) stats_count++;
+    while (sqlite3_step(stmt) == SQLITE_ROW)
+        stats_count++;
 
     if (stats_count == 0) {
         sqlite3_finalize(stmt);
@@ -2688,13 +2889,16 @@ EducationSubjectStats** libretto_get_study_stats(int64_t student_id,
     int i = 0;
     while (sqlite3_step(stmt) == SQLITE_ROW && i < stats_count) {
         EducationSubjectStats* stat = calloc(1, sizeof(EducationSubjectStats));
-        if (!stat) continue;
+        if (!stat)
+            continue;
 
         const char* subj = (const char*)sqlite3_column_text(stmt, 0);
-        if (subj) strncpy(stat->subject, subj, sizeof(stat->subject) - 1);
+        if (subj)
+            strncpy(stat->subject, subj, sizeof(stat->subject) - 1);
 
         const char* maestro = (const char*)sqlite3_column_text(stmt, 1);
-        if (maestro) strncpy(stat->maestro_id, maestro, sizeof(stat->maestro_id) - 1);
+        if (maestro)
+            strncpy(stat->maestro_id, maestro, sizeof(stat->maestro_id) - 1);
 
         stat->total_study_minutes = sqlite3_column_int(stmt, 2);
         stat->grade_count = sqlite3_column_int(stmt, 3);
@@ -2710,7 +2914,8 @@ EducationSubjectStats** libretto_get_study_stats(int64_t student_id,
 }
 
 void libretto_grades_free(EducationGrade** grades, int count) {
-    if (!grades) return;
+    if (!grades)
+        return;
     for (int i = 0; i < count; i++) {
         free(grades[i]);
     }
@@ -2718,7 +2923,8 @@ void libretto_grades_free(EducationGrade** grades, int count) {
 }
 
 void libretto_logs_free(EducationDailyLogEntry** logs, int count) {
-    if (!logs) return;
+    if (!logs)
+        return;
     for (int i = 0; i < count; i++) {
         free(logs[i]);
     }
@@ -2726,13 +2932,15 @@ void libretto_logs_free(EducationDailyLogEntry** logs, int count) {
 }
 
 void libretto_report_free(EducationProgressReport* report) {
-    if (!report) return;
+    if (!report)
+        return;
     free(report->subjects);
     free(report);
 }
 
 void libretto_stats_free(EducationSubjectStats** stats, int count) {
-    if (!stats) return;
+    if (!stats)
+        return;
     for (int i = 0; i < count; i++) {
         free(stats[i]);
     }
@@ -2744,21 +2952,32 @@ void libretto_stats_free(EducationSubjectStats** stats, int count) {
 // ============================================================================
 
 static EducationToolkitType str_to_toolkit_type(const char* str) {
-    if (!str) return TOOLKIT_NOTE;
-    if (strcmp(str, "mindmap") == 0) return TOOLKIT_MINDMAP;
-    if (strcmp(str, "quiz") == 0) return TOOLKIT_QUIZ;
-    if (strcmp(str, "flashcard_deck") == 0) return TOOLKIT_FLASHCARD;
-    if (strcmp(str, "audio") == 0) return TOOLKIT_AUDIO;
-    if (strcmp(str, "summary") == 0) return TOOLKIT_SUMMARY;
-    if (strcmp(str, "formula") == 0) return TOOLKIT_FORMULA;
-    if (strcmp(str, "graph") == 0) return TOOLKIT_GRAPH;
-    if (strcmp(str, "flowchart") == 0) return TOOLKIT_FLOWCHART;
-    if (strcmp(str, "timeline") == 0) return TOOLKIT_TIMELINE;
+    if (!str)
+        return TOOLKIT_NOTE;
+    if (strcmp(str, "mindmap") == 0)
+        return TOOLKIT_MINDMAP;
+    if (strcmp(str, "quiz") == 0)
+        return TOOLKIT_QUIZ;
+    if (strcmp(str, "flashcard_deck") == 0)
+        return TOOLKIT_FLASHCARD;
+    if (strcmp(str, "audio") == 0)
+        return TOOLKIT_AUDIO;
+    if (strcmp(str, "summary") == 0)
+        return TOOLKIT_SUMMARY;
+    if (strcmp(str, "formula") == 0)
+        return TOOLKIT_FORMULA;
+    if (strcmp(str, "graph") == 0)
+        return TOOLKIT_GRAPH;
+    if (strcmp(str, "flowchart") == 0)
+        return TOOLKIT_FLOWCHART;
+    if (strcmp(str, "timeline") == 0)
+        return TOOLKIT_TIMELINE;
     return TOOLKIT_NOTE;
 }
 
 EducationToolkitOutput* education_toolkit_get(int64_t output_id) {
-    if (!g_edu_initialized) return NULL;
+    if (!g_edu_initialized)
+        return NULL;
 
     CONVERGIO_MUTEX_LOCK(&g_edu_db_mutex);
 
@@ -2782,11 +3001,14 @@ EducationToolkitOutput* education_toolkit_get(int64_t output_id) {
             const char* type_str = (const char*)sqlite3_column_text(stmt, 2);
             output->tool_type = str_to_toolkit_type(type_str);
             const char* topic = (const char*)sqlite3_column_text(stmt, 3);
-            if (topic) strncpy(output->topic, topic, sizeof(output->topic) - 1);
+            if (topic)
+                strncpy(output->topic, topic, sizeof(output->topic) - 1);
             const char* content = (const char*)sqlite3_column_text(stmt, 4);
-            if (content) output->content = strdup(content);
+            if (content)
+                output->content = strdup(content);
             const char* format = (const char*)sqlite3_column_text(stmt, 5);
-            if (format) strncpy(output->format, format, sizeof(output->format) - 1);
+            if (format)
+                strncpy(output->format, format, sizeof(output->format) - 1);
             output->created_at = (time_t)sqlite3_column_int64(stmt, 6);
             output->last_accessed = (time_t)sqlite3_column_int64(stmt, 7);
         }
@@ -2798,15 +3020,17 @@ EducationToolkitOutput* education_toolkit_get(int64_t output_id) {
 }
 
 EducationToolkitOutput** education_toolkit_list(int64_t student_id, int type, int* count) {
-    if (!g_edu_initialized || !count) return NULL;
+    if (!g_edu_initialized || !count)
+        return NULL;
     *count = 0;
 
     CONVERGIO_MUTEX_LOCK(&g_edu_db_mutex);
 
     // First count records
-    const char* count_sql = (type < 0)
-        ? "SELECT COUNT(*) FROM toolkit_outputs WHERE student_id = ?"
-        : "SELECT COUNT(*) FROM toolkit_outputs WHERE student_id = ? AND output_type = ?";
+    const char* count_sql =
+        (type < 0)
+            ? "SELECT COUNT(*) FROM toolkit_outputs WHERE student_id = ?"
+            : "SELECT COUNT(*) FROM toolkit_outputs WHERE student_id = ? AND output_type = ?";
 
     sqlite3_stmt* stmt;
     int rc = sqlite3_prepare_v2(g_edu_db, count_sql, -1, &stmt, NULL);
@@ -2817,8 +3041,8 @@ EducationToolkitOutput** education_toolkit_list(int64_t student_id, int type, in
 
     sqlite3_bind_int64(stmt, 1, student_id);
     if (type >= 0) {
-        const char* types[] = {"mindmap", "quiz", "flashcard_deck", "audio", "summary",
-                               "formula", "graph", "flowchart", "timeline"};
+        const char* types[] = {"mindmap", "quiz",  "flashcard_deck", "audio",   "summary",
+                               "formula", "graph", "flowchart",      "timeline"};
         const char* type_str = (type < 9) ? types[type] : "summary";
         sqlite3_bind_text(stmt, 2, type_str, -1, SQLITE_STATIC);
     }
@@ -2835,11 +3059,13 @@ EducationToolkitOutput** education_toolkit_list(int64_t student_id, int type, in
     }
 
     // Fetch records
-    const char* list_sql = (type < 0)
-        ? "SELECT id, student_id, output_type, topic, content, format, created_at, updated_at "
-          "FROM toolkit_outputs WHERE student_id = ? ORDER BY created_at DESC"
-        : "SELECT id, student_id, output_type, topic, content, format, created_at, updated_at "
-          "FROM toolkit_outputs WHERE student_id = ? AND output_type = ? ORDER BY created_at DESC";
+    const char* list_sql =
+        (type < 0)
+            ? "SELECT id, student_id, output_type, topic, content, format, created_at, updated_at "
+              "FROM toolkit_outputs WHERE student_id = ? ORDER BY created_at DESC"
+            : "SELECT id, student_id, output_type, topic, content, format, created_at, updated_at "
+              "FROM toolkit_outputs WHERE student_id = ? AND output_type = ? ORDER BY created_at "
+              "DESC";
 
     rc = sqlite3_prepare_v2(g_edu_db, list_sql, -1, &stmt, NULL);
     if (rc != SQLITE_OK) {
@@ -2849,8 +3075,8 @@ EducationToolkitOutput** education_toolkit_list(int64_t student_id, int type, in
 
     sqlite3_bind_int64(stmt, 1, student_id);
     if (type >= 0) {
-        const char* types[] = {"mindmap", "quiz", "flashcard_deck", "audio", "summary",
-                               "formula", "graph", "flowchart", "timeline"};
+        const char* types[] = {"mindmap", "quiz",  "flashcard_deck", "audio",   "summary",
+                               "formula", "graph", "flowchart",      "timeline"};
         const char* type_str = (type < 9) ? types[type] : "summary";
         sqlite3_bind_text(stmt, 2, type_str, -1, SQLITE_STATIC);
     }
@@ -2865,18 +3091,22 @@ EducationToolkitOutput** education_toolkit_list(int64_t student_id, int type, in
     int i = 0;
     while (sqlite3_step(stmt) == SQLITE_ROW && i < total) {
         EducationToolkitOutput* output = calloc(1, sizeof(EducationToolkitOutput));
-        if (!output) continue;
+        if (!output)
+            continue;
 
         output->id = sqlite3_column_int64(stmt, 0);
         output->student_id = sqlite3_column_int64(stmt, 1);
         const char* type_str = (const char*)sqlite3_column_text(stmt, 2);
         output->tool_type = str_to_toolkit_type(type_str);
         const char* topic = (const char*)sqlite3_column_text(stmt, 3);
-        if (topic) strncpy(output->topic, topic, sizeof(output->topic) - 1);
+        if (topic)
+            strncpy(output->topic, topic, sizeof(output->topic) - 1);
         const char* content = (const char*)sqlite3_column_text(stmt, 4);
-        if (content) output->content = strdup(content);
+        if (content)
+            output->content = strdup(content);
         const char* format = (const char*)sqlite3_column_text(stmt, 5);
-        if (format) strncpy(output->format, format, sizeof(output->format) - 1);
+        if (format)
+            strncpy(output->format, format, sizeof(output->format) - 1);
         output->created_at = (time_t)sqlite3_column_int64(stmt, 6);
         output->last_accessed = (time_t)sqlite3_column_int64(stmt, 7);
 
@@ -2890,13 +3120,15 @@ EducationToolkitOutput** education_toolkit_list(int64_t student_id, int type, in
 }
 
 void education_toolkit_free(EducationToolkitOutput* output) {
-    if (!output) return;
+    if (!output)
+        return;
     free(output->content);
     free(output);
 }
 
 void education_toolkit_list_free(EducationToolkitOutput** outputs, int count) {
-    if (!outputs) return;
+    if (!outputs)
+        return;
     for (int i = 0; i < count; i++) {
         education_toolkit_free(outputs[i]);
     }
@@ -2908,7 +3140,8 @@ void education_toolkit_list_free(EducationToolkitOutput** outputs, int count) {
 // ============================================================================
 
 int education_flashcard_create_reviews(int64_t toolkit_output_id, int card_count) {
-    if (!g_edu_initialized || card_count <= 0) return -1;
+    if (!g_edu_initialized || card_count <= 0)
+        return -1;
 
     CONVERGIO_MUTEX_LOCK(&g_edu_db_mutex);
 
@@ -2931,7 +3164,7 @@ int education_flashcard_create_reviews(int64_t toolkit_output_id, int card_count
         sqlite3_reset(stmt);
         sqlite3_bind_int64(stmt, 1, toolkit_output_id);
         sqlite3_bind_int(stmt, 2, i);
-        sqlite3_bind_int64(stmt, 3, now);  // Due immediately
+        sqlite3_bind_int64(stmt, 3, now); // Due immediately
 
         if (sqlite3_step(stmt) == SQLITE_DONE) {
             success++;
@@ -2945,15 +3178,15 @@ int education_flashcard_create_reviews(int64_t toolkit_output_id, int card_count
 }
 
 int education_flashcard_due_count(int64_t student_id) {
-    if (!g_edu_initialized) return 0;
+    if (!g_edu_initialized)
+        return 0;
 
     CONVERGIO_MUTEX_LOCK(&g_edu_db_mutex);
 
     // Count cards due for review (next_review_at <= now)
-    const char* sql =
-        "SELECT COUNT(*) FROM flashcard_reviews fr "
-        "JOIN toolkit_outputs t ON fr.toolkit_output_id = t.id "
-        "WHERE t.student_id = ? AND fr.next_review_at <= ?";
+    const char* sql = "SELECT COUNT(*) FROM flashcard_reviews fr "
+                      "JOIN toolkit_outputs t ON fr.toolkit_output_id = t.id "
+                      "WHERE t.student_id = ? AND fr.next_review_at <= ?";
 
     sqlite3_stmt* stmt;
     int rc = sqlite3_prepare_v2(g_edu_db, sql, -1, &stmt, NULL);
@@ -2980,15 +3213,15 @@ int education_flashcard_due_count(int64_t student_id) {
 // ============================================================================
 
 EducationSession** education_session_list(int64_t student_id, int limit, int* count) {
-    if (!g_edu_initialized || !count) return NULL;
+    if (!g_edu_initialized || !count)
+        return NULL;
     *count = 0;
 
     CONVERGIO_MUTEX_LOCK(&g_edu_db_mutex);
 
-    const char* sql =
-        "SELECT id, student_id, session_type, subject, topic, started_at, ended_at, "
-        "duration_minutes, xp_earned FROM learning_sessions "
-        "WHERE student_id = ? ORDER BY started_at DESC LIMIT ?";
+    const char* sql = "SELECT id, student_id, session_type, subject, topic, started_at, ended_at, "
+                      "duration_minutes, xp_earned FROM learning_sessions "
+                      "WHERE student_id = ? ORDER BY started_at DESC LIMIT ?";
 
     sqlite3_stmt* stmt;
     int rc = sqlite3_prepare_v2(g_edu_db, sql, -1, &stmt, NULL);
@@ -3024,15 +3257,18 @@ EducationSession** education_session_list(int64_t student_id, int limit, int* co
     int i = 0;
     while (sqlite3_step(stmt) == SQLITE_ROW && i < total) {
         EducationSession* session = calloc(1, sizeof(EducationSession));
-        if (!session) continue;
+        if (!session)
+            continue;
 
         session->id = sqlite3_column_int64(stmt, 0);
         session->student_id = sqlite3_column_int64(stmt, 1);
         // session_type stored as text, we use maestro_id field
         const char* maestro = (const char*)sqlite3_column_text(stmt, 2);
-        if (maestro) strncpy(session->maestro_id, maestro, sizeof(session->maestro_id) - 1);
+        if (maestro)
+            strncpy(session->maestro_id, maestro, sizeof(session->maestro_id) - 1);
         const char* topic = (const char*)sqlite3_column_text(stmt, 4);
-        if (topic) strncpy(session->topic, topic, sizeof(session->topic) - 1);
+        if (topic)
+            strncpy(session->topic, topic, sizeof(session->topic) - 1);
         session->started_at = (time_t)sqlite3_column_int64(stmt, 5);
         session->ended_at = (time_t)sqlite3_column_int64(stmt, 6);
         session->duration_minutes = sqlite3_column_int(stmt, 7);
@@ -3047,7 +3283,8 @@ EducationSession** education_session_list(int64_t student_id, int limit, int* co
 }
 
 void education_session_list_free(EducationSession** sessions, int count) {
-    if (!sessions) return;
+    if (!sessions)
+        return;
     for (int i = 0; i < count; i++) {
         free(sessions[i]);
     }
@@ -3060,7 +3297,8 @@ void education_session_list_free(EducationSession** sessions, int count) {
 
 bool education_accessibility_wants_tts(int64_t student_id) {
     EducationStudentProfile* profile = education_profile_get(student_id);
-    if (!profile) return false;
+    if (!profile)
+        return false;
 
     bool wants_tts = false;
     if (profile->accessibility) {
@@ -3081,7 +3319,8 @@ bool education_accessibility_wants_tts(int64_t student_id) {
 // Helper to read entire file into string
 static char* read_file_to_string(const char* path) {
     FILE* f = fopen(path, "rb");
-    if (!f) return NULL;
+    if (!f)
+        return NULL;
 
     fseek(f, 0, SEEK_END);
     long size = ftell(f);
@@ -3102,18 +3341,15 @@ static char* read_file_to_string(const char* path) {
 // Find curriculum JSON file in various paths
 static char* find_curriculum_file(const char* curriculum_id) {
     char path[512];
-    const char* search_paths[] = {
-        "curricula/it/%s.json",
-        "../curricula/it/%s.json",
-        "../../curricula/it/%s.json",
-        NULL
-    };
+    const char* search_paths[] = {"curricula/it/%s.json", "../curricula/it/%s.json",
+                                  "../../curricula/it/%s.json", NULL};
 
     // Try relative to cwd first
     for (const char** p = search_paths; *p; p++) {
         snprintf(path, sizeof(path), *p, curriculum_id);
         char* content = read_file_to_string(path);
-        if (content) return content;
+        if (content)
+            return content;
     }
 
     // Try relative to home directory
@@ -3121,23 +3357,27 @@ static char* find_curriculum_file(const char* curriculum_id) {
     if (home) {
         snprintf(path, sizeof(path), "%s/.convergio/curricula/it/%s.json", home, curriculum_id);
         char* content = read_file_to_string(path);
-        if (content) return content;
+        if (content)
+            return content;
     }
 
     return NULL;
 }
 
 EducationCurriculum* education_curriculum_load(const char* curriculum_id) {
-    if (!curriculum_id) return NULL;
+    if (!curriculum_id)
+        return NULL;
 
     // Read JSON file
     char* json_str = find_curriculum_file(curriculum_id);
-    if (!json_str) return NULL;
+    if (!json_str)
+        return NULL;
 
     // Parse JSON
     cJSON* root = cJSON_Parse(json_str);
     free(json_str);
-    if (!root) return NULL;
+    if (!root)
+        return NULL;
 
     // Create curriculum structure
     EducationCurriculum* curr = calloc(1, sizeof(EducationCurriculum));
@@ -3174,7 +3414,8 @@ EducationCurriculum* education_curriculum_load(const char* curriculum_id) {
             curr->subject_count = 0;
             cJSON* subj = NULL;
             cJSON_ArrayForEach(subj, subjects) {
-                if (!cJSON_IsObject(subj)) continue;
+                if (!cJSON_IsObject(subj))
+                    continue;
 
                 EducationSubject* s = &curr->subjects[curr->subject_count];
                 strncpy(s->id, subj->string, sizeof(s->id) - 1);
@@ -3206,7 +3447,8 @@ EducationCurriculum* education_curriculum_load(const char* curriculum_id) {
                 // Update subjects with topics from year 1
                 cJSON* subj = NULL;
                 cJSON_ArrayForEach(subj, year_subjects) {
-                    if (!cJSON_IsObject(subj)) continue;
+                    if (!cJSON_IsObject(subj))
+                        continue;
 
                     // Find matching subject
                     for (int i = 0; i < curr->subject_count; i++) {
@@ -3218,11 +3460,13 @@ EducationCurriculum* education_curriculum_load(const char* curriculum_id) {
                                 cJSON* unit = NULL;
                                 cJSON_ArrayForEach(unit, units) {
                                     cJSON* topics = cJSON_GetObjectItem(unit, "topics");
-                                    if (topics) topic_count += cJSON_GetArraySize(topics);
+                                    if (topics)
+                                        topic_count += cJSON_GetArraySize(topics);
                                 }
 
                                 if (topic_count > 0) {
-                                    curr->subjects[i].topics = calloc((size_t)topic_count, sizeof(char*));
+                                    curr->subjects[i].topics =
+                                        calloc((size_t)topic_count, sizeof(char*));
                                     if (curr->subjects[i].topics) {
                                         int idx = 0;
                                         cJSON_ArrayForEach(unit, units) {
@@ -3231,7 +3475,8 @@ EducationCurriculum* education_curriculum_load(const char* curriculum_id) {
                                                 cJSON* topic = NULL;
                                                 cJSON_ArrayForEach(topic, topics) {
                                                     if (cJSON_IsString(topic)) {
-                                                        curr->subjects[i].topics[idx++] = strdup(topic->valuestring);
+                                                        curr->subjects[i].topics[idx++] =
+                                                            strdup(topic->valuestring);
                                                     }
                                                 }
                                             }
@@ -3253,24 +3498,19 @@ EducationCurriculum* education_curriculum_load(const char* curriculum_id) {
 }
 
 char** education_curriculum_list(int* count) {
-    if (!count) return NULL;
+    if (!count)
+        return NULL;
     *count = 0;
 
     // Return list of available curricula
-    const char* curricula[] = {
-        "liceo_scientifico",
-        "liceo_classico",
-        "liceo_linguistico",
-        "liceo_artistico",
-        "scuola_media",
-        "elementari",
-        "iti_informatica",
-        "iti_commerciale"
-    };
+    const char* curricula[] = {"liceo_scientifico", "liceo_classico", "liceo_linguistico",
+                               "liceo_artistico",   "scuola_media",   "elementari",
+                               "iti_informatica",   "iti_commerciale"};
 
     int num = 8;
     char** list = calloc((size_t)num, sizeof(char*));
-    if (!list) return NULL;
+    if (!list)
+        return NULL;
 
     for (int i = 0; i < num; i++) {
         list[i] = strdup(curricula[i]);
@@ -3280,13 +3520,16 @@ char** education_curriculum_list(int* count) {
     return list;
 }
 
-EducationSubject** education_curriculum_get_subjects(const char* curriculum_id, int year, int* count) {
-    if (!count) return NULL;
+EducationSubject** education_curriculum_get_subjects(const char* curriculum_id, int year,
+                                                     int* count) {
+    if (!count)
+        return NULL;
     *count = 0;
 
     // Load curriculum
     EducationCurriculum* curr = education_curriculum_load(curriculum_id);
-    if (!curr) return NULL;
+    if (!curr)
+        return NULL;
 
     // Read JSON again for year-specific subjects
     char* json_str = find_curriculum_file(curriculum_id);
@@ -3339,10 +3582,12 @@ EducationSubject** education_curriculum_get_subjects(const char* curriculum_id, 
     cJSON* base_subjects = cJSON_GetObjectItem(root, "subjects");
 
     cJSON_ArrayForEach(subj, subjects) {
-        if (!cJSON_IsObject(subj)) continue;
+        if (!cJSON_IsObject(subj))
+            continue;
 
         EducationSubject* s = calloc(1, sizeof(EducationSubject));
-        if (!s) continue;
+        if (!s)
+            continue;
 
         strncpy(s->id, subj->string, sizeof(s->id) - 1);
 
@@ -3368,7 +3613,8 @@ EducationSubject** education_curriculum_get_subjects(const char* curriculum_id, 
             cJSON* unit = NULL;
             cJSON_ArrayForEach(unit, units) {
                 cJSON* topics = cJSON_GetObjectItem(unit, "topics");
-                if (topics) topic_count += cJSON_GetArraySize(topics);
+                if (topics)
+                    topic_count += cJSON_GetArraySize(topics);
             }
 
             if (topic_count > 0) {
@@ -3401,7 +3647,8 @@ EducationSubject** education_curriculum_get_subjects(const char* curriculum_id, 
 }
 
 void education_curriculum_free(EducationCurriculum* curriculum) {
-    if (!curriculum) return;
+    if (!curriculum)
+        return;
     if (curriculum->subjects) {
         for (int i = 0; i < curriculum->subject_count; i++) {
             if (curriculum->subjects[i].topics) {
@@ -3417,7 +3664,8 @@ void education_curriculum_free(EducationCurriculum* curriculum) {
 }
 
 void education_curriculum_list_free(char** curricula, int count) {
-    if (!curricula) return;
+    if (!curricula)
+        return;
     for (int i = 0; i < count; i++) {
         free(curricula[i]);
     }
@@ -3435,26 +3683,27 @@ typedef struct {
     char description[256];
 } CustomCurriculumPath;
 
-int education_curriculum_create_custom(int64_t student_id, const char* name,
-                                        const char** subjects, int subject_count,
-                                        const char* description) {
-    if (!g_edu_initialized || !name || !subjects || subject_count <= 0) return -1;
+int education_curriculum_create_custom(int64_t student_id, const char* name, const char** subjects,
+                                       int subject_count, const char* description) {
+    if (!g_edu_initialized || !name || !subjects || subject_count <= 0)
+        return -1;
 
     CONVERGIO_MUTEX_LOCK(&g_edu_db_mutex);
 
     // Create custom curriculum as JSON
     char subjects_json[2048] = "[";
     for (int i = 0; i < subject_count && i < 20; i++) {
-        if (i > 0) strlcat(subjects_json, ",", sizeof(subjects_json));
+        if (i > 0)
+            strlcat(subjects_json, ",", sizeof(subjects_json));
         strlcat(subjects_json, "\"", sizeof(subjects_json));
         strlcat(subjects_json, subjects[i], sizeof(subjects_json));
         strlcat(subjects_json, "\"", sizeof(subjects_json));
     }
     strlcat(subjects_json, "]", sizeof(subjects_json));
 
-    const char* sql =
-        "INSERT INTO curriculum_progress (student_id, curriculum_id, subject, progress, custom_path) "
-        "VALUES (?, ?, 'custom', 0.0, ?)";
+    const char* sql = "INSERT INTO curriculum_progress (student_id, curriculum_id, subject, "
+                      "progress, custom_path) "
+                      "VALUES (?, ?, 'custom', 0.0, ?)";
 
     sqlite3_stmt* stmt;
     int rc = sqlite3_prepare_v2(g_edu_db, sql, -1, &stmt, NULL);
@@ -3465,8 +3714,8 @@ int education_curriculum_create_custom(int64_t student_id, const char* name,
 
     char custom_json[4096];
     snprintf(custom_json, sizeof(custom_json),
-             "{\"name\":\"%s\",\"subjects\":%s,\"description\":\"%s\"}",
-             name, subjects_json, description ? description : "");
+             "{\"name\":\"%s\",\"subjects\":%s,\"description\":\"%s\"}", name, subjects_json,
+             description ? description : "");
 
     sqlite3_bind_int64(stmt, 1, student_id);
     sqlite3_bind_text(stmt, 2, name, -1, SQLITE_STATIC);
@@ -3480,7 +3729,8 @@ int education_curriculum_create_custom(int64_t student_id, const char* name,
 }
 
 char** education_curriculum_get_custom_list(int64_t student_id, int* count) {
-    if (!g_edu_initialized || !count) return NULL;
+    if (!g_edu_initialized || !count)
+        return NULL;
     *count = 0;
 
     CONVERGIO_MUTEX_LOCK(&g_edu_db_mutex);
@@ -3498,7 +3748,8 @@ char** education_curriculum_get_custom_list(int64_t student_id, int* count) {
 
     // Count first
     int total = 0;
-    while (sqlite3_step(stmt) == SQLITE_ROW) total++;
+    while (sqlite3_step(stmt) == SQLITE_ROW)
+        total++;
     if (total == 0) {
         sqlite3_finalize(stmt);
         CONVERGIO_MUTEX_UNLOCK(&g_edu_db_mutex);
@@ -3516,7 +3767,8 @@ char** education_curriculum_get_custom_list(int64_t student_id, int* count) {
     int i = 0;
     while (sqlite3_step(stmt) == SQLITE_ROW && i < total) {
         const char* name = (const char*)sqlite3_column_text(stmt, 0);
-        if (name) list[i++] = strdup(name);
+        if (name)
+            list[i++] = strdup(name);
     }
 
     *count = i;
@@ -3533,7 +3785,8 @@ static time_t g_curriculum_last_modified = 0;
 static char g_curriculum_watch_path[512] = {0};
 
 int education_curriculum_watch_start(const char* path) {
-    if (!path) return -1;
+    if (!path)
+        return -1;
     strncpy(g_curriculum_watch_path, path, sizeof(g_curriculum_watch_path) - 1);
 
     struct stat st;
@@ -3544,14 +3797,16 @@ int education_curriculum_watch_start(const char* path) {
 }
 
 bool education_curriculum_check_reload(void) {
-    if (g_curriculum_watch_path[0] == '\0') return false;
+    if (g_curriculum_watch_path[0] == '\0')
+        return false;
 
     struct stat st;
-    if (stat(g_curriculum_watch_path, &st) != 0) return false;
+    if (stat(g_curriculum_watch_path, &st) != 0)
+        return false;
 
     if (st.st_mtime > g_curriculum_last_modified) {
         g_curriculum_last_modified = st.st_mtime;
-        return true;  // File changed, reload needed
+        return true; // File changed, reload needed
     }
     return false;
 }
@@ -3566,30 +3821,36 @@ void education_curriculum_watch_stop(void) {
 // ============================================================================
 
 typedef struct {
-    int break_type;  // 0=stretch, 1=walk, 2=eyes, 3=breathing, 4=hydration
+    int break_type; // 0=stretch, 1=walk, 2=eyes, 3=breathing, 4=hydration
     char title[64];
     char description[256];
     int duration_seconds;
 } ActiveBreak;
 
 static const ActiveBreak g_active_breaks[] = {
-    {0, "Stretching Break", "Stand up and stretch your arms above your head. Roll your shoulders back 5 times.", 60},
+    {0, "Stretching Break",
+     "Stand up and stretch your arms above your head. Roll your shoulders back 5 times.", 60},
     {1, "Walking Break", "Take a quick walk around the room or do 20 steps in place.", 120},
-    {2, "Eye Rest", "Close your eyes for 20 seconds, then look at something 20 feet away for 20 seconds.", 40},
-    {3, "Breathing Exercise", "Take 5 deep breaths: inhale for 4 seconds, hold for 4, exhale for 4.", 60},
+    {2, "Eye Rest",
+     "Close your eyes for 20 seconds, then look at something 20 feet away for 20 seconds.", 40},
+    {3, "Breathing Exercise",
+     "Take 5 deep breaths: inhale for 4 seconds, hold for 4, exhale for 4.", 60},
     {4, "Hydration Break", "Drink a glass of water. Staying hydrated helps concentration!", 30},
-    {0, "Neck Rolls", "Slowly roll your head in circles, 5 times clockwise, 5 times counter-clockwise.", 45},
+    {0, "Neck Rolls",
+     "Slowly roll your head in circles, 5 times clockwise, 5 times counter-clockwise.", 45},
     {1, "Jumping Jacks", "Do 10 jumping jacks to get your blood flowing!", 30},
-    {2, "Palming", "Rub your hands together to warm them, then cup them over your closed eyes.", 60},
-    {3, "Box Breathing", "Breathe in 4 sec, hold 4 sec, out 4 sec, hold 4 sec. Repeat 4 times.", 64},
-    {4, "Snack Break", "Have a healthy snack like fruit or nuts to fuel your brain!", 120}
-};
+    {2, "Palming", "Rub your hands together to warm them, then cup them over your closed eyes.",
+     60},
+    {3, "Box Breathing", "Breathe in 4 sec, hold 4 sec, out 4 sec, hold 4 sec. Repeat 4 times.",
+     64},
+    {4, "Snack Break", "Have a healthy snack like fruit or nuts to fuel your brain!", 120}};
 
 ActiveBreak* education_suggest_active_break(int study_minutes, bool has_adhd) {
     // For ADHD, suggest breaks more frequently
     int break_interval = has_adhd ? 15 : 25;
 
-    if (study_minutes < break_interval) return NULL;
+    if (study_minutes < break_interval)
+        return NULL;
 
     // Select a random break
     int break_count = sizeof(g_active_breaks) / sizeof(g_active_breaks[0]);
@@ -3620,17 +3881,18 @@ typedef struct {
     char certificate_id[64];
 } CompletionCertificate;
 
-char* education_generate_certificate(int64_t student_id, const char* subject,
-                                      const char* topic, const char* achievement) {
-    if (!g_edu_initialized || !subject) return NULL;
+char* education_generate_certificate(int64_t student_id, const char* subject, const char* topic,
+                                     const char* achievement) {
+    if (!g_edu_initialized || !subject)
+        return NULL;
 
     EducationStudentProfile* profile = education_profile_get(student_id);
-    if (!profile) return NULL;
+    if (!profile)
+        return NULL;
 
     // Generate unique certificate ID
     char cert_id[64];
-    snprintf(cert_id, sizeof(cert_id), "CONV-%ld-%lld",
-             (long)time(NULL), (long long)student_id);
+    snprintf(cert_id, sizeof(cert_id), "CONV-%ld-%lld", (long)time(NULL), (long long)student_id);
 
     // Generate HTML certificate
     char* html = malloc(4096);
@@ -3640,55 +3902,54 @@ char* education_generate_certificate(int64_t student_id, const char* subject,
     }
 
     snprintf(html, 4096,
-        "<!DOCTYPE html>\n"
-        "<html><head><meta charset='UTF-8'>\n"
-        "<style>\n"
-        "body{font-family:Georgia,serif;text-align:center;padding:40px;background:#f5f5dc;}\n"
-        ".cert{border:8px double #8B4513;padding:40px;max-width:700px;margin:auto;background:#fffaf0;}\n"
-        "h1{color:#8B4513;font-size:2.5em;margin-bottom:0;}\n"
-        ".subtitle{color:#A0522D;font-style:italic;}\n"
-        ".name{font-size:2em;color:#2F4F4F;margin:30px 0;border-bottom:2px solid #8B4513;display:inline-block;padding:0 20px 10px;}\n"
-        ".achievement{font-size:1.2em;margin:20px 0;}\n"
-        ".details{color:#555;margin:20px 0;}\n"
-        ".id{font-size:0.8em;color:#888;margin-top:40px;}\n"
-        ".logo{font-size:3em;margin-bottom:20px;}\n"
-        "</style></head><body>\n"
-        "<div class='cert'>\n"
-        "<div class='logo'>🎓</div>\n"
-        "<h1>Certificate of Achievement</h1>\n"
-        "<p class='subtitle'>Convergio Education</p>\n"
-        "<p>This certifies that</p>\n"
-        "<p class='name'>%s</p>\n"
-        "<p class='achievement'>has successfully completed<br><strong>%s</strong></p>\n"
-        "<p class='details'>Subject: %s<br>Topic: %s</p>\n"
-        "<p class='details'>Date: %s</p>\n"
-        "<p class='id'>Certificate ID: %s</p>\n"
-        "</div></body></html>\n",
-        profile->name,
-        achievement ? achievement : "Course Module",
-        subject,
-        topic ? topic : "General",
-        __DATE__,
-        cert_id
-    );
+             "<!DOCTYPE html>\n"
+             "<html><head><meta charset='UTF-8'>\n"
+             "<style>\n"
+             "body{font-family:Georgia,serif;text-align:center;padding:40px;background:#f5f5dc;}\n"
+             ".cert{border:8px double "
+             "#8B4513;padding:40px;max-width:700px;margin:auto;background:#fffaf0;}\n"
+             "h1{color:#8B4513;font-size:2.5em;margin-bottom:0;}\n"
+             ".subtitle{color:#A0522D;font-style:italic;}\n"
+             ".name{font-size:2em;color:#2F4F4F;margin:30px 0;border-bottom:2px solid "
+             "#8B4513;display:inline-block;padding:0 20px 10px;}\n"
+             ".achievement{font-size:1.2em;margin:20px 0;}\n"
+             ".details{color:#555;margin:20px 0;}\n"
+             ".id{font-size:0.8em;color:#888;margin-top:40px;}\n"
+             ".logo{font-size:3em;margin-bottom:20px;}\n"
+             "</style></head><body>\n"
+             "<div class='cert'>\n"
+             "<div class='logo'>🎓</div>\n"
+             "<h1>Certificate of Achievement</h1>\n"
+             "<p class='subtitle'>Convergio Education</p>\n"
+             "<p>This certifies that</p>\n"
+             "<p class='name'>%s</p>\n"
+             "<p class='achievement'>has successfully completed<br><strong>%s</strong></p>\n"
+             "<p class='details'>Subject: %s<br>Topic: %s</p>\n"
+             "<p class='details'>Date: %s</p>\n"
+             "<p class='id'>Certificate ID: %s</p>\n"
+             "</div></body></html>\n",
+             profile->name, achievement ? achievement : "Course Module", subject,
+             topic ? topic : "General", __DATE__, cert_id);
 
     education_profile_free(profile);
     return html;
 }
 
 int education_save_certificate(int64_t student_id, const char* html) {
-    if (!html) return -1;
+    if (!html)
+        return -1;
 
     char path[512];
     snprintf(path, sizeof(path), "%s/.convergio/certificates", getenv("HOME"));
     mkdir(path, 0755);
 
     char filename[640];
-    snprintf(filename, sizeof(filename), "%s/cert_%lld_%ld.html",
-             path, (long long)student_id, (long)time(NULL));
+    snprintf(filename, sizeof(filename), "%s/cert_%lld_%ld.html", path, (long long)student_id,
+             (long)time(NULL));
 
     FILE* f = fopen(filename, "w");
-    if (!f) return -1;
+    if (!f)
+        return -1;
 
     fputs(html, f);
     fclose(f);
@@ -3700,10 +3961,12 @@ int education_save_certificate(int64_t student_id, const char* html) {
 // ============================================================================
 
 char* libretto_export_pdf_report(int64_t student_id, const char* report_type) {
-    if (!g_edu_initialized) return NULL;
+    if (!g_edu_initialized)
+        return NULL;
 
     EducationStudentProfile* profile = education_profile_get(student_id);
-    if (!profile) return NULL;
+    if (!profile)
+        return NULL;
 
     // Get grades and progress
     int grade_count = 0;
@@ -3720,53 +3983,55 @@ char* libretto_export_pdf_report(int64_t student_id, const char* report_type) {
     size_t pos = 0;
     int written;
 
-    written = snprintf(html + pos, html_capacity - pos,
-        "<!DOCTYPE html><html><head><meta charset='UTF-8'>\n"
-        "<style>\n"
-        "body{font-family:Arial,sans-serif;padding:20px;max-width:800px;margin:auto;}\n"
-        "h1{color:#2c3e50;border-bottom:2px solid #3498db;padding-bottom:10px;}\n"
-        "h2{color:#34495e;margin-top:30px;}\n"
-        "table{width:100%%;border-collapse:collapse;margin:20px 0;}\n"
-        "th,td{border:1px solid #bdc3c7;padding:10px;text-align:left;}\n"
-        "th{background:#3498db;color:white;}\n"
-        "tr:nth-child(even){background:#ecf0f1;}\n"
-        ".summary{background:#e8f6f3;padding:15px;border-radius:8px;margin:20px 0;}\n"
-        ".footer{text-align:center;color:#7f8c8d;margin-top:40px;font-size:0.9em;}\n"
-        "@media print{body{padding:0;}.no-print{display:none;}}\n"
-        "</style></head><body>\n"
-        "<h1>📚 Student Report Card</h1>\n"
-        "<div class='summary'>\n"
-        "<strong>Student:</strong> %s<br>\n"
-        "<strong>Report Date:</strong> %s<br>\n"
-        "<strong>Report Type:</strong> %s\n"
-        "</div>\n",
-        profile->name, __DATE__,
-        report_type ? report_type : "Complete Report"
-    );
-    if (written > 0) pos += (size_t)written;
+    written =
+        snprintf(html + pos, html_capacity - pos,
+                 "<!DOCTYPE html><html><head><meta charset='UTF-8'>\n"
+                 "<style>\n"
+                 "body{font-family:Arial,sans-serif;padding:20px;max-width:800px;margin:auto;}\n"
+                 "h1{color:#2c3e50;border-bottom:2px solid #3498db;padding-bottom:10px;}\n"
+                 "h2{color:#34495e;margin-top:30px;}\n"
+                 "table{width:100%%;border-collapse:collapse;margin:20px 0;}\n"
+                 "th,td{border:1px solid #bdc3c7;padding:10px;text-align:left;}\n"
+                 "th{background:#3498db;color:white;}\n"
+                 "tr:nth-child(even){background:#ecf0f1;}\n"
+                 ".summary{background:#e8f6f3;padding:15px;border-radius:8px;margin:20px 0;}\n"
+                 ".footer{text-align:center;color:#7f8c8d;margin-top:40px;font-size:0.9em;}\n"
+                 "@media print{body{padding:0;}.no-print{display:none;}}\n"
+                 "</style></head><body>\n"
+                 "<h1>📚 Student Report Card</h1>\n"
+                 "<div class='summary'>\n"
+                 "<strong>Student:</strong> %s<br>\n"
+                 "<strong>Report Date:</strong> %s<br>\n"
+                 "<strong>Report Type:</strong> %s\n"
+                 "</div>\n",
+                 profile->name, __DATE__, report_type ? report_type : "Complete Report");
+    if (written > 0)
+        pos += (size_t)written;
 
     // Add grades table
     if (grade_count > 0) {
         written = snprintf(html + pos, html_capacity - pos,
-            "<h2>Grades</h2>\n"
-            "<table><tr><th>Subject</th><th>Topic</th><th>Type</th><th>Grade</th><th>Date</th></tr>\n"
-        );
-        if (written > 0) pos += (size_t)written;
+                           "<h2>Grades</h2>\n"
+                           "<table><tr><th>Subject</th><th>Topic</th><th>Type</th><th>Grade</"
+                           "th><th>Date</th></tr>\n");
+        if (written > 0)
+            pos += (size_t)written;
 
         for (int i = 0; i < grade_count && i < 50; i++) {
-            written = snprintf(html + pos, html_capacity - pos,
-                "<tr><td>%s</td><td>%s</td><td>%s</td><td>%.1f</td><td>%s</td></tr>\n",
-                grades[i]->subject,
-                grades[i]->topic,
-                grades[i]->grade_type == GRADE_TYPE_QUIZ ? "Quiz" :
-                grades[i]->grade_type == GRADE_TYPE_HOMEWORK ? "Homework" : "Oral",
-                grades[i]->grade,
-                ctime(&grades[i]->recorded_at)
-            );
-            if (written > 0) pos += (size_t)written;
+            written =
+                snprintf(html + pos, html_capacity - pos,
+                         "<tr><td>%s</td><td>%s</td><td>%s</td><td>%.1f</td><td>%s</td></tr>\n",
+                         grades[i]->subject, grades[i]->topic,
+                         grades[i]->grade_type == GRADE_TYPE_QUIZ       ? "Quiz"
+                         : grades[i]->grade_type == GRADE_TYPE_HOMEWORK ? "Homework"
+                                                                        : "Oral",
+                         grades[i]->grade, ctime(&grades[i]->recorded_at));
+            if (written > 0)
+                pos += (size_t)written;
         }
         written = snprintf(html + pos, html_capacity - pos, "</table>\n");
-        if (written > 0) pos += (size_t)written;
+        if (written > 0)
+            pos += (size_t)written;
 
         // Calculate average
         float total = 0;
@@ -3774,22 +4039,21 @@ char* libretto_export_pdf_report(int64_t student_id, const char* report_type) {
             total += grades[i]->grade;
         }
         float avg = total / (float)grade_count;
-        written = snprintf(html + pos, html_capacity - pos,
-            "<div class='summary'><strong>Overall Average:</strong> %.2f/10</div>\n",
-            avg
-        );
-        if (written > 0) pos += (size_t)written;
+        written =
+            snprintf(html + pos, html_capacity - pos,
+                     "<div class='summary'><strong>Overall Average:</strong> %.2f/10</div>\n", avg);
+        if (written > 0)
+            pos += (size_t)written;
 
         libretto_grades_free(grades, grade_count);
     }
 
     snprintf(html + pos, html_capacity - pos,
-        "<div class='footer'>\n"
-        "Generated by Convergio Education<br>\n"
-        "🎓 Learning made personal\n"
-        "</div>\n"
-        "</body></html>\n"
-    );
+             "<div class='footer'>\n"
+             "Generated by Convergio Education<br>\n"
+             "🎓 Learning made personal\n"
+             "</div>\n"
+             "</body></html>\n");
 
     education_profile_free(profile);
 
@@ -3800,22 +4064,22 @@ char* libretto_export_pdf_report(int64_t student_id, const char* report_type) {
         free(html);
         return NULL;
     }
-    
+
     snprintf(path, sizeof(path), "%s/.convergio/reports", home);
     mkdir(path, 0755);
 
     char filename[640];
-    snprintf(filename, sizeof(filename), "%s/report_%lld_%ld.html",
-             path, (long long)student_id, (long)time(NULL));
+    snprintf(filename, sizeof(filename), "%s/report_%lld_%ld.html", path, (long long)student_id,
+             (long)time(NULL));
 
     FILE* f = fopen(filename, "w");
     if (f) {
         fputs(html, f);
         fclose(f);
-        
+
         // Return allocated path string (caller must free)
         char* result = strdup(filename);
-        free(html);  // Free HTML, return path
+        free(html); // Free HTML, return path
         return result;
     }
 
@@ -3829,23 +4093,25 @@ char* libretto_export_pdf_report(int64_t student_id, const char* report_type) {
 
 typedef struct {
     char subject[64];
-    float grades[12];  // Last 12 entries
+    float grades[12]; // Last 12 entries
     int grade_count;
-    float trend;       // Positive = improving, negative = declining
+    float trend; // Positive = improving, negative = declining
     float average;
     float best;
     float worst;
 } SubjectTrend;
 
 SubjectTrend* libretto_get_trend_analysis(int64_t student_id, const char* subject, int* count) {
-    if (!g_edu_initialized || !count) return NULL;
+    if (!g_edu_initialized || !count)
+        return NULL;
     *count = 0;
 
     CONVERGIO_MUTEX_LOCK(&g_edu_db_mutex);
 
-    const char* sql = subject ?
-        "SELECT subject, grade FROM student_gradebook WHERE student_id = ? AND subject = ? ORDER BY date DESC LIMIT 100" :
-        "SELECT subject, grade FROM student_gradebook WHERE student_id = ? ORDER BY date DESC LIMIT 100";
+    const char* sql = subject ? "SELECT subject, grade FROM student_gradebook WHERE student_id = ? "
+                                "AND subject = ? ORDER BY date DESC LIMIT 100"
+                              : "SELECT subject, grade FROM student_gradebook WHERE student_id = ? "
+                                "ORDER BY date DESC LIMIT 100";
 
     sqlite3_stmt* stmt;
     int rc = sqlite3_prepare_v2(g_edu_db, sql, -1, &stmt, NULL);
@@ -3855,10 +4121,15 @@ SubjectTrend* libretto_get_trend_analysis(int64_t student_id, const char* subjec
     }
 
     sqlite3_bind_int64(stmt, 1, student_id);
-    if (subject) sqlite3_bind_text(stmt, 2, subject, -1, SQLITE_STATIC);
+    if (subject)
+        sqlite3_bind_text(stmt, 2, subject, -1, SQLITE_STATIC);
 
     // Collect data per subject
-    typedef struct { char subject[64]; float grades[50]; int count; } SubjectData;
+    typedef struct {
+        char subject[64];
+        float grades[50];
+        int count;
+    } SubjectData;
     SubjectData subjects[20];
     int subject_count = 0;
 
@@ -3886,10 +4157,12 @@ SubjectTrend* libretto_get_trend_analysis(int64_t student_id, const char* subjec
     sqlite3_finalize(stmt);
     CONVERGIO_MUTEX_UNLOCK(&g_edu_db_mutex);
 
-    if (subject_count == 0) return NULL;
+    if (subject_count == 0)
+        return NULL;
 
     SubjectTrend* trends = calloc((size_t)subject_count, sizeof(SubjectTrend));
-    if (!trends) return NULL;
+    if (!trends)
+        return NULL;
 
     for (int i = 0; i < subject_count; i++) {
         strncpy(trends[i].subject, subjects[i].subject, 63);
@@ -3897,10 +4170,13 @@ SubjectTrend* libretto_get_trend_analysis(int64_t student_id, const char* subjec
 
         float total = 0, best = 0, worst = 10;
         for (int j = 0; j < subjects[i].count; j++) {
-            if (j < 12) trends[i].grades[j] = subjects[i].grades[j];
+            if (j < 12)
+                trends[i].grades[j] = subjects[i].grades[j];
             total += subjects[i].grades[j];
-            if (subjects[i].grades[j] > best) best = subjects[i].grades[j];
-            if (subjects[i].grades[j] < worst) worst = subjects[i].grades[j];
+            if (subjects[i].grades[j] > best)
+                best = subjects[i].grades[j];
+            if (subjects[i].grades[j] < worst)
+                worst = subjects[i].grades[j];
         }
         trends[i].average = total / (float)subjects[i].count;
         trends[i].best = best;
@@ -3909,8 +4185,10 @@ SubjectTrend* libretto_get_trend_analysis(int64_t student_id, const char* subjec
         // Calculate trend (linear regression slope simplified)
         if (subjects[i].count >= 3) {
             float recent_avg = (subjects[i].grades[0] + subjects[i].grades[1]) / 2.0f;
-            float older_avg = (subjects[i].grades[subjects[i].count-1] + subjects[i].grades[subjects[i].count-2]) / 2.0f;
-            trends[i].trend = recent_avg - older_avg;  // Positive = improving
+            float older_avg = (subjects[i].grades[subjects[i].count - 1] +
+                               subjects[i].grades[subjects[i].count - 2]) /
+                              2.0f;
+            trends[i].trend = recent_avg - older_avg; // Positive = improving
         }
     }
 
@@ -3939,10 +4217,10 @@ typedef struct {
     time_t created_at;
 } LearningGoal;
 
-int64_t libretto_create_goal(int64_t student_id, const char* title,
-                              const char* description, const char* subject,
-                              float target_grade, time_t deadline) {
-    if (!g_edu_initialized || !title) return -1;
+int64_t libretto_create_goal(int64_t student_id, const char* title, const char* description,
+                             const char* subject, float target_grade, time_t deadline) {
+    if (!g_edu_initialized || !title)
+        return -1;
 
     CONVERGIO_MUTEX_LOCK(&g_edu_db_mutex);
 
@@ -3973,16 +4251,20 @@ int64_t libretto_create_goal(int64_t student_id, const char* title,
 }
 
 LearningGoal** libretto_get_goals(int64_t student_id, bool active_only, int* count) {
-    if (!g_edu_initialized || !count) return NULL;
+    if (!g_edu_initialized || !count)
+        return NULL;
     *count = 0;
 
     CONVERGIO_MUTEX_LOCK(&g_edu_db_mutex);
 
-    const char* sql = active_only ?
-        "SELECT id, student_id, title, description, subject, target_value, current_value, deadline, status, created_at "
-        "FROM student_goals WHERE student_id = ? AND status = 'active' ORDER BY deadline" :
-        "SELECT id, student_id, title, description, subject, target_value, current_value, deadline, status, created_at "
-        "FROM student_goals WHERE student_id = ? ORDER BY deadline";
+    const char* sql =
+        active_only
+            ? "SELECT id, student_id, title, description, subject, target_value, current_value, "
+              "deadline, status, created_at "
+              "FROM student_goals WHERE student_id = ? AND status = 'active' ORDER BY deadline"
+            : "SELECT id, student_id, title, description, subject, target_value, current_value, "
+              "deadline, status, created_at "
+              "FROM student_goals WHERE student_id = ? ORDER BY deadline";
 
     sqlite3_stmt* stmt;
     int rc = sqlite3_prepare_v2(g_edu_db, sql, -1, &stmt, NULL);
@@ -3995,7 +4277,8 @@ LearningGoal** libretto_get_goals(int64_t student_id, bool active_only, int* cou
 
     // Count
     int total = 0;
-    while (sqlite3_step(stmt) == SQLITE_ROW) total++;
+    while (sqlite3_step(stmt) == SQLITE_ROW)
+        total++;
     if (total == 0) {
         sqlite3_finalize(stmt);
         CONVERGIO_MUTEX_UNLOCK(&g_edu_db_mutex);
@@ -4013,16 +4296,20 @@ LearningGoal** libretto_get_goals(int64_t student_id, bool active_only, int* cou
     int i = 0;
     while (sqlite3_step(stmt) == SQLITE_ROW && i < total) {
         LearningGoal* goal = calloc(1, sizeof(LearningGoal));
-        if (!goal) continue;
+        if (!goal)
+            continue;
 
         goal->id = sqlite3_column_int64(stmt, 0);
         goal->student_id = sqlite3_column_int64(stmt, 1);
         const char* title = (const char*)sqlite3_column_text(stmt, 2);
-        if (title) strncpy(goal->title, title, 127);
+        if (title)
+            strncpy(goal->title, title, 127);
         const char* desc = (const char*)sqlite3_column_text(stmt, 3);
-        if (desc) strncpy(goal->description, desc, 255);
+        if (desc)
+            strncpy(goal->description, desc, 255);
         const char* subj = (const char*)sqlite3_column_text(stmt, 4);
-        if (subj) strncpy(goal->subject, subj, 63);
+        if (subj)
+            strncpy(goal->subject, subj, 63);
         goal->target_grade = (float)sqlite3_column_double(stmt, 5);
         goal->current_progress = (float)sqlite3_column_double(stmt, 6);
         goal->deadline = (time_t)sqlite3_column_int64(stmt, 7);
@@ -4040,7 +4327,8 @@ LearningGoal** libretto_get_goals(int64_t student_id, bool active_only, int* cou
 }
 
 int libretto_complete_goal(int64_t goal_id) {
-    if (!g_edu_initialized) return -1;
+    if (!g_edu_initialized)
+        return -1;
 
     CONVERGIO_MUTEX_LOCK(&g_edu_db_mutex);
 
@@ -4063,8 +4351,10 @@ int libretto_complete_goal(int64_t goal_id) {
 }
 
 void libretto_goals_free(LearningGoal** goals, int count) {
-    if (!goals) return;
-    for (int i = 0; i < count; i++) free(goals[i]);
+    if (!goals)
+        return;
+    for (int i = 0; i < count; i++)
+        free(goals[i]);
     free(goals);
 }
 
@@ -4104,11 +4394,11 @@ static const Achievement g_achievements[] = {
     {ACHIEVEMENT_100_FLASHCARDS, "Memory Champion", "Review 100 flashcards", "🧠", 50, 0},
     {ACHIEVEMENT_STUDY_HOURS_10, "Dedicated Learner", "Study for 10 hours total", "📚", 100, 0},
     {ACHIEVEMENT_STUDY_HOURS_50, "Study Pro", "Study for 50 hours total", "🎓", 300, 0},
-    {ACHIEVEMENT_ALL_TEACHERS, "Renaissance Student", "Learn from all 15 teachers", "🌟", 500, 0}
-};
+    {ACHIEVEMENT_ALL_TEACHERS, "Renaissance Student", "Learn from all 15 teachers", "🌟", 500, 0}};
 
 int education_check_achievements(int64_t student_id) {
-    if (!g_edu_initialized) return 0;
+    if (!g_edu_initialized)
+        return 0;
 
     int new_achievements = 0;
 
@@ -4158,10 +4448,8 @@ char* education_get_achievement_notification(AchievementType type) {
     const Achievement* a = &g_achievements[type];
     char* notification = malloc(256);
     if (notification) {
-        snprintf(notification, 256,
-            "%s Achievement Unlocked: %s!\n%s\n+%d XP",
-            a->icon, a->title, a->description, a->xp_reward
-        );
+        snprintf(notification, 256, "%s Achievement Unlocked: %s!\n%s\n+%d XP", a->icon, a->title,
+                 a->description, a->xp_reward);
     }
     return notification;
 }
@@ -4170,7 +4458,7 @@ char* education_get_achievement_notification(AchievementType type) {
 // PHASE 11: MASTERY LEARNING
 // ============================================================================
 
-#define MASTERY_THRESHOLD 0.80f  // 80% = mastered
+#define MASTERY_THRESHOLD 0.80f // 80% = mastered
 
 typedef struct {
     char skill_id[64];
@@ -4184,13 +4472,13 @@ typedef struct {
 } SkillMastery;
 
 float education_mastery_get_level(int64_t student_id, const char* skill_id) {
-    if (!g_edu_initialized || !skill_id) return 0.0f;
+    if (!g_edu_initialized || !skill_id)
+        return 0.0f;
 
     CONVERGIO_MUTEX_LOCK(&g_edu_db_mutex);
 
-    const char* sql =
-        "SELECT skill_level, practice_count FROM learning_progress "
-        "WHERE student_id = ? AND topic = ? ORDER BY updated_at DESC LIMIT 1";
+    const char* sql = "SELECT skill_level, practice_count FROM learning_progress "
+                      "WHERE student_id = ? AND topic = ? ORDER BY updated_at DESC LIMIT 1";
 
     sqlite3_stmt* stmt;
     float level = 0.0f;
@@ -4213,31 +4501,32 @@ bool education_mastery_is_mastered(int64_t student_id, const char* skill_id) {
     return education_mastery_get_level(student_id, skill_id) >= MASTERY_THRESHOLD;
 }
 
-int education_mastery_update(int64_t student_id, const char* skill_id,
-                              int correct, int total) {
-    if (!g_edu_initialized || !skill_id || total <= 0) return -1;
+int education_mastery_update(int64_t student_id, const char* skill_id, int correct, int total) {
+    if (!g_edu_initialized || !skill_id || total <= 0)
+        return -1;
 
     float new_score = (float)correct / (float)total;
 
     // Use exponential moving average
     float current = education_mastery_get_level(student_id, skill_id);
-    float alpha = 0.3f;  // Weight for new observations
+    float alpha = 0.3f; // Weight for new observations
     float updated = (current > 0) ? (alpha * new_score + (1 - alpha) * current) : new_score;
 
     return education_progress_record(student_id, "mastery", skill_id, updated, 0);
 }
 
 SkillMastery** education_mastery_get_skills(int64_t student_id, const char* subject, int* count) {
-    if (!g_edu_initialized || !count) return NULL;
+    if (!g_edu_initialized || !count)
+        return NULL;
     *count = 0;
 
     CONVERGIO_MUTEX_LOCK(&g_edu_db_mutex);
 
-    const char* sql = subject ?
-        "SELECT topic, skill_level, practice_count, updated_at FROM learning_progress "
-        "WHERE student_id = ? AND maestro_id = ? ORDER BY topic" :
-        "SELECT topic, skill_level, practice_count, updated_at FROM learning_progress "
-        "WHERE student_id = ? ORDER BY topic";
+    const char* sql =
+        subject ? "SELECT topic, skill_level, practice_count, updated_at FROM learning_progress "
+                  "WHERE student_id = ? AND maestro_id = ? ORDER BY topic"
+                : "SELECT topic, skill_level, practice_count, updated_at FROM learning_progress "
+                  "WHERE student_id = ? ORDER BY topic";
 
     sqlite3_stmt* stmt;
     if (sqlite3_prepare_v2(g_edu_db, sql, -1, &stmt, NULL) != SQLITE_OK) {
@@ -4246,11 +4535,13 @@ SkillMastery** education_mastery_get_skills(int64_t student_id, const char* subj
     }
 
     sqlite3_bind_int64(stmt, 1, student_id);
-    if (subject) sqlite3_bind_text(stmt, 2, subject, -1, SQLITE_STATIC);
+    if (subject)
+        sqlite3_bind_text(stmt, 2, subject, -1, SQLITE_STATIC);
 
     // Count
     int total = 0;
-    while (sqlite3_step(stmt) == SQLITE_ROW) total++;
+    while (sqlite3_step(stmt) == SQLITE_ROW)
+        total++;
     if (total == 0) {
         sqlite3_finalize(stmt);
         CONVERGIO_MUTEX_UNLOCK(&g_edu_db_mutex);
@@ -4268,7 +4559,8 @@ SkillMastery** education_mastery_get_skills(int64_t student_id, const char* subj
     int i = 0;
     while (sqlite3_step(stmt) == SQLITE_ROW && i < total) {
         SkillMastery* skill = calloc(1, sizeof(SkillMastery));
-        if (!skill) continue;
+        if (!skill)
+            continue;
 
         const char* topic = (const char*)sqlite3_column_text(stmt, 0);
         if (topic) {
@@ -4290,8 +4582,10 @@ SkillMastery** education_mastery_get_skills(int64_t student_id, const char* subj
 }
 
 void education_mastery_skills_free(SkillMastery** skills, int count) {
-    if (!skills) return;
-    for (int i = 0; i < count; i++) free(skills[i]);
+    if (!skills)
+        return;
+    for (int i = 0; i < count; i++)
+        free(skills[i]);
     free(skills);
 }
 
@@ -4300,45 +4594,45 @@ void education_mastery_skills_free(SkillMastery** skills, int count) {
 // ============================================================================
 
 typedef struct {
-    float stability;     // S: time needed for R to drop to 90%
-    float difficulty;    // D: difficulty of the card (0.0-1.0)
+    float stability;      // S: time needed for R to drop to 90%
+    float difficulty;     // D: difficulty of the card (0.0-1.0)
     float retrievability; // R: probability of recall
-    int state;           // 0=new, 1=learning, 2=review, 3=relearning
-    int reps;            // Number of reviews
-    int lapses;          // Number of times forgotten
+    int state;            // 0=new, 1=learning, 2=review, 3=relearning
+    int reps;             // Number of reviews
+    int lapses;           // Number of times forgotten
     time_t last_review;
     time_t next_review;
 } FSRSCard;
 
 // FSRS-4.5 parameters (optimized defaults)
 static const float FSRS_W[] = {
-    0.4f,   // w0: initial stability for again
-    0.6f,   // w1: initial stability for hard
-    2.4f,   // w2: initial stability for good
-    5.8f,   // w3: initial stability for easy
-    4.93f,  // w4: difficulty decay
-    0.94f,  // w5: stability decay
-    0.86f,  // w6: retrievability coefficient
-    0.01f,  // w7: difficulty coefficient
-    1.49f,  // w8: stability increase
-    0.14f,  // w9: difficulty increase
-    0.94f,  // w10: short-term stability
-    2.18f,  // w11: long-term stability
-    0.05f,  // w12: short-term difficulty
-    0.34f,  // w13: long-term difficulty
-    1.26f,  // w14: forgetting stability
-    0.29f,  // w15: difficulty recovery
-    2.61f   // w16: stability recovery
+    0.4f,  // w0: initial stability for again
+    0.6f,  // w1: initial stability for hard
+    2.4f,  // w2: initial stability for good
+    5.8f,  // w3: initial stability for easy
+    4.93f, // w4: difficulty decay
+    0.94f, // w5: stability decay
+    0.86f, // w6: retrievability coefficient
+    0.01f, // w7: difficulty coefficient
+    1.49f, // w8: stability increase
+    0.14f, // w9: difficulty increase
+    0.94f, // w10: short-term stability
+    2.18f, // w11: long-term stability
+    0.05f, // w12: short-term difficulty
+    0.34f, // w13: long-term difficulty
+    1.26f, // w14: forgetting stability
+    0.29f, // w15: difficulty recovery
+    2.61f  // w16: stability recovery
 };
 
-__attribute__((unused))
-static float fsrs_power_mean(float a, float b, float p) {
+__attribute__((unused)) static float fsrs_power_mean(float a, float b, float p) {
     // Power mean for blending stability values (FSRS v5 extension)
     return powf((powf(a, p) + powf(b, p)) / 2.0f, 1.0f / p);
 }
 
 float fsrs_calculate_retrievability(const FSRSCard* card, time_t now) {
-    if (!card || card->stability <= 0) return 0.0f;
+    if (!card || card->stability <= 0)
+        return 0.0f;
 
     float elapsed_days = (float)(now - card->last_review) / 86400.0f;
     float factor = 19.0f / card->stability;
@@ -4347,7 +4641,8 @@ float fsrs_calculate_retrievability(const FSRSCard* card, time_t now) {
 
 float fsrs_calculate_next_stability(const FSRSCard* card, int rating) {
     // rating: 1=again, 2=hard, 3=good, 4=easy
-    if (!card) return FSRS_W[2];
+    if (!card)
+        return FSRS_W[2];
 
     if (card->state == 0) {
         // New card
@@ -4359,29 +4654,33 @@ float fsrs_calculate_next_stability(const FSRSCard* card, int rating) {
     float r = card->retrievability;
 
     // Stability increase formula
-    float s_recall = s * (1.0f + expf(FSRS_W[8]) *
-                          (11.0f - d) *
-                          powf(s, -FSRS_W[9]) *
-                          (expf((1.0f - r) * FSRS_W[10]) - 1.0f));
+    float s_recall = s * (1.0f + expf(FSRS_W[8]) * (11.0f - d) * powf(s, -FSRS_W[9]) *
+                                     (expf((1.0f - r) * FSRS_W[10]) - 1.0f));
 
     // Apply rating factor
     float rating_factor = 1.0f;
-    if (rating == 1) rating_factor = FSRS_W[14];
-    else if (rating == 2) rating_factor = 0.8f;
-    else if (rating == 4) rating_factor = FSRS_W[15];
+    if (rating == 1)
+        rating_factor = FSRS_W[14];
+    else if (rating == 2)
+        rating_factor = 0.8f;
+    else if (rating == 4)
+        rating_factor = FSRS_W[15];
 
     return s_recall * rating_factor;
 }
 
 float fsrs_calculate_next_difficulty(const FSRSCard* card, int rating) {
-    if (!card) return 0.3f;
+    if (!card)
+        return 0.3f;
 
     float d = card->difficulty;
     float delta = (float)(rating - 3) / 9.0f;
 
     float new_d = d - FSRS_W[7] * delta;
-    if (new_d < 0.0f) new_d = 0.0f;
-    if (new_d > 1.0f) new_d = 1.0f;
+    if (new_d < 0.0f)
+        new_d = 0.0f;
+    if (new_d > 1.0f)
+        new_d = 1.0f;
 
     return new_d;
 }
@@ -4397,7 +4696,7 @@ FSRSCard* fsrs_create_card(void) {
         card->stability = 0;
         card->difficulty = 0.3f;
         card->retrievability = 1.0f;
-        card->state = 0;  // New
+        card->state = 0; // New
         card->reps = 0;
         card->lapses = 0;
         card->last_review = 0;
@@ -4407,7 +4706,8 @@ FSRSCard* fsrs_create_card(void) {
 }
 
 int fsrs_review_card(FSRSCard* card, int rating) {
-    if (!card || rating < 1 || rating > 4) return -1;
+    if (!card || rating < 1 || rating > 4)
+        return -1;
 
     time_t now = time(NULL);
 
@@ -4422,11 +4722,12 @@ int fsrs_review_card(FSRSCard* card, int rating) {
     if (rating == 1) {
         // Again: reset to learning
         card->lapses++;
-        card->state = 3;  // Relearning
-        new_stability *= 0.5f;  // Halve stability on lapse
+        card->state = 3;       // Relearning
+        new_stability *= 0.5f; // Halve stability on lapse
     } else if (card->state == 0 || card->state == 1) {
         // Learning -> Review
-        if (rating >= 3) card->state = 2;
+        if (rating >= 3)
+            card->state = 2;
     }
 
     card->stability = new_stability;
@@ -4436,7 +4737,8 @@ int fsrs_review_card(FSRSCard* card, int rating) {
 
     // Calculate next review
     int interval = fsrs_calculate_interval(card->stability);
-    if (interval < 1) interval = 1;
+    if (interval < 1)
+        interval = 1;
     card->next_review = now + (time_t)(interval * 86400);
 
     return interval;
@@ -4447,16 +4749,17 @@ int fsrs_review_card(FSRSCard* card, int rating) {
 // ============================================================================
 
 EducationEngagementStats* education_engagement_get_stats(int64_t student_id) {
-    if (!g_edu_initialized) return NULL;
+    if (!g_edu_initialized)
+        return NULL;
 
     EducationEngagementStats* stats = calloc(1, sizeof(EducationEngagementStats));
-    if (!stats) return NULL;
+    if (!stats)
+        return NULL;
 
     CONVERGIO_MUTEX_LOCK(&g_edu_db_mutex);
 
-    const char* sql =
-        "SELECT current_streak, longest_streak, total_xp, level "
-        "FROM gamification WHERE student_id = ?";
+    const char* sql = "SELECT current_streak, longest_streak, total_xp, level "
+                      "FROM gamification WHERE student_id = ?";
 
     sqlite3_stmt* stmt;
     if (sqlite3_prepare_v2(g_edu_db, sql, -1, &stmt, NULL) == SQLITE_OK) {
@@ -4480,14 +4783,17 @@ EducationEngagementStats* education_engagement_get_stats(int64_t student_id) {
 }
 
 int education_engagement_check_streak(int64_t student_id) {
-    if (!g_edu_initialized) return 0;
+    if (!g_edu_initialized)
+        return 0;
 
     CONVERGIO_MUTEX_LOCK(&g_edu_db_mutex);
 
     // Check if studied today
     time_t today_start = time(NULL);
     struct tm* tm = localtime(&today_start);
-    tm->tm_hour = 0; tm->tm_min = 0; tm->tm_sec = 0;
+    tm->tm_hour = 0;
+    tm->tm_min = 0;
+    tm->tm_sec = 0;
     today_start = mktime(tm);
 
     const char* sql =
@@ -4511,33 +4817,31 @@ int education_engagement_check_streak(int64_t student_id) {
 }
 
 const char* education_engagement_get_celebration(int event_type) {
-    static const char* celebrations[] = {
-        "🎉 Great job! Keep going!",
-        "⭐ You're on fire!",
-        "🚀 Excellent work!",
-        "💪 You're getting stronger!",
-        "🌟 Brilliant!",
-        "🎯 Perfect aim!",
-        "🏆 Champion!",
-        "✨ Amazing!",
-        "🔥 Streak master!",
-        "💎 Legendary!"
-    };
+    static const char* celebrations[] = {"🎉 Great job! Keep going!",
+                                         "⭐ You're on fire!",
+                                         "🚀 Excellent work!",
+                                         "💪 You're getting stronger!",
+                                         "🌟 Brilliant!",
+                                         "🎯 Perfect aim!",
+                                         "🏆 Champion!",
+                                         "✨ Amazing!",
+                                         "🔥 Streak master!",
+                                         "💎 Legendary!"};
 
     int idx = event_type % 10;
     return celebrations[idx];
 }
 
 int education_engagement_award_xp(int64_t student_id, int xp, const char* reason) {
-    if (!g_edu_initialized || xp <= 0) return -1;
+    if (!g_edu_initialized || xp <= 0)
+        return -1;
 
     CONVERGIO_MUTEX_LOCK(&g_edu_db_mutex);
 
     // Update total XP and check level up
-    const char* sql =
-        "UPDATE gamification SET total_xp = total_xp + ?, "
-        "level = (total_xp + ?) / 100 + 1 "
-        "WHERE student_id = ?";
+    const char* sql = "UPDATE gamification SET total_xp = total_xp + ?, "
+                      "level = (total_xp + ?) / 100 + 1 "
+                      "WHERE student_id = ?";
 
     sqlite3_stmt* stmt;
     int rc = sqlite3_prepare_v2(g_edu_db, sql, -1, &stmt, NULL);

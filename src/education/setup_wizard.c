@@ -11,11 +11,11 @@
  */
 
 #include "nous/education.h"
+#include <ctype.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <stdbool.h>
-#include <ctype.h>
 #include <termios.h>
 #include <unistd.h>
 
@@ -29,13 +29,13 @@
 #define MAX_GOAL_LEN 256
 
 // ANSI Color codes for terminal output
-#define ANSI_RESET   "\033[0m"
-#define ANSI_BOLD    "\033[1m"
-#define ANSI_GREEN   "\033[32m"
-#define ANSI_YELLOW  "\033[33m"
-#define ANSI_BLUE    "\033[34m"
-#define ANSI_CYAN    "\033[36m"
-#define ANSI_DIM     "\033[2m"
+#define ANSI_RESET "\033[0m"
+#define ANSI_BOLD "\033[1m"
+#define ANSI_GREEN "\033[32m"
+#define ANSI_YELLOW "\033[33m"
+#define ANSI_BLUE "\033[34m"
+#define ANSI_CYAN "\033[36m"
+#define ANSI_DIM "\033[2m"
 
 // ============================================================================
 // WIZARD STATE STRUCT (local to this file)
@@ -87,16 +87,18 @@ static const CurriculumInfo AVAILABLE_CURRICULA[] = {
     {"scuola_media", "Middle School", "Grades 6-8 (Lower Secondary)", 6, 8},
 
     // High Schools (Licei)
-    {"liceo_scientifico", "Scientific High School", "5 years - focus on mathematics and sciences", 9, 13},
+    {"liceo_scientifico", "Scientific High School", "5 years - focus on mathematics and sciences",
+     9, 13},
     {"liceo_classico", "Classical High School", "5 years - Latin, Greek and philosophy", 9, 13},
     {"liceo_linguistico", "Language High School", "5 years - 3 foreign languages", 9, 13},
     {"liceo_artistico", "Art High School", "5 years - visual arts and design", 9, 13},
 
     // Technical Institutes
-    {"iti_informatica", "Technical - Computer Science", "Technical Institute - Computing and Telecommunications", 9, 13},
-    {"iti_commerciale", "Technical - Business", "Technical Institute - Business and Economics", 9, 13},
-    {NULL, NULL, NULL, 0, 0}
-};
+    {"iti_informatica", "Technical - Computer Science",
+     "Technical Institute - Computing and Telecommunications", 9, 13},
+    {"iti_commerciale", "Technical - Business", "Technical Institute - Business and Economics", 9,
+     13},
+    {NULL, NULL, NULL, 0, 0}};
 
 // ============================================================================
 // ACCESSIBILITY CONDITIONS
@@ -110,29 +112,21 @@ typedef struct {
 } AccessibilityCondition;
 
 static const AccessibilityCondition ACCESSIBILITY_CONDITIONS[] = {
-    {"dyslexia", "Dyslexia",
-     "Difficulty with reading and word recognition",
+    {"dyslexia", "Dyslexia", "Difficulty with reading and word recognition",
      "Support: OpenDyslexic font, TTS, syllable breaking, cream background"},
-    {"dyscalculia", "Dyscalculia",
-     "Difficulty with numbers and mathematical calculations",
+    {"dyscalculia", "Dyscalculia", "Difficulty with numbers and mathematical calculations",
      "Support: Visualizations, step-by-step, no timers, colors"},
-    {"adhd", "ADHD",
-     "Attention and/or hyperactivity difficulties",
+    {"adhd", "ADHD", "Attention and/or hyperactivity difficulties",
      "Support: Short responses, celebrations, gamification, breaks"},
-    {"autism", "Autism",
-     "Different social and sensory processing modes",
+    {"autism", "Autism", "Different social and sensory processing modes",
      "Support: Literal language, predictable structure, details"},
-    {"cerebral_palsy", "Cerebral Palsy",
-     "Motor difficulties of varying degrees",
+    {"cerebral_palsy", "Cerebral Palsy", "Motor difficulties of varying degrees",
      "Support: Voice input, extended timeouts, frequent breaks"},
-    {"visual", "Visual Impairment",
-     "Reduced visual ability",
+    {"visual", "Visual Impairment", "Reduced visual ability",
      "Support: TTS, high contrast, large fonts"},
-    {"hearing", "Hearing Impairment",
-     "Reduced hearing ability",
+    {"hearing", "Hearing Impairment", "Reduced hearing ability",
      "Support: Text content, subtitles"},
-    {NULL, NULL, NULL, NULL}
-};
+    {NULL, NULL, NULL, NULL}};
 
 // ============================================================================
 // UTILITY FUNCTIONS
@@ -217,7 +211,8 @@ static void read_string(const char* prompt, char* buffer, size_t max_len) {
 
     // Trim whitespace
     char* start = buffer;
-    while (*start && isspace(*start)) start++;
+    while (*start && isspace(*start))
+        start++;
     if (start != buffer) {
         memmove(buffer, start, strlen(start) + 1);
     }
@@ -246,8 +241,10 @@ static bool read_yes_no(const char* prompt, bool default_value) {
     }
 
     char first = tolower(buffer[0]);
-    if (first == 's' || first == 'y') return true;
-    if (first == 'n') return false;
+    if (first == 's' || first == 'y')
+        return true;
+    if (first == 'n')
+        return false;
 
     return default_value;
 }
@@ -308,15 +305,16 @@ static bool wizard_step2_curriculum(WizardState* state) {
     }
 
     int choice = read_int_choice(1, count);
-    if (choice < 1) return false;
+    if (choice < 1)
+        return false;
 
     const CurriculumInfo* selected = &AVAILABLE_CURRICULA[choice - 1];
     strncpy(state->curriculum_id, selected->id, sizeof(state->curriculum_id) - 1);
 
     // Anno specifico
     if (selected->max_grade > selected->min_grade) {
-        printf("\n  Che anno stai frequentando? (%d-%d)\n",
-               selected->min_grade, selected->max_grade);
+        printf("\n  Che anno stai frequentando? (%d-%d)\n", selected->min_grade,
+               selected->max_grade);
         state->grade_level = read_int_choice(selected->min_grade, selected->max_grade);
     } else {
         state->grade_level = selected->min_grade;
@@ -398,9 +396,15 @@ static bool wizard_step4_preferences(WizardState* state) {
 
     int input_choice = read_int_choice(1, 3);
     switch (input_choice) {
-        case 1: state->accessibility.preferred_input = INPUT_KEYBOARD; break;
-        case 2: state->accessibility.preferred_input = INPUT_VOICE; break;
-        case 3: state->accessibility.preferred_input = INPUT_BOTH; break;
+    case 1:
+        state->accessibility.preferred_input = INPUT_KEYBOARD;
+        break;
+    case 2:
+        state->accessibility.preferred_input = INPUT_VOICE;
+        break;
+    case 3:
+        state->accessibility.preferred_input = INPUT_BOTH;
+        break;
     }
 
     // Output preference
@@ -411,18 +415,18 @@ static bool wizard_step4_preferences(WizardState* state) {
 
     int output_choice = read_int_choice(1, 3);
     switch (output_choice) {
-        case 1:
-            state->accessibility.preferred_output = OUTPUT_TEXT;
-            state->accessibility.tts_enabled = false;
-            break;
-        case 2:
-            state->accessibility.preferred_output = OUTPUT_TTS;
-            state->accessibility.tts_enabled = true;
-            break;
-        case 3:
-            state->accessibility.preferred_output = OUTPUT_BOTH;
-            state->accessibility.tts_enabled = true;
-            break;
+    case 1:
+        state->accessibility.preferred_output = OUTPUT_TEXT;
+        state->accessibility.tts_enabled = false;
+        break;
+    case 2:
+        state->accessibility.preferred_output = OUTPUT_TTS;
+        state->accessibility.tts_enabled = true;
+        break;
+    case 3:
+        state->accessibility.preferred_output = OUTPUT_BOTH;
+        state->accessibility.tts_enabled = true;
+        break;
     }
 
     // TTS Speed
@@ -431,8 +435,10 @@ static bool wizard_step4_preferences(WizardState* state) {
         char speed_buf[16];
         read_string("Speed [0.5-2.0]", speed_buf, sizeof(speed_buf));
         state->accessibility.tts_speed = atof(speed_buf);
-        if (state->accessibility.tts_speed < 0.5) state->accessibility.tts_speed = 0.5f;
-        if (state->accessibility.tts_speed > 2.0) state->accessibility.tts_speed = 2.0f;
+        if (state->accessibility.tts_speed < 0.5)
+            state->accessibility.tts_speed = 0.5f;
+        if (state->accessibility.tts_speed > 2.0)
+            state->accessibility.tts_speed = 2.0f;
     } else {
         state->accessibility.tts_speed = 1.0f;
     }
@@ -443,16 +449,20 @@ static bool wizard_step4_preferences(WizardState* state) {
     char dur_buf[16];
     read_string("Duration [10-60]", dur_buf, sizeof(dur_buf));
     state->session_duration = atoi(dur_buf);
-    if (state->session_duration < 10) state->session_duration = 25;
-    if (state->session_duration > 60) state->session_duration = 60;
+    if (state->session_duration < 10)
+        state->session_duration = 25;
+    if (state->session_duration > 60)
+        state->session_duration = 60;
 
     // Break duration
     printf("\n  How long should breaks be?\n");
     char break_buf[16];
     read_string("Break [5-15]", break_buf, sizeof(break_buf));
     state->break_duration = atoi(break_buf);
-    if (state->break_duration < 5) state->break_duration = 5;
-    if (state->break_duration > 15) state->break_duration = 15;
+    if (state->break_duration < 5)
+        state->break_duration = 5;
+    if (state->break_duration > 15)
+        state->break_duration = 15;
 
     printf("\n");
     print_success("Preferences saved!");
@@ -478,11 +488,21 @@ static bool wizard_step5_study_method(WizardState* state) {
 
     int style_choice = read_int_choice(1, 5);
     switch (style_choice) {
-        case 1: strncpy(state->learning_style, "visual", sizeof(state->learning_style) - 1); break;
-        case 2: strncpy(state->learning_style, "auditory", sizeof(state->learning_style) - 1); break;
-        case 3: strncpy(state->learning_style, "kinesthetic", sizeof(state->learning_style) - 1); break;
-        case 4: strncpy(state->learning_style, "reading", sizeof(state->learning_style) - 1); break;
-        case 5: strncpy(state->learning_style, "mixed", sizeof(state->learning_style) - 1); break;
+    case 1:
+        strncpy(state->learning_style, "visual", sizeof(state->learning_style) - 1);
+        break;
+    case 2:
+        strncpy(state->learning_style, "auditory", sizeof(state->learning_style) - 1);
+        break;
+    case 3:
+        strncpy(state->learning_style, "kinesthetic", sizeof(state->learning_style) - 1);
+        break;
+    case 4:
+        strncpy(state->learning_style, "reading", sizeof(state->learning_style) - 1);
+        break;
+    case 5:
+        strncpy(state->learning_style, "mixed", sizeof(state->learning_style) - 1);
+        break;
     }
     state->learning_style[sizeof(state->learning_style) - 1] = '\0';
 
@@ -527,39 +547,36 @@ static bool wizard_step6_goals(WizardState* state) {
         print_option(6, "Done with goals", "Finished");
 
         int goal_choice = read_int_choice(1, 6);
-        if (goal_choice == 6) break;
+        if (goal_choice == 6)
+            break;
 
         char description[256] = {0};
 
         switch (goal_choice) {
-            case 1:
-                printf("  Which subject do you want to improve?\n");
-                read_string("", description, sizeof(description));
-                snprintf(state->goals[i], MAX_GOAL_LEN,
-                         "Improve in %s", description);
-                break;
-            case 2:
-                printf("  What exam are you preparing for?\n");
-                read_string("", description, sizeof(description));
-                snprintf(state->goals[i], MAX_GOAL_LEN,
-                         "Prepare for exam: %s", description);
-                break;
-            case 3:
-                printf("  Which subject do you need to catch up on?\n");
-                read_string("", description, sizeof(description));
-                snprintf(state->goals[i], MAX_GOAL_LEN,
-                         "Catch up in %s", description);
-                break;
-            case 4:
-                printf("  What topic do you want to explore?\n");
-                read_string("", description, sizeof(description));
-                snprintf(state->goals[i], MAX_GOAL_LEN,
-                         "Deep dive: %s", description);
-                break;
-            case 5:
-                printf("  Describe your goal:\n");
-                read_string("", state->goals[i], MAX_GOAL_LEN);
-                break;
+        case 1:
+            printf("  Which subject do you want to improve?\n");
+            read_string("", description, sizeof(description));
+            snprintf(state->goals[i], MAX_GOAL_LEN, "Improve in %s", description);
+            break;
+        case 2:
+            printf("  What exam are you preparing for?\n");
+            read_string("", description, sizeof(description));
+            snprintf(state->goals[i], MAX_GOAL_LEN, "Prepare for exam: %s", description);
+            break;
+        case 3:
+            printf("  Which subject do you need to catch up on?\n");
+            read_string("", description, sizeof(description));
+            snprintf(state->goals[i], MAX_GOAL_LEN, "Catch up in %s", description);
+            break;
+        case 4:
+            printf("  What topic do you want to explore?\n");
+            read_string("", description, sizeof(description));
+            snprintf(state->goals[i], MAX_GOAL_LEN, "Deep dive: %s", description);
+            break;
+        case 5:
+            printf("  Describe your goal:\n");
+            read_string("", state->goals[i], MAX_GOAL_LEN);
+            break;
         }
 
         state->goals_count++;
@@ -602,9 +619,7 @@ static bool wizard_step7_skills_assessment(WizardState* state) {
 
     if (choice == 1) {
         // Mark that user wants assessment - will trigger /assess after wizard
-        strncpy(state->study_method,
-                "[ASSESSMENT_REQUESTED] ",
-                sizeof(state->study_method) - 1);
+        strncpy(state->study_method, "[ASSESSMENT_REQUESTED] ", sizeof(state->study_method) - 1);
         strncat(state->study_method,
                 state->study_method[0] ? state->study_method : "Adaptive learning",
                 sizeof(state->study_method) - strlen(state->study_method) - 1);
@@ -631,8 +646,8 @@ static bool wizard_show_summary(WizardState* state) {
     }
     printf("\n");
 
-    printf("  " ANSI_BOLD "📚 Curriculum:" ANSI_RESET " %s (Year %d)\n",
-           state->curriculum_id, state->grade_level);
+    printf("  " ANSI_BOLD "📚 Curriculum:" ANSI_RESET " %s (Year %d)\n", state->curriculum_id,
+           state->grade_level);
 
     printf("  " ANSI_BOLD "🎯 Learning style:" ANSI_RESET " %s\n", state->learning_style);
 
@@ -642,12 +657,29 @@ static bool wizard_show_summary(WizardState* state) {
     // Accessibility summary
     printf("  " ANSI_BOLD "♿ Accessibility:" ANSI_RESET " ");
     bool has_any = false;
-    if (state->accessibility.dyslexia) { printf("Dyslexia "); has_any = true; }
-    if (state->accessibility.dyscalculia) { printf("Dyscalculia "); has_any = true; }
-    if (state->accessibility.adhd) { printf("ADHD "); has_any = true; }
-    if (state->accessibility.autism) { printf("Autism "); has_any = true; }
-    if (state->accessibility.cerebral_palsy) { printf("Cerebral Palsy "); has_any = true; }
-    if (!has_any) { printf("No accessibility requirements"); }
+    if (state->accessibility.dyslexia) {
+        printf("Dyslexia ");
+        has_any = true;
+    }
+    if (state->accessibility.dyscalculia) {
+        printf("Dyscalculia ");
+        has_any = true;
+    }
+    if (state->accessibility.adhd) {
+        printf("ADHD ");
+        has_any = true;
+    }
+    if (state->accessibility.autism) {
+        printf("Autism ");
+        has_any = true;
+    }
+    if (state->accessibility.cerebral_palsy) {
+        printf("Cerebral Palsy ");
+        has_any = true;
+    }
+    if (!has_any) {
+        printf("No accessibility requirements");
+    }
     printf("\n");
 
     // Goals
@@ -703,7 +735,7 @@ static bool wizard_activate_profile(int64_t profile_id) {
     // Broadcast to maestri
     education_maestro_broadcast_profile(profile_id);
 
-    print_info("Profile shared with all 15 maestri.");
+    print_info("Profile shared with all 17 maestri.");
     print_info("Each maestro will adapt their style to your needs.");
 
     return true;
@@ -726,35 +758,40 @@ static char* wizard_generate_parent_report(const WizardState* state) {
     char accessibility_html[2048] = "";
     int acc_pos = 0;
     if (state->accessibility.dyslexia) {
-        acc_pos += snprintf(accessibility_html + acc_pos, sizeof(accessibility_html) - acc_pos,
+        acc_pos += snprintf(
+            accessibility_html + acc_pos, sizeof(accessibility_html) - acc_pos,
             "<li><strong>Dyslexia</strong>: OpenDyslexic font, TTS, syllable breaking</li>");
     }
     if (state->accessibility.dyscalculia) {
-        acc_pos += snprintf(accessibility_html + acc_pos, sizeof(accessibility_html) - acc_pos,
-            "<li><strong>Dyscalculia</strong>: Visual aids, step-by-step, no timers</li>");
+        acc_pos +=
+            snprintf(accessibility_html + acc_pos, sizeof(accessibility_html) - acc_pos,
+                     "<li><strong>Dyscalculia</strong>: Visual aids, step-by-step, no timers</li>");
     }
     if (state->accessibility.adhd) {
-        acc_pos += snprintf(accessibility_html + acc_pos, sizeof(accessibility_html) - acc_pos,
+        acc_pos += snprintf(
+            accessibility_html + acc_pos, sizeof(accessibility_html) - acc_pos,
             "<li><strong>ADHD</strong>: Short sessions, gamification, frequent breaks</li>");
     }
     if (state->accessibility.autism) {
-        acc_pos += snprintf(accessibility_html + acc_pos, sizeof(accessibility_html) - acc_pos,
+        acc_pos += snprintf(
+            accessibility_html + acc_pos, sizeof(accessibility_html) - acc_pos,
             "<li><strong>Autism</strong>: Structured lessons, literal language, details</li>");
     }
     if (state->accessibility.cerebral_palsy) {
         acc_pos += snprintf(accessibility_html + acc_pos, sizeof(accessibility_html) - acc_pos,
-            "<li><strong>Cerebral Palsy</strong>: Voice input, extended time</li>");
+                            "<li><strong>Cerebral Palsy</strong>: Voice input, extended time</li>");
     }
     if (acc_pos == 0) {
-        snprintf(accessibility_html, sizeof(accessibility_html), "<li>No specific adaptations configured</li>");
+        snprintf(accessibility_html, sizeof(accessibility_html),
+                 "<li>No specific adaptations configured</li>");
     }
 
     // Build goals list
     char goals_html[2048] = "";
     int goals_pos = 0;
     for (int i = 0; i < state->goals_count; i++) {
-        goals_pos += snprintf(goals_html + goals_pos, sizeof(goals_html) - goals_pos,
-            "<li>%s</li>", state->goals[i]);
+        goals_pos += snprintf(goals_html + goals_pos, sizeof(goals_html) - goals_pos, "<li>%s</li>",
+                              state->goals[i]);
     }
     if (goals_pos == 0) {
         snprintf(goals_html, sizeof(goals_html), "<li>No goals set yet</li>");
@@ -769,9 +806,11 @@ static char* wizard_generate_parent_report(const WizardState* state) {
     // Generate HTML
     size_t html_size = 16384;
     char* html = malloc(html_size);
-    if (!html) return NULL;
+    if (!html)
+        return NULL;
 
-    snprintf(html, html_size,
+    snprintf(
+        html, html_size,
         "<!DOCTYPE html>\n"
         "<html lang=\"en\">\n"
         "<head>\n"
@@ -780,21 +819,26 @@ static char* wizard_generate_parent_report(const WizardState* state) {
         "    <title>%s's Learning Profile - Convergio Education</title>\n"
         "    <style>\n"
         "        * { margin: 0; padding: 0; box-sizing: border-box; }\n"
-        "        body { font-family: 'Segoe UI', system-ui, sans-serif; background: linear-gradient(135deg, #667eea 0%%, #764ba2 100%%); min-height: 100vh; padding: 20px; }\n"
-        "        .container { max-width: 800px; margin: 0 auto; background: white; border-radius: 20px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); overflow: hidden; }\n"
-        "        .header { background: linear-gradient(135deg, #11998e 0%%, #38ef7d 100%%); color: white; padding: 40px; text-align: center; }\n"
+        "        body { font-family: 'Segoe UI', system-ui, sans-serif; background: "
+        "linear-gradient(135deg, #667eea 0%%, #764ba2 100%%); min-height: 100vh; padding: 20px; }\n"
+        "        .container { max-width: 800px; margin: 0 auto; background: white; border-radius: "
+        "20px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); overflow: hidden; }\n"
+        "        .header { background: linear-gradient(135deg, #11998e 0%%, #38ef7d 100%%); color: "
+        "white; padding: 40px; text-align: center; }\n"
         "        .header h1 { font-size: 2.5em; margin-bottom: 10px; }\n"
         "        .header .subtitle { opacity: 0.9; font-size: 1.2em; }\n"
         "        .content { padding: 40px; }\n"
         "        .section { margin-bottom: 30px; }\n"
-        "        .section h2 { color: #667eea; border-bottom: 2px solid #667eea; padding-bottom: 10px; margin-bottom: 15px; }\n"
+        "        .section h2 { color: #667eea; border-bottom: 2px solid #667eea; padding-bottom: "
+        "10px; margin-bottom: 15px; }\n"
         "        .info-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; }\n"
         "        .info-item { background: #f8f9fa; padding: 15px; border-radius: 10px; }\n"
         "        .info-item .label { color: #666; font-size: 0.9em; margin-bottom: 5px; }\n"
         "        .info-item .value { font-size: 1.2em; font-weight: 600; color: #333; }\n"
         "        ul { list-style-position: inside; color: #555; }\n"
         "        li { margin: 8px 0; }\n"
-        "        .maestri { background: linear-gradient(135deg, #f093fb 0%%, #f5576c 100%%); color: white; padding: 30px; border-radius: 15px; margin-top: 30px; }\n"
+        "        .maestri { background: linear-gradient(135deg, #f093fb 0%%, #f5576c 100%%); "
+        "color: white; padding: 30px; border-radius: 15px; margin-top: 30px; }\n"
         "        .maestri h3 { margin-bottom: 15px; }\n"
         "        .footer { text-align: center; padding: 20px; color: #888; font-size: 0.9em; }\n"
         "        @media print { body { background: white; } .container { box-shadow: none; } }\n"
@@ -804,25 +848,34 @@ static char* wizard_generate_parent_report(const WizardState* state) {
         "    <div class=\"container\">\n"
         "        <div class=\"header\">\n"
         "            <h1>%s's Learning Profile</h1>\n"
-        "            <div class=\"subtitle\">Convergio Education - Personalized Learning Journey</div>\n"
+        "            <div class=\"subtitle\">Convergio Education - Personalized Learning "
+        "Journey</div>\n"
         "        </div>\n"
         "        <div class=\"content\">\n"
         "            <div class=\"section\">\n"
         "                <h2>Student Information</h2>\n"
         "                <div class=\"info-grid\">\n"
-        "                    <div class=\"info-item\"><div class=\"label\">Name</div><div class=\"value\">%s</div></div>\n"
-        "                    <div class=\"info-item\"><div class=\"label\">Age</div><div class=\"value\">%d years</div></div>\n"
-        "                    <div class=\"info-item\"><div class=\"label\">Grade Level</div><div class=\"value\">Grade %d</div></div>\n"
-        "                    <div class=\"info-item\"><div class=\"label\">Curriculum</div><div class=\"value\">%s</div></div>\n"
+        "                    <div class=\"info-item\"><div class=\"label\">Name</div><div "
+        "class=\"value\">%s</div></div>\n"
+        "                    <div class=\"info-item\"><div class=\"label\">Age</div><div "
+        "class=\"value\">%d years</div></div>\n"
+        "                    <div class=\"info-item\"><div class=\"label\">Grade Level</div><div "
+        "class=\"value\">Grade %d</div></div>\n"
+        "                    <div class=\"info-item\"><div class=\"label\">Curriculum</div><div "
+        "class=\"value\">%s</div></div>\n"
         "                </div>\n"
         "            </div>\n"
         "            <div class=\"section\">\n"
         "                <h2>Learning Preferences</h2>\n"
         "                <div class=\"info-grid\">\n"
-        "                    <div class=\"info-item\"><div class=\"label\">Session Duration</div><div class=\"value\">%d minutes</div></div>\n"
-        "                    <div class=\"info-item\"><div class=\"label\">Break Duration</div><div class=\"value\">%d minutes</div></div>\n"
-        "                    <div class=\"info-item\"><div class=\"label\">Learning Style</div><div class=\"value\">%s</div></div>\n"
-        "                    <div class=\"info-item\"><div class=\"label\">Study Method</div><div class=\"value\">%s</div></div>\n"
+        "                    <div class=\"info-item\"><div class=\"label\">Session "
+        "Duration</div><div class=\"value\">%d minutes</div></div>\n"
+        "                    <div class=\"info-item\"><div class=\"label\">Break "
+        "Duration</div><div class=\"value\">%d minutes</div></div>\n"
+        "                    <div class=\"info-item\"><div class=\"label\">Learning "
+        "Style</div><div class=\"value\">%s</div></div>\n"
+        "                    <div class=\"info-item\"><div class=\"label\">Study Method</div><div "
+        "class=\"value\">%s</div></div>\n"
         "                </div>\n"
         "            </div>\n"
         "            <div class=\"section\">\n"
@@ -835,9 +888,12 @@ static char* wizard_generate_parent_report(const WizardState* state) {
         "            </div>\n"
         "            <div class=\"maestri\">\n"
         "                <h3>15 Historical Maestri Ready to Help</h3>\n"
-        "                <p>Your child will learn from: Socrate (Philosophy), Euclide (Math), Feynman (Physics), "
-        "Darwin (Science), Humboldt (Geography), Manzoni (Italian), Erodoto (History), Leonardo (Art), "
-        "Mozart (Music), Shakespeare (English), Cicerone (Civics), Smith (Economics), Lovelace (Computing), "
+        "                <p>Your child will learn from: Socrate (Philosophy), Euclide (Math), "
+        "Feynman (Physics), "
+        "Darwin (Science), Humboldt (Geography), Manzoni (Italian), Erodoto (History), Leonardo "
+        "(Art), "
+        "Mozart (Music), Shakespeare (English), Cicerone (Civics), Smith (Economics), Lovelace "
+        "(Computing), "
         "Ippocrate (Health), and Chris Anderson (Storytelling).</p>\n"
         "            </div>\n"
         "        </div>\n"
@@ -851,8 +907,8 @@ static char* wizard_generate_parent_report(const WizardState* state) {
         state->name, state->name, state->name, state->age, state->grade_level, curriculum_name,
         state->session_duration, state->break_duration,
         state->learning_style[0] ? state->learning_style : "Visual + Auditory",
-        state->study_method[0] ? state->study_method : "Adaptive",
-        accessibility_html, goals_html, date_str);
+        state->study_method[0] ? state->study_method : "Adaptive", accessibility_html, goals_html,
+        date_str);
 
     return html;
 }
@@ -862,7 +918,8 @@ static char* wizard_generate_parent_report(const WizardState* state) {
  */
 static bool wizard_save_parent_report(const WizardState* state) {
     char* html = wizard_generate_parent_report(state);
-    if (!html) return false;
+    if (!html)
+        return false;
 
     // Use html_save_and_open from html_generator.c
     extern char* html_save_and_open(const char* html_content, const char* topic);
@@ -933,25 +990,32 @@ bool education_setup_wizard(void) {
 
     // Run wizard steps
     clear_screen();
-    if (!wizard_step1_basic_info(&state)) return false;
+    if (!wizard_step1_basic_info(&state))
+        return false;
 
     clear_screen();
-    if (!wizard_step2_curriculum(&state)) return false;
+    if (!wizard_step2_curriculum(&state))
+        return false;
 
     clear_screen();
-    if (!wizard_step3_accessibility(&state)) return false;
+    if (!wizard_step3_accessibility(&state))
+        return false;
 
     clear_screen();
-    if (!wizard_step4_preferences(&state)) return false;
+    if (!wizard_step4_preferences(&state))
+        return false;
 
     clear_screen();
-    if (!wizard_step5_study_method(&state)) return false;
+    if (!wizard_step5_study_method(&state))
+        return false;
 
     clear_screen();
-    if (!wizard_step6_goals(&state)) return false;
+    if (!wizard_step6_goals(&state))
+        return false;
 
     clear_screen();
-    if (!wizard_step7_skills_assessment(&state)) return false;
+    if (!wizard_step7_skills_assessment(&state))
+        return false;
 
     clear_screen();
     if (!wizard_show_summary(&state)) {

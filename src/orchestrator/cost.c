@@ -5,20 +5,22 @@
  * All prices in USD, tokens tracked per-message
  */
 
+#include "nous/config.h"
+#include "nous/debug_mutex.h"
 #include "nous/orchestrator.h"
 #include "nous/provider.h"
-#include "nous/config.h"
+#include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <pthread.h>
-#include "nous/debug_mutex.h"
 
 // Helper macro for safe snprintf offset accumulation
-#define SNPRINTF_OFFSET(buf, offset, size, ...) do { \
-    int _ret = snprintf((buf) + (offset), (size) - (offset), __VA_ARGS__); \
-    if (_ret > 0) (offset) += (size_t)_ret; \
-} while(0)
+#define SNPRINTF_OFFSET(buf, offset, size, ...)                                                    \
+    do {                                                                                           \
+        int _ret = snprintf((buf) + (offset), (size) - (offset), __VA_ARGS__);                     \
+        if (_ret > 0)                                                                              \
+            (offset) += (size_t)_ret;                                                              \
+    } while (0)
 
 // Thread-safe cost tracking
 CONVERGIO_MUTEX_DECLARE(g_cost_mutex);
@@ -30,7 +32,7 @@ extern const char* router_get_agent_model(const char* agent_name);
 // Persistence functions
 extern double persistence_get_total_cost(void);
 extern int persistence_save_cost_daily(const char* date, uint64_t input_tokens,
-                                        uint64_t output_tokens, double cost, uint32_t calls);
+                                       uint64_t output_tokens, double cost, uint32_t calls);
 
 // Claude Max subscription check
 extern bool nous_claude_is_max_subscription(void);
@@ -48,7 +50,8 @@ static void get_today_date(char* buf, size_t size) {
 
 void cost_load_historical(void) {
     Orchestrator* orch = orchestrator_get();
-    if (!orch) return;
+    if (!orch)
+        return;
 
     CONVERGIO_MUTEX_LOCK(&g_cost_mutex);
 
@@ -82,7 +85,8 @@ static double calculate_cost(uint64_t input_tokens, uint64_t output_tokens) {
 
 void cost_record_usage(uint64_t input_tokens, uint64_t output_tokens) {
     Orchestrator* orch = orchestrator_get();
-    if (!orch || !orch->initialized) return;
+    if (!orch || !orch->initialized)
+        return;
 
     CONVERGIO_MUTEX_LOCK(&g_cost_mutex);
 
@@ -107,8 +111,7 @@ void cost_record_usage(uint64_t input_tokens, uint64_t output_tokens) {
     orch->cost.total_spend_usd += call_cost;
 
     // Check budget against cumulative total (only if not Claude Max)
-    if (!nous_claude_is_max_subscription() &&
-        orch->cost.budget_limit_usd > 0 &&
+    if (!nous_claude_is_max_subscription() && orch->cost.budget_limit_usd > 0 &&
         orch->cost.total_spend_usd >= orch->cost.budget_limit_usd) {
         orch->cost.budget_exceeded = true;
     }
@@ -127,9 +130,11 @@ void cost_record_usage(uint64_t input_tokens, uint64_t output_tokens) {
 }
 
 // Record usage with model-specific pricing
-void cost_record_usage_for_model(const char* model_id, uint64_t input_tokens, uint64_t output_tokens) {
+void cost_record_usage_for_model(const char* model_id, uint64_t input_tokens,
+                                 uint64_t output_tokens) {
     Orchestrator* orch = orchestrator_get();
-    if (!orch || !orch->initialized) return;
+    if (!orch || !orch->initialized)
+        return;
 
     CONVERGIO_MUTEX_LOCK(&g_cost_mutex);
 
@@ -153,8 +158,7 @@ void cost_record_usage_for_model(const char* model_id, uint64_t input_tokens, ui
     orch->cost.total_spend_usd += call_cost;
 
     // Check budget against cumulative total (only if not Claude Max)
-    if (!nous_claude_is_max_subscription() &&
-        orch->cost.budget_limit_usd > 0 &&
+    if (!nous_claude_is_max_subscription() && orch->cost.budget_limit_usd > 0 &&
         orch->cost.total_spend_usd >= orch->cost.budget_limit_usd) {
         orch->cost.budget_exceeded = true;
     }
@@ -174,7 +178,8 @@ void cost_record_usage_for_model(const char* model_id, uint64_t input_tokens, ui
 
 // Record usage for a specific agent (uses agent's configured model for pricing)
 void cost_record_agent_usage(ManagedAgent* agent, uint64_t input_tokens, uint64_t output_tokens) {
-    if (!agent) return;
+    if (!agent)
+        return;
 
     // Get the model configured for this agent
     const char* model_id = router_get_agent_model(agent->name);
@@ -198,7 +203,8 @@ void cost_record_agent_usage(ManagedAgent* agent, uint64_t input_tokens, uint64_
 
 double cost_get_session_spend(void) {
     Orchestrator* orch = orchestrator_get();
-    if (!orch) return 0.0;
+    if (!orch)
+        return 0.0;
 
     CONVERGIO_MUTEX_LOCK(&g_cost_mutex);
     double spend = orch->cost.current_spend_usd;
@@ -209,7 +215,8 @@ double cost_get_session_spend(void) {
 
 double cost_get_total_spend(void) {
     Orchestrator* orch = orchestrator_get();
-    if (!orch) return 0.0;
+    if (!orch)
+        return 0.0;
 
     CONVERGIO_MUTEX_LOCK(&g_cost_mutex);
     double spend = orch->cost.total_spend_usd;
@@ -220,18 +227,20 @@ double cost_get_total_spend(void) {
 
 bool cost_check_budget(void) {
     Orchestrator* orch = orchestrator_get();
-    if (!orch) return false;
+    if (!orch)
+        return false;
 
     CONVERGIO_MUTEX_LOCK(&g_cost_mutex);
     bool exceeded = orch->cost.budget_exceeded;
     CONVERGIO_MUTEX_UNLOCK(&g_cost_mutex);
 
-    return !exceeded;  // Returns true if within budget
+    return !exceeded; // Returns true if within budget
 }
 
 double cost_get_remaining_budget(void) {
     Orchestrator* orch = orchestrator_get();
-    if (!orch || orch->cost.budget_limit_usd <= 0) return -1.0;  // No budget set
+    if (!orch || orch->cost.budget_limit_usd <= 0)
+        return -1.0; // No budget set
 
     CONVERGIO_MUTEX_LOCK(&g_cost_mutex);
     // Use total spend, not just session spend
@@ -247,7 +256,8 @@ double cost_get_remaining_budget(void) {
 
 void cost_set_budget(double limit_usd) {
     Orchestrator* orch = orchestrator_get();
-    if (!orch) return;
+    if (!orch)
+        return;
 
     CONVERGIO_MUTEX_LOCK(&g_cost_mutex);
     orch->cost.budget_limit_usd = limit_usd;
@@ -264,7 +274,8 @@ void cost_set_budget(double limit_usd) {
 
 void cost_reset_session(void) {
     Orchestrator* orch = orchestrator_get();
-    if (!orch) return;
+    if (!orch)
+        return;
 
     CONVERGIO_MUTEX_LOCK(&g_cost_mutex);
 
@@ -288,7 +299,8 @@ void cost_reset_session(void) {
 
 char* cost_get_report(void) {
     Orchestrator* orch = orchestrator_get();
-    if (!orch) return strdup("Error: Orchestrator not initialized");
+    if (!orch)
+        return strdup("Error: Orchestrator not initialized");
 
     CONVERGIO_MUTEX_LOCK(&g_cost_mutex);
 
@@ -303,9 +315,9 @@ char* cost_get_report(void) {
     int session_minutes = (int)((now - orch->cost.session_start) / 60);
 
     // Check if we're in LOCAL MODE (tokens used but zero cost)
-    bool is_local_mode = (orch->cost.session_usage.input_tokens > 0 ||
-                          orch->cost.session_usage.output_tokens > 0) &&
-                         orch->cost.session_usage.estimated_cost < 0.0001;
+    bool is_local_mode =
+        (orch->cost.session_usage.input_tokens > 0 || orch->cost.session_usage.output_tokens > 0) &&
+        orch->cost.session_usage.estimated_cost < 0.0001;
 
     // Build report
     size_t offset = 0;
@@ -315,24 +327,28 @@ char* cost_get_report(void) {
         // LOCAL MODE REPORT (MLX / Ollama - Free inference)
         // ========================================================================
         SNPRINTF_OFFSET(report, offset, 2048,
-            "\n\033[1m╔══════════════════════════════════════════════════════╗\033[0m\n"
-            "\033[1m║\033[0m  \033[32mLOCAL MODE - FREE INFERENCE\033[0m                        \033[1m║\033[0m\n"
-            "\033[1m╠══════════════════════════════════════════════════════╣\033[0m\n");
+                        "\n\033[1m╔══════════════════════════════════════════════════════╗\033[0m\n"
+                        "\033[1m║\033[0m  \033[32mLOCAL MODE - FREE INFERENCE\033[0m               "
+                        "         \033[1m║\033[0m\n"
+                        "\033[1m╠══════════════════════════════════════════════════════╣\033[0m\n");
 
         // Session section
-        SNPRINTF_OFFSET(report, offset, 2048,
-            "\033[1m║\033[0m \033[36mSESSION\033[0m (%d min)                                    \033[1m║\033[0m\n"
+        SNPRINTF_OFFSET(
+            report, offset, 2048,
+            "\033[1m║\033[0m \033[36mSESSION\033[0m (%d min)                                    "
+            "\033[1m║\033[0m\n"
             "\033[1m║\033[0m   Input tokens:  %12llu                       \033[1m║\033[0m\n"
             "\033[1m║\033[0m   Output tokens: %12llu                       \033[1m║\033[0m\n"
-            "\033[1m║\033[0m   \033[32mCost:            $0.00 (local inference)\033[0m         \033[1m║\033[0m\n",
-            session_minutes,
-            (unsigned long long)orch->cost.session_usage.input_tokens,
+            "\033[1m║\033[0m   \033[32mCost:            $0.00 (local inference)\033[0m         "
+            "\033[1m║\033[0m\n",
+            session_minutes, (unsigned long long)orch->cost.session_usage.input_tokens,
             (unsigned long long)orch->cost.session_usage.output_tokens);
 
         SNPRINTF_OFFSET(report, offset, 2048,
-            "\033[1m╠══════════════════════════════════════════════════════╣\033[0m\n"
-            "\033[1m║\033[0m \033[90mRunning on Apple Silicon with MLX - no API costs!\033[0m  \033[1m║\033[0m\n"
-            "\033[1m╚══════════════════════════════════════════════════════╝\033[0m\n");
+                        "\033[1m╠══════════════════════════════════════════════════════╣\033[0m\n"
+                        "\033[1m║\033[0m \033[90mRunning on Apple Silicon with MLX - no API "
+                        "costs!\033[0m  \033[1m║\033[0m\n"
+                        "\033[1m╚══════════════════════════════════════════════════════╝\033[0m\n");
     } else {
         // ========================================================================
         // STANDARD API MODE REPORT (with costs)
@@ -343,49 +359,48 @@ char* cost_get_report(void) {
         if (orch->cost.budget_limit_usd > 0) {
             double pct = (orch->cost.total_spend_usd / orch->cost.budget_limit_usd) * 100;
             if (orch->cost.budget_exceeded) {
-                snprintf(budget_line, sizeof(budget_line),
-                    "$%.2f / $%.2f (%.0f%%) EXCEEDED",
-                    orch->cost.total_spend_usd,
-                    orch->cost.budget_limit_usd,
-                    pct);
+                snprintf(budget_line, sizeof(budget_line), "$%.2f / $%.2f (%.0f%%) EXCEEDED",
+                         orch->cost.total_spend_usd, orch->cost.budget_limit_usd, pct);
             } else {
-                snprintf(budget_line, sizeof(budget_line),
-                    "$%.2f / $%.2f (%.0f%%)",
-                    orch->cost.total_spend_usd,
-                    orch->cost.budget_limit_usd,
-                    pct);
+                snprintf(budget_line, sizeof(budget_line), "$%.2f / $%.2f (%.0f%%)",
+                         orch->cost.total_spend_usd, orch->cost.budget_limit_usd, pct);
             }
         } else {
             snprintf(budget_line, sizeof(budget_line), "No limit set");
         }
 
         SNPRINTF_OFFSET(report, offset, 2048,
-            "\n\033[1m╔══════════════════════════════════════════════════════╗\033[0m\n"
-            "\033[1m║                    COST REPORT                       ║\033[0m\n"
-            "\033[1m╠══════════════════════════════════════════════════════╣\033[0m\n");
+                        "\n\033[1m╔══════════════════════════════════════════════════════╗\033[0m\n"
+                        "\033[1m║                    COST REPORT                       ║\033[0m\n"
+                        "\033[1m╠══════════════════════════════════════════════════════╣\033[0m\n");
 
         // Session section
-        SNPRINTF_OFFSET(report, offset, 2048,
-            "\033[1m║\033[0m \033[36mSESSION\033[0m (%d min)                                    \033[1m║\033[0m\n"
+        SNPRINTF_OFFSET(
+            report, offset, 2048,
+            "\033[1m║\033[0m \033[36mSESSION\033[0m (%d min)                                    "
+            "\033[1m║\033[0m\n"
             "\033[1m║\033[0m   Input tokens:  %12llu    ($%.4f)           \033[1m║\033[0m\n"
             "\033[1m║\033[0m   Output tokens: %12llu    ($%.4f)           \033[1m║\033[0m\n"
-            "\033[1m║\033[0m   \033[1mTotal cost:      $%.4f\033[0m                         \033[1m║\033[0m\n",
-            session_minutes,
-            (unsigned long long)orch->cost.session_usage.input_tokens,
+            "\033[1m║\033[0m   \033[1mTotal cost:      $%.4f\033[0m                         "
+            "\033[1m║\033[0m\n",
+            session_minutes, (unsigned long long)orch->cost.session_usage.input_tokens,
             (orch->cost.session_usage.input_tokens / 1000000.0) * CLAUDE_SONNET_INPUT_COST,
             (unsigned long long)orch->cost.session_usage.output_tokens,
             (orch->cost.session_usage.output_tokens / 1000000.0) * CLAUDE_SONNET_OUTPUT_COST,
             orch->cost.session_usage.estimated_cost);
 
         SNPRINTF_OFFSET(report, offset, 2048,
-            "\033[1m╠══════════════════════════════════════════════════════╣\033[0m\n");
+                        "\033[1m╠══════════════════════════════════════════════════════╣\033[0m\n");
 
         // All-time section
-        SNPRINTF_OFFSET(report, offset, 2048,
-            "\033[1m║\033[0m \033[36mALL-TIME\033[0m                                           \033[1m║\033[0m\n"
+        SNPRINTF_OFFSET(
+            report, offset, 2048,
+            "\033[1m║\033[0m \033[36mALL-TIME\033[0m                                           "
+            "\033[1m║\033[0m\n"
             "\033[1m║\033[0m   Input tokens:  %12llu    ($%.4f)           \033[1m║\033[0m\n"
             "\033[1m║\033[0m   Output tokens: %12llu    ($%.4f)           \033[1m║\033[0m\n"
-            "\033[1m║\033[0m   \033[1mTotal cost:      $%.4f\033[0m                         \033[1m║\033[0m\n",
+            "\033[1m║\033[0m   \033[1mTotal cost:      $%.4f\033[0m                         "
+            "\033[1m║\033[0m\n",
             (unsigned long long)orch->cost.total_usage.input_tokens,
             (orch->cost.total_usage.input_tokens / 1000000.0) * CLAUDE_SONNET_INPUT_COST,
             (unsigned long long)orch->cost.total_usage.output_tokens,
@@ -393,7 +408,7 @@ char* cost_get_report(void) {
             orch->cost.total_usage.estimated_cost);
 
         SNPRINTF_OFFSET(report, offset, 2048,
-            "\033[1m╠══════════════════════════════════════════════════════╣\033[0m\n");
+                        "\033[1m╠══════════════════════════════════════════════════════╣\033[0m\n");
 
         // Budget section - pad to fixed width
         char budget_display[48];
@@ -401,17 +416,19 @@ char* cost_get_report(void) {
 
         if (orch->cost.budget_exceeded) {
             SNPRINTF_OFFSET(report, offset, 2048,
-                "\033[1m║\033[0m \033[31mBUDGET: %s\033[0m \033[1m║\033[0m\n", budget_display);
+                            "\033[1m║\033[0m \033[31mBUDGET: %s\033[0m \033[1m║\033[0m\n",
+                            budget_display);
         } else if (orch->cost.budget_limit_usd > 0) {
             SNPRINTF_OFFSET(report, offset, 2048,
-                "\033[1m║\033[0m \033[32mBUDGET: %s\033[0m \033[1m║\033[0m\n", budget_display);
+                            "\033[1m║\033[0m \033[32mBUDGET: %s\033[0m \033[1m║\033[0m\n",
+                            budget_display);
         } else {
-            SNPRINTF_OFFSET(report, offset, 2048,
-                "\033[1m║\033[0m BUDGET: %s \033[1m║\033[0m\n", budget_display);
+            SNPRINTF_OFFSET(report, offset, 2048, "\033[1m║\033[0m BUDGET: %s \033[1m║\033[0m\n",
+                            budget_display);
         }
 
         SNPRINTF_OFFSET(report, offset, 2048,
-            "\033[1m╚══════════════════════════════════════════════════════╝\033[0m\n");
+                        "\033[1m╚══════════════════════════════════════════════════════╝\033[0m\n");
     }
 
     CONVERGIO_MUTEX_UNLOCK(&g_cost_mutex);
@@ -422,7 +439,8 @@ char* cost_get_report(void) {
 // Compact single-line cost display for prompts
 char* cost_get_status_line(void) {
     Orchestrator* orch = orchestrator_get();
-    if (!orch) return strdup("");
+    if (!orch)
+        return strdup("");
 
     CONVERGIO_MUTEX_LOCK(&g_cost_mutex);
 
@@ -433,16 +451,16 @@ char* cost_get_status_line(void) {
     }
 
     // Check if we're in LOCAL MODE (tokens used but zero cost)
-    bool is_local_mode = (orch->cost.session_usage.input_tokens > 0 ||
-                          orch->cost.session_usage.output_tokens > 0) &&
-                         orch->cost.current_spend_usd < 0.0001;
+    bool is_local_mode =
+        (orch->cost.session_usage.input_tokens > 0 || orch->cost.session_usage.output_tokens > 0) &&
+        orch->cost.current_spend_usd < 0.0001;
 
     if (is_local_mode) {
         snprintf(line, 128, "[🏠 Local Mode - Free]");
     } else if (orch->cost.budget_limit_usd > 0) {
         double remaining = orch->cost.budget_limit_usd - orch->cost.current_spend_usd;
-        snprintf(line, 128, "[$%.4f spent | $%.4f remaining]",
-            orch->cost.current_spend_usd, remaining > 0 ? remaining : 0);
+        snprintf(line, 128, "[$%.4f spent | $%.4f remaining]", orch->cost.current_spend_usd,
+                 remaining > 0 ? remaining : 0);
     } else {
         snprintf(line, 128, "[$%.4f spent]", orch->cost.current_spend_usd);
     }
@@ -457,7 +475,8 @@ char* cost_get_status_line(void) {
 // ============================================================================
 
 char* cost_get_agent_report(ManagedAgent* agent) {
-    if (!agent) return strdup("Error: Invalid agent");
+    if (!agent)
+        return strdup("Error: Invalid agent");
 
     CONVERGIO_MUTEX_LOCK(&g_cost_mutex);
 
@@ -468,17 +487,15 @@ char* cost_get_agent_report(ManagedAgent* agent) {
     }
 
     snprintf(report, 512,
-        "Agent: %s\n"
-        "  Input tokens:  %llu ($%.4f)\n"
-        "  Output tokens: %llu ($%.4f)\n"
-        "  Total cost:    $%.4f\n",
-        agent->name,
-        (unsigned long long)agent->usage.input_tokens,
-        (agent->usage.input_tokens / 1000000.0) * CLAUDE_SONNET_INPUT_COST,
-        (unsigned long long)agent->usage.output_tokens,
-        (agent->usage.output_tokens / 1000000.0) * CLAUDE_SONNET_OUTPUT_COST,
-        agent->usage.estimated_cost
-    );
+             "Agent: %s\n"
+             "  Input tokens:  %llu ($%.4f)\n"
+             "  Output tokens: %llu ($%.4f)\n"
+             "  Total cost:    $%.4f\n",
+             agent->name, (unsigned long long)agent->usage.input_tokens,
+             (agent->usage.input_tokens / 1000000.0) * CLAUDE_SONNET_INPUT_COST,
+             (unsigned long long)agent->usage.output_tokens,
+             (agent->usage.output_tokens / 1000000.0) * CLAUDE_SONNET_OUTPUT_COST,
+             agent->usage.estimated_cost);
 
     CONVERGIO_MUTEX_UNLOCK(&g_cost_mutex);
 
@@ -488,7 +505,8 @@ char* cost_get_agent_report(ManagedAgent* agent) {
 // Get top N agents by cost
 void cost_get_top_agents(ManagedAgent** out_agents, size_t* out_count, size_t max_count) {
     Orchestrator* orch = orchestrator_get();
-    if (!orch || !out_agents || !out_count) return;
+    if (!orch || !out_agents || !out_count)
+        return;
 
     CONVERGIO_MUTEX_LOCK(&g_cost_mutex);
 
@@ -503,10 +521,10 @@ void cost_get_top_agents(ManagedAgent** out_agents, size_t* out_count, size_t ma
     // Sort by cost descending
     for (size_t i = 0; i < count - 1; i++) {
         for (size_t j = 0; j < count - i - 1; j++) {
-            if (out_agents[j]->usage.estimated_cost < out_agents[j+1]->usage.estimated_cost) {
+            if (out_agents[j]->usage.estimated_cost < out_agents[j + 1]->usage.estimated_cost) {
                 ManagedAgent* tmp = out_agents[j];
-                out_agents[j] = out_agents[j+1];
-                out_agents[j+1] = tmp;
+                out_agents[j] = out_agents[j + 1];
+                out_agents[j + 1] = tmp;
             }
         }
     }
@@ -522,12 +540,13 @@ void cost_get_top_agents(ManagedAgent** out_agents, size_t* out_count, size_t ma
 
 // Estimate cost for a given text (rough estimation)
 double cost_estimate_message(const char* text, bool is_input) {
-    if (!text) return 0.0;
+    if (!text)
+        return 0.0;
 
     // Rough token estimation: ~4 characters per token for English
     // ~3 characters per token for code/technical content
     size_t len = strlen(text);
-    uint64_t estimated_tokens = (len / 3) + 1;  // Conservative estimate
+    uint64_t estimated_tokens = (len / 3) + 1; // Conservative estimate
 
     if (is_input) {
         return (estimated_tokens / 1000000.0) * CLAUDE_SONNET_INPUT_COST;
@@ -539,7 +558,8 @@ double cost_estimate_message(const char* text, bool is_input) {
 // Check if we can afford a conversation of estimated length
 bool cost_can_afford(size_t estimated_turns, size_t avg_input_tokens, size_t avg_output_tokens) {
     Orchestrator* orch = orchestrator_get();
-    if (!orch || orch->cost.budget_limit_usd <= 0) return true;  // No budget = unlimited
+    if (!orch || orch->cost.budget_limit_usd <= 0)
+        return true; // No budget = unlimited
 
     double estimated_cost = 0.0;
     for (size_t i = 0; i < estimated_turns; i++) {

@@ -5,16 +5,15 @@
  */
 
 #include "nous/compare.h"
-#include "nous/provider.h"
 #include "nous/nous.h"
+#include "nous/provider.h"
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <stdio.h>
 
 // External parallel execution function
-extern int parallel_execute(const char* prompt, const char* system,
-                            const char** models, size_t model_count,
-                            CompareResult* results);
+extern int parallel_execute(const char* prompt, const char* system, const char** models,
+                            size_t model_count, CompareResult* results);
 
 // External rendering functions
 extern void render_comparison_table(const CompareResult* results, size_t count,
@@ -27,13 +26,11 @@ extern void display_all_diffs(const CompareResult* results, size_t count);
 // ============================================================================
 
 CompareOptions compare_options_default(void) {
-    CompareOptions opts = {
-        .mode = COMPARE_MODE_PARALLEL,
-        .show_diff = true,
-        .show_metrics = true,
-        .show_cost = true,
-        .output_format = "table"
-    };
+    CompareOptions opts = {.mode = COMPARE_MODE_PARALLEL,
+                           .show_diff = true,
+                           .show_metrics = true,
+                           .show_cost = true,
+                           .output_format = "table"};
     return opts;
 }
 
@@ -42,7 +39,8 @@ CompareOptions compare_options_default(void) {
 // ============================================================================
 
 void compare_results_free(CompareResult* results, size_t count) {
-    if (!results) return;
+    if (!results)
+        return;
 
     for (size_t i = 0; i < count; i++) {
         free(results[i].model_id);
@@ -56,9 +54,8 @@ void compare_results_free(CompareResult* results, size_t count) {
 // SEQUENTIAL EXECUTION (FALLBACK)
 // ============================================================================
 
-static int sequential_execute(const char* prompt, const char* system,
-                              const char** models, size_t model_count,
-                              CompareResult* results) {
+static int sequential_execute(const char* prompt, const char* system, const char** models,
+                              size_t model_count, CompareResult* results) {
     for (size_t i = 0; i < model_count; i++) {
         CompareResult* res = &results[i];
 
@@ -110,8 +107,8 @@ static int sequential_execute(const char* prompt, const char* system,
 
         clock_gettime(CLOCK_MONOTONIC, &end);
 
-        double elapsed_ms = (end.tv_sec - start.tv_sec) * 1000.0 +
-                           (end.tv_nsec - start.tv_nsec) / 1000000.0;
+        double elapsed_ms =
+            (end.tv_sec - start.tv_sec) * 1000.0 + (end.tv_nsec - start.tv_nsec) / 1000000.0;
 
         if (response) {
             res->success = true;
@@ -121,8 +118,8 @@ static int sequential_execute(const char* prompt, const char* system,
             res->tokens_out = usage.output_tokens;
             res->cost = usage.estimated_cost;
 
-            LOG_INFO(LOG_CAT_SYSTEM, "Completed: %s (%.2fms, $%.4f)",
-                     models[i], elapsed_ms, usage.estimated_cost);
+            LOG_INFO(LOG_CAT_SYSTEM, "Completed: %s (%.2fms, $%.4f)", models[i], elapsed_ms,
+                     usage.estimated_cost);
         } else {
             ProviderErrorInfo* err = provider->get_last_error(provider);
             if (err && err->message) {
@@ -141,10 +138,8 @@ static int sequential_execute(const char* prompt, const char* system,
 // MAIN COMPARISON FUNCTION
 // ============================================================================
 
-int compare_models(const char* prompt, const char* system,
-                   const char** models, size_t model_count,
-                   const CompareOptions* options,
-                   CompareResult** results) {
+int compare_models(const char* prompt, const char* system, const char** models, size_t model_count,
+                   const CompareOptions* options, CompareResult** results) {
     if (!prompt || !models || model_count == 0 || !results) {
         LOG_ERROR(LOG_CAT_SYSTEM, "Invalid arguments to compare_models");
         return -1;
@@ -206,8 +201,7 @@ int compare_models(const char* prompt, const char* system,
 // BENCHMARK FUNCTION
 // ============================================================================
 
-int benchmark_model(const char* prompt, const char* system,
-                    const char* model, size_t iterations,
+int benchmark_model(const char* prompt, const char* system, const char* model, size_t iterations,
                     CompareResult* result) {
     if (!prompt || !model || iterations == 0 || !result) {
         LOG_ERROR(LOG_CAT_SYSTEM, "Invalid arguments to benchmark_model");
@@ -268,8 +262,8 @@ int benchmark_model(const char* prompt, const char* system,
 
         clock_gettime(CLOCK_MONOTONIC, &end);
 
-        double elapsed_ms = (end.tv_sec - start.tv_sec) * 1000.0 +
-                           (end.tv_nsec - start.tv_nsec) / 1000000.0;
+        double elapsed_ms =
+            (end.tv_sec - start.tv_sec) * 1000.0 + (end.tv_nsec - start.tv_nsec) / 1000000.0;
 
         if (response) {
             success_count++;
@@ -284,9 +278,9 @@ int benchmark_model(const char* prompt, const char* system,
             }
             result->response = response;
 
-            LOG_DEBUG(LOG_CAT_SYSTEM, "Iteration %zu/%zu: %.2fms", i+1, iterations, elapsed_ms);
+            LOG_DEBUG(LOG_CAT_SYSTEM, "Iteration %zu/%zu: %.2fms", i + 1, iterations, elapsed_ms);
         } else {
-            LOG_WARN(LOG_CAT_SYSTEM, "Iteration %zu/%zu failed", i+1, iterations);
+            LOG_WARN(LOG_CAT_SYSTEM, "Iteration %zu/%zu failed", i + 1, iterations);
         }
     }
 
@@ -302,8 +296,8 @@ int benchmark_model(const char* prompt, const char* system,
     result->tokens_out = total_tokens_out / success_count;
     result->cost = total_cost / success_count;
 
-    LOG_INFO(LOG_CAT_SYSTEM, "Benchmark complete: %s (avg %.2fms, $%.4f)",
-             model, result->time_ms, result->cost);
+    LOG_INFO(LOG_CAT_SYSTEM, "Benchmark complete: %s (avg %.2fms, $%.4f)", model, result->time_ms,
+             result->cost);
 
     // Display benchmark results
     printf("\n");

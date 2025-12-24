@@ -10,7 +10,7 @@
 #include "nous/commands.h"
 #include "nous/education.h"
 #include "nous/nous.h"
-#include "nous/tools.h"  // For tool_web_search
+#include "nous/tools.h" // For tool_web_search
 
 // Include education features header from src/education/features/
 // This provides HomeworkRequest, HomeworkResponse, StudySession, etc.
@@ -37,17 +37,14 @@ extern bool ali_check_api_setup(void);
 
 // From tools/mindmap.c
 extern char* mindmap_generate_from_llm(const char* topic, const char* content,
-                                        const EducationAccessibility* access);
-extern int mindmap_command_handler(int argc, char** argv,
-                                    const EducationStudentProfile* profile);
+                                       const EducationAccessibility* access);
+extern int mindmap_command_handler(int argc, char** argv, const EducationStudentProfile* profile);
 
 // From tools/quiz.c
-extern int quiz_command_handler(int argc, char** argv,
-                                 const EducationStudentProfile* profile);
+extern int quiz_command_handler(int argc, char** argv, const EducationStudentProfile* profile);
 
 // From tools/flashcards.c
-extern int flashcard_command_handler(int argc, char** argv,
-                                      const EducationStudentProfile* profile);
+extern int flashcard_command_handler(int argc, char** argv, const EducationStudentProfile* profile);
 
 // From tools/html_generator.c
 extern char* html_save_and_open(const char* html_content, const char* topic);
@@ -126,7 +123,8 @@ int cmd_education(int argc, char** argv) {
             fprintf(stderr, "Usage: /education quick <name> <curriculum> <grade>\n");
             fprintf(stderr, "Example: /education quick Mario liceo_scientifico 1\n\n");
             fprintf(stderr, "Available curricula:\n");
-            fprintf(stderr, "  elementary, middle_school, science_high_school, classical_high_school,\n");
+            fprintf(stderr,
+                    "  elementary, middle_school, science_high_school, classical_high_school,\n");
             fprintf(stderr, "  language_high_school, art_high_school, tech_high_school\n");
             return 1;
         }
@@ -156,7 +154,8 @@ int cmd_education(int argc, char** argv) {
         printf("           STUDENT PROFILE\n");
         printf("═══════════════════════════════════════════\n\n");
         printf("👤 Name: %s", profile->name);
-        if (profile->age > 0) printf(" (%d years old)", profile->age);
+        if (profile->age > 0)
+            printf(" (%d years old)", profile->age);
         printf("\n");
         printf("📚 Curriculum: %s\n", profile->curriculum_id ? profile->curriculum_id : "Not set");
         printf("📅 Year: %d\n", profile->grade_level);
@@ -164,11 +163,16 @@ int cmd_education(int argc, char** argv) {
         // Accessibility (check if pointer is valid)
         if (profile->accessibility) {
             printf("\n♿ Accessibility:\n");
-            if (profile->accessibility->dyslexia) printf("   • Dyslexia support enabled\n");
-            if (profile->accessibility->dyscalculia) printf("   • Dyscalculia support enabled\n");
-            if (profile->accessibility->adhd) printf("   • ADHD support enabled\n");
-            if (profile->accessibility->autism) printf("   • Autism support enabled\n");
-            if (profile->accessibility->cerebral_palsy) printf("   • Cerebral palsy support enabled\n");
+            if (profile->accessibility->dyslexia)
+                printf("   • Dyslexia support enabled\n");
+            if (profile->accessibility->dyscalculia)
+                printf("   • Dyscalculia support enabled\n");
+            if (profile->accessibility->adhd)
+                printf("   • ADHD support enabled\n");
+            if (profile->accessibility->autism)
+                printf("   • Autism support enabled\n");
+            if (profile->accessibility->cerebral_palsy)
+                printf("   • Cerebral palsy support enabled\n");
         }
 
         // Goals (fetch from API)
@@ -482,11 +486,16 @@ int cmd_libretto(int argc, char** argv) {
 
         if (report) {
             printf("║  📊 Last 30 days:                                             ║\n");
-            printf("║     • Grade average: %.1f/10                                  ║\n", report->overall_average > 0 ? report->overall_average : 0.0f);
-            printf("║     • Study hours: %d                                          ║\n", report->total_study_hours);
-            printf("║     • Quizzes completed: %d                                    ║\n", report->quizzes_taken);
-            printf("║     • Goals achieved: %d                                       ║\n", report->goals_achieved);
-            printf("║     • Current streak: %d days                                  ║\n", report->current_streak);
+            printf("║     • Grade average: %.1f/10                                  ║\n",
+                   report->overall_average > 0 ? report->overall_average : 0.0f);
+            printf("║     • Study hours: %d                                          ║\n",
+                   report->total_study_hours);
+            printf("║     • Quizzes completed: %d                                    ║\n",
+                   report->quizzes_taken);
+            printf("║     • Goals achieved: %d                                       ║\n",
+                   report->goals_achieved);
+            printf("║     • Current streak: %d days                                  ║\n",
+                   report->current_streak);
         } else {
             printf("║  📊 No data available yet                                     ║\n");
         }
@@ -500,7 +509,8 @@ int cmd_libretto(int argc, char** argv) {
         printf("║    /libretto export  - Export PDF report for parents         ║\n");
         printf("╚═══════════════════════════════════════════════════════════════╝\n\n");
 
-        if (report) libretto_report_free(report);
+        if (report)
+            libretto_report_free(report);
         return 0;
     }
 
@@ -516,7 +526,8 @@ int cmd_libretto(int argc, char** argv) {
         EducationGrade** grades = libretto_get_grades(profile->id, subject_filter, 0, 0, &count);
 
         printf("\n📝 GRADE HISTORY");
-        if (subject_filter) printf(" - %s", subject_filter);
+        if (subject_filter)
+            printf(" - %s", subject_filter);
         printf("\n");
         printf("─────────────────────────────────────────────────────────────────\n");
 
@@ -524,7 +535,7 @@ int cmd_libretto(int argc, char** argv) {
             printf("%-12s %-20s %-8s %-10s %s\n", "Date", "Subject", "Type", "Grade", "Comment");
             printf("─────────────────────────────────────────────────────────────────\n");
 
-            for (int i = 0; i < count && i < 20; i++) {  // Limit to 20 most recent
+            for (int i = 0; i < count && i < 20; i++) { // Limit to 20 most recent
                 EducationGrade* g = grades[i];
 
                 // Format date
@@ -535,11 +546,21 @@ int cmd_libretto(int argc, char** argv) {
                 // Grade type abbreviation
                 const char* type_str = "?";
                 switch (g->grade_type) {
-                    case GRADE_TYPE_QUIZ: type_str = "Quiz"; break;
-                    case GRADE_TYPE_HOMEWORK: type_str = "Homework"; break;
-                    case GRADE_TYPE_ORAL: type_str = "Oral"; break;
-                    case GRADE_TYPE_PROJECT: type_str = "Project"; break;
-                    case GRADE_TYPE_PARTICIPATION: type_str = "Particip."; break;
+                case GRADE_TYPE_QUIZ:
+                    type_str = "Quiz";
+                    break;
+                case GRADE_TYPE_HOMEWORK:
+                    type_str = "Homework";
+                    break;
+                case GRADE_TYPE_ORAL:
+                    type_str = "Oral";
+                    break;
+                case GRADE_TYPE_PROJECT:
+                    type_str = "Project";
+                    break;
+                case GRADE_TYPE_PARTICIPATION:
+                    type_str = "Particip.";
+                    break;
                 }
 
                 // Truncate comment
@@ -547,11 +568,13 @@ int cmd_libretto(int argc, char** argv) {
                 if (g->comment[0]) {
                     strncpy(comment_short, g->comment, 25);
                     comment_short[25] = '\0';
-                    if (strlen(g->comment) > 25) strncat(comment_short, "...", sizeof(comment_short) - strlen(comment_short) - 1);
+                    if (strlen(g->comment) > 25)
+                        strncat(comment_short, "...",
+                                sizeof(comment_short) - strlen(comment_short) - 1);
                 }
 
-                printf("%-12s %-20s %-8s %5.1f     %s\n",
-                       date_str, g->subject, type_str, g->grade, comment_short);
+                printf("%-12s %-20s %-8s %5.1f     %s\n", date_str, g->subject, type_str, g->grade,
+                       comment_short);
             }
 
             if (count > 20) {
@@ -565,7 +588,8 @@ int cmd_libretto(int argc, char** argv) {
 
         printf("─────────────────────────────────────────────────────────────────\n\n");
 
-        if (report) libretto_report_free(report);
+        if (report)
+            libretto_report_free(report);
         return 0;
     }
 
@@ -573,11 +597,13 @@ int cmd_libretto(int argc, char** argv) {
     // /libretto diary [days]
     // -------------------------------------------------------------------------
     if (strcmp(subcommand, "diary") == 0 || strcmp(subcommand, "diario") == 0) {
-        int days = 7;  // Default to last 7 days
+        int days = 7; // Default to last 7 days
         if (argc >= 3) {
             days = atoi(argv[2]);
-            if (days < 1) days = 1;
-            if (days > 30) days = 30;
+            if (days < 1)
+                days = 1;
+            if (days > 30)
+                days = 30;
         }
 
         time_t now = time(NULL);
@@ -590,7 +616,8 @@ int cmd_libretto(int argc, char** argv) {
         printf("─────────────────────────────────────────────────────────────────\n");
 
         if (logs && count > 0) {
-            printf("%-12s %-12s %-15s %-8s %s\n", "Date", "Activity", "Subject", "Duration", "Notes");
+            printf("%-12s %-12s %-15s %-8s %s\n", "Date", "Activity", "Subject", "Duration",
+                   "Notes");
             printf("─────────────────────────────────────────────────────────────────\n");
 
             for (int i = 0; i < count && i < 30; i++) {
@@ -607,13 +634,12 @@ int cmd_libretto(int argc, char** argv) {
                 if (e->notes[0]) {
                     strncpy(notes_short, e->notes, 20);
                     notes_short[20] = '\0';
-                    if (strlen(e->notes) > 20) strncat(notes_short, "...", sizeof(notes_short) - strlen(notes_short) - 1);
+                    if (strlen(e->notes) > 20)
+                        strncat(notes_short, "...", sizeof(notes_short) - strlen(notes_short) - 1);
                 }
 
-                printf("%-12s %-12s %-15s %-8s %s\n",
-                       date_str, e->activity_type,
-                       e->subject[0] ? e->subject : "-",
-                       duration_str, notes_short);
+                printf("%-12s %-12s %-15s %-8s %s\n", date_str, e->activity_type,
+                       e->subject[0] ? e->subject : "-", duration_str, notes_short);
             }
 
             libretto_logs_free(logs, count);
@@ -623,7 +649,8 @@ int cmd_libretto(int argc, char** argv) {
 
         printf("─────────────────────────────────────────────────────────────────\n\n");
 
-        if (report) libretto_report_free(report);
+        if (report)
+            libretto_report_free(report);
         return 0;
     }
 
@@ -643,13 +670,15 @@ int cmd_libretto(int argc, char** argv) {
 
                 // Simple ASCII bar chart
                 int bar_len = (int)(s->average_grade * 2);
-                if (bar_len > 20) bar_len = 20;
+                if (bar_len > 20)
+                    bar_len = 20;
                 char bar[25] = "";
-                for (int j = 0; j < bar_len; j++) bar[j] = '#';
+                for (int j = 0; j < bar_len; j++)
+                    bar[j] = '#';
                 bar[bar_len] = '\0';
 
-                printf("%-20s %5.1f     %-10d %s\n",
-                       s->subject, s->average_grade, s->grade_count, bar);
+                printf("%-20s %5.1f     %-10d %s\n", s->subject, s->average_grade, s->grade_count,
+                       bar);
             }
         } else {
             printf("Not enough data for progress tracking yet.\n");
@@ -658,7 +687,8 @@ int cmd_libretto(int argc, char** argv) {
 
         printf("─────────────────────────────────────────────────────────────────\n\n");
 
-        if (report) libretto_report_free(report);
+        if (report)
+            libretto_report_free(report);
         return 0;
     }
 
@@ -685,8 +715,7 @@ int cmd_libretto(int argc, char** argv) {
                 printf("─────────────────────────────────────────────────────────────────\n");
 
                 for (int i = 0; i < report->subject_count; i++) {
-                    printf("%-25s %.2f/10\n",
-                           report->subjects[i].subject,
+                    printf("%-25s %.2f/10\n", report->subjects[i].subject,
                            report->subjects[i].average_grade);
                 }
 
@@ -699,7 +728,8 @@ int cmd_libretto(int argc, char** argv) {
 
         printf("─────────────────────────────────────────────────────────────────\n\n");
 
-        if (report) libretto_report_free(report);
+        if (report)
+            libretto_report_free(report);
         return 0;
     }
 
@@ -708,13 +738,13 @@ int cmd_libretto(int argc, char** argv) {
     // -------------------------------------------------------------------------
     if (strcmp(subcommand, "export") == 0 || strcmp(subcommand, "esporta") == 0) {
         const char* report_type = (argc >= 3) ? argv[2] : "complete";
-        
+
         printf("\n📄 Exporting Report...\n");
         printf("─────────────────────────────────────────────────────────────────\n");
-        
+
         // Generate PDF report (returns HTML path, can be converted to PDF)
         char* html_path = libretto_export_pdf_report(profile->id, report_type);
-        
+
         if (html_path) {
             printf("✅ Report generated successfully!\n\n");
             printf("File: %s\n", html_path);
@@ -727,15 +757,17 @@ int cmd_libretto(int argc, char** argv) {
             printf("❌ Failed to generate report.\n");
             printf("Make sure you have grades and activity data.\n\n");
         }
-        
-        if (report) libretto_report_free(report);
+
+        if (report)
+            libretto_report_free(report);
         return 0;
     }
 
     fprintf(stderr, "Unknown subcommand: %s\n", subcommand);
     fprintf(stderr, "Usage: /libretto [grades|diary|progress|average|export]\n");
 
-    if (report) libretto_report_free(report);
+    if (report)
+        libretto_report_free(report);
     return 1;
 }
 
@@ -788,14 +820,14 @@ int cmd_html(int argc, char** argv) {
         }
 
         char lessons_dir[512];
-        snprintf(lessons_dir, sizeof(lessons_dir),
-                 "%s/Documents/ConvergioEducation", home);
+        snprintf(lessons_dir, sizeof(lessons_dir), "%s/Documents/ConvergioEducation", home);
 
         printf("\n📂 Saved lessons in %s:\n\n", lessons_dir);
 
         // Use system command to list files
         char cmd[1024];
-        snprintf(cmd, sizeof(cmd), "ls -la \"%s\" 2>/dev/null || echo '  (No lessons yet)'", lessons_dir);
+        snprintf(cmd, sizeof(cmd), "ls -la \"%s\" 2>/dev/null || echo '  (No lessons yet)'",
+                 lessons_dir);
         system(cmd);
         printf("\n");
         return 0;
@@ -814,8 +846,7 @@ int cmd_html(int argc, char** argv) {
         }
 
         char filepath[512];
-        snprintf(filepath, sizeof(filepath),
-                 "%s/Documents/ConvergioEducation/%s", home, argv[2]);
+        snprintf(filepath, sizeof(filepath), "%s/Documents/ConvergioEducation/%s", home, argv[2]);
 
         printf("Opening: %s\n", filepath);
         char cmd[1024];
@@ -1097,10 +1128,14 @@ int cmd_xp(int argc, char** argv) {
 
             // Level titles based on level
             const char* level_title = "Beginner";
-            if (stats->level >= 10) level_title = "Master";
-            else if (stats->level >= 7) level_title = "Expert";
-            else if (stats->level >= 5) level_title = "Apprentice";
-            else if (stats->level >= 3) level_title = "Student";
+            if (stats->level >= 10)
+                level_title = "Master";
+            else if (stats->level >= 7)
+                level_title = "Expert";
+            else if (stats->level >= 5)
+                level_title = "Apprentice";
+            else if (stats->level >= 3)
+                level_title = "Student";
 
             printf("│ ⭐ XP:     %-5d / %-5d         │\n", xp_in_level, 100);
             printf("│ 📊 Level:  %-2d (%-12s)   │\n", stats->level, level_title);
@@ -1193,7 +1228,8 @@ int cmd_xp(int argc, char** argv) {
         return 0;
     }
 
-    if (stats) education_engagement_free(stats);
+    if (stats)
+        education_engagement_free(stats);
     printf("Usage: /xp [status|leaderboard|badges]\n");
     return 1;
 }
@@ -1202,7 +1238,7 @@ int cmd_xp(int argc, char** argv) {
 // COMMAND: /video
 // ============================================================================
 
-#include "nous/tools.h"  // For tool_web_search
+#include "nous/tools.h" // For tool_web_search
 
 /**
  * /video - Search educational YouTube videos (Phase 3 Task 3.2 - Real implementation)
@@ -1230,23 +1266,26 @@ int cmd_video(int argc, char** argv) {
     }
 
     const char* topic = argv[1];
-    
+
     // Build educational search query
     char query[512];
-    snprintf(query, sizeof(query), "educational video %s site:youtube.com OR site:khanacademy.org", topic);
-    
+    snprintf(query, sizeof(query), "educational video %s site:youtube.com OR site:khanacademy.org",
+             topic);
+
     printf("🔍 Searching for educational videos about: %s\n\n", topic);
-    
+
     // Use web_search tool to find educational content
     ToolResult* result = tool_web_search(query, 5);
-    
+
     if (result && result->success && result->output) {
         printf("📹 Found Educational Videos:\n\n");
         printf("%s\n", result->output);
-        
+
         // Free result
-        if (result->output) free(result->output);
-        if (result->error) free(result->error);
+        if (result->output)
+            free(result->output);
+        if (result->error)
+            free(result->error);
         free(result);
     } else {
         printf("⚠️  Could not search online. Here are trusted educational channels:\n\n");
@@ -1256,7 +1295,7 @@ int cmd_video(int argc, char** argv) {
         printf("    https://www.3blue1brown.com\n\n");
         printf("  • CrashCourse - History, science, literature\n");
         printf("    https://www.youtube.com/crashcourse\n\n");
-        
+
         if (result) {
             if (result->error) {
                 printf("Error: %s\n\n", result->error);
@@ -1310,7 +1349,7 @@ int cmd_periodic(int argc, char** argv) {
 
     const char* query = argv[1];
     const PeriodicElement* el = periodic_find_element(query);
-    
+
     if (el) {
         periodic_print_element(el);
     } else {
@@ -1351,33 +1390,45 @@ int cmd_convert(int argc, char** argv) {
 
     // Length conversions
     if ((strcmp(from, "km") == 0 && strcmp(to, "m") == 0)) {
-        result = value * 1000; converted = true;
+        result = value * 1000;
+        converted = true;
     } else if ((strcmp(from, "m") == 0 && strcmp(to, "km") == 0)) {
-        result = value / 1000; converted = true;
+        result = value / 1000;
+        converted = true;
     } else if ((strcmp(from, "cm") == 0 && strcmp(to, "m") == 0)) {
-        result = value / 100; converted = true;
+        result = value / 100;
+        converted = true;
     } else if ((strcmp(from, "m") == 0 && strcmp(to, "cm") == 0)) {
-        result = value * 100; converted = true;
+        result = value * 100;
+        converted = true;
     } else if ((strcmp(from, "km") == 0 && strcmp(to, "mi") == 0)) {
-        result = value * 0.621371; converted = true;
+        result = value * 0.621371;
+        converted = true;
     } else if ((strcmp(from, "mi") == 0 && strcmp(to, "km") == 0)) {
-        result = value * 1.60934; converted = true;
+        result = value * 1.60934;
+        converted = true;
     }
     // Temperature
     else if ((strcmp(from, "C") == 0 && strcmp(to, "F") == 0)) {
-        result = value * 9/5 + 32; converted = true;
+        result = value * 9 / 5 + 32;
+        converted = true;
     } else if ((strcmp(from, "F") == 0 && strcmp(to, "C") == 0)) {
-        result = (value - 32) * 5/9; converted = true;
+        result = (value - 32) * 5 / 9;
+        converted = true;
     }
     // Mass
     else if ((strcmp(from, "kg") == 0 && strcmp(to, "g") == 0)) {
-        result = value * 1000; converted = true;
+        result = value * 1000;
+        converted = true;
     } else if ((strcmp(from, "g") == 0 && strcmp(to, "kg") == 0)) {
-        result = value / 1000; converted = true;
+        result = value / 1000;
+        converted = true;
     } else if ((strcmp(from, "kg") == 0 && strcmp(to, "lb") == 0)) {
-        result = value * 2.20462; converted = true;
+        result = value * 2.20462;
+        converted = true;
     } else if ((strcmp(from, "lb") == 0 && strcmp(to, "kg") == 0)) {
-        result = value / 2.20462; converted = true;
+        result = value / 2.20462;
+        converted = true;
     }
 
     if (converted) {
@@ -1394,7 +1445,7 @@ int cmd_convert(int argc, char** argv) {
 // ============================================================================
 
 // External from voice_mode.c
-extern int voice_mode_start(const char *maestro_id, const char *topic);
+extern int voice_mode_start(const char* maestro_id, const char* topic);
 
 /**
  * /voice [maestro] [topic] - Start conversational voice mode
@@ -1411,8 +1462,8 @@ extern int voice_mode_start(const char *maestro_id, const char *topic);
  *   S   - Save conversation
  */
 int cmd_voice(int argc, char** argv) {
-    const char *maestro_id = NULL;
-    const char *topic = NULL;
+    const char* maestro_id = NULL;
+    const char* topic = NULL;
 
     if (argc >= 2) {
         maestro_id = argv[1];
@@ -1510,8 +1561,7 @@ int cmd_settings(int argc, char** argv) {
     EducationStudentProfile* profile = education_profile_get_active();
 
     // Check for accessibility subcommand
-    if (argc >= 2 && (strcmp(argv[1], "accessibility") == 0 ||
-                      strcmp(argv[1], "a11y") == 0)) {
+    if (argc >= 2 && (strcmp(argv[1], "accessibility") == 0 || strcmp(argv[1], "a11y") == 0)) {
         printf("\n");
         printf("╔═══════════════════════════════════════════════════════════════╗\n");
         printf("║               ♿ ACCESSIBILITY SETTINGS                       ║\n");
@@ -1687,10 +1737,8 @@ int cmd_profile(int argc, char** argv) {
 
     // Accessibility / Accessibilità
     if (profile->accessibility) {
-        bool has_any = profile->accessibility->dyslexia ||
-                       profile->accessibility->dyscalculia ||
-                       profile->accessibility->adhd ||
-                       profile->accessibility->autism ||
+        bool has_any = profile->accessibility->dyslexia || profile->accessibility->dyscalculia ||
+                       profile->accessibility->adhd || profile->accessibility->autism ||
                        profile->accessibility->cerebral_palsy;
 
         if (has_any) {
@@ -1722,7 +1770,8 @@ int cmd_profile(int argc, char** argv) {
             printf("║     %d. %-55s ║\n", i + 1, goals[i]->description);
         }
         if (goals_count > 5) {
-            printf("║     ... and %d more                                           ║\n", goals_count - 5);
+            printf("║     ... and %d more                                           ║\n",
+                   goals_count - 5);
         }
         printf("║                                                               ║\n");
         education_goal_list_free(goals, goals_count);

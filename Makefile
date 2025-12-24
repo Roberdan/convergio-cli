@@ -397,6 +397,36 @@ dirs:
 	@mkdir -p $(OBJ_DIR)/workflow
 	@mkdir -p $(OBJ_DIR)/education
 	@mkdir -p $(OBJ_DIR)/education/features
+	@mkdir -p $(DEPDIR)/core
+	@mkdir -p $(DEPDIR)/core/commands
+	@mkdir -p $(DEPDIR)/orchestrator
+	@mkdir -p $(DEPDIR)/agents
+	@mkdir -p $(DEPDIR)/education
+	@mkdir -p $(DEPDIR)/education/features
+	@mkdir -p $(DEPDIR)/education/tools
+	@mkdir -p $(DEPDIR)/providers
+	@mkdir -p $(DEPDIR)/neural
+	@mkdir -p $(DEPDIR)/runtime
+	@mkdir -p $(DEPDIR)/spaces
+	@mkdir -p $(DEPDIR)/workflow
+	@mkdir -p $(DEPDIR)/telemetry
+	@mkdir -p $(DEPDIR)/ui
+	@mkdir -p $(DEPDIR)/mcp
+	@mkdir -p $(DEPDIR)/todo
+	@mkdir -p $(DEPDIR)/memory
+	@mkdir -p $(DEPDIR)/tools
+	@mkdir -p $(DEPDIR)/auth
+	@mkdir -p $(DEPDIR)/projects
+	@mkdir -p $(DEPDIR)/notifications
+	@mkdir -p $(DEPDIR)/voice
+	@mkdir -p $(DEPDIR)/intent
+	@mkdir -p $(DEPDIR)/metal
+	@mkdir -p $(DEPDIR)/context
+	@mkdir -p $(DEPDIR)/router
+	@mkdir -p $(DEPDIR)/sync
+	@mkdir -p $(DEPDIR)/compare
+	@mkdir -p $(DEPDIR)/agentic
+	@mkdir -p $(DEPDIR)/acp
 	@mkdir -p $(OBJ_DIR)/education/tools
 	@mkdir -p $(OBJ_DIR)/voice
 	@mkdir -p $(BIN_DIR)

@@ -10,32 +10,38 @@
 
 #include "nous/education.h"
 #include "nous/orchestrator.h"
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
-#include <stdbool.h>
 #include <unistd.h>
 
 // Helper to extract JSON string value
 static char* quiz_extract_json_string(const char* json, const char* key) {
-    if (!json || !key) return NULL;
+    if (!json || !key)
+        return NULL;
 
     char search[128];
     snprintf(search, sizeof(search), "\"%s\"", key);
 
     char* pos = strstr(json, search);
-    if (!pos) return NULL;
+    if (!pos)
+        return NULL;
 
     pos = strchr(pos, ':');
-    if (!pos) return NULL;
+    if (!pos)
+        return NULL;
 
-    while (*pos && (*pos == ':' || *pos == ' ' || *pos == '\t')) pos++;
-    if (*pos != '"') return NULL;
+    while (*pos && (*pos == ':' || *pos == ' ' || *pos == '\t'))
+        pos++;
+    if (*pos != '"')
+        return NULL;
 
     pos++;
     char* end = strchr(pos, '"');
-    if (!end) return NULL;
+    if (!end)
+        return NULL;
 
     size_t len = end - pos;
     char* result = malloc(len + 1);
@@ -48,18 +54,22 @@ static char* quiz_extract_json_string(const char* json, const char* key) {
 
 // Helper to extract JSON integer value
 static int quiz_extract_json_int(const char* json, const char* key) {
-    if (!json || !key) return -1;
+    if (!json || !key)
+        return -1;
 
     char search[128];
     snprintf(search, sizeof(search), "\"%s\"", key);
 
     char* pos = strstr(json, search);
-    if (!pos) return -1;
+    if (!pos)
+        return -1;
 
     pos = strchr(pos, ':');
-    if (!pos) return -1;
+    if (!pos)
+        return -1;
 
-    while (*pos && (*pos == ':' || *pos == ' ' || *pos == '\t')) pos++;
+    while (*pos && (*pos == ':' || *pos == ' ' || *pos == '\t'))
+        pos++;
 
     return atoi(pos);
 }
@@ -98,7 +108,7 @@ typedef struct {
     char* explanation;
     QuizOption* options;
     int option_count;
-    char* correct_answer;  // For open/cloze
+    char* correct_answer; // For open/cloze
     QuizDifficulty difficulty;
     int points;
     bool timed;
@@ -154,20 +164,19 @@ typedef struct {
 } QuizAccessibility;
 
 static QuizAccessibility get_quiz_accessibility(const EducationAccessibility* a) {
-    QuizAccessibility qa = {
-        .use_tts = false,
-        .tts_speed = 1.0f,
-        .extended_time = false,
-        .time_multiplier = 1.0f,
-        .simplified_options = false,
-        .max_options = 4,
-        .no_timed_questions = false,
-        .show_hints_always = false,
-        .larger_text = false,
-        .high_contrast = false
-    };
+    QuizAccessibility qa = {.use_tts = false,
+                            .tts_speed = 1.0f,
+                            .extended_time = false,
+                            .time_multiplier = 1.0f,
+                            .simplified_options = false,
+                            .max_options = 4,
+                            .no_timed_questions = false,
+                            .show_hints_always = false,
+                            .larger_text = false,
+                            .high_contrast = false};
 
-    if (!a) return qa;
+    if (!a)
+        return qa;
 
     // Dyslexia adaptations
     if (a->dyslexia) {
@@ -187,7 +196,7 @@ static QuizAccessibility get_quiz_accessibility(const EducationAccessibility* a)
     // ADHD adaptations
     if (a->adhd) {
         qa.simplified_options = true;
-        qa.max_options = 3;  // Fewer options to reduce overwhelm
+        qa.max_options = 3; // Fewer options to reduce overwhelm
     }
 
     // Cerebral palsy adaptations
@@ -199,7 +208,7 @@ static QuizAccessibility get_quiz_accessibility(const EducationAccessibility* a)
 
     // Autism adaptations
     if (a->autism) {
-        qa.show_hints_always = false;  // May prefer to try without
+        qa.show_hints_always = false; // May prefer to try without
     }
 
     // General preferences
@@ -217,17 +226,16 @@ static QuizAccessibility get_quiz_accessibility(const EducationAccessibility* a)
 /**
  * Create a multiple choice question
  */
-QuizQuestion* quiz_create_multiple_choice(const char* question,
-                                           const char** options,
-                                           int option_count,
-                                           int correct_index,
-                                           const char* explanation) {
+QuizQuestion* quiz_create_multiple_choice(const char* question, const char** options,
+                                          int option_count, int correct_index,
+                                          const char* explanation) {
     if (!question || !options || option_count < 2 || correct_index >= option_count) {
         return NULL;
     }
 
     QuizQuestion* q = calloc(1, sizeof(QuizQuestion));
-    if (!q) return NULL;
+    if (!q)
+        return NULL;
 
     q->type = QUIZ_MULTIPLE_CHOICE;
     q->question_text = strdup(question);
@@ -248,13 +256,14 @@ QuizQuestion* quiz_create_multiple_choice(const char* question,
 /**
  * Create a true/false question
  */
-QuizQuestion* quiz_create_true_false(const char* statement,
-                                      bool correct_answer,
-                                      const char* explanation) {
-    if (!statement) return NULL;
+QuizQuestion* quiz_create_true_false(const char* statement, bool correct_answer,
+                                     const char* explanation) {
+    if (!statement)
+        return NULL;
 
     QuizQuestion* q = calloc(1, sizeof(QuizQuestion));
-    if (!q) return NULL;
+    if (!q)
+        return NULL;
 
     q->type = QUIZ_TRUE_FALSE;
     q->question_text = strdup(statement);
@@ -275,13 +284,14 @@ QuizQuestion* quiz_create_true_false(const char* statement,
 /**
  * Create a cloze (fill in the blank) question
  */
-QuizQuestion* quiz_create_cloze(const char* text_with_blank,
-                                 const char* correct_answer,
-                                 const char* hint) {
-    if (!text_with_blank || !correct_answer) return NULL;
+QuizQuestion* quiz_create_cloze(const char* text_with_blank, const char* correct_answer,
+                                const char* hint) {
+    if (!text_with_blank || !correct_answer)
+        return NULL;
 
     QuizQuestion* q = calloc(1, sizeof(QuizQuestion));
-    if (!q) return NULL;
+    if (!q)
+        return NULL;
 
     q->type = QUIZ_CLOZE;
     q->question_text = strdup(text_with_blank);
@@ -296,13 +306,13 @@ QuizQuestion* quiz_create_cloze(const char* text_with_blank,
 /**
  * Create a sequence ordering question
  */
-QuizQuestion* quiz_create_sequence(const char* question,
-                                    const char** items,
-                                    int item_count) {
-    if (!question || !items || item_count < 2) return NULL;
+QuizQuestion* quiz_create_sequence(const char* question, const char** items, int item_count) {
+    if (!question || !items || item_count < 2)
+        return NULL;
 
     QuizQuestion* q = calloc(1, sizeof(QuizQuestion));
-    if (!q) return NULL;
+    if (!q)
+        return NULL;
 
     q->type = QUIZ_SEQUENCE;
     q->question_text = strdup(question);
@@ -324,8 +334,7 @@ QuizQuestion* quiz_create_sequence(const char* question,
 // ============================================================================
 
 // Template for LLM quiz generation (used in quiz_generate_from_llm)
-__attribute__((unused))
-static const char* QUIZ_PROMPT_TEMPLATE =
+__attribute__((unused)) static const char* QUIZ_PROMPT_TEMPLATE =
     "Generate a quiz about: %s\n\n"
     "Topic content:\n%s\n\n"
     "Requirements:\n"
@@ -345,20 +354,27 @@ static const char* QUIZ_PROMPT_TEMPLATE =
 /**
  * Generate quiz using LLM
  */
-Quiz* quiz_generate_from_llm(const char* topic, const char* content,
-                              int question_count, QuizDifficulty difficulty,
-                              const EducationAccessibility* access) {
-    if (!topic) return NULL;
+Quiz* quiz_generate_from_llm(const char* topic, const char* content, int question_count,
+                             QuizDifficulty difficulty, const EducationAccessibility* access) {
+    if (!topic)
+        return NULL;
 
     QuizAccessibility qa = get_quiz_accessibility(access);
 
     // Determine difficulty string
     const char* diff_str = "medium";
     switch (difficulty) {
-        case DIFFICULTY_EASY: diff_str = "easy"; break;
-        case DIFFICULTY_HARD: diff_str = "hard"; break;
-        case DIFFICULTY_ADAPTIVE: diff_str = "mixed, starting easy"; break;
-        default: break;
+    case DIFFICULTY_EASY:
+        diff_str = "easy";
+        break;
+    case DIFFICULTY_HARD:
+        diff_str = "hard";
+        break;
+    case DIFFICULTY_ADAPTIVE:
+        diff_str = "mixed, starting easy";
+        break;
+    default:
+        break;
     }
 
     // Determine question types based on accessibility
@@ -386,7 +402,8 @@ Quiz* quiz_generate_from_llm(const char* topic, const char* content,
 
     // Create quiz structure
     Quiz* quiz = calloc(1, sizeof(Quiz));
-    if (!quiz) return NULL;
+    if (!quiz)
+        return NULL;
 
     size_t title_len = strlen(topic) + 20;
     quiz->title = malloc(title_len);
@@ -410,18 +427,15 @@ Quiz* quiz_generate_from_llm(const char* topic, const char* content,
         return NULL;
     }
 
-    snprintf(prompt, prompt_size, QUIZ_PROMPT_TEMPLATE,
-             topic,
-             content ? content : "(general knowledge about the topic)",
-             target_count, diff_str, types, access_req);
+    snprintf(prompt, prompt_size, QUIZ_PROMPT_TEMPLATE, topic,
+             content ? content : "(general knowledge about the topic)", target_count, diff_str,
+             types, access_req);
 
     // Call LLM for quiz generation
     TokenUsage usage = {0};
-    char* response = llm_chat(
-        "You are an educational quiz creator. Generate quiz questions in JSON format. Output a JSON array of question objects.",
-        prompt,
-        &usage
-    );
+    char* response = llm_chat("You are an educational quiz creator. Generate quiz questions in "
+                              "JSON format. Output a JSON array of question objects.",
+                              prompt, &usage);
 
     free(prompt);
 
@@ -434,10 +448,14 @@ Quiz* quiz_generate_from_llm(const char* topic, const char* content,
             // Extract question type
             char* type_str = quiz_extract_json_string(ptr, "type");
             if (type_str) {
-                if (strstr(type_str, "true_false")) q->type = QUIZ_TRUE_FALSE;
-                else if (strstr(type_str, "cloze")) q->type = QUIZ_CLOZE;
-                else if (strstr(type_str, "sequence")) q->type = QUIZ_SEQUENCE;
-                else q->type = QUIZ_MULTIPLE_CHOICE;
+                if (strstr(type_str, "true_false"))
+                    q->type = QUIZ_TRUE_FALSE;
+                else if (strstr(type_str, "cloze"))
+                    q->type = QUIZ_CLOZE;
+                else if (strstr(type_str, "sequence"))
+                    q->type = QUIZ_SEQUENCE;
+                else
+                    q->type = QUIZ_MULTIPLE_CHOICE;
                 free(type_str);
             }
 
@@ -460,10 +478,11 @@ Quiz* quiz_generate_from_llm(const char* topic, const char* content,
                         // Count options
                         int opt_count = 0;
                         char* opt_ptr = options_start;
-                        while ((opt_ptr = strchr(opt_ptr + 1, '"')) != NULL && opt_ptr < options_end) {
+                        while ((opt_ptr = strchr(opt_ptr + 1, '"')) != NULL &&
+                               opt_ptr < options_end) {
                             opt_count++;
                         }
-                        opt_count /= 2;  // Each option has opening and closing quotes
+                        opt_count /= 2; // Each option has opening and closing quotes
 
                         if (opt_count > 0) {
                             q->options = calloc(opt_count, sizeof(QuizOption));
@@ -472,17 +491,20 @@ Quiz* quiz_generate_from_llm(const char* topic, const char* content,
                             opt_ptr = options_start;
                             while (q->option_count < opt_count) {
                                 opt_ptr = strchr(opt_ptr + 1, '"');
-                                if (!opt_ptr || opt_ptr >= options_end) break;
+                                if (!opt_ptr || opt_ptr >= options_end)
+                                    break;
 
                                 char* opt_end = strchr(opt_ptr + 1, '"');
-                                if (!opt_end || opt_end >= options_end) break;
+                                if (!opt_end || opt_end >= options_end)
+                                    break;
 
                                 size_t opt_len = opt_end - opt_ptr - 1;
                                 q->options[q->option_count].text = malloc(opt_len + 1);
                                 if (q->options[q->option_count].text) {
                                     strncpy(q->options[q->option_count].text, opt_ptr + 1, opt_len);
                                     q->options[q->option_count].text[opt_len] = '\0';
-                                    q->options[q->option_count].is_correct = (q->option_count == correct_idx);
+                                    q->options[q->option_count].is_correct =
+                                        (q->option_count == correct_idx);
                                     q->option_count++;
                                 }
 
@@ -495,7 +517,9 @@ Quiz* quiz_generate_from_llm(const char* topic, const char* content,
 
             // Set difficulty and points
             q->difficulty = difficulty;
-            q->points = (difficulty == DIFFICULTY_HARD) ? 3 : (difficulty == DIFFICULTY_EASY) ? 1 : 2;
+            q->points = (difficulty == DIFFICULTY_HARD)   ? 3
+                        : (difficulty == DIFFICULTY_EASY) ? 1
+                                                          : 2;
 
             // Only count as valid if we got question text
             if (q->question_text) {
@@ -504,7 +528,8 @@ Quiz* quiz_generate_from_llm(const char* topic, const char* content,
 
             // Move to next object
             ptr = strchr(ptr, '}');
-            if (!ptr) break;
+            if (!ptr)
+                break;
             ptr++;
         }
 
@@ -537,10 +562,12 @@ Quiz* quiz_generate_from_llm(const char* topic, const char* content,
  * Start a new quiz session
  */
 QuizSession* quiz_session_start(Quiz* quiz) {
-    if (!quiz) return NULL;
+    if (!quiz)
+        return NULL;
 
     QuizSession* session = calloc(1, sizeof(QuizSession));
-    if (!session) return NULL;
+    if (!session)
+        return NULL;
 
     session->quiz = quiz;
     session->answers = calloc(quiz->question_count, sizeof(QuizAnswer));
@@ -555,8 +582,8 @@ QuizSession* quiz_session_start(Quiz* quiz) {
 /**
  * Submit an answer
  */
-bool quiz_submit_answer(QuizSession* session, int question_index,
-                        const char* answer, int time_taken) {
+bool quiz_submit_answer(QuizSession* session, int question_index, const char* answer,
+                        int time_taken) {
     if (!session || !answer || question_index >= session->quiz->question_count) {
         return false;
     }
@@ -571,28 +598,29 @@ bool quiz_submit_answer(QuizSession* session, int question_index,
     // Check correctness based on question type
     bool correct = false;
     switch (q->type) {
-        case QUIZ_MULTIPLE_CHOICE:
-        case QUIZ_TRUE_FALSE: {
-            int selected = atoi(answer);
-            if (selected >= 0 && selected < q->option_count) {
-                correct = q->options[selected].is_correct;
-            }
-            break;
+    case QUIZ_MULTIPLE_CHOICE:
+    case QUIZ_TRUE_FALSE: {
+        int selected = atoi(answer);
+        if (selected >= 0 && selected < q->option_count) {
+            correct = q->options[selected].is_correct;
         }
-        case QUIZ_CLOZE: {
-            // Case-insensitive comparison
-            correct = (strcasecmp(answer, q->correct_answer) == 0);
-            break;
-        }
-        default:
-            break;
+        break;
+    }
+    case QUIZ_CLOZE: {
+        // Case-insensitive comparison
+        correct = (strcasecmp(answer, q->correct_answer) == 0);
+        break;
+    }
+    default:
+        break;
     }
 
     a->is_correct = correct;
     a->points_earned = correct ? q->points : 0;
 
     session->answered_count++;
-    if (correct) session->correct_count++;
+    if (correct)
+        session->correct_count++;
     session->total_score += a->points_earned;
 
     return correct;
@@ -602,19 +630,21 @@ bool quiz_submit_answer(QuizSession* session, int question_index,
  * Complete the quiz session and save grade to libretto
  */
 void quiz_session_complete(QuizSession* session) {
-    if (!session) return;
+    if (!session)
+        return;
 
     session->completed_at = time(NULL);
-    session->percentage = (float)session->correct_count /
-                          (float)session->quiz->question_count * 100.0f;
+    session->percentage =
+        (float)session->correct_count / (float)session->quiz->question_count * 100.0f;
 }
 
 /**
  * Complete quiz and save to student's libretto
  */
 void quiz_session_complete_with_grade(QuizSession* session, int64_t student_id,
-                                       const char* maestro_id) {
-    if (!session) return;
+                                      const char* maestro_id) {
+    if (!session)
+        return;
 
     // Complete the session first
     quiz_session_complete(session);
@@ -622,29 +652,25 @@ void quiz_session_complete_with_grade(QuizSession* session, int64_t student_id,
     // Generate grade comment based on performance
     char comment[256] = "";
     if (session->percentage >= 90.0f) {
-        snprintf(comment, sizeof(comment), "Excellent! %d/%d correct.",
-                 session->correct_count, session->quiz->question_count);
+        snprintf(comment, sizeof(comment), "Excellent! %d/%d correct.", session->correct_count,
+                 session->quiz->question_count);
     } else if (session->percentage >= 70.0f) {
-        snprintf(comment, sizeof(comment), "Good work! %d/%d correct.",
-                 session->correct_count, session->quiz->question_count);
+        snprintf(comment, sizeof(comment), "Good work! %d/%d correct.", session->correct_count,
+                 session->quiz->question_count);
     } else if (session->percentage >= 50.0f) {
         snprintf(comment, sizeof(comment), "Passing. %d/%d correct. Review the material.",
                  session->correct_count, session->quiz->question_count);
     } else {
-        snprintf(comment, sizeof(comment), "Needs review. %d/%d correct. Recommend thorough review.",
-                 session->correct_count, session->quiz->question_count);
+        snprintf(comment, sizeof(comment),
+                 "Needs review. %d/%d correct. Recommend thorough review.", session->correct_count,
+                 session->quiz->question_count);
     }
 
     // Save to libretto using the API
     int64_t grade_id = libretto_add_quiz_grade(
-        student_id,
-        maestro_id ? maestro_id : "ED00",
-        session->quiz->subject ? session->quiz->subject : "Generale",
-        session->quiz->topic,
-        session->correct_count,
-        session->quiz->question_count,
-        comment
-    );
+        student_id, maestro_id ? maestro_id : "ED00",
+        session->quiz->subject ? session->quiz->subject : "Generale", session->quiz->topic,
+        session->correct_count, session->quiz->question_count, comment);
 
     if (grade_id > 0) {
         printf("\n✅ Voto salvato nel libretto (ID: %lld)\n", (long long)grade_id);
@@ -652,14 +678,9 @@ void quiz_session_complete_with_grade(QuizSession* session, int64_t student_id,
 
     // Also log the activity
     libretto_add_log_entry(
-        student_id,
-        maestro_id,
-        "quiz",
-        session->quiz->subject,
-        session->quiz->topic,
-        (int)(session->completed_at - session->started_at) / 60,  // duration in minutes
-        comment
-    );
+        student_id, maestro_id, "quiz", session->quiz->subject, session->quiz->topic,
+        (int)(session->completed_at - session->started_at) / 60, // duration in minutes
+        comment);
 }
 
 /**
@@ -697,11 +718,11 @@ QuizDifficulty quiz_adjust_difficulty(const QuizSession* session) {
     int recent_correct = 0;
 
     for (int i = recent_start; i < session->answered_count; i++) {
-        if (session->answers[i].is_correct) recent_correct++;
+        if (session->answers[i].is_correct)
+            recent_correct++;
     }
 
-    float recent_accuracy = (float)recent_correct /
-                            (float)(session->answered_count - recent_start);
+    float recent_accuracy = (float)recent_correct / (float)(session->answered_count - recent_start);
 
     if (recent_accuracy >= 0.8f) {
         return DIFFICULTY_HARD;
@@ -719,31 +740,30 @@ QuizDifficulty quiz_adjust_difficulty(const QuizSession* session) {
 /**
  * Export quiz to PDF for printing
  */
-int quiz_export_pdf(const Quiz* quiz, const char* output_path,
-                    const QuizAccessibility* access) {
-    if (!quiz || !output_path) return -1;
+int quiz_export_pdf(const Quiz* quiz, const char* output_path, const QuizAccessibility* access) {
+    if (!quiz || !output_path)
+        return -1;
 
     // Build HTML content first
     size_t buf_size = 8192;
     char* html = malloc(buf_size);
-    if (!html) return -1;
+    if (!html)
+        return -1;
 
     char* ptr = html;
     int remaining = buf_size;
 
     // HTML header with accessibility styles
     int written = snprintf(ptr, remaining,
-        "<html><head><style>"
-        "body { font-family: %s; font-size: %s; line-height: 1.6; }"
-        ".question { margin: 20px 0; padding: 15px; border: 1px solid #ccc; }"
-        ".options { margin-left: 20px; }"
-        ".option { margin: 8px 0; }"
-        "</style></head><body>"
-        "<h1>%s</h1>",
-        access && access->larger_text ? "OpenDyslexic, Arial" : "Arial",
-        access && access->larger_text ? "16pt" : "12pt",
-        quiz->title
-    );
+                           "<html><head><style>"
+                           "body { font-family: %s; font-size: %s; line-height: 1.6; }"
+                           ".question { margin: 20px 0; padding: 15px; border: 1px solid #ccc; }"
+                           ".options { margin-left: 20px; }"
+                           ".option { margin: 8px 0; }"
+                           "</style></head><body>"
+                           "<h1>%s</h1>",
+                           access && access->larger_text ? "OpenDyslexic, Arial" : "Arial",
+                           access && access->larger_text ? "16pt" : "12pt", quiz->title);
     ptr += written;
     remaining -= written;
 
@@ -752,19 +772,16 @@ int quiz_export_pdf(const Quiz* quiz, const char* output_path,
         QuizQuestion* q = &quiz->questions[i];
 
         written = snprintf(ptr, remaining,
-            "<div class='question'>"
-            "<p><strong>%d.</strong> %s</p>"
-            "<div class='options'>",
-            i + 1, q->question_text
-        );
+                           "<div class='question'>"
+                           "<p><strong>%d.</strong> %s</p>"
+                           "<div class='options'>",
+                           i + 1, q->question_text);
         ptr += written;
         remaining -= written;
 
         for (int j = 0; j < q->option_count && remaining > 100; j++) {
-            written = snprintf(ptr, remaining,
-                "<div class='option'>%c) %s</div>",
-                'A' + j, q->options[j].text
-            );
+            written = snprintf(ptr, remaining, "<div class='option'>%c) %s</div>", 'A' + j,
+                               q->options[j].text);
             ptr += written;
             remaining -= written;
         }
@@ -789,8 +806,7 @@ int quiz_export_pdf(const Quiz* quiz, const char* output_path,
         snprintf(cmd, sizeof(cmd),
                  "wkhtmltopdf %s %s 2>/dev/null || "
                  "pandoc %s -o %s 2>/dev/null",
-                 temp_html, output_path,
-                 temp_html, output_path);
+                 temp_html, output_path, temp_html, output_path);
 
         int result = system(cmd);
         unlink(temp_html);
@@ -807,7 +823,8 @@ int quiz_export_pdf(const Quiz* quiz, const char* output_path,
 // ============================================================================
 
 void quiz_question_free(QuizQuestion* q) {
-    if (!q) return;
+    if (!q)
+        return;
     free(q->question_text);
     free(q->hint);
     free(q->explanation);
@@ -821,7 +838,8 @@ void quiz_question_free(QuizQuestion* q) {
 }
 
 void quiz_free(Quiz* quiz) {
-    if (!quiz) return;
+    if (!quiz)
+        return;
     free(quiz->title);
     free(quiz->subject);
     free(quiz->topic);
@@ -835,7 +853,8 @@ void quiz_free(Quiz* quiz) {
 }
 
 void quiz_session_free(QuizSession* session) {
-    if (!session) return;
+    if (!session)
+        return;
     if (session->answers) {
         for (int i = 0; i < session->answered_count; i++) {
             free(session->answers[i].user_answer);
@@ -852,8 +871,7 @@ void quiz_session_free(QuizSession* session) {
 /**
  * Handle /quiz command
  */
-int quiz_command_handler(int argc, char** argv,
-                         const EducationStudentProfile* profile) {
+int quiz_command_handler(int argc, char** argv, const EducationStudentProfile* profile) {
     if (argc < 2) {
         printf("Usage: /quiz <topic> [--count n] [--difficulty easy|medium|hard]\n");
         return 1;
@@ -867,13 +885,18 @@ int quiz_command_handler(int argc, char** argv,
     for (int i = 2; i < argc; i++) {
         if (strcmp(argv[i], "--count") == 0 && i + 1 < argc) {
             count = atoi(argv[++i]);
-            if (count < 1) count = 5;
-            if (count > 20) count = 20;
+            if (count < 1)
+                count = 5;
+            if (count > 20)
+                count = 20;
         } else if (strcmp(argv[i], "--difficulty") == 0 && i + 1 < argc) {
             i++;
-            if (strcmp(argv[i], "easy") == 0) difficulty = DIFFICULTY_EASY;
-            else if (strcmp(argv[i], "hard") == 0) difficulty = DIFFICULTY_HARD;
-            else difficulty = DIFFICULTY_MEDIUM;
+            if (strcmp(argv[i], "easy") == 0)
+                difficulty = DIFFICULTY_EASY;
+            else if (strcmp(argv[i], "hard") == 0)
+                difficulty = DIFFICULTY_HARD;
+            else
+                difficulty = DIFFICULTY_MEDIUM;
         }
     }
 

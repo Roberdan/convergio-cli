@@ -5,45 +5,45 @@
  */
 
 #include "nous/repl.h"
-#include "nous/commands.h"
-#include "nous/signals.h"
-#include "nous/nous.h"
-#include "nous/orchestrator.h"
-#include "nous/stream_md.h"
-#include "nous/theme.h"
 #include "nous/clipboard.h"
-#include "nous/projects.h"
-#include "nous/embedded_agents.h"
-#include "nous/tools.h"
-#include "nous/intent_router.h"
+#include "nous/commands.h"
 #include "nous/edition.h"
 #include "nous/education.h"
+#include "nous/embedded_agents.h"
+#include "nous/intent_router.h"
+#include "nous/nous.h"
+#include "nous/orchestrator.h"
+#include "nous/projects.h"
+#include "nous/signals.h"
+#include "nous/stream_md.h"
+#include "nous/theme.h"
+#include "nous/tools.h"
+#include <ctype.h>
+#include <limits.h>
+#include <pthread.h>
+#include <readline/readline.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <ctype.h>
-#include <pthread.h>
-#include <unistd.h>
 #include <termios.h>
-#include <limits.h>
-#include <readline/readline.h>
+#include <unistd.h>
 
 // ============================================================================
 // ANSI ESCAPE CODES
 // ============================================================================
 
-#define ANSI_CLEAR_LINE    "\033[2K"
-#define ANSI_CURSOR_UP     "\033[1A"
-#define ANSI_CURSOR_START  "\r"
-#define ANSI_HIDE_CURSOR   "\033[?25l"
-#define ANSI_SHOW_CURSOR   "\033[?25h"
-#define ANSI_DIM           "\033[2m"
-#define ANSI_RESET         "\033[0m"
-#define ANSI_CYAN          "\033[36m"
-#define ANSI_BOLD          "\033[1m"
-#define ANSI_GREEN         "\033[32m"
-#define ANSI_RED           "\033[31m"
-#define ANSI_YELLOW        "\033[33m"
+#define ANSI_CLEAR_LINE "\033[2K"
+#define ANSI_CURSOR_UP "\033[1A"
+#define ANSI_CURSOR_START "\r"
+#define ANSI_HIDE_CURSOR "\033[?25l"
+#define ANSI_SHOW_CURSOR "\033[?25h"
+#define ANSI_DIM "\033[2m"
+#define ANSI_RESET "\033[0m"
+#define ANSI_CYAN "\033[36m"
+#define ANSI_BOLD "\033[1m"
+#define ANSI_GREEN "\033[32m"
+#define ANSI_RED "\033[31m"
+#define ANSI_YELLOW "\033[33m"
 
 // ============================================================================
 // SPINNER STATE
@@ -90,10 +90,12 @@ void repl_clear_current_agent(void) {
 // "anna-executive-assistant.md" -> "anna"
 // "ali-chief-of-staff.md" -> "ali"
 static char* extract_agent_name(const char* filename) {
-    if (!filename) return NULL;
+    if (!filename)
+        return NULL;
 
     // Skip CommonValuesAndPrinciples.md - not an agent
-    if (strstr(filename, "CommonValues") != NULL) return NULL;
+    if (strstr(filename, "CommonValues") != NULL)
+        return NULL;
 
     // Find first hyphen to get short name
     const char* hyphen = strchr(filename, '-');
@@ -121,7 +123,7 @@ static char* extract_agent_name(const char* filename) {
 }
 
 // Generator function for @agent completions
-static bool g_completion_with_at = true;  // Whether to prefix with @
+static bool g_completion_with_at = true; // Whether to prefix with @
 
 static char* agent_name_generator(const char* text, int state) {
     static size_t list_index;
@@ -136,7 +138,8 @@ static char* agent_name_generator(const char* text, int state) {
 
     // Skip the @ prefix for matching
     const char* partial = text;
-    if (partial[0] == '@') partial++;
+    if (partial[0] == '@')
+        partial++;
     size_t partial_len = strlen(partial);
 
     // Return matches from embedded agents
@@ -176,7 +179,7 @@ char** repl_agent_completion(const char* text, int start, int end) {
     // Complete @agent names anywhere in the line if text starts with @
     if (text[0] == '@') {
         g_completion_with_at = true;
-        rl_attempted_completion_over = 1;  // Don't fall back to filename completion
+        rl_attempted_completion_over = 1; // Don't fall back to filename completion
         return rl_completion_matches(text, agent_name_generator);
     }
 
@@ -208,7 +211,7 @@ int repl_paste_clipboard_image(int count, int key) {
 
     if (clipboard_has_image()) {
         // Save image to temp directory
-        char* image_path = clipboard_save_image(NULL);  // NULL = use temp directory
+        char* image_path = clipboard_save_image(NULL); // NULL = use temp directory
         if (image_path) {
             // Insert path at cursor position
             rl_insert_text(image_path);
@@ -216,7 +219,7 @@ int repl_paste_clipboard_image(int count, int key) {
             rl_redisplay();
             return 0;
         } else {
-            printf("\a");  // Beep on error
+            printf("\a"); // Beep on error
             fflush(stdout);
             return 1;
         }
@@ -229,7 +232,7 @@ int repl_paste_clipboard_image(int count, int key) {
             rl_redisplay();
             return 0;
         }
-        printf("\a");  // Beep - nothing to paste
+        printf("\a"); // Beep - nothing to paste
         fflush(stdout);
         return 1;
     }
@@ -240,7 +243,8 @@ int repl_paste_clipboard_image(int count, int key) {
 // ============================================================================
 
 void repl_print_separator(void) {
-    printf("\n" ANSI_DIM "────────────────────────────────────────────────────────────────" ANSI_RESET "\n\n");
+    printf("\n" ANSI_DIM
+           "────────────────────────────────────────────────────────────────" ANSI_RESET "\n\n");
 }
 
 // Spinner frames - Claude Code style (braille dots animation)
@@ -249,12 +253,7 @@ static const char* SPINNER_FRAMES[] = {"⠋", "⠙", "⠹", "⠸", "⠼", "⠴",
 
 // Thinking verbs that rotate
 static const char* SPINNER_VERBS[] = {
-    "Reasoning",
-    "Thinking",
-    "Analyzing",
-    "Processing",
-    "Considering",
-    "Evaluating",
+    "Reasoning", "Thinking", "Analyzing", "Processing", "Considering", "Evaluating",
 };
 #define SPINNER_VERB_COUNT 6
 
@@ -269,15 +268,15 @@ static void* spinner_func(void* arg) {
 
     // Get spinner color from theme (before entering loop, as theme is read-only during spin)
     const Theme* t = theme_get();
-    const char* spinner_color = t->spinner ? t->spinner : "\033[38;5;208m";  // Orange fallback
+    const char* spinner_color = t->spinner ? t->spinner : "\033[38;5;208m"; // Orange fallback
 
     // Save terminal settings and enable raw mode for ESC detection
     struct termios raw;
     tcgetattr(STDIN_FILENO, &g_orig_termios);
     raw = g_orig_termios;
-    raw.c_lflag &= (tcflag_t)~(ICANON | ECHO);  // Disable canonical mode and echo
-    raw.c_cc[VMIN] = 0;   // Non-blocking read
-    raw.c_cc[VTIME] = 0;  // No timeout
+    raw.c_lflag &= (tcflag_t) ~(ICANON | ECHO); // Disable canonical mode and echo
+    raw.c_cc[VMIN] = 0;                         // Non-blocking read
+    raw.c_cc[VTIME] = 0;                        // No timeout
     tcsetattr(STDIN_FILENO, TCSANOW, &raw);
 
     printf(ANSI_HIDE_CURSOR);
@@ -285,7 +284,7 @@ static void* spinner_func(void* arg) {
         // Check for ESC key (ASCII 27)
         char c;
         if (read(STDIN_FILENO, &c, 1) == 1) {
-            if (c == 27) {  // ESC key
+            if (c == 27) { // ESC key
                 g_spinner_cancelled = true;
                 claude_cancel_request();
                 break;
@@ -312,17 +311,18 @@ static void* spinner_func(void* arg) {
         if (elapsed_seconds < 60) {
             snprintf(time_str, sizeof(time_str), "%ds", elapsed_seconds);
         } else {
-            snprintf(time_str, sizeof(time_str), "%dm%02ds", elapsed_seconds / 60, elapsed_seconds % 60);
+            snprintf(time_str, sizeof(time_str), "%dm%02ds", elapsed_seconds / 60,
+                     elapsed_seconds % 60);
         }
 
         // Colored spinner with braille dots animation (Claude Code style) + timer
-        printf(ANSI_CURSOR_START "%s%s" ANSI_RESET " " ANSI_DIM "%s ..." ANSI_RESET "   "
-               ANSI_DIM "%s" ANSI_RESET "   (ESC to cancel)   ",
+        printf(ANSI_CURSOR_START "%s%s" ANSI_RESET " " ANSI_DIM "%s ..." ANSI_RESET "   " ANSI_DIM
+                                 "%s" ANSI_RESET "   (ESC to cancel)   ",
                spinner_color, spinner_char, verb, time_str);
         fflush(stdout);
 
         frame = (frame + 1) % SPINNER_FRAME_COUNT;
-        usleep(100000);  // 100ms for smooth animation
+        usleep(100000); // 100ms for smooth animation
     }
 
     // Restore terminal settings
@@ -360,7 +360,8 @@ bool repl_spinner_was_cancelled(void) {
 // Streaming callback - renders markdown incrementally as chunks arrive
 static void stream_md_callback(const char* chunk, void* user_data) {
     (void)user_data;
-    if (!chunk) return;
+    if (!chunk)
+        return;
 
     // Create renderer if needed
     if (!g_stream_md) {
@@ -379,14 +380,18 @@ static void stream_md_callback(const char* chunk, void* user_data) {
 
 bool repl_handle_budget_exceeded(void) {
     Orchestrator* orch = orchestrator_get();
-    if (!orch) return false;
+    if (!orch)
+        return false;
 
     const Theme* t = theme_get();
 
     printf("\n");
-    printf("  %s┌─────────────────────────────────────────────────────────────┐%s\n", t->warning, theme_reset());
-    printf("  %s│  ⚠  BUDGET LIMIT REACHED                                    │%s\n", t->warning, theme_reset());
-    printf("  %s└─────────────────────────────────────────────────────────────┘%s\n", t->warning, theme_reset());
+    printf("  %s┌─────────────────────────────────────────────────────────────┐%s\n", t->warning,
+           theme_reset());
+    printf("  %s│  ⚠  BUDGET LIMIT REACHED                                    │%s\n", t->warning,
+           theme_reset());
+    printf("  %s└─────────────────────────────────────────────────────────────┘%s\n", t->warning,
+           theme_reset());
     printf("\n");
     printf("  Current spend:  %s$%.4f%s\n", t->cost, orch->cost.current_spend_usd, theme_reset());
     printf("  Budget limit:   %s$%.2f%s\n", t->cost, orch->cost.budget_limit_usd, theme_reset());
@@ -408,47 +413,49 @@ bool repl_handle_budget_exceeded(void) {
     }
 
     switch (choice[0]) {
-        case '1':
-            cost_set_budget(orch->cost.budget_limit_usd + 5.0);
-            printf("\n  %s✓ Budget increased to $%.2f%s\n\n", t->success, orch->cost.budget_limit_usd, theme_reset());
-            return true;
+    case '1':
+        cost_set_budget(orch->cost.budget_limit_usd + 5.0);
+        printf("\n  %s✓ Budget increased to $%.2f%s\n\n", t->success, orch->cost.budget_limit_usd,
+               theme_reset());
+        return true;
 
-        case '2':
-            cost_set_budget(orch->cost.budget_limit_usd + 10.0);
-            printf("\n  %s✓ Budget increased to $%.2f%s\n\n", t->success, orch->cost.budget_limit_usd, theme_reset());
-            return true;
+    case '2':
+        cost_set_budget(orch->cost.budget_limit_usd + 10.0);
+        printf("\n  %s✓ Budget increased to $%.2f%s\n\n", t->success, orch->cost.budget_limit_usd,
+               theme_reset());
+        return true;
 
-        case '3': {
-            printf("  Enter new budget limit (USD): $");
-            fflush(stdout);
-            char amount[32] = {0};
-            if (fgets(amount, sizeof(amount), stdin)) {
-                double new_budget = atof(amount);
-                if (new_budget > 0) {
-                    cost_set_budget(new_budget);
-                    printf("\n  %s✓ Budget set to $%.2f%s\n\n", t->success, new_budget, theme_reset());
-                    return true;
-                } else {
-                    printf("\n  %sInvalid amount.%s\n\n", t->error, theme_reset());
-                }
+    case '3': {
+        printf("  Enter new budget limit (USD): $");
+        fflush(stdout);
+        char amount[32] = {0};
+        if (fgets(amount, sizeof(amount), stdin)) {
+            double new_budget = atof(amount);
+            if (new_budget > 0) {
+                cost_set_budget(new_budget);
+                printf("\n  %s✓ Budget set to $%.2f%s\n\n", t->success, new_budget, theme_reset());
+                return true;
+            } else {
+                printf("\n  %sInvalid amount.%s\n\n", t->error, theme_reset());
             }
-            return false;
         }
+        return false;
+    }
 
-        case '4': {
-            char* report = cost_get_report();
-            if (report) {
-                printf("\n%s\n", report);
-                free(report);
-            }
-            // Show menu again
-            return repl_handle_budget_exceeded();
+    case '4': {
+        char* report = cost_get_report();
+        if (report) {
+            printf("\n%s\n", report);
+            free(report);
         }
+        // Show menu again
+        return repl_handle_budget_exceeded();
+    }
 
-        case '5':
-        default:
-            printf("\n  %sMessage cancelled.%s\n\n", t->info, theme_reset());
-            return false;
+    case '5':
+    default:
+        printf("\n  %sMessage cancelled.%s\n\n", t->info, theme_reset());
+        return false;
     }
 }
 
@@ -497,7 +504,8 @@ static int repl_execute_direct_bash(const char* command) {
 }
 
 int repl_process_natural_input(const char* input) {
-    if (!input || strlen(input) == 0) return 0;
+    if (!input || strlen(input) == 0)
+        return 0;
 
     // Check for direct bash prefix (! or $)
     if (input[0] == '!' || input[0] == '$') {
@@ -523,7 +531,7 @@ int repl_process_natural_input(const char* input) {
     // Check budget before processing
     if (orch->cost.budget_exceeded) {
         if (!repl_handle_budget_exceeded()) {
-            return 0;  // User cancelled
+            return 0; // User cancelled
         }
     }
 
@@ -580,7 +588,8 @@ int repl_process_natural_input(const char* input) {
         // Check if request was cancelled by user
         if (repl_spinner_was_cancelled()) {
             printf(ANSI_DIM "Request cancelled" ANSI_RESET "\n");
-            if (response) free(response);
+            if (response)
+                free(response);
             return 0;
         }
 
@@ -626,14 +635,17 @@ int repl_direct_agent_communication(const char* agent_name, const char* message)
     if (!agent) {
         // FIX-01: Check edition whitelist BEFORE spawning (security)
         if (!edition_has_agent(agent_name)) {
-            printf(ANSI_YELLOW "Agent '%s' is not available in this edition." ANSI_RESET "\n", agent_name);
+            printf(ANSI_YELLOW "Agent '%s' is not available in this edition." ANSI_RESET "\n",
+                   agent_name);
             return 0;
         }
         // Try to spawn the agent (it might exist as embedded but not yet spawned)
         agent = agent_spawn(AGENT_ROLE_ANALYST, agent_name, NULL);
     }
     if (!agent) {
-        printf(ANSI_DIM "Agent '%s' not found. Use 'agents' to see available agents." ANSI_RESET "\n", agent_name);
+        printf(ANSI_DIM "Agent '%s' not found. Use 'agents' to see available agents." ANSI_RESET
+                        "\n",
+               agent_name);
         return 0;
     }
 
@@ -645,7 +657,8 @@ int repl_direct_agent_communication(const char* agent_name, const char* message)
     // Check if agent is in current project team
     ConvergioProject* proj = project_current();
     if (proj && !project_has_agent(agent_name)) {
-        printf("\n" ANSI_YELLOW "⚠ Agent '%s' is not in project '%s' team." ANSI_RESET "\n", agent_name, proj->name);
+        printf("\n" ANSI_YELLOW "⚠ Agent '%s' is not in project '%s' team." ANSI_RESET "\n",
+               agent_name, proj->name);
         printf(ANSI_DIM "Current team: ");
         for (size_t i = 0; i < proj->team_count; i++) {
             printf("%s%s", proj->team[i].agent_name, i < proj->team_count - 1 ? ", " : "");
@@ -654,7 +667,8 @@ int repl_direct_agent_communication(const char* agent_name, const char* message)
         printf("Would you like to add '%s' to the team? [y/N] ", agent_name);
 
         char response[16];
-        if (fgets(response, sizeof(response), stdin) && (response[0] == 'y' || response[0] == 'Y')) {
+        if (fgets(response, sizeof(response), stdin) &&
+            (response[0] == 'y' || response[0] == 'Y')) {
             if (project_team_add(proj, agent_name, NULL)) {
                 printf(ANSI_GREEN "✓ Added '%s' to project team." ANSI_RESET "\n\n", agent_name);
             } else {
@@ -662,7 +676,9 @@ int repl_direct_agent_communication(const char* agent_name, const char* message)
                 return 0;
             }
         } else {
-            printf(ANSI_DIM "Use 'project team add %s' to add manually, or 'project clear' to exit project mode." ANSI_RESET "\n", agent_name);
+            printf(ANSI_DIM "Use 'project team add %s' to add manually, or 'project clear' to exit "
+                            "project mode." ANSI_RESET "\n",
+                   agent_name);
             return 0;
         }
     }
@@ -682,7 +698,8 @@ int repl_direct_agent_communication(const char* agent_name, const char* message)
     // Check if cancelled
     if (repl_spinner_was_cancelled()) {
         printf(ANSI_DIM "Request cancelled" ANSI_RESET "\n");
-        if (response) free(response);
+        if (response)
+            free(response);
         return 0;
     }
 
@@ -721,11 +738,13 @@ int repl_direct_agent_communication(const char* agent_name, const char* message)
 
 int repl_parse_and_execute(char* line) {
     // Skip empty lines
-    if (!line || strlen(line) == 0) return 0;
+    if (!line || strlen(line) == 0)
+        return 0;
 
     // Save original input before tokenization (which modifies line in-place)
     char* original_input = strdup(line);
-    if (!original_input) return -1;
+    if (!original_input)
+        return -1;
 
     // Check for direct agent communication: @agent_name [message]
     // - @agent_name message -> send message to agent
@@ -737,17 +756,18 @@ int repl_parse_and_execute(char* line) {
 
         const char* space = strchr(line, ' ');
         if (space) {
-            size_t name_len = (size_t)(space - line - 1);  // -1 to skip @
+            size_t name_len = (size_t)(space - line - 1); // -1 to skip @
             if (name_len > 0 && name_len < sizeof(agent_name)) {
                 strncpy(agent_name, line + 1, name_len);
                 agent_name[name_len] = '\0';
                 msg_start = space + 1;
                 // Skip leading whitespace in message
-                while (*msg_start == ' ' || *msg_start == '\t') msg_start++;
+                while (*msg_start == ' ' || *msg_start == '\t')
+                    msg_start++;
             }
         } else {
             // No space - just agent name (switch mode)
-            size_t name_len = strlen(line) - 1;  // -1 to skip @
+            size_t name_len = strlen(line) - 1; // -1 to skip @
             if (name_len > 0 && name_len < sizeof(agent_name)) {
                 strncpy(agent_name, line + 1, name_len);
                 agent_name[name_len] = '\0';
@@ -764,17 +784,19 @@ int repl_parse_and_execute(char* line) {
             return 0;
         }
 
-        // Find or spawn the agent
+        // FIX-01: Check edition whitelist BEFORE finding/spawning (security)
+        // This prevents bypassing edition restrictions via @agent syntax
+        if (!edition_has_agent(agent_name)) {
+            printf(ANSI_YELLOW "Agent '%s' is not available in this edition." ANSI_RESET "\n",
+                   agent_name);
+            printf("Type 'agents' to see available agents for %s.\n", edition_display_name());
+            free(original_input);
+            return 0;
+        }
+
+        // Find or spawn the agent (only if edition check passed)
         ManagedAgent* agent = agent_find_by_name(agent_name);
         if (!agent) {
-            // FIX-01: Check edition whitelist BEFORE spawning (security)
-            // This prevents bypassing edition restrictions via @agent syntax
-            if (!edition_has_agent(agent_name)) {
-                printf(ANSI_YELLOW "Agent '%s' is not available in this edition." ANSI_RESET "\n", agent_name);
-                printf("Type 'agents' to see available agents for %s.\n", edition_display_name());
-                free(original_input);
-                return 0;
-            }
             // Try to spawn the agent (it might exist as embedded but not yet spawned)
             agent = agent_spawn(AGENT_ROLE_ANALYST, agent_name, NULL);
         }
@@ -794,11 +816,16 @@ int repl_parse_and_execute(char* line) {
 
         // No message - switch to this agent
         repl_set_current_agent(agent);
-        printf(ANSI_GREEN "Switched to " ANSI_BOLD "%s" ANSI_RESET ANSI_GREEN "." ANSI_RESET "\n", agent->name);
+        printf(ANSI_GREEN "Switched to " ANSI_BOLD "%s" ANSI_RESET ANSI_GREEN "." ANSI_RESET "\n",
+               agent->name);
         if (agent->description) {
             printf(ANSI_DIM "%s" ANSI_RESET "\n", agent->description);
         }
-        printf(ANSI_DIM "All your messages will now go to %s. Type 'ali' or 'back' to return to Ali." ANSI_RESET "\n", agent->name);
+        printf(
+            ANSI_DIM
+            "All your messages will now go to %s. Type 'ali' or 'back' to return to Ali." ANSI_RESET
+            "\n",
+            agent->name);
         free(original_input);
         return 0;
     }
@@ -810,23 +837,27 @@ int repl_parse_and_execute(char* line) {
     char* p = line;
     while (*p && argc < 64) {
         // Skip leading whitespace
-        while (*p == ' ' || *p == '\t') p++;
-        if (!*p) break;
+        while (*p == ' ' || *p == '\t')
+            p++;
+        if (!*p)
+            break;
 
         char* start;
         if (*p == '"') {
             // Quoted string - find closing quote
-            p++;  // Skip opening quote
+            p++; // Skip opening quote
             start = p;
-            while (*p && *p != '"') p++;
+            while (*p && *p != '"')
+                p++;
             if (*p == '"') {
-                *p = '\0';  // Replace closing quote with null
+                *p = '\0'; // Replace closing quote with null
                 p++;
             }
         } else {
             // Unquoted token - find next whitespace
             start = p;
-            while (*p && *p != ' ' && *p != '\t') p++;
+            while (*p && *p != ' ' && *p != '\t')
+                p++;
             if (*p) {
                 *p = '\0';
                 p++;
@@ -846,7 +877,7 @@ int repl_parse_and_execute(char* line) {
     // Look for built-in command (support both "quit" and "/quit" syntax)
     const char* cmd_name = argv[0];
     if (cmd_name[0] == '/') {
-        cmd_name++;  // Skip leading slash
+        cmd_name++; // Skip leading slash
     }
 
     // =========================================================================
@@ -889,7 +920,9 @@ int repl_parse_and_execute(char* line) {
             // Just agent name alone: switch to that agent
             // "amy" -> switch to Amy
             repl_set_current_agent(addressed_agent);
-            printf(ANSI_GREEN "Switched to " ANSI_BOLD "%s" ANSI_RESET ANSI_GREEN "." ANSI_RESET "\n", addressed_agent->name);
+            printf(ANSI_GREEN "Switched to " ANSI_BOLD "%s" ANSI_RESET ANSI_GREEN "." ANSI_RESET
+                              "\n",
+                   addressed_agent->name);
             if (addressed_agent->description) {
                 printf(ANSI_DIM "%s" ANSI_RESET "\n", addressed_agent->description);
             }
@@ -901,8 +934,10 @@ int repl_parse_and_execute(char* line) {
             // "amy come stai?" -> send "come stai?" to Amy
             // Use original_input because line is corrupted by tokenization
             const char* msg_start = original_input;
-            while (*msg_start && !isspace((unsigned char)*msg_start)) msg_start++;
-            while (*msg_start && isspace((unsigned char)*msg_start)) msg_start++;
+            while (*msg_start && !isspace((unsigned char)*msg_start))
+                msg_start++;
+            while (*msg_start && isspace((unsigned char)*msg_start))
+                msg_start++;
 
             if (*msg_start) {
                 int res = repl_direct_agent_communication(addressed_agent->name, msg_start);
@@ -917,8 +952,8 @@ int repl_parse_and_execute(char* line) {
         if (strcmp(cmd_name, cmd->name) == 0) {
             // Check if command is available in current edition
             if (!edition_has_command(cmd->name)) {
-                printf("\033[33mCommand '/%s' is not available in %s.\033[0m\n",
-                       cmd->name, edition_display_name());
+                printf("\033[33mCommand '/%s' is not available in %s.\033[0m\n", cmd->name,
+                       edition_display_name());
                 printf("This command is part of a different Convergio edition.\n\n");
                 free(original_input);
                 return -1;
@@ -937,15 +972,16 @@ int repl_parse_and_execute(char* line) {
 
     // Handle INTENT_SWITCH: user wants to switch to a different agent
     if (route.type == INTENT_SWITCH && route.confidence >= 0.8f) {
-        LOG_INFO(LOG_CAT_AGENT, "Router: switch to %s (%.0f%%)",
-                 route.agent, (double)(route.confidence * 100));
+        LOG_INFO(LOG_CAT_AGENT, "Router: switch to %s (%.0f%%)", route.agent,
+                 (double)(route.confidence * 100));
 
         // Find or spawn the target agent
         ManagedAgent* target = agent_find_by_name(route.agent);
         if (!target) {
             // FIX-01: Check edition whitelist BEFORE spawning (security)
             if (!edition_has_agent(route.agent)) {
-                printf(ANSI_YELLOW "Agent '%s' is not available in this edition." ANSI_RESET "\n", route.agent);
+                printf(ANSI_YELLOW "Agent '%s' is not available in this edition." ANSI_RESET "\n",
+                       route.agent);
                 free(original_input);
                 return 0;
             }
@@ -954,7 +990,9 @@ int repl_parse_and_execute(char* line) {
 
         if (target) {
             repl_set_current_agent(target);
-            printf(ANSI_GREEN "Switched to " ANSI_BOLD "%s" ANSI_RESET ANSI_GREEN "." ANSI_RESET "\n", target->name);
+            printf(ANSI_GREEN "Switched to " ANSI_BOLD "%s" ANSI_RESET ANSI_GREEN "." ANSI_RESET
+                              "\n",
+                   target->name);
             if (target->description) {
                 printf(ANSI_DIM "%s" ANSI_RESET "\n", target->description);
             }
@@ -976,8 +1014,8 @@ int repl_parse_and_execute(char* line) {
 
     // If router is confident about a specific agent (not Ali), go directly to that agent
     if (strcmp(route.agent, "ali") != 0 && route.confidence >= 0.7f) {
-        LOG_INFO(LOG_CAT_AGENT, "Router: %s (%.0f%%) - %s",
-                 route.agent, (double)(route.confidence * 100), route.intent);
+        LOG_INFO(LOG_CAT_AGENT, "Router: %s (%.0f%%) - %s", route.agent,
+                 (double)(route.confidence * 100), route.intent);
         int res = repl_direct_agent_communication(route.agent, original_input);
         free(original_input);
         return res;

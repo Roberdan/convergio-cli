@@ -5,13 +5,13 @@
  */
 
 #include "nous/semantic_persistence.h"
-#include "nous/nous.h"
 #include "nous/debug_mutex.h"
+#include "nous/nous.h"
+#include <pthread.h>
 #include <sqlite3.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
-#include <pthread.h>
 
 // External database handle from persistence.c
 extern sqlite3* g_db;
@@ -24,25 +24,18 @@ extern ConvergioMutex g_db_mutex;
 // NODE PERSISTENCE
 // ============================================================================
 
-int sem_persist_save_node(
-    SemanticID id,
-    SemanticType type,
-    const char* essence,
-    const float* embedding,
-    size_t embedding_dim,
-    SemanticID creator_id,
-    SemanticID context_id,
-    float importance
-) {
-    if (!g_db || !essence) return -1;
+int sem_persist_save_node(SemanticID id, SemanticType type, const char* essence,
+                          const float* embedding, size_t embedding_dim, SemanticID creator_id,
+                          SemanticID context_id, float importance) {
+    if (!g_db || !essence)
+        return -1;
 
     CONVERGIO_MUTEX_LOCK(&g_db_mutex);
 
-    const char* sql =
-        "INSERT OR REPLACE INTO semantic_nodes "
-        "(id, type, essence, embedding, creator_id, context_id, importance, "
-        "access_count, created_at, last_accessed) "
-        "VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?, ?)";
+    const char* sql = "INSERT OR REPLACE INTO semantic_nodes "
+                      "(id, type, essence, embedding, creator_id, context_id, importance, "
+                      "access_count, created_at, last_accessed) "
+                      "VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?, ?)";
 
     sqlite3_stmt* stmt;
     int rc = sqlite3_prepare_v2(g_db, sql, -1, &stmt, NULL);
@@ -58,7 +51,8 @@ int sem_persist_save_node(
     sqlite3_bind_text(stmt, 3, essence, -1, SQLITE_TRANSIENT);
 
     if (embedding && embedding_dim > 0) {
-        sqlite3_bind_blob(stmt, 4, embedding, (int)(embedding_dim * sizeof(float)), SQLITE_TRANSIENT);
+        sqlite3_bind_blob(stmt, 4, embedding, (int)(embedding_dim * sizeof(float)),
+                          SQLITE_TRANSIENT);
     } else {
         sqlite3_bind_null(stmt, 4);
     }
@@ -78,20 +72,20 @@ int sem_persist_save_node(
 }
 
 int sem_persist_load_node(SemanticID id) {
-    if (!g_db || id == SEMANTIC_ID_NULL) return -1;
+    if (!g_db || id == SEMANTIC_ID_NULL)
+        return -1;
 
     // Check if already in memory
     NousSemanticNode* existing = nous_get_node(id);
     if (existing) {
         nous_release_node(existing);
-        return 0;  // Already loaded
+        return 0; // Already loaded
     }
 
     CONVERGIO_MUTEX_LOCK(&g_db_mutex);
 
-    const char* sql =
-        "SELECT type, essence, embedding, creator_id, context_id, importance "
-        "FROM semantic_nodes WHERE id = ?";
+    const char* sql = "SELECT type, essence, embedding, creator_id, context_id, importance "
+                      "FROM semantic_nodes WHERE id = ?";
 
     sqlite3_stmt* stmt;
     int rc = sqlite3_prepare_v2(g_db, sql, -1, &stmt, NULL);
@@ -106,7 +100,7 @@ int sem_persist_load_node(SemanticID id) {
     if (rc != SQLITE_ROW) {
         sqlite3_finalize(stmt);
         CONVERGIO_MUTEX_UNLOCK(&g_db_mutex);
-        return -1;  // Not found
+        return -1; // Not found
     }
 
     SemanticType type = (SemanticType)sqlite3_column_int(stmt, 0);
@@ -123,11 +117,9 @@ int sem_persist_load_node(SemanticID id) {
     float importance = (float)sqlite3_column_double(stmt, 5);
 
     // Create node in fabric with specific ID and all data
-    SemanticID created = nous_create_node_internal(
-        type, essence, id,
-        (const float*)embedding_blob, embedding_dim,
-        creator_id, context_id, importance
-    );
+    SemanticID created =
+        nous_create_node_internal(type, essence, id, (const float*)embedding_blob, embedding_dim,
+                                  creator_id, context_id, importance);
 
     sqlite3_finalize(stmt);
     CONVERGIO_MUTEX_UNLOCK(&g_db_mutex);
@@ -136,7 +128,8 @@ int sem_persist_load_node(SemanticID id) {
 }
 
 int sem_persist_update_importance(SemanticID id, float importance) {
-    if (!g_db) return -1;
+    if (!g_db)
+        return -1;
 
     CONVERGIO_MUTEX_LOCK(&g_db_mutex);
 
@@ -161,13 +154,13 @@ int sem_persist_update_importance(SemanticID id, float importance) {
 }
 
 int sem_persist_touch_node(SemanticID id) {
-    if (!g_db) return -1;
+    if (!g_db)
+        return -1;
 
     CONVERGIO_MUTEX_LOCK(&g_db_mutex);
 
-    const char* sql =
-        "UPDATE semantic_nodes SET access_count = access_count + 1, "
-        "last_accessed = ? WHERE id = ?";
+    const char* sql = "UPDATE semantic_nodes SET access_count = access_count + 1, "
+                      "last_accessed = ? WHERE id = ?";
 
     sqlite3_stmt* stmt;
     int rc = sqlite3_prepare_v2(g_db, sql, -1, &stmt, NULL);
@@ -188,13 +181,13 @@ int sem_persist_touch_node(SemanticID id) {
 }
 
 int sem_persist_delete_node(SemanticID id) {
-    if (!g_db) return -1;
+    if (!g_db)
+        return -1;
 
     CONVERGIO_MUTEX_LOCK(&g_db_mutex);
 
     // Delete relations first (CASCADE should handle this, but be explicit)
-    const char* del_rel_sql =
-        "DELETE FROM semantic_relations WHERE from_id = ? OR to_id = ?";
+    const char* del_rel_sql = "DELETE FROM semantic_relations WHERE from_id = ? OR to_id = ?";
 
     sqlite3_stmt* stmt;
     int rc = sqlite3_prepare_v2(g_db, del_rel_sql, -1, &stmt, NULL);
@@ -223,7 +216,8 @@ int sem_persist_delete_node(SemanticID id) {
 }
 
 bool sem_persist_node_exists(SemanticID id) {
-    if (!g_db) return false;
+    if (!g_db)
+        return false;
 
     CONVERGIO_MUTEX_LOCK(&g_db_mutex);
 
@@ -250,20 +244,16 @@ bool sem_persist_node_exists(SemanticID id) {
 // RELATION PERSISTENCE
 // ============================================================================
 
-int sem_persist_save_relation(
-    SemanticID from_id,
-    SemanticID to_id,
-    float strength,
-    const char* relation_type
-) {
-    if (!g_db) return -1;
+int sem_persist_save_relation(SemanticID from_id, SemanticID to_id, float strength,
+                              const char* relation_type) {
+    if (!g_db)
+        return -1;
 
     CONVERGIO_MUTEX_LOCK(&g_db_mutex);
 
-    const char* sql =
-        "INSERT OR REPLACE INTO semantic_relations "
-        "(from_id, to_id, strength, relation_type, created_at, updated_at) "
-        "VALUES (?, ?, ?, ?, ?, ?)";
+    const char* sql = "INSERT OR REPLACE INTO semantic_relations "
+                      "(from_id, to_id, strength, relation_type, created_at, updated_at) "
+                      "VALUES (?, ?, ?, ?, ?, ?)";
 
     sqlite3_stmt* stmt;
     int rc = sqlite3_prepare_v2(g_db, sql, -1, &stmt, NULL);
@@ -289,18 +279,14 @@ int sem_persist_save_relation(
     return (rc == SQLITE_DONE) ? 0 : -1;
 }
 
-int sem_persist_update_relation(
-    SemanticID from_id,
-    SemanticID to_id,
-    float new_strength
-) {
-    if (!g_db) return -1;
+int sem_persist_update_relation(SemanticID from_id, SemanticID to_id, float new_strength) {
+    if (!g_db)
+        return -1;
 
     CONVERGIO_MUTEX_LOCK(&g_db_mutex);
 
-    const char* sql =
-        "UPDATE semantic_relations SET strength = ?, updated_at = ? "
-        "WHERE from_id = ? AND to_id = ?";
+    const char* sql = "UPDATE semantic_relations SET strength = ?, updated_at = ? "
+                      "WHERE from_id = ? AND to_id = ?";
 
     sqlite3_stmt* stmt;
     int rc = sqlite3_prepare_v2(g_db, sql, -1, &stmt, NULL);
@@ -323,14 +309,14 @@ int sem_persist_update_relation(
 }
 
 SemanticRelation* sem_persist_load_relations(SemanticID node_id, size_t* out_count) {
-    if (!g_db || !out_count) return NULL;
+    if (!g_db || !out_count)
+        return NULL;
     *out_count = 0;
 
     CONVERGIO_MUTEX_LOCK(&g_db_mutex);
 
-    const char* sql =
-        "SELECT to_id, strength, relation_type FROM semantic_relations "
-        "WHERE from_id = ? ORDER BY strength DESC";
+    const char* sql = "SELECT to_id, strength, relation_type FROM semantic_relations "
+                      "WHERE from_id = ? ORDER BY strength DESC";
 
     sqlite3_stmt* stmt;
     int rc = sqlite3_prepare_v2(g_db, sql, -1, &stmt, NULL);
@@ -343,7 +329,8 @@ SemanticRelation* sem_persist_load_relations(SemanticID node_id, size_t* out_cou
 
     // Count first
     size_t count = 0;
-    while (sqlite3_step(stmt) == SQLITE_ROW) count++;
+    while (sqlite3_step(stmt) == SQLITE_ROW)
+        count++;
     sqlite3_reset(stmt);
 
     if (count == 0) {
@@ -389,12 +376,12 @@ SemanticRelation* sem_persist_load_relations(SemanticID node_id, size_t* out_cou
 }
 
 int sem_persist_delete_relation(SemanticID from_id, SemanticID to_id) {
-    if (!g_db) return -1;
+    if (!g_db)
+        return -1;
 
     CONVERGIO_MUTEX_LOCK(&g_db_mutex);
 
-    const char* sql =
-        "DELETE FROM semantic_relations WHERE from_id = ? AND to_id = ?";
+    const char* sql = "DELETE FROM semantic_relations WHERE from_id = ? AND to_id = ?";
 
     sqlite3_stmt* stmt;
     int rc = sqlite3_prepare_v2(g_db, sql, -1, &stmt, NULL);
@@ -419,15 +406,15 @@ int sem_persist_delete_relation(SemanticID from_id, SemanticID to_id) {
 // ============================================================================
 
 int sem_persist_load_graph(size_t max_nodes) {
-    if (!g_db) return -1;
+    if (!g_db)
+        return -1;
 
     CONVERGIO_MUTEX_LOCK(&g_db_mutex);
 
     // Load nodes by importance (most important first)
-    const char* sql =
-        "SELECT id, type, essence, embedding, creator_id, context_id, importance "
-        "FROM semantic_nodes "
-        "ORDER BY importance DESC, access_count DESC LIMIT ?";
+    const char* sql = "SELECT id, type, essence, embedding, creator_id, context_id, importance "
+                      "FROM semantic_nodes "
+                      "ORDER BY importance DESC, access_count DESC LIMIT ?";
 
     sqlite3_stmt* stmt;
     int rc = sqlite3_prepare_v2(g_db, sql, -1, &stmt, NULL);
@@ -455,11 +442,9 @@ int sem_persist_load_graph(size_t max_nodes) {
         float importance = (float)sqlite3_column_double(stmt, 6);
 
         if (essence) {
-            SemanticID created = nous_create_node_internal(
-                type, essence, id,
-                (const float*)embedding_blob, embedding_dim,
-                creator_id, context_id, importance
-            );
+            SemanticID created =
+                nous_create_node_internal(type, essence, id, (const float*)embedding_blob,
+                                          embedding_dim, creator_id, context_id, importance);
             if (created != SEMANTIC_ID_NULL) {
                 loaded++;
             }
@@ -470,10 +455,11 @@ int sem_persist_load_graph(size_t max_nodes) {
 
     // Load relations only for nodes that were loaded (using subquery for efficiency)
     // This avoids loading all relations and filtering in memory
-    const char* rel_sql =
-        "SELECT r.from_id, r.to_id, r.strength FROM semantic_relations r "
-        "WHERE r.from_id IN (SELECT id FROM semantic_nodes ORDER BY importance DESC, access_count DESC LIMIT ?) "
-        "AND r.to_id IN (SELECT id FROM semantic_nodes ORDER BY importance DESC, access_count DESC LIMIT ?)";
+    const char* rel_sql = "SELECT r.from_id, r.to_id, r.strength FROM semantic_relations r "
+                          "WHERE r.from_id IN (SELECT id FROM semantic_nodes ORDER BY importance "
+                          "DESC, access_count DESC LIMIT ?) "
+                          "AND r.to_id IN (SELECT id FROM semantic_nodes ORDER BY importance DESC, "
+                          "access_count DESC LIMIT ?)";
 
     rc = sqlite3_prepare_v2(g_db, rel_sql, -1, &stmt, NULL);
     if (rc == SQLITE_OK) {
@@ -499,7 +485,8 @@ int sem_persist_load_graph(size_t max_nodes) {
 GraphStats sem_persist_get_stats(void) {
     GraphStats stats = {0};
 
-    if (!g_db) return stats;
+    if (!g_db)
+        return stats;
 
     CONVERGIO_MUTEX_LOCK(&g_db_mutex);
 
@@ -544,14 +531,14 @@ GraphStats sem_persist_get_stats(void) {
 }
 
 SemanticID* sem_persist_load_by_type(SemanticType type, size_t limit, size_t* out_count) {
-    if (!g_db || !out_count) return NULL;
+    if (!g_db || !out_count)
+        return NULL;
     *out_count = 0;
 
     CONVERGIO_MUTEX_LOCK(&g_db_mutex);
 
-    const char* sql =
-        "SELECT id FROM semantic_nodes WHERE type = ? "
-        "ORDER BY importance DESC LIMIT ?";
+    const char* sql = "SELECT id FROM semantic_nodes WHERE type = ? "
+                      "ORDER BY importance DESC LIMIT ?";
 
     sqlite3_stmt* stmt;
     int rc = sqlite3_prepare_v2(g_db, sql, -1, &stmt, NULL);
@@ -565,7 +552,8 @@ SemanticID* sem_persist_load_by_type(SemanticType type, size_t limit, size_t* ou
 
     // Count first
     size_t count = 0;
-    while (sqlite3_step(stmt) == SQLITE_ROW) count++;
+    while (sqlite3_step(stmt) == SQLITE_ROW)
+        count++;
     sqlite3_reset(stmt);
 
     if (count == 0) {
@@ -594,14 +582,14 @@ SemanticID* sem_persist_load_by_type(SemanticType type, size_t limit, size_t* ou
 }
 
 SemanticID* sem_persist_load_important(size_t limit, float min_importance, size_t* out_count) {
-    if (!g_db || !out_count) return NULL;
+    if (!g_db || !out_count)
+        return NULL;
     *out_count = 0;
 
     CONVERGIO_MUTEX_LOCK(&g_db_mutex);
 
-    const char* sql =
-        "SELECT id FROM semantic_nodes WHERE importance >= ? "
-        "ORDER BY importance DESC, access_count DESC LIMIT ?";
+    const char* sql = "SELECT id FROM semantic_nodes WHERE importance >= ? "
+                      "ORDER BY importance DESC, access_count DESC LIMIT ?";
 
     sqlite3_stmt* stmt;
     int rc = sqlite3_prepare_v2(g_db, sql, -1, &stmt, NULL);
@@ -615,7 +603,8 @@ SemanticID* sem_persist_load_important(size_t limit, float min_importance, size_
 
     // Count first
     size_t count = 0;
-    while (sqlite3_step(stmt) == SQLITE_ROW) count++;
+    while (sqlite3_step(stmt) == SQLITE_ROW)
+        count++;
     sqlite3_reset(stmt);
 
     if (count == 0) {
@@ -648,7 +637,8 @@ static void escape_like_pattern(const char* src, char* dest, size_t dest_size) {
     size_t j = 0;
     for (size_t i = 0; src[i] != '\0' && j + 1 < dest_size; ++i) {
         if (src[i] == '%' || src[i] == '_' || src[i] == '\\') {
-            if (j + 2 >= dest_size) break;
+            if (j + 2 >= dest_size)
+                break;
             dest[j++] = '\\';
         }
         dest[j++] = src[i];
@@ -657,7 +647,8 @@ static void escape_like_pattern(const char* src, char* dest, size_t dest_size) {
 }
 
 SemanticID* sem_persist_search_essence(const char* query, size_t limit, size_t* out_count) {
-    if (!g_db || !query || !out_count) return NULL;
+    if (!g_db || !query || !out_count)
+        return NULL;
     *out_count = 0;
 
     CONVERGIO_MUTEX_LOCK(&g_db_mutex);
@@ -668,9 +659,8 @@ SemanticID* sem_persist_search_essence(const char* query, size_t limit, size_t* 
     char search_pattern[512];
     snprintf(search_pattern, sizeof(search_pattern), "%%%s%%", escaped_query);
 
-    const char* sql =
-        "SELECT id FROM semantic_nodes WHERE essence LIKE ? ESCAPE '\\' "
-        "ORDER BY importance DESC LIMIT ?";
+    const char* sql = "SELECT id FROM semantic_nodes WHERE essence LIKE ? ESCAPE '\\' "
+                      "ORDER BY importance DESC LIMIT ?";
 
     sqlite3_stmt* stmt;
     int rc = sqlite3_prepare_v2(g_db, sql, -1, &stmt, NULL);
@@ -684,7 +674,8 @@ SemanticID* sem_persist_search_essence(const char* query, size_t limit, size_t* 
 
     // Count first
     size_t count = 0;
-    while (sqlite3_step(stmt) == SQLITE_ROW) count++;
+    while (sqlite3_step(stmt) == SQLITE_ROW)
+        count++;
     sqlite3_reset(stmt);
 
     if (count == 0) {
@@ -724,7 +715,8 @@ typedef struct {
 } MigrationMemory;
 
 int sem_persist_migrate_memories(void) {
-    if (!g_db) return -1;
+    if (!g_db)
+        return -1;
 
     // Phase 1: Read all memory data while holding mutex (minimal blocking)
     CONVERGIO_MUTEX_LOCK(&g_db_mutex);
@@ -757,8 +749,7 @@ int sem_persist_migrate_memories(void) {
     }
 
     // Load all memories into array
-    const char* sql =
-        "SELECT content, category, importance FROM memories";
+    const char* sql = "SELECT content, category, importance FROM memories";
 
     rc = sqlite3_prepare_v2(g_db, sql, -1, &stmt, NULL);
     if (rc != SQLITE_OK) {
@@ -794,7 +785,7 @@ int sem_persist_migrate_memories(void) {
     }
 
     sqlite3_finalize(stmt);
-    CONVERGIO_MUTEX_UNLOCK(&g_db_mutex);  // Release mutex before node creation
+    CONVERGIO_MUTEX_UNLOCK(&g_db_mutex); // Release mutex before node creation
 
     // Phase 2: Create semantic nodes (mutex released, no blocking)
     int migrated = 0;

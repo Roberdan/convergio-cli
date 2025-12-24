@@ -10,13 +10,13 @@
  * Copyright 2025 - Roberto D'Angelo & AI Team
  */
 
-#include "nous/provider.h"
 #include "../auth/oauth.h"
+#include "nous/provider.h"
+#include <curl/curl.h>
+#include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <pthread.h>
-#include <curl/curl.h>
 
 // ============================================================================
 // STREAM STATE
@@ -67,12 +67,13 @@ struct StreamContext {
 // ============================================================================
 
 #define INITIAL_BUFFER_SIZE 4096
-#define MAX_BUFFER_SIZE (1024 * 1024)  // 1MB max
+#define MAX_BUFFER_SIZE (1024 * 1024) // 1MB max
 
 static int buffer_init(StreamContext* ctx) {
     ctx->buffer_size = INITIAL_BUFFER_SIZE;
     ctx->buffer = malloc(ctx->buffer_size);
-    if (!ctx->buffer) return -1;
+    if (!ctx->buffer)
+        return -1;
     ctx->buffer_used = 0;
 
     ctx->response_size = INITIAL_BUFFER_SIZE;
@@ -87,15 +88,16 @@ static int buffer_init(StreamContext* ctx) {
     return 0;
 }
 
-static int buffer_append(char** buf, size_t* size, size_t* used,
-                         const char* data, size_t len) {
+static int buffer_append(char** buf, size_t* size, size_t* used, const char* data, size_t len) {
     // Grow buffer if needed
     while (*used + len + 1 > *size) {
         size_t new_size = *size * 2;
-        if (new_size > MAX_BUFFER_SIZE) return -1;
+        if (new_size > MAX_BUFFER_SIZE)
+            return -1;
 
         char* new_buf = realloc(*buf, new_size);
-        if (!new_buf) return -1;
+        if (!new_buf)
+            return -1;
 
         *buf = new_buf;
         *size = new_size;
@@ -110,7 +112,8 @@ static int buffer_append(char** buf, size_t* size, size_t* used,
 
 static void buffer_clear(StreamContext* ctx) {
     ctx->buffer_used = 0;
-    if (ctx->buffer) ctx->buffer[0] = '\0';
+    if (ctx->buffer)
+        ctx->buffer[0] = '\0';
 }
 
 // ============================================================================
@@ -139,140 +142,140 @@ static char* parse_sse_line(const char* line, ProviderType provider) {
     char* content = NULL;
 
     switch (provider) {
-        case PROVIDER_ANTHROPIC: {
-            // Anthropic: {"type":"content_block_delta","delta":{"type":"text_delta","text":"..."}}
-            const char* text_marker = "\"text\":\"";
-            const char* text_start = strstr(data, text_marker);
-            if (text_start) {
-                text_start += strlen(text_marker);
-                const char* text_end = strchr(text_start, '"');
-                // Handle escaped quotes
-                while (text_end && text_end > text_start && *(text_end - 1) == '\\') {
-                    text_end = strchr(text_end + 1, '"');
+    case PROVIDER_ANTHROPIC: {
+        // Anthropic: {"type":"content_block_delta","delta":{"type":"text_delta","text":"..."}}
+        const char* text_marker = "\"text\":\"";
+        const char* text_start = strstr(data, text_marker);
+        if (text_start) {
+            text_start += strlen(text_marker);
+            const char* text_end = strchr(text_start, '"');
+            // Handle escaped quotes
+            while (text_end && text_end > text_start && *(text_end - 1) == '\\') {
+                text_end = strchr(text_end + 1, '"');
+            }
+            if (text_end) {
+                size_t len = (size_t)(text_end - text_start);
+                content = malloc(len + 1);
+                if (content) {
+                    memcpy(content, text_start, len);
+                    content[len] = '\0';
                 }
-                if (text_end) {
-                    size_t len = (size_t)(text_end - text_start);
+            }
+        }
+        break;
+    }
+
+    case PROVIDER_OPENAI: {
+        // OpenAI: {"choices":[{"delta":{"content":"..."}}]}
+        const char* content_marker = "\"content\":\"";
+        const char* content_start = strstr(data, content_marker);
+        if (content_start) {
+            content_start += strlen(content_marker);
+            const char* content_end = strchr(content_start, '"');
+            while (content_end && content_end > content_start && *(content_end - 1) == '\\') {
+                content_end = strchr(content_end + 1, '"');
+            }
+            if (content_end) {
+                size_t len = (size_t)(content_end - content_start);
+                content = malloc(len + 1);
+                if (content) {
+                    memcpy(content, content_start, len);
+                    content[len] = '\0';
+                }
+            }
+        }
+        break;
+    }
+
+    case PROVIDER_GEMINI: {
+        // Gemini: {"candidates":[{"content":{"parts":[{"text":"..."}]}}]}
+        const char* text_marker = "\"text\":\"";
+        const char* text_start = strstr(data, text_marker);
+        if (text_start) {
+            text_start += strlen(text_marker);
+            const char* text_end = strchr(text_start, '"');
+            while (text_end && text_end > text_start && *(text_end - 1) == '\\') {
+                text_end = strchr(text_end + 1, '"');
+            }
+            if (text_end) {
+                size_t len = (size_t)(text_end - text_start);
+                content = malloc(len + 1);
+                if (content) {
+                    memcpy(content, text_start, len);
+                    content[len] = '\0';
+                }
+            }
+        }
+        break;
+    }
+
+    case PROVIDER_OPENROUTER: {
+        // OpenRouter uses OpenAI-compatible format
+        // {"choices":[{"delta":{"content":"..."}}]}
+        const char* content_marker = "\"content\":\"";
+        const char* content_start = strstr(data, content_marker);
+        if (content_start) {
+            content_start += strlen(content_marker);
+            const char* content_end = strchr(content_start, '"');
+            while (content_end && content_end > content_start && *(content_end - 1) == '\\') {
+                content_end = strchr(content_end + 1, '"');
+            }
+            if (content_end) {
+                size_t len = (size_t)(content_end - content_start);
+                content = malloc(len + 1);
+                if (content) {
+                    memcpy(content, content_start, len);
+                    content[len] = '\0';
+                }
+            }
+        }
+        break;
+    }
+
+    case PROVIDER_OLLAMA: {
+        // Ollama NDJSON: {"message":{"content":"..."}} or {"response":"..."}
+        // Try message.content first (chat endpoint)
+        const char* content_marker = "\"content\":\"";
+        const char* content_start = strstr(data, content_marker);
+        if (content_start) {
+            content_start += strlen(content_marker);
+            const char* content_end = strchr(content_start, '"');
+            while (content_end && content_end > content_start && *(content_end - 1) == '\\') {
+                content_end = strchr(content_end + 1, '"');
+            }
+            if (content_end) {
+                size_t len = (size_t)(content_end - content_start);
+                content = malloc(len + 1);
+                if (content) {
+                    memcpy(content, content_start, len);
+                    content[len] = '\0';
+                }
+            }
+        } else {
+            // Try response field (generate endpoint)
+            const char* resp_marker = "\"response\":\"";
+            const char* resp_start = strstr(data, resp_marker);
+            if (resp_start) {
+                resp_start += strlen(resp_marker);
+                const char* resp_end = strchr(resp_start, '"');
+                while (resp_end && resp_end > resp_start && *(resp_end - 1) == '\\') {
+                    resp_end = strchr(resp_end + 1, '"');
+                }
+                if (resp_end) {
+                    size_t len = (size_t)(resp_end - resp_start);
                     content = malloc(len + 1);
                     if (content) {
-                        memcpy(content, text_start, len);
+                        memcpy(content, resp_start, len);
                         content[len] = '\0';
                     }
                 }
             }
-            break;
         }
+        break;
+    }
 
-        case PROVIDER_OPENAI: {
-            // OpenAI: {"choices":[{"delta":{"content":"..."}}]}
-            const char* content_marker = "\"content\":\"";
-            const char* content_start = strstr(data, content_marker);
-            if (content_start) {
-                content_start += strlen(content_marker);
-                const char* content_end = strchr(content_start, '"');
-                while (content_end && content_end > content_start && *(content_end - 1) == '\\') {
-                    content_end = strchr(content_end + 1, '"');
-                }
-                if (content_end) {
-                    size_t len = (size_t)(content_end - content_start);
-                    content = malloc(len + 1);
-                    if (content) {
-                        memcpy(content, content_start, len);
-                        content[len] = '\0';
-                    }
-                }
-            }
-            break;
-        }
-
-        case PROVIDER_GEMINI: {
-            // Gemini: {"candidates":[{"content":{"parts":[{"text":"..."}]}}]}
-            const char* text_marker = "\"text\":\"";
-            const char* text_start = strstr(data, text_marker);
-            if (text_start) {
-                text_start += strlen(text_marker);
-                const char* text_end = strchr(text_start, '"');
-                while (text_end && text_end > text_start && *(text_end - 1) == '\\') {
-                    text_end = strchr(text_end + 1, '"');
-                }
-                if (text_end) {
-                    size_t len = (size_t)(text_end - text_start);
-                    content = malloc(len + 1);
-                    if (content) {
-                        memcpy(content, text_start, len);
-                        content[len] = '\0';
-                    }
-                }
-            }
-            break;
-        }
-
-        case PROVIDER_OPENROUTER: {
-            // OpenRouter uses OpenAI-compatible format
-            // {"choices":[{"delta":{"content":"..."}}]}
-            const char* content_marker = "\"content\":\"";
-            const char* content_start = strstr(data, content_marker);
-            if (content_start) {
-                content_start += strlen(content_marker);
-                const char* content_end = strchr(content_start, '"');
-                while (content_end && content_end > content_start && *(content_end - 1) == '\\') {
-                    content_end = strchr(content_end + 1, '"');
-                }
-                if (content_end) {
-                    size_t len = (size_t)(content_end - content_start);
-                    content = malloc(len + 1);
-                    if (content) {
-                        memcpy(content, content_start, len);
-                        content[len] = '\0';
-                    }
-                }
-            }
-            break;
-        }
-
-        case PROVIDER_OLLAMA: {
-            // Ollama NDJSON: {"message":{"content":"..."}} or {"response":"..."}
-            // Try message.content first (chat endpoint)
-            const char* content_marker = "\"content\":\"";
-            const char* content_start = strstr(data, content_marker);
-            if (content_start) {
-                content_start += strlen(content_marker);
-                const char* content_end = strchr(content_start, '"');
-                while (content_end && content_end > content_start && *(content_end - 1) == '\\') {
-                    content_end = strchr(content_end + 1, '"');
-                }
-                if (content_end) {
-                    size_t len = (size_t)(content_end - content_start);
-                    content = malloc(len + 1);
-                    if (content) {
-                        memcpy(content, content_start, len);
-                        content[len] = '\0';
-                    }
-                }
-            } else {
-                // Try response field (generate endpoint)
-                const char* resp_marker = "\"response\":\"";
-                const char* resp_start = strstr(data, resp_marker);
-                if (resp_start) {
-                    resp_start += strlen(resp_marker);
-                    const char* resp_end = strchr(resp_start, '"');
-                    while (resp_end && resp_end > resp_start && *(resp_end - 1) == '\\') {
-                        resp_end = strchr(resp_end + 1, '"');
-                    }
-                    if (resp_end) {
-                        size_t len = (size_t)(resp_end - resp_start);
-                        content = malloc(len + 1);
-                        if (content) {
-                            memcpy(content, resp_start, len);
-                            content[len] = '\0';
-                        }
-                    }
-                }
-            }
-            break;
-        }
-
-        default:
-            break;
+    default:
+        break;
     }
 
     return content;
@@ -282,13 +285,14 @@ static char* parse_sse_line(const char* line, ProviderType provider) {
  * Process a complete SSE event
  */
 static void process_sse_event(StreamContext* ctx, const char* event) {
-    if (ctx->cancelled) return;
+    if (ctx->cancelled)
+        return;
 
     char* content = parse_sse_line(event, ctx->provider);
     if (content) {
         // Append to full response
-        buffer_append(&ctx->full_response, &ctx->response_size,
-                      &ctx->response_used, content, strlen(content));
+        buffer_append(&ctx->full_response, &ctx->response_size, &ctx->response_used, content,
+                      strlen(content));
 
         // Invoke callback
         if (ctx->on_chunk) {
@@ -303,22 +307,20 @@ static void process_sse_event(StreamContext* ctx, const char* event) {
 // CURL CALLBACKS
 // ============================================================================
 
-static size_t stream_write_callback(char* ptr, size_t size, size_t nmemb,
-                                     void* userdata) {
+static size_t stream_write_callback(char* ptr, size_t size, size_t nmemb, void* userdata) {
     StreamContext* ctx = (StreamContext*)userdata;
     size_t total = size * nmemb;
 
     if (ctx->cancelled) {
-        return 0;  // Abort transfer
+        return 0; // Abort transfer
     }
 
     pthread_mutex_lock(&ctx->mutex);
 
     // Append to buffer
-    if (buffer_append(&ctx->buffer, &ctx->buffer_size, &ctx->buffer_used,
-                      ptr, total) != 0) {
+    if (buffer_append(&ctx->buffer, &ctx->buffer_size, &ctx->buffer_used, ptr, total) != 0) {
         pthread_mutex_unlock(&ctx->mutex);
-        return 0;  // Error, abort
+        return 0; // Error, abort
     }
 
     // Process complete lines
@@ -360,7 +362,8 @@ static size_t stream_write_callback(char* ptr, size_t size, size_t nmemb,
 
 StreamContext* stream_context_create(ProviderType provider) {
     StreamContext* ctx = calloc(1, sizeof(StreamContext));
-    if (!ctx) return NULL;
+    if (!ctx)
+        return NULL;
 
     ctx->provider = provider;
     ctx->state = STREAM_STATE_IDLE;
@@ -377,7 +380,8 @@ StreamContext* stream_context_create(ProviderType provider) {
 }
 
 void stream_context_destroy(StreamContext* ctx) {
-    if (!ctx) return;
+    if (!ctx)
+        return;
 
     pthread_mutex_destroy(&ctx->mutex);
     free(ctx->buffer);
@@ -385,12 +389,11 @@ void stream_context_destroy(StreamContext* ctx) {
     free(ctx);
 }
 
-void stream_set_callbacks(StreamContext* ctx,
-                          void (*on_chunk)(const char*, void*),
+void stream_set_callbacks(StreamContext* ctx, void (*on_chunk)(const char*, void*),
                           void (*on_complete)(const char*, TokenUsage*, void*),
-                          void (*on_error)(ProviderError, const char*, void*),
-                          void* user_ctx) {
-    if (!ctx) return;
+                          void (*on_error)(ProviderError, const char*, void*), void* user_ctx) {
+    if (!ctx)
+        return;
 
     ctx->on_chunk = on_chunk;
     ctx->on_complete = on_complete;
@@ -399,7 +402,8 @@ void stream_set_callbacks(StreamContext* ctx,
 }
 
 void stream_cancel(StreamContext* ctx) {
-    if (!ctx) return;
+    if (!ctx)
+        return;
     ctx->cancelled = true;
     ctx->state = STREAM_STATE_CANCELLED;
 }
@@ -423,9 +427,9 @@ const char* stream_get_response(StreamContext* ctx) {
 /**
  * Execute a streaming request
  */
-int stream_execute(StreamContext* ctx, const char* url, const char* body,
-                   const char* api_key) {
-    if (!ctx || !url || !body) return -1;
+int stream_execute(StreamContext* ctx, const char* url, const char* body, const char* api_key) {
+    if (!ctx || !url || !body)
+        return -1;
 
     ctx->state = STREAM_STATE_CONNECTING;
     buffer_clear(ctx);
@@ -448,37 +452,37 @@ int stream_execute(StreamContext* ctx, const char* url, const char* body,
 
     char auth_header[256];
     switch (ctx->provider) {
-        case PROVIDER_ANTHROPIC:
-            // Use correct header based on auth mode (OAuth vs API key)
-            if (auth_get_mode() == AUTH_MODE_OAUTH) {
-                snprintf(auth_header, sizeof(auth_header), "Authorization: Bearer %s", api_key);
-            } else {
-                snprintf(auth_header, sizeof(auth_header), "x-api-key: %s", api_key);
-            }
-            headers = curl_slist_append(headers, auth_header);
-            headers = curl_slist_append(headers, "anthropic-version: 2023-06-01");
-            // Enable prompt caching beta for reduced TTFT (up to 51% improvement)
-            headers = curl_slist_append(headers, "anthropic-beta: prompt-caching-2024-07-31");
-            break;
-        case PROVIDER_OPENAI:
+    case PROVIDER_ANTHROPIC:
+        // Use correct header based on auth mode (OAuth vs API key)
+        if (auth_get_mode() == AUTH_MODE_OAUTH) {
             snprintf(auth_header, sizeof(auth_header), "Authorization: Bearer %s", api_key);
-            headers = curl_slist_append(headers, auth_header);
-            break;
-        case PROVIDER_GEMINI:
-            // Gemini uses query param, not header
-            break;
-        case PROVIDER_OPENROUTER:
-            // OpenRouter requires Bearer auth + HTTP-Referer header
-            snprintf(auth_header, sizeof(auth_header), "Authorization: Bearer %s", api_key);
-            headers = curl_slist_append(headers, auth_header);
-            headers = curl_slist_append(headers, "HTTP-Referer: https://convergio.dev");
-            headers = curl_slist_append(headers, "X-Title: ConvergioCLI");
-            break;
-        case PROVIDER_OLLAMA:
-            // Ollama is local - no auth needed
-            break;
-        default:
-            break;
+        } else {
+            snprintf(auth_header, sizeof(auth_header), "x-api-key: %s", api_key);
+        }
+        headers = curl_slist_append(headers, auth_header);
+        headers = curl_slist_append(headers, "anthropic-version: 2023-06-01");
+        // Enable prompt caching beta for reduced TTFT (up to 51% improvement)
+        headers = curl_slist_append(headers, "anthropic-beta: prompt-caching-2024-07-31");
+        break;
+    case PROVIDER_OPENAI:
+        snprintf(auth_header, sizeof(auth_header), "Authorization: Bearer %s", api_key);
+        headers = curl_slist_append(headers, auth_header);
+        break;
+    case PROVIDER_GEMINI:
+        // Gemini uses query param, not header
+        break;
+    case PROVIDER_OPENROUTER:
+        // OpenRouter requires Bearer auth + HTTP-Referer header
+        snprintf(auth_header, sizeof(auth_header), "Authorization: Bearer %s", api_key);
+        headers = curl_slist_append(headers, auth_header);
+        headers = curl_slist_append(headers, "HTTP-Referer: https://convergio.dev");
+        headers = curl_slist_append(headers, "X-Title: ConvergioCLI");
+        break;
+    case PROVIDER_OLLAMA:
+        // Ollama is local - no auth needed
+        break;
+    default:
+        break;
     }
 
     curl_easy_setopt(curl, CURLOPT_URL, url);
@@ -486,7 +490,7 @@ int stream_execute(StreamContext* ctx, const char* url, const char* body,
     curl_easy_setopt(curl, CURLOPT_POSTFIELDS, body);
     curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, stream_write_callback);
     curl_easy_setopt(curl, CURLOPT_WRITEDATA, ctx);
-    curl_easy_setopt(curl, CURLOPT_TIMEOUT, 300L);  // 5 min timeout for long responses
+    curl_easy_setopt(curl, CURLOPT_TIMEOUT, 300L); // 5 min timeout for long responses
 
     ctx->state = STREAM_STATE_RECEIVING;
 
@@ -497,7 +501,7 @@ int stream_execute(StreamContext* ctx, const char* url, const char* body,
 
     if (ctx->cancelled) {
         ctx->state = STREAM_STATE_CANCELLED;
-        return 1;  // Cancelled, not error
+        return 1; // Cancelled, not error
     }
 
     if (res != CURLE_OK) {
@@ -525,10 +529,10 @@ int stream_execute(StreamContext* ctx, const char* url, const char* body,
 /**
  * Stream chat completion with simple callback
  */
-ProviderError provider_stream_chat(Provider* provider, const char* model,
-                                    const char* system, const char* user,
-                                    StreamHandler* handler, TokenUsage* usage) {
-    if (!provider || !model || !user) return PROVIDER_ERR_INVALID_REQUEST;
+ProviderError provider_stream_chat(Provider* provider, const char* model, const char* system,
+                                   const char* user, StreamHandler* handler, TokenUsage* usage) {
+    if (!provider || !model || !user)
+        return PROVIDER_ERR_INVALID_REQUEST;
 
     // Use provider's native streaming if available
     if (provider->stream_chat) {
@@ -559,22 +563,41 @@ ProviderError provider_stream_chat(Provider* provider, const char* model,
  * Unescape JSON string content
  */
 char* stream_unescape_json(const char* input) {
-    if (!input) return NULL;
+    if (!input)
+        return NULL;
 
     size_t len = strlen(input);
     char* output = malloc(len + 1);
-    if (!output) return NULL;
+    if (!output)
+        return NULL;
 
     size_t j = 0;
     for (size_t i = 0; i < len; i++) {
         if (input[i] == '\\' && i + 1 < len) {
             switch (input[i + 1]) {
-                case 'n': output[j++] = '\n'; i++; break;
-                case 'r': output[j++] = '\r'; i++; break;
-                case 't': output[j++] = '\t'; i++; break;
-                case '"': output[j++] = '"'; i++; break;
-                case '\\': output[j++] = '\\'; i++; break;
-                default: output[j++] = input[i]; break;
+            case 'n':
+                output[j++] = '\n';
+                i++;
+                break;
+            case 'r':
+                output[j++] = '\r';
+                i++;
+                break;
+            case 't':
+                output[j++] = '\t';
+                i++;
+                break;
+            case '"':
+                output[j++] = '"';
+                i++;
+                break;
+            case '\\':
+                output[j++] = '\\';
+                i++;
+                break;
+            default:
+                output[j++] = input[i];
+                break;
             }
         } else {
             output[j++] = input[i];

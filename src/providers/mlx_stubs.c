@@ -23,32 +23,27 @@ bool mlx_bridge_load_model(const char* model_id, const char* cache_path) {
 }
 
 // Stub: No-op
-void mlx_bridge_unload_model(void) {
-}
+void mlx_bridge_unload_model(void) {}
 
 // Stub: Returns error message
-char* mlx_bridge_generate(
-    const char* prompt,
-    const char* system_prompt,
-    int32_t max_tokens,
-    float temperature,
-    int32_t* out_token_count,
-    float* out_tokens_per_sec,
-    char** out_error
-) {
+char* mlx_bridge_generate(const char* prompt, const char* system_prompt, int32_t max_tokens,
+                          float temperature, int32_t* out_token_count, float* out_tokens_per_sec,
+                          char** out_error) {
     (void)prompt;
     (void)system_prompt;
     (void)max_tokens;
     (void)temperature;
-    if (out_token_count) *out_token_count = 0;
-    if (out_tokens_per_sec) *out_tokens_per_sec = 0.0f;
-    if (out_error) *out_error = strdup("MLX not available (Swift library not linked)");
+    if (out_token_count)
+        *out_token_count = 0;
+    if (out_tokens_per_sec)
+        *out_tokens_per_sec = 0.0f;
+    if (out_error)
+        *out_error = strdup("MLX not available (Swift library not linked)");
     return NULL;
 }
 
 // Stub: No-op
-void mlx_bridge_clear_cache(void) {
-}
+void mlx_bridge_clear_cache(void) {}
 
 // Stub: Returns 0
 int64_t mlx_bridge_gpu_memory_used(void) {

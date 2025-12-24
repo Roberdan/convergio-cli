@@ -12,13 +12,13 @@
 
 #include "nous/signals.h"
 #include "nous/commands.h"
-#include <unistd.h>
-#include <stdlib.h>
-#include <time.h>
-#include <stdio.h>
-#include <string.h>
 #include <fcntl.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include <sys/stat.h>
+#include <time.h>
+#include <unistd.h>
 
 // FIX-07: Crash marker file for recovery detection
 static char g_crash_marker_path[512] = {0};
@@ -121,7 +121,7 @@ void signals_init(void) {
     // FIX-05: Register SIGSEGV handler
     struct sigaction sa_segv;
     sa_segv.sa_handler = sigsegv_handler;
-    sa_segv.sa_flags = SA_RESETHAND;  // One-shot, then default
+    sa_segv.sa_flags = SA_RESETHAND; // One-shot, then default
     sigemptyset(&sa_segv.sa_mask);
     sigaction(SIGSEGV, &sa_segv, NULL);
 }
@@ -131,10 +131,10 @@ void signals_init(void) {
 // ============================================================================
 
 void signals_set_crash_marker(const char* data_dir) {
-    if (!data_dir) return;
+    if (!data_dir)
+        return;
 
-    snprintf(g_crash_marker_path, sizeof(g_crash_marker_path),
-             "%s/.convergio_running", data_dir);
+    snprintf(g_crash_marker_path, sizeof(g_crash_marker_path), "%s/.convergio_running", data_dir);
 
     // Create marker file
     int fd = open(g_crash_marker_path, O_WRONLY | O_CREAT | O_TRUNC, 0644);
@@ -156,7 +156,8 @@ void signals_clear_crash_marker(void) {
 }
 
 bool signals_check_previous_crash(const char* data_dir) {
-    if (!data_dir) return false;
+    if (!data_dir)
+        return false;
 
     char marker_path[512];
     snprintf(marker_path, sizeof(marker_path), "%s/.convergio_running", data_dir);

@@ -16,22 +16,22 @@
  * Licensed under MIT License
  */
 
+#include <math.h>
+#include <sqlite3.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <stdbool.h>
-#include <math.h>
 #include <time.h>
-#include <sqlite3.h>
 
 // ============================================================================
 // CONSTANTS
 // ============================================================================
 
-#define MASTERY_THRESHOLD 0.80f       // 80% = mastered
-#define PROFICIENT_THRESHOLD 0.60f    // 60% = proficient
-#define FAMILIAR_THRESHOLD 0.40f      // 40% = familiar
-#define ATTEMPTS_FOR_MASTERY 5        // Minimum attempts needed
+#define MASTERY_THRESHOLD 0.80f    // 80% = mastered
+#define PROFICIENT_THRESHOLD 0.60f // 60% = proficient
+#define FAMILIAR_THRESHOLD 0.40f   // 40% = familiar
+#define ATTEMPTS_FOR_MASTERY 5     // Minimum attempts needed
 
 // Difficulty adjustment factors
 #define DIFFICULTY_INCREASE 1.15f
@@ -54,9 +54,9 @@ typedef enum {
 typedef struct {
     int64_t id;
     int64_t student_id;
-    char* skill_id;           // e.g., "math.fractions.addition"
-    char* skill_name;         // Display name
-    char* parent_skill_id;    // Parent in skill tree
+    char* skill_id;        // e.g., "math.fractions.addition"
+    char* skill_name;      // Display name
+    char* parent_skill_id; // Parent in skill tree
 
     int attempts;
     int correct;
@@ -98,7 +98,8 @@ extern char* llm_generate(const char* prompt, const char* system_prompt);
  * Create mastery tables if they don't exist
  */
 int mastery_init_db(void) {
-    if (!g_edu_db) return -1;
+    if (!g_edu_db)
+        return -1;
 
     const char* sql =
         // Skills table
@@ -131,7 +132,7 @@ int mastery_init_db(void) {
         "  subject TEXT NOT NULL,"
         "  grade_level INTEGER,"
         "  description TEXT,"
-        "  prerequisites TEXT"  // JSON array of prerequisite skill_ids
+        "  prerequisites TEXT" // JSON array of prerequisite skill_ids
         ");"
 
         // Practice history
@@ -166,7 +167,8 @@ int mastery_init_db(void) {
  * Uses weighted average favoring recent attempts
  */
 static float calculate_mastery(int attempts, int correct, float prev_mastery) {
-    if (attempts <= 0) return 0.0f;
+    if (attempts <= 0)
+        return 0.0f;
 
     // Simple ratio for new skills
     float simple_ratio = (float)correct / (float)attempts;
@@ -185,24 +187,28 @@ static SkillStatus status_from_mastery(float mastery, int attempts) {
     if (attempts < ATTEMPTS_FOR_MASTERY && mastery < MASTERY_THRESHOLD) {
         return SKILL_ATTEMPTED;
     }
-    if (mastery >= MASTERY_THRESHOLD) return SKILL_MASTERED;
-    if (mastery >= PROFICIENT_THRESHOLD) return SKILL_PROFICIENT;
-    if (mastery >= FAMILIAR_THRESHOLD) return SKILL_FAMILIAR;
-    if (attempts > 0) return SKILL_ATTEMPTED;
+    if (mastery >= MASTERY_THRESHOLD)
+        return SKILL_MASTERED;
+    if (mastery >= PROFICIENT_THRESHOLD)
+        return SKILL_PROFICIENT;
+    if (mastery >= FAMILIAR_THRESHOLD)
+        return SKILL_FAMILIAR;
+    if (attempts > 0)
+        return SKILL_ATTEMPTED;
     return SKILL_NOT_STARTED;
 }
 
 /**
  * Record a practice attempt and update mastery
  */
-int mastery_record_attempt(int64_t student_id, const char* skill_id,
-                           bool was_correct, int response_time_ms) {
-    if (!g_edu_db || !skill_id) return -1;
+int mastery_record_attempt(int64_t student_id, const char* skill_id, bool was_correct,
+                           int response_time_ms) {
+    if (!g_edu_db || !skill_id)
+        return -1;
 
     // Get current state (or create new)
-    const char* sql_get =
-        "SELECT id, attempts, correct, mastery_level, current_difficulty, status "
-        "FROM mastery_skills WHERE student_id = ? AND skill_id = ?";
+    const char* sql_get = "SELECT id, attempts, correct, mastery_level, current_difficulty, status "
+                          "FROM mastery_skills WHERE student_id = ? AND skill_id = ?";
 
     sqlite3_stmt* stmt;
     if (sqlite3_prepare_v2(g_edu_db, sql_get, -1, &stmt, NULL) != SQLITE_OK) {
@@ -231,7 +237,8 @@ int mastery_record_attempt(int64_t student_id, const char* skill_id,
 
     // Update counts
     attempts++;
-    if (was_correct) correct++;
+    if (was_correct)
+        correct++;
 
     // Calculate new mastery
     float new_mastery = calculate_mastery(attempts, correct, mastery_level);
@@ -254,12 +261,11 @@ int mastery_record_attempt(int64_t student_id, const char* skill_id,
     // Insert or update skill record
     const char* sql_upsert;
     if (skill_pk >= 0) {
-        sql_upsert =
-            "UPDATE mastery_skills SET "
-            "  attempts = ?, correct = ?, mastery_level = ?, "
-            "  current_difficulty = ?, status = ?, last_practice = ?, "
-            "  mastered_at = COALESCE(mastered_at, ?) "
-            "WHERE id = ?";
+        sql_upsert = "UPDATE mastery_skills SET "
+                     "  attempts = ?, correct = ?, mastery_level = ?, "
+                     "  current_difficulty = ?, status = ?, last_practice = ?, "
+                     "  mastered_at = COALESCE(mastered_at, ?) "
+                     "WHERE id = ?";
 
         if (sqlite3_prepare_v2(g_edu_db, sql_upsert, -1, &stmt, NULL) != SQLITE_OK) {
             return -1;
@@ -274,11 +280,10 @@ int mastery_record_attempt(int64_t student_id, const char* skill_id,
         sqlite3_bind_int64(stmt, 7, mastered_at ? mastered_at : 0);
         sqlite3_bind_int64(stmt, 8, skill_pk);
     } else {
-        sql_upsert =
-            "INSERT INTO mastery_skills "
-            "(student_id, skill_id, attempts, correct, mastery_level, "
-            " current_difficulty, status, last_practice, mastered_at) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
+        sql_upsert = "INSERT INTO mastery_skills "
+                     "(student_id, skill_id, attempts, correct, mastery_level, "
+                     " current_difficulty, status, last_practice, mastered_at) "
+                     "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
 
         if (sqlite3_prepare_v2(g_edu_db, sql_upsert, -1, &stmt, NULL) != SQLITE_OK) {
             return -1;
@@ -321,11 +326,11 @@ int mastery_record_attempt(int64_t student_id, const char* skill_id,
  * Get skill mastery level
  */
 float mastery_get_level(int64_t student_id, const char* skill_id) {
-    if (!g_edu_db || !skill_id) return 0.0f;
+    if (!g_edu_db || !skill_id)
+        return 0.0f;
 
-    const char* sql =
-        "SELECT mastery_level FROM mastery_skills "
-        "WHERE student_id = ? AND skill_id = ?";
+    const char* sql = "SELECT mastery_level FROM mastery_skills "
+                      "WHERE student_id = ? AND skill_id = ?";
 
     sqlite3_stmt* stmt;
     if (sqlite3_prepare_v2(g_edu_db, sql, -1, &stmt, NULL) != SQLITE_OK) {
@@ -348,11 +353,11 @@ float mastery_get_level(int64_t student_id, const char* skill_id) {
  * Get adaptive difficulty for a skill
  */
 float mastery_get_difficulty(int64_t student_id, const char* skill_id) {
-    if (!g_edu_db || !skill_id) return 1.0f;
+    if (!g_edu_db || !skill_id)
+        return 1.0f;
 
-    const char* sql =
-        "SELECT current_difficulty FROM mastery_skills "
-        "WHERE student_id = ? AND skill_id = ?";
+    const char* sql = "SELECT current_difficulty FROM mastery_skills "
+                      "WHERE student_id = ? AND skill_id = ?";
 
     sqlite3_stmt* stmt;
     if (sqlite3_prepare_v2(g_edu_db, sql, -1, &stmt, NULL) != SQLITE_OK) {
@@ -379,10 +384,12 @@ float mastery_get_difficulty(int64_t student_id, const char* skill_id) {
  * Find skills with gaps (low mastery with sufficient attempts)
  */
 MasterySkillList* mastery_find_gaps(int64_t student_id, const char* subject) {
-    if (!g_edu_db) return NULL;
+    if (!g_edu_db)
+        return NULL;
 
     MasterySkillList* list = calloc(1, sizeof(MasterySkillList));
-    if (!list) return NULL;
+    if (!list)
+        return NULL;
 
     list->capacity = 50;
     list->skills = calloc(list->capacity, sizeof(MasterySkill));
@@ -391,17 +398,16 @@ MasterySkillList* mastery_find_gaps(int64_t student_id, const char* subject) {
         return NULL;
     }
 
-    const char* sql =
-        "SELECT ms.id, ms.skill_id, sd.skill_name, ms.attempts, ms.correct, "
-        "       ms.mastery_level, ms.status "
-        "FROM mastery_skills ms "
-        "LEFT JOIN skill_definitions sd ON ms.skill_id = sd.skill_id "
-        "WHERE ms.student_id = ? "
-        "  AND ms.mastery_level < ? "
-        "  AND ms.attempts >= ? "
-        "  AND (? IS NULL OR sd.subject = ?) "
-        "ORDER BY ms.mastery_level ASC "
-        "LIMIT 10";
+    const char* sql = "SELECT ms.id, ms.skill_id, sd.skill_name, ms.attempts, ms.correct, "
+                      "       ms.mastery_level, ms.status "
+                      "FROM mastery_skills ms "
+                      "LEFT JOIN skill_definitions sd ON ms.skill_id = sd.skill_id "
+                      "WHERE ms.student_id = ? "
+                      "  AND ms.mastery_level < ? "
+                      "  AND ms.attempts >= ? "
+                      "  AND (? IS NULL OR sd.subject = ?) "
+                      "ORDER BY ms.mastery_level ASC "
+                      "LIMIT 10";
 
     sqlite3_stmt* stmt;
     if (sqlite3_prepare_v2(g_edu_db, sql, -1, &stmt, NULL) != SQLITE_OK) {
@@ -412,7 +418,7 @@ MasterySkillList* mastery_find_gaps(int64_t student_id, const char* subject) {
 
     sqlite3_bind_int64(stmt, 1, student_id);
     sqlite3_bind_double(stmt, 2, PROFICIENT_THRESHOLD);
-    sqlite3_bind_int(stmt, 3, 3);  // At least 3 attempts to identify a gap
+    sqlite3_bind_int(stmt, 3, 3); // At least 3 attempts to identify a gap
     if (subject) {
         sqlite3_bind_text(stmt, 4, subject, -1, SQLITE_STATIC);
         sqlite3_bind_text(stmt, 5, subject, -1, SQLITE_STATIC);
@@ -449,7 +455,8 @@ MasterySkillList* mastery_find_gaps(int64_t student_id, const char* subject) {
  * Free skill list memory
  */
 void mastery_free_skills(MasterySkillList* list) {
-    if (!list) return;
+    if (!list)
+        return;
 
     for (int i = 0; i < list->count; i++) {
         free(list->skills[i].skill_id);
@@ -468,24 +475,24 @@ void mastery_free_skills(MasterySkillList* list) {
  * Get next recommended skill to practice
  */
 char* mastery_recommend_next(int64_t student_id, const char* subject) {
-    if (!g_edu_db) return NULL;
+    if (!g_edu_db)
+        return NULL;
 
     // Priority: 1) Skills with gaps, 2) In-progress skills, 3) New skills
-    const char* sql =
-        "SELECT ms.skill_id "
-        "FROM mastery_skills ms "
-        "LEFT JOIN skill_definitions sd ON ms.skill_id = sd.skill_id "
-        "WHERE ms.student_id = ? "
-        "  AND (? IS NULL OR sd.subject = ?) "
-        "  AND ms.status < ? "  // Not mastered
-        "ORDER BY "
-        "  CASE "
-        "    WHEN ms.attempts >= 3 AND ms.mastery_level < 0.5 THEN 0 "  // Gap
-        "    WHEN ms.status = 2 OR ms.status = 3 THEN 1 "  // In progress
-        "    ELSE 2 "
-        "  END, "
-        "  ms.last_practice ASC "  // Oldest first for spaced practice
-        "LIMIT 1";
+    const char* sql = "SELECT ms.skill_id "
+                      "FROM mastery_skills ms "
+                      "LEFT JOIN skill_definitions sd ON ms.skill_id = sd.skill_id "
+                      "WHERE ms.student_id = ? "
+                      "  AND (? IS NULL OR sd.subject = ?) "
+                      "  AND ms.status < ? " // Not mastered
+                      "ORDER BY "
+                      "  CASE "
+                      "    WHEN ms.attempts >= 3 AND ms.mastery_level < 0.5 THEN 0 " // Gap
+                      "    WHEN ms.status = 2 OR ms.status = 3 THEN 1 "              // In progress
+                      "    ELSE 2 "
+                      "  END, "
+                      "  ms.last_practice ASC " // Oldest first for spaced practice
+                      "LIMIT 1";
 
     sqlite3_stmt* stmt;
     if (sqlite3_prepare_v2(g_edu_db, sql, -1, &stmt, NULL) != SQLITE_OK) {
@@ -530,22 +537,22 @@ typedef struct {
 
 MasteryStats mastery_get_stats(int64_t student_id, const char* subject) {
     MasteryStats stats = {0};
-    if (!g_edu_db) return stats;
+    if (!g_edu_db)
+        return stats;
 
-    const char* sql =
-        "SELECT "
-        "  COUNT(*), "
-        "  SUM(CASE WHEN status = 4 THEN 1 ELSE 0 END), "
-        "  SUM(CASE WHEN status = 3 THEN 1 ELSE 0 END), "
-        "  SUM(CASE WHEN status IN (1, 2) THEN 1 ELSE 0 END), "
-        "  SUM(CASE WHEN status = 0 THEN 1 ELSE 0 END), "
-        "  AVG(mastery_level), "
-        "  SUM(attempts), "
-        "  SUM(correct) "
-        "FROM mastery_skills ms "
-        "LEFT JOIN skill_definitions sd ON ms.skill_id = sd.skill_id "
-        "WHERE ms.student_id = ? "
-        "  AND (? IS NULL OR sd.subject = ?)";
+    const char* sql = "SELECT "
+                      "  COUNT(*), "
+                      "  SUM(CASE WHEN status = 4 THEN 1 ELSE 0 END), "
+                      "  SUM(CASE WHEN status = 3 THEN 1 ELSE 0 END), "
+                      "  SUM(CASE WHEN status IN (1, 2) THEN 1 ELSE 0 END), "
+                      "  SUM(CASE WHEN status = 0 THEN 1 ELSE 0 END), "
+                      "  AVG(mastery_level), "
+                      "  SUM(attempts), "
+                      "  SUM(correct) "
+                      "FROM mastery_skills ms "
+                      "LEFT JOIN skill_definitions sd ON ms.skill_id = sd.skill_id "
+                      "WHERE ms.student_id = ? "
+                      "  AND (? IS NULL OR sd.subject = ?)";
 
     sqlite3_stmt* stmt;
     if (sqlite3_prepare_v2(g_edu_db, sql, -1, &stmt, NULL) == SQLITE_OK) {
@@ -571,8 +578,8 @@ MasteryStats mastery_get_stats(int64_t student_id, const char* subject) {
         sqlite3_finalize(stmt);
     }
 
-    stats.accuracy = stats.total_attempts > 0 ?
-        (float)stats.total_correct / (float)stats.total_attempts : 0.0f;
+    stats.accuracy =
+        stats.total_attempts > 0 ? (float)stats.total_correct / (float)stats.total_attempts : 0.0f;
 
     return stats;
 }
@@ -582,12 +589,18 @@ MasteryStats mastery_get_stats(int64_t student_id, const char* subject) {
  */
 const char* mastery_status_label(SkillStatus status) {
     switch (status) {
-        case SKILL_MASTERED:    return "Mastered";
-        case SKILL_PROFICIENT:  return "Proficient";
-        case SKILL_FAMILIAR:    return "Familiar";
-        case SKILL_ATTEMPTED:   return "In Progress";
-        case SKILL_NOT_STARTED: return "Not Started";
-        default:                return "Unknown";
+    case SKILL_MASTERED:
+        return "Mastered";
+    case SKILL_PROFICIENT:
+        return "Proficient";
+    case SKILL_FAMILIAR:
+        return "Familiar";
+    case SKILL_ATTEMPTED:
+        return "In Progress";
+    case SKILL_NOT_STARTED:
+        return "Not Started";
+    default:
+        return "Unknown";
     }
 }
 
@@ -596,11 +609,17 @@ const char* mastery_status_label(SkillStatus status) {
  */
 const char* mastery_status_emoji(SkillStatus status) {
     switch (status) {
-        case SKILL_MASTERED:    return "✅";
-        case SKILL_PROFICIENT:  return "🟢";
-        case SKILL_FAMILIAR:    return "🟡";
-        case SKILL_ATTEMPTED:   return "🟠";
-        case SKILL_NOT_STARTED: return "⚪";
-        default:                return "❓";
+    case SKILL_MASTERED:
+        return "✅";
+    case SKILL_PROFICIENT:
+        return "🟢";
+    case SKILL_FAMILIAR:
+        return "🟡";
+    case SKILL_ATTEMPTED:
+        return "🟠";
+    case SKILL_NOT_STARTED:
+        return "⚪";
+    default:
+        return "❓";
     }
 }

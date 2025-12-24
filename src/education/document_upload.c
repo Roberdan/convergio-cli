@@ -14,18 +14,18 @@
  * Licensed under Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International
  */
 
-#include "nous/education.h"
 #include "nous/edition.h"
+#include "nous/education.h"
+#include <ctype.h>
+#include <dirent.h>
+#include <stdbool.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <stdbool.h>
-#include <stdint.h>
-#include <dirent.h>
+#include <strings.h> // For strcasecmp
 #include <sys/stat.h>
 #include <unistd.h>
-#include <ctype.h>
-#include <strings.h>  // For strcasecmp
 
 // ============================================================================
 // CONSTANTS
@@ -37,26 +37,13 @@
 #define MAX_UPLOADED_FILES 10
 
 // Allowed base directories for students
-static const char* ALLOWED_DIRS[] = {
-    "Desktop",
-    "Documents",
-    "Downloads",
-    NULL
-};
+static const char* ALLOWED_DIRS[] = {"Desktop", "Documents", "Downloads", NULL};
 
 // Allowed file extensions
 static const char* ALLOWED_EXTENSIONS[] = {
-    ".pdf", ".PDF",
-    ".docx", ".DOCX", ".doc", ".DOC",
-    ".pptx", ".PPTX", ".ppt", ".PPT",
-    ".xlsx", ".XLSX", ".xls", ".XLS",
-    ".jpg", ".JPG", ".jpeg", ".JPEG",
-    ".png", ".PNG",
-    ".txt", ".TXT",
-    ".rtf", ".RTF",
-    ".csv", ".CSV",
-    NULL
-};
+    ".pdf", ".PDF",  ".docx", ".DOCX", ".doc", ".DOC", ".pptx", ".PPTX", ".ppt",
+    ".PPT", ".xlsx", ".XLSX", ".xls",  ".XLS", ".jpg", ".JPG",  ".jpeg", ".JPEG",
+    ".png", ".PNG",  ".txt",  ".TXT",  ".rtf", ".RTF", ".csv",  ".CSV",  NULL};
 
 // ============================================================================
 // UPLOADED FILE TRACKING
@@ -64,7 +51,7 @@ static const char* ALLOWED_EXTENSIONS[] = {
 
 typedef struct {
     char filename[MAX_FILENAME_LEN];
-    char file_id[128];            // Claude Files API file_id
+    char file_id[128]; // Claude Files API file_id
     char mime_type[64];
     size_t file_size;
     time_t uploaded_at;
@@ -73,7 +60,7 @@ typedef struct {
 
 static UploadedFile g_uploaded_files[MAX_UPLOADED_FILES];
 static int g_uploaded_count = 0;
-static int g_current_file_index = -1;  // Currently active file for chat
+static int g_current_file_index = -1; // Currently active file for chat
 
 // ============================================================================
 // UTILITY FUNCTIONS
@@ -95,7 +82,8 @@ static const char* get_home_dir(void) {
  */
 static bool is_extension_allowed(const char* filename) {
     const char* dot = strrchr(filename, '.');
-    if (!dot) return false;
+    if (!dot)
+        return false;
 
     for (int i = 0; ALLOWED_EXTENSIONS[i]; i++) {
         if (strcmp(dot, ALLOWED_EXTENSIONS[i]) == 0) {
@@ -110,25 +98,39 @@ static bool is_extension_allowed(const char* filename) {
  */
 static const char* get_mime_type(const char* filename) {
     const char* dot = strrchr(filename, '.');
-    if (!dot) return "application/octet-stream";
+    if (!dot)
+        return "application/octet-stream";
 
     // Convert to lowercase for comparison
     char ext[16] = {0};
     strncpy(ext, dot, sizeof(ext) - 1);
-    for (int i = 0; ext[i]; i++) ext[i] = (char)tolower(ext[i]);
+    for (int i = 0; ext[i]; i++)
+        ext[i] = (char)tolower(ext[i]);
 
-    if (strcmp(ext, ".pdf") == 0) return "application/pdf";
-    if (strcmp(ext, ".docx") == 0) return "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
-    if (strcmp(ext, ".doc") == 0) return "application/msword";
-    if (strcmp(ext, ".pptx") == 0) return "application/vnd.openxmlformats-officedocument.presentationml.presentation";
-    if (strcmp(ext, ".ppt") == 0) return "application/vnd.ms-powerpoint";
-    if (strcmp(ext, ".xlsx") == 0) return "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
-    if (strcmp(ext, ".xls") == 0) return "application/vnd.ms-excel";
-    if (strcmp(ext, ".jpg") == 0 || strcmp(ext, ".jpeg") == 0) return "image/jpeg";
-    if (strcmp(ext, ".png") == 0) return "image/png";
-    if (strcmp(ext, ".txt") == 0) return "text/plain";
-    if (strcmp(ext, ".rtf") == 0) return "application/rtf";
-    if (strcmp(ext, ".csv") == 0) return "text/csv";
+    if (strcmp(ext, ".pdf") == 0)
+        return "application/pdf";
+    if (strcmp(ext, ".docx") == 0)
+        return "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+    if (strcmp(ext, ".doc") == 0)
+        return "application/msword";
+    if (strcmp(ext, ".pptx") == 0)
+        return "application/vnd.openxmlformats-officedocument.presentationml.presentation";
+    if (strcmp(ext, ".ppt") == 0)
+        return "application/vnd.ms-powerpoint";
+    if (strcmp(ext, ".xlsx") == 0)
+        return "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+    if (strcmp(ext, ".xls") == 0)
+        return "application/vnd.ms-excel";
+    if (strcmp(ext, ".jpg") == 0 || strcmp(ext, ".jpeg") == 0)
+        return "image/jpeg";
+    if (strcmp(ext, ".png") == 0)
+        return "image/png";
+    if (strcmp(ext, ".txt") == 0)
+        return "text/plain";
+    if (strcmp(ext, ".rtf") == 0)
+        return "application/rtf";
+    if (strcmp(ext, ".csv") == 0)
+        return "text/csv";
 
     return "application/octet-stream";
 }
@@ -161,26 +163,30 @@ typedef struct {
  */
 static int list_directory(const char* path, FileEntry* entries, int max_entries) {
     DIR* dir = opendir(path);
-    if (!dir) return 0;
+    if (!dir)
+        return 0;
 
     int count = 0;
     struct dirent* entry;
 
     while ((entry = readdir(dir)) != NULL && count < max_entries) {
         // Skip hidden files and . / ..
-        if (entry->d_name[0] == '.') continue;
+        if (entry->d_name[0] == '.')
+            continue;
 
         // Get full path for stat
         char full_path[MAX_PATH_LEN];
         snprintf(full_path, sizeof(full_path), "%s/%s", path, entry->d_name);
 
         struct stat st;
-        if (stat(full_path, &st) != 0) continue;
+        if (stat(full_path, &st) != 0)
+            continue;
 
         bool is_dir = S_ISDIR(st.st_mode);
 
         // For files, check extension
-        if (!is_dir && !is_extension_allowed(entry->d_name)) continue;
+        if (!is_dir && !is_extension_allowed(entry->d_name))
+            continue;
 
         strncpy(entries[count].name, entry->d_name, MAX_FILENAME_LEN - 1);
         entries[count].name[MAX_FILENAME_LEN - 1] = '\0';
@@ -198,12 +204,12 @@ static int list_directory(const char* path, FileEntry* entries, int max_entries)
  */
 char* document_file_picker(void) {
     if (edition_current() != EDITION_EDUCATION) {
-        return NULL;  // Only in education edition
+        return NULL; // Only in education edition
     }
 
     const char* home = get_home_dir();
     char current_dir[MAX_PATH_LEN];
-    int current_base = 0;  // 0=Desktop, 1=Documents, 2=Downloads
+    int current_base = 0; // 0=Desktop, 1=Documents, 2=Downloads
 
     // Start at Desktop
     snprintf(current_dir, sizeof(current_dir), "%s/%s", home, ALLOWED_DIRS[0]);
@@ -227,7 +233,7 @@ char* document_file_picker(void) {
 
         // Print entries
         int page = 0;
-        (void)page;  // Reserved for future pagination
+        (void)page; // Reserved for future pagination
 
         for (int i = 0; i < MAX_FILES_PER_PAGE && i < count; i++) {
             char size_str[32] = "";
@@ -235,11 +241,8 @@ char* document_file_picker(void) {
                 format_file_size(entries[i].size, size_str, sizeof(size_str));
             }
 
-            printf("   %2d. %s%s %s\n",
-                   i + 1,
-                   entries[i].is_directory ? "📁 " : "📄 ",
-                   entries[i].name,
-                   size_str);
+            printf("   %2d. %s%s %s\n", i + 1, entries[i].is_directory ? "📁 " : "📄 ",
+                   entries[i].name, size_str);
         }
 
         printf("\n");
@@ -263,7 +266,8 @@ char* document_file_picker(void) {
         input[strcspn(input, "\n")] = '\0';
 
         // Process input
-        if (strlen(input) == 0) continue;
+        if (strlen(input) == 0)
+            continue;
 
         // Quit
         if (strcasecmp(input, "q") == 0) {
@@ -348,7 +352,8 @@ extern char* anthropic_upload_file(const char* filepath, const char* purpose);
  * Upload a document to Claude Files API
  */
 bool document_upload(const char* filepath) {
-    if (!filepath) return false;
+    if (!filepath)
+        return false;
 
     // Check if already uploaded
     for (int i = 0; i < g_uploaded_count; i++) {
@@ -444,11 +449,8 @@ void document_list(void) {
         char size_str[32];
         format_file_size(uf->file_size, size_str, sizeof(size_str));
 
-        printf("   %d. %s%s (%s)\n",
-               i + 1,
-               (i == g_current_file_index) ? "📖 " : "📄 ",
-               uf->filename,
-               size_str);
+        printf("   %d. %s%s (%s)\n", i + 1, (i == g_current_file_index) ? "📖 " : "📄 ",
+               uf->filename, size_str);
     }
 
     printf("\n   * Current document is marked with 📖\n");
@@ -516,10 +518,12 @@ bool document_is_active(void) {
  * Returns a dynamically allocated string - caller must free.
  */
 char* document_generate_topic_extraction_prompt(void) {
-    if (!document_is_active()) return NULL;
+    if (!document_is_active())
+        return NULL;
 
     const char* filename = document_get_current_filename();
-    if (!filename) return NULL;
+    if (!filename)
+        return NULL;
 
     // Generate prompt for LLM to analyze document
     const char* prompt_template =
@@ -532,7 +536,7 @@ char* document_generate_topic_extraction_prompt(void) {
         "SUBJECT: [main subject]\n"
         "TOPIC: [specific topic]\n"
         "LEVEL: [grade level]\n"
-        "MAESTRO: [which of our 15 maestri should help - Euclide for math, "
+        "MAESTRO: [which of our 17 maestri should help - Euclide for math, "
         "Feynman for physics, Darwin for biology, Manzoni for Italian, "
         "Erodoto for history, Leonardo for art, Mozart for music, "
         "Shakespeare for English, Lovelace for computing, etc.]\n\n"
@@ -540,7 +544,8 @@ char* document_generate_topic_extraction_prompt(void) {
 
     size_t len = strlen(prompt_template) + strlen(filename) + 64;
     char* prompt = malloc(len);
-    if (!prompt) return NULL;
+    if (!prompt)
+        return NULL;
 
     snprintf(prompt, len, prompt_template, filename);
     return prompt;
@@ -564,7 +569,9 @@ static const MaestroRouting MAESTRO_ROUTES[] = {
     {{"geography", "climate", "earth", "territory", "map"}, "humboldt", "Alexander von Humboldt"},
     {{"history", "war", "civilization", "empire", "revolution"}, "erodoto", "Erodoto"},
     {{"italian", "literature", "poem", "novel", "grammar"}, "manzoni", "Alessandro Manzoni"},
-    {{"english", "shakespeare", "poetry", "drama", "language"}, "shakespeare", "William Shakespeare"},
+    {{"english", "shakespeare", "poetry", "drama", "language"},
+     "shakespeare",
+     "William Shakespeare"},
     {{"art", "painting", "sculpture", "design", "drawing"}, "leonardo", "Leonardo da Vinci"},
     {{"music", "composition", "harmony", "melody", "rhythm"}, "mozart", "Wolfgang Amadeus Mozart"},
     {{"philosophy", "ethics", "logic", "thinking", "socratic"}, "socrate", "Socrate"},
@@ -572,8 +579,7 @@ static const MaestroRouting MAESTRO_ROUTES[] = {
     {{"economics", "market", "trade", "money", "business"}, "smith", "Adam Smith"},
     {{"computer", "programming", "algorithm", "code", "software"}, "lovelace", "Ada Lovelace"},
     {{"health", "medicine", "body", "anatomy", "wellness"}, "ippocrate", "Ippocrate"},
-    {{NULL, NULL, NULL, NULL, NULL}, NULL, NULL}
-};
+    {{NULL, NULL, NULL, NULL, NULL}, NULL, NULL}};
 
 /**
  * DU09: Generate prompt for LLM to suggest appropriate maestro
@@ -611,7 +617,8 @@ char* document_generate_routing_prompt(const char* detected_subject) {
 
     size_t len = strlen(prompt_template) + strlen(detected_subject) + 64;
     char* prompt = malloc(len);
-    if (!prompt) return NULL;
+    if (!prompt)
+        return NULL;
 
     snprintf(prompt, len, prompt_template, detected_subject);
     return prompt;
@@ -622,7 +629,8 @@ char* document_generate_routing_prompt(const char* detected_subject) {
  * Returns maestro_id or NULL if no match.
  */
 const char* document_get_maestro_for_subject(const char* subject) {
-    if (!subject) return NULL;
+    if (!subject)
+        return NULL;
 
     // Convert to lowercase for matching
     char lower[128] = {0};
@@ -640,7 +648,7 @@ const char* document_get_maestro_for_subject(const char* subject) {
         }
     }
 
-    return "socrate";  // Default to Socrate for unknown subjects
+    return "socrate"; // Default to Socrate for unknown subjects
 }
 
 // ============================================================================
@@ -655,10 +663,12 @@ const char* document_get_maestro_for_subject(const char* subject) {
  * Returns a dynamically allocated string - caller must free.
  */
 char* document_generate_ocr_prompt(void) {
-    if (!document_is_active()) return NULL;
+    if (!document_is_active())
+        return NULL;
 
     const char* filename = document_get_current_filename();
-    if (!filename) return NULL;
+    if (!filename)
+        return NULL;
 
     const char* prompt_template =
         "This is an image of a document or handwritten text ('%s').\n\n"
@@ -679,7 +689,8 @@ char* document_generate_ocr_prompt(void) {
 
     size_t len = strlen(prompt_template) + strlen(filename) + 64;
     char* prompt = malloc(len);
-    if (!prompt) return NULL;
+    if (!prompt)
+        return NULL;
 
     snprintf(prompt, len, prompt_template, filename);
     return prompt;
@@ -690,10 +701,12 @@ char* document_generate_ocr_prompt(void) {
  */
 bool document_is_image(void) {
     const char* filename = document_get_current_filename();
-    if (!filename) return false;
+    if (!filename)
+        return false;
 
     const char* dot = strrchr(filename, '.');
-    if (!dot) return false;
+    if (!dot)
+        return false;
 
     // Check for image extensions
     const char* image_exts[] = {".jpg", ".jpeg", ".png", ".gif", ".bmp", ".webp", NULL};
@@ -721,11 +734,13 @@ static const char base64_chars[] =
  * @return Base64 encoded string (caller must free), or NULL on error
  */
 char* document_encode_base64(const char* filepath) {
-    if (!filepath) return NULL;
+    if (!filepath)
+        return NULL;
 
     // Open file
     FILE* f = fopen(filepath, "rb");
-    if (!f) return NULL;
+    if (!f)
+        return NULL;
 
     // Get file size
     fseek(f, 0, SEEK_END);
@@ -796,18 +811,19 @@ char* document_encode_base64(const char* filepath) {
  * @return Data URL string (caller must free), or NULL on error
  */
 char* document_create_vision_data_url(const char* filepath) {
-    if (!filepath) return NULL;
+    if (!filepath)
+        return NULL;
 
     // Get MIME type
     const char* mime = get_mime_type(filepath);
 
     // Encode to base64
     char* base64_data = document_encode_base64(filepath);
-    if (!base64_data) return NULL;
+    if (!base64_data)
+        return NULL;
 
     // Create data URL
-    size_t url_len = strlen("data:") + strlen(mime) + strlen(";base64,") +
-                     strlen(base64_data) + 1;
+    size_t url_len = strlen("data:") + strlen(mime) + strlen(";base64,") + strlen(base64_data) + 1;
     char* data_url = malloc(url_len);
     if (!data_url) {
         free(base64_data);

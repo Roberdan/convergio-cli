@@ -5,12 +5,12 @@
  */
 
 #include "nous/compare.h"
-#include "nous/provider.h"
 #include "nous/nous.h"
+#include "nous/provider.h"
 #include <pthread.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <stdio.h>
 #include <time.h>
 
 // ============================================================================
@@ -82,8 +82,8 @@ static void* execute_model_request(void* arg) {
     clock_gettime(CLOCK_MONOTONIC, &end);
 
     // Calculate elapsed time
-    double elapsed_ms = (end.tv_sec - start.tv_sec) * 1000.0 +
-                       (end.tv_nsec - start.tv_nsec) / 1000000.0;
+    double elapsed_ms =
+        (end.tv_sec - start.tv_sec) * 1000.0 + (end.tv_nsec - start.tv_nsec) / 1000000.0;
 
     // Process result
     if (response) {
@@ -94,8 +94,8 @@ static void* execute_model_request(void* arg) {
         res->tokens_out = usage.output_tokens;
         res->cost = usage.estimated_cost;
 
-        LOG_INFO(LOG_CAT_SYSTEM, "Thread completed: %s (%.2fms, $%.4f)",
-                 ctx->model_id, elapsed_ms, usage.estimated_cost);
+        LOG_INFO(LOG_CAT_SYSTEM, "Thread completed: %s (%.2fms, $%.4f)", ctx->model_id, elapsed_ms,
+                 usage.estimated_cost);
     } else {
         // Get error from provider
         ProviderErrorInfo* err = provider->get_last_error(provider);
@@ -114,9 +114,8 @@ static void* execute_model_request(void* arg) {
 // PARALLEL EXECUTION
 // ============================================================================
 
-int parallel_execute(const char* prompt, const char* system,
-                     const char** models, size_t model_count,
-                     CompareResult* results) {
+int parallel_execute(const char* prompt, const char* system, const char** models,
+                     size_t model_count, CompareResult* results) {
     if (!prompt || !models || model_count == 0 || !results) {
         LOG_ERROR(LOG_CAT_SYSTEM, "Invalid arguments to parallel_execute");
         return -1;
@@ -172,8 +171,8 @@ int parallel_execute(const char* prompt, const char* system,
         }
     }
 
-    LOG_INFO(LOG_CAT_SYSTEM, "Success rate: %zu/%zu (%.1f%%)",
-             success_count, model_count, (success_count * 100.0) / model_count);
+    LOG_INFO(LOG_CAT_SYSTEM, "Success rate: %zu/%zu (%.1f%%)", success_count, model_count,
+             (success_count * 100.0) / model_count);
 
     return 0;
 }

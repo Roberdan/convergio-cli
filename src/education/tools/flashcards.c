@@ -10,16 +10,16 @@
 
 #include "nous/education.h"
 #include "nous/orchestrator.h"
+#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
-#include <math.h>
 #include <unistd.h>
 
 // External education DB functions
 extern int64_t education_toolkit_save(int64_t student_id, EducationToolkitType type,
-                                       const char* topic, const char* content, const char* format);
+                                      const char* topic, const char* content, const char* format);
 extern int education_flashcard_create_reviews(int64_t toolkit_output_id, int card_count);
 extern int education_flashcard_review(int64_t review_id, int quality);
 
@@ -186,28 +186,28 @@ void sm2_calculate_next_review(Flashcard* card, int quality) {
 /**
  * Get cards due for review using FSRS algorithm (Phase 2 integration)
  */
-Flashcard** flashcard_get_due(int64_t deck_id, int64_t student_id,
-                               int max_cards, int* count) {
+Flashcard** flashcard_get_due(int64_t deck_id, int64_t student_id, int max_cards, int* count) {
     *count = 0;
-    
+
     // Use FSRS to get due cards
     FSRSCardList* fsrs_list = fsrs_get_due_cards(student_id, max_cards);
     if (!fsrs_list || fsrs_list->count == 0) {
-        if (fsrs_list) fsrs_free_cards(fsrs_list);
+        if (fsrs_list)
+            fsrs_free_cards(fsrs_list);
         return NULL;
     }
-    
+
     // Allocate array for Flashcard pointers
     Flashcard** cards = calloc(fsrs_list->count, sizeof(Flashcard*));
     if (!cards) {
         fsrs_free_cards(fsrs_list);
         return NULL;
     }
-    
+
     // Convert FSRSCard to Flashcard
     for (int i = 0; i < fsrs_list->count; i++) {
         FSRSCard* fsrs_card = &fsrs_list->cards[i];
-        
+
         Flashcard* card = calloc(1, sizeof(Flashcard));
         if (!card) {
             // Free already allocated cards
@@ -222,7 +222,7 @@ Flashcard** flashcard_get_due(int64_t deck_id, int64_t student_id,
             fsrs_free_cards(fsrs_list);
             return NULL;
         }
-        
+
         card->id = fsrs_card->card_id;
         card->deck_id = deck_id;
         card->student_id = fsrs_card->student_id;
@@ -231,12 +231,12 @@ Flashcard** flashcard_get_due(int64_t deck_id, int64_t student_id,
         card->next_review = fsrs_card->next_review;
         card->last_review = fsrs_card->last_review;
         card->created_at = fsrs_card->created_at;
-        
+
         // Map FSRS state to Flashcard state
         card->repetition_count = fsrs_card->reps;
         card->interval_days = (int)round(fsrs_card->stability);
         card->easiness_factor = 2.5f + (1.0f - fsrs_card->difficulty) * 0.5f; // Approximate mapping
-        
+
         // Determine status from FSRS state
         if (fsrs_card->reps == 0) {
             card->status = CARD_NEW;
@@ -247,10 +247,10 @@ Flashcard** flashcard_get_due(int64_t deck_id, int64_t student_id,
         } else {
             card->status = CARD_LEARNING;
         }
-        
+
         cards[i] = card;
     }
-    
+
     *count = fsrs_list->count;
     fsrs_free_cards(fsrs_list);
     return cards;
@@ -271,14 +271,14 @@ int flashcard_count_due(int64_t deck_id, int64_t student_id) {
 /**
  * Create a new deck
  */
-FlashcardDeck* flashcard_deck_create(int64_t student_id,
-                                      const char* title,
-                                      const char* subject,
-                                      const char* topic) {
-    if (!title) return NULL;
+FlashcardDeck* flashcard_deck_create(int64_t student_id, const char* title, const char* subject,
+                                     const char* topic) {
+    if (!title)
+        return NULL;
 
     FlashcardDeck* deck = calloc(1, sizeof(FlashcardDeck));
-    if (!deck) return NULL;
+    if (!deck)
+        return NULL;
 
     deck->student_id = student_id;
     deck->title = strdup(title);
@@ -298,15 +298,14 @@ FlashcardDeck* flashcard_deck_create(int64_t student_id,
 /**
  * Add card to deck
  */
-Flashcard* flashcard_add(FlashcardDeck* deck,
-                          const char* front,
-                          const char* back,
-                          const char* hint,
-                          const char* mnemonic) {
-    if (!deck || !front || !back) return NULL;
+Flashcard* flashcard_add(FlashcardDeck* deck, const char* front, const char* back, const char* hint,
+                         const char* mnemonic) {
+    if (!deck || !front || !back)
+        return NULL;
 
     Flashcard* card = calloc(1, sizeof(Flashcard));
-    if (!card) return NULL;
+    if (!card)
+        return NULL;
 
     card->deck_id = deck->id;
     card->student_id = deck->student_id;
@@ -328,7 +327,7 @@ Flashcard* flashcard_add(FlashcardDeck* deck,
     // Create flashcard review entry in database for spaced repetition tracking
     if (deck->id > 0) {
         education_flashcard_create_reviews(deck->id, 1);
-        card->id = deck->card_count;  // Use deck card count as card ID within deck
+        card->id = deck->card_count; // Use deck card count as card ID within deck
     }
 
     return card;
@@ -353,15 +352,15 @@ static const char* FLASHCARD_PROMPT_TEMPLATE =
 /**
  * Generate flashcards using LLM
  */
-FlashcardDeck* flashcard_generate_from_llm(int64_t student_id,
-                                            const char* topic,
-                                            const char* content,
-                                            int card_count,
-                                            const EducationAccessibility* access) {
-    if (!topic) return NULL;
+FlashcardDeck* flashcard_generate_from_llm(int64_t student_id, const char* topic,
+                                           const char* content, int card_count,
+                                           const EducationAccessibility* access) {
+    if (!topic)
+        return NULL;
 
     FlashcardDeck* deck = flashcard_deck_create(student_id, topic, NULL, topic);
-    if (!deck) return NULL;
+    if (!deck)
+        return NULL;
 
     // Accessibility adjustments
     char access_req[256] = "";
@@ -381,26 +380,20 @@ FlashcardDeck* flashcard_generate_from_llm(int64_t student_id,
     }
 
     // Build prompt
-    size_t prompt_size = strlen(FLASHCARD_PROMPT_TEMPLATE) +
-                         strlen(topic) +
-                         (content ? strlen(content) : 100) +
-                         strlen(access_req) + 100;
+    size_t prompt_size = strlen(FLASHCARD_PROMPT_TEMPLATE) + strlen(topic) +
+                         (content ? strlen(content) : 100) + strlen(access_req) + 100;
 
     char* prompt = malloc(prompt_size);
     if (prompt) {
-        snprintf(prompt, prompt_size, FLASHCARD_PROMPT_TEMPLATE,
-                 topic,
+        snprintf(prompt, prompt_size, FLASHCARD_PROMPT_TEMPLATE, topic,
                  content ? content : "Generate appropriate content for the topic",
-                 card_count > 0 ? card_count : 10,
-                 access_req);
+                 card_count > 0 ? card_count : 10, access_req);
 
         // Send prompt to LLM
         TokenUsage usage = {0};
         char* response = llm_chat(
             "You are an expert flashcard creator. Generate educational flashcards in JSON format.",
-            prompt,
-            &usage
-        );
+            prompt, &usage);
 
         if (response) {
             // Parse JSON response and add cards to deck
@@ -481,13 +474,12 @@ FlashcardDeck* flashcard_generate_from_llm(int64_t student_id,
 
                 // Add card if we got valid front and back
                 if (strlen(front) > 0 && strlen(back) > 0) {
-                    flashcard_add(deck, front, back,
-                                  strlen(hint) > 0 ? hint : NULL,
+                    flashcard_add(deck, front, back, strlen(hint) > 0 ? hint : NULL,
                                   strlen(mnemonic) > 0 ? mnemonic : NULL);
                     cards_added++;
                 }
 
-                ptr++;  // Move past current position
+                ptr++; // Move past current position
             }
 
             free(response);
@@ -507,17 +499,19 @@ FlashcardDeck* flashcard_generate_from_llm(int64_t student_id,
  * Start a study session
  */
 FlashcardSession* flashcard_session_start(FlashcardDeck* deck, int max_cards) {
-    if (!deck) return NULL;
+    if (!deck)
+        return NULL;
 
     FlashcardSession* session = calloc(1, sizeof(FlashcardSession));
-    if (!session) return NULL;
+    if (!session)
+        return NULL;
 
     session->deck = deck;
     session->started_at = time(NULL);
 
     // Get due cards
-    session->due_cards = flashcard_get_due(deck->id, deck->student_id,
-                                            max_cards, &session->due_count);
+    session->due_cards =
+        flashcard_get_due(deck->id, deck->student_id, max_cards, &session->due_count);
 
     return session;
 }
@@ -541,7 +535,8 @@ bool flashcard_session_rate(FlashcardSession* session, int quality) {
     }
 
     Flashcard* card = flashcard_session_current(session);
-    if (!card) return false;
+    if (!card)
+        return false;
 
     // Use FSRS algorithm instead of SM-2 (Phase 2 integration)
     if (card->id > 0) {
@@ -555,7 +550,8 @@ bool flashcard_session_rate(FlashcardSession* session, int quality) {
     }
 
     session->reviewed_count++;
-    if (quality >= 3) session->correct_count++;
+    if (quality >= 3)
+        session->correct_count++;
     session->current_index++;
 
     return true;
@@ -565,19 +561,23 @@ bool flashcard_session_rate(FlashcardSession* session, int quality) {
  * Check if session is complete
  */
 bool flashcard_session_complete(const FlashcardSession* session) {
-    if (!session) return true;
+    if (!session)
+        return true;
     return session->current_index >= session->due_count;
 }
 
 /**
  * Get session statistics
  */
-void flashcard_session_stats(const FlashcardSession* session,
-                              int* reviewed, int* correct, float* accuracy) {
-    if (!session) return;
+void flashcard_session_stats(const FlashcardSession* session, int* reviewed, int* correct,
+                             float* accuracy) {
+    if (!session)
+        return;
 
-    if (reviewed) *reviewed = session->reviewed_count;
-    if (correct) *correct = session->correct_count;
+    if (reviewed)
+        *reviewed = session->reviewed_count;
+    if (correct)
+        *correct = session->correct_count;
     if (accuracy && session->reviewed_count > 0) {
         *accuracy = (float)session->correct_count / (float)session->reviewed_count * 100.0f;
     }
@@ -594,14 +594,15 @@ void flashcard_session_stats(const FlashcardSession* session,
  * This is a simplified export that creates a text file
  * that can be imported into Anki.
  */
-int flashcard_export_anki(const FlashcardDeck* deck,
-                           Flashcard** cards, int card_count,
-                           const char* output_path) {
-    if (!deck || !cards || !output_path) return -1;
+int flashcard_export_anki(const FlashcardDeck* deck, Flashcard** cards, int card_count,
+                          const char* output_path) {
+    if (!deck || !cards || !output_path)
+        return -1;
 
     // Create tab-separated file for Anki import
     FILE* f = fopen(output_path, "w");
-    if (!f) return -1;
+    if (!f)
+        return -1;
 
     // Header comment
     fprintf(f, "# Anki Import File\n");
@@ -611,12 +612,11 @@ int flashcard_export_anki(const FlashcardDeck* deck,
 
     for (int i = 0; i < card_count; i++) {
         Flashcard* card = cards[i];
-        if (!card) continue;
+        if (!card)
+            continue;
 
         // Escape tabs and newlines
-        fprintf(f, "%s\t%s\t%s\n",
-                card->front ? card->front : "",
-                card->back ? card->back : "",
+        fprintf(f, "%s\t%s\t%s\n", card->front ? card->front : "", card->back ? card->back : "",
                 card->hint ? card->hint : "");
     }
 
@@ -627,34 +627,33 @@ int flashcard_export_anki(const FlashcardDeck* deck,
 /**
  * Export deck to printable PDF (front-back format)
  */
-int flashcard_export_pdf(const FlashcardDeck* deck,
-                          Flashcard** cards, int card_count,
-                          const char* output_path,
-                          bool double_sided) {
-    if (!deck || !cards || !output_path) return -1;
+int flashcard_export_pdf(const FlashcardDeck* deck, Flashcard** cards, int card_count,
+                         const char* output_path, bool double_sided) {
+    if (!deck || !cards || !output_path)
+        return -1;
 
     // Build HTML for conversion
     size_t buf_size = 4096 + (card_count * 512);
     char* html = malloc(buf_size);
-    if (!html) return -1;
+    if (!html)
+        return -1;
 
     char* ptr = html;
     int remaining = buf_size;
 
     // HTML header with print styles
     int written = snprintf(ptr, remaining,
-        "<html><head><style>"
-        "body { font-family: Arial, sans-serif; }"
-        ".card { width: 3in; height: 2in; border: 1px solid #ccc; "
-        "        margin: 10px; padding: 10px; display: inline-block; "
-        "        vertical-align: top; text-align: center; }"
-        ".front { background: #f0f8ff; }"
-        ".back { background: #fff8f0; }"
-        "@media print { .page-break { page-break-after: always; } }"
-        "</style></head><body>"
-        "<h1>%s</h1>",
-        deck->title
-    );
+                           "<html><head><style>"
+                           "body { font-family: Arial, sans-serif; }"
+                           ".card { width: 3in; height: 2in; border: 1px solid #ccc; "
+                           "        margin: 10px; padding: 10px; display: inline-block; "
+                           "        vertical-align: top; text-align: center; }"
+                           ".front { background: #f0f8ff; }"
+                           ".back { background: #fff8f0; }"
+                           "@media print { .page-break { page-break-after: always; } }"
+                           "</style></head><body>"
+                           "<h1>%s</h1>",
+                           deck->title);
     ptr += written;
     remaining -= written;
 
@@ -665,10 +664,9 @@ int flashcard_export_pdf(const FlashcardDeck* deck,
         ptr += strlen(ptr);
 
         for (int i = 0; i < card_count; i++) {
-            if (!cards[i] || remaining < 300) continue;
-            written = snprintf(ptr, remaining,
-                "<div class='card front'>%s</div>",
-                cards[i]->front);
+            if (!cards[i] || remaining < 300)
+                continue;
+            written = snprintf(ptr, remaining, "<div class='card front'>%s</div>", cards[i]->front);
             ptr += written;
             remaining -= written;
         }
@@ -677,21 +675,21 @@ int flashcard_export_pdf(const FlashcardDeck* deck,
         ptr += strlen(ptr);
 
         for (int i = 0; i < card_count; i++) {
-            if (!cards[i] || remaining < 300) continue;
-            written = snprintf(ptr, remaining,
-                "<div class='card back'>%s</div>",
-                cards[i]->back);
+            if (!cards[i] || remaining < 300)
+                continue;
+            written = snprintf(ptr, remaining, "<div class='card back'>%s</div>", cards[i]->back);
             ptr += written;
             remaining -= written;
         }
     } else {
         // Print front and back together
         for (int i = 0; i < card_count; i++) {
-            if (!cards[i] || remaining < 600) continue;
+            if (!cards[i] || remaining < 600)
+                continue;
             written = snprintf(ptr, remaining,
-                "<div class='card front'>%s</div>"
-                "<div class='card back'>%s</div>",
-                cards[i]->front, cards[i]->back);
+                               "<div class='card front'>%s</div>"
+                               "<div class='card back'>%s</div>",
+                               cards[i]->front, cards[i]->back);
             ptr += written;
             remaining -= written;
         }
@@ -709,9 +707,7 @@ int flashcard_export_pdf(const FlashcardDeck* deck,
         fclose(f);
 
         char cmd[512];
-        snprintf(cmd, sizeof(cmd),
-                 "wkhtmltopdf %s %s 2>/dev/null",
-                 temp_html, output_path);
+        snprintf(cmd, sizeof(cmd), "wkhtmltopdf %s %s 2>/dev/null", temp_html, output_path);
 
         int result = system(cmd);
         unlink(temp_html);
@@ -731,28 +727,22 @@ int flashcard_export_pdf(const FlashcardDeck* deck,
  * Generate audio for card using TTS
  */
 int flashcard_generate_audio(Flashcard* card, bool front_only, float speed) {
-    if (!card) return -1;
+    if (!card)
+        return -1;
 
     char audio_path[256];
-    snprintf(audio_path, sizeof(audio_path),
-             "/tmp/flashcard_audio_%lld.m4a", card->id);
+    snprintf(audio_path, sizeof(audio_path), "/tmp/flashcard_audio_%lld.m4a", card->id);
 
     // Use macOS say command or AVSpeechSynthesizer
     char cmd[1024];
 
     if (front_only) {
-        snprintf(cmd, sizeof(cmd),
-                 "say -r %d -o %s '%s'",
-                 (int)(180 * speed),  // Words per minute
-                 audio_path,
-                 card->front);
+        snprintf(cmd, sizeof(cmd), "say -r %d -o %s '%s'",
+                 (int)(180 * speed), // Words per minute
+                 audio_path, card->front);
     } else {
-        snprintf(cmd, sizeof(cmd),
-                 "say -r %d -o %s '%s ... %s'",
-                 (int)(180 * speed),
-                 audio_path,
-                 card->front,
-                 card->back);
+        snprintf(cmd, sizeof(cmd), "say -r %d -o %s '%s ... %s'", (int)(180 * speed), audio_path,
+                 card->front, card->back);
     }
 
     int result = system(cmd);
@@ -773,9 +763,9 @@ int flashcard_generate_audio(Flashcard* card, bool front_only, float speed) {
  * Terminal UI for flashcard study session
  * Displays cards one at a time with front/back reveal
  */
-int flashcards_ui_study(FlashcardSession* session,
-                        const EducationAccessibility* access) {
-    if (!session) return -1;
+int flashcards_ui_study(FlashcardSession* session, const EducationAccessibility* access) {
+    if (!session)
+        return -1;
 
     // Terminal control codes
     const char* CLEAR_SCREEN = "\033[2J\033[H";
@@ -795,12 +785,13 @@ int flashcards_ui_study(FlashcardSession* session,
 
     while (!flashcard_session_complete(session)) {
         Flashcard* card = flashcard_session_current(session);
-        if (!card) break;
+        if (!card)
+            break;
 
         // Clear screen and show front
         printf("%s", CLEAR_SCREEN);
-        printf("%s=== Card %d/%d ===%s\n\n",
-               BOLD, session->current_index + 1, session->due_count, RESET);
+        printf("%s=== Card %d/%d ===%s\n\n", BOLD, session->current_index + 1, session->due_count,
+               RESET);
 
         printf("%sFRONT:%s\n", CYAN, RESET);
         printf("%s\n\n", card->front);
@@ -875,12 +866,11 @@ int flashcards_ui_study(FlashcardSession* session,
 /**
  * Auto-generate flashcards from lesson text using LLM
  */
-FlashcardDeck* flashcards_auto_generate(int64_t student_id,
-                                         const char* topic,
-                                         const char* lesson_text,
-                                         int target_count,
-                                         const EducationAccessibility* access) {
-    if (!topic || !lesson_text) return NULL;
+FlashcardDeck* flashcards_auto_generate(int64_t student_id, const char* topic,
+                                        const char* lesson_text, int target_count,
+                                        const EducationAccessibility* access) {
+    if (!topic || !lesson_text)
+        return NULL;
 
     // Build prompt for LLM to extract key concepts
     char prompt[4096];
@@ -899,20 +889,18 @@ FlashcardDeck* flashcards_auto_generate(int64_t student_id,
              "- Critical thinking questions\n\n"
              "%s"
              "Output as JSON array.",
-             target_count > 0 ? target_count : 10,
-             lesson_text,
+             target_count > 0 ? target_count : 10, lesson_text,
              (access && access->dyslexia) ? "- Use simple, clear language\n" : "");
 
     FlashcardDeck* deck = flashcard_deck_create(student_id, topic, NULL, topic);
-    if (!deck) return NULL;
+    if (!deck)
+        return NULL;
 
     // Send prompt to LLM
     TokenUsage usage = {0};
-    char* response = llm_chat(
-        "You are an expert educator creating flashcards from lesson content. Output only valid JSON.",
-        prompt,
-        &usage
-    );
+    char* response = llm_chat("You are an expert educator creating flashcards from lesson content. "
+                              "Output only valid JSON.",
+                              prompt, &usage);
 
     if (response) {
         // Parse JSON response and add cards to deck (same parser as flashcard_generate_from_llm)
@@ -994,8 +982,7 @@ FlashcardDeck* flashcards_auto_generate(int64_t student_id,
 
             // Add card if we got valid front and back
             if (strlen(front) > 0 && strlen(back) > 0) {
-                flashcard_add(deck, front, back,
-                              strlen(hint) > 0 ? hint : NULL,
+                flashcard_add(deck, front, back, strlen(hint) > 0 ? hint : NULL,
                               strlen(mnemonic) > 0 ? mnemonic : NULL);
                 cards_added++;
             }
@@ -1014,7 +1001,8 @@ FlashcardDeck* flashcards_auto_generate(int64_t student_id,
 // ============================================================================
 
 void flashcard_free(Flashcard* card) {
-    if (!card) return;
+    if (!card)
+        return;
     free(card->front);
     free(card->back);
     free(card->hint);
@@ -1025,7 +1013,8 @@ void flashcard_free(Flashcard* card) {
 }
 
 void flashcard_deck_free(FlashcardDeck* deck) {
-    if (!deck) return;
+    if (!deck)
+        return;
     free(deck->title);
     free(deck->subject);
     free(deck->topic);
@@ -1034,7 +1023,8 @@ void flashcard_deck_free(FlashcardDeck* deck) {
 }
 
 void flashcard_session_free(FlashcardSession* session) {
-    if (!session) return;
+    if (!session)
+        return;
     if (session->due_cards) {
         free(session->due_cards); // Cards themselves freed separately
     }
@@ -1045,8 +1035,7 @@ void flashcard_session_free(FlashcardSession* session) {
 // CLI COMMAND HANDLER
 // ============================================================================
 
-int flashcard_command_handler(int argc, char** argv,
-                               const EducationStudentProfile* profile) {
+int flashcard_command_handler(int argc, char** argv, const EducationStudentProfile* profile) {
     if (argc < 2) {
         printf("Usage: /flashcards <topic> [--count n] [--export anki|pdf]\n");
         return 1;
@@ -1069,8 +1058,7 @@ int flashcard_command_handler(int argc, char** argv,
     int64_t student_id = profile ? profile->id : 0;
     const EducationAccessibility* access = profile ? profile->accessibility : NULL;
 
-    FlashcardDeck* deck = flashcard_generate_from_llm(student_id, topic, NULL,
-                                                       count, access);
+    FlashcardDeck* deck = flashcard_generate_from_llm(student_id, topic, NULL, count, access);
 
     if (!deck) {
         fprintf(stderr, "Failed to generate flashcards\n");

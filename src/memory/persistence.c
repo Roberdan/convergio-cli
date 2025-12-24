@@ -8,19 +8,19 @@
  * - Cost tracking over time
  */
 
-#include "nous/orchestrator.h"
 #include "nous/config.h"
+#include "nous/debug_mutex.h"
 #include "nous/nous.h"
+#include "nous/orchestrator.h"
 #include "nous/tools.h"
+#include <errno.h>
+#include <pthread.h>
 #include <sqlite3.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <pthread.h>
-#include <stdint.h>
 #include <sys/stat.h>
-#include <errno.h>
-#include "nous/debug_mutex.h"
 
 // Database handle (shared with semantic_persistence.c)
 sqlite3* g_db = NULL;
@@ -28,10 +28,7 @@ sqlite3* g_db = NULL;
 // Use ConvergioMutex for DEBUG mode compatibility
 #ifdef DEBUG
 ConvergioMutex g_db_mutex = {
-    .mutex = PTHREAD_MUTEX_INITIALIZER,
-    .once = PTHREAD_ONCE_INIT,
-    .initialized = 0
-};
+    .mutex = PTHREAD_MUTEX_INITIALIZER, .once = PTHREAD_ONCE_INIT, .initialized = 0};
 #else
 ConvergioMutex g_db_mutex = PTHREAD_MUTEX_INITIALIZER;
 #endif
@@ -58,7 +55,8 @@ static const char* get_db_path(void) {
 
 // Ensure parent directory exists
 static int ensure_db_directory(const char* db_path) {
-    if (!db_path) return -1;
+    if (!db_path)
+        return -1;
 
     // Find last slash to get directory
     char dir[512];
@@ -66,14 +64,15 @@ static int ensure_db_directory(const char* db_path) {
     dir[sizeof(dir) - 1] = '\0';
 
     char* last_slash = strrchr(dir, '/');
-    if (!last_slash) return 0;  // No directory component
+    if (!last_slash)
+        return 0; // No directory component
 
-    *last_slash = '\0';  // Truncate to get directory only
+    *last_slash = '\0'; // Truncate to get directory only
 
     // Create directory recursively
     struct stat st;
     if (stat(dir, &st) == 0) {
-        return 0;  // Already exists
+        return 0; // Already exists
     }
 
     // Try to create it
@@ -86,10 +85,10 @@ static int ensure_db_directory(const char* db_path) {
     if (parent_slash) {
         *parent_slash = '\0';
         if (strlen(dir) > 0) {
-            mkdir(dir, 0755);  // Create parent
+            mkdir(dir, 0755); // Create parent
         }
         *parent_slash = '/';
-        mkdir(dir, 0755);  // Try again
+        mkdir(dir, 0755); // Try again
     }
 
     return 0;
@@ -315,7 +314,8 @@ static const char* SCHEMA_SQL =
     "CREATE INDEX IF NOT EXISTS idx_tasks_priority ON tasks(priority);"
     "CREATE INDEX IF NOT EXISTS idx_tasks_context ON tasks(context);"
     "CREATE INDEX IF NOT EXISTS idx_tasks_parent ON tasks(parent_id);"
-    "CREATE INDEX IF NOT EXISTS idx_notification_scheduled ON notification_queue(scheduled_at) WHERE status = 0;"
+    "CREATE INDEX IF NOT EXISTS idx_notification_scheduled ON notification_queue(scheduled_at) "
+    "WHERE status = 0;"
     "CREATE INDEX IF NOT EXISTS idx_notification_task ON notification_queue(task_id);"
     "CREATE INDEX IF NOT EXISTS idx_inbox_unprocessed ON inbox(processed) WHERE processed = 0;"
 
@@ -346,7 +346,7 @@ int persistence_init(const char* db_path) {
 
     if (g_db != NULL) {
         CONVERGIO_MUTEX_UNLOCK(&g_db_mutex);
-        return 0;  // Already initialized
+        return 0; // Already initialized
     }
 
     // Use provided path, or get from config, or fallback to default
@@ -400,7 +400,8 @@ int persistence_init(const char* db_path) {
  * Caches frequently used queries to avoid re-parsing SQL
  */
 static sqlite3_stmt* get_cached_stmt(const char* sql) {
-    if (!sql || !g_db) return NULL;
+    if (!sql || !g_db)
+        return NULL;
 
     // Try to find in cache (use strcmp for proper string comparison)
     for (int i = 0; i < STMT_CACHE_SIZE; i++) {
@@ -443,7 +444,8 @@ static sqlite3_stmt* get_cached_stmt(const char* sql) {
  * Release a cached statement (mark as available for reuse)
  */
 static void release_cached_stmt(sqlite3_stmt* stmt) {
-    if (!stmt) return;
+    if (!stmt)
+        return;
     for (int i = 0; i < STMT_CACHE_SIZE; i++) {
         if (g_stmt_cache[i].stmt == stmt) {
             g_stmt_cache[i].in_use = false;
@@ -469,14 +471,14 @@ void persistence_shutdown(void) {
 // ============================================================================
 
 int persistence_save_message(const char* session_id, Message* msg) {
-    if (!g_db || !session_id || !msg) return -1;
+    if (!g_db || !session_id || !msg)
+        return -1;
 
     CONVERGIO_MUTEX_LOCK(&g_db_mutex);
 
-    const char* sql =
-        "INSERT INTO messages (session_id, type, sender_id, content, metadata_json, "
-        "input_tokens, output_tokens, cost_usd, parent_id) "
-        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
+    const char* sql = "INSERT INTO messages (session_id, type, sender_id, content, metadata_json, "
+                      "input_tokens, output_tokens, cost_usd, parent_id) "
+                      "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
 
     // Use cached statement for frequently called queries (performance optimization)
     sqlite3_stmt* stmt = get_cached_stmt(sql);
@@ -532,16 +534,17 @@ int persistence_save_message(const char* session_id, Message* msg) {
 }
 
 // Load recent messages for context
-Message** persistence_load_recent_messages(const char* session_id, size_t limit, size_t* out_count) {
-    if (!g_db || !session_id || !out_count) return NULL;
+Message** persistence_load_recent_messages(const char* session_id, size_t limit,
+                                           size_t* out_count) {
+    if (!g_db || !session_id || !out_count)
+        return NULL;
 
     CONVERGIO_MUTEX_LOCK(&g_db_mutex);
 
-    const char* sql =
-        "SELECT id, type, sender_id, content, metadata_json, "
-        "input_tokens, output_tokens, cost_usd, parent_id, created_at "
-        "FROM messages WHERE session_id = ? "
-        "ORDER BY created_at DESC LIMIT ?";
+    const char* sql = "SELECT id, type, sender_id, content, metadata_json, "
+                      "input_tokens, output_tokens, cost_usd, parent_id, created_at "
+                      "FROM messages WHERE session_id = ? "
+                      "ORDER BY created_at DESC LIMIT ?";
 
     sqlite3_stmt* stmt;
     int rc = sqlite3_prepare_v2(g_db, sql, -1, &stmt, NULL);
@@ -564,7 +567,8 @@ Message** persistence_load_recent_messages(const char* session_id, size_t limit,
     size_t count = 0;
     while (sqlite3_step(stmt) == SQLITE_ROW && count < limit) {
         Message* msg = calloc(1, sizeof(Message));
-        if (!msg) break;
+        if (!msg)
+            break;
 
         msg->id = (uint64_t)sqlite3_column_int64(stmt, 0);
         msg->type = (MessageType)sqlite3_column_int(stmt, 1);
@@ -597,13 +601,14 @@ Message** persistence_load_recent_messages(const char* session_id, size_t limit,
 
 int persistence_save_agent(const char* name, AgentRole role, const char* system_prompt,
                            const char* context, const char* color, const char* tools_json) {
-    if (!g_db || !name || !system_prompt) return -1;
+    if (!g_db || !name || !system_prompt)
+        return -1;
 
     CONVERGIO_MUTEX_LOCK(&g_db_mutex);
 
-    const char* sql =
-        "INSERT OR REPLACE INTO agents (name, role, system_prompt, specialized_context, color, tools_json, updated_at) "
-        "VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)";
+    const char* sql = "INSERT OR REPLACE INTO agents (name, role, system_prompt, "
+                      "specialized_context, color, tools_json, updated_at) "
+                      "VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)";
 
     sqlite3_stmt* stmt;
     int rc = sqlite3_prepare_v2(g_db, sql, -1, &stmt, NULL);
@@ -629,7 +634,8 @@ int persistence_save_agent(const char* name, AgentRole role, const char* system_
 
 // Load agent definition
 char* persistence_load_agent_prompt(const char* name) {
-    if (!g_db || !name) return NULL;
+    if (!g_db || !name)
+        return NULL;
 
     CONVERGIO_MUTEX_LOCK(&g_db_mutex);
 
@@ -647,7 +653,8 @@ char* persistence_load_agent_prompt(const char* name) {
     char* prompt = NULL;
     if (sqlite3_step(stmt) == SQLITE_ROW) {
         const char* text = (const char*)sqlite3_column_text(stmt, 0);
-        if (text) prompt = strdup(text);
+        if (text)
+            prompt = strdup(text);
     }
 
     sqlite3_finalize(stmt);
@@ -661,13 +668,13 @@ char* persistence_load_agent_prompt(const char* name) {
 // ============================================================================
 
 int persistence_set_pref(const char* key, const char* value) {
-    if (!g_db || !key || !value) return -1;
+    if (!g_db || !key || !value)
+        return -1;
 
     CONVERGIO_MUTEX_LOCK(&g_db_mutex);
 
-    const char* sql =
-        "INSERT OR REPLACE INTO user_prefs (key, value, updated_at) "
-        "VALUES (?, ?, CURRENT_TIMESTAMP)";
+    const char* sql = "INSERT OR REPLACE INTO user_prefs (key, value, updated_at) "
+                      "VALUES (?, ?, CURRENT_TIMESTAMP)";
 
     sqlite3_stmt* stmt;
     int rc = sqlite3_prepare_v2(g_db, sql, -1, &stmt, NULL);
@@ -689,7 +696,8 @@ int persistence_set_pref(const char* key, const char* value) {
 }
 
 char* persistence_get_pref(const char* key) {
-    if (!g_db || !key) return NULL;
+    if (!g_db || !key)
+        return NULL;
 
     CONVERGIO_MUTEX_LOCK(&g_db_mutex);
 
@@ -707,7 +715,8 @@ char* persistence_get_pref(const char* key) {
     char* value = NULL;
     if (sqlite3_step(stmt) == SQLITE_ROW) {
         const char* text = (const char*)sqlite3_column_text(stmt, 0);
-        if (text) value = strdup(text);
+        if (text)
+            value = strdup(text);
     }
 
     sqlite3_finalize(stmt);
@@ -720,9 +729,10 @@ char* persistence_get_pref(const char* key) {
 // COST PERSISTENCE
 // ============================================================================
 
-int persistence_save_cost_daily(const char* date, uint64_t input_tokens,
-                                 uint64_t output_tokens, double cost, uint32_t calls) {
-    if (!g_db || !date) return -1;
+int persistence_save_cost_daily(const char* date, uint64_t input_tokens, uint64_t output_tokens,
+                                double cost, uint32_t calls) {
+    if (!g_db || !date)
+        return -1;
 
     CONVERGIO_MUTEX_LOCK(&g_db_mutex);
 
@@ -761,7 +771,8 @@ int persistence_save_cost_daily(const char* date, uint64_t input_tokens,
 
 // Get total historical cost
 double persistence_get_total_cost(void) {
-    if (!g_db) return 0.0;
+    if (!g_db)
+        return 0.0;
 
     CONVERGIO_MUTEX_LOCK(&g_db_mutex);
 
@@ -795,7 +806,8 @@ extern float mlx_cosine_similarity(const float* a, const float* b, size_t dim);
 extern size_t mlx_get_embedding_dim(void);
 
 int persistence_save_memory(const char* content, const char* category, float importance) {
-    if (!g_db || !content) return -1;
+    if (!g_db || !content)
+        return -1;
 
     // Generate embedding using MLX local transformer
     size_t embed_dim = 0;
@@ -813,7 +825,8 @@ int persistence_save_memory(const char* content, const char* category, float imp
     int rc = sqlite3_prepare_v2(g_db, sql, -1, &stmt, NULL);
     if (rc != SQLITE_OK) {
         CONVERGIO_MUTEX_UNLOCK(&g_db_mutex);
-        if (embedding) free(embedding);
+        if (embedding)
+            free(embedding);
         return -1;
     }
 
@@ -836,25 +849,26 @@ int persistence_save_memory(const char* content, const char* category, float imp
 
     CONVERGIO_MUTEX_UNLOCK(&g_db_mutex);
 
-    if (embedding) free(embedding);
+    if (embedding)
+        free(embedding);
 
     return (rc == SQLITE_DONE) ? (int)new_id : -1;
 }
 
 // Search memories by importance (from BOTH old memories table AND new semantic_nodes)
 char** persistence_get_important_memories(size_t limit, size_t* out_count) {
-    if (!g_db || !out_count) return NULL;
+    if (!g_db || !out_count)
+        return NULL;
 
     CONVERGIO_MUTEX_LOCK(&g_db_mutex);
 
     // Query BOTH tables and merge results, prioritizing by importance
     // Use UNION to combine results from old memories table and new semantic_nodes
-    const char* sql =
-        "SELECT content, importance FROM ("
-        "  SELECT content, importance FROM memories "
-        "  UNION ALL "
-        "  SELECT essence AS content, importance FROM semantic_nodes WHERE type = 9 "
-        ") ORDER BY importance DESC LIMIT ?";
+    const char* sql = "SELECT content, importance FROM ("
+                      "  SELECT content, importance FROM memories "
+                      "  UNION ALL "
+                      "  SELECT essence AS content, importance FROM semantic_nodes WHERE type = 9 "
+                      ") ORDER BY importance DESC LIMIT ?";
 
     sqlite3_stmt* stmt;
     int rc = sqlite3_prepare_v2(g_db, sql, -1, &stmt, NULL);
@@ -894,27 +908,29 @@ typedef struct {
 static int compare_matches(const void* a, const void* b) {
     const MemoryMatch* ma = (const MemoryMatch*)a;
     const MemoryMatch* mb = (const MemoryMatch*)b;
-    if (mb->similarity > ma->similarity) return 1;
-    if (mb->similarity < ma->similarity) return -1;
+    if (mb->similarity > ma->similarity)
+        return 1;
+    if (mb->similarity < ma->similarity)
+        return -1;
     return 0;
 }
 
-char** persistence_search_memories(const char* query, size_t max_results,
-                                    float min_similarity, size_t* out_count) {
-    if (!g_db || !query || !out_count) return NULL;
-    (void)min_similarity;  // Not used for keyword search
+char** persistence_search_memories(const char* query, size_t max_results, float min_similarity,
+                                   size_t* out_count) {
+    if (!g_db || !query || !out_count)
+        return NULL;
+    (void)min_similarity; // Not used for keyword search
 
     CONVERGIO_MUTEX_LOCK(&g_db_mutex);
 
     // Search BOTH old memories table AND new semantic_nodes using keyword search
     // Use parameterized query to prevent SQL injection
-    const char* sql =
-        "SELECT content, importance FROM ("
-        "  SELECT content, importance FROM memories WHERE content LIKE ?1 "
-        "  UNION ALL "
-        "  SELECT essence AS content, importance FROM semantic_nodes "
-        "    WHERE type = 9 AND essence LIKE ?1 "
-        ") ORDER BY importance DESC LIMIT ?2";
+    const char* sql = "SELECT content, importance FROM ("
+                      "  SELECT content, importance FROM memories WHERE content LIKE ?1 "
+                      "  UNION ALL "
+                      "  SELECT essence AS content, importance FROM semantic_nodes "
+                      "    WHERE type = 9 AND essence LIKE ?1 "
+                      ") ORDER BY importance DESC LIMIT ?2";
 
     sqlite3_stmt* stmt;
     int rc = sqlite3_prepare_v2(g_db, sql, -1, &stmt, NULL);
@@ -940,7 +956,8 @@ char** persistence_search_memories(const char* query, size_t max_results,
     size_t count = 0;
     while (sqlite3_step(stmt) == SQLITE_ROW && count < max_results) {
         const char* text = (const char*)sqlite3_column_text(stmt, 0);
-        if (text) results[count++] = strdup(text);
+        if (text)
+            results[count++] = strdup(text);
     }
 
     sqlite3_finalize(stmt);
@@ -957,10 +974,12 @@ char** persistence_search_memories(const char* query, size_t max_results,
 }
 
 // Semantic search using MLX embeddings (unused until pre-trained weights available)
-__attribute__((unused))
-static char** persistence_search_memories_semantic(const char* query, size_t max_results,
-                                                    float min_similarity, size_t* out_count) {
-    if (!g_db || !query || !out_count) return NULL;
+__attribute__((unused)) static char** persistence_search_memories_semantic(const char* query,
+                                                                           size_t max_results,
+                                                                           float min_similarity,
+                                                                           size_t* out_count) {
+    if (!g_db || !query || !out_count)
+        return NULL;
 
     // Generate query embedding
     size_t query_dim = 0;
@@ -992,7 +1011,8 @@ static char** persistence_search_memories_semantic(const char* query, size_t max
         const void* blob = sqlite3_column_blob(stmt, 2);
         int blob_size = sqlite3_column_bytes(stmt, 2);
 
-        if (!blob || blob_size != (int)(query_dim * sizeof(float))) continue;
+        if (!blob || blob_size != (int)(query_dim * sizeof(float)))
+            continue;
 
         // Calculate similarity
         const float* mem_embedding = (const float*)blob;
@@ -1060,12 +1080,12 @@ static char** persistence_search_memories_semantic(const char* query, size_t max
 // ============================================================================
 
 char* persistence_create_session(const char* user_name) {
-    if (!g_db) return NULL;
+    if (!g_db)
+        return NULL;
 
     // Generate session ID
     char session_id[64];
-    snprintf(session_id, sizeof(session_id), "session_%ld_%d",
-             (long)time(NULL), rand() % 10000);
+    snprintf(session_id, sizeof(session_id), "session_%ld_%d", (long)time(NULL), rand() % 10000);
 
     CONVERGIO_MUTEX_LOCK(&g_db_mutex);
 
@@ -1090,13 +1110,13 @@ char* persistence_create_session(const char* user_name) {
 }
 
 int persistence_end_session(const char* session_id, double total_cost, int total_messages) {
-    if (!g_db || !session_id) return -1;
+    if (!g_db || !session_id)
+        return -1;
 
     CONVERGIO_MUTEX_LOCK(&g_db_mutex);
 
-    const char* sql =
-        "UPDATE sessions SET ended_at = CURRENT_TIMESTAMP, "
-        "total_cost = ?, total_messages = ? WHERE id = ?";
+    const char* sql = "UPDATE sessions SET ended_at = CURRENT_TIMESTAMP, "
+                      "total_cost = ?, total_messages = ? WHERE id = ?";
 
     sqlite3_stmt* stmt;
     int rc = sqlite3_prepare_v2(g_db, sql, -1, &stmt, NULL);
@@ -1122,15 +1142,15 @@ int persistence_end_session(const char* session_id, double total_cost, int total
 // ============================================================================
 
 // Save a conversation turn (user message + assistant response)
-int persistence_save_conversation(const char* session_id, const char* role,
-                                   const char* content, int tokens) {
-    if (!g_db || !session_id || !role || !content) return -1;
+int persistence_save_conversation(const char* session_id, const char* role, const char* content,
+                                  int tokens) {
+    if (!g_db || !session_id || !role || !content)
+        return -1;
 
     CONVERGIO_MUTEX_LOCK(&g_db_mutex);
 
-    const char* sql =
-        "INSERT INTO messages (session_id, type, sender_name, content, input_tokens) "
-        "VALUES (?, ?, ?, ?, ?)";
+    const char* sql = "INSERT INTO messages (session_id, type, sender_name, content, input_tokens) "
+                      "VALUES (?, ?, ?, ?, ?)";
 
     sqlite3_stmt* stmt;
     int rc = sqlite3_prepare_v2(g_db, sql, -1, &stmt, NULL);
@@ -1139,7 +1159,7 @@ int persistence_save_conversation(const char* session_id, const char* role,
         return -1;
     }
 
-    int msg_type = (strcmp(role, "user") == 0) ? 1 : 2;  // 1=user, 2=assistant
+    int msg_type = (strcmp(role, "user") == 0) ? 1 : 2; // 1=user, 2=assistant
 
     sqlite3_bind_text(stmt, 1, session_id, -1, SQLITE_TRANSIENT);
     sqlite3_bind_int(stmt, 2, msg_type);
@@ -1157,15 +1177,15 @@ int persistence_save_conversation(const char* session_id, const char* role,
 
 // Load conversation history for context (most recent first, reversed for chronological order)
 char* persistence_load_conversation_context(const char* session_id, size_t max_messages) {
-    if (!g_db || !session_id) return NULL;
+    if (!g_db || !session_id)
+        return NULL;
 
     CONVERGIO_MUTEX_LOCK(&g_db_mutex);
 
-    const char* sql =
-        "SELECT sender_name, content FROM ("
-        "  SELECT sender_name, content, created_at FROM messages "
-        "  WHERE session_id = ? ORDER BY created_at DESC LIMIT ?"
-        ") ORDER BY created_at ASC";
+    const char* sql = "SELECT sender_name, content FROM ("
+                      "  SELECT sender_name, content, created_at FROM messages "
+                      "  WHERE session_id = ? ORDER BY created_at DESC LIMIT ?"
+                      ") ORDER BY created_at ASC";
 
     sqlite3_stmt* stmt;
     int rc = sqlite3_prepare_v2(g_db, sql, -1, &stmt, NULL);
@@ -1187,7 +1207,8 @@ char* persistence_load_conversation_context(const char* session_id, size_t max_m
         const char* role = (const char*)sqlite3_column_text(stmt, 0);
         const char* content = (const char*)sqlite3_column_text(stmt, 1);
 
-        if (!role || !content) continue;
+        if (!role || !content)
+            continue;
 
         // Format: [role]: content\n\n
         size_t needed = strlen(role) + strlen(content) + 8;
@@ -1215,15 +1236,15 @@ char* persistence_load_conversation_context(const char* session_id, size_t max_m
 
 // Load recent conversations across all sessions for long-term memory
 char* persistence_load_recent_context(size_t max_messages) {
-    if (!g_db) return NULL;
+    if (!g_db)
+        return NULL;
 
     CONVERGIO_MUTEX_LOCK(&g_db_mutex);
 
-    const char* sql =
-        "SELECT sender_name, content, session_id, date(created_at) as day FROM ("
-        "  SELECT sender_name, content, session_id, created_at FROM messages "
-        "  ORDER BY created_at DESC LIMIT ?"
-        ") ORDER BY created_at ASC";
+    const char* sql = "SELECT sender_name, content, session_id, date(created_at) as day FROM ("
+                      "  SELECT sender_name, content, session_id, created_at FROM messages "
+                      "  ORDER BY created_at DESC LIMIT ?"
+                      ") ORDER BY created_at ASC";
 
     sqlite3_stmt* stmt;
     int rc = sqlite3_prepare_v2(g_db, sql, -1, &stmt, NULL);
@@ -1246,7 +1267,8 @@ char* persistence_load_recent_context(size_t max_messages) {
         const char* session = (const char*)sqlite3_column_text(stmt, 2);
         const char* day = (const char*)sqlite3_column_text(stmt, 3);
 
-        if (!role || !content) continue;
+        if (!role || !content)
+            continue;
 
         // Add session separator if new session
         if (session && strcmp(session, last_session) != 0) {
@@ -1255,8 +1277,8 @@ char* persistence_load_recent_context(size_t max_messages) {
                 capacity *= 2;
                 context = realloc(context, capacity);
             }
-            int written = snprintf(context + len, capacity - len,
-                "\n--- Session %s ---\n", day ? day : "unknown");
+            int written = snprintf(context + len, capacity - len, "\n--- Session %s ---\n",
+                                   day ? day : "unknown");
             if (written > 0) {
                 len += (size_t)written;
             }
@@ -1288,15 +1310,15 @@ char* persistence_load_recent_context(size_t max_messages) {
 
 // Get last session ID or create new one
 char* persistence_get_or_create_session(void) {
-    if (!g_db) return NULL;
+    if (!g_db)
+        return NULL;
 
     CONVERGIO_MUTEX_LOCK(&g_db_mutex);
 
     // Try to get most recent active session (from today)
-    const char* sql =
-        "SELECT id FROM sessions "
-        "WHERE date(started_at) = date('now') AND ended_at IS NULL "
-        "ORDER BY started_at DESC LIMIT 1";
+    const char* sql = "SELECT id FROM sessions "
+                      "WHERE date(started_at) = date('now') AND ended_at IS NULL "
+                      "ORDER BY started_at DESC LIMIT 1";
 
     sqlite3_stmt* stmt;
     int rc = sqlite3_prepare_v2(g_db, sql, -1, &stmt, NULL);
@@ -1318,28 +1340,20 @@ char* persistence_get_or_create_session(void) {
 // CHECKPOINT PERSISTENCE (for context compaction)
 // ============================================================================
 
-int persistence_save_checkpoint(
-    const char* session_id,
-    int checkpoint_num,
-    int64_t from_msg_id,
-    int64_t to_msg_id,
-    int messages_compressed,
-    const char* summary,
-    const char* key_facts,
-    size_t original_tokens,
-    size_t compressed_tokens,
-    double cost
-) {
-    if (!g_db || !session_id || !summary) return -1;
+int persistence_save_checkpoint(const char* session_id, int checkpoint_num, int64_t from_msg_id,
+                                int64_t to_msg_id, int messages_compressed, const char* summary,
+                                const char* key_facts, size_t original_tokens,
+                                size_t compressed_tokens, double cost) {
+    if (!g_db || !session_id || !summary)
+        return -1;
 
     CONVERGIO_MUTEX_LOCK(&g_db_mutex);
 
-    const char* sql =
-        "INSERT OR REPLACE INTO checkpoint_summaries "
-        "(session_id, checkpoint_num, from_message_id, to_message_id, "
-        "messages_compressed, summary_content, key_facts, "
-        "original_tokens, compressed_tokens, compression_ratio, summary_cost_usd) "
-        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+    const char* sql = "INSERT OR REPLACE INTO checkpoint_summaries "
+                      "(session_id, checkpoint_num, from_message_id, to_message_id, "
+                      "messages_compressed, summary_content, key_facts, "
+                      "original_tokens, compressed_tokens, compression_ratio, summary_cost_usd) "
+                      "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
 
     sqlite3_stmt* stmt;
     int rc = sqlite3_prepare_v2(g_db, sql, -1, &stmt, NULL);
@@ -1348,9 +1362,7 @@ int persistence_save_checkpoint(
         return -1;
     }
 
-    double ratio = (compressed_tokens > 0)
-        ? (double)original_tokens / compressed_tokens
-        : 1.0;
+    double ratio = (compressed_tokens > 0) ? (double)original_tokens / compressed_tokens : 1.0;
 
     sqlite3_bind_text(stmt, 1, session_id, -1, SQLITE_TRANSIENT);
     sqlite3_bind_int(stmt, 2, checkpoint_num);
@@ -1377,13 +1389,13 @@ int persistence_save_checkpoint(
 }
 
 char* persistence_load_latest_checkpoint(const char* session_id) {
-    if (!g_db || !session_id) return NULL;
+    if (!g_db || !session_id)
+        return NULL;
 
     CONVERGIO_MUTEX_LOCK(&g_db_mutex);
 
-    const char* sql =
-        "SELECT summary_content FROM checkpoint_summaries "
-        "WHERE session_id = ? ORDER BY checkpoint_num DESC LIMIT 1";
+    const char* sql = "SELECT summary_content FROM checkpoint_summaries "
+                      "WHERE session_id = ? ORDER BY checkpoint_num DESC LIMIT 1";
 
     sqlite3_stmt* stmt;
     int rc = sqlite3_prepare_v2(g_db, sql, -1, &stmt, NULL);
@@ -1397,7 +1409,8 @@ char* persistence_load_latest_checkpoint(const char* session_id) {
     char* summary = NULL;
     if (sqlite3_step(stmt) == SQLITE_ROW) {
         const char* text = (const char*)sqlite3_column_text(stmt, 0);
-        if (text) summary = strdup(text);
+        if (text)
+            summary = strdup(text);
     }
 
     sqlite3_finalize(stmt);
@@ -1407,12 +1420,12 @@ char* persistence_load_latest_checkpoint(const char* session_id) {
 }
 
 int persistence_get_checkpoint_count(const char* session_id) {
-    if (!g_db || !session_id) return 0;
+    if (!g_db || !session_id)
+        return 0;
 
     CONVERGIO_MUTEX_LOCK(&g_db_mutex);
 
-    const char* sql =
-        "SELECT COUNT(*) FROM checkpoint_summaries WHERE session_id = ?";
+    const char* sql = "SELECT COUNT(*) FROM checkpoint_summaries WHERE session_id = ?";
 
     sqlite3_stmt* stmt;
     int rc = sqlite3_prepare_v2(g_db, sql, -1, &stmt, NULL);
@@ -1434,20 +1447,16 @@ int persistence_get_checkpoint_count(const char* session_id) {
     return count;
 }
 
-char* persistence_load_messages_range(
-    const char* session_id,
-    int64_t from_id,
-    int64_t to_id,
-    size_t* out_count
-) {
-    if (!g_db || !session_id || !out_count) return NULL;
+char* persistence_load_messages_range(const char* session_id, int64_t from_id, int64_t to_id,
+                                      size_t* out_count) {
+    if (!g_db || !session_id || !out_count)
+        return NULL;
 
     CONVERGIO_MUTEX_LOCK(&g_db_mutex);
 
-    const char* sql =
-        "SELECT sender_name, content FROM messages "
-        "WHERE session_id = ? AND id >= ? AND id <= ? "
-        "ORDER BY created_at ASC";
+    const char* sql = "SELECT sender_name, content FROM messages "
+                      "WHERE session_id = ? AND id >= ? AND id <= ? "
+                      "ORDER BY created_at ASC";
 
     sqlite3_stmt* stmt;
     int rc = sqlite3_prepare_v2(g_db, sql, -1, &stmt, NULL);
@@ -1475,13 +1484,15 @@ char* persistence_load_messages_range(
         const char* role = (const char*)sqlite3_column_text(stmt, 0);
         const char* content = (const char*)sqlite3_column_text(stmt, 1);
 
-        if (!role || !content) continue;
+        if (!role || !content)
+            continue;
 
         size_t needed = strlen(role) + strlen(content) + 10;
         if (len + needed >= capacity) {
             capacity *= 2;
             result = realloc(result, capacity);
-            if (!result) break;
+            if (!result)
+                break;
         }
 
         int written = snprintf(result + len, capacity - len, "[%s]: %s\n\n", role, content);
@@ -1498,17 +1509,14 @@ char* persistence_load_messages_range(
     return result;
 }
 
-int persistence_get_message_id_range(
-    const char* session_id,
-    int64_t* out_first,
-    int64_t* out_last
-) {
-    if (!g_db || !session_id || !out_first || !out_last) return -1;
+int persistence_get_message_id_range(const char* session_id, int64_t* out_first,
+                                     int64_t* out_last) {
+    if (!g_db || !session_id || !out_first || !out_last)
+        return -1;
 
     CONVERGIO_MUTEX_LOCK(&g_db_mutex);
 
-    const char* sql =
-        "SELECT MIN(id), MAX(id) FROM messages WHERE session_id = ?";
+    const char* sql = "SELECT MIN(id), MAX(id) FROM messages WHERE session_id = ?";
 
     sqlite3_stmt* stmt;
     int rc = sqlite3_prepare_v2(g_db, sql, -1, &stmt, NULL);
@@ -1536,7 +1544,8 @@ int persistence_get_message_id_range(
 
 // Get the actual count of messages in a session
 int persistence_get_session_message_count(const char* session_id) {
-    if (!g_db || !session_id) return 0;
+    if (!g_db || !session_id)
+        return 0;
 
     CONVERGIO_MUTEX_LOCK(&g_db_mutex);
 
@@ -1565,16 +1574,16 @@ int persistence_get_session_message_count(const char* session_id) {
 // Get the message ID that is N messages from the end (for compaction cutoff)
 // Returns -1 on error, or the ID of the Nth message from the end
 int64_t persistence_get_cutoff_message_id(const char* session_id, int keep_recent) {
-    if (!g_db || !session_id || keep_recent < 1) return -1;
+    if (!g_db || !session_id || keep_recent < 1)
+        return -1;
 
     CONVERGIO_MUTEX_LOCK(&g_db_mutex);
 
     // Get the ID of the message that is keep_recent positions from the end
     // Using OFFSET to skip the last keep_recent messages
-    const char* sql =
-        "SELECT id FROM messages WHERE session_id = ? "
-        "ORDER BY created_at DESC, id DESC "
-        "LIMIT 1 OFFSET ?";
+    const char* sql = "SELECT id FROM messages WHERE session_id = ? "
+                      "ORDER BY created_at DESC, id DESC "
+                      "LIMIT 1 OFFSET ?";
 
     sqlite3_stmt* stmt;
     int rc = sqlite3_prepare_v2(g_db, sql, -1, &stmt, NULL);
@@ -1605,7 +1614,8 @@ int64_t persistence_get_cutoff_message_id(const char* session_id, int keep_recen
 
 // Get all sessions with their summaries (for /recall)
 SessionSummaryList* persistence_get_session_summaries(void) {
-    if (!g_db) return NULL;
+    if (!g_db)
+        return NULL;
 
     CONVERGIO_MUTEX_LOCK(&g_db_mutex);
 
@@ -1629,8 +1639,8 @@ SessionSummaryList* persistence_get_session_summaries(void) {
         "FROM sessions s "
         "LEFT JOIN checkpoint_summaries c "
         "  ON s.id = c.session_id "
-        " AND c.checkpoint_num = (" 
-        "   SELECT MAX(checkpoint_num) FROM checkpoint_summaries WHERE session_id = s.id" 
+        " AND c.checkpoint_num = ("
+        "   SELECT MAX(checkpoint_num) FROM checkpoint_summaries WHERE session_id = s.id"
         " ) "
         "ORDER BY s.started_at DESC";
 
@@ -1676,7 +1686,8 @@ SessionSummaryList* persistence_get_session_summaries(void) {
 
 // Free session summary list
 void persistence_free_session_summaries(SessionSummaryList* list) {
-    if (!list) return;
+    if (!list)
+        return;
     for (size_t i = 0; i < list->count; i++) {
         free(list->items[i].session_id);
         free(list->items[i].started_at);
@@ -1688,7 +1699,8 @@ void persistence_free_session_summaries(SessionSummaryList* list) {
 
 // Delete a specific session and its summary
 int persistence_delete_session(const char* session_id) {
-    if (!g_db || !session_id) return -1;
+    if (!g_db || !session_id)
+        return -1;
 
     CONVERGIO_MUTEX_LOCK(&g_db_mutex);
 
@@ -1727,7 +1739,8 @@ int persistence_delete_session(const char* session_id) {
 
 // Clear all session summaries (but keep sessions and messages)
 int persistence_clear_all_summaries(void) {
-    if (!g_db) return -1;
+    if (!g_db)
+        return -1;
 
     CONVERGIO_MUTEX_LOCK(&g_db_mutex);
 

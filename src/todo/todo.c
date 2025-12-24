@@ -14,15 +14,15 @@
  */
 
 #include "nous/todo.h"
-#include "nous/nous.h"
 #include "nous/debug_mutex.h"
+#include "nous/nous.h"
+#include <ctype.h>
+#include <pthread.h>
 #include <sqlite3.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
-#include <ctype.h>
-#include <pthread.h>
 
 // External database handle from persistence.c
 extern sqlite3* g_db;
@@ -48,18 +48,12 @@ typedef enum {
 static sqlite3_stmt* g_stmts[STMT_CACHE_SIZE] = {0};
 static bool g_todo_initialized = false;
 static const char* g_stmt_names[STMT_CACHE_SIZE] = {
-    [STMT_INSERT_TASK] = "STMT_INSERT_TASK",
-    [STMT_GET_TASK] = "STMT_GET_TASK",
-    [STMT_UPDATE_TASK] = "STMT_UPDATE_TASK",
-    [STMT_DELETE_TASK] = "STMT_DELETE_TASK",
-    [STMT_LIST_TASKS] = "STMT_LIST_TASKS",
-    [STMT_LIST_TODAY] = "STMT_LIST_TODAY",
-    [STMT_LIST_OVERDUE] = "STMT_LIST_OVERDUE",
-    [STMT_COMPLETE_TASK] = "STMT_COMPLETE_TASK",
-    [STMT_INSERT_INBOX] = "STMT_INSERT_INBOX",
-    [STMT_LIST_INBOX] = "STMT_LIST_INBOX",
-    [STMT_SEARCH_FTS] = "STMT_SEARCH_FTS",
-    [STMT_GET_STATS] = "STMT_GET_STATS",
+    [STMT_INSERT_TASK] = "STMT_INSERT_TASK",   [STMT_GET_TASK] = "STMT_GET_TASK",
+    [STMT_UPDATE_TASK] = "STMT_UPDATE_TASK",   [STMT_DELETE_TASK] = "STMT_DELETE_TASK",
+    [STMT_LIST_TASKS] = "STMT_LIST_TASKS",     [STMT_LIST_TODAY] = "STMT_LIST_TODAY",
+    [STMT_LIST_OVERDUE] = "STMT_LIST_OVERDUE", [STMT_COMPLETE_TASK] = "STMT_COMPLETE_TASK",
+    [STMT_INSERT_INBOX] = "STMT_INSERT_INBOX", [STMT_LIST_INBOX] = "STMT_LIST_INBOX",
+    [STMT_SEARCH_FTS] = "STMT_SEARCH_FTS",     [STMT_GET_STATS] = "STMT_GET_STATS",
 };
 
 static const char* SQL_STATS =
@@ -67,8 +61,10 @@ static const char* SQL_STATS =
     "(SELECT COUNT(*) FROM tasks WHERE status = 0), "
     "(SELECT COUNT(*) FROM tasks WHERE status = 1), "
     "(SELECT COUNT(*) FROM tasks WHERE status = 2 AND date(completed_at) = date('now')), "
-    "(SELECT COUNT(*) FROM tasks WHERE status = 2 AND date(completed_at) >= date('now', '-7 days')), "
-    "(SELECT COUNT(*) FROM tasks WHERE status IN (0,1) AND due_date IS NOT NULL AND datetime(due_date) < datetime('now')), "
+    "(SELECT COUNT(*) FROM tasks WHERE status = 2 AND date(completed_at) >= date('now', '-7 "
+    "days')), "
+    "(SELECT COUNT(*) FROM tasks WHERE status IN (0,1) AND due_date IS NOT NULL AND "
+    "datetime(due_date) < datetime('now')), "
     "(SELECT COUNT(*) FROM inbox WHERE processed = 0)";
 
 void todo_invalidate_stats_statement(void) {
@@ -94,16 +90,10 @@ static void finalize_statement_cache(void) {
 }
 
 static int prepare_statement(StmtIndex idx, const char* sql) {
-    int rc = sqlite3_prepare_v3(
-        g_db,
-        sql,
-        -1,
-        SQLITE_PREPARE_PERSISTENT,
-        &g_stmts[idx],
-        NULL);
+    int rc = sqlite3_prepare_v3(g_db, sql, -1, SQLITE_PREPARE_PERSISTENT, &g_stmts[idx], NULL);
     if (rc != SQLITE_OK) {
-        LOG_WARN(LOG_CAT_SYSTEM, "todo_init: failed to prepare %s (rc=%d): %s",
-                 g_stmt_names[idx], rc, sqlite3_errmsg(g_db));
+        LOG_WARN(LOG_CAT_SYSTEM, "todo_init: failed to prepare %s (rc=%d): %s", g_stmt_names[idx],
+                 rc, sqlite3_errmsg(g_db));
     }
     return rc;
 }
@@ -133,10 +123,12 @@ static int parse_offset(const char* str, int* offset_seconds, const char** endpt
 }
 
 int todo_parse_iso8601(const char* str, time_t* out) {
-    if (!out) return TODO_ISO8601_INVALID;
+    if (!out)
+        return TODO_ISO8601_INVALID;
     *out = 0;
 
-    if (!str || !*str) return TODO_ISO8601_EMPTY;
+    if (!str || !*str)
+        return TODO_ISO8601_EMPTY;
 
     int year = 0, month = 0, day = 0, consumed = 0;
     int hour = 0, minute = 0, second = 0;
@@ -177,7 +169,8 @@ int todo_parse_iso8601(const char* str, time_t* out) {
         }
     }
 
-    while (*cursor == ' ') cursor++;
+    while (*cursor == ' ')
+        cursor++;
     if (*cursor != '\0') {
         return TODO_ISO8601_INVALID;
     }
@@ -207,13 +200,15 @@ static time_t parse_iso8601_field(const char* value, const char* field_name) {
     time_t parsed = 0;
     int rc = todo_parse_iso8601(value, &parsed);
     if (rc == TODO_ISO8601_INVALID) {
-        LOG_WARN(LOG_CAT_SYSTEM, "todo: invalid ISO8601 value for %s: %s", field_name, value ? value : "(null)");
+        LOG_WARN(LOG_CAT_SYSTEM, "todo: invalid ISO8601 value for %s: %s", field_name,
+                 value ? value : "(null)");
     }
     return parsed;
 }
 
 static void format_iso8601(time_t t, char* buf, size_t size) {
-    if (size == 0) return;
+    if (size == 0)
+        return;
     if (t == 0) {
         buf[0] = '\0';
         return;
@@ -228,7 +223,8 @@ static void format_iso8601(time_t t, char* buf, size_t size) {
 
 static TodoTask* task_from_row(sqlite3_stmt* stmt) {
     TodoTask* task = calloc(1, sizeof(TodoTask));
-    if (!task) return NULL;
+    if (!task)
+        return NULL;
 
     int col = 0;
     task->id = sqlite3_column_int64(stmt, col++);
@@ -237,7 +233,8 @@ static TodoTask* task_from_row(sqlite3_stmt* stmt) {
     task->priority = (TodoPriority)sqlite3_column_int(stmt, col++);
     task->status = (TodoStatus)sqlite3_column_int(stmt, col++);
     task->due_date = parse_iso8601_field((const char*)sqlite3_column_text(stmt, col++), "due_date");
-    task->reminder_at = parse_iso8601_field((const char*)sqlite3_column_text(stmt, col++), "reminder_at");
+    task->reminder_at =
+        parse_iso8601_field((const char*)sqlite3_column_text(stmt, col++), "reminder_at");
     task->recurrence = (TodoRecurrence)sqlite3_column_int(stmt, col++);
     task->recurrence_rule = safe_strdup((const char*)sqlite3_column_text(stmt, col++));
     task->tags = safe_strdup((const char*)sqlite3_column_text(stmt, col++));
@@ -245,9 +242,12 @@ static TodoTask* task_from_row(sqlite3_stmt* stmt) {
     task->parent_id = sqlite3_column_int64(stmt, col++);
     task->source = (TodoSource)sqlite3_column_int(stmt, col++);
     task->external_id = safe_strdup((const char*)sqlite3_column_text(stmt, col++));
-    task->created_at = parse_iso8601_field((const char*)sqlite3_column_text(stmt, col++), "created_at");
-    task->updated_at = parse_iso8601_field((const char*)sqlite3_column_text(stmt, col++), "updated_at");
-    task->completed_at = parse_iso8601_field((const char*)sqlite3_column_text(stmt, col++), "completed_at");
+    task->created_at =
+        parse_iso8601_field((const char*)sqlite3_column_text(stmt, col++), "created_at");
+    task->updated_at =
+        parse_iso8601_field((const char*)sqlite3_column_text(stmt, col++), "updated_at");
+    task->completed_at =
+        parse_iso8601_field((const char*)sqlite3_column_text(stmt, col++), "completed_at");
 
     return task;
 }
@@ -257,14 +257,15 @@ static TodoTask* task_from_row(sqlite3_stmt* stmt) {
 // ============================================================================
 
 int todo_init(void) {
-    if (g_todo_initialized) return 0;
-    if (!g_db) return -1;
+    if (g_todo_initialized)
+        return 0;
+    if (!g_db)
+        return -1;
 
     // Prepare frequently used statements
-    const char* sql_insert =
-        "INSERT INTO tasks (title, description, priority, status, due_date, "
-        "reminder_at, recurrence, recurrence_rule, tags, context, parent_id, "
-        "source, external_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+    const char* sql_insert = "INSERT INTO tasks (title, description, priority, status, due_date, "
+                             "reminder_at, recurrence, recurrence_rule, tags, context, parent_id, "
+                             "source, external_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
 
     const char* sql_get =
         "SELECT id, title, description, priority, status, due_date, reminder_at, "
@@ -285,12 +286,10 @@ int todo_init(void) {
         "WHERE status IN (0, 1) AND due_date IS NOT NULL AND datetime(due_date) < datetime('now') "
         "ORDER BY due_date ASC LIMIT 100";
 
-    const char* sql_complete =
-        "UPDATE tasks SET status = 2, completed_at = datetime('now'), "
-        "updated_at = datetime('now') WHERE id = ?";
+    const char* sql_complete = "UPDATE tasks SET status = 2, completed_at = datetime('now'), "
+                               "updated_at = datetime('now') WHERE id = ?";
 
-    const char* sql_insert_inbox =
-        "INSERT INTO inbox (content, source) VALUES (?, ?)";
+    const char* sql_insert_inbox = "INSERT INTO inbox (content, source) VALUES (?, ?)";
 
     const char* sql_list_inbox =
         "SELECT id, content, captured_at, processed, processed_task_id, source "
@@ -306,15 +305,24 @@ int todo_init(void) {
 
     CONVERGIO_MUTEX_LOCK(&g_db_mutex);
 
-    if (prepare_statement(STMT_INSERT_TASK, sql_insert) != SQLITE_OK) goto init_error;
-    if (prepare_statement(STMT_GET_TASK, sql_get) != SQLITE_OK) goto init_error;
-    if (prepare_statement(STMT_LIST_TODAY, sql_list_today) != SQLITE_OK) goto init_error;
-    if (prepare_statement(STMT_LIST_OVERDUE, sql_list_overdue) != SQLITE_OK) goto init_error;
-    if (prepare_statement(STMT_COMPLETE_TASK, sql_complete) != SQLITE_OK) goto init_error;
-    if (prepare_statement(STMT_INSERT_INBOX, sql_insert_inbox) != SQLITE_OK) goto init_error;
-    if (prepare_statement(STMT_LIST_INBOX, sql_list_inbox) != SQLITE_OK) goto init_error;
-    if (prepare_statement(STMT_SEARCH_FTS, sql_search) != SQLITE_OK) goto init_error;
-    if (prepare_statement(STMT_GET_STATS, SQL_STATS) != SQLITE_OK) goto init_error;
+    if (prepare_statement(STMT_INSERT_TASK, sql_insert) != SQLITE_OK)
+        goto init_error;
+    if (prepare_statement(STMT_GET_TASK, sql_get) != SQLITE_OK)
+        goto init_error;
+    if (prepare_statement(STMT_LIST_TODAY, sql_list_today) != SQLITE_OK)
+        goto init_error;
+    if (prepare_statement(STMT_LIST_OVERDUE, sql_list_overdue) != SQLITE_OK)
+        goto init_error;
+    if (prepare_statement(STMT_COMPLETE_TASK, sql_complete) != SQLITE_OK)
+        goto init_error;
+    if (prepare_statement(STMT_INSERT_INBOX, sql_insert_inbox) != SQLITE_OK)
+        goto init_error;
+    if (prepare_statement(STMT_LIST_INBOX, sql_list_inbox) != SQLITE_OK)
+        goto init_error;
+    if (prepare_statement(STMT_SEARCH_FTS, sql_search) != SQLITE_OK)
+        goto init_error;
+    if (prepare_statement(STMT_GET_STATS, SQL_STATS) != SQLITE_OK)
+        goto init_error;
 
     CONVERGIO_MUTEX_UNLOCK(&g_db_mutex);
 
@@ -329,7 +337,8 @@ init_error:
 }
 
 void todo_shutdown(void) {
-    if (!g_todo_initialized) return;
+    if (!g_todo_initialized)
+        return;
 
     CONVERGIO_MUTEX_LOCK(&g_db_mutex);
     finalize_statement_cache();
@@ -343,8 +352,10 @@ void todo_shutdown(void) {
 // ============================================================================
 
 int64_t todo_create(const TodoCreateOptions* options) {
-    if (!options || !options->title || !*options->title) return -1;
-    if (!g_todo_initialized && todo_init() != 0) return -1;
+    if (!options || !options->title || !*options->title)
+        return -1;
+    if (!g_todo_initialized && todo_init() != 0)
+        return -1;
 
     char due_buf[32] = {0};
     char remind_buf[32] = {0};
@@ -383,7 +394,8 @@ int64_t todo_create(const TodoCreateOptions* options) {
 }
 
 TodoTask* todo_get(int64_t id) {
-    if (!g_todo_initialized && todo_init() != 0) return NULL;
+    if (!g_todo_initialized && todo_init() != 0)
+        return NULL;
 
     CONVERGIO_MUTEX_LOCK(&g_db_mutex);
 
@@ -401,12 +413,15 @@ TodoTask* todo_get(int64_t id) {
 }
 
 int todo_update(int64_t id, const TodoCreateOptions* options) {
-    if (!options) return -1;
-    if (!g_todo_initialized && todo_init() != 0) return -1;
+    if (!options)
+        return -1;
+    if (!g_todo_initialized && todo_init() != 0)
+        return -1;
 
     // Build dynamic UPDATE query with parameter placeholders
     char sql[1024];
-    size_t len = (size_t)snprintf(sql, sizeof(sql), "UPDATE tasks SET updated_at = datetime('now')");
+    size_t len =
+        (size_t)snprintf(sql, sizeof(sql), "UPDATE tasks SET updated_at = datetime('now')");
 
     if (options->title)
         len += (size_t)snprintf(sql + len, sizeof(sql) - len, ", title = ?");
@@ -467,7 +482,8 @@ int todo_update(int64_t id, const TodoCreateOptions* options) {
 }
 
 int todo_delete(int64_t id) {
-    if (!g_todo_initialized && todo_init() != 0) return -1;
+    if (!g_todo_initialized && todo_init() != 0)
+        return -1;
 
     const char* sql = "DELETE FROM tasks WHERE id = ?";
 
@@ -493,7 +509,8 @@ int todo_delete(int64_t id) {
 // ============================================================================
 
 int todo_complete(int64_t id) {
-    if (!g_todo_initialized && todo_init() != 0) return -1;
+    if (!g_todo_initialized && todo_init() != 0)
+        return -1;
 
     CONVERGIO_MUTEX_LOCK(&g_db_mutex);
 
@@ -508,7 +525,8 @@ int todo_complete(int64_t id) {
 }
 
 int todo_uncomplete(int64_t id) {
-    if (!g_todo_initialized && todo_init() != 0) return -1;
+    if (!g_todo_initialized && todo_init() != 0)
+        return -1;
 
     const char* sql = "UPDATE tasks SET status = 0, completed_at = NULL, "
                       "updated_at = datetime('now') WHERE id = ?";
@@ -531,7 +549,8 @@ int todo_uncomplete(int64_t id) {
 }
 
 int todo_start(int64_t id) {
-    if (!g_todo_initialized && todo_init() != 0) return -1;
+    if (!g_todo_initialized && todo_init() != 0)
+        return -1;
 
     const char* sql = "UPDATE tasks SET status = 1, updated_at = datetime('now') WHERE id = ?";
 
@@ -553,7 +572,8 @@ int todo_start(int64_t id) {
 }
 
 int todo_cancel(int64_t id) {
-    if (!g_todo_initialized && todo_init() != 0) return -1;
+    if (!g_todo_initialized && todo_init() != 0)
+        return -1;
 
     const char* sql = "UPDATE tasks SET status = 3, updated_at = datetime('now') WHERE id = ?";
 
@@ -593,7 +613,8 @@ static TodoTask** execute_list_query(sqlite3_stmt* stmt, int* count) {
         if ((size_t)n >= capacity) {
             capacity *= 2;
             TodoTask** new_tasks = realloc(tasks, capacity * sizeof(TodoTask*));
-            if (!new_tasks) break;
+            if (!new_tasks)
+                break;
             tasks = new_tasks;
         }
         tasks[n++] = task_from_row(stmt);
@@ -650,7 +671,8 @@ TodoTask** todo_list_upcoming(int days, int* count) {
              "created_at, updated_at, completed_at FROM tasks "
              "WHERE status IN (0, 1) AND due_date IS NOT NULL "
              "AND date(due_date) <= date('now', '+%d days') "
-             "ORDER BY due_date ASC LIMIT 100", days);
+             "ORDER BY due_date ASC LIMIT 100",
+             days);
 
     CONVERGIO_MUTEX_LOCK(&g_db_mutex);
 
@@ -695,10 +717,11 @@ TodoTask** todo_list(const TodoFilter* filter, int* count) {
 
     // Build dynamic query based on filter with parameter placeholders
     char sql[1024];
-    size_t len = (size_t)snprintf(sql, sizeof(sql),
-                       "SELECT id, title, description, priority, status, due_date, reminder_at, "
-                       "recurrence, recurrence_rule, tags, context, parent_id, source, external_id, "
-                       "created_at, updated_at, completed_at FROM tasks WHERE 1=1");
+    size_t len = (size_t)snprintf(
+        sql, sizeof(sql),
+        "SELECT id, title, description, priority, status, due_date, reminder_at, "
+        "recurrence, recurrence_rule, tags, context, parent_id, source, external_id, "
+        "created_at, updated_at, completed_at FROM tasks WHERE 1=1");
 
     // Track which params to bind
     int has_context = 0, has_due_from = 0, has_due_to = 0;
@@ -731,14 +754,16 @@ TodoTask** todo_list(const TodoFilter* filter, int* count) {
         }
 
         int limit = filter->limit > 0 ? filter->limit : 100;
-        len += (size_t)snprintf(sql + len, sizeof(sql) - len, " ORDER BY priority ASC, due_date ASC LIMIT %d", limit);
+        len += (size_t)snprintf(sql + len, sizeof(sql) - len,
+                                " ORDER BY priority ASC, due_date ASC LIMIT %d", limit);
 
         if (filter->offset > 0) {
             len += (size_t)snprintf(sql + len, sizeof(sql) - len, " OFFSET %d", filter->offset);
         }
     } else {
-        len += (size_t)snprintf(sql + len, sizeof(sql) - len,
-                        " AND status IN (0, 1) ORDER BY priority ASC, due_date ASC LIMIT 100");
+        len +=
+            (size_t)snprintf(sql + len, sizeof(sql) - len,
+                             " AND status IN (0, 1) ORDER BY priority ASC, due_date ASC LIMIT 100");
     }
 
     CONVERGIO_MUTEX_LOCK(&g_db_mutex);
@@ -773,8 +798,10 @@ TodoTask** todo_list(const TodoFilter* filter, int* count) {
 // ============================================================================
 
 int64_t inbox_capture(const char* content, const char* source) {
-    if (!content || !*content) return -1;
-    if (!g_todo_initialized && todo_init() != 0) return -1;
+    if (!content || !*content)
+        return -1;
+    if (!g_todo_initialized && todo_init() != 0)
+        return -1;
 
     CONVERGIO_MUTEX_LOCK(&g_db_mutex);
 
@@ -820,14 +847,16 @@ TodoInboxItem** inbox_list_unprocessed(int* count) {
         if ((size_t)n >= capacity) {
             capacity *= 2;
             TodoInboxItem** new_items = realloc(items, capacity * sizeof(TodoInboxItem*));
-            if (!new_items) break;
+            if (!new_items)
+                break;
             items = new_items;
         }
 
         TodoInboxItem* item = calloc(1, sizeof(TodoInboxItem));
         item->id = sqlite3_column_int64(stmt, 0);
         item->content = safe_strdup((const char*)sqlite3_column_text(stmt, 1));
-        item->captured_at = parse_iso8601_field((const char*)sqlite3_column_text(stmt, 2), "captured_at");
+        item->captured_at =
+            parse_iso8601_field((const char*)sqlite3_column_text(stmt, 2), "captured_at");
         item->processed = sqlite3_column_int(stmt, 3);
         item->processed_task_id = sqlite3_column_int64(stmt, 4);
         item->source = safe_strdup((const char*)sqlite3_column_text(stmt, 5));
@@ -841,7 +870,8 @@ TodoInboxItem** inbox_list_unprocessed(int* count) {
 }
 
 int inbox_process(int64_t inbox_id, int64_t task_id) {
-    if (!g_todo_initialized && todo_init() != 0) return -1;
+    if (!g_todo_initialized && todo_init() != 0)
+        return -1;
 
     const char* sql = "UPDATE inbox SET processed = 1, processed_task_id = ? WHERE id = ?";
 
@@ -864,7 +894,8 @@ int inbox_process(int64_t inbox_id, int64_t task_id) {
 }
 
 int inbox_delete(int64_t inbox_id) {
-    if (!g_todo_initialized && todo_init() != 0) return -1;
+    if (!g_todo_initialized && todo_init() != 0)
+        return -1;
 
     const char* sql = "DELETE FROM inbox WHERE id = ?";
 
@@ -891,7 +922,8 @@ int inbox_delete(int64_t inbox_id) {
 
 TodoStats todo_get_stats(void) {
     TodoStats stats = {0};
-    if (!g_todo_initialized && todo_init() != 0) return stats;
+    if (!g_todo_initialized && todo_init() != 0)
+        return stats;
 
     CONVERGIO_MUTEX_LOCK(&g_db_mutex);
     sqlite3_stmt* stmt = g_stmts[STMT_GET_STATS];
@@ -924,7 +956,8 @@ TodoStats todo_get_stats(void) {
 // ============================================================================
 
 void todo_free_task(TodoTask* task) {
-    if (!task) return;
+    if (!task)
+        return;
     free(task->title);
     free(task->description);
     free(task->recurrence_rule);
@@ -935,7 +968,8 @@ void todo_free_task(TodoTask* task) {
 }
 
 void todo_free_tasks(TodoTask** tasks, int count) {
-    if (!tasks) return;
+    if (!tasks)
+        return;
     for (int i = 0; i < count; i++) {
         todo_free_task(tasks[i]);
     }
@@ -943,14 +977,16 @@ void todo_free_tasks(TodoTask** tasks, int count) {
 }
 
 void todo_free_inbox_item(TodoInboxItem* item) {
-    if (!item) return;
+    if (!item)
+        return;
     free(item->content);
     free(item->source);
     free(item);
 }
 
 void todo_free_inbox_items(TodoInboxItem** items, int count) {
-    if (!items) return;
+    if (!items)
+        return;
     for (int i = 0; i < count; i++) {
         todo_free_inbox_item(items[i]);
     }
@@ -963,37 +999,55 @@ void todo_free_inbox_items(TodoInboxItem** items, int count) {
 
 const char* todo_status_to_string(TodoStatus status) {
     switch (status) {
-        case TODO_STATUS_PENDING: return "pending";
-        case TODO_STATUS_IN_PROGRESS: return "in_progress";
-        case TODO_STATUS_COMPLETED: return "completed";
-        case TODO_STATUS_CANCELLED: return "cancelled";
-        default: return "unknown";
+    case TODO_STATUS_PENDING:
+        return "pending";
+    case TODO_STATUS_IN_PROGRESS:
+        return "in_progress";
+    case TODO_STATUS_COMPLETED:
+        return "completed";
+    case TODO_STATUS_CANCELLED:
+        return "cancelled";
+    default:
+        return "unknown";
     }
 }
 
 const char* todo_priority_to_string(TodoPriority priority) {
     switch (priority) {
-        case TODO_PRIORITY_URGENT: return "urgent";
-        case TODO_PRIORITY_NORMAL: return "normal";
-        case TODO_PRIORITY_LOW: return "low";
-        default: return "normal";
+    case TODO_PRIORITY_URGENT:
+        return "urgent";
+    case TODO_PRIORITY_NORMAL:
+        return "normal";
+    case TODO_PRIORITY_LOW:
+        return "low";
+    default:
+        return "normal";
     }
 }
 
 TodoStatus todo_status_from_string(const char* str) {
-    if (!str) return TODO_STATUS_PENDING;
-    if (strcasecmp(str, "pending") == 0) return TODO_STATUS_PENDING;
-    if (strcasecmp(str, "in_progress") == 0) return TODO_STATUS_IN_PROGRESS;
-    if (strcasecmp(str, "completed") == 0) return TODO_STATUS_COMPLETED;
-    if (strcasecmp(str, "cancelled") == 0) return TODO_STATUS_CANCELLED;
+    if (!str)
+        return TODO_STATUS_PENDING;
+    if (strcasecmp(str, "pending") == 0)
+        return TODO_STATUS_PENDING;
+    if (strcasecmp(str, "in_progress") == 0)
+        return TODO_STATUS_IN_PROGRESS;
+    if (strcasecmp(str, "completed") == 0)
+        return TODO_STATUS_COMPLETED;
+    if (strcasecmp(str, "cancelled") == 0)
+        return TODO_STATUS_CANCELLED;
     return TODO_STATUS_PENDING;
 }
 
 TodoPriority todo_priority_from_string(const char* str) {
-    if (!str) return TODO_PRIORITY_NORMAL;
-    if (strcasecmp(str, "urgent") == 0 || strcmp(str, "1") == 0) return TODO_PRIORITY_URGENT;
-    if (strcasecmp(str, "normal") == 0 || strcmp(str, "2") == 0) return TODO_PRIORITY_NORMAL;
-    if (strcasecmp(str, "low") == 0 || strcmp(str, "3") == 0) return TODO_PRIORITY_LOW;
+    if (!str)
+        return TODO_PRIORITY_NORMAL;
+    if (strcasecmp(str, "urgent") == 0 || strcmp(str, "1") == 0)
+        return TODO_PRIORITY_URGENT;
+    if (strcasecmp(str, "normal") == 0 || strcmp(str, "2") == 0)
+        return TODO_PRIORITY_NORMAL;
+    if (strcasecmp(str, "low") == 0 || strcmp(str, "3") == 0)
+        return TODO_PRIORITY_LOW;
     return TODO_PRIORITY_NORMAL;
 }
 
@@ -1003,47 +1057,72 @@ TodoPriority todo_priority_from_string(const char* str) {
 
 // Helper: Parse weekday name to number (0=Sunday, 1=Monday, etc.)
 static int parse_weekday(const char* str) {
-    if (!str) return -1;
-    if (strncmp(str, "sun", 3) == 0) return 0;
-    if (strncmp(str, "mon", 3) == 0) return 1;
-    if (strncmp(str, "tue", 3) == 0) return 2;
-    if (strncmp(str, "wed", 3) == 0) return 3;
-    if (strncmp(str, "thu", 3) == 0) return 4;
-    if (strncmp(str, "fri", 3) == 0) return 5;
-    if (strncmp(str, "sat", 3) == 0) return 6;
+    if (!str)
+        return -1;
+    if (strncmp(str, "sun", 3) == 0)
+        return 0;
+    if (strncmp(str, "mon", 3) == 0)
+        return 1;
+    if (strncmp(str, "tue", 3) == 0)
+        return 2;
+    if (strncmp(str, "wed", 3) == 0)
+        return 3;
+    if (strncmp(str, "thu", 3) == 0)
+        return 4;
+    if (strncmp(str, "fri", 3) == 0)
+        return 5;
+    if (strncmp(str, "sat", 3) == 0)
+        return 6;
     // Italian
-    if (strncmp(str, "dom", 3) == 0) return 0;
-    if (strncmp(str, "lun", 3) == 0) return 1;
-    if (strncmp(str, "mar", 3) == 0) return 2;
-    if (strncmp(str, "mer", 3) == 0) return 3;
-    if (strncmp(str, "gio", 3) == 0) return 4;
-    if (strncmp(str, "ven", 3) == 0) return 5;
-    if (strncmp(str, "sab", 3) == 0) return 6;
+    if (strncmp(str, "dom", 3) == 0)
+        return 0;
+    if (strncmp(str, "lun", 3) == 0)
+        return 1;
+    if (strncmp(str, "mar", 3) == 0)
+        return 2;
+    if (strncmp(str, "mer", 3) == 0)
+        return 3;
+    if (strncmp(str, "gio", 3) == 0)
+        return 4;
+    if (strncmp(str, "ven", 3) == 0)
+        return 5;
+    if (strncmp(str, "sab", 3) == 0)
+        return 6;
     return -1;
 }
 
 // Helper: Parse time of day (returns hour, -1 if not found)
 static int parse_time_of_day(const char* str, int* out_min) {
-    if (!str) return -1;
+    if (!str)
+        return -1;
     *out_min = 0;
 
     // Time keywords
-    if (strstr(str, "morning") || strstr(str, "mattina")) return 9;
-    if (strstr(str, "noon") || strstr(str, "mezzogiorno")) return 12;
-    if (strstr(str, "afternoon") || strstr(str, "pomeriggio")) return 14;
-    if (strstr(str, "evening") || strstr(str, "sera")) return 19;
-    if (strstr(str, "tonight") || strstr(str, "stasera")) return 20;
-    if (strstr(str, "night") || strstr(str, "notte")) return 21;
+    if (strstr(str, "morning") || strstr(str, "mattina"))
+        return 9;
+    if (strstr(str, "noon") || strstr(str, "mezzogiorno"))
+        return 12;
+    if (strstr(str, "afternoon") || strstr(str, "pomeriggio"))
+        return 14;
+    if (strstr(str, "evening") || strstr(str, "sera"))
+        return 19;
+    if (strstr(str, "tonight") || strstr(str, "stasera"))
+        return 20;
+    if (strstr(str, "night") || strstr(str, "notte"))
+        return 21;
 
     // Parse "at Xpm", "at X:YY", "at X am", "alle X"
     const char* at_pos = strstr(str, "at ");
-    if (!at_pos) at_pos = strstr(str, "alle ");
-    if (!at_pos) at_pos = strstr(str, "@ ");
+    if (!at_pos)
+        at_pos = strstr(str, "alle ");
+    if (!at_pos)
+        at_pos = strstr(str, "@ ");
 
     if (at_pos) {
         // Skip "at " or "alle " or "@ "
         const char* time_str = at_pos + (at_pos[0] == '@' ? 2 : (at_pos[1] == 't' ? 3 : 5));
-        while (*time_str == ' ') time_str++;
+        while (*time_str == ' ')
+            time_str++;
 
         int hour = 0, min = 0;
         char ampm[8] = {0};
@@ -1052,7 +1131,8 @@ static int parse_time_of_day(const char* str, int* out_min) {
         if (sscanf(time_str, "%d:%d %7s", &hour, &min, ampm) >= 2 ||
             sscanf(time_str, "%d:%d%7s", &hour, &min, ampm) >= 2) {
             if (ampm[0] == 'p' || ampm[0] == 'P') {
-                if (hour < 12) hour += 12;
+                if (hour < 12)
+                    hour += 12;
             } else if ((ampm[0] == 'a' || ampm[0] == 'A') && hour == 12) {
                 hour = 0;
             }
@@ -1064,7 +1144,8 @@ static int parse_time_of_day(const char* str, int* out_min) {
         if (sscanf(time_str, "%d %7s", &hour, ampm) >= 1 ||
             sscanf(time_str, "%d%7s", &hour, ampm) >= 1) {
             if (ampm[0] == 'p' || ampm[0] == 'P') {
-                if (hour < 12) hour += 12;
+                if (hour < 12)
+                    hour += 12;
             } else if ((ampm[0] == 'a' || ampm[0] == 'A') && hour == 12) {
                 hour = 0;
             }
@@ -1087,7 +1168,8 @@ static int parse_time_of_day(const char* str, int* out_min) {
  *   - Italian: domani, stasera, lunedi prossimo
  */
 time_t todo_parse_date(const char* input, time_t base_time) {
-    if (!input || !*input) return 0;
+    if (!input || !*input)
+        return 0;
 
     time_t base = base_time > 0 ? base_time : time(NULL);
     struct tm tm_copy;
@@ -1101,7 +1183,8 @@ time_t todo_parse_date(const char* input, time_t base_time) {
     buf[sizeof(buf) - 1] = '\0';
 
     // Convert to lowercase for matching
-    for (char* p = buf; *p; p++) *p = (char)tolower((unsigned char)*p);
+    for (char* p = buf; *p; p++)
+        *p = (char)tolower((unsigned char)*p);
 
     // Default time is end of day
     int target_hour = 23;
@@ -1127,7 +1210,7 @@ time_t todo_parse_date(const char* input, time_t base_time) {
     }
 
     if (strcmp(buf, "now") == 0 || strcmp(buf, "adesso") == 0) {
-        return base + 60;  // 1 minute from now
+        return base + 60; // 1 minute from now
     }
 
     // ============================================================
@@ -1177,7 +1260,8 @@ time_t todo_parse_date(const char* input, time_t base_time) {
         int target_wday = parse_weekday(rest);
         if (target_wday >= 0) {
             int days_ahead = target_wday - tm->tm_wday;
-            if (days_ahead <= 0) days_ahead += 7;
+            if (days_ahead <= 0)
+                days_ahead += 7;
             tm->tm_mday += days_ahead;
             tm->tm_hour = target_hour;
             tm->tm_min = target_min;
@@ -1191,7 +1275,8 @@ time_t todo_parse_date(const char* input, time_t base_time) {
         int target_wday = parse_weekday(buf);
         if (target_wday >= 0) {
             int days_ahead = target_wday - tm->tm_wday;
-            if (days_ahead <= 0) days_ahead += 7;
+            if (days_ahead <= 0)
+                days_ahead += 7;
             tm->tm_mday += days_ahead;
             tm->tm_hour = target_hour;
             tm->tm_min = target_min;
@@ -1216,14 +1301,20 @@ time_t todo_parse_date(const char* input, time_t base_time) {
                 char* num_start = in_pos ? in_pos + 4 : tra_pos + 5;
 
                 // Parse number (including words)
-                if (strncmp(num_start, "two", 3) == 0 || strncmp(num_start, "due", 3) == 0) weeks = 2;
-                else if (strncmp(num_start, "three", 5) == 0 || strncmp(num_start, "tre", 3) == 0) weeks = 3;
-                else if (strncmp(num_start, "four", 4) == 0 || strncmp(num_start, "quattro", 7) == 0) weeks = 4;
-                else sscanf(num_start, "%d", &weeks);
+                if (strncmp(num_start, "two", 3) == 0 || strncmp(num_start, "due", 3) == 0)
+                    weeks = 2;
+                else if (strncmp(num_start, "three", 5) == 0 || strncmp(num_start, "tre", 3) == 0)
+                    weeks = 3;
+                else if (strncmp(num_start, "four", 4) == 0 ||
+                         strncmp(num_start, "quattro", 7) == 0)
+                    weeks = 4;
+                else
+                    sscanf(num_start, "%d", &weeks);
 
                 if (weeks > 0) {
                     int days_ahead = target_wday - tm->tm_wday;
-                    if (days_ahead <= 0) days_ahead += 7;
+                    if (days_ahead <= 0)
+                        days_ahead += 7;
                     tm->tm_mday += days_ahead + (weeks - 1) * 7;
                     tm->tm_hour = target_hour;
                     tm->tm_min = target_min;
@@ -1234,7 +1325,8 @@ time_t todo_parse_date(const char* input, time_t base_time) {
 
             // Just a weekday name - assume this week or next
             int days_ahead = target_wday - tm->tm_wday;
-            if (days_ahead <= 0) days_ahead += 7;
+            if (days_ahead <= 0)
+                days_ahead += 7;
             tm->tm_mday += days_ahead;
             tm->tm_hour = target_hour;
             tm->tm_min = target_min;
@@ -1349,7 +1441,7 @@ time_t todo_parse_date(const char* input, time_t base_time) {
         return result;
     }
 
-    return 0;  // Parse failed
+    return 0; // Parse failed
 }
 
 /**
@@ -1357,19 +1449,26 @@ time_t todo_parse_date(const char* input, time_t base_time) {
  * Supports: "30m", "1h", "2d", "1w", etc.
  */
 int64_t todo_parse_duration(const char* input) {
-    if (!input || !*input) return 0;
+    if (!input || !*input)
+        return 0;
 
     int n = 0;
     char unit = 'm';
 
     if (sscanf(input, "%d%c", &n, &unit) >= 1) {
         switch (tolower(unit)) {
-            case 's': return n;
-            case 'm': return n * 60;
-            case 'h': return n * 3600;
-            case 'd': return n * 86400;
-            case 'w': return n * 604800;
-            default: return n * 60;  // Default to minutes
+        case 's':
+            return n;
+        case 'm':
+            return n * 60;
+        case 'h':
+            return n * 3600;
+        case 'd':
+            return n * 86400;
+        case 'w':
+            return n * 604800;
+        default:
+            return n * 60; // Default to minutes
         }
     }
 
@@ -1380,10 +1479,12 @@ int64_t todo_parse_duration(const char* input) {
  * Format a timestamp for display.
  */
 void todo_format_date(time_t timestamp, char* buffer, size_t buffer_size, bool relative) {
-    if (!buffer || buffer_size == 0) return;
+    if (!buffer || buffer_size == 0)
+        return;
     buffer[0] = '\0';
 
-    if (timestamp == 0) return;
+    if (timestamp == 0)
+        return;
 
     time_t now = time(NULL);
     struct tm* tm_now = localtime(&now);

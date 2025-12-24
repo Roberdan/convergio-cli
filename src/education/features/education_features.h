@@ -33,20 +33,20 @@ typedef struct {
     char subject[128];
     char topic[256];
     char question[2048];
-    char** context_files;      // Optional context files
+    char** context_files; // Optional context files
     int context_file_count;
-    bool anti_cheat_mode;      // Guide without giving answers
+    bool anti_cheat_mode; // Guide without giving answers
 } HomeworkRequest;
 
 /**
  * @brief Homework response structure
  */
 typedef struct {
-    char* guidance;            // Socratic guidance, not direct answers
-    char* hints[5];            // Progressive hints (5 levels)
+    char* guidance; // Socratic guidance, not direct answers
+    char* hints[5]; // Progressive hints (5 levels)
     int hint_count;
-    char* verification_quiz;   // Quiz to verify understanding
-    char* parent_log;          // Transparent log for parents
+    char* verification_quiz; // Quiz to verify understanding
+    char* parent_log;        // Transparent log for parents
 } HomeworkResponse;
 
 /**
@@ -132,8 +132,8 @@ typedef struct {
     time_t current_pomodoro_start;
     int pomodoro_count;
     int breaks_taken;
-    int work_duration_minutes;    // Default 25
-    int break_duration_minutes;   // Default 5
+    int work_duration_minutes;  // Default 25
+    int break_duration_minutes; // Default 5
     StudySessionState state;
     char notes[1024];
 } StudySession;
@@ -145,7 +145,7 @@ typedef struct {
     int total_time_minutes;
     int pomodoros_completed;
     int breaks_taken;
-    float focus_score;            // 0.0-1.0
+    float focus_score; // 0.0-1.0
     int quiz_score;
     char* summary;
 } StudySessionStats;
@@ -230,9 +230,9 @@ typedef struct {
     int topics_completed;
     int topics_in_progress;
     float avg_quiz_score;
-    char* subject_breakdown;     // JSON with per-subject stats
-    char* weekly_activity;       // JSON with daily activity
-    char* skill_radar;           // JSON for skill radar chart
+    char* subject_breakdown; // JSON with per-subject stats
+    char* weekly_activity;   // JSON with daily activity
+    char* skill_radar;       // JSON for skill radar chart
 } ProgressDashboard;
 
 /**
@@ -252,7 +252,7 @@ typedef struct {
     char subject[128];
     char topic[256];
     TopicStatus status;
-    float skill_level;           // 0.0-1.0
+    float skill_level; // 0.0-1.0
     int time_spent_minutes;
     int quiz_attempts;
     float quiz_avg_score;

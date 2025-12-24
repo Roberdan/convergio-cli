@@ -6,15 +6,15 @@
  */
 
 #include "nous/file_lock.h"
+#include <errno.h>
+#include <fcntl.h>
+#include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
-#include <fcntl.h>
 #include <sys/file.h>
 #include <sys/stat.h>
-#include <errno.h>
-#include <pthread.h>
+#include <unistd.h>
 
 // ============================================================================
 // GLOBALS
@@ -33,7 +33,8 @@ static char* safe_strdup(const char* s) {
 
 static FileLock* lock_create(const char* filepath, FileLockType type, uint64_t owner_id) {
     FileLock* lock = calloc(1, sizeof(FileLock));
-    if (!lock) return NULL;
+    if (!lock)
+        return NULL;
 
     lock->filepath = safe_strdup(filepath);
     lock->fd = -1;
@@ -47,7 +48,8 @@ static FileLock* lock_create(const char* filepath, FileLockType type, uint64_t o
 }
 
 static void lock_destroy(FileLock* lock) {
-    if (!lock) return;
+    if (!lock)
+        return;
 
     if (lock->fd >= 0) {
         flock(lock->fd, LOCK_UN);
@@ -69,13 +71,15 @@ static FileLock* find_lock_by_path(const char* filepath) {
 }
 
 static bool add_lock_to_manager(FileLock* lock) {
-    if (!lock) return false;
+    if (!lock)
+        return false;
 
     // Grow array if needed
     if (g_manager.lock_count >= g_manager.lock_capacity) {
         size_t new_capacity = g_manager.lock_capacity == 0 ? 16 : g_manager.lock_capacity * 2;
         FileLock** new_locks = realloc(g_manager.locks, sizeof(FileLock*) * new_capacity);
-        if (!new_locks) return false;
+        if (!new_locks)
+            return false;
         g_manager.locks = new_locks;
         g_manager.lock_capacity = new_capacity;
     }
@@ -85,7 +89,8 @@ static bool add_lock_to_manager(FileLock* lock) {
 }
 
 static void remove_lock_from_manager(FileLock* lock) {
-    if (!lock) return;
+    if (!lock)
+        return;
 
     for (size_t i = 0; i < g_manager.lock_count; i++) {
         if (g_manager.locks[i] == lock) {
@@ -101,10 +106,13 @@ static void remove_lock_from_manager(FileLock* lock) {
 
 static int flock_type_for(FileLockType type) {
     switch (type) {
-        case LOCK_READ:      return LOCK_SH;
-        case LOCK_WRITE:
-        case LOCK_EXCLUSIVE: return LOCK_EX;
-        default:             return LOCK_EX;
+    case LOCK_READ:
+        return LOCK_SH;
+    case LOCK_WRITE:
+    case LOCK_EXCLUSIVE:
+        return LOCK_EX;
+    default:
+        return LOCK_EX;
     }
 }
 
@@ -160,15 +168,15 @@ FileLockManager* filelock_get_manager(void) {
 // LOCK OPERATIONS
 // ============================================================================
 
-FileLock* filelock_acquire(const char* filepath, FileLockType type,
-                           uint64_t owner_id, int timeout_ms) {
+FileLock* filelock_acquire(const char* filepath, FileLockType type, uint64_t owner_id,
+                           int timeout_ms) {
     return filelock_acquire_timed(filepath, type, owner_id, timeout_ms, 0);
 }
 
-FileLock* filelock_acquire_timed(const char* filepath, FileLockType type,
-                                  uint64_t owner_id, int timeout_ms,
-                                  int expire_seconds) {
-    if (!filepath || !g_manager.initialized) return NULL;
+FileLock* filelock_acquire_timed(const char* filepath, FileLockType type, uint64_t owner_id,
+                                 int timeout_ms, int expire_seconds) {
+    if (!filepath || !g_manager.initialized)
+        return NULL;
 
     pthread_mutex_lock(&g_lock_mutex);
 
@@ -185,7 +193,7 @@ FileLock* filelock_acquire_timed(const char* filepath, FileLockType type,
                 return NULL;
             }
             pthread_mutex_unlock(&g_lock_mutex);
-            return existing;  // Already have the lock
+            return existing; // Already have the lock
         }
 
         // Check for read-read compatibility
@@ -203,7 +211,8 @@ FileLock* filelock_acquire_timed(const char* filepath, FileLockType type,
 
     // Create new lock
     FileLock* lock = lock_create(filepath, type, owner_id);
-    if (!lock) return NULL;
+    if (!lock)
+        return NULL;
 
     // Open file
     int flags = (type == LOCK_READ) ? O_RDONLY : O_RDWR;
@@ -234,17 +243,19 @@ FileLock* filelock_acquire_timed(const char* filepath, FileLockType type,
         // Timeout - poll with backoff
         flock_flags |= LOCK_NB;
         int elapsed = 0;
-        int sleep_ms = 10;  // Start with 10ms
+        int sleep_ms = 10; // Start with 10ms
 
         while (elapsed < timeout_ms) {
             result = flock(lock->fd, flock_flags);
-            if (result == 0) break;
+            if (result == 0)
+                break;
 
-            if (errno != EWOULDBLOCK) break;
+            if (errno != EWOULDBLOCK)
+                break;
 
             usleep((useconds_t)(sleep_ms * 1000));
             elapsed += sleep_ms;
-            sleep_ms = (sleep_ms < 100) ? sleep_ms * 2 : 100;  // Max 100ms
+            sleep_ms = (sleep_ms < 100) ? sleep_ms * 2 : 100; // Max 100ms
         }
 
         if (result != 0 && elapsed >= timeout_ms) {
@@ -281,8 +292,10 @@ FileLock* filelock_acquire_timed(const char* filepath, FileLockType type,
 }
 
 FileLockError filelock_release(FileLock* lock) {
-    if (!lock) return LOCK_ERROR_INVALID;
-    if (!lock->is_valid) return LOCK_SUCCESS;
+    if (!lock)
+        return LOCK_ERROR_INVALID;
+    if (!lock->is_valid)
+        return LOCK_SUCCESS;
 
     pthread_mutex_lock(&g_lock_mutex);
 
@@ -304,8 +317,10 @@ FileLockError filelock_release(FileLock* lock) {
 }
 
 FileLockError filelock_upgrade(FileLock* lock, int timeout_ms) {
-    if (!lock || !lock->is_valid) return LOCK_ERROR_INVALID;
-    if (lock->type != LOCK_READ) return LOCK_ERROR_INVALID;
+    if (!lock || !lock->is_valid)
+        return LOCK_ERROR_INVALID;
+    if (lock->type != LOCK_READ)
+        return LOCK_ERROR_INVALID;
 
     // Try to get exclusive lock
     int flags = LOCK_EX;
@@ -323,8 +338,10 @@ FileLockError filelock_upgrade(FileLock* lock, int timeout_ms) {
 
         while (elapsed < timeout_ms) {
             result = flock(lock->fd, flags);
-            if (result == 0) break;
-            if (errno != EWOULDBLOCK) break;
+            if (result == 0)
+                break;
+            if (errno != EWOULDBLOCK)
+                break;
 
             usleep((useconds_t)(sleep_ms * 1000));
             elapsed += sleep_ms;
@@ -341,8 +358,10 @@ FileLockError filelock_upgrade(FileLock* lock, int timeout_ms) {
 }
 
 FileLockError filelock_downgrade(FileLock* lock) {
-    if (!lock || !lock->is_valid) return LOCK_ERROR_INVALID;
-    if (lock->type == LOCK_READ) return LOCK_SUCCESS;
+    if (!lock || !lock->is_valid)
+        return LOCK_ERROR_INVALID;
+    if (lock->type == LOCK_READ)
+        return LOCK_SUCCESS;
 
     int result = flock(lock->fd, LOCK_SH);
     if (result != 0) {
@@ -358,7 +377,8 @@ FileLockError filelock_downgrade(FileLock* lock) {
 // ============================================================================
 
 bool filelock_is_locked(const char* filepath, FileLockType type) {
-    if (!filepath) return false;
+    if (!filepath)
+        return false;
 
     pthread_mutex_lock(&g_lock_mutex);
 
@@ -367,7 +387,7 @@ bool filelock_is_locked(const char* filepath, FileLockType type) {
 
     if (lock && lock->is_valid) {
         if ((int)type < 0) {
-            result = true;  // Any lock type
+            result = true; // Any lock type
         } else {
             result = (lock->type == type);
         }
@@ -378,7 +398,8 @@ bool filelock_is_locked(const char* filepath, FileLockType type) {
 }
 
 uint64_t filelock_get_owner(const char* filepath) {
-    if (!filepath) return 0;
+    if (!filepath)
+        return 0;
 
     pthread_mutex_lock(&g_lock_mutex);
 
@@ -390,7 +411,8 @@ uint64_t filelock_get_owner(const char* filepath) {
 }
 
 size_t filelock_get_by_owner(uint64_t owner_id, FileLock** out_locks, size_t max_count) {
-    if (!out_locks || max_count == 0) return 0;
+    if (!out_locks || max_count == 0)
+        return 0;
 
     pthread_mutex_lock(&g_lock_mutex);
 
@@ -409,14 +431,15 @@ size_t filelock_get_by_owner(uint64_t owner_id, FileLock** out_locks, size_t max
 // MULTI-FILE OPERATIONS
 // ============================================================================
 
-FileLockError filelock_acquire_batch(const char** filepaths, size_t count,
-                                      FileLockType type, uint64_t owner_id,
-                                      int timeout_ms, FileLock** out_locks) {
-    if (!filepaths || count == 0 || !out_locks) return LOCK_ERROR_INVALID;
+FileLockError filelock_acquire_batch(const char** filepaths, size_t count, FileLockType type,
+                                     uint64_t owner_id, int timeout_ms, FileLock** out_locks) {
+    if (!filepaths || count == 0 || !out_locks)
+        return LOCK_ERROR_INVALID;
 
     // Sort paths to prevent deadlock (canonical ordering)
     const char** sorted = malloc(sizeof(char*) * count);
-    if (!sorted) return LOCK_ERROR_INTERNAL;
+    if (!sorted)
+        return LOCK_ERROR_INTERNAL;
     memcpy(sorted, filepaths, sizeof(char*) * count);
 
     // Simple bubble sort for small arrays
@@ -481,7 +504,7 @@ size_t filelock_release_all(uint64_t owner_id) {
 // Simple wait-for graph based detection
 typedef struct {
     uint64_t agent_id;
-    uint64_t waiting_for;  // Agent ID we're waiting for
+    uint64_t waiting_for; // Agent ID we're waiting for
 } WaitEdge;
 
 static WaitEdge g_wait_graph[64];
@@ -489,7 +512,8 @@ static size_t g_wait_count = 0;
 static pthread_mutex_t g_wait_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 bool filelock_would_deadlock(uint64_t requester_id, const char* filepath) {
-    if (!filepath) return false;
+    if (!filepath)
+        return false;
 
     pthread_mutex_lock(&g_lock_mutex);
     FileLock* holder = find_lock_by_path(filepath);
@@ -521,7 +545,8 @@ bool filelock_would_deadlock(uint64_t requester_id, const char* filepath) {
                 break;
             }
         }
-        if (!found || deadlock) break;
+        if (!found || deadlock)
+            break;
         depth++;
     }
 
@@ -576,7 +601,8 @@ size_t filelock_cleanup_expired(void) {
 }
 
 FileLockError filelock_force_release(const char* filepath) {
-    if (!filepath) return LOCK_ERROR_INVALID;
+    if (!filepath)
+        return LOCK_ERROR_INVALID;
 
     pthread_mutex_lock(&g_lock_mutex);
 
@@ -604,18 +630,17 @@ char* filelock_stats_json(void) {
     }
 
     snprintf(json, 1024,
-        "{"
-        "\"active_locks\":%zu,"
-        "\"total_acquires\":%llu,"
-        "\"total_releases\":%llu,"
-        "\"total_timeouts\":%llu,"
-        "\"total_conflicts\":%llu"
-        "}",
-        g_manager.lock_count,
-        (unsigned long long)g_manager.total_acquires,
-        (unsigned long long)g_manager.total_releases,
-        (unsigned long long)g_manager.total_timeouts,
-        (unsigned long long)g_manager.total_conflicts);
+             "{"
+             "\"active_locks\":%zu,"
+             "\"total_acquires\":%llu,"
+             "\"total_releases\":%llu,"
+             "\"total_timeouts\":%llu,"
+             "\"total_conflicts\":%llu"
+             "}",
+             g_manager.lock_count, (unsigned long long)g_manager.total_acquires,
+             (unsigned long long)g_manager.total_releases,
+             (unsigned long long)g_manager.total_timeouts,
+             (unsigned long long)g_manager.total_conflicts);
 
     pthread_mutex_unlock(&g_lock_mutex);
     return json;
@@ -631,7 +656,8 @@ char* filelock_status(void) {
         return NULL;
     }
 
-    size_t offset = (size_t)snprintf(status, buf_size,
+    size_t offset = (size_t)snprintf(
+        status, buf_size,
         "File Lock Manager Status\n"
         "========================\n"
         "Active locks: %zu\n"
@@ -640,10 +666,8 @@ char* filelock_status(void) {
         "Timeouts: %llu\n"
         "Conflicts: %llu\n\n"
         "Active Locks:\n",
-        g_manager.lock_count,
-        (unsigned long long)g_manager.total_acquires,
-        (unsigned long long)g_manager.total_releases,
-        (unsigned long long)g_manager.total_timeouts,
+        g_manager.lock_count, (unsigned long long)g_manager.total_acquires,
+        (unsigned long long)g_manager.total_releases, (unsigned long long)g_manager.total_timeouts,
         (unsigned long long)g_manager.total_conflicts);
 
     const char* type_names[] = {"READ", "WRITE", "EXCLUSIVE"};
@@ -652,10 +676,8 @@ char* filelock_status(void) {
         FileLock* lock = g_manager.locks[i];
         if (lock && lock->is_valid) {
             offset += (size_t)snprintf(status + offset, buf_size - offset,
-                "  [%s] %s (owner: %llu)\n",
-                type_names[lock->type],
-                lock->filepath,
-                (unsigned long long)lock->owner_id);
+                                       "  [%s] %s (owner: %llu)\n", type_names[lock->type],
+                                       lock->filepath, (unsigned long long)lock->owner_id);
         }
     }
 

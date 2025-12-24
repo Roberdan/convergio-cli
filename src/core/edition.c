@@ -13,8 +13,8 @@
 
 #include "nous/edition.h"
 #include "nous/nous.h"
-#include <string.h>
 #include <stdio.h>
+#include <string.h>
 
 // Version is passed as -DCONVERGIO_VERSION from Makefile
 #ifndef CONVERGIO_VERSION
@@ -41,112 +41,73 @@ static bool g_edition_set_by_cli = false;
 // EDUCATION EDITION WHITELIST
 // ============================================================================
 
-static const char *EDUCATION_AGENTS[] = {
+static const char* EDUCATION_AGENTS[] = {
     // 17 Maestri (teaching agents)
-    "euclide-matematica",
-    "feynman-fisica",
-    "manzoni-italiano",
-    "darwin-scienze",
-    "erodoto-storia",
-    "humboldt-geografia",
-    "leonardo-arte",
-    "shakespeare-inglese",
-    "mozart-musica",
-    "cicerone-civica",
-    "smith-economia",
-    "lovelace-informatica",
-    "ippocrate-corpo",
-    "socrate-filosofia",
-    "chris-storytelling",
-    "curie-chimica",
-    "galileo-astronomia",
+    "euclide-matematica", "feynman-fisica", "manzoni-italiano", "darwin-scienze", "erodoto-storia",
+    "humboldt-geografia", "leonardo-arte", "shakespeare-inglese", "mozart-musica",
+    "cicerone-civica", "smith-economia", "lovelace-informatica", "ippocrate-corpo",
+    "socrate-filosofia", "chris-storytelling", "curie-chimica", "galileo-astronomia",
     // Coordination
-    "ali-principal",
-    "anna-executive-assistant",
-    "jenny-inclusive-accessibility-champion",
-    NULL
-};
+    "ali-principal", "anna-executive-assistant", "jenny-inclusive-accessibility-champion", NULL};
 
-static const char *EDUCATION_FEATURES[] = {
-    "quiz", "flashcards", "mindmap", "study-session", "homework",
-    "libretto", "audio-tts", "html-interactive", "calculator",
-    "voice", "accessibility",
-    NULL
-};
+static const char* EDUCATION_FEATURES[] = {
+    "quiz",      "flashcards",       "mindmap",    "study-session", "homework",      "libretto",
+    "audio-tts", "html-interactive", "calculator", "voice",         "accessibility", NULL};
 
-static const char *EDUCATION_COMMANDS[] = {
-    "education", "study", "homework", "quiz", "flashcards",
-    "mindmap", "libretto", "voice", "html", "calc",
-    "define", "conjugate", "pronounce", "grammar",
-    "xp", "video", "periodic", "convert",
-    "help", "agent", "agents", "status", "quit", "exit",
-    "setup", "debug", "theme", "style", "cost",
-    "todo", "remind", "reminders", "settings", "profile",
-    "onboarding", "upload", "doc",
-    NULL
-};
+static const char* EDUCATION_COMMANDS[] = {
+    "education", "study", "homework", "quiz",      "flashcards", "mindmap",   "libretto",
+    "voice",     "html",  "calc",     "define",    "conjugate",  "pronounce", "grammar",
+    "xp",        "video", "periodic", "convert",   "help",       "agent",     "agents",
+    "status",    "quit",  "exit",     "setup",     "debug",      "theme",     "style",
+    "cost",      "todo",  "remind",   "reminders", "settings",   "profile",   "onboarding",
+    "upload",    "doc",   NULL};
 
 // ============================================================================
 // BUSINESS EDITION WHITELIST
 // ============================================================================
 
-static const char *BUSINESS_AGENTS[] = {
-    "ali-chief-of-staff",
-    "fabio-sales-business-development",
-    "andrea-customer-success-manager",
-    "sofia-marketing-strategist",
-    "anna-executive-assistant",
-    "fiona-market-analyst",
-    "matteo-strategic-business-architect",
-    "amy-cfo",
-    "michael-vc",
-    "wiz-investor-venture-capital",
-    NULL
-};
+static const char* BUSINESS_AGENTS[] = {"ali-chief-of-staff",
+                                        "fabio-sales-business-development",
+                                        "andrea-customer-success-manager",
+                                        "sofia-marketing-strategist",
+                                        "anna-executive-assistant",
+                                        "fiona-market-analyst",
+                                        "matteo-strategic-business-architect",
+                                        "amy-cfo",
+                                        "michael-vc",
+                                        "wiz-investor-venture-capital",
+                                        NULL};
 
-static const char *BUSINESS_FEATURES[] = {
-    "crm", "pipeline", "analytics", "reports", "finance",
-    NULL
-};
+static const char* BUSINESS_FEATURES[] = {"crm",     "pipeline", "analytics",
+                                          "reports", "finance",  NULL};
 
-static const char *BUSINESS_COMMANDS[] = {
-    "help", "agent", "agents", "status", "quit", "exit",
-    "setup", "debug", "theme", "style", "cost",
-    "todo", "remind", "reminders",
-    NULL
-};
+static const char* BUSINESS_COMMANDS[] = {"help", "agent", "agents", "status",    "quit",
+                                          "exit", "setup", "debug",  "theme",     "style",
+                                          "cost", "todo",  "remind", "reminders", NULL};
 
 // ============================================================================
 // DEVELOPER EDITION WHITELIST
 // ============================================================================
 
-static const char *DEVELOPER_AGENTS[] = {
-    "ali-chief-of-staff",
-    "anna-executive-assistant",
-    "rex-code-reviewer",
-    "paolo-best-practices-enforcer",
-    "baccio-tech-architect",
-    "dario-debugger",
-    "otto-performance-optimizer",
-    "marco-devops-engineer",
-    "luca-security-expert",
-    "guardian-ai-security-validator",
-    NULL
-};
+static const char* DEVELOPER_AGENTS[] = {"ali-chief-of-staff",
+                                         "anna-executive-assistant",
+                                         "rex-code-reviewer",
+                                         "paolo-best-practices-enforcer",
+                                         "baccio-tech-architect",
+                                         "dario-debugger",
+                                         "otto-performance-optimizer",
+                                         "marco-devops-engineer",
+                                         "luca-security-expert",
+                                         "guardian-ai-security-validator",
+                                         NULL};
 
-static const char *DEVELOPER_FEATURES[] = {
-    "code-review", "architecture", "debugging", "security",
-    "ci-cd", "performance", "best-practices",
-    NULL
-};
+static const char* DEVELOPER_FEATURES[] = {
+    "code-review", "architecture", "debugging",      "security",
+    "ci-cd",       "performance",  "best-practices", NULL};
 
-static const char *DEVELOPER_COMMANDS[] = {
-    "help", "agent", "agents", "status", "quit", "exit",
-    "setup", "debug", "theme", "style", "cost",
-    "todo", "remind", "reminders",
-    "test", "git", "pr", "commit",
-    NULL
-};
+static const char* DEVELOPER_COMMANDS[] = {
+    "help", "agent", "agents", "status",    "quit", "exit", "setup", "debug",  "theme", "style",
+    "cost", "todo",  "remind", "reminders", "test", "git",  "pr",    "commit", NULL};
 
 // ============================================================================
 // EDITION DEFINITIONS
@@ -161,7 +122,7 @@ static const EditionInfo EDITIONS[] = {
         .version_suffix = "",
         .description = "Complete Convergio with all agents and features",
         .target_audience = "Developers and power users",
-        .allowed_agents = NULL,  // NULL = all agents
+        .allowed_agents = NULL, // NULL = all agents
         .allowed_features = NULL,
         .allowed_commands = NULL,
     },
@@ -207,18 +168,18 @@ static const EditionInfo EDITIONS[] = {
 // SYSTEM PROMPTS PER EDITION
 // ============================================================================
 
-static const char *EDUCATION_SYSTEM_PROMPT =
+static const char* EDUCATION_SYSTEM_PROMPT =
     "You are part of Convergio Education, a virtual classroom with the greatest "
     "teachers in history. Your role is to help students learn through the Socratic "
     "method, encouraging curiosity and understanding rather than just giving answers. "
     "Always adapt to the student's level and accessibility needs.";
 
-static const char *BUSINESS_SYSTEM_PROMPT =
+static const char* BUSINESS_SYSTEM_PROMPT =
     "You are part of Convergio Business, a professional productivity suite. "
     "Focus on actionable insights, data-driven decisions, and business outcomes. "
     "Be concise and professional.";
 
-static const char *DEVELOPER_SYSTEM_PROMPT =
+static const char* DEVELOPER_SYSTEM_PROMPT =
     "You are part of Convergio Developer, a code assistant for professional developers. "
     "Focus on code quality, best practices, and architectural decisions. "
     "Be precise and technical.";
@@ -264,7 +225,7 @@ bool edition_set(ConvergioEdition edition) {
     return true;
 }
 
-bool edition_set_by_name(const char *name) {
+bool edition_set_by_name(const char* name) {
     if (!name) {
         LOG_WARN(LOG_CAT_SYSTEM, "[Edition] Edition name cannot be NULL");
         return false;
@@ -285,7 +246,7 @@ bool edition_set_by_name(const char *name) {
     return false;
 }
 
-bool edition_set_by_cli(const char *name) {
+bool edition_set_by_cli(const char* name) {
     if (edition_set_by_name(name)) {
         g_edition_set_by_cli = true;
         return true;
@@ -297,8 +258,9 @@ bool edition_was_set_by_cli(void) {
     return g_edition_set_by_cli;
 }
 
-ConvergioEdition edition_from_name(const char *name) {
-    if (!name) return EDITION_MASTER;
+ConvergioEdition edition_from_name(const char* name) {
+    if (!name)
+        return EDITION_MASTER;
 
     // "full" is an alias for master (primarily for internal use)
     if (strcmp(name, "master") == 0 || strcmp(name, "full") == 0) {
@@ -314,77 +276,109 @@ ConvergioEdition edition_from_name(const char *name) {
     return EDITION_MASTER;
 }
 
-const char *edition_get_name(ConvergioEdition edition) {
+const char* edition_get_name(ConvergioEdition edition) {
     switch (edition) {
-        case EDITION_MASTER: return "master";
-        case EDITION_EDUCATION: return "education";
-        case EDITION_BUSINESS: return "business";
-        case EDITION_DEVELOPER: return "developer";
-        default: return "master";
+    case EDITION_MASTER:
+        return "master";
+    case EDITION_EDUCATION:
+        return "education";
+    case EDITION_BUSINESS:
+        return "business";
+    case EDITION_DEVELOPER:
+        return "developer";
+    default:
+        return "master";
     }
 }
 
-const EditionInfo *edition_get_info(ConvergioEdition edition) {
+const EditionInfo* edition_get_info(ConvergioEdition edition) {
     if (edition >= 0 && edition <= EDITION_DEVELOPER) {
         return &EDITIONS[edition];
     }
     return &EDITIONS[EDITION_MASTER];
 }
 
-const EditionInfo *edition_get_current_info(void) {
+const EditionInfo* edition_get_current_info(void) {
     return edition_get_info(g_current_edition);
 }
 
-static bool string_in_list(const char *str, const char **list) {
+static bool string_in_list(const char* str, const char** list) {
     // NULL list = allow all (master edition)
-    if (!list) return true;
+    if (!list)
+        return true;
     // NULL str = not allowed (invalid input)
-    if (!str) return false;
+    if (!str)
+        return false;
 
-    for (const char **p = list; *p != NULL; p++) {
-        if (strcmp(str, *p) == 0) return true;
+    for (const char** p = list; *p != NULL; p++) {
+        if (strcmp(str, *p) == 0)
+            return true;
     }
     return false;
 }
 
-bool edition_has_agent(const char *agent_id) {
-    const EditionInfo *info = edition_get_current_info();
-    return string_in_list(agent_id, info->allowed_agents);
+// Check if str is a prefix of any item in the list (for short agent names)
+// E.g., "euclide" matches "euclide-matematica"
+static bool string_prefix_in_list(const char* str, const char** list) {
+    if (!list)
+        return true;
+    if (!str)
+        return false;
+
+    size_t str_len = strlen(str);
+    for (const char** p = list; *p != NULL; p++) {
+        // Check if str is a prefix (case-insensitive)
+        if (strncasecmp(*p, str, str_len) == 0) {
+            // Make sure it's at a word boundary (next char is '-', '_', or end)
+            char next_char = (*p)[str_len];
+            if (next_char == '\0' || next_char == '-' || next_char == '_') {
+                return true;
+            }
+        }
+    }
+    return false;
 }
 
-bool edition_has_feature(const char *feature_id) {
-    const EditionInfo *info = edition_get_current_info();
+bool edition_has_agent(const char* agent_id) {
+    const EditionInfo* info = edition_get_current_info();
+    // First check exact match
+    if (string_in_list(agent_id, info->allowed_agents))
+        return true;
+    // Then check prefix match (for short names like "euclide" -> "euclide-matematica")
+    return string_prefix_in_list(agent_id, info->allowed_agents);
+}
+
+bool edition_has_feature(const char* feature_id) {
+    const EditionInfo* info = edition_get_current_info();
     return string_in_list(feature_id, info->allowed_features);
 }
 
-bool edition_has_command(const char *command) {
-    const EditionInfo *info = edition_get_current_info();
+bool edition_has_command(const char* command) {
+    const EditionInfo* info = edition_get_current_info();
     return string_in_list(command, info->allowed_commands);
 }
 
-const char *edition_display_name(void) {
+const char* edition_display_name(void) {
     return edition_get_current_info()->name;
 }
 
-const char *edition_system_prompt(void) {
+const char* edition_system_prompt(void) {
     switch (g_current_edition) {
-        case EDITION_EDUCATION:
-            return EDUCATION_SYSTEM_PROMPT;
-        case EDITION_BUSINESS:
-            return BUSINESS_SYSTEM_PROMPT;
-        case EDITION_DEVELOPER:
-            return DEVELOPER_SYSTEM_PROMPT;
-        default:
-            return "";
+    case EDITION_EDUCATION:
+        return EDUCATION_SYSTEM_PROMPT;
+    case EDITION_BUSINESS:
+        return BUSINESS_SYSTEM_PROMPT;
+    case EDITION_DEVELOPER:
+        return DEVELOPER_SYSTEM_PROMPT;
+    default:
+        return "";
     }
 }
 
 void edition_init(void) {
-    const EditionInfo *info = edition_get_current_info();
+    const EditionInfo* info = edition_get_current_info();
     if (g_current_edition != EDITION_MASTER) {
-        LOG_INFO(LOG_CAT_SYSTEM, "[Edition] %s v%s%s",
-                 info->name,
-                 CONVERGIO_VERSION,
+        LOG_INFO(LOG_CAT_SYSTEM, "[Edition] %s v%s%s", info->name, CONVERGIO_VERSION,
                  info->version_suffix);
     }
 }
@@ -402,18 +396,18 @@ void edition_init(void) {
  */
 int edition_get_preferred_provider(void) {
     switch (g_current_edition) {
-        case EDITION_EDUCATION:
-            // Education uses Azure OpenAI exclusively (GDPR, content safety)
-            return 1;  // PROVIDER_OPENAI
-        case EDITION_BUSINESS:
-            // Business prefers Claude for complex reasoning
-            return 0;  // PROVIDER_ANTHROPIC
-        case EDITION_DEVELOPER:
-            // Developer prefers Claude for code generation
-            return 0;  // PROVIDER_ANTHROPIC
-        default:
-            // Master uses best available
-            return 0;  // PROVIDER_ANTHROPIC
+    case EDITION_EDUCATION:
+        // Education uses Azure OpenAI exclusively (GDPR, content safety)
+        return 1; // PROVIDER_OPENAI
+    case EDITION_BUSINESS:
+        // Business prefers Claude for complex reasoning
+        return 0; // PROVIDER_ANTHROPIC
+    case EDITION_DEVELOPER:
+        // Developer prefers Claude for code generation
+        return 0; // PROVIDER_ANTHROPIC
+    default:
+        // Master uses best available
+        return 0; // PROVIDER_ANTHROPIC
     }
 }
 
@@ -431,15 +425,15 @@ bool edition_uses_azure_openai(void) {
  */
 const char* edition_get_preferred_model(void) {
     switch (g_current_edition) {
-        case EDITION_EDUCATION:
-            // Azure OpenAI GPT-5-Mini for education (cost-effective, good safety)
-            // Use gpt-5.2-edu for complex queries, gpt-5-nano for fast responses
-            return "gpt-5-edu-mini";
-        case EDITION_BUSINESS:
-            return "claude-sonnet-4";
-        case EDITION_DEVELOPER:
-            return "claude-sonnet-4";
-        default:
-            return "claude-opus-4";
+    case EDITION_EDUCATION:
+        // Azure OpenAI GPT-5-Mini for education (cost-effective, good safety)
+        // Use gpt-5.2-edu for complex queries, gpt-5-nano for fast responses
+        return "gpt-5-edu-mini";
+    case EDITION_BUSINESS:
+        return "claude-sonnet-4";
+    case EDITION_DEVELOPER:
+        return "claude-sonnet-4";
+    default:
+        return "claude-opus-4";
     }
 }

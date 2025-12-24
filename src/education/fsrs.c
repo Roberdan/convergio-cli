@@ -12,12 +12,12 @@
  * Licensed under MIT License
  */
 
+#include <math.h>
+#include <sqlite3.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <math.h>
 #include <time.h>
-#include <sqlite3.h>
 
 // ============================================================================
 // CONSTANTS
@@ -26,7 +26,7 @@
 #define FSRS_INITIAL_STABILITY 1.0f
 #define FSRS_INITIAL_DIFFICULTY 0.3f
 #define FSRS_DESIRED_RETENTION 0.9f
-#define FSRS_K_FACTOR 19.0f  // Controls stability growth rate
+#define FSRS_K_FACTOR 19.0f // Controls stability growth rate
 
 // Quality ratings (1-5)
 #define QUALITY_FORGOT 1
@@ -43,15 +43,15 @@ typedef struct {
     int64_t card_id;
     int64_t student_id;
     char* topic_id;
-    char* front;          // Question
-    char* back;           // Answer
+    char* front; // Question
+    char* back;  // Answer
 
     float stability;      // How long memory lasts (in days)
     float difficulty;     // 0.0 (easy) to 1.0 (hard)
     float retrievability; // Current probability of recall
 
-    int reps;             // Total review count
-    int lapses;           // Times forgotten
+    int reps;   // Total review count
+    int lapses; // Times forgotten
     time_t last_review;
     time_t next_review;
 
@@ -79,10 +79,11 @@ extern sqlite3* g_edu_db;
  * R(t) = (1 + t/S)^(-1/w) where w is the decay factor
  */
 static float fsrs_retrievability(float stability, float days_elapsed) {
-    if (stability <= 0 || days_elapsed < 0) return 1.0f;
+    if (stability <= 0 || days_elapsed < 0)
+        return 1.0f;
 
     // Power law decay with stability as the time constant
-    const float w = 0.95f;  // Decay sharpness
+    const float w = 0.95f; // Decay sharpness
     float r = powf(1.0f + days_elapsed / (9.0f * stability), -1.0f / w);
 
     return fminf(fmaxf(r, 0.0f), 1.0f);
@@ -102,26 +103,23 @@ static float fsrs_new_stability(float S, float D, float R, int quality, int laps
     float k = FSRS_K_FACTOR;
     float base = 11.0f;
 
-    float stability = S *
-        (powf(base, D) - 1.0f) *
-        expf(k * (1.0f - R)) *
-        expf(0.2f * S) *
-        expf(-0.1f * (float)lapses);
+    float stability = S * (powf(base, D) - 1.0f) * expf(k * (1.0f - R)) * expf(0.2f * S) *
+                      expf(-0.1f * (float)lapses);
 
     // Quality modifiers
     switch (quality) {
-        case QUALITY_HARD:
-            stability *= 0.6f;
-            break;
-        case QUALITY_OKAY:
-            stability *= 0.85f;
-            break;
-        case QUALITY_GOOD:
-            // No modifier
-            break;
-        case QUALITY_PERFECT:
-            stability *= 1.3f;
-            break;
+    case QUALITY_HARD:
+        stability *= 0.6f;
+        break;
+    case QUALITY_OKAY:
+        stability *= 0.85f;
+        break;
+    case QUALITY_GOOD:
+        // No modifier
+        break;
+    case QUALITY_PERFECT:
+        stability *= 1.3f;
+        break;
     }
 
     // Clamp to reasonable bounds (1 hour to 3 years)
@@ -135,21 +133,21 @@ static float fsrs_new_difficulty(float D, int quality) {
     float delta = 0.0f;
 
     switch (quality) {
-        case QUALITY_FORGOT:
-            delta = 0.1f;  // Harder
-            break;
-        case QUALITY_HARD:
-            delta = 0.05f;
-            break;
-        case QUALITY_OKAY:
-            delta = 0.0f;
-            break;
-        case QUALITY_GOOD:
-            delta = -0.03f;
-            break;
-        case QUALITY_PERFECT:
-            delta = -0.07f;  // Easier
-            break;
+    case QUALITY_FORGOT:
+        delta = 0.1f; // Harder
+        break;
+    case QUALITY_HARD:
+        delta = 0.05f;
+        break;
+    case QUALITY_OKAY:
+        delta = 0.0f;
+        break;
+    case QUALITY_GOOD:
+        delta = -0.03f;
+        break;
+    case QUALITY_PERFECT:
+        delta = -0.07f; // Easier
+        break;
     }
 
     // Mean reversion toward 0.3
@@ -171,8 +169,10 @@ static int fsrs_next_interval(float stability, float desired_retention) {
 
     // Minimum 1 hour, maximum 365 days
     int hours = (int)(days * 24.0f);
-    if (hours < 1) hours = 1;
-    if (hours > 365 * 24) hours = 365 * 24;
+    if (hours < 1)
+        hours = 1;
+    if (hours > 365 * 24)
+        hours = 365 * 24;
 
     return hours;
 }
@@ -185,26 +185,26 @@ static int fsrs_next_interval(float stability, float desired_retention) {
  * Create FSRS tables if they don't exist
  */
 int fsrs_init_db(void) {
-    if (!g_edu_db) return -1;
+    if (!g_edu_db)
+        return -1;
 
-    const char* sql =
-        "CREATE TABLE IF NOT EXISTS fsrs_cards ("
-        "  id INTEGER PRIMARY KEY AUTOINCREMENT,"
-        "  student_id INTEGER NOT NULL,"
-        "  topic_id TEXT NOT NULL,"
-        "  front TEXT NOT NULL,"
-        "  back TEXT NOT NULL,"
-        "  stability REAL DEFAULT 1.0,"
-        "  difficulty REAL DEFAULT 0.3,"
-        "  reps INTEGER DEFAULT 0,"
-        "  lapses INTEGER DEFAULT 0,"
-        "  last_review INTEGER,"
-        "  next_review INTEGER,"
-        "  created_at INTEGER DEFAULT (strftime('%s', 'now')),"
-        "  FOREIGN KEY (student_id) REFERENCES student_profiles(id)"
-        ");"
-        "CREATE INDEX IF NOT EXISTS idx_fsrs_student ON fsrs_cards(student_id);"
-        "CREATE INDEX IF NOT EXISTS idx_fsrs_next ON fsrs_cards(next_review);";
+    const char* sql = "CREATE TABLE IF NOT EXISTS fsrs_cards ("
+                      "  id INTEGER PRIMARY KEY AUTOINCREMENT,"
+                      "  student_id INTEGER NOT NULL,"
+                      "  topic_id TEXT NOT NULL,"
+                      "  front TEXT NOT NULL,"
+                      "  back TEXT NOT NULL,"
+                      "  stability REAL DEFAULT 1.0,"
+                      "  difficulty REAL DEFAULT 0.3,"
+                      "  reps INTEGER DEFAULT 0,"
+                      "  lapses INTEGER DEFAULT 0,"
+                      "  last_review INTEGER,"
+                      "  next_review INTEGER,"
+                      "  created_at INTEGER DEFAULT (strftime('%s', 'now')),"
+                      "  FOREIGN KEY (student_id) REFERENCES student_profiles(id)"
+                      ");"
+                      "CREATE INDEX IF NOT EXISTS idx_fsrs_student ON fsrs_cards(student_id);"
+                      "CREATE INDEX IF NOT EXISTS idx_fsrs_next ON fsrs_cards(next_review);";
 
     char* err = NULL;
     if (sqlite3_exec(g_edu_db, sql, NULL, NULL, &err) != SQLITE_OK) {
@@ -219,13 +219,13 @@ int fsrs_init_db(void) {
 /**
  * Add a new flashcard for spaced repetition
  */
-int64_t fsrs_add_card(int64_t student_id, const char* topic_id,
-                       const char* front, const char* back) {
-    if (!g_edu_db || !topic_id || !front || !back) return -1;
+int64_t fsrs_add_card(int64_t student_id, const char* topic_id, const char* front,
+                      const char* back) {
+    if (!g_edu_db || !topic_id || !front || !back)
+        return -1;
 
-    const char* sql =
-        "INSERT INTO fsrs_cards (student_id, topic_id, front, back, next_review) "
-        "VALUES (?, ?, ?, ?, strftime('%s', 'now'))";
+    const char* sql = "INSERT INTO fsrs_cards (student_id, topic_id, front, back, next_review) "
+                      "VALUES (?, ?, ?, ?, strftime('%s', 'now'))";
 
     sqlite3_stmt* stmt;
     if (sqlite3_prepare_v2(g_edu_db, sql, -1, &stmt, NULL) != SQLITE_OK) {
@@ -250,10 +250,12 @@ int64_t fsrs_add_card(int64_t student_id, const char* topic_id,
  * Get cards due for review
  */
 FSRSCardList* fsrs_get_due_cards(int64_t student_id, int limit) {
-    if (!g_edu_db) return NULL;
+    if (!g_edu_db)
+        return NULL;
 
     FSRSCardList* list = calloc(1, sizeof(FSRSCardList));
-    if (!list) return NULL;
+    if (!list)
+        return NULL;
 
     list->capacity = limit > 0 ? limit : 20;
     list->cards = calloc(list->capacity, sizeof(FSRSCard));
@@ -262,13 +264,12 @@ FSRSCardList* fsrs_get_due_cards(int64_t student_id, int limit) {
         return NULL;
     }
 
-    const char* sql =
-        "SELECT id, student_id, topic_id, front, back, stability, difficulty, "
-        "       reps, lapses, last_review, next_review, created_at "
-        "FROM fsrs_cards "
-        "WHERE student_id = ? AND next_review <= strftime('%s', 'now') "
-        "ORDER BY next_review ASC "
-        "LIMIT ?";
+    const char* sql = "SELECT id, student_id, topic_id, front, back, stability, difficulty, "
+                      "       reps, lapses, last_review, next_review, created_at "
+                      "FROM fsrs_cards "
+                      "WHERE student_id = ? AND next_review <= strftime('%s', 'now') "
+                      "ORDER BY next_review ASC "
+                      "LIMIT ?";
 
     sqlite3_stmt* stmt;
     if (sqlite3_prepare_v2(g_edu_db, sql, -1, &stmt, NULL) != SQLITE_OK) {
@@ -314,12 +315,12 @@ FSRSCardList* fsrs_get_due_cards(int64_t student_id, int limit) {
  * Record a review and update card scheduling
  */
 int fsrs_record_review(int64_t card_id, int quality) {
-    if (!g_edu_db || quality < 1 || quality > 5) return -1;
+    if (!g_edu_db || quality < 1 || quality > 5)
+        return -1;
 
     // Get current card state
-    const char* sql_get =
-        "SELECT stability, difficulty, reps, lapses, last_review "
-        "FROM fsrs_cards WHERE id = ?";
+    const char* sql_get = "SELECT stability, difficulty, reps, lapses, last_review "
+                          "FROM fsrs_cards WHERE id = ?";
 
     sqlite3_stmt* stmt;
     if (sqlite3_prepare_v2(g_edu_db, sql_get, -1, &stmt, NULL) != SQLITE_OK) {
@@ -345,8 +346,7 @@ int fsrs_record_review(int64_t card_id, int quality) {
 
     // Calculate days elapsed since last review
     time_t now = time(NULL);
-    float days_elapsed = last_review > 0 ?
-        (float)(now - last_review) / (24.0f * 3600.0f) : 0.0f;
+    float days_elapsed = last_review > 0 ? (float)(now - last_review) / (24.0f * 3600.0f) : 0.0f;
 
     // Calculate current retrievability
     float R = fsrs_retrievability(S, days_elapsed);
@@ -366,11 +366,10 @@ int fsrs_record_review(int64_t card_id, int quality) {
     time_t next_review = now + hours_until_next * 3600;
 
     // Update database
-    const char* sql_update =
-        "UPDATE fsrs_cards SET "
-        "  stability = ?, difficulty = ?, reps = ?, lapses = ?, "
-        "  last_review = ?, next_review = ? "
-        "WHERE id = ?";
+    const char* sql_update = "UPDATE fsrs_cards SET "
+                             "  stability = ?, difficulty = ?, reps = ?, lapses = ?, "
+                             "  last_review = ?, next_review = ? "
+                             "WHERE id = ?";
 
     if (sqlite3_prepare_v2(g_edu_db, sql_update, -1, &stmt, NULL) != SQLITE_OK) {
         return -1;
@@ -394,7 +393,8 @@ int fsrs_record_review(int64_t card_id, int quality) {
  * Free card list memory
  */
 void fsrs_free_cards(FSRSCardList* list) {
-    if (!list) return;
+    if (!list)
+        return;
 
     for (int i = 0; i < list->count; i++) {
         free(list->cards[i].topic_id);
@@ -415,7 +415,7 @@ void fsrs_free_cards(FSRSCardList* list) {
 typedef struct {
     int total_cards;
     int cards_due;
-    int cards_mastered;  // stability > 30 days
+    int cards_mastered; // stability > 30 days
     float avg_stability;
     float avg_difficulty;
     int streak_days;
@@ -424,18 +424,18 @@ typedef struct {
 
 FSRSStats fsrs_get_stats(int64_t student_id) {
     FSRSStats stats = {0};
-    if (!g_edu_db) return stats;
+    if (!g_edu_db)
+        return stats;
 
     // Get card counts and averages
-    const char* sql =
-        "SELECT "
-        "  COUNT(*), "
-        "  SUM(CASE WHEN next_review <= strftime('%s', 'now') THEN 1 ELSE 0 END), "
-        "  SUM(CASE WHEN stability > 30 THEN 1 ELSE 0 END), "
-        "  AVG(stability), "
-        "  AVG(difficulty), "
-        "  MAX(last_review) "
-        "FROM fsrs_cards WHERE student_id = ?";
+    const char* sql = "SELECT "
+                      "  COUNT(*), "
+                      "  SUM(CASE WHEN next_review <= strftime('%s', 'now') THEN 1 ELSE 0 END), "
+                      "  SUM(CASE WHEN stability > 30 THEN 1 ELSE 0 END), "
+                      "  AVG(stability), "
+                      "  AVG(difficulty), "
+                      "  MAX(last_review) "
+                      "FROM fsrs_cards WHERE student_id = ?";
 
     sqlite3_stmt* stmt;
     if (sqlite3_prepare_v2(g_edu_db, sql, -1, &stmt, NULL) == SQLITE_OK) {
@@ -472,10 +472,10 @@ FSRSStats fsrs_get_stats(int64_t student_id) {
  * Get predicted retention for all cards
  */
 float fsrs_predicted_retention(int64_t student_id) {
-    if (!g_edu_db) return 0.0f;
+    if (!g_edu_db)
+        return 0.0f;
 
-    const char* sql =
-        "SELECT stability, last_review FROM fsrs_cards WHERE student_id = ?";
+    const char* sql = "SELECT stability, last_review FROM fsrs_cards WHERE student_id = ?";
 
     sqlite3_stmt* stmt;
     if (sqlite3_prepare_v2(g_edu_db, sql, -1, &stmt, NULL) != SQLITE_OK) {
@@ -492,8 +492,7 @@ float fsrs_predicted_retention(int64_t student_id) {
         float stability = (float)sqlite3_column_double(stmt, 0);
         time_t last_review = sqlite3_column_int64(stmt, 1);
 
-        float days = last_review > 0 ?
-            (float)(now - last_review) / (24.0f * 3600.0f) : 0.0f;
+        float days = last_review > 0 ? (float)(now - last_review) / (24.0f * 3600.0f) : 0.0f;
 
         total_R += fsrs_retrievability(stability, days);
         count++;

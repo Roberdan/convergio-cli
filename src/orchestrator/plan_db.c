@@ -5,19 +5,19 @@
  */
 
 #include "nous/plan_db.h"
-#include "nous/nous.h"
 #include "nous/debug_mutex.h"
+#include "nous/nous.h"
 #include "nous/safe_path.h"
-#include <stdio.h>
 #include <fcntl.h>
+#include <limits.h>
+#include <pthread.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
-#include <sys/stat.h>
 #include <sys/param.h>
-#include <limits.h>
+#include <sys/stat.h>
+#include <unistd.h>
 #include <uuid/uuid.h>
-#include <pthread.h>
 
 // ============================================================================
 // CONSTANTS
@@ -48,43 +48,67 @@ static void generate_uuid(char* out) {
 
 static const char* status_to_string(PlanStatus status) {
     switch (status) {
-        case PLAN_STATUS_PENDING: return "pending";
-        case PLAN_STATUS_ACTIVE: return "active";
-        case PLAN_STATUS_COMPLETED: return "completed";
-        case PLAN_STATUS_FAILED: return "failed";
-        case PLAN_STATUS_CANCELLED: return "cancelled";
-        default: return "unknown";
+    case PLAN_STATUS_PENDING:
+        return "pending";
+    case PLAN_STATUS_ACTIVE:
+        return "active";
+    case PLAN_STATUS_COMPLETED:
+        return "completed";
+    case PLAN_STATUS_FAILED:
+        return "failed";
+    case PLAN_STATUS_CANCELLED:
+        return "cancelled";
+    default:
+        return "unknown";
     }
 }
 
 static PlanStatus string_to_status(const char* str) {
-    if (!str) return PLAN_STATUS_PENDING;
-    if (strcmp(str, "active") == 0) return PLAN_STATUS_ACTIVE;
-    if (strcmp(str, "completed") == 0) return PLAN_STATUS_COMPLETED;
-    if (strcmp(str, "failed") == 0) return PLAN_STATUS_FAILED;
-    if (strcmp(str, "cancelled") == 0) return PLAN_STATUS_CANCELLED;
+    if (!str)
+        return PLAN_STATUS_PENDING;
+    if (strcmp(str, "active") == 0)
+        return PLAN_STATUS_ACTIVE;
+    if (strcmp(str, "completed") == 0)
+        return PLAN_STATUS_COMPLETED;
+    if (strcmp(str, "failed") == 0)
+        return PLAN_STATUS_FAILED;
+    if (strcmp(str, "cancelled") == 0)
+        return PLAN_STATUS_CANCELLED;
     return PLAN_STATUS_PENDING;
 }
 
 static const char* task_status_to_string(TaskDbStatus status) {
     switch (status) {
-        case TASK_DB_STATUS_PENDING: return "pending";
-        case TASK_DB_STATUS_IN_PROGRESS: return "in_progress";
-        case TASK_DB_STATUS_COMPLETED: return "completed";
-        case TASK_DB_STATUS_FAILED: return "failed";
-        case TASK_DB_STATUS_BLOCKED: return "blocked";
-        case TASK_DB_STATUS_SKIPPED: return "skipped";
-        default: return "unknown";
+    case TASK_DB_STATUS_PENDING:
+        return "pending";
+    case TASK_DB_STATUS_IN_PROGRESS:
+        return "in_progress";
+    case TASK_DB_STATUS_COMPLETED:
+        return "completed";
+    case TASK_DB_STATUS_FAILED:
+        return "failed";
+    case TASK_DB_STATUS_BLOCKED:
+        return "blocked";
+    case TASK_DB_STATUS_SKIPPED:
+        return "skipped";
+    default:
+        return "unknown";
     }
 }
 
 static TaskDbStatus string_to_task_status(const char* str) {
-    if (!str) return TASK_DB_STATUS_PENDING;
-    if (strcmp(str, "in_progress") == 0) return TASK_DB_STATUS_IN_PROGRESS;
-    if (strcmp(str, "completed") == 0) return TASK_DB_STATUS_COMPLETED;
-    if (strcmp(str, "failed") == 0) return TASK_DB_STATUS_FAILED;
-    if (strcmp(str, "blocked") == 0) return TASK_DB_STATUS_BLOCKED;
-    if (strcmp(str, "skipped") == 0) return TASK_DB_STATUS_SKIPPED;
+    if (!str)
+        return TASK_DB_STATUS_PENDING;
+    if (strcmp(str, "in_progress") == 0)
+        return TASK_DB_STATUS_IN_PROGRESS;
+    if (strcmp(str, "completed") == 0)
+        return TASK_DB_STATUS_COMPLETED;
+    if (strcmp(str, "failed") == 0)
+        return TASK_DB_STATUS_FAILED;
+    if (strcmp(str, "blocked") == 0)
+        return TASK_DB_STATUS_BLOCKED;
+    if (strcmp(str, "skipped") == 0)
+        return TASK_DB_STATUS_SKIPPED;
     return TASK_DB_STATUS_PENDING;
 }
 
@@ -93,32 +117,55 @@ static char* safe_strdup(const char* str) {
 }
 
 static char* json_escape_string(const char* str) {
-    if (!str) return strdup("");
+    if (!str)
+        return strdup("");
 
     // Calculate needed size (worst case: every char needs escape)
     size_t len = strlen(str);
     size_t needed = len * 2 + 1;
     char* escaped = malloc(needed);
-    if (!escaped) return strdup("");
+    if (!escaped)
+        return strdup("");
 
     char* out = escaped;
     for (const char* p = str; *p; p++) {
         switch (*p) {
-            case '"':  *out++ = '\\'; *out++ = '"'; break;
-            case '\\': *out++ = '\\'; *out++ = '\\'; break;
-            case '\n': *out++ = '\\'; *out++ = 'n'; break;
-            case '\r': *out++ = '\\'; *out++ = 'r'; break;
-            case '\t': *out++ = '\\'; *out++ = 't'; break;
-            case '\b': *out++ = '\\'; *out++ = 'b'; break;
-            case '\f': *out++ = '\\'; *out++ = 'f'; break;
-            default:
-                if ((unsigned char)*p < 32) {
-                    // Control character - use \u00XX format
-                    out += snprintf(out, 7, "\\u%04x", (unsigned char)*p);
-                } else {
-                    *out++ = *p;
-                }
-                break;
+        case '"':
+            *out++ = '\\';
+            *out++ = '"';
+            break;
+        case '\\':
+            *out++ = '\\';
+            *out++ = '\\';
+            break;
+        case '\n':
+            *out++ = '\\';
+            *out++ = 'n';
+            break;
+        case '\r':
+            *out++ = '\\';
+            *out++ = 'r';
+            break;
+        case '\t':
+            *out++ = '\\';
+            *out++ = 't';
+            break;
+        case '\b':
+            *out++ = '\\';
+            *out++ = 'b';
+            break;
+        case '\f':
+            *out++ = '\\';
+            *out++ = 'f';
+            break;
+        default:
+            if ((unsigned char)*p < 32) {
+                // Control character - use \u00XX format
+                out += snprintf(out, 7, "\\u%04x", (unsigned char)*p);
+            } else {
+                *out++ = *p;
+            }
+            break;
         }
     }
     *out = '\0';
@@ -139,7 +186,8 @@ static const char* SCHEMA_SQL =
     "    id TEXT PRIMARY KEY,\n"
     "    description TEXT NOT NULL,\n"
     "    context TEXT,\n"
-    "    status TEXT DEFAULT 'pending' CHECK(status IN ('pending','active','completed','failed','cancelled')),\n"
+    "    status TEXT DEFAULT 'pending' CHECK(status IN "
+    "('pending','active','completed','failed','cancelled')),\n"
     "    created_at INTEGER DEFAULT (strftime('%s','now')),\n"
     "    updated_at INTEGER DEFAULT (strftime('%s','now')),\n"
     "    completed_at INTEGER\n"
@@ -151,7 +199,8 @@ static const char* SCHEMA_SQL =
     "    parent_task_id TEXT REFERENCES tasks(id) ON DELETE CASCADE,\n"
     "    description TEXT NOT NULL,\n"
     "    assigned_agent TEXT,\n"
-    "    status TEXT DEFAULT 'pending' CHECK(status IN ('pending','in_progress','completed','failed','blocked','skipped')),\n"
+    "    status TEXT DEFAULT 'pending' CHECK(status IN "
+    "('pending','in_progress','completed','failed','blocked','skipped')),\n"
     "    priority INTEGER DEFAULT 50 CHECK(priority >= 0 AND priority <= 100),\n"
     "    created_at INTEGER DEFAULT (strftime('%s','now')),\n"
     "    started_at INTEGER,\n"
@@ -190,7 +239,8 @@ PlanDbError plan_db_init(const char* db_path) {
         snprintf(g_db_path, sizeof(g_db_path), "%s", db_path);
     } else {
         const char* home = getenv("HOME");
-        if (!home) home = "/tmp";
+        if (!home)
+            home = "/tmp";
         snprintf(g_db_path, sizeof(g_db_path), "%s/.convergio/plans.db", home);
 
         // Create directory if needed
@@ -200,9 +250,8 @@ PlanDbError plan_db_init(const char* db_path) {
     }
 
     // Open database
-    int rc = sqlite3_open_v2(g_db_path, &g_db,
-                              SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE |
-                              SQLITE_OPEN_FULLMUTEX, NULL);
+    int rc = sqlite3_open_v2(
+        g_db_path, &g_db, SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE | SQLITE_OPEN_FULLMUTEX, NULL);
     if (rc != SQLITE_OK) {
         LOG_ERROR(LOG_CAT_SYSTEM, "[plan_db] Failed to open database: %s", sqlite3_errmsg(g_db));
         CONVERGIO_MUTEX_UNLOCK(&g_db_mutex);
@@ -252,15 +301,18 @@ sqlite3* plan_db_get_handle(void) {
 // ============================================================================
 
 PlanDbError plan_db_create_plan(const char* description, const char* context, char* out_id) {
-    if (!g_initialized || !description || !out_id) return PLAN_DB_ERROR_INVALID;
+    if (!g_initialized || !description || !out_id)
+        return PLAN_DB_ERROR_INVALID;
 
     generate_uuid(out_id);
 
-    const char* sql = "INSERT INTO plans (id, description, context, status) VALUES (?, ?, ?, 'pending')";
+    const char* sql =
+        "INSERT INTO plans (id, description, context, status) VALUES (?, ?, ?, 'pending')";
     sqlite3_stmt* stmt;
 
     int rc = sqlite3_prepare_v2(g_db, sql, -1, &stmt, NULL);
-    if (rc != SQLITE_OK) return PLAN_DB_ERROR_IO;
+    if (rc != SQLITE_OK)
+        return PLAN_DB_ERROR_IO;
 
     sqlite3_bind_text(stmt, 1, out_id, -1, SQLITE_STATIC);
     sqlite3_bind_text(stmt, 2, description, -1, SQLITE_STATIC);
@@ -273,20 +325,24 @@ PlanDbError plan_db_create_plan(const char* description, const char* context, ch
 }
 
 PlanDbError plan_db_get_plan(const char* plan_id, PlanRecord* out_plan) {
-    if (!g_initialized || !plan_id || !out_plan) return PLAN_DB_ERROR_INVALID;
+    if (!g_initialized || !plan_id || !out_plan)
+        return PLAN_DB_ERROR_INVALID;
 
     memset(out_plan, 0, sizeof(PlanRecord));
 
     const char* sql =
-        "SELECT p.id, p.description, p.context, p.status, p.created_at, p.updated_at, p.completed_at, "
+        "SELECT p.id, p.description, p.context, p.status, p.created_at, p.updated_at, "
+        "p.completed_at, "
         "       (SELECT COUNT(*) FROM tasks WHERE plan_id = p.id) as total, "
-        "       (SELECT COUNT(*) FROM tasks WHERE plan_id = p.id AND status = 'completed') as completed, "
+        "       (SELECT COUNT(*) FROM tasks WHERE plan_id = p.id AND status = 'completed') as "
+        "completed, "
         "       (SELECT COUNT(*) FROM tasks WHERE plan_id = p.id AND status = 'failed') as failed "
         "FROM plans p WHERE p.id = ?";
 
     sqlite3_stmt* stmt;
     int rc = sqlite3_prepare_v2(g_db, sql, -1, &stmt, NULL);
-    if (rc != SQLITE_OK) return PLAN_DB_ERROR_IO;
+    if (rc != SQLITE_OK)
+        return PLAN_DB_ERROR_IO;
 
     sqlite3_bind_text(stmt, 1, plan_id, -1, SQLITE_STATIC);
 
@@ -308,7 +364,8 @@ PlanDbError plan_db_get_plan(const char* plan_id, PlanRecord* out_plan) {
     out_plan->failed_tasks = sqlite3_column_int(stmt, 9);
 
     if (out_plan->total_tasks > 0) {
-        out_plan->progress_percent = (double)out_plan->completed_tasks / out_plan->total_tasks * 100.0;
+        out_plan->progress_percent =
+            (double)out_plan->completed_tasks / out_plan->total_tasks * 100.0;
     }
 
     sqlite3_finalize(stmt);
@@ -316,10 +373,12 @@ PlanDbError plan_db_get_plan(const char* plan_id, PlanRecord* out_plan) {
 }
 
 PlanDbError plan_db_update_plan_status(const char* plan_id, PlanStatus status) {
-    if (!g_initialized || !plan_id) return PLAN_DB_ERROR_INVALID;
+    if (!g_initialized || !plan_id)
+        return PLAN_DB_ERROR_INVALID;
 
     const char* sql;
-    if (status == PLAN_STATUS_COMPLETED || status == PLAN_STATUS_FAILED || status == PLAN_STATUS_CANCELLED) {
+    if (status == PLAN_STATUS_COMPLETED || status == PLAN_STATUS_FAILED ||
+        status == PLAN_STATUS_CANCELLED) {
         sql = "UPDATE plans SET status = ?, completed_at = strftime('%s','now') WHERE id = ?";
     } else {
         sql = "UPDATE plans SET status = ? WHERE id = ?";
@@ -327,7 +386,8 @@ PlanDbError plan_db_update_plan_status(const char* plan_id, PlanStatus status) {
 
     sqlite3_stmt* stmt;
     int rc = sqlite3_prepare_v2(g_db, sql, -1, &stmt, NULL);
-    if (rc != SQLITE_OK) return PLAN_DB_ERROR_IO;
+    if (rc != SQLITE_OK)
+        return PLAN_DB_ERROR_IO;
 
     sqlite3_bind_text(stmt, 1, status_to_string(status), -1, SQLITE_STATIC);
     sqlite3_bind_text(stmt, 2, plan_id, -1, SQLITE_STATIC);
@@ -335,51 +395,59 @@ PlanDbError plan_db_update_plan_status(const char* plan_id, PlanStatus status) {
     rc = sqlite3_step(stmt);
     sqlite3_finalize(stmt);
 
-    if (rc != SQLITE_DONE) return PLAN_DB_ERROR_IO;
-    if (sqlite3_changes(g_db) == 0) return PLAN_DB_ERROR_NOT_FOUND;
+    if (rc != SQLITE_DONE)
+        return PLAN_DB_ERROR_IO;
+    if (sqlite3_changes(g_db) == 0)
+        return PLAN_DB_ERROR_NOT_FOUND;
 
     return PLAN_DB_OK;
 }
 
 PlanDbError plan_db_delete_plan(const char* plan_id) {
-    if (!g_initialized || !plan_id) return PLAN_DB_ERROR_INVALID;
+    if (!g_initialized || !plan_id)
+        return PLAN_DB_ERROR_INVALID;
 
     const char* sql = "DELETE FROM plans WHERE id = ?";
     sqlite3_stmt* stmt;
 
     int rc = sqlite3_prepare_v2(g_db, sql, -1, &stmt, NULL);
-    if (rc != SQLITE_OK) return PLAN_DB_ERROR_IO;
+    if (rc != SQLITE_OK)
+        return PLAN_DB_ERROR_IO;
 
     sqlite3_bind_text(stmt, 1, plan_id, -1, SQLITE_STATIC);
     rc = sqlite3_step(stmt);
     sqlite3_finalize(stmt);
 
-    if (rc != SQLITE_DONE) return PLAN_DB_ERROR_IO;
-    if (sqlite3_changes(g_db) == 0) return PLAN_DB_ERROR_NOT_FOUND;
+    if (rc != SQLITE_DONE)
+        return PLAN_DB_ERROR_IO;
+    if (sqlite3_changes(g_db) == 0)
+        return PLAN_DB_ERROR_NOT_FOUND;
 
     return PLAN_DB_OK;
 }
 
-PlanDbError plan_db_list_plans(int status, int limit, int offset,
-                                PlanRecord* out_plans, int max_plans, int* out_count) {
-    if (!g_initialized || !out_plans || !out_count) return PLAN_DB_ERROR_INVALID;
+PlanDbError plan_db_list_plans(int status, int limit, int offset, PlanRecord* out_plans,
+                               int max_plans, int* out_count) {
+    if (!g_initialized || !out_plans || !out_count)
+        return PLAN_DB_ERROR_INVALID;
 
     *out_count = 0;
 
     char sql[512];
     if (status >= 0) {
         snprintf(sql, sizeof(sql),
-            "SELECT id, description, context, status, created_at, updated_at, completed_at "
-            "FROM plans WHERE status = ? ORDER BY updated_at DESC LIMIT ? OFFSET ?");
+                 "SELECT id, description, context, status, created_at, updated_at, completed_at "
+                 "FROM plans WHERE status = ? ORDER BY updated_at DESC LIMIT ? OFFSET ?");
     } else {
         snprintf(sql, sizeof(sql),
-            "SELECT id, description, context, status, created_at, updated_at, completed_at "
-            "FROM plans ORDER BY updated_at DESC LIMIT ? OFFSET ?");
+                 "SELECT id, description, context, status, created_at, updated_at, completed_at "
+                 "FROM plans ORDER BY updated_at DESC LIMIT ? OFFSET ?");
     }
 
     sqlite3_stmt* stmt;
     int rc = sqlite3_prepare_v2(g_db, sql, -1, &stmt, NULL);
-    if (rc != SQLITE_OK) return PLAN_DB_ERROR_IO;
+    if (rc != SQLITE_OK)
+        return PLAN_DB_ERROR_IO;
 
     int param = 1;
     if (status >= 0) {
@@ -410,7 +478,8 @@ PlanDbError plan_db_list_plans(int status, int limit, int offset,
 }
 
 PlanDbError plan_db_get_active_plan(PlanRecord* out_plan) {
-    if (!g_initialized || !out_plan) return PLAN_DB_ERROR_INVALID;
+    if (!g_initialized || !out_plan)
+        return PLAN_DB_ERROR_INVALID;
 
     memset(out_plan, 0, sizeof(PlanRecord));
 
@@ -419,7 +488,8 @@ PlanDbError plan_db_get_active_plan(PlanRecord* out_plan) {
 
     sqlite3_stmt* stmt;
     int rc = sqlite3_prepare_v2(g_db, sql, -1, &stmt, NULL);
-    if (rc != SQLITE_OK) return PLAN_DB_ERROR_IO;
+    if (rc != SQLITE_OK)
+        return PLAN_DB_ERROR_IO;
 
     rc = sqlite3_step(stmt);
     if (rc != SQLITE_ROW) {
@@ -440,9 +510,10 @@ PlanDbError plan_db_get_active_plan(PlanRecord* out_plan) {
 // ============================================================================
 
 PlanDbError plan_db_add_task(const char* plan_id, const char* description,
-                              const char* assigned_agent, int priority,
-                              const char* parent_task_id, char* out_id) {
-    if (!g_initialized || !plan_id || !description || !out_id) return PLAN_DB_ERROR_INVALID;
+                             const char* assigned_agent, int priority, const char* parent_task_id,
+                             char* out_id) {
+    if (!g_initialized || !plan_id || !description || !out_id)
+        return PLAN_DB_ERROR_INVALID;
 
     generate_uuid(out_id);
 
@@ -452,7 +523,8 @@ PlanDbError plan_db_add_task(const char* plan_id, const char* description,
 
     sqlite3_stmt* stmt;
     int rc = sqlite3_prepare_v2(g_db, sql, -1, &stmt, NULL);
-    if (rc != SQLITE_OK) return PLAN_DB_ERROR_IO;
+    if (rc != SQLITE_OK)
+        return PLAN_DB_ERROR_IO;
 
     sqlite3_bind_text(stmt, 1, out_id, -1, SQLITE_STATIC);
     sqlite3_bind_text(stmt, 2, plan_id, -1, SQLITE_STATIC);
@@ -464,12 +536,14 @@ PlanDbError plan_db_add_task(const char* plan_id, const char* description,
     rc = sqlite3_step(stmt);
     sqlite3_finalize(stmt);
 
-    if (rc == SQLITE_CONSTRAINT) return PLAN_DB_ERROR_CONSTRAINT;
+    if (rc == SQLITE_CONSTRAINT)
+        return PLAN_DB_ERROR_CONSTRAINT;
     return (rc == SQLITE_DONE) ? PLAN_DB_OK : PLAN_DB_ERROR_IO;
 }
 
 PlanDbError plan_db_get_task(const char* task_id, TaskRecord* out_task) {
-    if (!g_initialized || !task_id || !out_task) return PLAN_DB_ERROR_INVALID;
+    if (!g_initialized || !task_id || !out_task)
+        return PLAN_DB_ERROR_INVALID;
 
     memset(out_task, 0, sizeof(TaskRecord));
 
@@ -480,7 +554,8 @@ PlanDbError plan_db_get_task(const char* task_id, TaskRecord* out_task) {
 
     sqlite3_stmt* stmt;
     int rc = sqlite3_prepare_v2(g_db, sql, -1, &stmt, NULL);
-    if (rc != SQLITE_OK) return PLAN_DB_ERROR_IO;
+    if (rc != SQLITE_OK)
+        return PLAN_DB_ERROR_IO;
 
     sqlite3_bind_text(stmt, 1, task_id, -1, SQLITE_STATIC);
 
@@ -491,10 +566,12 @@ PlanDbError plan_db_get_task(const char* task_id, TaskRecord* out_task) {
     }
 
     strncpy(out_task->id, (const char*)sqlite3_column_text(stmt, 0), sizeof(out_task->id) - 1);
-    strncpy(out_task->plan_id, (const char*)sqlite3_column_text(stmt, 1), sizeof(out_task->plan_id) - 1);
+    strncpy(out_task->plan_id, (const char*)sqlite3_column_text(stmt, 1),
+            sizeof(out_task->plan_id) - 1);
 
     const char* parent = (const char*)sqlite3_column_text(stmt, 2);
-    if (parent) strncpy(out_task->parent_task_id, parent, sizeof(out_task->parent_task_id) - 1);
+    if (parent)
+        strncpy(out_task->parent_task_id, parent, sizeof(out_task->parent_task_id) - 1);
 
     out_task->description = safe_strdup((const char*)sqlite3_column_text(stmt, 3));
     out_task->assigned_agent = safe_strdup((const char*)sqlite3_column_text(stmt, 4));
@@ -512,16 +589,18 @@ PlanDbError plan_db_get_task(const char* task_id, TaskRecord* out_task) {
 }
 
 PlanDbError plan_db_claim_task(const char* task_id, const char* agent) {
-    if (!g_initialized || !task_id || !agent) return PLAN_DB_ERROR_INVALID;
+    if (!g_initialized || !task_id || !agent)
+        return PLAN_DB_ERROR_INVALID;
 
     // Atomic claim: only update if status is pending
-    const char* sql =
-        "UPDATE tasks SET status = 'in_progress', assigned_agent = ?, started_at = strftime('%s','now') "
-        "WHERE id = ? AND status = 'pending'";
+    const char* sql = "UPDATE tasks SET status = 'in_progress', assigned_agent = ?, started_at = "
+                      "strftime('%s','now') "
+                      "WHERE id = ? AND status = 'pending'";
 
     sqlite3_stmt* stmt;
     int rc = sqlite3_prepare_v2(g_db, sql, -1, &stmt, NULL);
-    if (rc != SQLITE_OK) return PLAN_DB_ERROR_IO;
+    if (rc != SQLITE_OK)
+        return PLAN_DB_ERROR_IO;
 
     sqlite3_bind_text(stmt, 1, agent, -1, SQLITE_STATIC);
     sqlite3_bind_text(stmt, 2, task_id, -1, SQLITE_STATIC);
@@ -529,14 +608,17 @@ PlanDbError plan_db_claim_task(const char* task_id, const char* agent) {
     rc = sqlite3_step(stmt);
     sqlite3_finalize(stmt);
 
-    if (rc != SQLITE_DONE) return PLAN_DB_ERROR_IO;
-    if (sqlite3_changes(g_db) == 0) return PLAN_DB_ERROR_BUSY; // Already claimed or not found
+    if (rc != SQLITE_DONE)
+        return PLAN_DB_ERROR_IO;
+    if (sqlite3_changes(g_db) == 0)
+        return PLAN_DB_ERROR_BUSY; // Already claimed or not found
 
     return PLAN_DB_OK;
 }
 
 PlanDbError plan_db_complete_task(const char* task_id, const char* output) {
-    if (!g_initialized || !task_id) return PLAN_DB_ERROR_INVALID;
+    if (!g_initialized || !task_id)
+        return PLAN_DB_ERROR_INVALID;
 
     const char* sql =
         "UPDATE tasks SET status = 'completed', output = ?, completed_at = strftime('%s','now') "
@@ -544,7 +626,8 @@ PlanDbError plan_db_complete_task(const char* task_id, const char* output) {
 
     sqlite3_stmt* stmt;
     int rc = sqlite3_prepare_v2(g_db, sql, -1, &stmt, NULL);
-    if (rc != SQLITE_OK) return PLAN_DB_ERROR_IO;
+    if (rc != SQLITE_OK)
+        return PLAN_DB_ERROR_IO;
 
     sqlite3_bind_text(stmt, 1, output, -1, SQLITE_STATIC);
     sqlite3_bind_text(stmt, 2, task_id, -1, SQLITE_STATIC);
@@ -552,14 +635,17 @@ PlanDbError plan_db_complete_task(const char* task_id, const char* output) {
     rc = sqlite3_step(stmt);
     sqlite3_finalize(stmt);
 
-    if (rc != SQLITE_DONE) return PLAN_DB_ERROR_IO;
-    if (sqlite3_changes(g_db) == 0) return PLAN_DB_ERROR_NOT_FOUND;
+    if (rc != SQLITE_DONE)
+        return PLAN_DB_ERROR_IO;
+    if (sqlite3_changes(g_db) == 0)
+        return PLAN_DB_ERROR_NOT_FOUND;
 
     return PLAN_DB_OK;
 }
 
 PlanDbError plan_db_fail_task(const char* task_id, const char* error) {
-    if (!g_initialized || !task_id) return PLAN_DB_ERROR_INVALID;
+    if (!g_initialized || !task_id)
+        return PLAN_DB_ERROR_INVALID;
 
     const char* sql =
         "UPDATE tasks SET status = 'failed', error = ?, completed_at = strftime('%s','now'), "
@@ -567,7 +653,8 @@ PlanDbError plan_db_fail_task(const char* task_id, const char* error) {
 
     sqlite3_stmt* stmt;
     int rc = sqlite3_prepare_v2(g_db, sql, -1, &stmt, NULL);
-    if (rc != SQLITE_OK) return PLAN_DB_ERROR_IO;
+    if (rc != SQLITE_OK)
+        return PLAN_DB_ERROR_IO;
 
     sqlite3_bind_text(stmt, 1, error, -1, SQLITE_STATIC);
     sqlite3_bind_text(stmt, 2, task_id, -1, SQLITE_STATIC);
@@ -579,13 +666,15 @@ PlanDbError plan_db_fail_task(const char* task_id, const char* error) {
 }
 
 PlanDbError plan_db_block_task(const char* task_id, const char* blocked_by) {
-    if (!g_initialized || !task_id) return PLAN_DB_ERROR_INVALID;
+    if (!g_initialized || !task_id)
+        return PLAN_DB_ERROR_INVALID;
 
     const char* sql = "UPDATE tasks SET status = 'blocked', error = ? WHERE id = ?";
 
     sqlite3_stmt* stmt;
     int rc = sqlite3_prepare_v2(g_db, sql, -1, &stmt, NULL);
-    if (rc != SQLITE_OK) return PLAN_DB_ERROR_IO;
+    if (rc != SQLITE_OK)
+        return PLAN_DB_ERROR_IO;
 
     char msg[256];
     snprintf(msg, sizeof(msg), "Blocked by task: %s", blocked_by ? blocked_by : "unknown");
@@ -599,21 +688,23 @@ PlanDbError plan_db_block_task(const char* task_id, const char* blocked_by) {
 }
 
 PlanDbError plan_db_get_next_task(const char* plan_id, const char* agent, TaskRecord* out_task) {
-    if (!g_initialized || !plan_id || !out_task) return PLAN_DB_ERROR_INVALID;
+    if (!g_initialized || !plan_id || !out_task)
+        return PLAN_DB_ERROR_INVALID;
 
     memset(out_task, 0, sizeof(TaskRecord));
 
     // Priority: assigned to me > unassigned, then by priority desc
-    const char* sql =
-        "SELECT id FROM tasks "
-        "WHERE plan_id = ? AND status = 'pending' "
-        "ORDER BY (CASE WHEN assigned_agent = ? THEN 0 WHEN assigned_agent IS NULL THEN 1 ELSE 2 END), "
-        "         priority DESC, created_at ASC "
-        "LIMIT 1";
+    const char* sql = "SELECT id FROM tasks "
+                      "WHERE plan_id = ? AND status = 'pending' "
+                      "ORDER BY (CASE WHEN assigned_agent = ? THEN 0 WHEN assigned_agent IS NULL "
+                      "THEN 1 ELSE 2 END), "
+                      "         priority DESC, created_at ASC "
+                      "LIMIT 1";
 
     sqlite3_stmt* stmt;
     int rc = sqlite3_prepare_v2(g_db, sql, -1, &stmt, NULL);
-    if (rc != SQLITE_OK) return PLAN_DB_ERROR_IO;
+    if (rc != SQLITE_OK)
+        return PLAN_DB_ERROR_IO;
 
     sqlite3_bind_text(stmt, 1, plan_id, -1, SQLITE_STATIC);
     sqlite3_bind_text(stmt, 2, agent, -1, SQLITE_STATIC);
@@ -633,18 +724,21 @@ PlanDbError plan_db_get_next_task(const char* plan_id, const char* agent, TaskRe
 }
 
 PlanDbError plan_db_get_tasks(const char* plan_id, int status, TaskRecord** out_tasks) {
-    if (!g_initialized || !plan_id || !out_tasks) return PLAN_DB_ERROR_INVALID;
+    if (!g_initialized || !plan_id || !out_tasks)
+        return PLAN_DB_ERROR_INVALID;
 
     *out_tasks = NULL;
 
     char sql[512];
     if (status >= 0) {
-        snprintf(sql, sizeof(sql),
+        snprintf(
+            sql, sizeof(sql),
             "SELECT id, plan_id, parent_task_id, description, assigned_agent, status, "
             "       priority, created_at, started_at, completed_at, output, error, retry_count "
             "FROM tasks WHERE plan_id = ? AND status = ? ORDER BY priority DESC, created_at ASC");
     } else {
-        snprintf(sql, sizeof(sql),
+        snprintf(
+            sql, sizeof(sql),
             "SELECT id, plan_id, parent_task_id, description, assigned_agent, status, "
             "       priority, created_at, started_at, completed_at, output, error, retry_count "
             "FROM tasks WHERE plan_id = ? ORDER BY priority DESC, created_at ASC");
@@ -652,7 +746,8 @@ PlanDbError plan_db_get_tasks(const char* plan_id, int status, TaskRecord** out_
 
     sqlite3_stmt* stmt;
     int rc = sqlite3_prepare_v2(g_db, sql, -1, &stmt, NULL);
-    if (rc != SQLITE_OK) return PLAN_DB_ERROR_IO;
+    if (rc != SQLITE_OK)
+        return PLAN_DB_ERROR_IO;
 
     sqlite3_bind_text(stmt, 1, plan_id, -1, SQLITE_STATIC);
     if (status >= 0) {
@@ -664,13 +759,16 @@ PlanDbError plan_db_get_tasks(const char* plan_id, int status, TaskRecord** out_
 
     while ((rc = sqlite3_step(stmt)) == SQLITE_ROW) {
         TaskRecord* task = calloc(1, sizeof(TaskRecord));
-        if (!task) continue;
+        if (!task)
+            continue;
 
         strncpy(task->id, (const char*)sqlite3_column_text(stmt, 0), sizeof(task->id) - 1);
-        strncpy(task->plan_id, (const char*)sqlite3_column_text(stmt, 1), sizeof(task->plan_id) - 1);
+        strncpy(task->plan_id, (const char*)sqlite3_column_text(stmt, 1),
+                sizeof(task->plan_id) - 1);
 
         const char* parent = (const char*)sqlite3_column_text(stmt, 2);
-        if (parent) strncpy(task->parent_task_id, parent, sizeof(task->parent_task_id) - 1);
+        if (parent)
+            strncpy(task->parent_task_id, parent, sizeof(task->parent_task_id) - 1);
 
         task->description = safe_strdup((const char*)sqlite3_column_text(stmt, 3));
         task->assigned_agent = safe_strdup((const char*)sqlite3_column_text(stmt, 4));
@@ -698,12 +796,14 @@ PlanDbError plan_db_get_tasks(const char* plan_id, int status, TaskRecord** out_
 }
 
 PlanDbError plan_db_get_subtasks(const char* task_id, TaskRecord** out_tasks) {
-    if (!g_initialized || !task_id || !out_tasks) return PLAN_DB_ERROR_INVALID;
+    if (!g_initialized || !task_id || !out_tasks)
+        return PLAN_DB_ERROR_INVALID;
 
     // Get plan_id first
     TaskRecord parent;
     PlanDbError err = plan_db_get_task(task_id, &parent);
-    if (err != PLAN_DB_OK) return err;
+    if (err != PLAN_DB_OK)
+        return err;
 
     *out_tasks = NULL;
 
@@ -715,7 +815,8 @@ PlanDbError plan_db_get_subtasks(const char* task_id, TaskRecord** out_tasks) {
     sqlite3_stmt* stmt;
     int rc = sqlite3_prepare_v2(g_db, sql, -1, &stmt, NULL);
     task_record_free(&parent);
-    if (rc != SQLITE_OK) return PLAN_DB_ERROR_IO;
+    if (rc != SQLITE_OK)
+        return PLAN_DB_ERROR_IO;
 
     sqlite3_bind_text(stmt, 1, task_id, -1, SQLITE_STATIC);
 
@@ -724,13 +825,16 @@ PlanDbError plan_db_get_subtasks(const char* task_id, TaskRecord** out_tasks) {
 
     while ((rc = sqlite3_step(stmt)) == SQLITE_ROW) {
         TaskRecord* task = calloc(1, sizeof(TaskRecord));
-        if (!task) continue;
+        if (!task)
+            continue;
 
         strncpy(task->id, (const char*)sqlite3_column_text(stmt, 0), sizeof(task->id) - 1);
-        strncpy(task->plan_id, (const char*)sqlite3_column_text(stmt, 1), sizeof(task->plan_id) - 1);
+        strncpy(task->plan_id, (const char*)sqlite3_column_text(stmt, 1),
+                sizeof(task->plan_id) - 1);
 
         const char* parent_id = (const char*)sqlite3_column_text(stmt, 2);
-        if (parent_id) strncpy(task->parent_task_id, parent_id, sizeof(task->parent_task_id) - 1);
+        if (parent_id)
+            strncpy(task->parent_task_id, parent_id, sizeof(task->parent_task_id) - 1);
 
         task->description = safe_strdup((const char*)sqlite3_column_text(stmt, 3));
         task->assigned_agent = safe_strdup((const char*)sqlite3_column_text(stmt, 4));
@@ -762,24 +866,25 @@ PlanDbError plan_db_get_subtasks(const char* task_id, TaskRecord** out_tasks) {
 // ============================================================================
 
 PlanDbError plan_db_get_progress(const char* plan_id, PlanProgress* out_progress) {
-    if (!g_initialized || !plan_id || !out_progress) return PLAN_DB_ERROR_INVALID;
+    if (!g_initialized || !plan_id || !out_progress)
+        return PLAN_DB_ERROR_INVALID;
 
     memset(out_progress, 0, sizeof(PlanProgress));
     strncpy(out_progress->plan_id, plan_id, sizeof(out_progress->plan_id) - 1);
 
-    const char* sql =
-        "SELECT "
-        "  COUNT(*) as total, "
-        "  SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) as pending, "
-        "  SUM(CASE WHEN status = 'in_progress' THEN 1 ELSE 0 END) as in_progress, "
-        "  SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as completed, "
-        "  SUM(CASE WHEN status = 'failed' THEN 1 ELSE 0 END) as failed, "
-        "  SUM(CASE WHEN status = 'blocked' THEN 1 ELSE 0 END) as blocked "
-        "FROM tasks WHERE plan_id = ?";
+    const char* sql = "SELECT "
+                      "  COUNT(*) as total, "
+                      "  SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) as pending, "
+                      "  SUM(CASE WHEN status = 'in_progress' THEN 1 ELSE 0 END) as in_progress, "
+                      "  SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as completed, "
+                      "  SUM(CASE WHEN status = 'failed' THEN 1 ELSE 0 END) as failed, "
+                      "  SUM(CASE WHEN status = 'blocked' THEN 1 ELSE 0 END) as blocked "
+                      "FROM tasks WHERE plan_id = ?";
 
     sqlite3_stmt* stmt;
     int rc = sqlite3_prepare_v2(g_db, sql, -1, &stmt, NULL);
-    if (rc != SQLITE_OK) return PLAN_DB_ERROR_IO;
+    if (rc != SQLITE_OK)
+        return PLAN_DB_ERROR_IO;
 
     sqlite3_bind_text(stmt, 1, plan_id, -1, SQLITE_STATIC);
 
@@ -804,18 +909,21 @@ PlanDbError plan_db_get_progress(const char* plan_id, PlanProgress* out_progress
 
 bool plan_db_is_plan_complete(const char* plan_id) {
     PlanProgress progress;
-    if (plan_db_get_progress(plan_id, &progress) != PLAN_DB_OK) return false;
+    if (plan_db_get_progress(plan_id, &progress) != PLAN_DB_OK)
+        return false;
 
     // Complete if no pending or in_progress tasks
     return (progress.pending == 0 && progress.in_progress == 0);
 }
 
 PlanDbError plan_db_refresh_plan_status(const char* plan_id) {
-    if (!g_initialized || !plan_id) return PLAN_DB_ERROR_INVALID;
+    if (!g_initialized || !plan_id)
+        return PLAN_DB_ERROR_INVALID;
 
     PlanProgress progress;
     PlanDbError err = plan_db_get_progress(plan_id, &progress);
-    if (err != PLAN_DB_OK) return err;
+    if (err != PLAN_DB_OK)
+        return err;
 
     PlanStatus new_status;
     if (progress.total == 0) {
@@ -837,10 +945,12 @@ PlanDbError plan_db_refresh_plan_status(const char* plan_id) {
 // ============================================================================
 
 char* plan_db_generate_mermaid(const char* plan_id) {
-    if (!g_initialized || !plan_id) return NULL;
+    if (!g_initialized || !plan_id)
+        return NULL;
 
     TaskRecord* tasks = NULL;
-    if (plan_db_get_tasks(plan_id, -1, &tasks) != PLAN_DB_OK) return NULL;
+    if (plan_db_get_tasks(plan_id, -1, &tasks) != PLAN_DB_OK)
+        return NULL;
 
     // Estimate buffer size
     size_t buf_size = 4096;
@@ -852,19 +962,28 @@ char* plan_db_generate_mermaid(const char* plan_id) {
 
     size_t pos = 0;
     int written = snprintf(buf + pos, buf_size - pos,
-        "gantt\n"
-        "    title Execution Plan Progress\n"
-        "    dateFormat X\n"
-        "    axisFormat %%H:%%M\n\n");
-    if (written > 0) pos += (size_t)written;
+                           "gantt\n"
+                           "    title Execution Plan Progress\n"
+                           "    dateFormat X\n"
+                           "    axisFormat %%H:%%M\n\n");
+    if (written > 0)
+        pos += (size_t)written;
 
     for (TaskRecord* t = tasks; t; t = t->next) {
         const char* status_class;
         switch (t->status) {
-            case TASK_DB_STATUS_COMPLETED: status_class = "done"; break;
-            case TASK_DB_STATUS_IN_PROGRESS: status_class = "active"; break;
-            case TASK_DB_STATUS_FAILED: status_class = "crit"; break;
-            default: status_class = ""; break;
+        case TASK_DB_STATUS_COMPLETED:
+            status_class = "done";
+            break;
+        case TASK_DB_STATUS_IN_PROGRESS:
+            status_class = "active";
+            break;
+        case TASK_DB_STATUS_FAILED:
+            status_class = "crit";
+            break;
+        default:
+            status_class = "";
+            break;
         }
 
         // Truncate description for display
@@ -873,17 +992,18 @@ char* plan_db_generate_mermaid(const char* plan_id) {
         short_desc[sizeof(short_desc) - 1] = '\0';
         // Replace special chars
         for (char* p = short_desc; *p; p++) {
-            if (*p == ':' || *p == '\n' || *p == '\r') *p = ' ';
+            if (*p == ':' || *p == '\n' || *p == '\r')
+                *p = ' ';
         }
 
         time_t start = t->started_at ? t->started_at : t->created_at;
         time_t end = t->completed_at ? t->completed_at : (start + 60); // Default 1 min
 
         if (pos < buf_size - 200) {
-            int w = snprintf(buf + pos, buf_size - pos,
-                "    %s :%s, %ld, %ld\n",
-                short_desc, status_class, start, end);
-            if (w > 0) pos += (size_t)w;
+            int w = snprintf(buf + pos, buf_size - pos, "    %s :%s, %ld, %ld\n", short_desc,
+                             status_class, start, end);
+            if (w > 0)
+                pos += (size_t)w;
         }
     }
 
@@ -892,17 +1012,20 @@ char* plan_db_generate_mermaid(const char* plan_id) {
 }
 
 PlanDbError plan_db_export_markdown(const char* plan_id, const char* out_path,
-                                     bool include_mermaid) {
-    if (!g_initialized || !plan_id || !out_path) return PLAN_DB_ERROR_INVALID;
+                                    bool include_mermaid) {
+    if (!g_initialized || !plan_id || !out_path)
+        return PLAN_DB_ERROR_INVALID;
 
     PlanRecord plan;
     PlanDbError err = plan_db_get_plan(plan_id, &plan);
-    if (err != PLAN_DB_OK) return err;
+    if (err != PLAN_DB_OK)
+        return err;
 
     PlanProgress progress;
     plan_db_get_progress(plan_id, &progress);
 
-    int fd = safe_path_open(out_path, safe_path_get_cwd_boundary(), O_WRONLY | O_CREAT | O_TRUNC, 0644);
+    int fd =
+        safe_path_open(out_path, safe_path_get_cwd_boundary(), O_WRONLY | O_CREAT | O_TRUNC, 0644);
     FILE* f = fd >= 0 ? fdopen(fd, "w") : NULL;
     if (!f) {
         plan_record_free(&plan);
@@ -928,8 +1051,8 @@ PlanDbError plan_db_export_markdown(const char* plan_id, const char* out_path,
     for (int i = 0; i < bar_width; i++) {
         fprintf(f, "%c", i < filled ? '#' : ' ');
     }
-    fprintf(f, "] %.1f%% (%d/%d)\n```\n\n", progress.percent_complete,
-            progress.completed, progress.total);
+    fprintf(f, "] %.1f%% (%d/%d)\n```\n\n", progress.percent_complete, progress.completed,
+            progress.total);
 
     fprintf(f, "- Pending: %d\n", progress.pending);
     fprintf(f, "- In Progress: %d\n", progress.in_progress);
@@ -955,11 +1078,21 @@ PlanDbError plan_db_export_markdown(const char* plan_id, const char* out_path,
     for (TaskRecord* t = tasks; t; t = t->next) {
         const char* emoji;
         switch (t->status) {
-            case TASK_DB_STATUS_COMPLETED: emoji = "\xE2\x9C\x85"; break; // ✅
-            case TASK_DB_STATUS_IN_PROGRESS: emoji = "\xF0\x9F\x94\x84"; break; // 🔄
-            case TASK_DB_STATUS_FAILED: emoji = "\xE2\x9D\x8C"; break; // ❌
-            case TASK_DB_STATUS_BLOCKED: emoji = "\xF0\x9F\x9A\xA7"; break; // 🚧
-            default: emoji = "\xE2\x8F\xB3"; break; // ⏳
+        case TASK_DB_STATUS_COMPLETED:
+            emoji = "\xE2\x9C\x85";
+            break; // ✅
+        case TASK_DB_STATUS_IN_PROGRESS:
+            emoji = "\xF0\x9F\x94\x84";
+            break; // 🔄
+        case TASK_DB_STATUS_FAILED:
+            emoji = "\xE2\x9D\x8C";
+            break; // ❌
+        case TASK_DB_STATUS_BLOCKED:
+            emoji = "\xF0\x9F\x9A\xA7";
+            break; // 🚧
+        default:
+            emoji = "\xE2\x8F\xB3";
+            break; // ⏳
         }
 
         fprintf(f, "- %s **%s**", emoji, t->description ? t->description : "Task");
@@ -984,11 +1117,13 @@ PlanDbError plan_db_export_markdown(const char* plan_id, const char* out_path,
 }
 
 PlanDbError plan_db_export_json(const char* plan_id, char** out_json) {
-    if (!g_initialized || !plan_id || !out_json) return PLAN_DB_ERROR_INVALID;
+    if (!g_initialized || !plan_id || !out_json)
+        return PLAN_DB_ERROR_INVALID;
 
     PlanRecord plan;
     PlanDbError err = plan_db_get_plan(plan_id, &plan);
-    if (err != PLAN_DB_OK) return err;
+    if (err != PLAN_DB_OK)
+        return err;
 
     PlanProgress progress;
     plan_db_get_progress(plan_id, &progress);
@@ -1010,25 +1145,21 @@ PlanDbError plan_db_export_json(const char* plan_id, char** out_json) {
 
     size_t pos = 0;
     int w = snprintf(buf + pos, buf_size - pos,
-        "{\n"
-        "  \"id\": \"%s\",\n"
-        "  \"description\": \"%s\",\n"
-        "  \"status\": \"%s\",\n"
-        "  \"created_at\": %ld,\n"
-        "  \"progress\": {\n"
-        "    \"total\": %d,\n"
-        "    \"completed\": %d,\n"
-        "    \"percent\": %.1f\n"
-        "  },\n"
-        "  \"tasks\": [\n",
-        plan.id,
-        escaped_desc,
-        status_to_string(plan.status),
-        plan.created_at,
-        progress.total,
-        progress.completed,
-        progress.percent_complete);
-    if (w > 0) pos += (size_t)w;
+                     "{\n"
+                     "  \"id\": \"%s\",\n"
+                     "  \"description\": \"%s\",\n"
+                     "  \"status\": \"%s\",\n"
+                     "  \"created_at\": %ld,\n"
+                     "  \"progress\": {\n"
+                     "    \"total\": %d,\n"
+                     "    \"completed\": %d,\n"
+                     "    \"percent\": %.1f\n"
+                     "  },\n"
+                     "  \"tasks\": [\n",
+                     plan.id, escaped_desc, status_to_string(plan.status), plan.created_at,
+                     progress.total, progress.completed, progress.percent_complete);
+    if (w > 0)
+        pos += (size_t)w;
 
     free(escaped_desc);
 
@@ -1036,7 +1167,8 @@ PlanDbError plan_db_export_json(const char* plan_id, char** out_json) {
     for (TaskRecord* t = tasks; t; t = t->next) {
         if (!first) {
             w = snprintf(buf + pos, buf_size - pos, ",\n");
-            if (w > 0) pos += (size_t)w;
+            if (w > 0)
+                pos += (size_t)w;
         }
         first = false;
 
@@ -1044,26 +1176,24 @@ PlanDbError plan_db_export_json(const char* plan_id, char** out_json) {
         char* task_agent = json_escape_string(t->assigned_agent);
 
         w = snprintf(buf + pos, buf_size - pos,
-            "    {\n"
-            "      \"id\": \"%s\",\n"
-            "      \"description\": \"%s\",\n"
-            "      \"status\": \"%s\",\n"
-            "      \"agent\": \"%s\",\n"
-            "      \"priority\": %d\n"
-            "    }",
-            t->id,
-            task_desc,
-            task_status_to_string(t->status),
-            task_agent,
-            t->priority);
-        if (w > 0) pos += (size_t)w;
+                     "    {\n"
+                     "      \"id\": \"%s\",\n"
+                     "      \"description\": \"%s\",\n"
+                     "      \"status\": \"%s\",\n"
+                     "      \"agent\": \"%s\",\n"
+                     "      \"priority\": %d\n"
+                     "    }",
+                     t->id, task_desc, task_status_to_string(t->status), task_agent, t->priority);
+        if (w > 0)
+            pos += (size_t)w;
 
         free(task_desc);
         free(task_agent);
     }
 
     w = snprintf(buf + pos, buf_size - pos, "\n  ]\n}\n");
-    if (w > 0) pos += (size_t)w;
+    if (w > 0)
+        pos += (size_t)w;
     (void)pos; // Suppress unused warning
 
     task_record_free_list(tasks);
@@ -1078,21 +1208,24 @@ PlanDbError plan_db_export_json(const char* plan_id, char** out_json) {
 // ============================================================================
 
 int plan_db_cleanup_old(int days, int status) {
-    if (!g_initialized || days < 0) return 0;
+    if (!g_initialized || days < 0)
+        return 0;
 
     char sql[256];
     if (status >= 0) {
-        snprintf(sql, sizeof(sql),
+        snprintf(
+            sql, sizeof(sql),
             "DELETE FROM plans WHERE created_at < strftime('%%s','now','-%d days') AND status = ?",
             days);
     } else {
         snprintf(sql, sizeof(sql),
-            "DELETE FROM plans WHERE created_at < strftime('%%s','now','-%d days')", days);
+                 "DELETE FROM plans WHERE created_at < strftime('%%s','now','-%d days')", days);
     }
 
     sqlite3_stmt* stmt;
     int rc = sqlite3_prepare_v2(g_db, sql, -1, &stmt, NULL);
-    if (rc != SQLITE_OK) return 0;
+    if (rc != SQLITE_OK)
+        return 0;
 
     if (status >= 0) {
         sqlite3_bind_text(stmt, 1, status_to_string((PlanStatus)status), -1, SQLITE_STATIC);
@@ -1106,7 +1239,8 @@ int plan_db_cleanup_old(int days, int status) {
 }
 
 PlanDbError plan_db_vacuum(void) {
-    if (!g_initialized) return PLAN_DB_ERROR_INVALID;
+    if (!g_initialized)
+        return PLAN_DB_ERROR_INVALID;
 
     char* err_msg = NULL;
     int rc = sqlite3_exec(g_db, "VACUUM", NULL, NULL, &err_msg);
@@ -1118,7 +1252,8 @@ PlanDbError plan_db_vacuum(void) {
 }
 
 char* plan_db_stats_json(void) {
-    if (!g_initialized) return strdup("{\"error\": \"not initialized\"}");
+    if (!g_initialized)
+        return strdup("{\"error\": \"not initialized\"}");
 
     const char* sql =
         "SELECT "
@@ -1129,7 +1264,8 @@ char* plan_db_stats_json(void) {
 
     sqlite3_stmt* stmt;
     int rc = sqlite3_prepare_v2(g_db, sql, -1, &stmt, NULL);
-    if (rc != SQLITE_OK) return strdup("{\"error\": \"query failed\"}");
+    if (rc != SQLITE_OK)
+        return strdup("{\"error\": \"query failed\"}");
 
     rc = sqlite3_step(stmt);
     if (rc != SQLITE_ROW) {
@@ -1139,18 +1275,15 @@ char* plan_db_stats_json(void) {
 
     char* buf = malloc(256);
     snprintf(buf, 256,
-        "{\n"
-        "  \"total_plans\": %d,\n"
-        "  \"active_plans\": %d,\n"
-        "  \"total_tasks\": %d,\n"
-        "  \"completed_tasks\": %d,\n"
-        "  \"db_path\": \"%s\"\n"
-        "}",
-        sqlite3_column_int(stmt, 0),
-        sqlite3_column_int(stmt, 1),
-        sqlite3_column_int(stmt, 2),
-        sqlite3_column_int(stmt, 3),
-        g_db_path);
+             "{\n"
+             "  \"total_plans\": %d,\n"
+             "  \"active_plans\": %d,\n"
+             "  \"total_tasks\": %d,\n"
+             "  \"completed_tasks\": %d,\n"
+             "  \"db_path\": \"%s\"\n"
+             "}",
+             sqlite3_column_int(stmt, 0), sqlite3_column_int(stmt, 1), sqlite3_column_int(stmt, 2),
+             sqlite3_column_int(stmt, 3), g_db_path);
 
     sqlite3_finalize(stmt);
     return buf;
@@ -1161,7 +1294,8 @@ char* plan_db_stats_json(void) {
 // ============================================================================
 
 void plan_record_free(PlanRecord* record) {
-    if (!record) return;
+    if (!record)
+        return;
     free(record->description);
     free(record->context);
     record->description = NULL;
@@ -1169,7 +1303,8 @@ void plan_record_free(PlanRecord* record) {
 }
 
 void task_record_free(TaskRecord* record) {
-    if (!record) return;
+    if (!record)
+        return;
     free(record->description);
     free(record->assigned_agent);
     free(record->output);

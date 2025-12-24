@@ -10,21 +10,21 @@
  * Copyright 2025 - Roberto D'Angelo & AI Team
  */
 
-#include "nous/provider.h"
 #include "nous/nous.h"
+#include "nous/provider.h"
+#include <math.h>
+#include <pthread.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <stdio.h>
-#include <pthread.h>
 #include <time.h>
-#include <math.h>
 
 // ============================================================================
 // CONFIGURATION
 // ============================================================================
 
 #define CACHE_HASH_SIZE 256
-#define CACHE_TTL_SECONDS 300          // 5 minutes default cache TTL
+#define CACHE_TTL_SECONDS 300 // 5 minutes default cache TTL
 #define BATCH_QUEUE_SIZE 100
 #define COST_HISTORY_SIZE 1000
 
@@ -33,8 +33,8 @@
 // ============================================================================
 
 typedef struct CacheEntry {
-    char* content_hash;                // SHA-256 of prompt content
-    char* cached_id;                   // Provider's cache ID
+    char* content_hash; // SHA-256 of prompt content
+    char* cached_id;    // Provider's cache ID
     ProviderType provider;
     time_t created_at;
     time_t expires_at;
@@ -55,9 +55,9 @@ typedef struct {
 // ============================================================================
 
 typedef enum {
-    BATCH_PRIORITY_LOW,                // Can wait 24 hours
-    BATCH_PRIORITY_MEDIUM,             // Process within hours
-    BATCH_PRIORITY_HIGH                // Process soon
+    BATCH_PRIORITY_LOW,    // Can wait 24 hours
+    BATCH_PRIORITY_MEDIUM, // Process within hours
+    BATCH_PRIORITY_HIGH    // Process soon
 } BatchPriority;
 
 typedef struct {
@@ -97,7 +97,7 @@ typedef struct {
 typedef struct {
     CostRecord records[COST_HISTORY_SIZE];
     size_t count;
-    size_t head;                       // Circular buffer head
+    size_t head; // Circular buffer head
     pthread_mutex_t mutex;
 
     // Aggregates
@@ -153,9 +153,10 @@ static char* create_content_hash(const char* system, const char* user) {
     size_t usr_len = user ? strlen(user) : 0;
 
     char* combined = malloc(sys_len + usr_len + 2);
-    if (!combined) return NULL;
+    if (!combined)
+        return NULL;
 
-    (void)(sys_len + usr_len);  // total_len was unused
+    (void)(sys_len + usr_len); // total_len was unused
     size_t offset = 0;
     if (system) {
         memcpy(combined, system, sys_len);
@@ -220,8 +221,7 @@ static CacheEntry* cache_lookup(PromptCache* cache, const char* hash, ProviderTy
     time_t now = time(NULL);
 
     while (entry) {
-        if (strcmp(entry->content_hash, hash) == 0 &&
-            entry->provider == provider &&
+        if (strcmp(entry->content_hash, hash) == 0 && entry->provider == provider &&
             entry->expires_at > now) {
             cache->cache_hits++;
             pthread_mutex_unlock(&cache->mutex);
@@ -304,14 +304,13 @@ static void batch_cleanup(BatchQueue* queue) {
     pthread_mutex_destroy(&queue->mutex);
 }
 
-static int batch_add(BatchQueue* queue, const char* model, const char* system,
-                     const char* user, BatchPriority priority,
-                     void (*callback)(const char*, void*), void* ctx) {
+static int batch_add(BatchQueue* queue, const char* model, const char* system, const char* user,
+                     BatchPriority priority, void (*callback)(const char*, void*), void* ctx) {
     pthread_mutex_lock(&queue->mutex);
 
     if (queue->count >= BATCH_QUEUE_SIZE) {
         pthread_mutex_unlock(&queue->mutex);
-        return -1;  // Queue full
+        return -1; // Queue full
     }
 
     BatchRequest* req = &queue->requests[queue->count];
@@ -332,22 +331,21 @@ static int batch_add(BatchQueue* queue, const char* model, const char* system,
 
     // Set deadline based on priority
     switch (priority) {
-        case BATCH_PRIORITY_LOW:
-            req->deadline = req->submitted_at + 86400;  // 24 hours
-            break;
-        case BATCH_PRIORITY_MEDIUM:
-            req->deadline = req->submitted_at + 3600;   // 1 hour
-            break;
-        case BATCH_PRIORITY_HIGH:
-            req->deadline = req->submitted_at + 300;    // 5 minutes
-            break;
+    case BATCH_PRIORITY_LOW:
+        req->deadline = req->submitted_at + 86400; // 24 hours
+        break;
+    case BATCH_PRIORITY_MEDIUM:
+        req->deadline = req->submitted_at + 3600; // 1 hour
+        break;
+    case BATCH_PRIORITY_HIGH:
+        req->deadline = req->submitted_at + 300; // 5 minutes
+        break;
     }
 
     queue->count++;
     pthread_mutex_unlock(&queue->mutex);
 
-    LOG_DEBUG(LOG_CAT_COST, "Batch request queued: %s (priority=%d)",
-              req->request_id, priority);
+    LOG_DEBUG(LOG_CAT_COST, "Batch request queued: %s (priority=%d)", req->request_id, priority);
     return 0;
 }
 
@@ -365,8 +363,8 @@ static void history_cleanup(CostHistory* history) {
 }
 
 static void history_record(CostHistory* history, const char* model, ProviderType provider,
-                          size_t input_tokens, size_t output_tokens, double cost,
-                          bool was_cached, bool was_downgraded) {
+                           size_t input_tokens, size_t output_tokens, double cost, bool was_cached,
+                           bool was_downgraded) {
     pthread_mutex_lock(&history->mutex);
 
     // Add to circular buffer
@@ -408,7 +406,8 @@ static void history_record(CostHistory* history, const char* model, ProviderType
 // ============================================================================
 
 int cost_optimizer_init(void) {
-    if (g_optimizer.initialized) return 0;
+    if (g_optimizer.initialized)
+        return 0;
 
     cache_init(&g_optimizer.prompt_cache);
     batch_init(&g_optimizer.batch_queue);
@@ -428,7 +427,8 @@ int cost_optimizer_init(void) {
 }
 
 void cost_optimizer_shutdown(void) {
-    if (!g_optimizer.initialized) return;
+    if (!g_optimizer.initialized)
+        return;
 
     cache_cleanup(&g_optimizer.prompt_cache);
     batch_cleanup(&g_optimizer.batch_queue);
@@ -437,8 +437,7 @@ void cost_optimizer_shutdown(void) {
     g_optimizer.initialized = false;
 
     LOG_INFO(LOG_CAT_COST, "Cost optimizer shutdown. Total cost: $%.4f, Savings: $%.4f",
-             g_optimizer.cost_history.total_cost,
-             g_optimizer.cost_history.cached_savings);
+             g_optimizer.cost_history.total_cost, g_optimizer.cost_history.cached_savings);
 }
 
 // ============================================================================
@@ -450,10 +449,12 @@ void cost_optimizer_shutdown(void) {
  */
 bool cost_check_cache(const char* system, const char* user, ProviderType provider,
                       char** out_cache_id) {
-    if (!g_optimizer.caching_enabled) return false;
+    if (!g_optimizer.caching_enabled)
+        return false;
 
     char* hash = create_content_hash(system, user);
-    if (!hash) return false;
+    if (!hash)
+        return false;
 
     CacheEntry* entry = cache_lookup(&g_optimizer.prompt_cache, hash, provider);
     free(hash);
@@ -471,15 +472,17 @@ bool cost_check_cache(const char* system, const char* user, ProviderType provide
  */
 void cost_register_cache(const char* system, const char* user, ProviderType provider,
                          const char* cache_id, size_t tokens) {
-    if (!g_optimizer.caching_enabled) return;
+    if (!g_optimizer.caching_enabled)
+        return;
 
     char* hash = create_content_hash(system, user);
-    if (!hash) return;
+    if (!hash)
+        return;
 
     // Different TTLs per provider
     int ttl = CACHE_TTL_SECONDS;
     if (provider == PROVIDER_ANTHROPIC) {
-        ttl = 3600;  // Anthropic cache lasts longer
+        ttl = 3600; // Anthropic cache lasts longer
     }
 
     cache_insert(&g_optimizer.prompt_cache, hash, cache_id, provider, tokens, ttl);
@@ -491,76 +494,78 @@ void cost_register_cache(const char* system, const char* user, ProviderType prov
 /**
  * Get the optimal model based on task and budget
  */
-const char* cost_get_optimal_model(const char* preferred_model,
-                                   double remaining_budget,
-                                   bool requires_vision,
-                                   bool requires_tools,
+const char* cost_get_optimal_model(const char* preferred_model, double remaining_budget,
+                                   bool requires_vision, bool requires_tools,
                                    size_t estimated_tokens) {
     if (!g_optimizer.auto_downgrade_enabled) {
         return preferred_model;
     }
 
     const ModelConfig* preferred = model_get_config(preferred_model);
-    if (!preferred) return preferred_model;
+    if (!preferred)
+        return preferred_model;
 
     // Estimate cost for this request
-    double estimated_cost = model_estimate_cost(preferred_model, estimated_tokens, estimated_tokens / 2);
+    double estimated_cost =
+        model_estimate_cost(preferred_model, estimated_tokens, estimated_tokens / 2);
 
     // If we have enough budget, use preferred
-    if (estimated_cost < remaining_budget * 0.1) {  // Use at most 10% of remaining budget
+    if (estimated_cost < remaining_budget * 0.1) { // Use at most 10% of remaining budget
         return preferred_model;
     }
 
     // Find cheaper alternative
-    const char* alternatives[] = {
-        "anthropic/claude-haiku-3.5",
-        "gemini/gemini-1.5-flash",
-        "openai/gpt-4o-mini",
-        "openai/o1-mini"
-    };
+    const char* alternatives[] = {"anthropic/claude-haiku-3.5", "gemini/gemini-1.5-flash",
+                                  "openai/gpt-4o-mini", "openai/o1-mini"};
 
     for (int i = 0; i < 4; i++) {
         const ModelConfig* alt = model_get_config(alternatives[i]);
-        if (!alt) continue;
+        if (!alt)
+            continue;
 
         // Check feature requirements
-        if (requires_vision && !alt->supports_vision) continue;
-        if (requires_tools && !alt->supports_tools) continue;
+        if (requires_vision && !alt->supports_vision)
+            continue;
+        if (requires_tools && !alt->supports_tools)
+            continue;
 
         // Check if provider is available
-        if (!provider_is_available(alt->provider)) continue;
+        if (!provider_is_available(alt->provider))
+            continue;
 
         // Check cost
-        double alt_cost = model_estimate_cost(alternatives[i], estimated_tokens, estimated_tokens / 2);
+        double alt_cost =
+            model_estimate_cost(alternatives[i], estimated_tokens, estimated_tokens / 2);
         if (alt_cost < remaining_budget * 0.1) {
-            LOG_INFO(LOG_CAT_COST, "Downgrading from %s to %s (budget: $%.2f)",
-                     preferred_model, alternatives[i], remaining_budget);
+            LOG_INFO(LOG_CAT_COST, "Downgrading from %s to %s (budget: $%.2f)", preferred_model,
+                     alternatives[i], remaining_budget);
             return alternatives[i];
         }
     }
 
-    return preferred_model;  // Fallback to preferred
+    return preferred_model; // Fallback to preferred
 }
 
 /**
  * Record a completed request for cost tracking
  */
-void cost_record_request(const char* model, ProviderType provider,
-                         size_t input_tokens, size_t output_tokens,
-                         double cost, bool was_cached) {
-    history_record(&g_optimizer.cost_history, model, provider,
-                   input_tokens, output_tokens, cost, was_cached, false);
+void cost_record_request(const char* model, ProviderType provider, size_t input_tokens,
+                         size_t output_tokens, double cost, bool was_cached) {
+    history_record(&g_optimizer.cost_history, model, provider, input_tokens, output_tokens, cost,
+                   was_cached, false);
 }
 
 /**
  * Queue a request for batch processing
  */
-int cost_queue_batch(const char* model, const char* system, const char* user,
-                     int priority, void (*callback)(const char*, void*), void* ctx) {
-    if (!g_optimizer.batching_enabled) return -1;
+int cost_queue_batch(const char* model, const char* system, const char* user, int priority,
+                     void (*callback)(const char*, void*), void* ctx) {
+    if (!g_optimizer.batching_enabled)
+        return -1;
 
-    BatchPriority p = (priority < 0) ? BATCH_PRIORITY_LOW :
-                      (priority > 1) ? BATCH_PRIORITY_HIGH : BATCH_PRIORITY_MEDIUM;
+    BatchPriority p = (priority < 0)   ? BATCH_PRIORITY_LOW
+                      : (priority > 1) ? BATCH_PRIORITY_HIGH
+                                       : BATCH_PRIORITY_MEDIUM;
 
     return batch_add(&g_optimizer.batch_queue, model, system, user, p, callback, ctx);
 }
@@ -572,13 +577,18 @@ int cost_queue_batch(const char* model, const char* system, const char* user,
 /**
  * Get cost statistics
  */
-void cost_get_stats(double* total_cost, double* cached_savings,
-                    size_t* total_requests, size_t* cache_hits, size_t* cache_misses) {
-    if (total_cost) *total_cost = g_optimizer.cost_history.total_cost;
-    if (cached_savings) *cached_savings = g_optimizer.cost_history.cached_savings;
-    if (total_requests) *total_requests = g_optimizer.cost_history.total_requests;
-    if (cache_hits) *cache_hits = g_optimizer.prompt_cache.cache_hits;
-    if (cache_misses) *cache_misses = g_optimizer.prompt_cache.cache_misses;
+void cost_get_stats(double* total_cost, double* cached_savings, size_t* total_requests,
+                    size_t* cache_hits, size_t* cache_misses) {
+    if (total_cost)
+        *total_cost = g_optimizer.cost_history.total_cost;
+    if (cached_savings)
+        *cached_savings = g_optimizer.cost_history.cached_savings;
+    if (total_requests)
+        *total_requests = g_optimizer.cost_history.total_requests;
+    if (cache_hits)
+        *cache_hits = g_optimizer.prompt_cache.cache_hits;
+    if (cache_misses)
+        *cache_misses = g_optimizer.prompt_cache.cache_misses;
 }
 
 /**
@@ -610,10 +620,10 @@ double cost_estimate_monthly(void) {
     pthread_mutex_unlock(&h->mutex);
 
     if (day_count == 0) {
-        return h->total_cost * 30;  // Rough estimate
+        return h->total_cost * 30; // Rough estimate
     }
 
-    return day_cost * 30;  // Extrapolate to monthly
+    return day_cost * 30; // Extrapolate to monthly
 }
 
 /**
@@ -636,8 +646,7 @@ void cost_print_report(void) {
     printf("Cache Hit Rate:     %.1f%%\n", hit_rate);
     printf("\n");
     printf("Est. Monthly:       $%.2f\n", monthly);
-    printf("Daily Budget:       $%.2f (%.1f%% used)\n",
-           g_optimizer.daily_budget,
+    printf("Daily Budget:       $%.2f (%.1f%% used)\n", g_optimizer.daily_budget,
            (total / g_optimizer.daily_budget) * 100);
     printf("\n");
 }

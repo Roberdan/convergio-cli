@@ -9,25 +9,25 @@
  */
 
 #include "nous/education.h"
+#include <math.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <math.h>
-#include <stdbool.h>
 
 // ============================================================================
 // CONSTANTS AND COLORS
 // ============================================================================
 
 // ANSI color codes for terminal output
-#define COLOR_RESET     "\033[0m"
-#define COLOR_UNITS     "\033[34m"   // Blue
-#define COLOR_TENS      "\033[32m"   // Green
-#define COLOR_HUNDREDS  "\033[31m"   // Red
-#define COLOR_THOUSANDS "\033[35m"   // Magenta
-#define COLOR_DECIMAL   "\033[33m"   // Yellow
-#define COLOR_NEGATIVE  "\033[36m"   // Cyan
-#define COLOR_OPERATOR  "\033[1m"    // Bold
+#define COLOR_RESET "\033[0m"
+#define COLOR_UNITS "\033[34m"     // Blue
+#define COLOR_TENS "\033[32m"      // Green
+#define COLOR_HUNDREDS "\033[31m"  // Red
+#define COLOR_THOUSANDS "\033[35m" // Magenta
+#define COLOR_DECIMAL "\033[33m"   // Yellow
+#define COLOR_NEGATIVE "\033[36m"  // Cyan
+#define COLOR_OPERATOR "\033[1m"   // Bold
 
 // ============================================================================
 // TYPES
@@ -71,24 +71,22 @@ typedef struct {
 // FORWARD DECLARATIONS
 // ============================================================================
 
-static void calc_solve_linear(double a, double b, double c,
-                              const CalculatorAccessibility* access);
+static void calc_solve_linear(double a, double b, double c, const CalculatorAccessibility* access);
 
 // ============================================================================
 // ACCESSIBILITY SETTINGS
 // ============================================================================
 
 static CalculatorAccessibility get_calc_accessibility(const EducationAccessibility* a) {
-    CalculatorAccessibility ca = {
-        .use_colors = true,
-        .show_blocks = false,
-        .show_every_step = false,
-        .use_visual_fractions = false,
-        .speak_steps = false,
-        .no_timer = false
-    };
+    CalculatorAccessibility ca = {.use_colors = true,
+                                  .show_blocks = false,
+                                  .show_every_step = false,
+                                  .use_visual_fractions = false,
+                                  .speak_steps = false,
+                                  .no_timer = false};
 
-    if (!a) return ca;
+    if (!a)
+        return ca;
 
     // Dyscalculia - full visual support
     if (a->dyscalculia) {
@@ -148,14 +146,23 @@ void calc_print_colored_number(double num, bool use_colors) {
         const char* color;
 
         switch (place % 3) {
-            case 0: color = COLOR_UNITS; break;
-            case 1: color = COLOR_TENS; break;
-            case 2: color = COLOR_HUNDREDS; break;
-            default: color = COLOR_THOUSANDS; break;
+        case 0:
+            color = COLOR_UNITS;
+            break;
+        case 1:
+            color = COLOR_TENS;
+            break;
+        case 2:
+            color = COLOR_HUNDREDS;
+            break;
+        default:
+            color = COLOR_THOUSANDS;
+            break;
         }
 
         // Thousands use magenta
-        if (place >= 3) color = COLOR_THOUSANDS;
+        if (place >= 3)
+            color = COLOR_THOUSANDS;
 
         printf("%s%c%s", color, buf[i], COLOR_RESET);
     }
@@ -187,21 +194,24 @@ void calc_print_blocks(int num) {
     // Hundreds as large squares
     if (hundreds > 0) {
         printf("%s", COLOR_HUNDREDS);
-        for (int i = 0; i < hundreds; i++) printf("[100]");
+        for (int i = 0; i < hundreds; i++)
+            printf("[100]");
         printf("%s ", COLOR_RESET);
     }
 
     // Tens as lines
     if (tens > 0) {
         printf("%s", COLOR_TENS);
-        for (int i = 0; i < tens; i++) printf("[10]");
+        for (int i = 0; i < tens; i++)
+            printf("[10]");
         printf("%s ", COLOR_RESET);
     }
 
     // Units as dots
     if (units > 0) {
         printf("%s", COLOR_UNITS);
-        for (int i = 0; i < units; i++) printf("[1]");
+        for (int i = 0; i < units; i++)
+            printf("[1]");
         printf("%s", COLOR_RESET);
     }
 
@@ -217,7 +227,8 @@ void calc_print_blocks(int num) {
  */
 Calculation* calc_add_steps(double a, double b, const CalculatorAccessibility* access) {
     Calculation* calc = calloc(1, sizeof(Calculation));
-    if (!calc) return NULL;
+    if (!calc)
+        return NULL;
 
     calc->operand1 = a;
     calc->operand2 = b;
@@ -251,12 +262,9 @@ Calculation* calc_add_steps(double a, double b, const CalculatorAccessibility* a
                      "  %s%d%s%s%d%s%s%d%s\n"
                      "+ %s%d%s%s%d%s%s%d%s\n"
                      "--------",
-                     COLOR_HUNDREDS, hundreds_a, COLOR_RESET,
-                     COLOR_TENS, tens_a, COLOR_RESET,
-                     COLOR_UNITS, units_a, COLOR_RESET,
-                     COLOR_HUNDREDS, hundreds_b, COLOR_RESET,
-                     COLOR_TENS, tens_b, COLOR_RESET,
-                     COLOR_UNITS, units_b, COLOR_RESET);
+                     COLOR_HUNDREDS, hundreds_a, COLOR_RESET, COLOR_TENS, tens_a, COLOR_RESET,
+                     COLOR_UNITS, units_a, COLOR_RESET, COLOR_HUNDREDS, hundreds_b, COLOR_RESET,
+                     COLOR_TENS, tens_b, COLOR_RESET, COLOR_UNITS, units_b, COLOR_RESET);
             calc->steps[calc->step_count].visual = strdup(visual);
             calc->step_count++;
 
@@ -265,11 +273,9 @@ Calculation* calc_add_steps(double a, double b, const CalculatorAccessibility* a
             int carry_to_tens = units_sum / 10;
             units_sum = units_sum % 10;
 
-            snprintf(visual, sizeof(visual),
-                     "Unita: %s%d%s + %s%d%s = %s%d%s%s",
-                     COLOR_UNITS, units_a, COLOR_RESET,
-                     COLOR_UNITS, units_b, COLOR_RESET,
-                     COLOR_UNITS, units_a + units_b, COLOR_RESET,
+            snprintf(visual, sizeof(visual), "Unita: %s%d%s + %s%d%s = %s%d%s%s", COLOR_UNITS,
+                     units_a, COLOR_RESET, COLOR_UNITS, units_b, COLOR_RESET, COLOR_UNITS,
+                     units_a + units_b, COLOR_RESET,
                      carry_to_tens ? " (riporto 1 alle decine)" : "");
             calc->steps[calc->step_count].step_description = strdup(visual);
             calc->step_count++;
@@ -279,19 +285,15 @@ Calculation* calc_add_steps(double a, double b, const CalculatorAccessibility* a
             int carry_to_hundreds = tens_sum / 10;
             tens_sum = tens_sum % 10;
 
-            snprintf(visual, sizeof(visual),
-                     "Decine: %s%d%s + %s%d%s + %d = %s%d%s%s",
-                     COLOR_TENS, tens_a, COLOR_RESET,
-                     COLOR_TENS, tens_b, COLOR_RESET,
-                     carry_to_tens,
+            snprintf(visual, sizeof(visual), "Decine: %s%d%s + %s%d%s + %d = %s%d%s%s", COLOR_TENS,
+                     tens_a, COLOR_RESET, COLOR_TENS, tens_b, COLOR_RESET, carry_to_tens,
                      COLOR_TENS, tens_a + tens_b + carry_to_tens, COLOR_RESET,
                      carry_to_hundreds ? " (riporto 1 alle centinaia)" : "");
             calc->steps[calc->step_count].step_description = strdup(visual);
             calc->step_count++;
 
             // Step 4: Result
-            snprintf(visual, sizeof(visual),
-                     "\nRisultato: ");
+            snprintf(visual, sizeof(visual), "\nRisultato: ");
             calc->steps[calc->step_count].step_description = strdup(visual);
             calc->steps[calc->step_count].intermediate_result = calc->result;
             calc->step_count++;
@@ -306,7 +308,8 @@ Calculation* calc_add_steps(double a, double b, const CalculatorAccessibility* a
  */
 Calculation* calc_subtract_steps(double a, double b, const CalculatorAccessibility* access) {
     Calculation* calc = calloc(1, sizeof(Calculation));
-    if (!calc) return NULL;
+    if (!calc)
+        return NULL;
 
     calc->operand1 = a;
     calc->operand2 = b;
@@ -331,9 +334,8 @@ Calculation* calc_subtract_steps(double a, double b, const CalculatorAccessibili
             calc->steps[calc->step_count].step_description =
                 strdup("Primo passo: separiamo i numeri per posizione");
             char visual[256];
-            snprintf(visual, sizeof(visual),
-                     "  %d %d\n- %d %d\n------",
-                     tens_a, units_a, tens_b, units_b);
+            snprintf(visual, sizeof(visual), "  %d %d\n- %d %d\n------", tens_a, units_a, tens_b,
+                     units_b);
             calc->steps[calc->step_count].visual = strdup(visual);
             calc->step_count++;
 
@@ -344,8 +346,7 @@ Calculation* calc_subtract_steps(double a, double b, const CalculatorAccessibili
                 borrow = 1;
                 units_result += 10;
             }
-            snprintf(visual, sizeof(visual),
-                     "Unita: %d - %d = %d%s",
+            snprintf(visual, sizeof(visual), "Unita: %d - %d = %d%s",
                      borrow ? units_a + 10 : units_a, units_b, units_result,
                      borrow ? " (prestito 1 dalla decina)" : "");
             calc->steps[calc->step_count].step_description = strdup(visual);
@@ -353,9 +354,8 @@ Calculation* calc_subtract_steps(double a, double b, const CalculatorAccessibili
 
             // Step 3: Subtract tens
             int tens_result = tens_a - tens_b - borrow;
-            snprintf(visual, sizeof(visual),
-                     "Decine: %d - %d - %d = %d",
-                     tens_a, tens_b, borrow, tens_result);
+            snprintf(visual, sizeof(visual), "Decine: %d - %d - %d = %d", tens_a, tens_b, borrow,
+                     tens_result);
             calc->steps[calc->step_count].step_description = strdup(visual);
             calc->step_count++;
 
@@ -374,7 +374,8 @@ Calculation* calc_subtract_steps(double a, double b, const CalculatorAccessibili
  */
 Calculation* calc_multiply_steps(double a, double b, const CalculatorAccessibility* access) {
     Calculation* calc = calloc(1, sizeof(Calculation));
-    if (!calc) return NULL;
+    if (!calc)
+        return NULL;
 
     calc->operand1 = a;
     calc->operand2 = b;
@@ -396,9 +397,8 @@ Calculation* calc_multiply_steps(double a, double b, const CalculatorAccessibili
 
             // Step 1: Explain the concept
             char visual[512];
-            snprintf(visual, sizeof(visual),
-                     "Moltiplica %d x %d = aggiungi %d per %d volte",
-                     ia, ib, larger, smaller);
+            snprintf(visual, sizeof(visual), "Moltiplica %d x %d = aggiungi %d per %d volte", ia,
+                     ib, larger, smaller);
             calc->steps[calc->step_count].step_description = strdup(visual);
             calc->step_count++;
 
@@ -406,9 +406,8 @@ Calculation* calc_multiply_steps(double a, double b, const CalculatorAccessibili
             int running_total = 0;
             for (int i = 1; i <= smaller && calc->step_count < smaller + 1; i++) {
                 running_total += larger;
-                snprintf(visual, sizeof(visual),
-                         "Passo %d: %d + %d = %d",
-                         i, running_total - larger, larger, running_total);
+                snprintf(visual, sizeof(visual), "Passo %d: %d + %d = %d", i,
+                         running_total - larger, larger, running_total);
                 calc->steps[calc->step_count].step_description = strdup(visual);
                 calc->steps[calc->step_count].intermediate_result = running_total;
                 calc->step_count++;
@@ -431,9 +430,8 @@ Calculation* calc_multiply_steps(double a, double b, const CalculatorAccessibili
 
             // Step 1: Show decomposition
             char visual[512];
-            snprintf(visual, sizeof(visual),
-                     "Scomponiamo: %d = %d + %d, %d = %d + %d",
-                     ia, tens_a * 10, units_a, ib, tens_b * 10, units_b);
+            snprintf(visual, sizeof(visual), "Scomponiamo: %d = %d + %d, %d = %d + %d", ia,
+                     tens_a * 10, units_a, ib, tens_b * 10, units_b);
             calc->steps[calc->step_count].step_description = strdup(visual);
             calc->step_count++;
 
@@ -460,8 +458,8 @@ Calculation* calc_multiply_steps(double a, double b, const CalculatorAccessibili
             calc->step_count++;
 
             // Step 6: Sum all parts
-            snprintf(visual, sizeof(visual), "Somma: %d + %d + %d + %d = %.0f",
-                     p1, p2, p3, p4, calc->result);
+            snprintf(visual, sizeof(visual), "Somma: %d + %d + %d + %d = %.0f", p1, p2, p3, p4,
+                     calc->result);
             calc->steps[calc->step_count].step_description = strdup(visual);
             calc->steps[calc->step_count].intermediate_result = calc->result;
             calc->step_count++;
@@ -476,7 +474,8 @@ Calculation* calc_multiply_steps(double a, double b, const CalculatorAccessibili
  */
 Calculation* calc_divide_steps(double a, double b, const CalculatorAccessibility* access) {
     Calculation* calc = calloc(1, sizeof(Calculation));
-    if (!calc) return NULL;
+    if (!calc)
+        return NULL;
 
     calc->operand1 = a;
     calc->operand2 = b;
@@ -484,7 +483,7 @@ Calculation* calc_divide_steps(double a, double b, const CalculatorAccessibility
 
     if (b == 0) {
         // Division by zero - use a sentinel value
-        calc->result = 0.0 / 0.0;  // Produces NaN without macro
+        calc->result = 0.0 / 0.0; // Produces NaN without macro
     } else {
         calc->result = a / b;
     }
@@ -564,9 +563,9 @@ void calc_compare_fractions(int num1, int den1, int num2, int den2) {
  * Parse and solve equation string
  * Supports: ax + b = c, ax = c, x + b = c
  */
-int calc_solve_equation(const char* equation,
-                        const CalculatorAccessibility* access) {
-    if (!equation) return -1;
+int calc_solve_equation(const char* equation, const CalculatorAccessibility* access) {
+    if (!equation)
+        return -1;
 
     // Simple parser for linear equations
     // Format: "2x + 3 = 7" or "x - 5 = 10"
@@ -597,19 +596,21 @@ int calc_solve_equation(const char* equation,
 
     // Get coefficient of x
     char* ptr = left_side;
-    while (*ptr == ' ') ptr++;  // Skip whitespace
+    while (*ptr == ' ')
+        ptr++; // Skip whitespace
 
     if (ptr == x_pos) {
-        a = 1.0;  // Just 'x'
+        a = 1.0; // Just 'x'
     } else if (ptr + 1 == x_pos && *ptr == '-') {
-        a = -1.0;  // '-x'
+        a = -1.0; // '-x'
     } else {
         a = atof(ptr);
     }
 
     // Get constant term (after x)
     char* after_x = x_pos + 1;
-    while (*after_x == ' ') after_x++;
+    while (*after_x == ' ')
+        after_x++;
 
     if (*after_x == '+' || *after_x == '-') {
         b = atof(after_x);
@@ -624,8 +625,7 @@ int calc_solve_equation(const char* equation,
 /**
  * Solve linear equation ax + b = c with steps
  */
-static void calc_solve_linear(double a, double b, double c,
-                              const CalculatorAccessibility* access) {
+static void calc_solve_linear(double a, double b, double c, const CalculatorAccessibility* access) {
     printf("\nRisolviamo: %.2fx + %.2f = %.2f\n\n", a, b, c);
 
     if (a == 0) {
@@ -650,8 +650,7 @@ static void calc_solve_linear(double a, double b, double c,
     printf("  x = %.2f\n\n", x);
 
     // Step 3: Verify
-    printf("Verifica: %.2f * %.2f + %.2f = %.2f ✓\n",
-           a, x, b, a * x + b);
+    printf("Verifica: %.2f * %.2f + %.2f = %.2f ✓\n", a, x, b, a * x + b);
 }
 
 // ============================================================================
@@ -659,7 +658,8 @@ static void calc_solve_linear(double a, double b, double c,
 // ============================================================================
 
 void calc_free(Calculation* calc) {
-    if (!calc) return;
+    if (!calc)
+        return;
     if (calc->steps) {
         for (int i = 0; i < calc->step_count; i++) {
             free(calc->steps[i].step_description);
@@ -674,8 +674,7 @@ void calc_free(Calculation* calc) {
 // CLI COMMAND HANDLER
 // ============================================================================
 
-int calculator_command_handler(int argc, char** argv,
-                                const EducationStudentProfile* profile) {
+int calculator_command_handler(int argc, char** argv, const EducationStudentProfile* profile) {
     if (argc < 2) {
         printf("Usage: /calc <expression>\n");
         printf("       /calc fraction <num> <den>\n");

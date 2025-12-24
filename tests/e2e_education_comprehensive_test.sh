@@ -5,7 +5,7 @@
 # 50+ tests covering realistic school scenarios:
 # - Menu and navigation
 # - Help system
-# - All 15 Maestri (teachers)
+# - All 17 Maestri (teachers)
 # - LLM responses and pedagogy
 # - Study tools (quiz, flashcards, mindmaps)
 # - Accessibility features
@@ -199,17 +199,21 @@ run_test_not_contains() {
 
     output=$(run_convergio "$commands")
 
-    if echo "$output" | grep -qi "$forbidden"; then
+    # Filter out prompt lines (echoed user input) to avoid false positives
+    # The prompt line format is: "Convergio (Agent) > user_input"
+    filtered_output=$(echo "$output" | grep -v "Convergio.*>" | grep -v "^$")
+
+    if echo "$filtered_output" | grep -qi "$forbidden"; then
         echo -e "${RED}FAIL${NC}"
         echo "    Should NOT contain: $forbidden"
-        echo "    Got: $(echo "$output" | head -3 | tr '\n' ' ')"
+        echo "    Got: $(echo "$filtered_output" | head -3 | tr '\n' ' ')"
         ((FAILED++))
         return 1
     else
         echo -e "${GREEN}PASS${NC}"
         ((PASSED++))
         if [ "$VERBOSE" = true ]; then
-            echo -e "${BLUE}    Output: $(echo "$output" | head -5 | tr '\n' ' ')${NC}"
+            echo -e "${BLUE}    Output: $(echo "$filtered_output" | head -5 | tr '\n' ' ')${NC}"
         fi
         return 0
     fi
@@ -411,7 +415,7 @@ fi
 # =============================================================================
 # SECTION 3: ALL 15 MAESTRI AVAILABILITY (Tests 17-31)
 # =============================================================================
-if section_header 3 "All 15 Maestri Availability"; then
+if section_header 3 "All 17 Maestri Availability"; then
 
 run_test "Ali (Principal) available" \
     "@ali-principal Chi sei?" \
@@ -732,7 +736,7 @@ run_llm_test_not_contains "Ali doesn't use corporate language" \
     "@ali-principal Chi sei?" \
     "chief of staff\|orchestrat\|corporate"
 
-run_llm_test "Ali mentions 15 maestri" \
+run_llm_test "Ali mentions 17 maestri" \
     "@ali-principal Quanti professori ci sono?" \
     "15\|quindici\|maestr\|professor"
 
@@ -856,7 +860,7 @@ echo ""
 echo "Sections:"
 echo "  1: Edition Identity and Isolation"
 echo "  2: Menu and Navigation"
-echo "  3: All 15 Maestri Availability"
+echo "  3: All 17 Maestri Availability"
 echo "  4: Study Tools"
 echo "  5: Maestri Responses - Pedagogy"
 echo "  6: Realistic Lesson Examples"

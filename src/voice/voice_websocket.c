@@ -16,23 +16,23 @@
 #ifdef CONVERGIO_VOICE_ENABLED
 
 #include <libwebsockets.h>
-#include <string.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <stdbool.h>
 #include <pthread.h>
 #include <signal.h>
+#include <stdbool.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
 
 // ============================================================================
 // CONSTANTS
 // ============================================================================
 
-#define VOICE_WS_RX_BUFFER_SIZE (1024 * 64)   // 64KB receive buffer
-#define VOICE_WS_TX_BUFFER_SIZE (1024 * 32)   // 32KB transmit buffer
-#define VOICE_AUDIO_CHUNK_SIZE  4800          // 100ms of audio at 24kHz mono 16-bit
-#define VOICE_SAMPLE_RATE       24000
-#define VOICE_RECONNECT_DELAY   1000          // 1 second
+#define VOICE_WS_RX_BUFFER_SIZE (1024 * 64) // 64KB receive buffer
+#define VOICE_WS_TX_BUFFER_SIZE (1024 * 32) // 32KB transmit buffer
+#define VOICE_AUDIO_CHUNK_SIZE 4800         // 100ms of audio at 24kHz mono 16-bit
+#define VOICE_SAMPLE_RATE 24000
+#define VOICE_RECONNECT_DELAY 1000 // 1 second
 
 // ============================================================================
 // TYPES
@@ -50,8 +50,8 @@ typedef enum {
 typedef struct {
     // Connection state
     VoiceWebSocketState state;
-    struct lws_context *context;
-    struct lws *wsi;
+    struct lws_context* context;
+    struct lws* wsi;
 
     // Configuration
     char api_key[256];
@@ -60,24 +60,24 @@ typedef struct {
     bool use_azure;
 
     // Audio buffers
-    uint8_t *audio_send_buffer;
+    uint8_t* audio_send_buffer;
     size_t audio_send_size;
     size_t audio_send_pos;
 
-    uint8_t *audio_recv_buffer;
+    uint8_t* audio_recv_buffer;
     size_t audio_recv_size;
     size_t audio_recv_pos;
 
     // Transcript
-    char *current_transcript;
+    char* current_transcript;
     bool transcript_is_final;
 
     // Callbacks
-    void (*on_audio_received)(const uint8_t *data, size_t length, void *user_data);
-    void (*on_transcript)(const char *text, bool is_user, bool is_final, void *user_data);
-    void (*on_state_change)(VoiceWebSocketState state, void *user_data);
-    void (*on_error)(const char *message, void *user_data);
-    void *callback_user_data;
+    void (*on_audio_received)(const uint8_t* data, size_t length, void* user_data);
+    void (*on_transcript)(const char* text, bool is_user, bool is_final, void* user_data);
+    void (*on_state_change)(VoiceWebSocketState state, void* user_data);
+    void (*on_error)(const char* message, void* user_data);
+    void* callback_user_data;
 
     // Threading
     pthread_t service_thread;
@@ -93,10 +93,10 @@ typedef struct {
 } VoiceWebSocket;
 
 // Global instance for callback access
-static VoiceWebSocket *g_voice_ws = NULL;
+static VoiceWebSocket* g_voice_ws = NULL;
 
 // Forward declarations
-void voice_ws_disconnect(VoiceWebSocket *ws);
+void voice_ws_disconnect(VoiceWebSocket* ws);
 
 // ============================================================================
 // BASE64 ENCODING/DECODING
@@ -104,15 +104,18 @@ void voice_ws_disconnect(VoiceWebSocket *ws);
 
 static const char b64_table[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 
-static size_t base64_encode(const uint8_t *data, size_t length, char *output, size_t output_size) {
+static size_t base64_encode(const uint8_t* data, size_t length, char* output, size_t output_size) {
     size_t out_len = ((length + 2) / 3) * 4;
-    if (output_size < out_len + 1) return 0;
+    if (output_size < out_len + 1)
+        return 0;
 
     size_t j = 0;
     for (size_t i = 0; i < length; i += 3) {
         uint32_t n = ((uint32_t)data[i]) << 16;
-        if (i + 1 < length) n |= ((uint32_t)data[i + 1]) << 8;
-        if (i + 2 < length) n |= data[i + 2];
+        if (i + 1 < length)
+            n |= ((uint32_t)data[i + 1]) << 8;
+        if (i + 2 < length)
+            n |= data[i + 2];
 
         output[j++] = b64_table[(n >> 18) & 63];
         output[j++] = b64_table[(n >> 12) & 63];
@@ -124,21 +127,30 @@ static size_t base64_encode(const uint8_t *data, size_t length, char *output, si
 }
 
 static int b64_decode_char(char c) {
-    if (c >= 'A' && c <= 'Z') return c - 'A';
-    if (c >= 'a' && c <= 'z') return c - 'a' + 26;
-    if (c >= '0' && c <= '9') return c - '0' + 52;
-    if (c == '+') return 62;
-    if (c == '/') return 63;
+    if (c >= 'A' && c <= 'Z')
+        return c - 'A';
+    if (c >= 'a' && c <= 'z')
+        return c - 'a' + 26;
+    if (c >= '0' && c <= '9')
+        return c - '0' + 52;
+    if (c == '+')
+        return 62;
+    if (c == '/')
+        return 63;
     return -1;
 }
 
-static size_t base64_decode(const char *input, size_t length, uint8_t *output, size_t output_size) {
-    if (length % 4 != 0) return 0;
+static size_t base64_decode(const char* input, size_t length, uint8_t* output, size_t output_size) {
+    if (length % 4 != 0)
+        return 0;
 
     size_t out_len = (length / 4) * 3;
-    if (input[length - 1] == '=') out_len--;
-    if (input[length - 2] == '=') out_len--;
-    if (output_size < out_len) return 0;
+    if (input[length - 1] == '=')
+        out_len--;
+    if (input[length - 2] == '=')
+        out_len--;
+    if (output_size < out_len)
+        return 0;
 
     size_t j = 0;
     for (size_t i = 0; i < length; i += 4) {
@@ -147,13 +159,16 @@ static size_t base64_decode(const char *input, size_t length, uint8_t *output, s
         int n2 = (input[i + 2] != '=') ? b64_decode_char(input[i + 2]) : 0;
         int n3 = (input[i + 3] != '=') ? b64_decode_char(input[i + 3]) : 0;
 
-        if (n0 < 0 || n1 < 0) return 0;
+        if (n0 < 0 || n1 < 0)
+            return 0;
 
         uint32_t n = (n0 << 18) | (n1 << 12) | (n2 << 6) | n3;
 
         output[j++] = (n >> 16) & 0xFF;
-        if (input[i + 2] != '=') output[j++] = (n >> 8) & 0xFF;
-        if (input[i + 3] != '=') output[j++] = n & 0xFF;
+        if (input[i + 2] != '=')
+            output[j++] = (n >> 8) & 0xFF;
+        if (input[i + 3] != '=')
+            output[j++] = n & 0xFF;
     }
 
     return j;
@@ -163,74 +178,74 @@ static size_t base64_decode(const char *input, size_t length, uint8_t *output, s
 // MESSAGE BUILDING
 // ============================================================================
 
-static void build_session_update(VoiceWebSocket *ws, char *buffer, size_t size) {
+static void build_session_update(VoiceWebSocket* ws, char* buffer, size_t size) {
     snprintf(buffer, size,
-        "{"
-        "\"type\":\"session.update\","
-        "\"session\":{"
-            "\"modalities\":[\"text\",\"audio\"],"
-            "\"instructions\":\"%s\","
-            "\"voice\":\"sage\","
-            "\"input_audio_format\":\"pcm16\","
-            "\"output_audio_format\":\"pcm16\","
-            "\"input_audio_transcription\":{\"model\":\"whisper-1\"},"
-            "\"turn_detection\":{"
-                "\"type\":\"server_vad\","
-                "\"threshold\":0.5,"
-                "\"prefix_padding_ms\":300,"
-                "\"silence_duration_ms\":500"
-            "}"
-        "}"
-        "}",
-        ws->maestro_instructions[0] ? ws->maestro_instructions :
-            "You are a helpful educational assistant. Speak naturally in Italian."
-    );
+             "{"
+             "\"type\":\"session.update\","
+             "\"session\":{"
+             "\"modalities\":[\"text\",\"audio\"],"
+             "\"instructions\":\"%s\","
+             "\"voice\":\"sage\","
+             "\"input_audio_format\":\"pcm16\","
+             "\"output_audio_format\":\"pcm16\","
+             "\"input_audio_transcription\":{\"model\":\"whisper-1\"},"
+             "\"turn_detection\":{"
+             "\"type\":\"server_vad\","
+             "\"threshold\":0.5,"
+             "\"prefix_padding_ms\":300,"
+             "\"silence_duration_ms\":500"
+             "}"
+             "}"
+             "}",
+             ws->maestro_instructions[0]
+                 ? ws->maestro_instructions
+                 : "You are a helpful educational assistant. Speak naturally in Italian.");
 }
 
-static void build_audio_append(const uint8_t *audio, size_t length, char *buffer, size_t size) {
-    char *b64 = malloc(((length + 2) / 3) * 4 + 1);
-    if (!b64) return;
+static void build_audio_append(const uint8_t* audio, size_t length, char* buffer, size_t size) {
+    char* b64 = malloc(((length + 2) / 3) * 4 + 1);
+    if (!b64)
+        return;
 
     base64_encode(audio, length, b64, ((length + 2) / 3) * 4 + 1);
 
-    snprintf(buffer, size,
-        "{\"type\":\"input_audio_buffer.append\",\"audio\":\"%s\"}",
-        b64
-    );
+    snprintf(buffer, size, "{\"type\":\"input_audio_buffer.append\",\"audio\":\"%s\"}", b64);
 
     free(b64);
 }
 
-static const char *MSG_RESPONSE_CREATE =
+static const char* MSG_RESPONSE_CREATE =
     "{\"type\":\"response.create\",\"response\":{\"modalities\":[\"text\",\"audio\"]}}";
 
-static const char *MSG_AUDIO_COMMIT =
-    "{\"type\":\"input_audio_buffer.commit\"}";
+static const char* MSG_AUDIO_COMMIT = "{\"type\":\"input_audio_buffer.commit\"}";
 
-static const char *MSG_RESPONSE_CANCEL =
-    "{\"type\":\"response.cancel\"}";
+static const char* MSG_RESPONSE_CANCEL = "{\"type\":\"response.cancel\"}";
 
 // ============================================================================
 // MESSAGE PARSING
 // ============================================================================
 
-static void parse_audio_delta(VoiceWebSocket *ws, const char *json) {
+static void parse_audio_delta(VoiceWebSocket* ws, const char* json) {
     // Find "delta":"<base64>" in JSON
-    const char *delta_key = "\"delta\":\"";
-    const char *delta_start = strstr(json, delta_key);
-    if (!delta_start) return;
+    const char* delta_key = "\"delta\":\"";
+    const char* delta_start = strstr(json, delta_key);
+    if (!delta_start)
+        return;
 
     delta_start += strlen(delta_key);
-    const char *delta_end = strchr(delta_start, '"');
-    if (!delta_end) return;
+    const char* delta_end = strchr(delta_start, '"');
+    if (!delta_end)
+        return;
 
     size_t b64_len = delta_end - delta_start;
-    if (b64_len == 0) return;
+    if (b64_len == 0)
+        return;
 
     // Decode base64
     size_t max_decoded = (b64_len / 4) * 3;
-    uint8_t *audio = malloc(max_decoded);
-    if (!audio) return;
+    uint8_t* audio = malloc(max_decoded);
+    if (!audio)
+        return;
 
     size_t decoded_len = base64_decode(delta_start, b64_len, audio, max_decoded);
 
@@ -241,29 +256,33 @@ static void parse_audio_delta(VoiceWebSocket *ws, const char *json) {
     free(audio);
 }
 
-static void parse_transcript(VoiceWebSocket *ws, const char *json, bool is_user) {
+static void parse_transcript(VoiceWebSocket* ws, const char* json, bool is_user) {
     // Find "transcript":"<text>" or "text":"<text>"
-    const char *text_key = is_user ? "\"transcript\":\"" : "\"text\":\"";
-    const char *text_start = strstr(json, text_key);
+    const char* text_key = is_user ? "\"transcript\":\"" : "\"text\":\"";
+    const char* text_start = strstr(json, text_key);
     if (!text_start) {
         text_key = "\"text\":\"";
         text_start = strstr(json, text_key);
     }
-    if (!text_start) return;
+    if (!text_start)
+        return;
 
     text_start += strlen(text_key);
-    const char *text_end = strchr(text_start, '"');
-    if (!text_end) return;
+    const char* text_end = strchr(text_start, '"');
+    if (!text_end)
+        return;
 
     size_t len = text_end - text_start;
-    char *transcript = malloc(len + 1);
-    if (!transcript) return;
+    char* transcript = malloc(len + 1);
+    if (!transcript)
+        return;
 
     memcpy(transcript, text_start, len);
     transcript[len] = '\0';
 
-    bool is_final = strstr(json, "\"is_final\":true") != NULL ||
-                    strstr(json, "\"type\":\"conversation.item.input_audio_transcription.completed\"") != NULL;
+    bool is_final =
+        strstr(json, "\"is_final\":true") != NULL ||
+        strstr(json, "\"type\":\"conversation.item.input_audio_transcription.completed\"") != NULL;
 
     if (ws->on_transcript) {
         ws->on_transcript(transcript, is_user, is_final, ws->callback_user_data);
@@ -272,18 +291,15 @@ static void parse_transcript(VoiceWebSocket *ws, const char *json, bool is_user)
     free(transcript);
 }
 
-static void handle_message(VoiceWebSocket *ws, const char *json, size_t len) {
+static void handle_message(VoiceWebSocket* ws, const char* json, size_t len) {
     // Parse message type
     if (strstr(json, "\"type\":\"response.audio.delta\"")) {
         parse_audio_delta(ws, json);
-    }
-    else if (strstr(json, "\"type\":\"response.audio_transcript.delta\"")) {
+    } else if (strstr(json, "\"type\":\"response.audio_transcript.delta\"")) {
         parse_transcript(ws, json, false);
-    }
-    else if (strstr(json, "\"type\":\"conversation.item.input_audio_transcription\"")) {
+    } else if (strstr(json, "\"type\":\"conversation.item.input_audio_transcription\"")) {
         parse_transcript(ws, json, true);
-    }
-    else if (strstr(json, "\"type\":\"session.created\"")) {
+    } else if (strstr(json, "\"type\":\"session.created\"")) {
         ws->state = VOICE_WS_READY;
         if (ws->on_state_change) {
             ws->on_state_change(VOICE_WS_READY, ws->callback_user_data);
@@ -297,13 +313,11 @@ static void handle_message(VoiceWebSocket *ws, const char *json, size_t len) {
         size_t msg_len = strlen(session_update);
         memcpy(&buf[LWS_PRE], session_update, msg_len);
         lws_write(ws->wsi, &buf[LWS_PRE], msg_len, LWS_WRITE_TEXT);
-    }
-    else if (strstr(json, "\"type\":\"error\"")) {
+    } else if (strstr(json, "\"type\":\"error\"")) {
         if (ws->on_error) {
             ws->on_error(json, ws->callback_user_data);
         }
-    }
-    else if (strstr(json, "\"type\":\"response.done\"")) {
+    } else if (strstr(json, "\"type\":\"response.done\"")) {
         // Response complete, ready for more input
     }
 }
@@ -312,122 +326,117 @@ static void handle_message(VoiceWebSocket *ws, const char *json, size_t len) {
 // WEBSOCKET CALLBACKS
 // ============================================================================
 
-static int voice_ws_callback(struct lws *wsi, enum lws_callback_reasons reason,
-                              void *user, void *in, size_t len) {
-    VoiceWebSocket *ws = g_voice_ws;
-    if (!ws) return 0;
+static int voice_ws_callback(struct lws* wsi, enum lws_callback_reasons reason, void* user,
+                             void* in, size_t len) {
+    VoiceWebSocket* ws = g_voice_ws;
+    if (!ws)
+        return 0;
 
     switch (reason) {
-        case LWS_CALLBACK_CLIENT_APPEND_HANDSHAKE_HEADER: {
-            // Add API key header
-            unsigned char **p = (unsigned char **)in;
-            unsigned char *end = (*p) + len;
+    case LWS_CALLBACK_CLIENT_APPEND_HANDSHAKE_HEADER: {
+        // Add API key header
+        unsigned char** p = (unsigned char**)in;
+        unsigned char* end = (*p) + len;
 
-            // For Azure: api-key header
-            // For OpenAI: Authorization: Bearer header
-            if (ws->use_azure) {
-                if (lws_add_http_header_by_name(wsi,
-                        (const unsigned char *)"api-key:",
-                        (const unsigned char *)ws->api_key,
-                        (int)strlen(ws->api_key), p, end)) {
-                    return -1;
-                }
-            } else {
-                char auth_header[512];
-                snprintf(auth_header, sizeof(auth_header), "Bearer %s", ws->api_key);
-                if (lws_add_http_header_by_name(wsi,
-                        (const unsigned char *)"Authorization:",
-                        (const unsigned char *)auth_header,
-                        (int)strlen(auth_header), p, end)) {
-                    return -1;
-                }
-            }
-
-            // Add OpenAI-Beta header for realtime
-            if (lws_add_http_header_by_name(wsi,
-                    (const unsigned char *)"OpenAI-Beta:",
-                    (const unsigned char *)"realtime=v1",
-                    11, p, end)) {
+        // For Azure: api-key header
+        // For OpenAI: Authorization: Bearer header
+        if (ws->use_azure) {
+            if (lws_add_http_header_by_name(
+                    wsi, (const unsigned char*)"api-key:", (const unsigned char*)ws->api_key,
+                    (int)strlen(ws->api_key), p, end)) {
                 return -1;
             }
-            break;
+        } else {
+            char auth_header[512];
+            snprintf(auth_header, sizeof(auth_header), "Bearer %s", ws->api_key);
+            if (lws_add_http_header_by_name(
+                    wsi, (const unsigned char*)"Authorization:", (const unsigned char*)auth_header,
+                    (int)strlen(auth_header), p, end)) {
+                return -1;
+            }
         }
 
-        case LWS_CALLBACK_CLIENT_ESTABLISHED:
-            fprintf(stderr, "[Voice WS] Connected\n");
-            ws->state = VOICE_WS_CONNECTED;
-            if (ws->on_state_change) {
-                ws->on_state_change(VOICE_WS_CONNECTED, ws->callback_user_data);
-            }
-            break;
+        // Add OpenAI-Beta header for realtime
+        if (lws_add_http_header_by_name(wsi, (const unsigned char*)"OpenAI-Beta:",
+                                        (const unsigned char*)"realtime=v1", 11, p, end)) {
+            return -1;
+        }
+        break;
+    }
 
-        case LWS_CALLBACK_CLIENT_RECEIVE:
-            handle_message(ws, (const char *)in, len);
-            break;
+    case LWS_CALLBACK_CLIENT_ESTABLISHED:
+        fprintf(stderr, "[Voice WS] Connected\n");
+        ws->state = VOICE_WS_CONNECTED;
+        if (ws->on_state_change) {
+            ws->on_state_change(VOICE_WS_CONNECTED, ws->callback_user_data);
+        }
+        break;
 
-        case LWS_CALLBACK_CLIENT_WRITEABLE:
-            // Send queued audio if any
-            pthread_mutex_lock(&ws->mutex);
-            if (ws->audio_send_pos > 0) {
-                char msg[VOICE_WS_TX_BUFFER_SIZE + 1024];
-                build_audio_append(ws->audio_send_buffer, ws->audio_send_pos, msg, sizeof(msg));
+    case LWS_CALLBACK_CLIENT_RECEIVE:
+        handle_message(ws, (const char*)in, len);
+        break;
 
-                unsigned char buf[LWS_PRE + VOICE_WS_TX_BUFFER_SIZE + 1024];
-                size_t msg_len = strlen(msg);
-                memcpy(&buf[LWS_PRE], msg, msg_len);
-                lws_write(wsi, &buf[LWS_PRE], msg_len, LWS_WRITE_TEXT);
+    case LWS_CALLBACK_CLIENT_WRITEABLE:
+        // Send queued audio if any
+        pthread_mutex_lock(&ws->mutex);
+        if (ws->audio_send_pos > 0) {
+            char msg[VOICE_WS_TX_BUFFER_SIZE + 1024];
+            build_audio_append(ws->audio_send_buffer, ws->audio_send_pos, msg, sizeof(msg));
 
-                ws->audio_send_pos = 0;
-            }
-            pthread_mutex_unlock(&ws->mutex);
-            break;
+            unsigned char buf[LWS_PRE + VOICE_WS_TX_BUFFER_SIZE + 1024];
+            size_t msg_len = strlen(msg);
+            memcpy(&buf[LWS_PRE], msg, msg_len);
+            lws_write(wsi, &buf[LWS_PRE], msg_len, LWS_WRITE_TEXT);
 
-        case LWS_CALLBACK_CLIENT_CONNECTION_ERROR:
-            fprintf(stderr, "[Voice WS] Connection error: %s\n", in ? (char *)in : "unknown");
-            ws->state = VOICE_WS_ERROR;
-            if (ws->on_error) {
-                ws->on_error(in ? (char *)in : "Connection failed", ws->callback_user_data);
-            }
-            break;
+            ws->audio_send_pos = 0;
+        }
+        pthread_mutex_unlock(&ws->mutex);
+        break;
 
-        case LWS_CALLBACK_CLIENT_CLOSED:
-            fprintf(stderr, "[Voice WS] Disconnected\n");
-            ws->state = VOICE_WS_DISCONNECTED;
-            ws->wsi = NULL;
-            if (ws->on_state_change) {
-                ws->on_state_change(VOICE_WS_DISCONNECTED, ws->callback_user_data);
-            }
-            break;
+    case LWS_CALLBACK_CLIENT_CONNECTION_ERROR:
+        fprintf(stderr, "[Voice WS] Connection error: %s\n", in ? (char*)in : "unknown");
+        ws->state = VOICE_WS_ERROR;
+        if (ws->on_error) {
+            ws->on_error(in ? (char*)in : "Connection failed", ws->callback_user_data);
+        }
+        break;
 
-        default:
-            break;
+    case LWS_CALLBACK_CLIENT_CLOSED:
+        fprintf(stderr, "[Voice WS] Disconnected\n");
+        ws->state = VOICE_WS_DISCONNECTED;
+        ws->wsi = NULL;
+        if (ws->on_state_change) {
+            ws->on_state_change(VOICE_WS_DISCONNECTED, ws->callback_user_data);
+        }
+        break;
+
+    default:
+        break;
     }
 
     return 0;
 }
 
-static const struct lws_protocols protocols[] = {
-    {
-        .name = "realtime",
-        .callback = voice_ws_callback,
-        .per_session_data_size = 0,
-        .rx_buffer_size = VOICE_WS_RX_BUFFER_SIZE,
-    },
-    { NULL, NULL, 0, 0 }
-};
+static const struct lws_protocols protocols[] = {{
+                                                     .name = "realtime",
+                                                     .callback = voice_ws_callback,
+                                                     .per_session_data_size = 0,
+                                                     .rx_buffer_size = VOICE_WS_RX_BUFFER_SIZE,
+                                                 },
+                                                 {NULL, NULL, 0, 0}};
 
 // ============================================================================
 // SERVICE THREAD
 // ============================================================================
 
-static void *voice_ws_service_thread(void *arg) {
-    VoiceWebSocket *ws = (VoiceWebSocket *)arg;
+static void* voice_ws_service_thread(void* arg) {
+    VoiceWebSocket* ws = (VoiceWebSocket*)arg;
 
     while (!ws->should_stop) {
         if (ws->context) {
-            lws_service(ws->context, 50);  // 50ms timeout
+            lws_service(ws->context, 50); // 50ms timeout
         } else {
-            usleep(10000);  // 10ms
+            usleep(10000); // 10ms
         }
     }
 
@@ -438,9 +447,10 @@ static void *voice_ws_service_thread(void *arg) {
 // PUBLIC API
 // ============================================================================
 
-VoiceWebSocket *voice_ws_create(void) {
-    VoiceWebSocket *ws = calloc(1, sizeof(VoiceWebSocket));
-    if (!ws) return NULL;
+VoiceWebSocket* voice_ws_create(void) {
+    VoiceWebSocket* ws = calloc(1, sizeof(VoiceWebSocket));
+    if (!ws)
+        return NULL;
 
     ws->state = VOICE_WS_DISCONNECTED;
 
@@ -463,8 +473,9 @@ VoiceWebSocket *voice_ws_create(void) {
     return ws;
 }
 
-void voice_ws_destroy(VoiceWebSocket *ws) {
-    if (!ws) return;
+void voice_ws_destroy(VoiceWebSocket* ws) {
+    if (!ws)
+        return;
 
     voice_ws_disconnect(ws);
 
@@ -474,28 +485,32 @@ void voice_ws_destroy(VoiceWebSocket *ws) {
     free(ws->current_transcript);
     free(ws);
 
-    if (g_voice_ws == ws) g_voice_ws = NULL;
+    if (g_voice_ws == ws)
+        g_voice_ws = NULL;
 }
 
-bool voice_ws_connect(VoiceWebSocket *ws) {
-    if (!ws) return false;
+bool voice_ws_connect(VoiceWebSocket* ws) {
+    if (!ws)
+        return false;
 
     ws->state = VOICE_WS_CONNECTING;
 
     // Load API configuration from environment
-    const char *azure_endpoint = getenv("AZURE_OPENAI_REALTIME_ENDPOINT");
-    const char *azure_key = getenv("AZURE_OPENAI_REALTIME_API_KEY");
-    const char *azure_deployment = getenv("AZURE_OPENAI_REALTIME_DEPLOYMENT");
-    const char *openai_key = getenv("OPENAI_API_KEY");
+    const char* azure_endpoint = getenv("AZURE_OPENAI_REALTIME_ENDPOINT");
+    const char* azure_key = getenv("AZURE_OPENAI_REALTIME_API_KEY");
+    const char* azure_deployment = getenv("AZURE_OPENAI_REALTIME_DEPLOYMENT");
+    const char* openai_key = getenv("OPENAI_API_KEY");
 
     // Prefer Azure, fallback to OpenAI
     if (azure_endpoint && azure_key && azure_deployment) {
         ws->use_azure = true;
 
         // Parse endpoint: remove https:// prefix and trailing /
-        const char *host = azure_endpoint;
-        if (strncmp(host, "https://", 8) == 0) host += 8;
-        if (strncmp(host, "http://", 7) == 0) host += 7;
+        const char* host = azure_endpoint;
+        if (strncmp(host, "https://", 8) == 0)
+            host += 8;
+        if (strncmp(host, "http://", 7) == 0)
+            host += 7;
         strncpy(ws->endpoint, host, sizeof(ws->endpoint) - 1);
 
         // Remove trailing slash if present
@@ -538,12 +553,9 @@ bool voice_ws_connect(VoiceWebSocket *ws) {
     char path[1024];
     if (ws->use_azure) {
         snprintf(path, sizeof(path),
-            "/openai/realtime?api-version=2025-04-01-preview&deployment=%s",
-            ws->deployment);
+                 "/openai/realtime?api-version=2025-04-01-preview&deployment=%s", ws->deployment);
     } else {
-        snprintf(path, sizeof(path),
-            "/v1/realtime?model=%s",
-            ws->deployment);
+        snprintf(path, sizeof(path), "/v1/realtime?model=%s", ws->deployment);
     }
 
     // Connect
@@ -574,8 +586,9 @@ bool voice_ws_connect(VoiceWebSocket *ws) {
     return true;
 }
 
-void voice_ws_disconnect(VoiceWebSocket *ws) {
-    if (!ws) return;
+void voice_ws_disconnect(VoiceWebSocket* ws) {
+    if (!ws)
+        return;
 
     ws->should_stop = true;
 
@@ -593,8 +606,9 @@ void voice_ws_disconnect(VoiceWebSocket *ws) {
     ws->state = VOICE_WS_DISCONNECTED;
 }
 
-void voice_ws_send_audio(VoiceWebSocket *ws, const uint8_t *audio, size_t length) {
-    if (!ws || ws->state != VOICE_WS_READY) return;
+void voice_ws_send_audio(VoiceWebSocket* ws, const uint8_t* audio, size_t length) {
+    if (!ws || ws->state != VOICE_WS_READY)
+        return;
 
     pthread_mutex_lock(&ws->mutex);
 
@@ -614,8 +628,9 @@ void voice_ws_send_audio(VoiceWebSocket *ws, const uint8_t *audio, size_t length
     }
 }
 
-void voice_ws_commit_audio(VoiceWebSocket *ws) {
-    if (!ws || !ws->wsi || ws->state != VOICE_WS_READY) return;
+void voice_ws_commit_audio(VoiceWebSocket* ws) {
+    if (!ws || !ws->wsi || ws->state != VOICE_WS_READY)
+        return;
 
     unsigned char buf[LWS_PRE + 256];
     size_t len = strlen(MSG_AUDIO_COMMIT);
@@ -623,8 +638,9 @@ void voice_ws_commit_audio(VoiceWebSocket *ws) {
     lws_write(ws->wsi, &buf[LWS_PRE], len, LWS_WRITE_TEXT);
 }
 
-void voice_ws_request_response(VoiceWebSocket *ws) {
-    if (!ws || !ws->wsi || ws->state != VOICE_WS_READY) return;
+void voice_ws_request_response(VoiceWebSocket* ws) {
+    if (!ws || !ws->wsi || ws->state != VOICE_WS_READY)
+        return;
 
     unsigned char buf[LWS_PRE + 256];
     size_t len = strlen(MSG_RESPONSE_CREATE);
@@ -632,8 +648,9 @@ void voice_ws_request_response(VoiceWebSocket *ws) {
     lws_write(ws->wsi, &buf[LWS_PRE], len, LWS_WRITE_TEXT);
 }
 
-void voice_ws_cancel_response(VoiceWebSocket *ws) {
-    if (!ws || !ws->wsi || ws->state != VOICE_WS_READY) return;
+void voice_ws_cancel_response(VoiceWebSocket* ws) {
+    if (!ws || !ws->wsi || ws->state != VOICE_WS_READY)
+        return;
 
     unsigned char buf[LWS_PRE + 256];
     size_t len = strlen(MSG_RESPONSE_CANCEL);
@@ -641,8 +658,9 @@ void voice_ws_cancel_response(VoiceWebSocket *ws) {
     lws_write(ws->wsi, &buf[LWS_PRE], len, LWS_WRITE_TEXT);
 }
 
-void voice_ws_set_maestro(VoiceWebSocket *ws, const char *maestro_id, const char *instructions) {
-    if (!ws) return;
+void voice_ws_set_maestro(VoiceWebSocket* ws, const char* maestro_id, const char* instructions) {
+    if (!ws)
+        return;
 
     strncpy(ws->current_maestro, maestro_id, sizeof(ws->current_maestro) - 1);
     if (instructions) {
@@ -650,13 +668,12 @@ void voice_ws_set_maestro(VoiceWebSocket *ws, const char *maestro_id, const char
     }
 }
 
-void voice_ws_set_callbacks(VoiceWebSocket *ws,
-                            void (*on_audio)(const uint8_t*, size_t, void*),
+void voice_ws_set_callbacks(VoiceWebSocket* ws, void (*on_audio)(const uint8_t*, size_t, void*),
                             void (*on_transcript)(const char*, bool, bool, void*),
                             void (*on_state)(VoiceWebSocketState, void*),
-                            void (*on_error)(const char*, void*),
-                            void *user_data) {
-    if (!ws) return;
+                            void (*on_error)(const char*, void*), void* user_data) {
+    if (!ws)
+        return;
 
     ws->on_audio_received = on_audio;
     ws->on_transcript = on_transcript;
@@ -665,7 +682,7 @@ void voice_ws_set_callbacks(VoiceWebSocket *ws,
     ws->callback_user_data = user_data;
 }
 
-VoiceWebSocketState voice_ws_get_state(VoiceWebSocket *ws) {
+VoiceWebSocketState voice_ws_get_state(VoiceWebSocket* ws) {
     return ws ? ws->state : VOICE_WS_DISCONNECTED;
 }
 

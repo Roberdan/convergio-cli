@@ -10,31 +10,37 @@
 
 #include "nous/education.h"
 #include "nous/orchestrator.h"
+#include <ctype.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <stdbool.h>
-#include <ctype.h>
 
 // Helper to extract JSON string value
 static char* extract_json_string(const char* json, const char* key) {
-    if (!json || !key) return NULL;
+    if (!json || !key)
+        return NULL;
 
     char search[128];
     snprintf(search, sizeof(search), "\"%s\"", key);
 
     char* pos = strstr(json, search);
-    if (!pos) return NULL;
+    if (!pos)
+        return NULL;
 
     pos = strchr(pos, ':');
-    if (!pos) return NULL;
+    if (!pos)
+        return NULL;
 
-    while (*pos && (*pos == ':' || *pos == ' ' || *pos == '\t')) pos++;
-    if (*pos != '"') return NULL;
+    while (*pos && (*pos == ':' || *pos == ' ' || *pos == '\t'))
+        pos++;
+    if (*pos != '"')
+        return NULL;
 
-    pos++;  // Skip opening quote
+    pos++; // Skip opening quote
     char* end = strchr(pos, '"');
-    if (!end) return NULL;
+    if (!end)
+        return NULL;
 
     size_t len = end - pos;
     char* result = malloc(len + 1);
@@ -135,17 +141,16 @@ typedef struct {
 } LinguisticAccessibility;
 
 static LinguisticAccessibility get_linguistic_accessibility(const EducationAccessibility* a) {
-    LinguisticAccessibility la = {
-        .use_tts = false,
-        .tts_speed = 1.0f,
-        .simplified_definitions = false,
-        .show_etymology = true,
-        .show_examples = true,
-        .highlight_syllables = false,
-        .color_coded_grammar = true
-    };
+    LinguisticAccessibility la = {.use_tts = false,
+                                  .tts_speed = 1.0f,
+                                  .simplified_definitions = false,
+                                  .show_etymology = true,
+                                  .show_examples = true,
+                                  .highlight_syllables = false,
+                                  .color_coded_grammar = true};
 
-    if (!a) return la;
+    if (!a)
+        return la;
 
     if (a->dyslexia) {
         la.use_tts = a->tts_enabled;
@@ -156,11 +161,11 @@ static LinguisticAccessibility get_linguistic_accessibility(const EducationAcces
 
     if (a->autism) {
         la.simplified_definitions = true;
-        la.show_etymology = false;  // Reduce information overload
+        la.show_etymology = false; // Reduce information overload
     }
 
     if (a->adhd) {
-        la.show_examples = true;  // Concrete examples help focus
+        la.show_examples = true; // Concrete examples help focus
     }
 
     if (a->high_contrast) {
@@ -178,11 +183,13 @@ static LinguisticAccessibility get_linguistic_accessibility(const EducationAcces
  * Look up word in dictionary (supports multiple languages)
  */
 DictionaryEntry* dictionary_lookup(const char* word, Language language,
-                                    const EducationAccessibility* access) {
-    if (!word) return NULL;
+                                   const EducationAccessibility* access) {
+    if (!word)
+        return NULL;
 
     DictionaryEntry* entry = calloc(1, sizeof(DictionaryEntry));
-    if (!entry) return NULL;
+    if (!entry)
+        return NULL;
 
     entry->word = strdup(word);
     entry->language = language;
@@ -196,10 +203,12 @@ DictionaryEntry* dictionary_lookup(const char* word, Language language,
 
     // Build dictionary prompt
     char prompt[1024];
-    snprintf(prompt, sizeof(prompt),
+    snprintf(
+        prompt, sizeof(prompt),
         "Define the %s word \"%s\". Respond in JSON format:\n"
         "{\n"
-        "  \"part_of_speech\": \"noun|verb|adjective|adverb|pronoun|preposition|conjunction|article\",\n"
+        "  \"part_of_speech\": "
+        "\"noun|verb|adjective|adverb|pronoun|preposition|conjunction|article\",\n"
         "  \"definition\": \"main definition\",\n"
         "  \"example\": \"example sentence\",\n"
         "  \"ipa\": \"/phonetic transcription/\",\n"
@@ -213,22 +222,28 @@ DictionaryEntry* dictionary_lookup(const char* word, Language language,
     TokenUsage usage = {0};
     char* response = llm_chat(
         "You are a linguistic expert. Provide accurate dictionary definitions in JSON format only.",
-        prompt,
-        &usage
-    );
+        prompt, &usage);
 
     if (response) {
         // Parse response
         char* pos = extract_json_string(response, "part_of_speech");
         if (pos) {
-            if (strstr(pos, "verb")) entry->part_of_speech = POS_VERB;
-            else if (strstr(pos, "adjective")) entry->part_of_speech = POS_ADJECTIVE;
-            else if (strstr(pos, "adverb")) entry->part_of_speech = POS_ADVERB;
-            else if (strstr(pos, "pronoun")) entry->part_of_speech = POS_PRONOUN;
-            else if (strstr(pos, "preposition")) entry->part_of_speech = POS_PREPOSITION;
-            else if (strstr(pos, "conjunction")) entry->part_of_speech = POS_CONJUNCTION;
-            else if (strstr(pos, "article")) entry->part_of_speech = POS_ARTICLE;
-            else entry->part_of_speech = POS_NOUN;
+            if (strstr(pos, "verb"))
+                entry->part_of_speech = POS_VERB;
+            else if (strstr(pos, "adjective"))
+                entry->part_of_speech = POS_ADJECTIVE;
+            else if (strstr(pos, "adverb"))
+                entry->part_of_speech = POS_ADVERB;
+            else if (strstr(pos, "pronoun"))
+                entry->part_of_speech = POS_PRONOUN;
+            else if (strstr(pos, "preposition"))
+                entry->part_of_speech = POS_PREPOSITION;
+            else if (strstr(pos, "conjunction"))
+                entry->part_of_speech = POS_CONJUNCTION;
+            else if (strstr(pos, "article"))
+                entry->part_of_speech = POS_ARTICLE;
+            else
+                entry->part_of_speech = POS_NOUN;
             free(pos);
         }
 
@@ -257,9 +272,9 @@ DictionaryEntry* dictionary_lookup(const char* word, Language language,
 /**
  * Display dictionary entry with accessibility adaptations
  */
-void dictionary_display(const DictionaryEntry* entry,
-                        const EducationAccessibility* access) {
-    if (!entry) return;
+void dictionary_display(const DictionaryEntry* entry, const EducationAccessibility* access) {
+    if (!entry)
+        return;
 
     LinguisticAccessibility la = get_linguistic_accessibility(access);
 
@@ -277,10 +292,8 @@ void dictionary_display(const DictionaryEntry* entry,
     }
 
     // Part of speech
-    const char* pos_str[] = {
-        "noun", "verb", "adjective", "adverb",
-        "pronoun", "preposition", "conjunction", "article"
-    };
+    const char* pos_str[] = {"noun",    "verb",        "adjective",   "adverb",
+                             "pronoun", "preposition", "conjunction", "article"};
     printf("%s(%s)%s\n\n", GREEN, pos_str[entry->part_of_speech], RESET);
 
     // Definitions
@@ -316,7 +329,8 @@ void dictionary_display(const DictionaryEntry* entry,
  * Free dictionary entry
  */
 void dictionary_free(DictionaryEntry* entry) {
-    if (!entry) return;
+    if (!entry)
+        return;
     free(entry->word);
     for (int i = 0; i < entry->definition_count; i++) {
         free(entry->definitions[i]);
@@ -339,11 +353,13 @@ void dictionary_free(DictionaryEntry* entry) {
  * Analyze sentence grammar structure
  */
 GrammarAnalysis* grammar_analyze(const char* sentence, Language language,
-                                  const EducationAccessibility* access) {
-    if (!sentence) return NULL;
+                                 const EducationAccessibility* access) {
+    if (!sentence)
+        return NULL;
 
     GrammarAnalysis* analysis = calloc(1, sizeof(GrammarAnalysis));
-    if (!analysis) return NULL;
+    if (!analysis)
+        return NULL;
 
     analysis->sentence = strdup(sentence);
     analysis->language = language;
@@ -371,25 +387,23 @@ GrammarAnalysis* grammar_analyze(const char* sentence, Language language,
     // Build grammar analysis prompt
     char prompt[2048];
     snprintf(prompt, sizeof(prompt),
-        "Analyze the grammatical structure of this %s sentence:\n\"%s\"\n\n"
-        "Respond in JSON format:\n"
-        "{\n"
-        "  \"structure\": \"grammatical pattern e.g. Subject + Verb + Object\",\n"
-        "  \"subject\": \"the subject of the sentence\",\n"
-        "  \"predicate\": \"the verb phrase\",\n"
-        "  \"objects\": \"direct/indirect objects if any\",\n"
-        "  \"modifiers\": \"adjectives, adverbs, phrases\",\n"
-        "  \"clause_type\": \"Declarative|Interrogative|Imperative|Exclamatory\"\n"
-        "}",
-        lang_name, sentence);
+             "Analyze the grammatical structure of this %s sentence:\n\"%s\"\n\n"
+             "Respond in JSON format:\n"
+             "{\n"
+             "  \"structure\": \"grammatical pattern e.g. Subject + Verb + Object\",\n"
+             "  \"subject\": \"the subject of the sentence\",\n"
+             "  \"predicate\": \"the verb phrase\",\n"
+             "  \"objects\": \"direct/indirect objects if any\",\n"
+             "  \"modifiers\": \"adjectives, adverbs, phrases\",\n"
+             "  \"clause_type\": \"Declarative|Interrogative|Imperative|Exclamatory\"\n"
+             "}",
+             lang_name, sentence);
 
     // Call LLM for grammar analysis
     TokenUsage usage = {0};
-    char* response = llm_chat(
-        "You are a grammar expert. Analyze sentences and provide detailed grammatical breakdowns in JSON format.",
-        prompt,
-        &usage
-    );
+    char* response = llm_chat("You are a grammar expert. Analyze sentences and provide detailed "
+                              "grammatical breakdowns in JSON format.",
+                              prompt, &usage);
 
     if (response) {
         char* structure = extract_json_string(response, "structure");
@@ -425,18 +439,18 @@ GrammarAnalysis* grammar_analyze(const char* sentence, Language language,
 /**
  * Display grammar analysis with color coding
  */
-void grammar_display(const GrammarAnalysis* analysis,
-                     const EducationAccessibility* access) {
-    if (!analysis) return;
+void grammar_display(const GrammarAnalysis* analysis, const EducationAccessibility* access) {
+    if (!analysis)
+        return;
 
     LinguisticAccessibility la = get_linguistic_accessibility(access);
 
     const char* BOLD = "\033[1m";
     const char* RESET = "\033[0m";
-    const char* BLUE = "\033[34m";    // Subject
-    const char* GREEN = "\033[32m";   // Verb
-    const char* YELLOW = "\033[33m";  // Object
-    const char* CYAN = "\033[36m";    // Modifier
+    const char* BLUE = "\033[34m";   // Subject
+    const char* GREEN = "\033[32m";  // Verb
+    const char* YELLOW = "\033[33m"; // Object
+    const char* CYAN = "\033[36m";   // Modifier
 
     printf("\n%sGrammar Analysis%s\n", BOLD, RESET);
     printf("Sentence: %s\n\n", analysis->sentence);
@@ -468,7 +482,8 @@ void grammar_display(const GrammarAnalysis* analysis,
  * Free grammar analysis
  */
 void grammar_free(GrammarAnalysis* analysis) {
-    if (!analysis) return;
+    if (!analysis)
+        return;
     free(analysis->sentence);
     free(analysis->parsed_structure);
     free(analysis->subject);
@@ -493,11 +508,13 @@ void grammar_free(GrammarAnalysis* analysis) {
  * Generate conjugation table for a verb
  */
 VerbTable* verb_conjugate(const char* verb, Language language,
-                           const EducationAccessibility* access) {
-    if (!verb) return NULL;
+                          const EducationAccessibility* access) {
+    if (!verb)
+        return NULL;
 
     VerbTable* table = calloc(1, sizeof(VerbTable));
-    if (!table) return NULL;
+    if (!table)
+        return NULL;
 
     table->verb = strdup(verb);
     table->language = language;
@@ -511,26 +528,25 @@ VerbTable* verb_conjugate(const char* verb, Language language,
     // Build conjugation prompt
     char prompt[1024];
     snprintf(prompt, sizeof(prompt),
-        "Conjugate the %s verb \"%s\" in present, past, and future tenses.\n"
-        "For each form, provide: tense, person (io/tu/lui/noi/voi/loro for Italian, I/you/he/we/they for English), form.\n"
-        "Indicate if the verb is irregular.\n"
-        "Respond in JSON format:\n"
-        "{\n"
-        "  \"irregular\": true/false,\n"
-        "  \"conjugations\": [\n"
-        "    {\"tense\": \"Present\", \"person\": \"io\", \"form\": \"parlo\"},\n"
-        "    ...\n"
-        "  ]\n"
-        "}",
-        lang_name, verb);
+             "Conjugate the %s verb \"%s\" in present, past, and future tenses.\n"
+             "For each form, provide: tense, person (io/tu/lui/noi/voi/loro for Italian, "
+             "I/you/he/we/they for English), form.\n"
+             "Indicate if the verb is irregular.\n"
+             "Respond in JSON format:\n"
+             "{\n"
+             "  \"irregular\": true/false,\n"
+             "  \"conjugations\": [\n"
+             "    {\"tense\": \"Present\", \"person\": \"io\", \"form\": \"parlo\"},\n"
+             "    ...\n"
+             "  ]\n"
+             "}",
+             lang_name, verb);
 
     // Call LLM for conjugation
     TokenUsage usage = {0};
-    char* response = llm_chat(
-        "You are a linguistics expert specializing in verb conjugation. Provide accurate conjugations in JSON format.",
-        prompt,
-        &usage
-    );
+    char* response = llm_chat("You are a linguistics expert specializing in verb conjugation. "
+                              "Provide accurate conjugations in JSON format.",
+                              prompt, &usage);
 
     if (response) {
         // Check if irregular
@@ -544,7 +560,8 @@ VerbTable* verb_conjugate(const char* verb, Language language,
             ptr = strchr(ptr, '[');
             if (ptr) {
                 // Parse each conjugation entry
-                while ((ptr = strstr(ptr, "{")) != NULL && table->conjugation_count < MAX_CONJUGATIONS) {
+                while ((ptr = strstr(ptr, "{")) != NULL &&
+                       table->conjugation_count < MAX_CONJUGATIONS) {
                     char* tense = extract_json_string(ptr, "tense");
                     char* person = extract_json_string(ptr, "person");
                     char* form = extract_json_string(ptr, "form");
@@ -561,7 +578,8 @@ VerbTable* verb_conjugate(const char* verb, Language language,
                     }
 
                     ptr = strchr(ptr, '}');
-                    if (!ptr) break;
+                    if (!ptr)
+                        break;
                     ptr++;
                 }
             }
@@ -584,9 +602,9 @@ VerbTable* verb_conjugate(const char* verb, Language language,
 /**
  * Display verb conjugation table
  */
-void verb_display(const VerbTable* table,
-                  const EducationAccessibility* access) {
-    if (!table) return;
+void verb_display(const VerbTable* table, const EducationAccessibility* access) {
+    if (!table)
+        return;
 
     const char* BOLD = "\033[1m";
     const char* RESET = "\033[0m";
@@ -618,7 +636,8 @@ void verb_display(const VerbTable* table,
  * Free verb table
  */
 void verb_free(VerbTable* table) {
-    if (!table) return;
+    if (!table)
+        return;
     free(table->verb);
     free(table->infinitive);
     for (int i = 0; i < table->conjugation_count; i++) {
@@ -636,9 +655,9 @@ void verb_free(VerbTable* table) {
 /**
  * Get IPA pronunciation for a word
  */
-char* pronunciation_ipa(const char* word, Language language,
-                        const EducationAccessibility* access) {
-    if (!word) return NULL;
+char* pronunciation_ipa(const char* word, Language language, const EducationAccessibility* access) {
+    if (!word)
+        return NULL;
 
     // Language names for prompt
     const char* lang_names[] = {"Italian", "English", "Spanish", "French", "German", "Latin"};
@@ -646,7 +665,8 @@ char* pronunciation_ipa(const char* word, Language language,
 
     // Build IPA prompt
     char prompt[512];
-    snprintf(prompt, sizeof(prompt),
+    snprintf(
+        prompt, sizeof(prompt),
         "Provide the IPA (International Phonetic Alphabet) transcription for the %s word \"%s\".\n"
         "Respond with ONLY the IPA transcription in slashes, like: /həˈloʊ/\n"
         "Do not include any other text.",
@@ -654,11 +674,8 @@ char* pronunciation_ipa(const char* word, Language language,
 
     // Call LLM for IPA
     TokenUsage usage = {0};
-    char* response = llm_chat(
-        "You are a phonetics expert. Provide accurate IPA transcriptions.",
-        prompt,
-        &usage
-    );
+    char* response = llm_chat("You are a phonetics expert. Provide accurate IPA transcriptions.",
+                              prompt, &usage);
 
     char* result = NULL;
 
@@ -701,7 +718,8 @@ char* pronunciation_ipa(const char* word, Language language,
  */
 void pronunciation_display(const char* word, const char* ipa,
                            const EducationAccessibility* access) {
-    if (!word || !ipa) return;
+    if (!word || !ipa)
+        return;
 
     LinguisticAccessibility la = get_linguistic_accessibility(access);
 
@@ -750,8 +768,7 @@ void pronunciation_display(const char* word, const char* ipa,
 /**
  * Handle /define command
  */
-int linguistic_define_handler(int argc, char** argv,
-                               const EducationStudentProfile* profile) {
+int linguistic_define_handler(int argc, char** argv, const EducationStudentProfile* profile) {
     if (argc < 2) {
         printf("Usage: /define <word> [--lang en|it|es|fr|de|la]\n");
         return 1;
@@ -764,11 +781,16 @@ int linguistic_define_handler(int argc, char** argv,
     for (int i = 2; i < argc; i++) {
         if (strcmp(argv[i], "--lang") == 0 && i + 1 < argc) {
             const char* lang_str = argv[++i];
-            if (strcmp(lang_str, "it") == 0) lang = LANG_ITALIAN;
-            else if (strcmp(lang_str, "es") == 0) lang = LANG_SPANISH;
-            else if (strcmp(lang_str, "fr") == 0) lang = LANG_FRENCH;
-            else if (strcmp(lang_str, "de") == 0) lang = LANG_GERMAN;
-            else if (strcmp(lang_str, "la") == 0) lang = LANG_LATIN;
+            if (strcmp(lang_str, "it") == 0)
+                lang = LANG_ITALIAN;
+            else if (strcmp(lang_str, "es") == 0)
+                lang = LANG_SPANISH;
+            else if (strcmp(lang_str, "fr") == 0)
+                lang = LANG_FRENCH;
+            else if (strcmp(lang_str, "de") == 0)
+                lang = LANG_GERMAN;
+            else if (strcmp(lang_str, "la") == 0)
+                lang = LANG_LATIN;
         }
     }
 
@@ -788,24 +810,28 @@ int linguistic_define_handler(int argc, char** argv,
 /**
  * Handle /conjugate command
  */
-int linguistic_conjugate_handler(int argc, char** argv,
-                                  const EducationStudentProfile* profile) {
+int linguistic_conjugate_handler(int argc, char** argv, const EducationStudentProfile* profile) {
     if (argc < 2) {
         printf("Usage: /conjugate <verb> [--lang en|it|es|fr|de|la]\n");
         return 1;
     }
 
     const char* verb = argv[1];
-    Language lang = LANG_ITALIAN;  // Default to Italian
+    Language lang = LANG_ITALIAN; // Default to Italian
 
     for (int i = 2; i < argc; i++) {
         if (strcmp(argv[i], "--lang") == 0 && i + 1 < argc) {
             const char* lang_str = argv[++i];
-            if (strcmp(lang_str, "en") == 0) lang = LANG_ENGLISH;
-            else if (strcmp(lang_str, "es") == 0) lang = LANG_SPANISH;
-            else if (strcmp(lang_str, "fr") == 0) lang = LANG_FRENCH;
-            else if (strcmp(lang_str, "de") == 0) lang = LANG_GERMAN;
-            else if (strcmp(lang_str, "la") == 0) lang = LANG_LATIN;
+            if (strcmp(lang_str, "en") == 0)
+                lang = LANG_ENGLISH;
+            else if (strcmp(lang_str, "es") == 0)
+                lang = LANG_SPANISH;
+            else if (strcmp(lang_str, "fr") == 0)
+                lang = LANG_FRENCH;
+            else if (strcmp(lang_str, "de") == 0)
+                lang = LANG_GERMAN;
+            else if (strcmp(lang_str, "la") == 0)
+                lang = LANG_LATIN;
         }
     }
 
@@ -825,8 +851,7 @@ int linguistic_conjugate_handler(int argc, char** argv,
 /**
  * Handle /pronounce command
  */
-int linguistic_pronounce_handler(int argc, char** argv,
-                                  const EducationStudentProfile* profile) {
+int linguistic_pronounce_handler(int argc, char** argv, const EducationStudentProfile* profile) {
     if (argc < 2) {
         printf("Usage: /pronounce <word> [--lang en|it|es|fr|de]\n");
         return 1;
@@ -838,10 +863,14 @@ int linguistic_pronounce_handler(int argc, char** argv,
     for (int i = 2; i < argc; i++) {
         if (strcmp(argv[i], "--lang") == 0 && i + 1 < argc) {
             const char* lang_str = argv[++i];
-            if (strcmp(lang_str, "it") == 0) lang = LANG_ITALIAN;
-            else if (strcmp(lang_str, "es") == 0) lang = LANG_SPANISH;
-            else if (strcmp(lang_str, "fr") == 0) lang = LANG_FRENCH;
-            else if (strcmp(lang_str, "de") == 0) lang = LANG_GERMAN;
+            if (strcmp(lang_str, "it") == 0)
+                lang = LANG_ITALIAN;
+            else if (strcmp(lang_str, "es") == 0)
+                lang = LANG_SPANISH;
+            else if (strcmp(lang_str, "fr") == 0)
+                lang = LANG_FRENCH;
+            else if (strcmp(lang_str, "de") == 0)
+                lang = LANG_GERMAN;
         }
     }
 
@@ -869,8 +898,7 @@ int linguistic_pronounce_handler(int argc, char** argv,
 /**
  * Handle /grammar command
  */
-int linguistic_grammar_handler(int argc, char** argv,
-                                const EducationStudentProfile* profile) {
+int linguistic_grammar_handler(int argc, char** argv, const EducationStudentProfile* profile) {
     if (argc < 2) {
         printf("Usage: /grammar \"<sentence>\" [--lang en|it|es|fr|de]\n");
         return 1;
@@ -882,10 +910,14 @@ int linguistic_grammar_handler(int argc, char** argv,
     for (int i = 2; i < argc; i++) {
         if (strcmp(argv[i], "--lang") == 0 && i + 1 < argc) {
             const char* lang_str = argv[++i];
-            if (strcmp(lang_str, "it") == 0) lang = LANG_ITALIAN;
-            else if (strcmp(lang_str, "es") == 0) lang = LANG_SPANISH;
-            else if (strcmp(lang_str, "fr") == 0) lang = LANG_FRENCH;
-            else if (strcmp(lang_str, "de") == 0) lang = LANG_GERMAN;
+            if (strcmp(lang_str, "it") == 0)
+                lang = LANG_ITALIAN;
+            else if (strcmp(lang_str, "es") == 0)
+                lang = LANG_SPANISH;
+            else if (strcmp(lang_str, "fr") == 0)
+                lang = LANG_FRENCH;
+            else if (strcmp(lang_str, "de") == 0)
+                lang = LANG_GERMAN;
         }
     }
 

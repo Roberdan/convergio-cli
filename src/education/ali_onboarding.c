@@ -21,13 +21,13 @@
 #include "nous/education.h"
 #include "nous/nous.h"
 #include "nous/orchestrator.h"
+#include <cjson/cJSON.h>
+#include <ctype.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <stdbool.h>
-#include <ctype.h>
 #include <unistd.h>
-#include <cjson/cJSON.h>
 
 // ============================================================================
 // CONSTANTS
@@ -38,20 +38,20 @@
 #define MAX_TURNS 20
 
 // ANSI colors
-#define ANSI_RESET   "\033[0m"
-#define ANSI_BOLD    "\033[1m"
-#define ANSI_GREEN   "\033[32m"
-#define ANSI_YELLOW  "\033[33m"
-#define ANSI_CYAN    "\033[36m"
-#define ANSI_DIM     "\033[2m"
-#define ANSI_ALI     "\033[1;38;5;135m"
+#define ANSI_RESET "\033[0m"
+#define ANSI_BOLD "\033[1m"
+#define ANSI_GREEN "\033[32m"
+#define ANSI_YELLOW "\033[33m"
+#define ANSI_CYAN "\033[36m"
+#define ANSI_DIM "\033[2m"
+#define ANSI_ALI "\033[1;38;5;135m"
 
 // ============================================================================
 // ALI'S SYSTEM PROMPT FOR ONBOARDING
 // ============================================================================
 
 static const char* ALI_ONBOARDING_SYSTEM =
-    "Sei Ali, il Preside di Convergio Education, una scuola virtuale con 15 maestri storici.\n\n"
+    "Sei Ali, il Preside di Convergio Education, una scuola virtuale con 17 maestri storici.\n\n"
 
     "STAI FACENDO L'ONBOARDING DI UN NUOVO STUDENTE.\n\n"
 
@@ -148,7 +148,8 @@ static void append_to_history(ConversationState* state, const char* role, const 
     size_t current_len = strlen(state->history);
     size_t remaining = MAX_CONVERSATION_LENGTH - current_len - 1;
 
-    if (remaining < 100) return; // Not enough space
+    if (remaining < 100)
+        return; // Not enough space
 
     char entry[2048];
     snprintf(entry, sizeof(entry), "[%s]: %s\n", role, message);
@@ -160,10 +161,13 @@ static bool check_info_gathered(ConversationState* state, const char* response) 
     // Check for keywords that indicate enough info
     const char* lower = response;
 
-    if (strstr(lower, "nome") || strstr(lower, "chiami")) state->has_name = true;
-    if (strstr(lower, "anni") || strstr(lower, "età")) state->has_age = true;
+    if (strstr(lower, "nome") || strstr(lower, "chiami"))
+        state->has_name = true;
+    if (strstr(lower, "anni") || strstr(lower, "età"))
+        state->has_age = true;
     if (strstr(lower, "scuola") || strstr(lower, "classe") || strstr(lower, "media") ||
-        strstr(lower, "liceo") || strstr(lower, "elementare")) state->has_school = true;
+        strstr(lower, "liceo") || strstr(lower, "elementare"))
+        state->has_school = true;
     if (strstr(lower, "piace") || strstr(lower, "preferisci") || strstr(lower, "impari"))
         state->has_preferences = true;
 
@@ -194,12 +198,17 @@ bool ali_check_api_setup(void) {
     }
 
     printf("\n");
-    printf("  " ANSI_CYAN "┌─────────────────────────────────────────────────────────────┐" ANSI_RESET "\n");
-    printf("  " ANSI_CYAN "│" ANSI_RESET "  " ANSI_BOLD "Convergio Education - Configurazione" ANSI_RESET "                       " ANSI_CYAN "│" ANSI_RESET "\n");
-    printf("  " ANSI_CYAN "└─────────────────────────────────────────────────────────────┘" ANSI_RESET "\n");
+    printf("  " ANSI_CYAN
+           "┌─────────────────────────────────────────────────────────────┐" ANSI_RESET "\n");
+    printf("  " ANSI_CYAN "│" ANSI_RESET "  " ANSI_BOLD
+           "Convergio Education - Configurazione" ANSI_RESET "                       " ANSI_CYAN
+           "│" ANSI_RESET "\n");
+    printf("  " ANSI_CYAN
+           "└─────────────────────────────────────────────────────────────┘" ANSI_RESET "\n");
     printf("\n");
 
-    printf("  " ANSI_YELLOW "Per iniziare serve una configurazione Azure OpenAI." ANSI_RESET "\n\n");
+    printf("  " ANSI_YELLOW "Per iniziare serve una configurazione Azure OpenAI." ANSI_RESET
+           "\n\n");
     printf("  1. Vai su " ANSI_CYAN "portal.azure.com" ANSI_RESET "\n");
     printf("  2. Crea una risorsa Azure OpenAI\n");
     printf("  3. Aggiungi al ~/.zshrc:\n");
@@ -223,7 +232,8 @@ bool ali_check_api_setup(void) {
         return true;
     }
 
-    printf("\n  " ANSI_YELLOW "Chiave non trovata. Riavvia dopo la configurazione." ANSI_RESET "\n");
+    printf("\n  " ANSI_YELLOW "Chiave non trovata. Riavvia dopo la configurazione." ANSI_RESET
+           "\n");
     return false;
 }
 
@@ -248,16 +258,21 @@ static int64_t create_profile_from_json(const char* json_str) {
 
     const char* name = (name_obj && cJSON_IsString(name_obj)) ? name_obj->valuestring : "Studente";
     int age = (age_obj && cJSON_IsNumber(age_obj)) ? age_obj->valueint : 12;
-    const char* school_type = (school_type_obj && cJSON_IsString(school_type_obj)) ? school_type_obj->valuestring : "medie";
+    const char* school_type = (school_type_obj && cJSON_IsString(school_type_obj))
+                                  ? school_type_obj->valuestring
+                                  : "medie";
     const char* goals = (goals_obj && cJSON_IsString(goals_obj)) ? goals_obj->valuestring : "";
     (void)grade_obj; // Grade is determined from school_type
 
     // Determine grade level from school type
     int grade_level = 6; // default middle school
     if (school_type) {
-        if (strstr(school_type, "element")) grade_level = 3;
-        else if (strstr(school_type, "medie") || strstr(school_type, "media")) grade_level = 7;
-        else if (strstr(school_type, "liceo") || strstr(school_type, "tecnico")) grade_level = 10;
+        if (strstr(school_type, "element"))
+            grade_level = 3;
+        else if (strstr(school_type, "medie") || strstr(school_type, "media"))
+            grade_level = 7;
+        else if (strstr(school_type, "liceo") || strstr(school_type, "tecnico"))
+            grade_level = 10;
     }
 
     // Build accessibility
@@ -272,12 +287,18 @@ static int64_t create_profile_from_json(const char* json_str) {
         cJSON* visual = cJSON_GetObjectItem(accessibility_obj, "visual_impairment");
         cJSON* hearing = cJSON_GetObjectItem(accessibility_obj, "hearing_impairment");
 
-        if (dys && cJSON_IsBool(dys)) access.dyslexia = cJSON_IsTrue(dys);
-        if (disc && cJSON_IsBool(disc)) access.dyscalculia = cJSON_IsTrue(disc);
-        if (adhd && cJSON_IsBool(adhd)) access.adhd = cJSON_IsTrue(adhd);
-        if (autism && cJSON_IsBool(autism)) access.autism = cJSON_IsTrue(autism);
-        if (visual && cJSON_IsBool(visual)) access.visual_impairment = cJSON_IsTrue(visual);
-        if (hearing && cJSON_IsBool(hearing)) access.hearing_impairment = cJSON_IsTrue(hearing);
+        if (dys && cJSON_IsBool(dys))
+            access.dyslexia = cJSON_IsTrue(dys);
+        if (disc && cJSON_IsBool(disc))
+            access.dyscalculia = cJSON_IsTrue(disc);
+        if (adhd && cJSON_IsBool(adhd))
+            access.adhd = cJSON_IsTrue(adhd);
+        if (autism && cJSON_IsBool(autism))
+            access.autism = cJSON_IsTrue(autism);
+        if (visual && cJSON_IsBool(visual))
+            access.visual_impairment = cJSON_IsTrue(visual);
+        if (hearing && cJSON_IsBool(hearing))
+            access.hearing_impairment = cJSON_IsTrue(hearing);
     }
 
     // Create profile
@@ -309,28 +330,37 @@ bool ali_conversational_onboarding(void) {
 
     // Initialize education system
     if (education_init() != 0) {
-        fprintf(stderr, "  " ANSI_YELLOW "Errore inizializzazione sistema educativo" ANSI_RESET "\n");
+        fprintf(stderr,
+                "  " ANSI_YELLOW "Errore inizializzazione sistema educativo" ANSI_RESET "\n");
         return false;
     }
 
     // Check if LLM is available
     if (!llm_is_available()) {
-        fprintf(stderr, "  " ANSI_YELLOW "LLM non disponibile. Verifica la chiave API." ANSI_RESET "\n");
+        fprintf(stderr,
+                "  " ANSI_YELLOW "LLM non disponibile. Verifica la chiave API." ANSI_RESET "\n");
         return false;
     }
 
     // Clear screen and welcome
     printf("\033[2J\033[H");
     printf("\n");
-    printf("  " ANSI_ALI "┌─────────────────────────────────────────────────────────────┐" ANSI_RESET "\n");
-    printf("  " ANSI_ALI "│" ANSI_RESET "            " ANSI_BOLD "Convergio Education" ANSI_RESET "                               " ANSI_ALI "│" ANSI_RESET "\n");
-    printf("  " ANSI_ALI "│" ANSI_RESET "  " ANSI_DIM "Benvenuto! Ali, il Preside, ti accoglierà personalmente." ANSI_RESET "   " ANSI_ALI "│" ANSI_RESET "\n");
-    printf("  " ANSI_ALI "│" ANSI_RESET "  " ANSI_DIM "Digita 'esci' in qualsiasi momento per interrompere." ANSI_RESET "       " ANSI_ALI "│" ANSI_RESET "\n");
-    printf("  " ANSI_ALI "└─────────────────────────────────────────────────────────────┘" ANSI_RESET "\n");
+    printf("  " ANSI_ALI
+           "┌─────────────────────────────────────────────────────────────┐" ANSI_RESET "\n");
+    printf("  " ANSI_ALI "│" ANSI_RESET "            " ANSI_BOLD "Convergio Education" ANSI_RESET
+           "                               " ANSI_ALI "│" ANSI_RESET "\n");
+    printf("  " ANSI_ALI "│" ANSI_RESET "  " ANSI_DIM
+           "Benvenuto! Ali, il Preside, ti accoglierà personalmente." ANSI_RESET "   " ANSI_ALI
+           "│" ANSI_RESET "\n");
+    printf("  " ANSI_ALI "│" ANSI_RESET "  " ANSI_DIM
+           "Digita 'esci' in qualsiasi momento per interrompere." ANSI_RESET "       " ANSI_ALI
+           "│" ANSI_RESET "\n");
+    printf("  " ANSI_ALI
+           "└─────────────────────────────────────────────────────────────┘" ANSI_RESET "\n");
 
     // Start conversation with Ali's greeting
     const char* greeting = "Ciao! Sono Ali, il Preside di questa scuola virtuale. "
-                          "È un piacere conoscerti! Come ti chiami?";
+                           "È un piacere conoscerti! Come ti chiami?";
     print_ali(greeting);
     append_to_history(&state, "Ali", greeting);
 
@@ -345,11 +375,14 @@ bool ali_conversational_onboarding(void) {
 
         // Trim whitespace
         char* start = input;
-        while (*start && isspace(*start)) start++;
-        if (start != input) memmove(input, start, strlen(start) + 1);
+        while (*start && isspace(*start))
+            start++;
+        if (start != input)
+            memmove(input, start, strlen(start) + 1);
 
         // Check for exit
-        if (strlen(input) == 0) continue;
+        if (strlen(input) == 0)
+            continue;
         if (strcasecmp(input, "esci") == 0 || strcasecmp(input, "exit") == 0) {
             print_ali("Va bene, ci vediamo la prossima volta! Torna quando vuoi.");
             return false;
@@ -365,19 +398,16 @@ bool ali_conversational_onboarding(void) {
         // Build prompt for Ali
         char prompt[MAX_CONVERSATION_LENGTH + 1024];
         snprintf(prompt, sizeof(prompt),
-            "CONVERSAZIONE FINORA:\n%s\n\n"
-            "TURNO: %d/%d\n"
-            "INFO RACCOLTE: nome=%s, età=%s, scuola=%s, preferenze=%s\n\n"
-            "Rispondi allo studente. %s",
-            state.history,
-            state.turn_count, MAX_TURNS,
-            state.has_name ? "sì" : "no",
-            state.has_age ? "sì" : "no",
-            state.has_school ? "sì" : "no",
-            state.has_preferences ? "sì" : "no",
-            (state.turn_count >= 5 && state.has_name && state.has_age)
-                ? "Se hai abbastanza informazioni, proponi di creare il profilo."
-                : "Continua a conoscere lo studente in modo naturale.");
+                 "CONVERSAZIONE FINORA:\n%s\n\n"
+                 "TURNO: %d/%d\n"
+                 "INFO RACCOLTE: nome=%s, età=%s, scuola=%s, preferenze=%s\n\n"
+                 "Rispondi allo studente. %s",
+                 state.history, state.turn_count, MAX_TURNS, state.has_name ? "sì" : "no",
+                 state.has_age ? "sì" : "no", state.has_school ? "sì" : "no",
+                 state.has_preferences ? "sì" : "no",
+                 (state.turn_count >= 5 && state.has_name && state.has_age)
+                     ? "Se hai abbastanza informazioni, proponi di creare il profilo."
+                     : "Continua a conoscere lo studente in modo naturale.");
 
         // Get Ali's response from LLM
         TokenUsage usage = {0};
@@ -385,7 +415,8 @@ bool ali_conversational_onboarding(void) {
 
         if (!response || strlen(response) == 0) {
             print_ali("Scusa, non ho capito. Puoi ripetere?");
-            if (response) free(response);
+            if (response)
+                free(response);
             continue;
         }
 
@@ -418,7 +449,7 @@ bool ali_conversational_onboarding(void) {
 
     char extraction_prompt[MAX_CONVERSATION_LENGTH + 512];
     snprintf(extraction_prompt, sizeof(extraction_prompt),
-        "Estrai i dati dal seguente dialogo:\n\n%s", state.history);
+             "Estrai i dati dal seguente dialogo:\n\n%s", state.history);
 
     TokenUsage extract_usage = {0};
     char* json_response = llm_chat(EXTRACTION_SYSTEM, extraction_prompt, &extract_usage);
@@ -464,9 +495,12 @@ bool ali_conversational_onboarding(void) {
     // ========================================
 
     printf("\n");
-    printf("  " ANSI_GREEN "┌─────────────────────────────────────────────────────────────┐" ANSI_RESET "\n");
-    printf("  " ANSI_GREEN "│" ANSI_RESET "  " ANSI_BOLD "Profilo Creato!" ANSI_RESET "                                             " ANSI_GREEN "│" ANSI_RESET "\n");
-    printf("  " ANSI_GREEN "└─────────────────────────────────────────────────────────────┘" ANSI_RESET "\n");
+    printf("  " ANSI_GREEN
+           "┌─────────────────────────────────────────────────────────────┐" ANSI_RESET "\n");
+    printf("  " ANSI_GREEN "│" ANSI_RESET "  " ANSI_BOLD "Profilo Creato!" ANSI_RESET
+           "                                             " ANSI_GREEN "│" ANSI_RESET "\n");
+    printf("  " ANSI_GREEN
+           "└─────────────────────────────────────────────────────────────┘" ANSI_RESET "\n");
 
     if (profile) {
         printf("\n     " ANSI_BOLD "Nome:" ANSI_RESET " %s\n", profile->name);
@@ -474,7 +508,7 @@ bool ali_conversational_onboarding(void) {
         printf("     " ANSI_BOLD "Anno scolastico:" ANSI_RESET " %d\n", profile->grade_level);
     }
 
-    print_ali("Ecco il tuo profilo! Ho già informato tutti i 15 maestri di te.");
+    print_ali("Ecco il tuo profilo! Ho già informato tutti i 17 maestri di te.");
     print_ali("Vuoi modificare qualcosa? Dimmelo, oppure scrivi 'ok' per continuare.");
 
     print_prompt();
@@ -485,7 +519,7 @@ bool ali_conversational_onboarding(void) {
         if (strlen(input) > 0 && strcasecmp(input, "ok") != 0 && strcasecmp(input, "sì") != 0) {
             // For now, just acknowledge - full edit would need another LLM call
             print_ali("Ho capito! Per ora salvo così, potrai modificare il profilo "
-                     "in qualsiasi momento con /education profile edit.");
+                      "in qualsiasi momento con /education profile edit.");
         }
     }
 
@@ -496,13 +530,20 @@ bool ali_conversational_onboarding(void) {
     printf("\n");
     print_ali("Perfetto! Sei pronto per iniziare a imparare con i nostri maestri:");
     printf("\n");
-    printf("     " ANSI_CYAN "Socrate" ANSI_RESET " (Filosofia)    " ANSI_CYAN "Euclide" ANSI_RESET " (Matematica)\n");
-    printf("     " ANSI_CYAN "Feynman" ANSI_RESET " (Fisica)       " ANSI_CYAN "Darwin" ANSI_RESET " (Scienze)\n");
-    printf("     " ANSI_CYAN "Manzoni" ANSI_RESET " (Italiano)     " ANSI_CYAN "Shakespeare" ANSI_RESET " (Inglese)\n");
-    printf("     " ANSI_CYAN "Erodoto" ANSI_RESET " (Storia)       " ANSI_CYAN "Leonardo" ANSI_RESET " (Arte)\n");
-    printf("     " ANSI_CYAN "Mozart" ANSI_RESET " (Musica)        " ANSI_CYAN "Lovelace" ANSI_RESET " (Informatica)\n");
-    printf("     " ANSI_CYAN "Humboldt" ANSI_RESET " (Geografia)   " ANSI_CYAN "Smith" ANSI_RESET " (Economia)\n");
-    printf("     " ANSI_CYAN "Cicerone" ANSI_RESET " (Ed. Civica)  " ANSI_CYAN "Ippocrate" ANSI_RESET " (Salute)\n");
+    printf("     " ANSI_CYAN "Socrate" ANSI_RESET " (Filosofia)    " ANSI_CYAN "Euclide" ANSI_RESET
+           " (Matematica)\n");
+    printf("     " ANSI_CYAN "Feynman" ANSI_RESET " (Fisica)       " ANSI_CYAN "Darwin" ANSI_RESET
+           " (Scienze)\n");
+    printf("     " ANSI_CYAN "Manzoni" ANSI_RESET " (Italiano)     " ANSI_CYAN
+           "Shakespeare" ANSI_RESET " (Inglese)\n");
+    printf("     " ANSI_CYAN "Erodoto" ANSI_RESET " (Storia)       " ANSI_CYAN "Leonardo" ANSI_RESET
+           " (Arte)\n");
+    printf("     " ANSI_CYAN "Mozart" ANSI_RESET " (Musica)        " ANSI_CYAN "Lovelace" ANSI_RESET
+           " (Informatica)\n");
+    printf("     " ANSI_CYAN "Humboldt" ANSI_RESET " (Geografia)   " ANSI_CYAN "Smith" ANSI_RESET
+           " (Economia)\n");
+    printf("     " ANSI_CYAN "Cicerone" ANSI_RESET " (Ed. Civica)  " ANSI_CYAN
+           "Ippocrate" ANSI_RESET " (Salute)\n");
     printf("     " ANSI_CYAN "Chris" ANSI_RESET " (Storytelling)\n");
 
     printf("\n");

@@ -14,23 +14,21 @@
 // COMMON DEVELOPMENT TOOLS
 // ============================================================================
 
-static const char* COMMON_TOOLS[] = {
-    "gh",           // GitHub CLI
-    "git",          // Git version control
-    "node",         // Node.js runtime
-    "npm",          // Node package manager
-    "python3",      // Python 3
-    "pip3",         // Python package manager
-    "cargo",        // Rust package manager
-    "go",           // Go language
-    "make",         // GNU Make
-    "cmake",        // CMake build system
-    "docker",       // Docker containers
-    "jq",           // JSON processor
-    "curl",         // HTTP client
-    "wget",         // File downloader
-    NULL
-};
+static const char* COMMON_TOOLS[] = {"gh",      // GitHub CLI
+                                     "git",     // Git version control
+                                     "node",    // Node.js runtime
+                                     "npm",     // Node package manager
+                                     "python3", // Python 3
+                                     "pip3",    // Python package manager
+                                     "cargo",   // Rust package manager
+                                     "go",      // Go language
+                                     "make",    // GNU Make
+                                     "cmake",   // CMake build system
+                                     "docker",  // Docker containers
+                                     "jq",      // JSON processor
+                                     "curl",    // HTTP client
+                                     "wget",    // File downloader
+                                     NULL};
 
 const char** get_common_tools(void) {
     return COMMON_TOOLS;
@@ -50,7 +48,7 @@ bool tool_exists(const char* tool_name) {
     int ret = snprintf(cmd, sizeof(cmd), "command -v %s >/dev/null 2>&1", tool_name);
 
     if (ret < 0 || (size_t)ret >= sizeof(cmd)) {
-        return false;  // Tool name too long
+        return false; // Tool name too long
     }
 
     // system() returns 0 if command succeeds (tool found)
@@ -133,10 +131,15 @@ PackageManager detect_package_manager(void) {
 
 const char* package_manager_name(PackageManager pm) {
     switch (pm) {
-        case PACKAGE_MANAGER_BREW:   return "Homebrew";
-        case PACKAGE_MANAGER_APT:    return "apt";
-        case PACKAGE_MANAGER_DNF:    return "dnf";
-        case PACKAGE_MANAGER_PACMAN: return "pacman";
-        default:                     return "unknown";
+    case PACKAGE_MANAGER_BREW:
+        return "Homebrew";
+    case PACKAGE_MANAGER_APT:
+        return "apt";
+    case PACKAGE_MANAGER_DNF:
+        return "dnf";
+    case PACKAGE_MANAGER_PACMAN:
+        return "pacman";
+    default:
+        return "unknown";
     }
 }

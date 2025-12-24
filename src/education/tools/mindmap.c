@@ -13,21 +13,19 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
 #include <sys/stat.h>
+#include <unistd.h>
 
 // ============================================================================
 // MERMAID TEMPLATES
 // ============================================================================
 
-static const char* MINDMAP_TEMPLATE =
-    "mindmap\n"
-    "  root((%s))\n"
-    "%s";
+static const char* MINDMAP_TEMPLATE = "mindmap\n"
+                                      "  root((%s))\n"
+                                      "%s";
 
-static const char* FLOWCHART_TEMPLATE =
-    "flowchart TD\n"
-    "%s";
+static const char* FLOWCHART_TEMPLATE = "flowchart TD\n"
+                                        "%s";
 
 // ============================================================================
 // ACCESSIBILITY ADAPTATIONS
@@ -41,14 +39,13 @@ typedef struct {
 } MindmapAccessibility;
 
 static MindmapAccessibility get_accessibility_settings(const EducationAccessibility* a) {
-    MindmapAccessibility ma = {
-        .high_contrast = false,
-        .large_font = false,
-        .simplified = false,
-        .color_scheme = "default"
-    };
+    MindmapAccessibility ma = {.high_contrast = false,
+                               .large_font = false,
+                               .simplified = false,
+                               .color_scheme = "default"};
 
-    if (!a) return ma;
+    if (!a)
+        return ma;
 
     // Dyslexia: larger font, simpler structure
     if (a->dyslexia) {
@@ -78,8 +75,9 @@ static MindmapAccessibility get_accessibility_settings(const EducationAccessibil
  * Generate Mermaid mindmap syntax from structured content
  */
 char* mindmap_generate_mermaid(const char* topic, const char* content,
-                                const MindmapAccessibility* access) {
-    if (!topic || !content) return NULL;
+                               const MindmapAccessibility* access) {
+    if (!topic || !content)
+        return NULL;
 
     // Build the mindmap body
     // In real implementation, this would parse structured content
@@ -87,7 +85,8 @@ char* mindmap_generate_mermaid(const char* topic, const char* content,
 
     size_t buf_size = strlen(content) + strlen(topic) + 1024;
     char* mermaid = malloc(buf_size);
-    if (!mermaid) return NULL;
+    if (!mermaid)
+        return NULL;
 
     // Build indented branch structure
     char branches[4096] = {0};
@@ -97,11 +96,13 @@ char* mindmap_generate_mermaid(const char* topic, const char* content,
 
     while (*line && branch_count < max_branches) {
         // Skip whitespace
-        while (*line == ' ' || *line == '\t') line++;
+        while (*line == ' ' || *line == '\t')
+            line++;
 
         // Find end of line
         const char* end = strchr(line, '\n');
-        if (!end) end = line + strlen(line);
+        if (!end)
+            end = line + strlen(line);
 
         size_t len = end - line;
         if (len > 0 && len < 200) {
@@ -124,11 +125,13 @@ char* mindmap_generate_mermaid(const char* topic, const char* content,
  * Generate flowchart for cause-effect or process diagrams
  */
 char* mindmap_generate_flowchart(const char* title, const char** steps, int step_count) {
-    if (!title || !steps || step_count < 2) return NULL;
+    if (!title || !steps || step_count < 2)
+        return NULL;
 
     size_t buf_size = 4096;
     char* mermaid = malloc(buf_size);
-    if (!mermaid) return NULL;
+    if (!mermaid)
+        return NULL;
 
     char body[3072] = {0};
     char node_id = 'A';
@@ -161,22 +164,23 @@ char* mindmap_generate_flowchart(const char* title, const char** steps, int step
  * Export Mermaid to SVG using mmdc (mermaid-cli)
  */
 int mindmap_export_svg(const char* mermaid_content, const char* output_path) {
-    if (!mermaid_content || !output_path) return -1;
+    if (!mermaid_content || !output_path)
+        return -1;
 
     // Write mermaid content to temp file
     char temp_path[256];
     snprintf(temp_path, sizeof(temp_path), "/tmp/convergio_mindmap_%d.mmd", getpid());
 
     FILE* f = fopen(temp_path, "w");
-    if (!f) return -1;
+    if (!f)
+        return -1;
     fprintf(f, "%s", mermaid_content);
     fclose(f);
 
     // Call mmdc to convert
     char cmd[512];
-    snprintf(cmd, sizeof(cmd),
-             "mmdc -i %s -o %s -b transparent 2>/dev/null",
-             temp_path, output_path);
+    snprintf(cmd, sizeof(cmd), "mmdc -i %s -o %s -b transparent 2>/dev/null", temp_path,
+             output_path);
 
     int result = system(cmd);
 
@@ -189,24 +193,23 @@ int mindmap_export_svg(const char* mermaid_content, const char* output_path) {
 /**
  * Export Mermaid to PNG
  */
-int mindmap_export_png(const char* mermaid_content, const char* output_path,
-                       int width, int height) {
-    if (!mermaid_content || !output_path) return -1;
+int mindmap_export_png(const char* mermaid_content, const char* output_path, int width,
+                       int height) {
+    if (!mermaid_content || !output_path)
+        return -1;
 
     char temp_path[256];
     snprintf(temp_path, sizeof(temp_path), "/tmp/convergio_mindmap_%d.mmd", getpid());
 
     FILE* f = fopen(temp_path, "w");
-    if (!f) return -1;
+    if (!f)
+        return -1;
     fprintf(f, "%s", mermaid_content);
     fclose(f);
 
     char cmd[512];
-    snprintf(cmd, sizeof(cmd),
-             "mmdc -i %s -o %s -w %d -H %d 2>/dev/null",
-             temp_path, output_path,
-             width > 0 ? width : 1200,
-             height > 0 ? height : 800);
+    snprintf(cmd, sizeof(cmd), "mmdc -i %s -o %s -w %d -H %d 2>/dev/null", temp_path, output_path,
+             width > 0 ? width : 1200, height > 0 ? height : 800);
 
     int result = system(cmd);
     unlink(temp_path);
@@ -218,7 +221,8 @@ int mindmap_export_png(const char* mermaid_content, const char* output_path,
  * Export Mermaid to PDF (via SVG conversion)
  */
 int mindmap_export_pdf(const char* mermaid_content, const char* output_path) {
-    if (!mermaid_content || !output_path) return -1;
+    if (!mermaid_content || !output_path)
+        return -1;
 
     // First export to SVG
     char svg_path[256];
@@ -233,8 +237,7 @@ int mindmap_export_pdf(const char* mermaid_content, const char* output_path) {
     snprintf(cmd, sizeof(cmd),
              "rsvg-convert -f pdf -o %s %s 2>/dev/null || "
              "convert %s %s 2>/dev/null",
-             output_path, svg_path,
-             svg_path, output_path);
+             output_path, svg_path, svg_path, output_path);
 
     int result = system(cmd);
     unlink(svg_path);
@@ -249,23 +252,22 @@ int mindmap_export_pdf(const char* mermaid_content, const char* output_path) {
 /**
  * Prompt template for LLM to generate mindmap structure
  */
-static const char* MINDMAP_PROMPT_TEMPLATE =
-    "Generate a mind map structure for the topic: %s\n\n"
-    "Context/Content:\n%s\n\n"
-    "Requirements:\n"
-    "- Create %d main branches maximum\n"
-    "- Each branch can have up to %d sub-branches\n"
-    "- Use clear, concise labels\n"
-    "- Format as Mermaid mindmap syntax\n"
-    "%s"
-    "\nOutput only the Mermaid code, no explanation.";
+static const char* MINDMAP_PROMPT_TEMPLATE = "Generate a mind map structure for the topic: %s\n\n"
+                                             "Context/Content:\n%s\n\n"
+                                             "Requirements:\n"
+                                             "- Create %d main branches maximum\n"
+                                             "- Each branch can have up to %d sub-branches\n"
+                                             "- Use clear, concise labels\n"
+                                             "- Format as Mermaid mindmap syntax\n"
+                                             "%s"
+                                             "\nOutput only the Mermaid code, no explanation.";
 
 /**
  * Generate mindmap using LLM
  * Returns Mermaid syntax string (caller must free)
  */
 char* mindmap_generate_from_llm(const char* topic, const char* content,
-                                 const EducationAccessibility* access) {
+                                const EducationAccessibility* access) {
     MindmapAccessibility ma = get_accessibility_settings(access);
 
     int max_branches = ma.simplified ? 4 : 7;
@@ -286,19 +288,17 @@ char* mindmap_generate_from_llm(const char* topic, const char* content,
     size_t prompt_size = strlen(MINDMAP_PROMPT_TEMPLATE) + strlen(topic) +
                          (content ? strlen(content) : 10) + strlen(access_req) + 100;
     char* prompt = malloc(prompt_size);
-    if (!prompt) return NULL;
+    if (!prompt)
+        return NULL;
 
-    snprintf(prompt, prompt_size, MINDMAP_PROMPT_TEMPLATE,
-             topic, content ? content : "(no additional content)",
-             max_branches, max_sub, access_req);
+    snprintf(prompt, prompt_size, MINDMAP_PROMPT_TEMPLATE, topic,
+             content ? content : "(no additional content)", max_branches, max_sub, access_req);
 
     // Call LLM for mindmap generation
     TokenUsage usage = {0};
-    char* response = llm_chat(
-        "You are an expert at creating educational mind maps. Generate Mermaid mindmap syntax only, no explanations.",
-        prompt,
-        &usage
-    );
+    char* response = llm_chat("You are an expert at creating educational mind maps. Generate "
+                              "Mermaid mindmap syntax only, no explanations.",
+                              prompt, &usage);
 
     free(prompt);
 
@@ -312,8 +312,7 @@ char* mindmap_generate_from_llm(const char* topic, const char* content,
             size_t result_size = strlen(response) + strlen(topic) + 100;
             char* result = malloc(result_size);
             if (result) {
-                snprintf(result, result_size,
-                    "mindmap\n  root((%s))\n%s", topic, response);
+                snprintf(result, result_size, "mindmap\n  root((%s))\n%s", topic, response);
                 free(response);
                 return result;
             }
@@ -333,8 +332,7 @@ char* mindmap_generate_from_llm(const char* topic, const char* content,
  * Handle /mindmap command
  * Usage: /mindmap <topic> [--format svg|png|pdf] [--output path]
  */
-int mindmap_command_handler(int argc, char** argv,
-                            const EducationStudentProfile* profile) {
+int mindmap_command_handler(int argc, char** argv, const EducationStudentProfile* profile) {
     if (argc < 2) {
         printf("Usage: /mindmap <topic> [--format svg|png|pdf] [--output path]\n");
         return 1;
@@ -358,8 +356,8 @@ int mindmap_command_handler(int argc, char** argv,
 
     const EducationAccessibility* access = profile ? profile->accessibility : NULL;
 
-    char* mermaid = mindmap_generate_from_llm(topic,
-        "Generate appropriate content for the topic", access);
+    char* mermaid =
+        mindmap_generate_from_llm(topic, "Generate appropriate content for the topic", access);
 
     if (!mermaid) {
         fprintf(stderr, "Failed to generate mind map\n");
@@ -369,11 +367,11 @@ int mindmap_command_handler(int argc, char** argv,
     // Determine output path
     char default_output[256];
     if (!output) {
-        snprintf(default_output, sizeof(default_output),
-                 "mindmap_%s.%s", topic, format);
+        snprintf(default_output, sizeof(default_output), "mindmap_%s.%s", topic, format);
         // Replace spaces with underscores
         for (char* p = default_output; *p; p++) {
-            if (*p == ' ') *p = '_';
+            if (*p == ' ')
+                *p = '_';
         }
         output = default_output;
     }

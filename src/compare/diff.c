@@ -21,17 +21,20 @@ typedef struct {
 
 static LineArray split_lines(const char* text) {
     LineArray arr = {NULL, 0};
-    if (!text) return arr;
+    if (!text)
+        return arr;
 
     // Count lines
     size_t count = 1;
     for (const char* p = text; *p; p++) {
-        if (*p == '\n') count++;
+        if (*p == '\n')
+            count++;
     }
 
     // Allocate lines array
     arr.lines = calloc(count, sizeof(char*));
-    if (!arr.lines) return arr;
+    if (!arr.lines)
+        return arr;
 
     // Split lines
     const char* start = text;
@@ -63,7 +66,8 @@ static LineArray split_lines(const char* text) {
 }
 
 static void free_line_array(LineArray* arr) {
-    if (!arr || !arr->lines) return;
+    if (!arr || !arr->lines)
+        return;
     for (size_t i = 0; i < arr->count; i++) {
         free(arr->lines[i]);
     }
@@ -76,12 +80,7 @@ static void free_line_array(LineArray* arr) {
 // SIMPLE DIFF ALGORITHM (LCS-based approximation)
 // ============================================================================
 
-typedef enum {
-    DIFF_SAME,
-    DIFF_ADD,
-    DIFF_DELETE,
-    DIFF_CHANGE
-} DiffType;
+typedef enum { DIFF_SAME, DIFF_ADD, DIFF_DELETE, DIFF_CHANGE } DiffType;
 
 typedef struct {
     DiffType type;
@@ -90,11 +89,13 @@ typedef struct {
     char* text;
 } DiffLine;
 
-static DiffLine* generate_diff_lines(const LineArray* arr1, const LineArray* arr2, size_t* out_count) {
+static DiffLine* generate_diff_lines(const LineArray* arr1, const LineArray* arr2,
+                                     size_t* out_count) {
     // Simple line-by-line comparison (not optimal, but functional)
     size_t max_lines = arr1->count + arr2->count;
     DiffLine* diffs = calloc(max_lines, sizeof(DiffLine));
-    if (!diffs) return NULL;
+    if (!diffs)
+        return NULL;
 
     size_t diff_count = 0;
     size_t i1 = 0, i2 = 0;
@@ -157,7 +158,8 @@ static DiffLine* generate_diff_lines(const LineArray* arr1, const LineArray* arr
 }
 
 static void free_diff_lines(DiffLine* diffs, size_t count) {
-    if (!diffs) return;
+    if (!diffs)
+        return;
     for (size_t i = 0; i < count; i++) {
         free(diffs[i].text);
     }
@@ -168,9 +170,10 @@ static void free_diff_lines(DiffLine* diffs, size_t count) {
 // DIFF RENDERING
 // ============================================================================
 
-char* generate_response_diff(const char* response1, const char* response2,
-                              const char* label1, const char* label2) {
-    if (!response1 || !response2) return NULL;
+char* generate_response_diff(const char* response1, const char* response2, const char* label1,
+                             const char* label2) {
+    if (!response1 || !response2)
+        return NULL;
 
     // Split into lines
     LineArray arr1 = split_lines(response1);
@@ -197,26 +200,28 @@ char* generate_response_diff(const char* response1, const char* response2,
     }
 
     size_t pos = 0;
-    pos += (size_t)snprintf(output + pos, output_size - pos, "--- %s\n", label1 ? label1 : "Response 1");
-    pos += (size_t)snprintf(output + pos, output_size - pos, "+++ %s\n", label2 ? label2 : "Response 2");
+    pos += (size_t)snprintf(output + pos, output_size - pos, "--- %s\n",
+                            label1 ? label1 : "Response 1");
+    pos += (size_t)snprintf(output + pos, output_size - pos, "+++ %s\n",
+                            label2 ? label2 : "Response 2");
 
     for (size_t i = 0; i < diff_count && pos < output_size - 100; i++) {
         switch (diffs[i].type) {
-            case DIFF_SAME:
-                pos += (size_t)snprintf(output + pos, output_size - pos, "  %s\n",
-                               diffs[i].text ? diffs[i].text : "");
-                break;
-            case DIFF_DELETE:
-                pos += (size_t)snprintf(output + pos, output_size - pos, "- %s\n",
-                               diffs[i].text ? diffs[i].text : "");
-                break;
-            case DIFF_ADD:
-                pos += (size_t)snprintf(output + pos, output_size - pos, "+ %s\n",
-                               diffs[i].text ? diffs[i].text : "");
-                break;
-            case DIFF_CHANGE:
-                // Not used in current implementation
-                break;
+        case DIFF_SAME:
+            pos += (size_t)snprintf(output + pos, output_size - pos, "  %s\n",
+                                    diffs[i].text ? diffs[i].text : "");
+            break;
+        case DIFF_DELETE:
+            pos += (size_t)snprintf(output + pos, output_size - pos, "- %s\n",
+                                    diffs[i].text ? diffs[i].text : "");
+            break;
+        case DIFF_ADD:
+            pos += (size_t)snprintf(output + pos, output_size - pos, "+ %s\n",
+                                    diffs[i].text ? diffs[i].text : "");
+            break;
+        case DIFF_CHANGE:
+            // Not used in current implementation
+            break;
         }
     }
 
@@ -232,7 +237,8 @@ char* generate_response_diff(const char* response1, const char* response2,
 // ============================================================================
 
 void display_all_diffs(const CompareResult* results, size_t count) {
-    if (!results || count < 2) return;
+    if (!results || count < 2)
+        return;
 
     printf("\n");
     printf("═══ RESPONSE DIFFS ═══\n");
@@ -253,22 +259,24 @@ void display_all_diffs(const CompareResult* results, size_t count) {
     }
 
     for (size_t i = 0; i < count; i++) {
-        if (i == base_idx) continue;
-        if (!results[i].success || !results[i].response) continue;
+        if (i == base_idx)
+            continue;
+        if (!results[i].success || !results[i].response)
+            continue;
 
         printf("\033[1mDiff: %s vs %s\033[0m\n", results[base_idx].model_id, results[i].model_id);
         printf("────────────────────────────────────────────────────────────────\n");
 
         char* diff = generate_response_diff(results[base_idx].response, results[i].response,
-                                           results[base_idx].model_id, results[i].model_id);
+                                            results[base_idx].model_id, results[i].model_id);
         if (diff) {
             // Colorize diff output
             char* line = diff;
             while (*line) {
                 if (*line == '-' && *(line + 1) != '-') {
-                    printf("\033[31m");  // Red for deletions
+                    printf("\033[31m"); // Red for deletions
                 } else if (*line == '+' && *(line + 1) != '+') {
-                    printf("\033[32m");  // Green for additions
+                    printf("\033[32m"); // Green for additions
                 }
 
                 // Print until newline
