@@ -84,6 +84,10 @@ final class OpenAIRealtimeWebSocket: NSObject {
     // Audio buffer for collecting audio chunks (actor-based for thread safety)
     private let audioBuffer = AudioBufferActor()
 
+    // Connection state tracking
+    private var connectionContinuation: CheckedContinuation<Void, Error>?
+    private var connectionError: Error?
+
     // MARK: - Initialization
 
     init(apiKey: String) {
@@ -99,10 +103,22 @@ final class OpenAIRealtimeWebSocket: NSObject {
             return
         }
 
+        // Validate API key
+        guard !apiKey.isEmpty else {
+            logError("OpenAI Realtime: API key is empty")
+            throw OpenAIRealtimeError.serverError("OpenAI API key is not configured. Please add your API key in Settings → Providers.")
+        }
+
+        guard apiKey.hasPrefix("sk-") else {
+            logError("OpenAI Realtime: Invalid API key format")
+            throw OpenAIRealtimeError.serverError("Invalid OpenAI API key format. Key should start with 'sk-'")
+        }
+
         self.currentVoice = voice
         self.systemPrompt = systemPrompt
 
         logInfo("OpenAI Realtime: Connecting to \(realtimeURL)...")
+        logInfo("OpenAI Realtime: Using voice: \(voice.rawValue)")
 
         // Build URL with model parameter
         guard var urlComponents = URLComponents(string: realtimeURL) else {
@@ -119,15 +135,25 @@ final class OpenAIRealtimeWebSocket: NSObject {
         request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
         request.setValue("realtime=v1", forHTTPHeaderField: "OpenAI-Beta")
 
+        // Reset connection state
+        connectionError = nil
+
         // Create URL session and WebSocket task
         let config = URLSessionConfiguration.default
+        config.timeoutIntervalForRequest = 30
+        config.timeoutIntervalForResource = 60
         urlSession = URLSession(configuration: config, delegate: self, delegateQueue: nil)
         webSocketTask = urlSession?.webSocketTask(with: request)
 
         webSocketTask?.resume()
 
-        // Wait for connection
+        // Wait for connection with proper async handling
         try await waitForConnection()
+
+        // Check for connection errors
+        if let error = connectionError {
+            throw error
+        }
 
         // Configure session
         try await configureSession()
@@ -286,8 +312,19 @@ final class OpenAIRealtimeWebSocket: NSObject {
     // MARK: - Private Methods
 
     private func waitForConnection() async throws {
-        // Simple ping to verify connection
-        try await Task.sleep(nanoseconds: 500_000_000) // 0.5 seconds
+        // Wait for WebSocket to connect with timeout
+        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+            self.connectionContinuation = continuation
+
+            // Set timeout for connection
+            Task {
+                try await Task.sleep(nanoseconds: 10_000_000_000) // 10 seconds timeout
+                if let cont = self.connectionContinuation {
+                    self.connectionContinuation = nil
+                    cont.resume(throwing: OpenAIRealtimeError.serverError("Connection timeout. Please check your internet connection and API key."))
+                }
+            }
+        }
     }
 
     private func sendJSON(_ json: [String: Any]) async throws {
@@ -420,13 +457,88 @@ final class OpenAIRealtimeWebSocket: NSObject {
 extension OpenAIRealtimeWebSocket: URLSessionWebSocketDelegate {
 
     func urlSession(_ session: URLSession, webSocketTask: URLSessionWebSocketTask, didOpenWithProtocol protocol: String?) {
-        logInfo("OpenAI Realtime: WebSocket opened")
+        logInfo("OpenAI Realtime: WebSocket opened successfully")
+
+        // Resume the continuation on successful connection
+        if let continuation = connectionContinuation {
+            connectionContinuation = nil
+            continuation.resume()
+        }
     }
 
     func urlSession(_ session: URLSession, webSocketTask: URLSessionWebSocketTask, didCloseWith closeCode: URLSessionWebSocketTask.CloseCode, reason: Data?) {
         isConnected = false
         let reasonString = reason.flatMap { String(data: $0, encoding: .utf8) } ?? "Unknown"
-        logInfo("OpenAI Realtime: WebSocket closed - \(closeCode) - \(reasonString)")
+        logInfo("OpenAI Realtime: WebSocket closed - Code: \(closeCode.rawValue) - Reason: \(reasonString)")
+
+        // If we have a pending continuation, it means connection failed during initial connect
+        if let continuation = connectionContinuation {
+            connectionContinuation = nil
+            let errorMessage: String
+            switch closeCode {
+            case .normalClosure:
+                errorMessage = "Connection closed normally"
+            case .goingAway:
+                errorMessage = "Server is going away"
+            case .protocolError:
+                errorMessage = "Protocol error - check API key format"
+            case .unsupportedData:
+                errorMessage = "Unsupported data format"
+            case .noStatusReceived:
+                errorMessage = "No status received from server"
+            case .abnormalClosure:
+                errorMessage = "Connection closed abnormally - possible authentication failure. Check your OpenAI API key."
+            case .invalidFramePayloadData:
+                errorMessage = "Invalid data received"
+            case .policyViolation:
+                errorMessage = "Policy violation - API key may be invalid or expired"
+            case .messageTooBig:
+                errorMessage = "Message too large"
+            case .mandatoryExtensionMissing:
+                errorMessage = "Required extension missing"
+            case .internalServerError:
+                errorMessage = "OpenAI server error"
+            case .tlsHandshakeFailure:
+                errorMessage = "TLS handshake failed - network security issue"
+            @unknown default:
+                errorMessage = "Unknown connection error (code: \(closeCode.rawValue))"
+            }
+            continuation.resume(throwing: OpenAIRealtimeError.serverError(errorMessage))
+        }
+    }
+
+    func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
+        if let error = error {
+            logError("OpenAI Realtime: Task completed with error: \(error.localizedDescription)")
+
+            // Resume continuation with error if still pending
+            if let continuation = connectionContinuation {
+                connectionContinuation = nil
+                let nsError = error as NSError
+                let errorMessage: String
+                if nsError.domain == NSURLErrorDomain {
+                    switch nsError.code {
+                    case NSURLErrorNotConnectedToInternet:
+                        errorMessage = "No internet connection"
+                    case NSURLErrorTimedOut:
+                        errorMessage = "Connection timed out"
+                    case NSURLErrorCannotConnectToHost:
+                        errorMessage = "Cannot connect to OpenAI server"
+                    case NSURLErrorNetworkConnectionLost:
+                        errorMessage = "Network connection lost"
+                    case NSURLErrorSecureConnectionFailed:
+                        errorMessage = "Secure connection failed"
+                    default:
+                        errorMessage = "Network error: \(error.localizedDescription)"
+                    }
+                } else {
+                    errorMessage = error.localizedDescription
+                }
+                continuation.resume(throwing: OpenAIRealtimeError.serverError(errorMessage))
+            }
+
+            connectionError = error
+        }
     }
 }
 
