@@ -403,30 +403,52 @@ struct VoiceSessionView: View {
     private var missingApiKeyView: some View {
         VStack(spacing: 24) {
             // Icon
-            Image(systemName: "key.slash")
+            Image(systemName: "waveform.and.mic")
                 .font(.system(size: 64))
                 .foregroundColor(.orange)
 
             // Title
-            Text("OpenAI API Key Required")
+            Text("Voice Configuration Required")
                 .font(.title2.bold())
                 .foregroundColor(.white)
 
             // Description
-            Text("To use voice conversations, you need to configure your OpenAI API key in Settings.")
+            Text("Voice conversations require either Azure OpenAI Realtime (recommended) or OpenAI with Realtime API access.")
                 .font(.body)
                 .foregroundColor(.gray)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 40)
 
-            // Instructions
+            // Option 1: Azure (Recommended)
             VStack(alignment: .leading, spacing: 12) {
+                Text("Option 1: Azure OpenAI (Recommended)")
+                    .font(.subheadline.bold())
+                    .foregroundColor(.cyan)
+
+                instructionRow(number: 1, text: "Set AZURE_OPENAI_REALTIME_ENDPOINT")
+                instructionRow(number: 2, text: "Set AZURE_OPENAI_REALTIME_API_KEY")
+                instructionRow(number: 3, text: "Deployment: gpt-4o-realtime")
+            }
+            .padding()
+            .background(Color.cyan.opacity(0.1))
+            .cornerRadius(12)
+
+            // Option 2: Direct OpenAI
+            VStack(alignment: .leading, spacing: 12) {
+                Text("Option 2: Direct OpenAI")
+                    .font(.subheadline.bold())
+                    .foregroundColor(.green)
+
                 instructionRow(number: 1, text: "Go to Settings (⌘,)")
                 instructionRow(number: 2, text: "Select 'Providers' tab")
                 instructionRow(number: 3, text: "Enter your OpenAI API key")
+
+                Text("Note: Key must have Realtime API access")
+                    .font(.caption)
+                    .foregroundColor(.gray)
             }
             .padding()
-            .background(Color.white.opacity(0.1))
+            .background(Color.green.opacity(0.1))
             .cornerRadius(12)
 
             // Close button

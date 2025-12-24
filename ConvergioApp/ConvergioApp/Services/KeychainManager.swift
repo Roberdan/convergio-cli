@@ -112,8 +112,35 @@ public final class KeychainManager: ObservableObject {
             }
         }
 
+        // Also try importing Azure Realtime from alternate env var names
+        importAzureRealtimeFromAlternateEnvVars()
+
         logInfo("Imported \(imported) API keys from environment", category: "Keychain")
         refreshKeyStatus()
+    }
+
+    /// Import Azure Realtime credentials from alternate environment variable names
+    private func importAzureRealtimeFromAlternateEnvVars() {
+        // Check for AZURE_OPENAI_REALTIME_* first, then fall back to AZURE_OPENAI_*
+        let envMappings: [(APIProvider, [String])] = [
+            (.azureRealtimeEndpoint, ["AZURE_OPENAI_REALTIME_ENDPOINT", "AZURE_OPENAI_ENDPOINT"]),
+            (.azureRealtimeKey, ["AZURE_OPENAI_REALTIME_API_KEY", "AZURE_OPENAI_API_KEY"]),
+            (.azureRealtimeDeployment, ["AZURE_OPENAI_REALTIME_DEPLOYMENT"])
+        ]
+
+        for (provider, envVars) in envMappings {
+            if getKey(for: provider) == nil {
+                for envVar in envVars {
+                    if let value = ProcessInfo.processInfo.environment[envVar],
+                       !value.isEmpty {
+                        if saveKey(value, for: provider) {
+                            logInfo("Imported \(provider.displayName) from \(envVar)", category: "Keychain")
+                        }
+                        break
+                    }
+                }
+            }
+        }
     }
 
     /// Export keys to environment variables for C library
