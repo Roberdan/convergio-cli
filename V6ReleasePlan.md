@@ -189,38 +189,44 @@ git push origin development
 
 ---
 
-## PHASE 3: CONSOLIDATE NATIVE-APP INTO DEVELOPMENT
+## PHASE 3: VERIFY NATIVE-APP INCLUSION
 **Status**: [ ] NOT STARTED
-**Risk**: MEDIUM (scuola is superset)
-**Estimate**: 2 hours
+**Risk**: LOW (scuola-2026 is superset)
+**Estimate**: 30 minutes
 
 ### Analysis
-`feature/native-app` has **1 unique commit** not in scuola-2026:
-- `b6382b2` - Provider Manager and Flashcard Deck View with swipe gestures
+`feature/native-app` is **almost entirely contained** in scuola-2026:
+- scuola-2026 has 25 commits not in native-app (superset)
+- native-app has only **1 unique commit** (`b6382b2`)
 
-### 3.1 Cherry-Pick Unique Features
+**Unique commit adds:**
+- `ProviderManager` for AI provider selection and fallback chain
+- Minor FlashcardDeckView swipe improvements (already in scuola as different impl)
+
+**Verification**: Files that exist in both branches:
+- ✓ `FlashcardDeckView.swift` - exists in scuola-2026
+- ✓ `FSRSManager.swift` - exists in scuola-2026
+- ✗ `ProviderManager.swift` - NOT in scuola-2026 (optional feature)
+
+### 3.1 Decision Point
+**Option A (Recommended)**: Skip native-app merge entirely
+- scuola-2026 is the authoritative native app branch
+- ProviderManager can be added in V7 if needed
+
+**Option B**: Cherry-pick only ProviderManager
 ```bash
 git checkout development
 git cherry-pick b6382b2 --no-commit
+# Then selectively stage only ProviderManager-related files
 ```
-- [ ] Cherry-pick the unique commit
 
-### 3.2 Resolve Any Conflicts
-**Expected Conflicts** (from same files):
-1. `AzureOpenAIProvider.swift` - **Use development (scuola) version**
-2. `FSRSManager.swift` - Merge both implementations
-3. `FlashcardDeckView.swift` - Merge swipe gestures into scuola version
+### 3.2 Verification Checklist
+- [ ] Confirm FlashcardDeckView.swift in development: `ls ConvergioApp/ConvergioApp/Views/Education/FlashcardDeckView.swift`
+- [ ] Confirm FSRSManager.swift in development: `ls ConvergioApp/ConvergioApp/Services/FSRSManager.swift`
+- [ ] Decide on ProviderManager: SKIP (V7) or CHERRY-PICK
+- [ ] Mark native-app as superseded by scuola-2026
 
-**Resolution Strategy**:
-```bash
-# For each conflict, carefully merge the unique additions from native-app
-# without losing scuola-2026 improvements
-```
-- [ ] `AzureOpenAIProvider.swift`: Keep development version, add any missing methods from native
-- [ ] `FSRSManager.swift`: Manual merge - combine features
-- [ ] `FlashcardDeckView.swift`: Add swipe gestures to development version
-
-### 3.3 Validation Checklist
+### 3.3 Build Validation
 - [ ] Build Swift app: `make native`
 - [ ] Tests pass: `make test`
 - [ ] Verify Provider Manager: `grep -l "ProviderManager" ConvergioApp/`
