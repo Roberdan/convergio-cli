@@ -11,6 +11,8 @@ Last Updated: 2025-12-25
 - [x] OpenDyslexic font installed and configured
 - [x] Microphone entitlements added
 - [x] Debug logging panel in VoiceSessionView
+- [x] Global hotkey Cmd+Shift+Space wired up
+- [x] Student Profile tab in Settings
 
 ### Blocked (Requires Mac Reboot)
 - [ ] Microphone audio capture returns all zeros
@@ -37,15 +39,13 @@ Last Updated: 2025-12-25
 
 ## Remaining Features
 
-### Student Profile
-- [ ] Review student profile section completeness
-- [ ] Learning style preferences
-- [ ] Subject interests
-- [ ] Progress tracking dashboard
+### Student Profile ✓
+- [x] Student Profile tab in Settings (view info, reset profile)
+- [ ] Edit profile inline (currently shows read-only)
 
-### Global Hotkey
-- [ ] Implement Cmd+Shift+Space global hotkey
-- [ ] Quick voice session start from anywhere
+### Global Hotkey ✓
+- [x] Cmd+Shift+Space wired up in AppDelegate
+- [ ] Test activation from background
 
 ### Apple Intelligence (Future)
 - [ ] Investigate Apple Intelligence APIs
