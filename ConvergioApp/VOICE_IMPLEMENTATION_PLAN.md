@@ -1,6 +1,6 @@
 # Voice Implementation Plan - Scuola 2026
 
-Last Updated: 2025-12-25 10:27
+Last Updated: 2025-12-25 10:42
 
 ## Current Status
 
@@ -21,6 +21,8 @@ Last Updated: 2025-12-25 10:27
 - [x] **NEW: Added 18th maestro - Grozio (Hugo Grotius) for International Law**
 - [x] **NEW: Created documentation for adding new maestri** (`docs/HOW_TO_ADD_MAESTRO.md`)
 - [x] **NEW: Enforced Azure OpenAI for EDU edition** (GDPR compliance)
+- [x] **NEW: Replaced Grozio placeholder with real historical portrait**
+- [x] **NEW: Redesigned Settings UI with NavigationSplitView sidebar**
 
 ### Blocked (Requires Mac Reboot)
 - [ ] Microphone audio capture returns all zeros
@@ -45,13 +47,12 @@ Last Updated: 2025-12-25 10:27
   - [x] Anthropic hidden in Settings/Onboarding for EDU
   - [x] Default provider changed to OpenAI (Azure)
 
-### P2: UI Improvements
-- [ ] **Improve Settings window UI** (current design is poor)
+### P2: UI Improvements ✅ COMPLETED
+- [x] **Improve Settings window UI** - FIXED: NavigationSplitView with sidebar
 - [x] **Fix theme management** (dark/light/system) - FIXED: added preferredColorScheme
 - [ ] Verify all 18 maestri images display correctly
-- [ ] Replace placeholder images:
-  - Manzoni (currently red "M" placeholder)
-  - Grozio (currently indigo "G" placeholder)
+- [x] **Grozio placeholder replaced** with real historical portrait
+- [ ] Replace Manzoni placeholder (currently red "M" placeholder)
 
 ### P3: Voice Integration
 - [ ] Add voice transcription to chat history
@@ -89,7 +90,7 @@ Response audio → AVAudioPlayerNode
 - Location: `Assets.xcassets/Maestri/`
 - Format: PNG (200x200 minimum)
 - Current count: 18 images
-- 2 placeholders remaining (Manzoni, Grozio)
+- 1 placeholder remaining (Manzoni)
 
 ### Font Configuration
 - Fonts in: `Resources/Fonts/`
@@ -113,6 +114,7 @@ Response audio → AVAudioPlayerNode
 - `a2f2c02` feat: add Grozio maestro for International Law with documentation
 - `8685951` feat(edu): enforce Azure OpenAI only for EDU edition (GDPR compliance)
 - `4f1b9c9` fix(ui): apply theme setting to main window and settings
+- `7c87a5a` feat(ui): replace Grozio placeholder and redesign Settings UI
 
 ---
 
