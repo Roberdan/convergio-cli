@@ -30,7 +30,7 @@ Last Updated: 2025-12-25
 
 ### Priority 2: Integration
 1. [ ] Add voice transcription to chat history
-2. [ ] Handle WebSocket reconnection gracefully
+2. [x] Handle WebSocket reconnection gracefully (exponential backoff implemented)
 3. [ ] Save voice sessions to student progress
 
 ### Priority 3: Accessibility
@@ -46,6 +46,16 @@ Last Updated: 2025-12-25
 ### Global Hotkey ✓
 - [x] Cmd+Shift+Space wired up in AppDelegate
 - [ ] Test activation from background
+
+### UI Improvements
+- [x] Replace maestri icons with actual profile photos/portraits
+  - Euclide, Pitagora, Feynman, Galileo, Curie, Darwin
+  - Erodoto, Humboldt, Manzoni, Shakespeare, Leonardo, Mozart
+  - Cicerone, Smith, Lovelace, Ippocrate, Socrate
+  - Note: 3 placeholders (Erodoto, Humboldt, Manzoni) need manual replacement
+- [ ] Verify all maestri images display correctly (all 17)
+- [ ] Improve Settings window UI (current design is poor)
+- [ ] Fix theme management (dark/light/system) - not working correctly
 
 ### Apple Intelligence (Future)
 - [ ] Investigate Apple Intelligence APIs

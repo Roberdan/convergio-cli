@@ -185,10 +185,18 @@ struct MaestroCardView: View {
                     )
                     .frame(width: 70, height: 70)
 
-                // Avatar icon
-                Image(systemName: maestro.icon)
-                    .font(.system(size: 32))
-                    .foregroundStyle(maestro.color)
+                // Avatar image or fallback icon
+                if let nsImage = NSImage(named: maestro.avatarName) {
+                    Image(nsImage: nsImage)
+                        .resizable()
+                        .aspectRatio(contentMode: .fill)
+                        .frame(width: 64, height: 64)
+                        .clipShape(Circle())
+                } else {
+                    Image(systemName: maestro.icon)
+                        .font(.system(size: 32))
+                        .foregroundStyle(maestro.color)
+                }
             }
             .frame(width: 80, height: 80)
 
