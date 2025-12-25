@@ -19,11 +19,114 @@ This plan consolidates **4 feature branches** into a stable V6 release using a *
 | `feature/convergio-enhancements` | ConvergioCLI-features | 4 | Minimal | Unknown | **1st** (easy) |
 | `feature/education-pack` | ConvergioCLI-education | 538 | **175 files, 91K lines** | FIXED | **2nd** (core CLI) |
 | `feature/scuola-2026` | native-scuola-2026 | 307 | 1 file (swift_bridge) | Unknown | **3rd** (native app) |
-| `feature/native-app` | ConvergioNative | 283 | 1 file | Unknown | **SKIP** (subset of scuola) |
+| `feature/native-app` | ConvergioNative | 283 | 1 file | Unknown | **4th** (cherry-pick ProviderManager) |
 
 **IMPORTANT**: education-pack must be merged BEFORE scuola-2026 because:
 - education-pack has the core CLI changes (edition system, education features, 175 C files)
 - scuola-2026 is the Swift native app that depends on the CLI
+
+---
+
+## 📋 EXECUTION CHECKLIST (Quick Overview)
+
+> Usa questa tabella per tracciare l'avanzamento a colpo d'occhio.
+
+### Phase 0: Preparation (30 min)
+| # | Task | Status |
+|---|------|--------|
+| 0.1 | Create `development` branch from main | [ ] |
+| 0.2 | Create backup branches for all features | [ ] |
+| 0.3 | Verify all worktrees clean, gh auth OK | [ ] |
+| 0.4 | Review PRs: close #71, defer #69 to V7 | [ ] |
+
+### Phase 1: Merge Enhancements (1 hour)
+| # | Task | Status |
+|---|------|--------|
+| 1.1 | Merge `feature/convergio-enhancements` to development | [ ] |
+| 1.2 | Build & test pass | [ ] |
+| 1.3 | Push to remote | [ ] |
+
+### Phase 2: Merge Education-Pack (8-16 hours) ⚠️ CRITICAL
+| # | Task | Status |
+|---|------|--------|
+| 2.1 | Verify education-pack CI fixed (153695f) | [x] |
+| 2.2 | Rebase/merge education-pack to development | [ ] |
+| 2.3 | Resolve ~100 conflicts (see Phase 5 guide) | [ ] |
+| 2.4 | Build & all 499+ tests pass | [ ] |
+| 2.5 | Verify Azure-only for EDU edition | [ ] |
+| 2.6 | Push to remote | [ ] |
+
+### Phase 3: Merge Scuola-2026 (2-3 hours)
+| # | Task | Status |
+|---|------|--------|
+| 3.1 | Merge `feature/scuola-2026` to development | [ ] |
+| 3.2 | Resolve Makefile/CI conflicts | [ ] |
+| 3.3 | Verify 17 maestri images present | [ ] |
+| 3.4 | Verify native app builds (`make native`) | [ ] |
+| 3.5 | Push to remote | [ ] |
+
+### Phase 4: Cherry-pick Native-App (30 min)
+| # | Task | Status |
+|---|------|--------|
+| 4.1 | Cherry-pick ProviderManager from `b6382b2` | [ ] |
+| 4.2 | Verify ProviderManager.swift present | [ ] |
+| 4.3 | Build & test pass | [ ] |
+| 4.4 | Archive native-app branch with tag | [ ] |
+
+### Phase 6: Quality Gates (4-8 hours)
+| # | Task | Status |
+|---|------|--------|
+| 6.1 | Fix HP-1: Remove shell=True subprocess | [ ] |
+| 6.2 | Fix HP-2: Replace random with secrets | [ ] |
+| 6.3 | Create .editorconfig, .clang-format | [ ] |
+| 6.4 | Update README.md, CHANGELOG.md | [ ] |
+| 6.5 | Full test suite: 100% pass, 0 warnings | [ ] |
+
+### Phase 7: Release Preparation (2-4 hours)
+| # | Task | Status |
+|---|------|--------|
+| 7.1 | Bump version to 6.0.0 everywhere | [ ] |
+| 7.2 | Create PR: development → main | [ ] |
+| 7.3 | Wait for CI, get approvals | [ ] |
+| 7.4 | Merge to main (merge commit, NOT squash) | [ ] |
+| 7.5 | Tag v6.0.0 and push | [ ] |
+| 7.6 | Create GitHub Release | [ ] |
+
+### Phase 8: Cleanup (1 hour)
+| # | Task | Status |
+|---|------|--------|
+| 8.1 | Remove all worktrees | [ ] |
+| 8.2 | Delete local merged branches | [ ] |
+| 8.3 | Close PR #71 with comment | [ ] |
+| 8.4 | Move V6ReleasePlan.md to docs/releases/ | [ ] |
+
+### Phase 9: Final Review (4-8 hours) ⚠️ MANDATORY
+| # | Task | Status |
+|---|------|--------|
+| 9.1 | Verify Ollama `qwen2.5:0.5b` working | [x] |
+| 9.2 | Zero TODO/FIXME in production code | [ ] |
+| 9.3 | Zero Anthropic references in EDU code | [ ] |
+| 9.4 | App release manager check passed | [ ] |
+| 9.5 | Website updated for V6 | [ ] |
+| 9.6 | README.md complete and English | [ ] |
+| 9.7 | All tests pass with Ollama local | [ ] |
+| 9.8 | EDU tests pass with Azure | [ ] |
+| 9.9 | Version 6.0.0 consistent everywhere | [ ] |
+| 9.10 | Final sign-off by Roberto | [ ] |
+
+### Summary
+| Phase | Tasks | Effort | Status |
+|-------|-------|--------|--------|
+| 0 | 4 | 30 min | [ ] |
+| 1 | 3 | 1 hour | [ ] |
+| 2 | 6 | 8-16 hours | [ ] |
+| 3 | 5 | 2-3 hours | [ ] |
+| 4 | 4 | 30 min | [ ] |
+| 6 | 5 | 4-8 hours | [ ] |
+| 7 | 6 | 2-4 hours | [ ] |
+| 8 | 4 | 1 hour | [ ] |
+| 9 | 10 | 4-8 hours | [ ] |
+| **TOTAL** | **47** | **24-44 hours** | **[ ]** |
 
 ---
 
@@ -34,10 +137,12 @@ Separare chiaramente i **test di sviluppo/integrazione** dai **test di produzion
 
 | Fase | Provider | Modello | Scopo |
 |------|----------|---------|-------|
-| **Sviluppo & CI** | Ollama (locale) | `llama3.2:1b` o `qwen2.5:0.5b` | Verificare che il codice funzioni |
-| **Pre-Release** | Provider configurati | Come da agent config | Verificare compatibilità API reali |
+| **Sviluppo & CI** | Ollama (locale) | `qwen2.5:0.5b` (397MB) | Verificare che il codice funzioni |
+| **Pre-Release EDU** | Azure OpenAI | `gpt-4o` via Azure | Verificare GDPR compliance |
 | **Produzione EDU** | Azure OpenAI ONLY | `gpt-4o` via Azure | GDPR compliance scuole |
 | **Produzione FULL** | Multi-provider | Anthropic/OpenAI/Azure | Flessibilità utente |
+
+> ⚠️ **IMPORTANTE**: Usare SOLO `qwen2.5:0.5b` locale per i test, MAI il modello cloud che ha limitazioni.
 
 ### Perché Ollama per i Test di Sviluppo?
 
@@ -53,22 +158,26 @@ Separare chiaramente i **test di sviluppo/integrazione** dai **test di produzion
 # Installare Ollama (se non già presente)
 brew install ollama
 
-# Scaricare modello leggero per test
-ollama pull llama3.2:1b     # 1.3GB, velocissimo
-# oppure
-ollama pull qwen2.5:0.5b    # 400MB, ancora più veloce
+# Scaricare modello locale leggero (USARE SOLO QUESTO!)
+ollama pull qwen2.5:0.5b    # 397MB, velocissimo, locale
 
 # Verificare che Ollama sia attivo
 ollama list
 curl http://localhost:11434/api/tags
+
+# Test rapido
+echo '{"model": "qwen2.5:0.5b", "prompt": "Hello", "stream": false}' | \
+  curl -s http://localhost:11434/api/generate -d @-
 ```
+
+> ⚠️ NON usare modelli cloud (es. gpt-oss:120b-cloud) per i test - hanno limitazioni!
 
 ### Configurazione Test con Ollama
 
 ```bash
 # Per i test di sviluppo, impostare:
 export CONVERGIO_TEST_PROVIDER=ollama
-export CONVERGIO_TEST_MODEL=llama3.2:1b
+export CONVERGIO_TEST_MODEL=qwen2.5:0.5b
 export OLLAMA_HOST=http://localhost:11434
 
 # Eseguire test
@@ -262,7 +371,7 @@ See section "PHASE 5 (LEGACY): EDUCATION-PACK DETAILS" below for full conflict r
 - [ ] Theme system fixes
 - [ ] All Swift native app code
 
-### 2.1 Pre-Merge Checks
+### 3.1 Pre-Merge Checks
 ```bash
 cd /Users/roberdan/GitHub/ConvergioCLI/native-scuola-2026
 git status
@@ -271,14 +380,14 @@ git log --oneline -5
 - [ ] Verify worktree is clean
 - [ ] Document last commit: _______________
 
-### 2.2 Merge to Development
+### 3.2 Merge to Development
 ```bash
 git checkout development
 git merge feature/scuola-2026 --no-ff --no-commit
 ```
 - [ ] Initiate merge
 
-### 2.3 Resolve Conflicts
+### 3.3 Resolve Conflicts
 **Expected Conflicts**:
 1. `.github/workflows/ci.yml`
 2. `Makefile`
@@ -293,7 +402,7 @@ git checkout --theirs Makefile
 git add .github/workflows/ci.yml Makefile
 ```
 
-### 2.4 Validation Checklist
+### 3.4 Validation Checklist
 - [ ] Build C code: `make clean && make`
 - [ ] Build Swift app: `make native` or `xcodebuild`
 - [ ] Tests pass: `make test`
@@ -305,7 +414,7 @@ git add .github/workflows/ci.yml Makefile
 - [ ] Verify OpenDyslexic: `grep -l "OpenDyslexic" ConvergioApp/`
 - [ ] Verify Grozio: `grep -l "Grozio" ConvergioApp/` or `ls **/grozio*`
 
-### 2.5 Commit and Push
+### 3.5 Commit and Push
 ```bash
 git commit -m "Merge feature/scuola-2026: EDU native app with 17 maestri, GDPR, accessibility"
 git push origin development
@@ -316,9 +425,9 @@ git push origin development
 
 ---
 
-## PHASE 3: VERIFY NATIVE-APP INCLUSION
+## PHASE 4: VERIFY & CHERRY-PICK FROM NATIVE-APP
 **Status**: [ ] NOT STARTED
-**Risk**: LOW (scuola-2026 is superset)
+**Risk**: LOW (scuola-2026 is superset, only 1 unique commit)
 **Estimate**: 30 minutes
 
 ### Analysis
@@ -335,63 +444,44 @@ git push origin development
 - ✓ `FSRSManager.swift` - exists in scuola-2026
 - ✗ `ProviderManager.swift` - NOT in scuola-2026 (optional feature)
 
-### 3.1 Decision Point
-**Option A (Recommended)**: Skip native-app merge entirely
-- scuola-2026 is the authoritative native app branch
-- ProviderManager can be added in V7 if needed
+### 4.1 Action: Cherry-pick ProviderManager
+**Required**: Cherry-pick the unique commit to preserve ProviderManager feature.
 
-**Option B**: Cherry-pick only ProviderManager
 ```bash
 git checkout development
 git cherry-pick b6382b2 --no-commit
-# Then selectively stage only ProviderManager-related files
+# Selectively stage ProviderManager-related files
+git add ConvergioApp/ConvergioApp/Services/ProviderManager.swift
+git commit -m "Cherry-pick from native-app: ProviderManager for AI provider selection"
 ```
 
-### 3.2 Verification Checklist
+### 4.2 Verification Checklist
 - [ ] Confirm FlashcardDeckView.swift in development: `ls ConvergioApp/ConvergioApp/Views/Education/FlashcardDeckView.swift`
 - [ ] Confirm FSRSManager.swift in development: `ls ConvergioApp/ConvergioApp/Services/FSRSManager.swift`
-- [ ] Decide on ProviderManager: SKIP (V7) or CHERRY-PICK
+- [ ] Confirm ProviderManager.swift cherry-picked: `ls ConvergioApp/ConvergioApp/Services/ProviderManager.swift`
 - [ ] Mark native-app as superseded by scuola-2026
 
-### 3.3 Build Validation
+### 4.3 Build Validation
 - [ ] Build Swift app: `make native`
 - [ ] Tests pass: `make test`
 - [ ] Verify Provider Manager: `grep -l "ProviderManager" ConvergioApp/`
 - [ ] Verify Flashcard swipe: `grep "swipe\|Swipe" ConvergioApp/**/*.swift`
 - [ ] Verify FSRS scheduling: `grep "FSRS\|fsrs" ConvergioApp/**/*.swift`
 
-### 3.4 Commit and Push
+### 4.4 Commit and Push
 ```bash
-git commit -m "Cherry-pick from native-app: Provider Manager, Flashcard swipe gestures"
 git push origin development
 ```
-- [ ] Commit cherry-pick
 - [ ] Push to remote
+- [ ] Verify CI passes
 
-### 3.5 Archive Native-App Branch
+### 4.5 Archive Native-App Branch
 ```bash
 git tag archive/feature-native-app-v6 feature/native-app
 git push origin archive/feature-native-app-v6
 ```
 - [ ] Tag for archive
 - [ ] DO NOT delete yet (keep until V6 stable)
-
----
-
-## PHASE 4: VERIFY NATIVE-APP (SKIP - SUPERSEDED)
-**Status**: [x] SKIP - native-app is superseded by scuola-2026
-**Risk**: NONE
-**Estimate**: 15 minutes (verification only)
-
-### 4.1 Verification
-- [x] Confirmed: scuola-2026 has 25 commits not in native-app (superset)
-- [x] Confirmed: native-app has only 1 unique commit (ProviderManager)
-- [x] Decision: Skip native-app, ProviderManager can be added in V7
-
-### 4.2 Archive (Optional)
-```bash
-git tag archive/feature-native-app-pre-v6 feature/native-app
-```
 
 ---
 
@@ -405,10 +495,10 @@ git tag archive/feature-native-app-pre-v6 feature/native-app
 
 ---
 
-## PHASE 5 (REFERENCE): EDUCATION-PACK MERGE DETAILS
-> This is the detailed conflict resolution guide for Phase 2 (education-pack merge).
+## PHASE 5: EDUCATION-PACK DETAILED CONFLICT RESOLUTION GUIDE
+> ⚠️ **REFERENCE SECTION** - This is NOT a separate phase. It's the detailed conflict resolution guide for Phase 2 (education-pack merge). Follow these instructions during Phase 2 execution.
 
-**Status**: See Phase 2
+**Status**: Follow during Phase 2
 **Risk**: HIGH (~100 conflicts)
 **Estimate**: 8-16 hours
 **Strategy**: INCREMENTAL MERGE
@@ -690,18 +780,20 @@ git push origin --delete development
 ```bash
 # Verificare che Ollama sia attivo e configurato
 ollama list
-# Deve mostrare almeno un modello, es: llama3.2:1b
+# Deve mostrare: qwen2.5:0.5b (397MB, locale)
 
-# Se non c'è un modello leggero, scaricarlo:
-ollama pull llama3.2:1b
+# Se non c'è, scaricarlo:
+ollama pull qwen2.5:0.5b
 
 # Verificare che risponda:
 curl http://localhost:11434/api/tags
 
 # Test rapido:
-echo '{"model": "llama3.2:1b", "prompt": "Hello", "stream": false}' | \
+echo '{"model": "qwen2.5:0.5b", "prompt": "Hello", "stream": false}' | \
   curl -s http://localhost:11434/api/generate -d @-
 ```
+
+> ⚠️ Usare SOLO `qwen2.5:0.5b` locale, MAI modelli cloud!
 
 - [ ] Ollama running e responsive
 - [ ] Modello leggero disponibile per test
@@ -798,9 +890,9 @@ grep -ri "convergio" --include="*.md" | grep -i "spelling\|typo"
 ### 9.7 Test Completi con Ollama
 
 ```bash
-# Setup test environment
+# Setup test environment (SOLO modello locale!)
 export CONVERGIO_TEST_PROVIDER=ollama
-export CONVERGIO_TEST_MODEL=llama3.2:1b
+export CONVERGIO_TEST_MODEL=qwen2.5:0.5b
 export OLLAMA_HOST=http://localhost:11434
 
 # Run all tests
@@ -911,7 +1003,7 @@ git branch backup-development-$(date +%Y%m%d) development
 
 | Source | Task | Worktree | Status |
 |--------|------|----------|--------|
-| CI | `registry.c:1448` unused variable `current_edition` | education-pack | BLOCKING |
+| CI | `registry.c:1448` unused variable `current_edition` | education-pack | ✅ FIXED (153695f) |
 | EduRelease | clang-tidy not installed | education-pack | BLOCKED |
 | EduRelease | clang-format not installed | education-pack | BLOCKED |
 | EduRelease | `/agents` shows 73 instead of 20 (count bug) | education-pack | BUG |
@@ -1079,7 +1171,7 @@ git branch backup-development-$(date +%Y%m%d) development
 ## SUCCESS CRITERIA
 
 ### Must Have (V6 Release Gate)
-- [ ] All 4 branches merged to main
+- [ ] All 3 branches merged + 1 cherry-pick (enhancements, education-pack, scuola-2026 + native-app ProviderManager)
 - [ ] Zero compiler warnings
 - [ ] All tests pass (499+ expected)
 - [ ] CI pipeline green
@@ -1102,19 +1194,20 @@ git branch backup-development-$(date +%Y%m%d) development
 
 ## TIMELINE ESTIMATE
 
-| Phase | Effort | Dependencies |
-|-------|--------|--------------|
-| Phase 0 | 30 min | None |
-| Phase 1 | 1 hour | Phase 0 |
-| Phase 2 | 3 hours | Phase 1 |
-| Phase 3 | 2 hours | Phase 2 |
-| Phase 4 | 30 min | None (can parallel) |
-| Phase 5 | 8-16 hours | Phase 3, 4 |
-| Phase 6 | 4-8 hours | Phase 5 |
-| Phase 7 | 2-4 hours | Phase 6 |
-| Phase 8 | 1 hour | Phase 7 |
+| Phase | Description | Effort | Dependencies |
+|-------|-------------|--------|--------------|
+| Phase 0 | Preparation & Backups | 30 min | None |
+| Phase 1 | Merge convergio-enhancements | 1 hour | Phase 0 |
+| Phase 2 | Merge education-pack (CORE) | 8-16 hours | Phase 1 |
+| Phase 3 | Merge scuola-2026 | 2-3 hours | Phase 2 |
+| Phase 4 | Cherry-pick from native-app | 30 min | Phase 3 |
+| Phase 5 | Reference (see Phase 2) | - | - |
+| Phase 6 | Quality Gates | 4-8 hours | Phase 3 |
+| Phase 7 | Release Preparation | 2-4 hours | Phase 6 |
+| Phase 8 | Cleanup | 1 hour | Phase 7 |
+| Phase 9 | Final Comprehensive Review | 4-8 hours | Phase 8 |
 
-**Total Estimate**: 20-36 hours of work
+**Total Estimate**: 24-44 hours of work
 
 ---
 
