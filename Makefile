@@ -675,6 +675,10 @@ $(eval $(call define_standard_test,workflow_error_test,tests/test_workflow_error
 $(eval $(call define_standard_test,workflow_migration_test,tests/test_workflow_migration.c))
 $(eval $(call define_standard_test,workflow_integration_test,tests/test_workflow_integration.c))
 
+# Voice and Apple Foundation tests
+$(eval $(call define_standard_test,voice_history_test,tests/test_voice_history.c))
+$(eval $(call define_standard_test,apple_foundation_test,tests/test_apple_foundation.c))
+
 # Simple tests (without Swift, custom objects)
 $(eval $(call define_simple_test,compaction_test,tests/test_compaction.c,$(OBJ_DIR)/context/compaction.o))
 $(eval $(call define_simple_test,plan_db_test,tests/test_plan_db.c,$(OBJ_DIR)/orchestrator/plan_db.o $(OBJ_DIR)/core/safe_path.o,-lsqlite3 -lpthread))
@@ -831,7 +835,7 @@ security_audit_workflow:
 	@echo "╚══════════════════════════════════════════════════════════════╝"
 
 # Run all tests
-test: fuzz_test unit_test anna_test compaction_test plan_db_test output_service_test tools_test websearch_test workflow_test telemetry_test security_test check-docs
+test: fuzz_test unit_test anna_test compaction_test plan_db_test output_service_test tools_test websearch_test workflow_test telemetry_test security_test voice_history_test apple_foundation_test check-docs
 	@echo "All tests completed!"
 
 # Parallel test execution helper (for independent test suites)

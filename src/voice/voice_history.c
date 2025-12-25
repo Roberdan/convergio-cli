@@ -283,6 +283,14 @@ int voice_history_save(const VoiceTranscriptEntry* entry) {
         return -1;
     }
 
+    // Generate ID if not provided
+    char generated_id[64] = {0};
+    const char* entry_id = entry->id;
+    if (entry_id[0] == '\0') {
+        generate_uuid(generated_id);
+        entry_id = generated_id;
+    }
+
     const char* sql =
         "INSERT INTO voice_transcripts ("
         "  id, session_id, agent_name, user_transcript, assistant_response, "
@@ -298,7 +306,7 @@ int voice_history_save(const VoiceTranscriptEntry* entry) {
         return -1;
     }
 
-    sqlite3_bind_text(stmt, 1, entry->id, -1, SQLITE_STATIC);
+    sqlite3_bind_text(stmt, 1, entry_id, -1, SQLITE_STATIC);
     sqlite3_bind_text(stmt, 2, entry->session_id, -1, SQLITE_STATIC);
     sqlite3_bind_text(stmt, 3, entry->agent_name, -1, SQLITE_STATIC);
     sqlite3_bind_text(stmt, 4, entry->user_transcript, -1, SQLITE_STATIC);
@@ -552,18 +560,75 @@ void voice_session_metadata_free(VoiceSessionMetadata* metadata) {
     memset(metadata, 0, sizeof(VoiceSessionMetadata));
 }
 
-// Stub implementations for functions declared in header but not yet needed
+// Load transcripts for a session
 int voice_history_load_session(
     const char* session_id,
     VoiceTranscriptEntry* out_entries,
     size_t max_entries,
     size_t* out_count
 ) {
-    (void)session_id;
-    (void)out_entries;
-    (void)max_entries;
-    if (out_count) *out_count = 0;
-    return -1;  // Not implemented yet
+    if (!g_initialized || !session_id || !out_entries || !out_count) {
+        if (out_count) *out_count = 0;
+        return -1;
+    }
+
+    const char* sql =
+        "SELECT id, session_id, agent_name, user_transcript, assistant_response, "
+        "       audio_response_id, timestamp, duration_ms, response_latency_ms, "
+        "       dominant_emotion, emotion_confidence, speech_clarity, background_noise, "
+        "       language, topic, intent, is_command "
+        "FROM voice_transcripts WHERE session_id = ? ORDER BY timestamp ASC LIMIT ?;";
+
+    sqlite3_stmt* stmt;
+    int rc = sqlite3_prepare_v2(g_voice_db, sql, -1, &stmt, NULL);
+    if (rc != SQLITE_OK) {
+        *out_count = 0;
+        return -1;
+    }
+
+    sqlite3_bind_text(stmt, 1, session_id, -1, SQLITE_STATIC);
+    sqlite3_bind_int(stmt, 2, (int)max_entries);
+
+    size_t count = 0;
+    while (sqlite3_step(stmt) == SQLITE_ROW && count < max_entries) {
+        VoiceTranscriptEntry* entry = &out_entries[count];
+        memset(entry, 0, sizeof(VoiceTranscriptEntry));
+
+        const char* id = (const char*)sqlite3_column_text(stmt, 0);
+        const char* sess = (const char*)sqlite3_column_text(stmt, 1);
+        const char* agent = (const char*)sqlite3_column_text(stmt, 2);
+        const char* user_text = (const char*)sqlite3_column_text(stmt, 3);
+        const char* asst_text = (const char*)sqlite3_column_text(stmt, 4);
+        const char* audio_id = (const char*)sqlite3_column_text(stmt, 5);
+        const char* lang = (const char*)sqlite3_column_text(stmt, 13);
+        const char* topic = (const char*)sqlite3_column_text(stmt, 14);
+        const char* intent = (const char*)sqlite3_column_text(stmt, 15);
+
+        if (id) strncpy(entry->id, id, sizeof(entry->id) - 1);
+        if (sess) strncpy(entry->session_id, sess, sizeof(entry->session_id) - 1);
+        if (agent) strncpy(entry->agent_name, agent, sizeof(entry->agent_name) - 1);
+        if (user_text) entry->user_transcript = strdup(user_text);
+        if (asst_text) entry->assistant_response = strdup(asst_text);
+        if (audio_id) entry->audio_response_id = strdup(audio_id);
+        if (lang) entry->language = strdup(lang);
+        if (topic) entry->topic = strdup(topic);
+        if (intent) entry->intent = strdup(intent);
+
+        entry->timestamp = (time_t)sqlite3_column_int64(stmt, 6);
+        entry->duration_ms = sqlite3_column_int(stmt, 7);
+        entry->response_latency_ms = sqlite3_column_int(stmt, 8);
+        entry->user_emotion.dominant_emotion = (VoiceEmotion)sqlite3_column_int(stmt, 9);
+        entry->user_emotion.dominant_confidence = (float)sqlite3_column_double(stmt, 10);
+        entry->speech_clarity = (float)sqlite3_column_double(stmt, 11);
+        entry->background_noise = (float)sqlite3_column_double(stmt, 12);
+        entry->is_command = sqlite3_column_int(stmt, 16) != 0;
+
+        count++;
+    }
+
+    sqlite3_finalize(stmt);
+    *out_count = count;
+    return 0;
 }
 
 int voice_history_search(
@@ -572,11 +637,76 @@ int voice_history_search(
     VoiceTranscriptEntry* out_entries,
     size_t* out_count
 ) {
-    (void)query;
-    (void)max_results;
-    (void)out_entries;
-    if (out_count) *out_count = 0;
-    return -1;  // Not implemented yet
+    if (!g_initialized || !query || !out_entries || !out_count) {
+        if (out_count) *out_count = 0;
+        return -1;
+    }
+
+    // Use LIKE for simple text search in user_transcript and assistant_response
+    const char* sql =
+        "SELECT id, session_id, agent_name, user_transcript, assistant_response, "
+        "       audio_response_id, timestamp, duration_ms, response_latency_ms, "
+        "       dominant_emotion, emotion_confidence, speech_clarity, background_noise, "
+        "       language, topic, intent, is_command "
+        "FROM voice_transcripts "
+        "WHERE user_transcript LIKE ? OR assistant_response LIKE ? "
+        "ORDER BY timestamp DESC LIMIT ?;";
+
+    sqlite3_stmt* stmt;
+    int rc = sqlite3_prepare_v2(g_voice_db, sql, -1, &stmt, NULL);
+    if (rc != SQLITE_OK) {
+        *out_count = 0;
+        return -1;
+    }
+
+    // Create search pattern with wildcards
+    char pattern[512];
+    snprintf(pattern, sizeof(pattern), "%%%s%%", query);
+
+    sqlite3_bind_text(stmt, 1, pattern, -1, SQLITE_STATIC);
+    sqlite3_bind_text(stmt, 2, pattern, -1, SQLITE_STATIC);
+    sqlite3_bind_int(stmt, 3, (int)max_results);
+
+    size_t count = 0;
+    while (sqlite3_step(stmt) == SQLITE_ROW && count < max_results) {
+        VoiceTranscriptEntry* entry = &out_entries[count];
+        memset(entry, 0, sizeof(VoiceTranscriptEntry));
+
+        const char* id = (const char*)sqlite3_column_text(stmt, 0);
+        const char* sess = (const char*)sqlite3_column_text(stmt, 1);
+        const char* agent = (const char*)sqlite3_column_text(stmt, 2);
+        const char* user_text = (const char*)sqlite3_column_text(stmt, 3);
+        const char* asst_text = (const char*)sqlite3_column_text(stmt, 4);
+        const char* audio_id = (const char*)sqlite3_column_text(stmt, 5);
+        const char* lang = (const char*)sqlite3_column_text(stmt, 13);
+        const char* topic = (const char*)sqlite3_column_text(stmt, 14);
+        const char* intent = (const char*)sqlite3_column_text(stmt, 15);
+
+        if (id) strncpy(entry->id, id, sizeof(entry->id) - 1);
+        if (sess) strncpy(entry->session_id, sess, sizeof(entry->session_id) - 1);
+        if (agent) strncpy(entry->agent_name, agent, sizeof(entry->agent_name) - 1);
+        if (user_text) entry->user_transcript = strdup(user_text);
+        if (asst_text) entry->assistant_response = strdup(asst_text);
+        if (audio_id) entry->audio_response_id = strdup(audio_id);
+        if (lang) entry->language = strdup(lang);
+        if (topic) entry->topic = strdup(topic);
+        if (intent) entry->intent = strdup(intent);
+
+        entry->timestamp = (time_t)sqlite3_column_int64(stmt, 6);
+        entry->duration_ms = sqlite3_column_int(stmt, 7);
+        entry->response_latency_ms = sqlite3_column_int(stmt, 8);
+        entry->user_emotion.dominant_emotion = (VoiceEmotion)sqlite3_column_int(stmt, 9);
+        entry->user_emotion.dominant_confidence = (float)sqlite3_column_double(stmt, 10);
+        entry->speech_clarity = (float)sqlite3_column_double(stmt, 11);
+        entry->background_noise = (float)sqlite3_column_double(stmt, 12);
+        entry->is_command = sqlite3_column_int(stmt, 16) != 0;
+
+        count++;
+    }
+
+    sqlite3_finalize(stmt);
+    *out_count = count;
+    return 0;
 }
 
 int voice_history_load_recent_sessions(
@@ -584,19 +714,116 @@ int voice_history_load_recent_sessions(
     VoiceSessionMetadata* out_sessions,
     size_t* out_count
 ) {
-    (void)max_sessions;
-    (void)out_sessions;
-    if (out_count) *out_count = 0;
-    return -1;  // Not implemented yet
+    if (!g_initialized || !out_sessions || !out_count) {
+        if (out_count) *out_count = 0;
+        return -1;
+    }
+
+    const char* sql =
+        "SELECT session_id, agent_name, start_time, end_time, total_exchanges, "
+        "       total_duration_ms, dominant_emotion, avg_speech_clarity, avg_background_noise, summary "
+        "FROM voice_sessions ORDER BY start_time DESC LIMIT ?;";
+
+    sqlite3_stmt* stmt;
+    int rc = sqlite3_prepare_v2(g_voice_db, sql, -1, &stmt, NULL);
+    if (rc != SQLITE_OK) {
+        *out_count = 0;
+        return -1;
+    }
+
+    sqlite3_bind_int(stmt, 1, (int)max_sessions);
+
+    size_t count = 0;
+    while (sqlite3_step(stmt) == SQLITE_ROW && count < max_sessions) {
+        VoiceSessionMetadata* meta = &out_sessions[count];
+        memset(meta, 0, sizeof(VoiceSessionMetadata));
+
+        const char* sess_id = (const char*)sqlite3_column_text(stmt, 0);
+        const char* agent = (const char*)sqlite3_column_text(stmt, 1);
+        const char* summary = (const char*)sqlite3_column_text(stmt, 9);
+
+        if (sess_id) strncpy(meta->session_id, sess_id, sizeof(meta->session_id) - 1);
+        if (agent) strncpy(meta->agent_name, agent, sizeof(meta->agent_name) - 1);
+        if (summary) meta->summary = strdup(summary);
+
+        meta->start_time = (time_t)sqlite3_column_int64(stmt, 2);
+        meta->end_time = (time_t)sqlite3_column_int64(stmt, 3);
+        meta->total_exchanges = sqlite3_column_int(stmt, 4);
+        meta->total_duration_ms = sqlite3_column_int(stmt, 5);
+        meta->session_dominant_emotion = (VoiceEmotion)sqlite3_column_int(stmt, 6);
+        meta->avg_speech_clarity = (float)sqlite3_column_double(stmt, 7);
+        meta->avg_background_noise = (float)sqlite3_column_double(stmt, 8);
+
+        count++;
+    }
+
+    sqlite3_finalize(stmt);
+    *out_count = count;
+    return 0;
 }
 
 int voice_session_get_metadata(
     const char* session_id,
     VoiceSessionMetadata* out_metadata
 ) {
-    (void)session_id;
-    (void)out_metadata;
-    return -1;  // Not implemented yet
+    if (!g_initialized || !session_id || !out_metadata) {
+        return -1;
+    }
+
+    const char* sql =
+        "SELECT session_id, agent_name, start_time, end_time, total_exchanges, "
+        "       total_duration_ms, dominant_emotion, avg_speech_clarity, avg_background_noise, summary "
+        "FROM voice_sessions WHERE session_id = ?;";
+
+    sqlite3_stmt* stmt;
+    int rc = sqlite3_prepare_v2(g_voice_db, sql, -1, &stmt, NULL);
+    if (rc != SQLITE_OK) {
+        return -1;
+    }
+
+    sqlite3_bind_text(stmt, 1, session_id, -1, SQLITE_STATIC);
+
+    memset(out_metadata, 0, sizeof(VoiceSessionMetadata));
+
+    if (sqlite3_step(stmt) == SQLITE_ROW) {
+        const char* sess_id = (const char*)sqlite3_column_text(stmt, 0);
+        const char* agent = (const char*)sqlite3_column_text(stmt, 1);
+        const char* summary = (const char*)sqlite3_column_text(stmt, 9);
+
+        if (sess_id) strncpy(out_metadata->session_id, sess_id, sizeof(out_metadata->session_id) - 1);
+        if (agent) strncpy(out_metadata->agent_name, agent, sizeof(out_metadata->agent_name) - 1);
+        if (summary) out_metadata->summary = strdup(summary);
+
+        out_metadata->start_time = (time_t)sqlite3_column_int64(stmt, 2);
+        out_metadata->end_time = (time_t)sqlite3_column_int64(stmt, 3);
+        out_metadata->total_exchanges = sqlite3_column_int(stmt, 4);
+        out_metadata->total_duration_ms = sqlite3_column_int(stmt, 5);
+        out_metadata->session_dominant_emotion = (VoiceEmotion)sqlite3_column_int(stmt, 6);
+        out_metadata->avg_speech_clarity = (float)sqlite3_column_double(stmt, 7);
+        out_metadata->avg_background_noise = (float)sqlite3_column_double(stmt, 8);
+
+        sqlite3_finalize(stmt);
+
+        // Load emotion counts
+        const char* emotion_sql = "SELECT emotion, count FROM session_emotions WHERE session_id = ?;";
+        sqlite3_stmt* emotion_stmt;
+        if (sqlite3_prepare_v2(g_voice_db, emotion_sql, -1, &emotion_stmt, NULL) == SQLITE_OK) {
+            sqlite3_bind_text(emotion_stmt, 1, session_id, -1, SQLITE_STATIC);
+            while (sqlite3_step(emotion_stmt) == SQLITE_ROW) {
+                int emotion = sqlite3_column_int(emotion_stmt, 0);
+                int count = sqlite3_column_int(emotion_stmt, 1);
+                if (emotion >= 0 && emotion < VOICE_EMOTION_COUNT) {
+                    out_metadata->emotion_counts[emotion] = count;
+                }
+            }
+            sqlite3_finalize(emotion_stmt);
+        }
+
+        return 0;
+    }
+
+    sqlite3_finalize(stmt);
+    return -1;  // Session not found
 }
 
 int voice_session_generate_summary(
@@ -612,7 +839,65 @@ int voice_session_emotion_distribution(
     const char* session_id,
     float* out_distribution
 ) {
-    (void)session_id;
-    (void)out_distribution;
-    return -1;  // Not implemented yet
+    if (!g_initialized || !session_id || !out_distribution) {
+        return -1;
+    }
+
+    // Initialize distribution to zero
+    for (int i = 0; i < VOICE_EMOTION_COUNT; i++) {
+        out_distribution[i] = 0.0f;
+    }
+
+    // Count emotions from session_emotions table
+    const char* sql = "SELECT emotion, count FROM session_emotions WHERE session_id = ?;";
+    sqlite3_stmt* stmt;
+    int rc = sqlite3_prepare_v2(g_voice_db, sql, -1, &stmt, NULL);
+    if (rc != SQLITE_OK) {
+        return -1;
+    }
+
+    sqlite3_bind_text(stmt, 1, session_id, -1, SQLITE_STATIC);
+
+    int total_count = 0;
+    int counts[VOICE_EMOTION_COUNT] = {0};
+
+    while (sqlite3_step(stmt) == SQLITE_ROW) {
+        int emotion = sqlite3_column_int(stmt, 0);
+        int count = sqlite3_column_int(stmt, 1);
+        if (emotion >= 0 && emotion < VOICE_EMOTION_COUNT) {
+            counts[emotion] = count;
+            total_count += count;
+        }
+    }
+    sqlite3_finalize(stmt);
+
+    // If no data in session_emotions, query transcripts directly
+    if (total_count == 0) {
+        const char* transcript_sql =
+            "SELECT dominant_emotion, COUNT(*) FROM voice_transcripts "
+            "WHERE session_id = ? GROUP BY dominant_emotion;";
+
+        if (sqlite3_prepare_v2(g_voice_db, transcript_sql, -1, &stmt, NULL) == SQLITE_OK) {
+            sqlite3_bind_text(stmt, 1, session_id, -1, SQLITE_STATIC);
+
+            while (sqlite3_step(stmt) == SQLITE_ROW) {
+                int emotion = sqlite3_column_int(stmt, 0);
+                int count = sqlite3_column_int(stmt, 1);
+                if (emotion >= 0 && emotion < VOICE_EMOTION_COUNT) {
+                    counts[emotion] = count;
+                    total_count += count;
+                }
+            }
+            sqlite3_finalize(stmt);
+        }
+    }
+
+    // Calculate percentages
+    if (total_count > 0) {
+        for (int i = 0; i < VOICE_EMOTION_COUNT; i++) {
+            out_distribution[i] = (float)counts[i] / (float)total_count;
+        }
+    }
+
+    return 0;
 }
