@@ -1,0 +1,846 @@
+{
+  "$schema": "../../schemas/curriculum.schema.json",
+  "id": "scuola_media",
+  "name": "Scuola Secondaria di Primo Grado",
+  "country": "IT",
+  "description": "Curriculum della Scuola Media italiana (secondaria di primo grado)",
+  "years": 3,
+  "age_range": {
+    "start": 11,
+    "end": 14
+  },
+  "version": "2024.1",
+  "last_updated": "2025-12-19",
+  "subjects": {
+    "italiano": {
+      "maestro": "manzoni-italiano",
+      "hours_per_week": 6,
+      "years": [1, 2, 3],
+      "notes": "Include letteratura e scrittura"
+    },
+    "storia": {
+      "maestro": "erodoto-storia",
+      "hours_per_week": 2,
+      "years": [1, 2, 3]
+    },
+    "geografia": {
+      "maestro": "humboldt-geografia",
+      "hours_per_week": 2,
+      "years": [1, 2, 3]
+    },
+    "matematica": {
+      "maestro": "euclide-matematica",
+      "hours_per_week": 4,
+      "years": [1, 2, 3]
+    },
+    "scienze": {
+      "maestro": "darwin-scienze",
+      "hours_per_week": 2,
+      "years": [1, 2, 3]
+    },
+    "inglese": {
+      "maestro": "shakespeare-inglese",
+      "hours_per_week": 3,
+      "years": [1, 2, 3],
+      "notes": "Prima lingua straniera"
+    },
+    "seconda_lingua": {
+      "maestro": "multilingual",
+      "hours_per_week": 2,
+      "years": [1, 2, 3],
+      "notes": "Francese, Spagnolo, o Tedesco"
+    },
+    "tecnologia": {
+      "maestro": "lovelace-informatica",
+      "hours_per_week": 2,
+      "years": [1, 2, 3]
+    },
+    "arte": {
+      "maestro": "leonardo-arte",
+      "hours_per_week": 2,
+      "years": [1, 2, 3]
+    },
+    "musica": {
+      "maestro": "mozart-musica",
+      "hours_per_week": 2,
+      "years": [1, 2, 3]
+    },
+    "educazione_fisica": {
+      "maestro": "ippocrate-corpo",
+      "hours_per_week": 2,
+      "years": [1, 2, 3]
+    },
+    "religione": {
+      "maestro": "generic",
+      "hours_per_week": 1,
+      "years": [1, 2, 3],
+      "notes": "Optional"
+    },
+    "educazione_civica": {
+      "maestro": "cicerone-civica",
+      "hours_per_week": 1,
+      "years": [1, 2, 3],
+      "notes": "Transversal, 33 hours/year"
+    }
+  },
+  "curriculum_by_year": {
+    "1": {
+      "year_name": "Prima Media",
+      "total_hours": 30,
+      "subjects": {
+        "italiano": {
+          "units": [
+            {
+              "id": "IT1-01",
+              "title": "Ascolto e parlato",
+              "topics": ["ascolto attivo", "esposizione orale", "discussione"],
+              "hours": 30
+            },
+            {
+              "id": "IT1-02",
+              "title": "Lettura",
+              "topics": ["comprensione testi", "strategie lettura", "generi letterari"],
+              "hours": 35
+            },
+            {
+              "id": "IT1-03",
+              "title": "Scrittura",
+              "topics": ["testo narrativo", "descrittivo", "riassunto", "lettera"],
+              "hours": 35
+            },
+            {
+              "id": "IT1-04",
+              "title": "Grammatica",
+              "topics": ["fonologia", "ortografia", "morfologia", "nome", "articolo", "aggettivo", "verbo"],
+              "hours": 50
+            },
+            {
+              "id": "IT1-05",
+              "title": "Antologia",
+              "topics": ["fiabe", "favole", "miti", "leggende", "racconti"],
+              "hours": 30
+            }
+          ]
+        },
+        "storia": {
+          "units": [
+            {
+              "id": "ST1-01",
+              "title": "Il Medioevo",
+              "topics": ["caduta impero romano", "regni barbarici", "Islam", "feudalesimo"],
+              "hours": 25
+            },
+            {
+              "id": "ST1-02",
+              "title": "Basso Medioevo",
+              "topics": ["Comuni", "Impero e Chiesa", "Crociate"],
+              "hours": 20
+            },
+            {
+              "id": "ST1-03",
+              "title": "Crisi del Trecento",
+              "topics": ["peste", "carestie", "guerre"],
+              "hours": 15
+            }
+          ]
+        },
+        "geografia": {
+          "units": [
+            {
+              "id": "GE1-01",
+              "title": "Strumenti della geografia",
+              "topics": ["carte", "grafici", "dati", "clima"],
+              "hours": 15
+            },
+            {
+              "id": "GE1-02",
+              "title": "Europa fisica",
+              "topics": ["rilievi", "pianure", "fiumi", "mari"],
+              "hours": 20
+            },
+            {
+              "id": "GE1-03",
+              "title": "Europa umana",
+              "topics": ["popolazione", "citta", "economia", "culture"],
+              "hours": 20
+            }
+          ]
+        },
+        "matematica": {
+          "units": [
+            {
+              "id": "MA1-01",
+              "title": "Numeri naturali e interi",
+              "topics": ["operazioni", "proprieta", "potenze", "espressioni"],
+              "hours": 30
+            },
+            {
+              "id": "MA1-02",
+              "title": "Numeri razionali",
+              "topics": ["frazioni", "decimali", "percentuali"],
+              "hours": 30
+            },
+            {
+              "id": "MA1-03",
+              "title": "Geometria piana",
+              "topics": ["enti fondamentali", "angoli", "triangoli", "quadrilateri"],
+              "hours": 35
+            },
+            {
+              "id": "MA1-04",
+              "title": "Misure e problemi",
+              "topics": ["unita di misura", "perimetro", "area", "problemi"],
+              "hours": 25
+            }
+          ]
+        },
+        "scienze": {
+          "units": [
+            {
+              "id": "SC1-01",
+              "title": "Il metodo scientifico",
+              "topics": ["osservazione", "ipotesi", "esperimento"],
+              "hours": 10
+            },
+            {
+              "id": "SC1-02",
+              "title": "La materia",
+              "topics": ["stati", "proprieta", "trasformazioni", "miscugli"],
+              "hours": 20
+            },
+            {
+              "id": "SC1-03",
+              "title": "Gli esseri viventi",
+              "topics": ["cellula", "classificazione", "biodiversita"],
+              "hours": 20
+            },
+            {
+              "id": "SC1-04",
+              "title": "Gli ecosistemi",
+              "topics": ["catene alimentari", "cicli", "habitat"],
+              "hours": 15
+            }
+          ]
+        },
+        "inglese": {
+          "units": [
+            {
+              "id": "EN1-01",
+              "title": "Basic English A1",
+              "topics": ["alphabet", "numbers", "greetings", "personal info"],
+              "hours": 25
+            },
+            {
+              "id": "EN1-02",
+              "title": "Grammar foundations",
+              "topics": ["to be", "to have", "present simple", "articles"],
+              "hours": 30
+            },
+            {
+              "id": "EN1-03",
+              "title": "Everyday topics",
+              "topics": ["family", "school", "house", "food", "animals"],
+              "hours": 30
+            },
+            {
+              "id": "EN1-04",
+              "title": "Communication",
+              "topics": ["dialogues", "listening", "reading simple texts"],
+              "hours": 20
+            }
+          ]
+        },
+        "tecnologia": {
+          "units": [
+            {
+              "id": "TE1-01",
+              "title": "Disegno tecnico",
+              "topics": ["strumenti", "costruzioni geometriche", "proiezioni ortogonali base"],
+              "hours": 25
+            },
+            {
+              "id": "TE1-02",
+              "title": "Materiali",
+              "topics": ["legno", "carta", "metalli", "proprieta"],
+              "hours": 20
+            },
+            {
+              "id": "TE1-03",
+              "title": "Tecnologia digitale",
+              "topics": ["computer", "internet", "sicurezza online"],
+              "hours": 20
+            }
+          ]
+        },
+        "arte": {
+          "units": [
+            {
+              "id": "AR1-01",
+              "title": "Elementi del linguaggio visivo",
+              "topics": ["punto", "linea", "colore", "forma"],
+              "hours": 20
+            },
+            {
+              "id": "AR1-02",
+              "title": "Arte antica e medievale",
+              "topics": ["Grecia", "Roma", "romanico", "gotico"],
+              "hours": 25
+            },
+            {
+              "id": "AR1-03",
+              "title": "Tecniche artistiche",
+              "topics": ["matita", "tempera", "collage"],
+              "hours": 20
+            }
+          ]
+        },
+        "musica": {
+          "units": [
+            {
+              "id": "MU1-01",
+              "title": "Teoria musicale",
+              "topics": ["note", "pentagramma", "ritmo", "altezza"],
+              "hours": 20
+            },
+            {
+              "id": "MU1-02",
+              "title": "Pratica strumentale",
+              "topics": ["flauto dolce", "strumenti a percussione"],
+              "hours": 25
+            },
+            {
+              "id": "MU1-03",
+              "title": "Storia della musica",
+              "topics": ["musica antica", "medioevo", "strumenti"],
+              "hours": 15
+            }
+          ]
+        },
+        "educazione_fisica": {
+          "units": [
+            {
+              "id": "EF1-01",
+              "title": "Capacita coordinative",
+              "topics": ["equilibrio", "coordinazione", "orientamento"],
+              "hours": 20
+            },
+            {
+              "id": "EF1-02",
+              "title": "Giochi di squadra",
+              "topics": ["pallavolo", "basket", "calcio", "regole base"],
+              "hours": 25
+            },
+            {
+              "id": "EF1-03",
+              "title": "Salute e benessere",
+              "topics": ["igiene", "alimentazione", "postura"],
+              "hours": 15
+            }
+          ]
+        },
+        "educazione_civica": {
+          "units": [
+            {
+              "id": "EC1-01",
+              "title": "Costituzione",
+              "topics": ["principi fondamentali", "diritti e doveri"],
+              "hours": 10
+            },
+            {
+              "id": "EC1-02",
+              "title": "Cittadinanza digitale",
+              "topics": ["netiquette", "cyberbullismo", "privacy"],
+              "hours": 10
+            },
+            {
+              "id": "EC1-03",
+              "title": "Sviluppo sostenibile",
+              "topics": ["ambiente", "riciclo", "risparmio energetico"],
+              "hours": 13
+            }
+          ]
+        }
+      }
+    },
+    "2": {
+      "year_name": "Seconda Media",
+      "total_hours": 30,
+      "subjects": {
+        "italiano": {
+          "units": [
+            {
+              "id": "IT2-01",
+              "title": "Ascolto e parlato avanzato",
+              "topics": ["argomentazione", "presentazioni", "dibattiti"],
+              "hours": 30
+            },
+            {
+              "id": "IT2-02",
+              "title": "Lettura critica",
+              "topics": ["testi letterari", "analisi", "interpretazione"],
+              "hours": 35
+            },
+            {
+              "id": "IT2-03",
+              "title": "Scrittura elaborata",
+              "topics": ["testo argomentativo", "tema", "relazione", "articolo"],
+              "hours": 35
+            },
+            {
+              "id": "IT2-04",
+              "title": "Sintassi",
+              "topics": ["frase semplice", "complementi", "analisi logica"],
+              "hours": 45
+            },
+            {
+              "id": "IT2-05",
+              "title": "Letteratura",
+              "topics": ["poesia", "romanzo", "autori italiani"],
+              "hours": 35
+            }
+          ]
+        },
+        "storia": {
+          "units": [
+            {
+              "id": "ST2-01",
+              "title": "Umanesimo e Rinascimento",
+              "topics": ["scoperte geografiche", "riforma protestante", "stati italiani"],
+              "hours": 25
+            },
+            {
+              "id": "ST2-02",
+              "title": "Eta moderna",
+              "topics": ["assolutismo", "rivoluzioni inglesi", "Illuminismo"],
+              "hours": 25
+            },
+            {
+              "id": "ST2-03",
+              "title": "Rivoluzioni",
+              "topics": ["rivoluzione americana", "rivoluzione francese", "Napoleone"],
+              "hours": 25
+            }
+          ]
+        },
+        "geografia": {
+          "units": [
+            {
+              "id": "GE2-01",
+              "title": "Europa regioni",
+              "topics": ["Europa occidentale", "orientale", "settentrionale", "meridionale"],
+              "hours": 25
+            },
+            {
+              "id": "GE2-02",
+              "title": "Unione Europea",
+              "topics": ["storia", "istituzioni", "economia"],
+              "hours": 15
+            },
+            {
+              "id": "GE2-03",
+              "title": "Italia",
+              "topics": ["regioni", "economia", "popolazione"],
+              "hours": 20
+            }
+          ]
+        },
+        "matematica": {
+          "units": [
+            {
+              "id": "MA2-01",
+              "title": "Numeri relativi",
+              "topics": ["operazioni", "coordinate cartesiane"],
+              "hours": 25
+            },
+            {
+              "id": "MA2-02",
+              "title": "Calcolo letterale",
+              "topics": ["espressioni letterali", "monomi", "polinomi"],
+              "hours": 30
+            },
+            {
+              "id": "MA2-03",
+              "title": "Equazioni",
+              "topics": ["equazioni primo grado", "problemi"],
+              "hours": 25
+            },
+            {
+              "id": "MA2-04",
+              "title": "Geometria solida",
+              "topics": ["poliedri", "prismi", "piramidi", "volume"],
+              "hours": 30
+            },
+            {
+              "id": "MA2-05",
+              "title": "Statistica",
+              "topics": ["dati", "grafici", "medie", "probabilita base"],
+              "hours": 20
+            }
+          ]
+        },
+        "scienze": {
+          "units": [
+            {
+              "id": "SC2-01",
+              "title": "Chimica",
+              "topics": ["atomo", "tavola periodica", "legami", "reazioni"],
+              "hours": 20
+            },
+            {
+              "id": "SC2-02",
+              "title": "Il corpo umano",
+              "topics": ["apparati", "organi", "tessuti", "cellule"],
+              "hours": 25
+            },
+            {
+              "id": "SC2-03",
+              "title": "La Terra",
+              "topics": ["atmosfera", "idrosfera", "litosfera", "clima"],
+              "hours": 20
+            }
+          ]
+        },
+        "inglese": {
+          "units": [
+            {
+              "id": "EN2-01",
+              "title": "English A2",
+              "topics": ["past simple", "future", "present perfect intro"],
+              "hours": 30
+            },
+            {
+              "id": "EN2-02",
+              "title": "Communication skills",
+              "topics": ["email", "phone calls", "descriptions", "narration"],
+              "hours": 30
+            },
+            {
+              "id": "EN2-03",
+              "title": "Culture and literature",
+              "topics": ["UK geography", "traditions", "short stories"],
+              "hours": 25
+            }
+          ]
+        },
+        "tecnologia": {
+          "units": [
+            {
+              "id": "TE2-01",
+              "title": "Disegno tecnico avanzato",
+              "topics": ["assonometrie", "sezioni", "quotature"],
+              "hours": 25
+            },
+            {
+              "id": "TE2-02",
+              "title": "Energia",
+              "topics": ["fonti", "trasformazioni", "sostenibilita"],
+              "hours": 20
+            },
+            {
+              "id": "TE2-03",
+              "title": "Coding",
+              "topics": ["Scratch avanzato", "pensiero computazionale"],
+              "hours": 20
+            }
+          ]
+        }
+      }
+    },
+    "3": {
+      "year_name": "Terza Media",
+      "total_hours": 30,
+      "subjects": {
+        "italiano": {
+          "units": [
+            {
+              "id": "IT3-01",
+              "title": "Comunicazione complessa",
+              "topics": ["argomentazione strutturata", "retorica", "persuasione"],
+              "hours": 30
+            },
+            {
+              "id": "IT3-02",
+              "title": "Letteratura italiana",
+              "topics": ["Ottocento", "Novecento", "autori principali"],
+              "hours": 40
+            },
+            {
+              "id": "IT3-03",
+              "title": "Scrittura matura",
+              "topics": ["saggio breve", "analisi del testo", "tema argomentativo"],
+              "hours": 40
+            },
+            {
+              "id": "IT3-04",
+              "title": "Sintassi del periodo",
+              "topics": ["proposizioni", "subordinate", "periodo complesso"],
+              "hours": 45
+            },
+            {
+              "id": "IT3-05",
+              "title": "Preparazione esame",
+              "topics": ["prove scritte", "orale", "collegamenti interdisciplinari"],
+              "hours": 30
+            }
+          ]
+        },
+        "storia": {
+          "units": [
+            {
+              "id": "ST3-01",
+              "title": "Ottocento",
+              "topics": ["Restaurazione", "moti", "Risorgimento", "Unita d'Italia"],
+              "hours": 25
+            },
+            {
+              "id": "ST3-02",
+              "title": "Prima Guerra Mondiale",
+              "topics": ["cause", "svolgimento", "conseguenze", "rivoluzione russa"],
+              "hours": 20
+            },
+            {
+              "id": "ST3-03",
+              "title": "Tra le due guerre",
+              "topics": ["fascismo", "nazismo", "crisi del 1929"],
+              "hours": 15
+            },
+            {
+              "id": "ST3-04",
+              "title": "Seconda Guerra Mondiale",
+              "topics": ["cause", "conflitto", "Shoah", "Resistenza"],
+              "hours": 20
+            },
+            {
+              "id": "ST3-05",
+              "title": "Secondo dopoguerra",
+              "topics": ["guerra fredda", "decolonizzazione", "Repubblica italiana"],
+              "hours": 15
+            }
+          ]
+        },
+        "geografia": {
+          "units": [
+            {
+              "id": "GE3-01",
+              "title": "Continenti extraeuropei",
+              "topics": ["Africa", "Asia", "Americhe", "Oceania"],
+              "hours": 35
+            },
+            {
+              "id": "GE3-02",
+              "title": "Globalizzazione",
+              "topics": ["economia globale", "migrazioni", "sviluppo sostenibile"],
+              "hours": 20
+            },
+            {
+              "id": "GE3-03",
+              "title": "Geopolitica",
+              "topics": ["organizzazioni internazionali", "conflitti", "cooperazione"],
+              "hours": 15
+            }
+          ]
+        },
+        "matematica": {
+          "units": [
+            {
+              "id": "MA3-01",
+              "title": "Numeri reali",
+              "topics": ["radicali", "irrazionali", "operazioni"],
+              "hours": 25
+            },
+            {
+              "id": "MA3-02",
+              "title": "Equazioni e disequazioni",
+              "topics": ["equazioni secondo grado intro", "sistemi"],
+              "hours": 25
+            },
+            {
+              "id": "MA3-03",
+              "title": "Piano cartesiano",
+              "topics": ["retta", "funzioni", "grafici"],
+              "hours": 25
+            },
+            {
+              "id": "MA3-04",
+              "title": "Geometria solida",
+              "topics": ["solidi di rotazione", "cilindro", "cono", "sfera"],
+              "hours": 30
+            },
+            {
+              "id": "MA3-05",
+              "title": "Probabilita e statistica",
+              "topics": ["probabilita", "combinatoria", "statistica descrittiva"],
+              "hours": 25
+            }
+          ]
+        },
+        "scienze": {
+          "units": [
+            {
+              "id": "SC3-01",
+              "title": "Genetica",
+              "topics": ["DNA", "ereditarieta", "Mendel", "mutazioni"],
+              "hours": 20
+            },
+            {
+              "id": "SC3-02",
+              "title": "Evoluzione",
+              "topics": ["Darwin", "selezione naturale", "speciazione"],
+              "hours": 15
+            },
+            {
+              "id": "SC3-03",
+              "title": "Sistema solare",
+              "topics": ["pianeti", "stelle", "galassie", "universo"],
+              "hours": 15
+            },
+            {
+              "id": "SC3-04",
+              "title": "Tettonica a placche",
+              "topics": ["deriva continenti", "terremoti", "vulcani"],
+              "hours": 15
+            }
+          ]
+        },
+        "inglese": {
+          "units": [
+            {
+              "id": "EN3-01",
+              "title": "English A2-B1",
+              "topics": ["all tenses", "conditionals", "passive voice"],
+              "hours": 30
+            },
+            {
+              "id": "EN3-02",
+              "title": "Advanced communication",
+              "topics": ["presentations", "debates", "writing essays"],
+              "hours": 30
+            },
+            {
+              "id": "EN3-03",
+              "title": "Literature and culture",
+              "topics": ["British and American authors", "culture comparison"],
+              "hours": 25
+            }
+          ]
+        },
+        "tecnologia": {
+          "units": [
+            {
+              "id": "TE3-01",
+              "title": "Progettazione",
+              "topics": ["metodo progettuale", "CAD", "modellazione 3D"],
+              "hours": 25
+            },
+            {
+              "id": "TE3-02",
+              "title": "Tecnologie moderne",
+              "topics": ["elettronica", "robotica", "automazione"],
+              "hours": 20
+            },
+            {
+              "id": "TE3-03",
+              "title": "Programmazione",
+              "topics": ["Python base", "algoritmi", "app"],
+              "hours": 20
+            }
+          ]
+        },
+        "arte": {
+          "units": [
+            {
+              "id": "AR3-01",
+              "title": "Ottocento",
+              "topics": ["Neoclassicismo", "Romanticismo", "Impressionismo"],
+              "hours": 25
+            },
+            {
+              "id": "AR3-02",
+              "title": "Novecento",
+              "topics": ["avanguardie", "futurismo", "arte contemporanea"],
+              "hours": 25
+            },
+            {
+              "id": "AR3-03",
+              "title": "Progetto finale",
+              "topics": ["elaborato personale", "tecniche miste"],
+              "hours": 15
+            }
+          ]
+        },
+        "musica": {
+          "units": [
+            {
+              "id": "MU3-01",
+              "title": "Storia musica moderna",
+              "topics": ["Ottocento", "Novecento", "musica contemporanea"],
+              "hours": 25
+            },
+            {
+              "id": "MU3-02",
+              "title": "Pratica ensemble",
+              "topics": ["musica d'insieme", "coro", "band"],
+              "hours": 25
+            },
+            {
+              "id": "MU3-03",
+              "title": "Progetto musicale",
+              "topics": ["composizione", "arrangiamento", "esecuzione"],
+              "hours": 15
+            }
+          ]
+        },
+        "educazione_civica": {
+          "units": [
+            {
+              "id": "EC3-01",
+              "title": "Istituzioni italiane ed europee",
+              "topics": ["Parlamento", "Governo", "Magistratura", "UE"],
+              "hours": 12
+            },
+            {
+              "id": "EC3-02",
+              "title": "Agenda 2030",
+              "topics": ["obiettivi sviluppo sostenibile", "cambiamento climatico"],
+              "hours": 11
+            },
+            {
+              "id": "EC3-03",
+              "title": "Cittadinanza attiva",
+              "topics": ["partecipazione", "volontariato", "legalita"],
+              "hours": 10
+            }
+          ]
+        }
+      }
+    }
+  },
+  "accessibility_notes": {
+    "dyslexia": "Font facilitating, audio materials, extended time for reading",
+    "dyscalculia": "Visual math aids, calculators allowed, step-by-step guidance",
+    "adhd": "Breaks every 15-20 minutes, varied activities, clear structure",
+    "autism": "Predictable routines, visual schedules, quiet spaces available",
+    "cerebral_palsy": "Accessible facilities, adaptive tech, voice input"
+  },
+  "exam_preparation": {
+    "esame_terza_media": {
+      "year": 3,
+      "structure": {
+        "italiano": "Written test (text analysis, essay)",
+        "matematica": "Written test (problems and exercises)",
+        "lingue": "Written and oral tests",
+        "oral": "Cross-disciplinary presentation with thesis project"
+      }
+    }
+  },
+  "competenze_chiave": {
+    "comunicazione_italiano": "Padronanza lingua italiana scritta e orale",
+    "comunicazione_lingue": "Conoscenza A2-B1 inglese e seconda lingua",
+    "competenza_matematica": "Problem solving, pensiero logico",
+    "competenza_digitale": "Uso consapevole tecnologie",
+    "imparare_imparare": "Metodo di studio autonomo",
+    "competenze_sociali": "Collaborazione, rispetto, cittadinanza",
+    "spirito_iniziativa": "Progettualita, creativita",
+    "consapevolezza_culturale": "Patrimonio artistico e culturale"
+  }
+}

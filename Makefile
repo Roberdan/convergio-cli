@@ -5,11 +5,6 @@
 # Version management
 VERSION := $(shell cat VERSION 2>/dev/null || echo "0.0.0")
 
-# Branch-aware cache optimization (for parallel branch development)
-# Isolates cache per branch to avoid conflicts when building multiple branches
-GIT_BRANCH := $(shell git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "default")
-CACHE_SUFFIX := $(shell echo $(GIT_BRANCH) | tr '/' '_' | tr -cd '[:alnum:]_')
-
 # Edition support (master, education, business, developer)
 # Usage: make EDITION=education
 #
@@ -64,15 +59,6 @@ P_CORES := $(shell sysctl -n hw.perflevel0.physicalcpu 2>/dev/null || echo 10)
 PARALLEL_JOBS := $(shell echo $$(( $(CPU_CORES) * 2 )) || echo 28)
 # Swift build parallelism (default to P_CORES for optimal Swift compilation)
 SWIFT_BUILD_JOBS ?= $(P_CORES)
-
-# Adaptive parallelism: reduce if multiple builds running (parallel branch development)
-MAKE_COUNT := $(shell ps aux | grep -c '[m]ake.*Makefile' || echo 1)
-ifeq ($(shell [ $(MAKE_COUNT) -gt 2 ] && echo yes),yes)
-    # Multiple builds detected - reduce parallelism to avoid thrashing
-    PARALLEL_JOBS := $(shell echo $$(( $(CPU_CORES) )) || echo 14)
-    SWIFT_BUILD_JOBS := $(shell echo $$(( $(P_CORES) / 2 )) || echo 5)
-endif
-
 # Allow higher load average for better CPU utilization
 MAKEFLAGS += -j$(PARALLEL_JOBS) --load-average=$(shell echo $$(( $(CPU_CORES) * 2 )) || echo 28)
 # Enable jobserver for better parallelization
@@ -168,9 +154,28 @@ FRAMEWORKS = -framework Metal \
 # GNU readline linked statically from Homebrew (libedit doesn't support prompt color markers)
 LIBS = -lcurl -lsqlite3 /opt/homebrew/opt/cjson/lib/libcjson.a $(READLINE_PREFIX)/lib/libreadline.a $(READLINE_PREFIX)/lib/libhistory.a -lncurses
 
-# Swift Package Manager (for MLX integration)
+# ============================================================================
+# VOICE FEATURE (optional, requires libwebsockets)
+# Build with: make VOICE=1
+# Install dependency: brew install libwebsockets openssl
+# ============================================================================
+ifeq ($(VOICE),1)
+    LIBWEBSOCKETS_PREFIX = /opt/homebrew/opt/libwebsockets
+    OPENSSL_PREFIX = /opt/homebrew/opt/openssl@3
+    CFLAGS += -DCONVERGIO_VOICE_ENABLED -I$(LIBWEBSOCKETS_PREFIX)/include -I$(OPENSSL_PREFIX)/include
+    LIBS += $(LIBWEBSOCKETS_PREFIX)/lib/libwebsockets.a -L$(OPENSSL_PREFIX)/lib -lssl -lcrypto
+    VOICE_C_SOURCES = $(SRC_DIR)/voice/voice_websocket.c
+    VOICE_OBJC_SOURCES = $(SRC_DIR)/voice/voice_audio.m
+    FRAMEWORKS += -framework AVFoundation -framework AudioToolbox
+else
+    VOICE_C_SOURCES =
+    VOICE_OBJC_SOURCES =
+endif
+
+# Swift Package Manager (for MLX integration and Apple Foundation Models)
 SWIFT_BUILD_DIR = .build/release
 SWIFT_LIB = $(SWIFT_BUILD_DIR)/libConvergioMLX.a
+SWIFT_AFM_LIB = $(SWIFT_BUILD_DIR)/libConvergioAFM.a
 SWIFT_FRAMEWORKS = -Xlinker -rpath -Xlinker @executable_path/../lib
 
 # Directories
@@ -183,16 +188,19 @@ BIN_DIR = $(BUILD_DIR)/bin
 C_SOURCES = $(SRC_DIR)/core/fabric.c \
             $(SRC_DIR)/core/main.c \
             $(SRC_DIR)/core/signals.c \
+            $(SRC_DIR)/core/error.c \
+            $(SRC_DIR)/core/config_orchestrator.c \
             $(SRC_DIR)/core/repl.c \
+            $(SRC_DIR)/core/edition.c \
             $(SRC_DIR)/core/commands/commands.c \
             $(SRC_DIR)/core/commands/setup_wizard.c \
             $(SRC_DIR)/core/ansi_md.c \
             $(SRC_DIR)/core/stream_md.c \
             $(SRC_DIR)/core/theme.c \
             $(SRC_DIR)/core/config.c \
-            $(SRC_DIR)/core/edition.c \
             $(SRC_DIR)/core/updater.c \
             $(SRC_DIR)/core/safe_path.c \
+            $(SRC_DIR)/core/conversational_config.c \
             $(SRC_DIR)/intent/parser.c \
             $(SRC_DIR)/intent/interpreter.c \
             $(SRC_DIR)/agents/agent.c \
@@ -242,6 +250,7 @@ C_SOURCES = $(SRC_DIR)/core/fabric.c \
             $(SRC_DIR)/telemetry/telemetry.c \
             $(SRC_DIR)/telemetry/consent.c \
             $(SRC_DIR)/telemetry/export.c \
+            $(SRC_DIR)/telemetry/metrics.c \
             $(SRC_DIR)/agentic/tool_detector.c \
             $(SRC_DIR)/agentic/tool_installer.c \
             $(SRC_DIR)/agentic/approval.c \
@@ -262,7 +271,39 @@ C_SOURCES = $(SRC_DIR)/core/fabric.c \
             $(SRC_DIR)/workflow/workflow_visualization.c \
             $(SRC_DIR)/workflow/ethical_guardrails.c \
             $(SRC_DIR)/workflow/checkpoint_optimization.c \
-            $(SRC_DIR)/core/commands/workflow.c
+            $(SRC_DIR)/core/commands/workflow.c \
+            $(SRC_DIR)/voice/voice_history.c \
+            $(SRC_DIR)/core/commands/education_commands.c \
+            $(SRC_DIR)/education/education_db.c \
+            $(SRC_DIR)/education/setup_wizard.c \
+            $(SRC_DIR)/education/anna_integration.c \
+            $(SRC_DIR)/education/accessibility_runtime.c \
+            $(SRC_DIR)/education/fsrs.c \
+            $(SRC_DIR)/education/mastery.c \
+            $(SRC_DIR)/education/mastery_gate.c \
+            $(SRC_DIR)/education/mastery_visualization.c \
+            $(SRC_DIR)/education/periodic_table.c \
+            $(SRC_DIR)/education/feature_flags.c \
+            $(SRC_DIR)/education/storytelling.c \
+            $(SRC_DIR)/education/features/study_session.c \
+            $(SRC_DIR)/education/features/homework.c \
+            $(SRC_DIR)/education/features/progress.c \
+            $(SRC_DIR)/education/tools/quiz.c \
+            $(SRC_DIR)/education/tools/flashcards.c \
+            $(SRC_DIR)/education/tools/mindmap.c \
+            $(SRC_DIR)/education/tools/calculator.c \
+            $(SRC_DIR)/education/tools/audio_tts.c \
+            $(SRC_DIR)/education/tools/linguistic_tools.c \
+            $(SRC_DIR)/education/tools/html_generator.c \
+            $(SRC_DIR)/education/ali_preside.c \
+            $(SRC_DIR)/education/ali_onboarding.c \
+            $(SRC_DIR)/education/error_interpreter.c \
+            $(SRC_DIR)/education/document_upload.c \
+            $(SRC_DIR)/voice/voice_gateway.c \
+            $(SRC_DIR)/voice/openai_realtime.c \
+            $(SRC_DIR)/voice/azure_realtime.c \
+            $(SRC_DIR)/voice/voice_mode.c \
+            $(VOICE_C_SOURCES)
 
 OBJC_SOURCES = $(SRC_DIR)/metal/gpu.m \
                $(SRC_DIR)/neural/mlx_embed.m \
@@ -270,7 +311,10 @@ OBJC_SOURCES = $(SRC_DIR)/metal/gpu.m \
                $(SRC_DIR)/auth/keychain.m \
                $(SRC_DIR)/core/hardware.m \
                $(SRC_DIR)/core/clipboard.m \
-               $(SRC_DIR)/providers/mlx.m
+               $(SRC_DIR)/providers/mlx.m \
+               $(SRC_DIR)/providers/apple_foundation.m \
+               $(SRC_DIR)/education/camera.m \
+               $(VOICE_OBJC_SOURCES)
 
 METAL_SOURCES = shaders/similarity.metal
 
@@ -283,7 +327,7 @@ OBJECTS = $(C_OBJECTS) $(OBJC_OBJECTS)
 METAL_AIR = $(BUILD_DIR)/similarity.air
 METAL_LIB = $(BUILD_DIR)/similarity.metallib
 
-# Target (with edition suffix)
+# Target - binary name includes edition suffix (convergio, convergio-edu, convergio-biz, convergio-dev)
 TARGET = $(BIN_DIR)/convergio$(EDITION_SUFFIX)
 
 # Notification helper app
@@ -303,8 +347,7 @@ all: dirs metal swift $(TARGET) notify-helper
 	@echo "║          CONVERGIO KERNEL v$(VERSION)             ║"
 	@echo "║  Build complete!                                  ║"
 	@echo "║  Run with: $(TARGET)                              ║"
-	@echo "║  Branch: $(GIT_BRANCH) | Jobs: $(PARALLEL_JOBS) | Cache: $(CACHE_INFO) ║"
-	@echo "║  M3 Max: $(CPU_CORES) cores ($(P_CORES)P+4E) | Cache dir: $(SCCACHE_DIR) ║"
+	@echo "║  M3 Max: $(CPU_CORES) cores ($(P_CORES)P+4E) | Jobs: $(PARALLEL_JOBS) | Cache: $(CACHE_INFO) ║"
 	@echo "╚═══════════════════════════════════════════════════╝"
 	@echo ""
 
@@ -323,9 +366,8 @@ export SWIFT_BUILD_JOBS := $(SWIFT_BUILD_JOBS)
 export SWIFT_ACTIVE_COMPILATION_CONDITIONS="$(ARCH_FLAGS)"
 # Enable Swift incremental compilation
 export SWIFT_ENABLE_INCREMENTAL_COMPILATION=1
-# Optimize sccache for M3 Max (10GB cache per branch)
-# Branch-aware cache isolation prevents conflicts when building multiple branches
-export SCCACHE_DIR=$(HOME)/.cache/sccache-$(CACHE_SUFFIX)
+# Optimize sccache for M3 Max (10GB cache)
+export SCCACHE_DIR=$(HOME)/.cache/sccache
 export SCCACHE_CACHE_SIZE=10G
 
 # Create directories
@@ -356,16 +398,50 @@ dirs:
 	@mkdir -p $(OBJ_DIR)/mcp
 	@mkdir -p $(OBJ_DIR)/acp
 	@mkdir -p $(OBJ_DIR)/workflow
+	@mkdir -p $(OBJ_DIR)/education
+	@mkdir -p $(OBJ_DIR)/education/features
+	@mkdir -p $(DEPDIR)/core
+	@mkdir -p $(DEPDIR)/core/commands
+	@mkdir -p $(DEPDIR)/orchestrator
+	@mkdir -p $(DEPDIR)/agents
+	@mkdir -p $(DEPDIR)/education
+	@mkdir -p $(DEPDIR)/education/features
+	@mkdir -p $(DEPDIR)/education/tools
+	@mkdir -p $(DEPDIR)/providers
+	@mkdir -p $(DEPDIR)/neural
+	@mkdir -p $(DEPDIR)/runtime
+	@mkdir -p $(DEPDIR)/spaces
+	@mkdir -p $(DEPDIR)/workflow
+	@mkdir -p $(DEPDIR)/telemetry
+	@mkdir -p $(DEPDIR)/ui
+	@mkdir -p $(DEPDIR)/mcp
+	@mkdir -p $(DEPDIR)/todo
+	@mkdir -p $(DEPDIR)/memory
+	@mkdir -p $(DEPDIR)/tools
+	@mkdir -p $(DEPDIR)/auth
+	@mkdir -p $(DEPDIR)/projects
+	@mkdir -p $(DEPDIR)/notifications
+	@mkdir -p $(DEPDIR)/voice
+	@mkdir -p $(DEPDIR)/intent
+	@mkdir -p $(DEPDIR)/metal
+	@mkdir -p $(DEPDIR)/context
+	@mkdir -p $(DEPDIR)/router
+	@mkdir -p $(DEPDIR)/sync
+	@mkdir -p $(DEPDIR)/compare
+	@mkdir -p $(DEPDIR)/agentic
+	@mkdir -p $(DEPDIR)/acp
+	@mkdir -p $(OBJ_DIR)/education/tools
+	@mkdir -p $(OBJ_DIR)/voice
 	@mkdir -p $(BIN_DIR)
 	@mkdir -p data
 
-# Compile Swift package (for MLX integration)
-# This builds the ConvergioMLX Swift library that provides LLM inference
+# Compile Swift packages (MLX integration + Apple Foundation Models)
+# This builds the Swift libraries that provide LLM inference
 # Strategy: Use swift build for library linking, but also run xcodebuild to compile Metal shaders
 XCODE_BUILD_DIR = .build/xcode
 XCODE_RELEASE_DIR = $(XCODE_BUILD_DIR)/Build/Products/Release
 
-swift: $(SWIFT_LIB)
+swift: $(SWIFT_LIB) $(SWIFT_AFM_LIB)
 
 $(SWIFT_LIB): Package.swift Sources/ConvergioMLX/MLXBridge.swift
 	@echo "Building Swift package (MLX integration, M3 Max optimized, $(SWIFT_BUILD_JOBS) jobs)..."
@@ -392,6 +468,22 @@ $(SWIFT_LIB): Package.swift Sources/ConvergioMLX/MLXBridge.swift
 		fi; \
 	else \
 		echo "FATAL: Swift build failed - MLX unavailable" >&2 && exit 1; \
+	fi
+
+
+# Apple Foundation Models Swift bridge (macOS 26+)
+# This is optional - gracefully skipped if macOS 26 SDK not available
+$(SWIFT_AFM_LIB): Package.swift Sources/ConvergioAFM/FoundationModelsBridge.swift
+	@echo "Building Swift package (Apple Foundation Models, $(SWIFT_BUILD_JOBS) jobs)..."
+	@swift build -c release --product ConvergioAFM \
+		-Xswiftc -O -Xswiftc -whole-module-optimization \
+		--jobs $(SWIFT_BUILD_JOBS) \
+		2>&1 | grep -v "^$$" || true
+	@if [ -f "$(SWIFT_AFM_LIB)" ] && [ -s "$(SWIFT_AFM_LIB)" ]; then \
+		echo "  AFM Swift library built: $(SWIFT_AFM_LIB)"; \
+	else \
+		echo "  Note: AFM not available (requires macOS 26+ SDK with Apple Intelligence)"; \
+		rm -f "$(SWIFT_AFM_LIB)" 2>/dev/null || true; \
 	fi
 
 # Build notification helper app (for proper icon display)
@@ -449,16 +541,18 @@ DEPDIR := $(OBJ_DIR)/.deps
 DEPFLAGS = -MT $@ -MMD -MP -MF $(DEPDIR)/$*.d
 
 # Compile C sources (with cache, parallelization, and dependency tracking)
-$(OBJ_DIR)/%.o: $(SRC_DIR)/%.c
-	@mkdir -p $(dir $(DEPDIR)/$*.d)
+$(OBJ_DIR)/%.o: $(SRC_DIR)/%.c | $(DEPDIR)
 	@echo "Compiling $<..."
 	@$(CC) $(CFLAGS) $(DEPFLAGS) -c $< -o $@
 
 # Compile Objective-C sources (with cache, parallelization, and dependency tracking)
-$(OBJ_DIR)/%.o: $(SRC_DIR)/%.m
-	@mkdir -p $(dir $(DEPDIR)/$*.d)
+$(OBJ_DIR)/%.o: $(SRC_DIR)/%.m | $(DEPDIR)
 	@echo "Compiling $<..."
 	@$(OBJC) $(OBJCFLAGS) $(DEPFLAGS) -c $< -o $@
+
+# Create dependency directory
+$(DEPDIR):
+	@mkdir -p $(DEPDIR)
 
 # Include dependency files (rebuild when headers change)
 -include $(wildcard $(DEPDIR)/*.d)
@@ -482,13 +576,19 @@ SWIFT_RUNTIME_LIBS = -L/usr/lib/swift \
                      -lswiftCompatibility56 -lswiftCompatibilityConcurrency \
                      -lc++
 
-$(TARGET): $(OBJECTS) $(SWIFT_LIB) $(MLX_STUBS_OBJ)
+$(TARGET): $(OBJECTS) $(SWIFT_LIB) $(SWIFT_AFM_LIB) $(MLX_STUBS_OBJ)
 	@echo "Linking $(TARGET) (M3 Max optimized, $(PARALLEL_JOBS) jobs)..."
 	@mkdir -p $(BUILD_DIR)/lto.cache
 	@if [ -s "$(SWIFT_LIB)" ]; then \
-		echo "  Including MLX Swift library (with C++ runtime)..."; \
-		$(CC) $(LDFLAGS) $(OBJECTS) $(SWIFT_LIB) -o $(TARGET) $(FRAMEWORKS) $(LIBS) \
-			$(SWIFT_RUNTIME_LIBS) $(SWIFT_FRAMEWORKS); \
+		if [ -s "$(SWIFT_AFM_LIB)" ]; then \
+			echo "  Including Swift libraries (MLX + AFM, with C++ runtime)..."; \
+			$(CC) $(LDFLAGS) $(OBJECTS) $(SWIFT_LIB) $(SWIFT_AFM_LIB) -o $(TARGET) $(FRAMEWORKS) $(LIBS) \
+				$(SWIFT_RUNTIME_LIBS) $(SWIFT_FRAMEWORKS); \
+		else \
+			echo "  Including Swift library (MLX only, with C++ runtime)..."; \
+			$(CC) $(LDFLAGS) $(OBJECTS) $(SWIFT_LIB) -o $(TARGET) $(FRAMEWORKS) $(LIBS) \
+				$(SWIFT_RUNTIME_LIBS) $(SWIFT_FRAMEWORKS); \
+		fi; \
 	else \
 		echo "  Swift library unavailable - using MLX stubs..."; \
 		$(CC) $(LDFLAGS) $(OBJECTS) $(MLX_STUBS_OBJ) -o $(TARGET) $(FRAMEWORKS) $(LIBS); \
@@ -636,7 +736,9 @@ $(eval $(call define_standard_test,tools_test,tests/test_tools.c))
 $(eval $(call define_standard_test,websearch_test,tests/test_websearch.c))
 $(eval $(call define_standard_test,telemetry_test,tests/test_telemetry.c))
 $(eval $(call define_standard_test,security_test,tests/test_security.c))
+$(eval $(call define_standard_test,education_safety_test,tests/test_education_safety.c))
 $(eval $(call define_standard_test,stress_test,tests/test_stress.c))
+$(eval $(call define_standard_test,education_test,tests/test_education.c))
 $(eval $(call define_standard_test,workflow_types_test,tests/test_workflow_types.c))
 $(eval $(call define_standard_test,workflow_engine_test,tests/test_workflow_engine.c))
 $(eval $(call define_standard_test,workflow_checkpoint_test,tests/test_workflow_checkpoint.c))
@@ -650,15 +752,16 @@ $(eval $(call define_standard_test,workflow_error_test,tests/test_workflow_error
 $(eval $(call define_standard_test,workflow_migration_test,tests/test_workflow_migration.c))
 $(eval $(call define_standard_test,workflow_integration_test,tests/test_workflow_integration.c))
 
+# Voice and Apple Foundation tests
+$(eval $(call define_standard_test,voice_history_test,tests/test_voice_history.c))
+$(eval $(call define_standard_test,apple_foundation_test,tests/test_apple_foundation.c))
+
 # Simple tests (without Swift, custom objects)
 $(eval $(call define_simple_test,compaction_test,tests/test_compaction.c,$(OBJ_DIR)/context/compaction.o))
-$(eval $(call define_simple_test,plan_db_test,tests/test_plan_db.c,$(OBJ_DIR)/orchestrator/plan_db.o $(OBJ_DIR)/core/safe_path.o,-lsqlite3 -lpthread))
+$(eval $(call define_simple_test,plan_db_test,tests/test_plan_db.c,$(OBJ_DIR)/orchestrator/plan_db.o $(OBJ_DIR)/core/safe_path.o $(OBJ_DIR)/core/logging.o,-lsqlite3 -lpthread))
 $(eval $(call define_simple_test,output_service_test,tests/test_output_service.c,$(OBJ_DIR)/tools/output_service.o $(OBJ_DIR)/ui/hyperlink.o $(OBJ_DIR)/core/safe_path.o))
+$(eval $(call define_simple_test,conversational_config_test,tests/test_conversational_config.c,$(OBJ_DIR)/core/conversational_config.o,/opt/homebrew/opt/cjson/lib/libcjson.a))
 
-# Check help documentation coverage
-check-docs:
-	@echo "Checking help documentation coverage..."
-	@./scripts/check_help_docs.sh
 
 # Run all workflow tests
 workflow_test: workflow_types_test workflow_engine_test workflow_checkpoint_test workflow_e2e_test task_decomposer_test group_chat_test router_test patterns_test pre_release_e2e_test workflow_error_test workflow_migration_test workflow_integration_test
@@ -806,7 +909,7 @@ security_audit_workflow:
 	@echo "╚══════════════════════════════════════════════════════════════╝"
 
 # Run all tests
-test: fuzz_test unit_test anna_test compaction_test plan_db_test output_service_test tools_test websearch_test workflow_test telemetry_test security_test check-docs
+test: fuzz_test unit_test anna_test compaction_test plan_db_test output_service_test tools_test websearch_test workflow_test education_test telemetry_test security_test voice_history_test apple_foundation_test education_safety_test check-docs
 	@echo "All tests completed!"
 
 # Parallel test execution helper (for independent test suites)
@@ -949,14 +1052,12 @@ complexity-check:
 	@echo "╚══════════════════════════════════════════════════════════════╝"
 	@./scripts/complexity_check.sh
 
-# Cache statistics (branch-aware)
+# Cache statistics
 cache-stats:
-	@echo "=== Build Cache Statistics (Branch: $(GIT_BRANCH)) ==="
+	@echo "=== Build Cache Statistics ==="
 	@if [ "$(CACHE_INFO)" = "sccache" ]; then \
-		echo "Cache directory: $(SCCACHE_DIR)"; \
 		$(SCCACHE) --show-stats 2>&1 | head -15; \
 	elif [ "$(CACHE_INFO)" = "ccache" ]; then \
-		echo "Cache directory: $(CCACHE_DIR)"; \
 		$(CCACHE) -s; \
 	else \
 		echo "No cache configured"; \
@@ -997,6 +1098,8 @@ help:
 	@echo ""
 	@echo "Variables:"
 	@echo "  DEBUG=1   - Enable debug build"
+	@echo "  VOICE=1   - Enable voice mode (requires libwebsockets)"
+	@echo "  EDITION=X - Build specific edition (education/business/developer)"
 	@echo ""
 	@echo "Build Optimization (M3 Max):"
 	@echo "  CPU: $(CPU_CORES) cores ($(P_CORES)P+4E)"
@@ -1043,4 +1146,94 @@ install-acp: convergio-acp
 	@echo "Installed. Configure Zed with:"
 	@echo '  {"agent_servers": {"Convergio": {"type": "custom", "command": "/usr/local/bin/convergio-acp"}}}'
 
-.PHONY: all dirs metal run clean debug install uninstall hwinfo help fuzz_test unit_test anna_test plan_db_test output_service_test check-docs test version dist release convergio-acp install-acp cache-stats
+# =============================================================================
+# EDUCATION EDITION TARGETS
+# =============================================================================
+
+build-edu:
+	@$(MAKE) EDITION=education
+
+test-edu:
+	@if [ ! -x "$(BIN_DIR)/convergio-edu" ]; then $(MAKE) EDITION=education; fi
+	@./tests/e2e_education_comprehensive_test.sh
+
+test-edu-llm:
+	@if [ ! -x "$(BIN_DIR)/convergio-edu" ]; then $(MAKE) EDITION=education; fi
+	@./tests/e2e_education_llm_test.sh
+
+test-edu-verbose:
+	@if [ ! -x "$(BIN_DIR)/convergio-edu" ]; then $(MAKE) EDITION=education; fi
+	@./tests/e2e_education_comprehensive_test.sh --verbose
+	@./tests/e2e_education_llm_test.sh --verbose
+
+test-edu-full:
+	@if [ ! -x "$(BIN_DIR)/convergio-edu" ]; then $(MAKE) EDITION=education; fi
+	@./tests/e2e_education_comprehensive_test.sh --verbose
+	@./tests/e2e_education_llm_test.sh --full
+
+test-edu-llm-full:
+	@if [ ! -x "$(BIN_DIR)/convergio-edu" ]; then $(MAKE) EDITION=education; fi
+	@./tests/e2e_education_llm_test.sh --full
+
+test-edu-save:
+	@if [ ! -x "$(BIN_DIR)/convergio-edu" ]; then $(MAKE) EDITION=education; fi
+	@./tests/e2e_education_llm_test.sh --save
+
+clean-edu:
+	@rm -f $(BIN_DIR)/convergio-edu
+	@echo "Cleaned education binary"
+
+# =============================================================================
+# BUSINESS EDITION TARGETS
+# =============================================================================
+
+build-biz:
+	@$(MAKE) EDITION=business
+
+test-biz:
+	@if [ ! -x "$(BIN_DIR)/convergio-biz" ]; then $(MAKE) EDITION=business; fi
+	@if [ -f "./tests/e2e_business_test.sh" ]; then ./tests/e2e_business_test.sh; fi
+
+# =============================================================================
+# DEVELOPER EDITION TARGETS
+# =============================================================================
+
+build-dev:
+	@$(MAKE) EDITION=developer
+
+test-dev:
+	@if [ ! -x "$(BIN_DIR)/convergio-dev" ]; then $(MAKE) EDITION=developer; fi
+	@if [ -f "./tests/e2e_developer_test.sh" ]; then ./tests/e2e_developer_test.sh; fi
+
+# ============================================================================
+# NATIVE APP BUILD TARGETS
+# ============================================================================
+
+# Build static library for native app (via CMake)
+core:
+	@echo "Building ConvergioCore static library..."
+	@mkdir -p build && cd build && cmake .. -DCMAKE_BUILD_TYPE=Release && make convergio_lib -j8
+	@echo "Static library built: build/lib/libconvergio.a"
+
+# Build the native macOS app (requires Xcode project)
+app: core
+	@echo "Building Convergio Native App..."
+	@if [ -d "ConvergioApp/ConvergioApp.xcodeproj" ]; then \
+		xcodebuild -project ConvergioApp/ConvergioApp.xcodeproj \
+			-scheme ConvergioApp \
+			-configuration Release \
+			-destination 'platform=macOS' \
+			LIBRARY_SEARCH_PATHS='$$(PROJECT_DIR)/../build/lib' \
+			HEADER_SEARCH_PATHS='$$(PROJECT_DIR)/../include'; \
+	else \
+		echo "Xcode project not found. Please create ConvergioApp.xcodeproj first."; \
+	fi
+
+# Build everything for native app development
+native: core
+	@echo "Native app development environment ready."
+	@echo "Static library: build/lib/libconvergio.a"
+	@echo "Headers: include/nous/"
+	@echo "Swift package: ConvergioCore/"
+
+.PHONY: all dirs metal run clean debug install uninstall hwinfo help fuzz_test unit_test anna_test plan_db_test output_service_test check-docs test version dist release convergio-acp install-acp cache-stats build-edu test-edu test-edu-llm test-edu-verbose test-edu-full build-biz test-biz build-dev test-dev core app native

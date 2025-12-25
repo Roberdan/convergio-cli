@@ -18,19 +18,19 @@
 #include "nous/config.h"
 #include "nous/nous.h"
 
+#include <cjson/cJSON.h>
+#include <curl/curl.h>
+#include <errno.h>
+#include <fcntl.h>
+#include <poll.h>
+#include <pthread.h>
+#include <signal.h>
+#include <spawn.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
-#include <fcntl.h>
-#include <errno.h>
-#include <signal.h>
-#include <spawn.h>
-#include <poll.h>
 #include <sys/wait.h>
-#include <pthread.h>
-#include <cjson/cJSON.h>
-#include <curl/curl.h>
+#include <unistd.h>
 
 // ============================================================================
 // CONSTANTS
@@ -95,7 +95,8 @@ static MCPServer* find_server(const char* name);
 // ============================================================================
 
 int mcp_init(void) {
-    if (g_mcp.initialized) return 0;
+    if (g_mcp.initialized)
+        return 0;
 
     pthread_mutex_init(&g_mcp.lock, NULL);
 
@@ -109,7 +110,8 @@ int mcp_init(void) {
 }
 
 void mcp_shutdown(void) {
-    if (!g_mcp.initialized) return;
+    if (!g_mcp.initialized)
+        return;
 
     // Disconnect all servers
     mcp_disconnect_all();
@@ -133,7 +135,8 @@ void mcp_shutdown(void) {
 
 int mcp_load_config(const char* config_path) {
     char* path = config_path ? strdup(config_path) : expand_path(MCP_CONFIG_FILE);
-    if (!path) return -1;
+    if (!path)
+        return -1;
 
     FILE* f = fopen(path, "r");
     if (!f) {
@@ -164,8 +167,8 @@ int mcp_load_config(const char* config_path) {
     free(content);
 
     if (!json) {
-        snprintf(g_mcp.last_error, sizeof(g_mcp.last_error),
-                 "Failed to parse MCP config: %s", cJSON_GetErrorPtr());
+        snprintf(g_mcp.last_error, sizeof(g_mcp.last_error), "Failed to parse MCP config: %s",
+                 cJSON_GetErrorPtr());
         return -1;
     }
 
@@ -254,10 +257,12 @@ int mcp_load_config(const char* config_path) {
             config->timeout_ms = timeout ? (int)cJSON_GetNumberValue(timeout) : DEFAULT_TIMEOUT_MS;
 
             cJSON* retry_count = cJSON_GetObjectItem(server, "retry_count");
-            config->retry_count = retry_count ? (int)cJSON_GetNumberValue(retry_count) : DEFAULT_RETRY_COUNT;
+            config->retry_count =
+                retry_count ? (int)cJSON_GetNumberValue(retry_count) : DEFAULT_RETRY_COUNT;
 
             cJSON* retry_delay = cJSON_GetObjectItem(server, "retry_delay_ms");
-            config->retry_delay_ms = retry_delay ? (int)cJSON_GetNumberValue(retry_delay) : DEFAULT_RETRY_DELAY_MS;
+            config->retry_delay_ms =
+                retry_delay ? (int)cJSON_GetNumberValue(retry_delay) : DEFAULT_RETRY_DELAY_MS;
 
             // Add to registry
             if (g_mcp.config_count < MAX_MCP_SERVERS) {
@@ -274,7 +279,8 @@ int mcp_load_config(const char* config_path) {
 
 int mcp_save_config(const char* config_path) {
     char* path = config_path ? strdup(config_path) : expand_path(MCP_CONFIG_FILE);
-    if (!path) return -1;
+    if (!path)
+        return -1;
 
     cJSON* json = cJSON_CreateObject();
     cJSON* servers = cJSON_CreateObject();
@@ -286,8 +292,10 @@ int mcp_save_config(const char* config_path) {
         cJSON_AddBoolToObject(server, "enabled", config->enabled);
 
         const char* transport = "stdio";
-        if (config->transport == MCP_TRANSPORT_HTTP) transport = "http";
-        else if (config->transport == MCP_TRANSPORT_SSE) transport = "sse";
+        if (config->transport == MCP_TRANSPORT_HTTP)
+            transport = "http";
+        else if (config->transport == MCP_TRANSPORT_SSE)
+            transport = "sse";
         cJSON_AddStringToObject(server, "transport", transport);
 
         if (config->command) {
@@ -341,13 +349,15 @@ MCPServerConfig* mcp_get_server_config(const char* name) {
 }
 
 int mcp_add_server(const MCPServerConfig* config) {
-    if (!config || !config->name) return -1;
-    if (g_mcp.config_count >= MAX_MCP_SERVERS) return -1;
+    if (!config || !config->name)
+        return -1;
+    if (g_mcp.config_count >= MAX_MCP_SERVERS)
+        return -1;
 
     // Check for duplicate
     if (mcp_get_server_config(config->name)) {
-        snprintf(g_mcp.last_error, sizeof(g_mcp.last_error),
-                 "Server '%s' already exists", config->name);
+        snprintf(g_mcp.last_error, sizeof(g_mcp.last_error), "Server '%s' already exists",
+                 config->name);
         return -1;
     }
 
@@ -357,13 +367,17 @@ int mcp_add_server(const MCPServerConfig* config) {
     new_config->enabled = config->enabled;
     new_config->transport = config->transport;
 
-    if (config->command) new_config->command = strdup(config->command);
-    if (config->url) new_config->url = strdup(config->url);
-    if (config->working_dir) new_config->working_dir = strdup(config->working_dir);
+    if (config->command)
+        new_config->command = strdup(config->command);
+    if (config->url)
+        new_config->url = strdup(config->url);
+    if (config->working_dir)
+        new_config->working_dir = strdup(config->working_dir);
 
     new_config->timeout_ms = config->timeout_ms ? config->timeout_ms : DEFAULT_TIMEOUT_MS;
     new_config->retry_count = config->retry_count ? config->retry_count : DEFAULT_RETRY_COUNT;
-    new_config->retry_delay_ms = config->retry_delay_ms ? config->retry_delay_ms : DEFAULT_RETRY_DELAY_MS;
+    new_config->retry_delay_ms =
+        config->retry_delay_ms ? config->retry_delay_ms : DEFAULT_RETRY_DELAY_MS;
 
     // Copy args
     if (config->args && config->arg_count > 0) {
@@ -419,14 +433,16 @@ int mcp_remove_server(const char* name) {
 
 int mcp_enable_server(const char* name) {
     MCPServerConfig* config = mcp_get_server_config(name);
-    if (!config) return -1;
+    if (!config)
+        return -1;
     config->enabled = true;
     return 0;
 }
 
 int mcp_disable_server(const char* name) {
     MCPServerConfig* config = mcp_get_server_config(name);
-    if (!config) return -1;
+    if (!config)
+        return -1;
     config->enabled = false;
     mcp_disconnect(name);
     return 0;
@@ -450,7 +466,8 @@ char** mcp_list_servers(int* count) {
 char** mcp_list_enabled_servers(int* count) {
     int enabled_count = 0;
     for (int i = 0; i < g_mcp.config_count; i++) {
-        if (g_mcp.configs[i]->enabled) enabled_count++;
+        if (g_mcp.configs[i]->enabled)
+            enabled_count++;
     }
 
     if (enabled_count == 0) {
@@ -477,14 +494,12 @@ char** mcp_list_enabled_servers(int* count) {
 int mcp_connect(const char* name) {
     MCPServerConfig* config = mcp_get_server_config(name);
     if (!config) {
-        snprintf(g_mcp.last_error, sizeof(g_mcp.last_error),
-                 "Server '%s' not found", name);
+        snprintf(g_mcp.last_error, sizeof(g_mcp.last_error), "Server '%s' not found", name);
         return MCP_ERROR_NOT_FOUND;
     }
 
     if (!config->enabled) {
-        snprintf(g_mcp.last_error, sizeof(g_mcp.last_error),
-                 "Server '%s' is disabled", name);
+        snprintf(g_mcp.last_error, sizeof(g_mcp.last_error), "Server '%s' is disabled", name);
         return MCP_ERROR_INVALID;
     }
 
@@ -508,8 +523,7 @@ int mcp_connect(const char* name) {
     } else if (config->transport == MCP_TRANSPORT_HTTP) {
         result = http_connect(server);
     } else {
-        snprintf(g_mcp.last_error, sizeof(g_mcp.last_error),
-                 "Unsupported transport type");
+        snprintf(g_mcp.last_error, sizeof(g_mcp.last_error), "Unsupported transport type");
         free_server(server);
         return MCP_ERROR_TRANSPORT;
     }
@@ -656,13 +670,15 @@ char** mcp_list_connected(int* count) {
 
 int mcp_refresh_tools(const char* name) {
     MCPServer* server = find_server(name);
-    if (!server) return -1;
+    if (!server)
+        return -1;
     return mcp_discover_tools(server);
 }
 
 MCPTool* mcp_get_tool(const char* server_name, const char* tool_name) {
     MCPServer* server = find_server(server_name);
-    if (!server) return NULL;
+    if (!server)
+        return NULL;
 
     for (int i = 0; i < server->tool_count; i++) {
         if (strcmp(server->tools[i].name, tool_name) == 0) {
@@ -727,7 +743,8 @@ MCPTool* mcp_find_tool(const char* tool_name, const char** server_name) {
         MCPServer* server = g_mcp.servers[i];
         for (int j = 0; j < server->tool_count; j++) {
             if (strcmp(server->tools[j].name, tool_name) == 0) {
-                if (server_name) *server_name = server->name;
+                if (server_name)
+                    *server_name = server->name;
                 pthread_mutex_unlock(&g_mcp.lock);
                 return &server->tools[j];
             }
@@ -794,7 +811,8 @@ MCPToolResult* mcp_call_tool(const char* server_name, const char* tool_name, cJS
         result->error_message = error_msg ? error_msg : strdup("Failed to parse response");
         result->error_code = MCP_ERROR_PROTOCOL;
         server->consecutive_errors++;
-        if (response) cJSON_Delete(response);
+        if (response)
+            cJSON_Delete(response);
         return result;
     }
 
@@ -840,8 +858,10 @@ MCPToolResult* mcp_call_tool_auto(const char* tool_name, cJSON* arguments) {
 }
 
 void mcp_free_result(MCPToolResult* result) {
-    if (!result) return;
-    if (result->content) cJSON_Delete(result->content);
+    if (!result)
+        return;
+    if (result->content)
+        cJSON_Delete(result->content);
     free(result->error_message);
     free(result);
 }
@@ -868,7 +888,8 @@ MCPResource** mcp_list_resources(const char* server_name, int* count) {
 
 cJSON* mcp_read_resource(const char* server_name, const char* uri) {
     MCPServer* server = find_server(server_name);
-    if (!server) return NULL;
+    if (!server)
+        return NULL;
 
     cJSON* params = cJSON_CreateObject();
     cJSON_AddStringToObject(params, "uri", uri);
@@ -884,7 +905,8 @@ cJSON* mcp_read_resource(const char* server_name, const char* uri) {
     }
     free(request);
 
-    if (!response_str) return NULL;
+    if (!response_str)
+        return NULL;
 
     bool is_error;
     char* error_msg = NULL;
@@ -893,7 +915,8 @@ cJSON* mcp_read_resource(const char* server_name, const char* uri) {
     free(error_msg);
 
     if (is_error || !response) {
-        if (response) cJSON_Delete(response);
+        if (response)
+            cJSON_Delete(response);
         return NULL;
     }
 
@@ -925,7 +948,8 @@ MCPPrompt** mcp_list_prompts(const char* server_name, int* count) {
 
 cJSON* mcp_get_prompt(const char* server_name, const char* prompt_name, cJSON* arguments) {
     MCPServer* server = find_server(server_name);
-    if (!server) return NULL;
+    if (!server)
+        return NULL;
 
     cJSON* params = cJSON_CreateObject();
     cJSON_AddStringToObject(params, "name", prompt_name);
@@ -944,7 +968,8 @@ cJSON* mcp_get_prompt(const char* server_name, const char* prompt_name, cJSON* a
     }
     free(request);
 
-    if (!response_str) return NULL;
+    if (!response_str)
+        return NULL;
 
     bool is_error;
     char* error_msg = NULL;
@@ -953,7 +978,8 @@ cJSON* mcp_get_prompt(const char* server_name, const char* prompt_name, cJSON* a
     free(error_msg);
 
     if (is_error || !response) {
-        if (response) cJSON_Delete(response);
+        if (response)
+            cJSON_Delete(response);
         return NULL;
     }
 
@@ -1036,7 +1062,8 @@ MCPHealth* mcp_get_health(void) {
 }
 
 void mcp_free_health(MCPHealth* health) {
-    if (!health) return;
+    if (!health)
+        return;
 
     for (int i = 0; i < health->server_count; i++) {
         free(health->server_status[i].name);
@@ -1067,28 +1094,26 @@ void mcp_print_health(void) {
         const char* status_color;
 
         switch (health->server_status[i].status) {
-            case MCP_STATUS_CONNECTED:
-                status_str = "CONNECTED";
-                status_color = "\033[32m";
-                break;
-            case MCP_STATUS_CONNECTING:
-                status_str = "CONNECTING";
-                status_color = "\033[33m";
-                break;
-            case MCP_STATUS_ERROR:
-                status_str = "ERROR";
-                status_color = "\033[31m";
-                break;
-            default:
-                status_str = "DISCONNECTED";
-                status_color = "\033[90m";
-                break;
+        case MCP_STATUS_CONNECTED:
+            status_str = "CONNECTED";
+            status_color = "\033[32m";
+            break;
+        case MCP_STATUS_CONNECTING:
+            status_str = "CONNECTING";
+            status_color = "\033[33m";
+            break;
+        case MCP_STATUS_ERROR:
+            status_str = "ERROR";
+            status_color = "\033[31m";
+            break;
+        default:
+            status_str = "DISCONNECTED";
+            status_color = "\033[90m";
+            break;
         }
 
-        printf("║ %-18s %s%-10s\033[0m %2d tools   ║\n",
-               health->server_status[i].name,
-               status_color, status_str,
-               health->server_status[i].tool_count);
+        printf("║ %-18s %s%-10s\033[0m %2d tools   ║\n", health->server_status[i].name,
+               status_color, status_str, health->server_status[i].tool_count);
 
         if (health->server_status[i].last_error) {
             printf("║   └─ Error: %-30.30s ║\n", health->server_status[i].last_error);
@@ -1110,7 +1135,8 @@ void mcp_free_config(MCPServerConfig* config) {
 }
 
 void mcp_free_strings(char** strings, int count) {
-    if (!strings) return;
+    if (!strings)
+        return;
     for (int i = 0; i < count; i++) {
         free(strings[i]);
     }
@@ -1192,15 +1218,14 @@ static int stdio_connect(MCPServer* server) {
     int stdin_pipe[2], stdout_pipe[2], stderr_pipe[2];
 
     if (pipe(stdin_pipe) < 0 || pipe(stdout_pipe) < 0 || pipe(stderr_pipe) < 0) {
-        snprintf(g_mcp.last_error, sizeof(g_mcp.last_error),
-                 "Failed to create pipes: %s", strerror(errno));
+        snprintf(g_mcp.last_error, sizeof(g_mcp.last_error), "Failed to create pipes: %s",
+                 strerror(errno));
         return -1;
     }
 
     pid_t pid = fork();
     if (pid < 0) {
-        snprintf(g_mcp.last_error, sizeof(g_mcp.last_error),
-                 "Failed to fork: %s", strerror(errno));
+        snprintf(g_mcp.last_error, sizeof(g_mcp.last_error), "Failed to fork: %s", strerror(errno));
         return -1;
     }
 
@@ -1245,7 +1270,7 @@ static int stdio_connect(MCPServer* server) {
         argv[config->arg_count + 1] = NULL;
 
         execvp(config->command, argv);
-        _exit(127);  // exec failed
+        _exit(127); // exec failed
     }
 
     // Parent process
@@ -1268,17 +1293,21 @@ static int stdio_connect(MCPServer* server) {
 
 static void stdio_disconnect(MCPServer* server) {
     StdioTransport* transport = (StdioTransport*)server->transport_data;
-    if (!transport) return;
+    if (!transport)
+        return;
 
     // Close pipes
-    if (transport->stdin_fd >= 0) close(transport->stdin_fd);
-    if (transport->stdout_fd >= 0) close(transport->stdout_fd);
-    if (transport->stderr_fd >= 0) close(transport->stderr_fd);
+    if (transport->stdin_fd >= 0)
+        close(transport->stdin_fd);
+    if (transport->stdout_fd >= 0)
+        close(transport->stdout_fd);
+    if (transport->stderr_fd >= 0)
+        close(transport->stderr_fd);
 
     // Kill process
     if (transport->pid > 0) {
         kill(transport->pid, SIGTERM);
-        usleep(100000);  // 100ms grace period
+        usleep(100000); // 100ms grace period
         kill(transport->pid, SIGKILL);
         waitpid(transport->pid, NULL, WNOHANG);
     }
@@ -1289,7 +1318,8 @@ static void stdio_disconnect(MCPServer* server) {
 
 static char* stdio_send_receive(MCPServer* server, const char* request, int timeout_ms) {
     StdioTransport* transport = (StdioTransport*)server->transport_data;
-    if (!transport) return NULL;
+    if (!transport)
+        return NULL;
 
     // Write request
     ssize_t written = write(transport->stdin_fd, request, strlen(request));
@@ -1302,18 +1332,19 @@ static char* stdio_send_receive(MCPServer* server, const char* request, int time
     char* buffer = malloc(READ_BUFFER_SIZE);
     size_t buffer_pos = 0;
 
-    struct pollfd pfd = { .fd = transport->stdout_fd, .events = POLLIN };
+    struct pollfd pfd = {.fd = transport->stdout_fd, .events = POLLIN};
 
     while (buffer_pos < READ_BUFFER_SIZE - 1) {
         int poll_result = poll(&pfd, 1, timeout_ms);
         if (poll_result <= 0) {
             free(buffer);
-            return NULL;  // Timeout or error
+            return NULL; // Timeout or error
         }
 
-        ssize_t n = read(transport->stdout_fd, buffer + buffer_pos,
-                        READ_BUFFER_SIZE - buffer_pos - 1);
-        if (n <= 0) break;
+        ssize_t n =
+            read(transport->stdout_fd, buffer + buffer_pos, READ_BUFFER_SIZE - buffer_pos - 1);
+        if (n <= 0)
+            break;
 
         buffer_pos += (size_t)n;
         buffer[buffer_pos] = '\0';
@@ -1366,10 +1397,13 @@ static int http_connect(MCPServer* server) {
 
 static void http_disconnect(MCPServer* server) {
     HTTPTransport* transport = (HTTPTransport*)server->transport_data;
-    if (!transport) return;
+    if (!transport)
+        return;
 
-    if (transport->headers) curl_slist_free_all(transport->headers);
-    if (transport->curl) curl_easy_cleanup(transport->curl);
+    if (transport->headers)
+        curl_slist_free_all(transport->headers);
+    if (transport->curl)
+        curl_easy_cleanup(transport->curl);
 
     free(transport);
     server->transport_data = NULL;
@@ -1391,8 +1425,9 @@ static size_t mcp_curl_write_cb(char* ptr, size_t size, size_t nmemb, void* user
 
     // Check response size limit to prevent OOM
     if (resp->size + realsize > MAX_MCP_RESPONSE_SIZE) {
-        LOG_ERROR(LOG_CAT_SYSTEM, "MCP response exceeds maximum size (%d bytes)", MAX_MCP_RESPONSE_SIZE);
-        return 0;  // Abort transfer
+        LOG_ERROR(LOG_CAT_SYSTEM, "MCP response exceeds maximum size (%d bytes)",
+                  MAX_MCP_RESPONSE_SIZE);
+        return 0; // Abort transfer
     }
 
     resp->data = realloc(resp->data, resp->size + realsize + 1);
@@ -1409,9 +1444,10 @@ static size_t mcp_curl_write_cb(char* ptr, size_t size, size_t nmemb, void* user
 
 static char* http_send_receive(MCPServer* server, const char* request, int timeout_ms) {
     HTTPTransport* transport = (HTTPTransport*)server->transport_data;
-    if (!transport) return NULL;
+    if (!transport)
+        return NULL;
 
-    CurlResponse response = { .data = malloc(1), .size = 0 };
+    CurlResponse response = {.data = malloc(1), .size = 0};
     response.data[0] = '\0';
 
     curl_easy_setopt(transport->curl, CURLOPT_POSTFIELDS, request);
@@ -1470,8 +1506,8 @@ static int mcp_handshake(MCPServer* server) {
     free(response_str);
 
     if (is_error || !result) {
-        snprintf(g_mcp.last_error, sizeof(g_mcp.last_error),
-                 "Handshake failed: %s", error_msg ? error_msg : "unknown error");
+        snprintf(g_mcp.last_error, sizeof(g_mcp.last_error), "Handshake failed: %s",
+                 error_msg ? error_msg : "unknown error");
         free(error_msg);
         return -1;
     }
@@ -1479,14 +1515,11 @@ static int mcp_handshake(MCPServer* server) {
     // Parse capabilities
     cJSON* server_caps = cJSON_GetObjectItem(result, "capabilities");
     if (server_caps) {
-        server->capabilities.supports_tools =
-            cJSON_GetObjectItem(server_caps, "tools") != NULL;
+        server->capabilities.supports_tools = cJSON_GetObjectItem(server_caps, "tools") != NULL;
         server->capabilities.supports_resources =
             cJSON_GetObjectItem(server_caps, "resources") != NULL;
-        server->capabilities.supports_prompts =
-            cJSON_GetObjectItem(server_caps, "prompts") != NULL;
-        server->capabilities.supports_logging =
-            cJSON_GetObjectItem(server_caps, "logging") != NULL;
+        server->capabilities.supports_prompts = cJSON_GetObjectItem(server_caps, "prompts") != NULL;
+        server->capabilities.supports_logging = cJSON_GetObjectItem(server_caps, "logging") != NULL;
         server->capabilities.supports_sampling =
             cJSON_GetObjectItem(server_caps, "sampling") != NULL;
     }
@@ -1535,7 +1568,8 @@ static int mcp_discover_tools(MCPServer* server) {
     }
     free(request);
 
-    if (!response_str) return -1;
+    if (!response_str)
+        return -1;
 
     bool is_error;
     char* error_msg = NULL;
@@ -1543,7 +1577,8 @@ static int mcp_discover_tools(MCPServer* server) {
     free(response_str);
     free(error_msg);
 
-    if (is_error || !result) return -1;
+    if (is_error || !result)
+        return -1;
 
     cJSON* tools = cJSON_GetObjectItem(result, "tools");
     if (!tools || !cJSON_IsArray(tools)) {
@@ -1589,7 +1624,8 @@ static int mcp_discover_resources(MCPServer* server) {
     }
     free(request);
 
-    if (!response_str) return -1;
+    if (!response_str)
+        return -1;
 
     bool is_error;
     char* error_msg = NULL;
@@ -1597,7 +1633,8 @@ static int mcp_discover_resources(MCPServer* server) {
     free(response_str);
     free(error_msg);
 
-    if (is_error || !result) return -1;
+    if (is_error || !result)
+        return -1;
 
     cJSON* resources = cJSON_GetObjectItem(result, "resources");
     if (!resources || !cJSON_IsArray(resources)) {
@@ -1648,7 +1685,8 @@ static int mcp_discover_prompts(MCPServer* server) {
     }
     free(request);
 
-    if (!response_str) return -1;
+    if (!response_str)
+        return -1;
 
     bool is_error;
     char* error_msg = NULL;
@@ -1656,7 +1694,8 @@ static int mcp_discover_prompts(MCPServer* server) {
     free(response_str);
     free(error_msg);
 
-    if (is_error || !result) return -1;
+    if (is_error || !result)
+        return -1;
 
     cJSON* prompts = cJSON_GetObjectItem(result, "prompts");
     if (!prompts || !cJSON_IsArray(prompts)) {
@@ -1696,11 +1735,13 @@ static int mcp_discover_prompts(MCPServer* server) {
 // ============================================================================
 
 static char* expand_path(const char* path) {
-    if (!path) return NULL;
+    if (!path)
+        return NULL;
 
     if (path[0] == '~') {
         const char* home = getenv("HOME");
-        if (!home) return strdup(path);
+        if (!home)
+            return strdup(path);
 
         size_t len = strlen(home) + strlen(path);
         char* expanded = malloc(len);
@@ -1712,7 +1753,8 @@ static char* expand_path(const char* path) {
 }
 
 static char* expand_env_vars(const char* str) {
-    if (!str) return strdup("");
+    if (!str)
+        return strdup("");
 
     // Simple ${VAR} expansion
     char* result = strdup(str);
@@ -1720,7 +1762,8 @@ static char* expand_env_vars(const char* str) {
 
     while ((pos = strstr(result, "${")) != NULL) {
         char* end = strchr(pos, '}');
-        if (!end) break;
+        if (!end)
+            break;
 
         // Extract var name
         size_t name_len = (size_t)(end - pos - 2);
@@ -1730,7 +1773,8 @@ static char* expand_env_vars(const char* str) {
 
         // Get value
         const char* value = getenv(var_name);
-        if (!value) value = "";
+        if (!value)
+            value = "";
 
         // Build new string
         size_t prefix_len = (size_t)(pos - result);
@@ -1756,7 +1800,8 @@ static char* expand_env_vars(const char* str) {
 }
 
 static void free_server(MCPServer* server) {
-    if (!server) return;
+    if (!server)
+        return;
 
     free(server->name);
     free(server->last_error);
@@ -1799,7 +1844,8 @@ static void free_server(MCPServer* server) {
 }
 
 static void free_config(MCPServerConfig* config) {
-    if (!config) return;
+    if (!config)
+        return;
 
     free(config->name);
     free(config->command);

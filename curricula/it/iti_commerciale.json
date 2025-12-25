@@ -1,0 +1,145 @@
+{
+  "$schema": "../../schemas/curriculum.schema.json",
+  "id": "iti_commerciale",
+  "name": "Istituto Tecnico Economico - Amministrazione, Finanza e Marketing",
+  "country": "IT",
+  "description": "Curriculum ITE AFM - focus su economia aziendale, diritto, finanza e marketing",
+  "years": 5,
+  "age_range": {
+    "start": 14,
+    "end": 19
+  },
+  "version": "2024.1",
+  "last_updated": "2025-12-20",
+  "subjects": {
+    "italiano": {
+      "maestro": "manzoni-italiano",
+      "hours_per_week": 4,
+      "years": [1, 2, 3, 4, 5]
+    },
+    "inglese": {
+      "maestro": "shakespeare-inglese",
+      "hours_per_week": 3,
+      "years": [1, 2, 3, 4, 5],
+      "notes": "Business English from year 3"
+    },
+    "seconda_lingua_comunitaria": {
+      "maestro": "shakespeare-inglese",
+      "hours_per_week": 3,
+      "years": [1, 2, 3, 4, 5],
+      "notes": "French, German, or Spanish"
+    },
+    "storia": {
+      "maestro": "erodoto-storia",
+      "hours_per_week": 2,
+      "years": [1, 2, 3, 4, 5]
+    },
+    "geografia": {
+      "maestro": "humboldt-geografia",
+      "hours_per_week": 3,
+      "years": [1, 2, 3],
+      "notes": "Economic geography"
+    },
+    "matematica": {
+      "maestro": "euclide-matematica",
+      "hours_per_week": 4,
+      "years": [1, 2, 3, 4, 5],
+      "notes": "Applied mathematics for economics"
+    },
+    "diritto": {
+      "maestro": "cicerone-civica",
+      "hours_per_week": 3,
+      "years": [1, 2, 3, 4, 5],
+      "notes": "Civil, commercial, and business law"
+    },
+    "economia_politica": {
+      "maestro": "smith-economia",
+      "hours_per_week": 3,
+      "years": [1, 2, 3, 4, 5],
+      "notes": "Micro and macroeconomics, public finance"
+    },
+    "economia_aziendale": {
+      "maestro": "smith-economia",
+      "hours_per_week": 8,
+      "years": [1, 2, 3, 4, 5],
+      "notes": "Core subject: accounting, finance, management"
+    },
+    "scienze_integrate_fisica": {
+      "maestro": "feynman-fisica",
+      "hours_per_week": 2,
+      "years": [1],
+      "notes": "First year only"
+    },
+    "scienze_integrate_chimica": {
+      "maestro": "darwin-scienze",
+      "hours_per_week": 2,
+      "years": [1],
+      "notes": "First year only"
+    },
+    "scienze_integrate_terra_biologia": {
+      "maestro": "darwin-scienze",
+      "hours_per_week": 2,
+      "years": [1, 2],
+      "notes": "First two years"
+    },
+    "informatica": {
+      "maestro": "lovelace-informatica",
+      "hours_per_week": 2,
+      "years": [1, 2, 3, 4, 5],
+      "notes": "Office, databases, business software"
+    },
+    "educazione_civica": {
+      "maestro": "cicerone-civica",
+      "hours_per_week": 1,
+      "years": [1, 2, 3, 4, 5],
+      "notes": "Transversal across subjects"
+    },
+    "scienze_motorie": {
+      "maestro": "ippocrate-corpo",
+      "hours_per_week": 2,
+      "years": [1, 2, 3, 4, 5]
+    }
+  },
+  "topics_by_year": {
+    "1": {
+      "italiano": ["Grammatica italiana", "Narrativa", "Tecniche di scrittura", "Epica classica"],
+      "matematica": ["Insiemi", "Numeri reali", "Monomi e polinomi", "Equazioni lineari", "Geometria piana"],
+      "economia_aziendale": ["Azienda e impresa", "Documenti commerciali", "Fatture", "Calcoli mercantili"],
+      "diritto": ["Norme giuridiche", "Persone fisiche e giuridiche", "Capacita giuridica"],
+      "inglese": ["Grammar review", "Reading comprehension", "Business vocabulary basics"],
+      "informatica": ["Hardware e software", "Sistema operativo", "Word processing", "Spreadsheets basics"]
+    },
+    "2": {
+      "italiano": ["I Promessi Sposi", "Poesia", "Testo argomentativo"],
+      "matematica": ["Sistemi lineari", "Disequazioni", "Radicali", "Funzioni"],
+      "economia_aziendale": ["Contabilita generale", "Partita doppia", "Libro giornale", "Bilancio"],
+      "diritto": ["Proprieta", "Obbligazioni", "Contratti"],
+      "inglese": ["Business correspondence", "Telephoning", "Presentations"],
+      "informatica": ["Database relazionali", "Excel avanzato", "Internet e sicurezza"]
+    },
+    "3": {
+      "italiano": ["Divina Commedia", "Letteratura medievale", "Stilnovo", "Dante, Petrarca, Boccaccio"],
+      "matematica": ["Funzioni esponenziali", "Logaritmi", "Statistica descrittiva"],
+      "economia_aziendale": ["Bilancio d'esercizio", "Analisi di bilancio", "Imposte"],
+      "economia_politica": ["Microeconomia", "Domanda e offerta", "Mercati"],
+      "diritto": ["Diritto commerciale", "Societa di persone e capitali"],
+      "inglese": ["Marketing", "Advertising", "Business reports"]
+    },
+    "4": {
+      "italiano": ["Machiavelli", "Illuminismo", "Romanticismo", "Manzoni", "Leopardi"],
+      "matematica": ["Calcolo differenziale", "Derivate", "Studio di funzione"],
+      "economia_aziendale": ["Gestione finanziaria", "Investimenti", "Finanziamenti"],
+      "economia_politica": ["Macroeconomia", "PIL", "Inflazione", "Disoccupazione"],
+      "diritto": ["Diritto del lavoro", "Contratti di lavoro"],
+      "inglese": ["International trade", "Banking", "Financial documents"]
+    },
+    "5": {
+      "italiano": ["Verismo", "Decadentismo", "Novecento", "Pirandello", "Svevo", "Ungaretti"],
+      "matematica": ["Integrali", "Probabilita", "Ricerca operativa"],
+      "economia_aziendale": ["Business plan", "Controllo di gestione", "Budget"],
+      "economia_politica": ["Finanza pubblica", "Sistema tributario", "Unione Europea"],
+      "diritto": ["Diritto pubblico", "Costituzione", "Organi dello Stato"],
+      "inglese": ["Globalisation", "E-commerce", "Business ethics"]
+    }
+  }
+}

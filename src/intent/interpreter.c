@@ -6,10 +6,10 @@
  */
 
 #include "nous/nous.h"
-#include <stdlib.h>
-#include <string.h>
 #include <ctype.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
 // ============================================================================
 // INTERPRETER STATE
@@ -35,7 +35,7 @@ typedef struct {
     // Execution flags
     bool in_block;
     int block_depth;
-    char* block_type;  // "agente", "spazio", "quando", etc.
+    char* block_type; // "agente", "spazio", "quando", etc.
 
     // Output callback
     void (*output_fn)(const char* text, void* ctx);
@@ -122,8 +122,7 @@ static const SemanticPattern PATTERNS[] = {
     {"perché", PATTERN_EXPLAIN, "Ask why"},
     {"come", PATTERN_EXPLAIN, "Ask how"},
 
-    {NULL, PATTERN_UNKNOWN, NULL}
-};
+    {NULL, PATTERN_UNKNOWN, NULL}};
 
 // ============================================================================
 // TOKENIZER
@@ -132,8 +131,8 @@ static const SemanticPattern PATTERNS[] = {
 typedef struct {
     char* text;
     size_t len;
-    bool is_string;    // Quoted string
-    bool is_keyword;   // Known keyword
+    bool is_string;  // Quoted string
+    bool is_keyword; // Known keyword
     bool is_identifier;
     bool is_number;
     float number_value;
@@ -172,8 +171,10 @@ static void tokenize(const char* input, TokenStream* out) {
     const char* p = input;
     while (*p) {
         // Skip whitespace
-        while (*p && isspace(*p)) p++;
-        if (!*p) break;
+        while (*p && isspace(*p))
+            p++;
+        if (!*p)
+            break;
 
         Token tok = {0};
 
@@ -181,7 +182,8 @@ static void tokenize(const char* input, TokenStream* out) {
         if (*p == '"' || *p == '\'') {
             char quote = *p++;
             const char* start = p;
-            while (*p && *p != quote) p++;
+            while (*p && *p != quote)
+                p++;
 
             tok.len = (size_t)(p - start);
             tok.text = malloc(tok.len + 1);
@@ -189,13 +191,14 @@ static void tokenize(const char* input, TokenStream* out) {
             tok.text[tok.len] = '\0';
             tok.is_string = true;
 
-            if (*p == quote) p++;
+            if (*p == quote)
+                p++;
             token_stream_add(out, tok);
             continue;
         }
 
         // Handle special characters
-        if (strchr(":,()[]{}→", *p) || (*p == '-' && *(p+1) == '>')) {
+        if (strchr(":,()[]{}→", *p) || (*p == '-' && *(p + 1) == '>')) {
             tok.len = (*p == '-') ? 2 : 1;
             tok.text = malloc(tok.len + 1);
             memcpy(tok.text, p, tok.len);
@@ -207,7 +210,8 @@ static void tokenize(const char* input, TokenStream* out) {
 
         // Handle words/identifiers
         const char* start = p;
-        while (*p && !isspace(*p) && !strchr(":,()[]{}\"'", *p)) p++;
+        while (*p && !isspace(*p) && !strchr(":,()[]{}\"'", *p))
+            p++;
 
         tok.len = (size_t)(p - start);
         tok.text = malloc(tok.len + 1);
@@ -245,7 +249,8 @@ static void tokenize(const char* input, TokenStream* out) {
 static PatternType detect_pattern(const char* line) {
     // Convert to lowercase for matching
     char* lower = strdup(line);
-    if (!lower) return PATTERN_UNKNOWN;
+    if (!lower)
+        return PATTERN_UNKNOWN;
     for (char* p = lower; *p; p++) {
         *p = (char)tolower((unsigned char)*p);
     }
@@ -379,7 +384,8 @@ static int execute_connect(TokenStream* ts) {
         }
         if (ts->tokens[i].is_number) {
             strength = ts->tokens[i].number_value;
-            if (strength > 1.0f) strength /= 100.0f;  // Convert percentage
+            if (strength > 1.0f)
+                strength /= 100.0f; // Convert percentage
         }
     }
 
@@ -395,8 +401,8 @@ static int execute_connect(TokenStream* ts) {
     nous_connect(from_id, to_id, strength);
 
     char msg[256];
-    snprintf(msg, sizeof(msg), "Collegato \"%s\" con \"%s\" (forza: %.0f%%)",
-             from, to, (double)(strength * 100));
+    snprintf(msg, sizeof(msg), "Collegato \"%s\" con \"%s\" (forza: %.0f%%)", from, to,
+             (double)(strength * 100));
     output(msg);
 
     return 0;
@@ -412,7 +418,9 @@ static int execute_find(TokenStream* ts) {
                 query[query_len++] = ' ';
             }
             size_t tok_len = strlen(ts->tokens[i].text);
-            size_t copy_len = (query_len + tok_len < sizeof(query) - 1) ? tok_len : (sizeof(query) - 1 - query_len);
+            size_t copy_len = (query_len + tok_len < sizeof(query) - 1)
+                                  ? tok_len
+                                  : (sizeof(query) - 1 - query_len);
             memcpy(query + query_len, ts->tokens[i].text, copy_len);
             query_len += copy_len;
         }
@@ -440,8 +448,8 @@ static int execute_find(TokenStream* ts) {
         int len = snprintf(result_msg, sizeof(result_msg), "Trovati %zu risultati:\n\n", count);
         for (size_t i = 0; i < count && len < (int)sizeof(result_msg) - 100; i++) {
             if (results[i]) {
-                len += snprintf(result_msg + len, sizeof(result_msg) - (size_t)len,
-                               "[%zu] %s\n", i + 1, results[i]);
+                len += snprintf(result_msg + len, sizeof(result_msg) - (size_t)len, "[%zu] %s\n",
+                                i + 1, results[i]);
                 free(results[i]);
             }
         }
@@ -476,11 +484,9 @@ static int execute_feel(TokenStream* ts) {
     char msg[256];
     if (strstr(feeling, "frustrat") || strstr(feeling, "stress")) {
         snprintf(msg, sizeof(msg),
-                 "Capisco che ti senti %s. Vuoi parlarne, o preferisci una pausa?",
-                 feeling);
+                 "Capisco che ti senti %s. Vuoi parlarne, o preferisci una pausa?", feeling);
     } else if (strstr(feeling, "ispirat") || strstr(feeling, "creativ")) {
-        snprintf(msg, sizeof(msg),
-                 "Bellissimo! Catturiamo questa energia. Cosa vuoi creare?");
+        snprintf(msg, sizeof(msg), "Bellissimo! Catturiamo questa energia. Cosa vuoi creare?");
     } else if (strstr(feeling, "stanc") || strstr(feeling, "esaust")) {
         snprintf(msg, sizeof(msg),
                  "Forse è il momento di una pausa. Il riposo è parte del processo.");
@@ -490,7 +496,7 @@ static int execute_feel(TokenStream* ts) {
     }
 
     output(msg);
-    (void)feeling_node;  // Use the node in future
+    (void)feeling_node; // Use the node in future
     return 0;
 }
 
@@ -517,7 +523,9 @@ static int execute_remember(TokenStream* ts) {
                     memory[mem_len++] = ' ';
                 }
                 size_t tok_len = strlen(ts->tokens[i].text);
-                size_t copy_len = (mem_len + tok_len < sizeof(memory) - 1) ? tok_len : (sizeof(memory) - 1 - mem_len);
+                size_t copy_len = (mem_len + tok_len < sizeof(memory) - 1)
+                                      ? tok_len
+                                      : (sizeof(memory) - 1 - mem_len);
                 memcpy(memory + mem_len, ts->tokens[i].text, copy_len);
                 mem_len += copy_len;
             }
@@ -559,14 +567,16 @@ static int execute_explain(TokenStream* ts) {
     char msg[256];
     snprintf(msg, sizeof(msg),
              "Per spiegarti \"%s\" avrei bisogno di più contesto. "
-             "Puoi essere più specifico?", topic);
+             "Puoi essere più specifico?",
+             topic);
     output(msg);
 
     return 0;
 }
 
 static int execute_line(const char* line) {
-    if (!line || strlen(line) == 0) return 0;
+    if (!line || strlen(line) == 0)
+        return 0;
 
     // Handle block continuation
     if (g_interp->in_block) {
@@ -582,8 +592,7 @@ static int execute_line(const char* line) {
     // Add to history
     if (g_interp->history_count >= g_interp->history_capacity) {
         g_interp->history_capacity = g_interp->history_capacity * 2 + 16;
-        g_interp->history = realloc(g_interp->history,
-                                    g_interp->history_capacity * sizeof(char*));
+        g_interp->history = realloc(g_interp->history, g_interp->history_capacity * sizeof(char*));
     }
     g_interp->history[g_interp->history_count++] = strdup(line);
 
@@ -597,39 +606,39 @@ static int execute_line(const char* line) {
     int result = 0;
 
     switch (pattern) {
-        case PATTERN_CREATE_AGENT:
-            result = execute_create_agent(&ts);
-            break;
-        case PATTERN_CREATE_SPACE:
-            result = execute_create_space(&ts);
-            break;
-        case PATTERN_CONNECT:
-            result = execute_connect(&ts);
-            break;
-        case PATTERN_FIND:
-        case PATTERN_SHOW:
-            result = execute_find(&ts);
-            break;
-        case PATTERN_FEEL:
-            result = execute_feel(&ts);
-            break;
-        case PATTERN_REMEMBER:
-            result = execute_remember(&ts);
-            break;
-        case PATTERN_EXPLAIN:
-            result = execute_explain(&ts);
-            break;
-        case PATTERN_UNKNOWN:
-        default:
-            // Try to make sense of it anyway
-            if (ts.count > 0) {
-                char msg[256];
-                snprintf(msg, sizeof(msg),
-                         "I'm not sure I understood. "
-                         "Could you rephrase?");
-                output(msg);
-            }
-            break;
+    case PATTERN_CREATE_AGENT:
+        result = execute_create_agent(&ts);
+        break;
+    case PATTERN_CREATE_SPACE:
+        result = execute_create_space(&ts);
+        break;
+    case PATTERN_CONNECT:
+        result = execute_connect(&ts);
+        break;
+    case PATTERN_FIND:
+    case PATTERN_SHOW:
+        result = execute_find(&ts);
+        break;
+    case PATTERN_FEEL:
+        result = execute_feel(&ts);
+        break;
+    case PATTERN_REMEMBER:
+        result = execute_remember(&ts);
+        break;
+    case PATTERN_EXPLAIN:
+        result = execute_explain(&ts);
+        break;
+    case PATTERN_UNKNOWN:
+    default:
+        // Try to make sense of it anyway
+        if (ts.count > 0) {
+            char msg[256];
+            snprintf(msg, sizeof(msg),
+                     "I'm not sure I understood. "
+                     "Could you rephrase?");
+            output(msg);
+        }
+        break;
     }
 
     token_stream_free(&ts);
@@ -641,10 +650,12 @@ static int execute_line(const char* line) {
 // ============================================================================
 
 int nous_intent_init(void) {
-    if (g_interp) return 0;
+    if (g_interp)
+        return 0;
 
     g_interp = calloc(1, sizeof(IntentInterpreter));
-    if (!g_interp) return -1;
+    if (!g_interp)
+        return -1;
 
     g_interp->history_capacity = 256;
     g_interp->history = calloc(g_interp->history_capacity, sizeof(char*));
@@ -657,7 +668,8 @@ int nous_intent_init(void) {
 }
 
 void nous_intent_shutdown(void) {
-    if (!g_interp) return;
+    if (!g_interp)
+        return;
 
     for (size_t i = 0; i < g_interp->history_count; i++) {
         free(g_interp->history[i]);
@@ -683,7 +695,8 @@ void nous_intent_set_output(void (*fn)(const char*, void*), void* ctx) {
 }
 
 int nous_intent_execute(const char* code) {
-    if (!g_interp || !code) return -1;
+    if (!g_interp || !code)
+        return -1;
 
     // Split into lines and execute each
     char* input = strdup(code);
@@ -698,7 +711,8 @@ int nous_intent_execute(const char* code) {
 
         // Skip empty lines
         char* trimmed = line;
-        while (*trimmed && isspace(*trimmed)) trimmed++;
+        while (*trimmed && isspace(*trimmed))
+            trimmed++;
         if (*trimmed == '\0') {
             line = strtok(NULL, "\n");
             continue;
@@ -720,7 +734,8 @@ int nous_intent_execute(const char* code) {
 // Interactive REPL for the INTENT language
 int nous_intent_repl(void) {
     if (!g_interp) {
-        if (nous_intent_init() != 0) return -1;
+        if (nous_intent_init() != 0)
+            return -1;
     }
 
     output("INTENT Interpreter v0.1");
@@ -732,14 +747,17 @@ int nous_intent_repl(void) {
         printf("intent> ");
         fflush(stdout);
 
-        if (!fgets(line, sizeof(line), stdin)) break;
+        if (!fgets(line, sizeof(line), stdin))
+            break;
 
         // Remove newline
         size_t len = strlen(line);
-        if (len > 0 && line[len-1] == '\n') line[len-1] = '\0';
+        if (len > 0 && line[len - 1] == '\n')
+            line[len - 1] = '\0';
 
         // Exit commands
-        if (strcmp(line, "esci") == 0 || strcmp(line, "quit") == 0) break;
+        if (strcmp(line, "esci") == 0 || strcmp(line, "quit") == 0)
+            break;
 
         nous_intent_execute(line);
     }

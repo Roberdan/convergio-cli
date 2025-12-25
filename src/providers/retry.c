@@ -11,27 +11,27 @@
  */
 
 #include "nous/provider.h"
+#include <math.h>
+#include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
 #include <time.h>
-#include <math.h>
-#include <pthread.h>
+#include <unistd.h>
 
 // ============================================================================
 // CONFIGURATION
 // ============================================================================
 
 typedef struct {
-    int max_retries;           // Maximum retry attempts
-    int base_delay_ms;         // Initial delay (milliseconds)
-    int max_delay_ms;          // Maximum delay cap
-    double backoff_multiplier; // Exponential multiplier
-    double jitter_factor;      // Random jitter (0.0 - 1.0)
-    bool retry_on_timeout;     // Retry timeout errors
-    bool retry_on_rate_limit;  // Retry rate limit errors
-    bool retry_on_server_error;// Retry 5xx errors
+    int max_retries;            // Maximum retry attempts
+    int base_delay_ms;          // Initial delay (milliseconds)
+    int max_delay_ms;           // Maximum delay cap
+    double backoff_multiplier;  // Exponential multiplier
+    double jitter_factor;       // Random jitter (0.0 - 1.0)
+    bool retry_on_timeout;      // Retry timeout errors
+    bool retry_on_rate_limit;   // Retry rate limit errors
+    bool retry_on_server_error; // Retry 5xx errors
 } RetryPolicy;
 
 // Default policy
@@ -67,12 +67,12 @@ typedef struct {
     int success_count;
     time_t last_failure;
     time_t opened_at;
-    int failure_threshold;    // Failures before opening
-    int success_threshold;    // Successes to close from half-open
-    int open_duration_sec;    // Time before trying half-open
+    int failure_threshold; // Failures before opening
+    int success_threshold; // Successes to close from half-open
+    int open_duration_sec; // Time before trying half-open
 } CircuitBreaker;
 
-static CircuitBreaker g_circuits[4] = {0};  // One per provider
+static CircuitBreaker g_circuits[4] = {0}; // One per provider
 
 // ============================================================================
 // STATISTICS
@@ -118,20 +118,20 @@ static int calculate_delay(RetryPolicy* policy, int attempt) {
 
 static bool should_retry(RetryPolicy* policy, ProviderError error) {
     switch (error) {
-        case PROVIDER_ERR_TIMEOUT:
-            return policy->retry_on_timeout;
-        case PROVIDER_ERR_RATE_LIMIT:
-            return policy->retry_on_rate_limit;
-        case PROVIDER_ERR_NETWORK:
-        case PROVIDER_ERR_UNKNOWN:
-            return policy->retry_on_server_error;
-        case PROVIDER_ERR_AUTH:
-        case PROVIDER_ERR_MODEL_NOT_FOUND:
-        case PROVIDER_ERR_CONTENT_FILTER:
-        case PROVIDER_ERR_CONTEXT_LENGTH:
-            return false;  // Don't retry these
-        default:
-            return false;
+    case PROVIDER_ERR_TIMEOUT:
+        return policy->retry_on_timeout;
+    case PROVIDER_ERR_RATE_LIMIT:
+        return policy->retry_on_rate_limit;
+    case PROVIDER_ERR_NETWORK:
+    case PROVIDER_ERR_UNKNOWN:
+        return policy->retry_on_server_error;
+    case PROVIDER_ERR_AUTH:
+    case PROVIDER_ERR_MODEL_NOT_FOUND:
+    case PROVIDER_ERR_CONTENT_FILTER:
+    case PROVIDER_ERR_CONTEXT_LENGTH:
+        return false; // Don't retry these
+    default:
+        return false;
     }
 }
 
@@ -156,24 +156,24 @@ static bool circuit_allow_request(CircuitBreaker* cb) {
     time_t now = time(NULL);
 
     switch (cb->state) {
-        case CIRCUIT_CLOSED:
+    case CIRCUIT_CLOSED:
+        pthread_mutex_unlock(&g_retry_mutex);
+        return true;
+
+    case CIRCUIT_OPEN:
+        // Check if we should transition to half-open
+        if (now - cb->opened_at >= cb->open_duration_sec) {
+            cb->state = CIRCUIT_HALF_OPEN;
+            cb->success_count = 0;
             pthread_mutex_unlock(&g_retry_mutex);
             return true;
+        }
+        pthread_mutex_unlock(&g_retry_mutex);
+        return false;
 
-        case CIRCUIT_OPEN:
-            // Check if we should transition to half-open
-            if (now - cb->opened_at >= cb->open_duration_sec) {
-                cb->state = CIRCUIT_HALF_OPEN;
-                cb->success_count = 0;
-                pthread_mutex_unlock(&g_retry_mutex);
-                return true;
-            }
-            pthread_mutex_unlock(&g_retry_mutex);
-            return false;
-
-        case CIRCUIT_HALF_OPEN:
-            pthread_mutex_unlock(&g_retry_mutex);
-            return true;
+    case CIRCUIT_HALF_OPEN:
+        pthread_mutex_unlock(&g_retry_mutex);
+        return true;
     }
 
     pthread_mutex_unlock(&g_retry_mutex);
@@ -184,21 +184,21 @@ static void circuit_record_success(CircuitBreaker* cb) {
     pthread_mutex_lock(&g_retry_mutex);
 
     switch (cb->state) {
-        case CIRCUIT_CLOSED:
+    case CIRCUIT_CLOSED:
+        cb->failure_count = 0;
+        break;
+
+    case CIRCUIT_HALF_OPEN:
+        cb->success_count++;
+        if (cb->success_count >= cb->success_threshold) {
+            cb->state = CIRCUIT_CLOSED;
             cb->failure_count = 0;
-            break;
+        }
+        break;
 
-        case CIRCUIT_HALF_OPEN:
-            cb->success_count++;
-            if (cb->success_count >= cb->success_threshold) {
-                cb->state = CIRCUIT_CLOSED;
-                cb->failure_count = 0;
-            }
-            break;
-
-        case CIRCUIT_OPEN:
-            // Shouldn't happen
-            break;
+    case CIRCUIT_OPEN:
+        // Shouldn't happen
+        break;
     }
 
     pthread_mutex_unlock(&g_retry_mutex);
@@ -210,23 +210,23 @@ static void circuit_record_failure(CircuitBreaker* cb) {
     cb->last_failure = time(NULL);
 
     switch (cb->state) {
-        case CIRCUIT_CLOSED:
-            cb->failure_count++;
-            if (cb->failure_count >= cb->failure_threshold) {
-                cb->state = CIRCUIT_OPEN;
-                cb->opened_at = time(NULL);
-            }
-            break;
-
-        case CIRCUIT_HALF_OPEN:
-            // Failed while testing, go back to open
+    case CIRCUIT_CLOSED:
+        cb->failure_count++;
+        if (cb->failure_count >= cb->failure_threshold) {
             cb->state = CIRCUIT_OPEN;
             cb->opened_at = time(NULL);
-            break;
+        }
+        break;
 
-        case CIRCUIT_OPEN:
-            // Already open
-            break;
+    case CIRCUIT_HALF_OPEN:
+        // Failed while testing, go back to open
+        cb->state = CIRCUIT_OPEN;
+        cb->opened_at = time(NULL);
+        break;
+
+    case CIRCUIT_OPEN:
+        // Already open
+        break;
     }
 
     pthread_mutex_unlock(&g_retry_mutex);
@@ -299,7 +299,8 @@ char* retry_execute(ProviderType provider, RetryableFunc func, void* ctx,
     // Check circuit breaker
     if (!circuit_allow_request(circuit)) {
         stats->circuit_rejections++;
-        if (out_error) *out_error = PROVIDER_ERR_RATE_LIMIT;
+        if (out_error)
+            *out_error = PROVIDER_ERR_RATE_LIMIT;
         return NULL;
     }
 
@@ -314,7 +315,8 @@ char* retry_execute(ProviderType provider, RetryableFunc func, void* ctx,
             // Success
             stats->successful_requests++;
             circuit_record_success(circuit);
-            if (out_error) *out_error = PROVIDER_OK;
+            if (out_error)
+                *out_error = PROVIDER_OK;
             return result;
         }
 
@@ -348,7 +350,8 @@ char* retry_execute(ProviderType provider, RetryableFunc func, void* ctx,
     // All retries failed
     stats->failed_requests++;
     circuit_record_failure(circuit);
-    if (out_error) *out_error = last_error;
+    if (out_error)
+        *out_error = last_error;
     return NULL;
 }
 
@@ -367,8 +370,7 @@ typedef struct {
 static char* chat_wrapper(void* ctx, ProviderError* out_error) {
     ChatContext* c = (ChatContext*)ctx;
 
-    char* result = c->provider->chat(c->provider, c->model, c->system,
-                                      c->user, c->usage);
+    char* result = c->provider->chat(c->provider, c->model, c->system, c->user, c->usage);
 
     if (!result) {
         // Map to error based on usage or other signals
@@ -383,15 +385,10 @@ static char* chat_wrapper(void* ctx, ProviderError* out_error) {
 /**
  * Chat with automatic retry
  */
-char* retry_chat(Provider* provider, const char* model, const char* system,
-                 const char* user, TokenUsage* usage, ProviderError* out_error) {
+char* retry_chat(Provider* provider, const char* model, const char* system, const char* user,
+                 TokenUsage* usage, ProviderError* out_error) {
     ChatContext ctx = {
-        .provider = provider,
-        .model = model,
-        .system = system,
-        .user = user,
-        .usage = usage
-    };
+        .provider = provider, .model = model, .system = system, .user = user, .usage = usage};
 
     return retry_execute(provider->type, chat_wrapper, &ctx, out_error);
 }
@@ -401,7 +398,8 @@ char* retry_chat(Provider* provider, const char* model, const char* system,
 // ============================================================================
 
 void retry_set_policy(ProviderType provider, RetryPolicy* policy) {
-    if (provider >= 4) return;
+    if (provider >= 4)
+        return;
 
     pthread_mutex_lock(&g_retry_mutex);
     g_provider_policies[provider] = *policy;
@@ -409,12 +407,14 @@ void retry_set_policy(ProviderType provider, RetryPolicy* policy) {
 }
 
 RetryPolicy* retry_get_policy(ProviderType provider) {
-    if (provider >= 4) return NULL;
+    if (provider >= 4)
+        return NULL;
     return &g_provider_policies[provider];
 }
 
 void retry_set_max_retries(ProviderType provider, int max_retries) {
-    if (provider >= 4) return;
+    if (provider >= 4)
+        return;
 
     pthread_mutex_lock(&g_retry_mutex);
     g_provider_policies[provider].max_retries = max_retries;
@@ -422,7 +422,8 @@ void retry_set_max_retries(ProviderType provider, int max_retries) {
 }
 
 void retry_set_base_delay(ProviderType provider, int base_delay_ms) {
-    if (provider >= 4) return;
+    if (provider >= 4)
+        return;
 
     pthread_mutex_lock(&g_retry_mutex);
     g_provider_policies[provider].base_delay_ms = base_delay_ms;
@@ -434,8 +435,9 @@ void retry_set_base_delay(ProviderType provider, int base_delay_ms) {
 // ============================================================================
 
 void retry_set_circuit_threshold(ProviderType provider, int failure_threshold,
-                                  int success_threshold) {
-    if (provider >= 4) return;
+                                 int success_threshold) {
+    if (provider >= 4)
+        return;
 
     pthread_mutex_lock(&g_retry_mutex);
     g_circuits[provider].failure_threshold = failure_threshold;
@@ -444,7 +446,8 @@ void retry_set_circuit_threshold(ProviderType provider, int failure_threshold,
 }
 
 void retry_reset_circuit(ProviderType provider) {
-    if (provider >= 4) return;
+    if (provider >= 4)
+        return;
 
     pthread_mutex_lock(&g_retry_mutex);
     circuit_init(&g_circuits[provider]);
@@ -452,7 +455,8 @@ void retry_reset_circuit(ProviderType provider) {
 }
 
 CircuitState retry_get_circuit_state(ProviderType provider) {
-    if (provider >= 4) return CIRCUIT_CLOSED;
+    if (provider >= 4)
+        return CIRCUIT_CLOSED;
 
     pthread_mutex_lock(&g_retry_mutex);
     CircuitState state = g_circuits[provider].state;
@@ -466,7 +470,8 @@ CircuitState retry_get_circuit_state(ProviderType provider) {
 // ============================================================================
 
 char* retry_stats_json(ProviderType provider) {
-    if (provider >= 4) return NULL;
+    if (provider >= 4)
+        return NULL;
 
     pthread_mutex_lock(&g_retry_mutex);
 
@@ -481,48 +486,51 @@ char* retry_stats_json(ProviderType provider) {
 
     const char* state_str;
     switch (circuit->state) {
-        case CIRCUIT_CLOSED: state_str = "closed"; break;
-        case CIRCUIT_OPEN: state_str = "open"; break;
-        case CIRCUIT_HALF_OPEN: state_str = "half_open"; break;
-        default: state_str = "unknown";
+    case CIRCUIT_CLOSED:
+        state_str = "closed";
+        break;
+    case CIRCUIT_OPEN:
+        state_str = "open";
+        break;
+    case CIRCUIT_HALF_OPEN:
+        state_str = "half_open";
+        break;
+    default:
+        state_str = "unknown";
     }
 
     double success_rate = stats->total_requests > 0
-        ? (double)stats->successful_requests / stats->total_requests * 100.0
-        : 0.0;
+                              ? (double)stats->successful_requests / stats->total_requests * 100.0
+                              : 0.0;
 
-    double avg_delay = stats->total_retries > 0
-        ? stats->total_delay_ms / stats->total_retries
-        : 0.0;
+    double avg_delay =
+        stats->total_retries > 0 ? stats->total_delay_ms / stats->total_retries : 0.0;
 
     snprintf(json, 512,
-        "{"
-        "\"total_requests\":%llu,"
-        "\"successful\":%llu,"
-        "\"failed\":%llu,"
-        "\"retried\":%llu,"
-        "\"total_retries\":%llu,"
-        "\"circuit_rejections\":%llu,"
-        "\"success_rate\":%.2f,"
-        "\"avg_retry_delay_ms\":%.2f,"
-        "\"circuit_state\":\"%s\""
-        "}",
-        (unsigned long long)stats->total_requests,
-        (unsigned long long)stats->successful_requests,
-        (unsigned long long)stats->failed_requests,
-        (unsigned long long)stats->retried_requests,
-        (unsigned long long)stats->total_retries,
-        (unsigned long long)stats->circuit_rejections,
-        success_rate,
-        avg_delay,
-        state_str);
+             "{"
+             "\"total_requests\":%llu,"
+             "\"successful\":%llu,"
+             "\"failed\":%llu,"
+             "\"retried\":%llu,"
+             "\"total_retries\":%llu,"
+             "\"circuit_rejections\":%llu,"
+             "\"success_rate\":%.2f,"
+             "\"avg_retry_delay_ms\":%.2f,"
+             "\"circuit_state\":\"%s\""
+             "}",
+             (unsigned long long)stats->total_requests,
+             (unsigned long long)stats->successful_requests,
+             (unsigned long long)stats->failed_requests,
+             (unsigned long long)stats->retried_requests, (unsigned long long)stats->total_retries,
+             (unsigned long long)stats->circuit_rejections, success_rate, avg_delay, state_str);
 
     pthread_mutex_unlock(&g_retry_mutex);
     return json;
 }
 
 void retry_reset_stats(ProviderType provider) {
-    if (provider >= 4) return;
+    if (provider >= 4)
+        return;
 
     pthread_mutex_lock(&g_retry_mutex);
     memset(&g_stats[provider], 0, sizeof(RetryStats));

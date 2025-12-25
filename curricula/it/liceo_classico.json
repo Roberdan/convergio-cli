@@ -1,0 +1,730 @@
+{
+  "$schema": "../../schemas/curriculum.schema.json",
+  "id": "liceo_classico",
+  "name": "Liceo Classico",
+  "country": "IT",
+  "description": "Curriculum del Liceo Classico italiano - focus su latino, greco antico e filosofia",
+  "years": 5,
+  "age_range": {
+    "start": 14,
+    "end": 19
+  },
+  "version": "2024.1",
+  "last_updated": "2025-12-19",
+  "subjects": {
+    "italiano": {
+      "maestro": "manzoni-italiano",
+      "hours_per_week": 4,
+      "years": [1, 2, 3, 4, 5]
+    },
+    "latino": {
+      "maestro": "cicerone-latino",
+      "hours_per_week": 5,
+      "years": [1, 2, 3, 4, 5],
+      "notes": "Core subject with extensive literature"
+    },
+    "greco": {
+      "maestro": "omero-greco",
+      "hours_per_week": 4,
+      "years": [1, 2, 3, 4, 5],
+      "notes": "Ancient Greek language and literature"
+    },
+    "inglese": {
+      "maestro": "shakespeare-inglese",
+      "hours_per_week": 3,
+      "years": [1, 2, 3, 4, 5]
+    },
+    "storia": {
+      "maestro": "erodoto-storia",
+      "hours_per_week": 3,
+      "years": [1, 2, 3, 4, 5]
+    },
+    "geografia": {
+      "maestro": "humboldt-geografia",
+      "hours_per_week": 2,
+      "years": [1],
+      "notes": "Only first year"
+    },
+    "filosofia": {
+      "maestro": "socrate-filosofia",
+      "hours_per_week": 3,
+      "years": [3, 4, 5],
+      "notes": "Starts from third year, core subject for Liceo Classico"
+    },
+    "matematica": {
+      "maestro": "euclide-matematica",
+      "hours_per_week": 3,
+      "years": [1, 2, 3, 4, 5]
+    },
+    "fisica": {
+      "maestro": "feynman-fisica",
+      "hours_per_week": 2,
+      "years": [1, 2, 3, 4, 5]
+    },
+    "scienze": {
+      "maestro": "darwin-scienze",
+      "hours_per_week": 2,
+      "years": [1, 2, 3, 4, 5],
+      "notes": "Biology, chemistry, earth sciences"
+    },
+    "arte": {
+      "maestro": "leonardo-arte",
+      "hours_per_week": 2,
+      "years": [1, 2, 3, 4, 5]
+    },
+    "educazione_civica": {
+      "maestro": "cicerone-civica",
+      "hours_per_week": 1,
+      "years": [1, 2, 3, 4, 5],
+      "notes": "Transversal subject"
+    },
+    "educazione_fisica": {
+      "maestro": "ippocrate-corpo",
+      "hours_per_week": 2,
+      "years": [1, 2, 3, 4, 5]
+    }
+  },
+  "curriculum_by_year": {
+    "1": {
+      "year_name": "Primo Anno",
+      "total_hours": 31,
+      "subjects": {
+        "italiano": {
+          "units": [
+            {
+              "id": "IT1-01",
+              "title": "Tipologie testuali",
+              "topics": ["narrativo", "descrittivo", "espositivo", "argomentativo"],
+              "hours": 20
+            },
+            {
+              "id": "IT1-02",
+              "title": "Grammatica italiana",
+              "topics": ["fonologia", "morfologia", "sintassi della frase semplice"],
+              "hours": 30
+            },
+            {
+              "id": "IT1-03",
+              "title": "Epica classica",
+              "topics": ["Iliade", "Odissea", "Eneide"],
+              "hours": 30
+            },
+            {
+              "id": "IT1-04",
+              "title": "Produzione scritta",
+              "topics": ["tema", "riassunto", "parafrasi", "analisi del testo"],
+              "hours": 25
+            }
+          ]
+        },
+        "latino": {
+          "units": [
+            {
+              "id": "LA1-01",
+              "title": "Morfologia nominale",
+              "topics": ["declinazioni", "aggettivi", "pronomi"],
+              "hours": 40
+            },
+            {
+              "id": "LA1-02",
+              "title": "Morfologia verbale base",
+              "topics": ["presente", "imperfetto", "futuro indicativo"],
+              "hours": 40
+            },
+            {
+              "id": "LA1-03",
+              "title": "Sintassi base",
+              "topics": ["concordanze", "casi", "complementi"],
+              "hours": 35
+            },
+            {
+              "id": "LA1-04",
+              "title": "Lessico e cultura",
+              "topics": ["etimologia", "civiltà romana", "traduzione guidata"],
+              "hours": 30
+            }
+          ]
+        },
+        "greco": {
+          "units": [
+            {
+              "id": "GR1-01",
+              "title": "Alfabeto e fonetica",
+              "topics": ["alfabeto greco", "pronuncia", "accenti", "spiriti"],
+              "hours": 20
+            },
+            {
+              "id": "GR1-02",
+              "title": "Morfologia nominale",
+              "topics": ["prima declinazione", "seconda declinazione", "articolo"],
+              "hours": 35
+            },
+            {
+              "id": "GR1-03",
+              "title": "Verbo essere e presente",
+              "topics": ["verbo essere", "presente attivo", "contratti"],
+              "hours": 35
+            },
+            {
+              "id": "GR1-04",
+              "title": "Sintassi elementare",
+              "topics": ["predicato nominale", "complementi base", "frasi semplici"],
+              "hours": 25
+            }
+          ]
+        },
+        "storia": {
+          "units": [
+            {
+              "id": "ST1-01",
+              "title": "Preistoria e civilta orientali",
+              "topics": ["evoluzione", "Mesopotamia", "Egitto"],
+              "hours": 15
+            },
+            {
+              "id": "ST1-02",
+              "title": "Grecia arcaica e classica",
+              "topics": ["poleis", "guerre persiane", "Atene e Sparta"],
+              "hours": 25
+            },
+            {
+              "id": "ST1-03",
+              "title": "Ellenismo",
+              "topics": ["Alessandro Magno", "regni ellenistici"],
+              "hours": 15
+            },
+            {
+              "id": "ST1-04",
+              "title": "Roma dalle origini alla repubblica",
+              "topics": ["monarchia", "repubblica", "guerre puniche"],
+              "hours": 25
+            }
+          ]
+        },
+        "matematica": {
+          "units": [
+            {
+              "id": "MA1-01",
+              "title": "Insiemi e numeri",
+              "topics": ["insiemi", "numeri naturali e interi", "operazioni"],
+              "hours": 20
+            },
+            {
+              "id": "MA1-02",
+              "title": "Calcolo letterale",
+              "topics": ["monomi", "polinomi", "prodotti notevoli"],
+              "hours": 25
+            },
+            {
+              "id": "MA1-03",
+              "title": "Equazioni lineari",
+              "topics": ["equazioni primo grado", "problemi"],
+              "hours": 20
+            },
+            {
+              "id": "MA1-04",
+              "title": "Geometria euclidea",
+              "topics": ["enti primitivi", "triangoli", "congruenza"],
+              "hours": 25
+            }
+          ]
+        },
+        "inglese": {
+          "units": [
+            {
+              "id": "EN1-01",
+              "title": "Basic communication",
+              "topics": ["greetings", "personal info", "daily routines"],
+              "hours": 25
+            },
+            {
+              "id": "EN1-02",
+              "title": "Grammar foundations",
+              "topics": ["present simple", "present continuous", "past simple"],
+              "hours": 30
+            },
+            {
+              "id": "EN1-03",
+              "title": "Vocabulary and culture",
+              "topics": ["family", "school", "hobbies", "UK culture"],
+              "hours": 25
+            }
+          ]
+        }
+      }
+    },
+    "2": {
+      "year_name": "Secondo Anno",
+      "total_hours": 31,
+      "subjects": {
+        "italiano": {
+          "units": [
+            {
+              "id": "IT2-01",
+              "title": "Sintassi del periodo",
+              "topics": ["proposizioni", "subordinate", "analisi del periodo"],
+              "hours": 30
+            },
+            {
+              "id": "IT2-02",
+              "title": "I Promessi Sposi",
+              "topics": ["lettura", "analisi", "Manzoni", "Ottocento"],
+              "hours": 40
+            },
+            {
+              "id": "IT2-03",
+              "title": "Poesia",
+              "topics": ["metrica", "figure retoriche", "poesia lirica"],
+              "hours": 25
+            }
+          ]
+        },
+        "latino": {
+          "units": [
+            {
+              "id": "LA2-01",
+              "title": "Morfologia verbale completa",
+              "topics": ["perfetto", "congiuntivo", "participi", "gerundio"],
+              "hours": 45
+            },
+            {
+              "id": "LA2-02",
+              "title": "Sintassi dei casi",
+              "topics": ["ablativo assoluto", "perifrastiche", "consecutio"],
+              "hours": 40
+            },
+            {
+              "id": "LA2-03",
+              "title": "Autori latini",
+              "topics": ["Cesare", "Catullo", "traduzione e commento"],
+              "hours": 40
+            }
+          ]
+        },
+        "greco": {
+          "units": [
+            {
+              "id": "GR2-01",
+              "title": "Morfologia completa",
+              "topics": ["terza declinazione", "aggettivi", "aoristo", "perfetto"],
+              "hours": 45
+            },
+            {
+              "id": "GR2-02",
+              "title": "Sintassi",
+              "topics": ["participio", "infinito", "ottativo"],
+              "hours": 35
+            },
+            {
+              "id": "GR2-03",
+              "title": "Primi autori",
+              "topics": ["Esopo", "Senofonte", "versione"],
+              "hours": 35
+            }
+          ]
+        },
+        "storia": {
+          "units": [
+            {
+              "id": "ST2-01",
+              "title": "Roma imperiale",
+              "topics": ["Augusto", "dinastia giulio-claudia", "apogeo"],
+              "hours": 30
+            },
+            {
+              "id": "ST2-02",
+              "title": "Crisi e fine impero",
+              "topics": ["anarchia militare", "Diocleziano", "Costantino", "invasioni"],
+              "hours": 30
+            },
+            {
+              "id": "ST2-03",
+              "title": "Alto Medioevo",
+              "topics": ["regni romano-barbarici", "islam", "impero carolingio"],
+              "hours": 30
+            }
+          ]
+        },
+        "matematica": {
+          "units": [
+            {
+              "id": "MA2-01",
+              "title": "Equazioni secondo grado",
+              "topics": ["formula risolutiva", "parabola", "problemi"],
+              "hours": 30
+            },
+            {
+              "id": "MA2-02",
+              "title": "Radicali",
+              "topics": ["proprieta", "operazioni", "razionalizzazione"],
+              "hours": 25
+            },
+            {
+              "id": "MA2-03",
+              "title": "Geometria",
+              "topics": ["quadrilateri", "circonferenza", "teorema di Pitagora"],
+              "hours": 30
+            }
+          ]
+        }
+      }
+    },
+    "3": {
+      "year_name": "Terzo Anno",
+      "total_hours": 31,
+      "subjects": {
+        "italiano": {
+          "units": [
+            {
+              "id": "IT3-01",
+              "title": "Origini letteratura italiana",
+              "topics": ["scuola siciliana", "dolce stil novo"],
+              "hours": 25
+            },
+            {
+              "id": "IT3-02",
+              "title": "Dante Alighieri",
+              "topics": ["Vita Nova", "Inferno completo", "allegoria"],
+              "hours": 50
+            },
+            {
+              "id": "IT3-03",
+              "title": "Petrarca e Boccaccio",
+              "topics": ["Canzoniere", "Decameron", "Umanesimo"],
+              "hours": 30
+            }
+          ]
+        },
+        "latino": {
+          "units": [
+            {
+              "id": "LA3-01",
+              "title": "Eta arcaica",
+              "topics": ["origini", "teatro", "Plauto", "Terenzio"],
+              "hours": 40
+            },
+            {
+              "id": "LA3-02",
+              "title": "Eta di Cesare",
+              "topics": ["Cicerone oratore", "Cesare", "Sallustio"],
+              "hours": 45
+            },
+            {
+              "id": "LA3-03",
+              "title": "Versione e analisi",
+              "topics": ["traduzione", "analisi stilistica", "retorica"],
+              "hours": 40
+            }
+          ]
+        },
+        "greco": {
+          "units": [
+            {
+              "id": "GR3-01",
+              "title": "Omero",
+              "topics": ["Iliade", "Odissea", "epica", "questione omerica"],
+              "hours": 45
+            },
+            {
+              "id": "GR3-02",
+              "title": "Lirica greca",
+              "topics": ["Saffo", "Alceo", "Pindaro"],
+              "hours": 35
+            },
+            {
+              "id": "GR3-03",
+              "title": "Teatro tragico",
+              "topics": ["Eschilo", "Sofocle", "Euripide"],
+              "hours": 35
+            }
+          ]
+        },
+        "filosofia": {
+          "units": [
+            {
+              "id": "FI3-01",
+              "title": "Presocratici",
+              "topics": ["naturalisti", "Pitagora", "Eraclito", "Parmenide"],
+              "hours": 25
+            },
+            {
+              "id": "FI3-02",
+              "title": "Sofisti e Socrate",
+              "topics": ["sofistica", "Protagora", "Gorgia", "maieutica"],
+              "hours": 25
+            },
+            {
+              "id": "FI3-03",
+              "title": "Platone",
+              "topics": ["teoria idee", "dialoghi", "Repubblica", "miti"],
+              "hours": 30
+            },
+            {
+              "id": "FI3-04",
+              "title": "Aristotele",
+              "topics": ["metafisica", "fisica", "etica", "politica", "logica"],
+              "hours": 30
+            }
+          ]
+        },
+        "storia": {
+          "units": [
+            {
+              "id": "ST3-01",
+              "title": "Basso Medioevo",
+              "topics": ["Comuni", "impero e papato", "crociate"],
+              "hours": 30
+            },
+            {
+              "id": "ST3-02",
+              "title": "Crisi del Trecento",
+              "topics": ["peste", "guerre", "signorie"],
+              "hours": 25
+            },
+            {
+              "id": "ST3-03",
+              "title": "Umanesimo e Rinascimento",
+              "topics": ["cultura umanistica", "scoperte geografiche", "Stati regionali"],
+              "hours": 35
+            }
+          ]
+        }
+      }
+    },
+    "4": {
+      "year_name": "Quarto Anno",
+      "total_hours": 31,
+      "subjects": {
+        "italiano": {
+          "units": [
+            {
+              "id": "IT4-01",
+              "title": "Rinascimento",
+              "topics": ["Ariosto", "Machiavelli", "Guicciardini"],
+              "hours": 35
+            },
+            {
+              "id": "IT4-02",
+              "title": "Barocco e Illuminismo",
+              "topics": ["Marino", "Goldoni", "Parini", "Alfieri"],
+              "hours": 40
+            },
+            {
+              "id": "IT4-03",
+              "title": "Dante Purgatorio",
+              "topics": ["seconda cantica", "analisi canti"],
+              "hours": 30
+            }
+          ]
+        },
+        "latino": {
+          "units": [
+            {
+              "id": "LA4-01",
+              "title": "Eta augustea - poesia",
+              "topics": ["Virgilio", "Orazio", "Ovidio", "elegia"],
+              "hours": 50
+            },
+            {
+              "id": "LA4-02",
+              "title": "Eta augustea - prosa",
+              "topics": ["Livio", "Seneca padre"],
+              "hours": 35
+            },
+            {
+              "id": "LA4-03",
+              "title": "Eta imperiale",
+              "topics": ["Seneca filosofo", "Petronio", "Marziale"],
+              "hours": 40
+            }
+          ]
+        },
+        "greco": {
+          "units": [
+            {
+              "id": "GR4-01",
+              "title": "Storiografia",
+              "topics": ["Erodoto", "Tucidide", "Senofonte"],
+              "hours": 40
+            },
+            {
+              "id": "GR4-02",
+              "title": "Oratoria",
+              "topics": ["Lisia", "Isocrate", "Demostene"],
+              "hours": 35
+            },
+            {
+              "id": "GR4-03",
+              "title": "Filosofia",
+              "topics": ["Platone dialoghi", "Aristotele testi"],
+              "hours": 40
+            }
+          ]
+        },
+        "filosofia": {
+          "units": [
+            {
+              "id": "FI4-01",
+              "title": "Ellenismo",
+              "topics": ["epicureismo", "stoicismo", "scetticismo"],
+              "hours": 25
+            },
+            {
+              "id": "FI4-02",
+              "title": "Filosofia medievale",
+              "topics": ["patristica", "Agostino", "scolastica", "Tommaso"],
+              "hours": 30
+            },
+            {
+              "id": "FI4-03",
+              "title": "Rinascimento",
+              "topics": ["Umanesimo", "Bruno", "Campanella"],
+              "hours": 20
+            },
+            {
+              "id": "FI4-04",
+              "title": "Razionalismo ed empirismo",
+              "topics": ["Cartesio", "Spinoza", "Leibniz", "Locke", "Hume"],
+              "hours": 35
+            }
+          ]
+        }
+      }
+    },
+    "5": {
+      "year_name": "Quinto Anno",
+      "total_hours": 31,
+      "subjects": {
+        "italiano": {
+          "units": [
+            {
+              "id": "IT5-01",
+              "title": "Romanticismo",
+              "topics": ["Foscolo", "Leopardi", "Manzoni"],
+              "hours": 40
+            },
+            {
+              "id": "IT5-02",
+              "title": "Verismo e Decadentismo",
+              "topics": ["Verga", "Pascoli", "D'Annunzio"],
+              "hours": 35
+            },
+            {
+              "id": "IT5-03",
+              "title": "Novecento",
+              "topics": ["Pirandello", "Svevo", "Ungaretti", "Montale", "Calvino"],
+              "hours": 40
+            },
+            {
+              "id": "IT5-04",
+              "title": "Dante Paradiso",
+              "topics": ["terza cantica", "teologia dantesca"],
+              "hours": 30
+            }
+          ]
+        },
+        "latino": {
+          "units": [
+            {
+              "id": "LA5-01",
+              "title": "Eta imperiale avanzata",
+              "topics": ["Tacito", "Giovenale", "Apuleio"],
+              "hours": 50
+            },
+            {
+              "id": "LA5-02",
+              "title": "Letteratura cristiana",
+              "topics": ["Agostino", "Gerolamo", "Ambrogio"],
+              "hours": 40
+            },
+            {
+              "id": "LA5-03",
+              "title": "Percorsi tematici",
+              "topics": ["tema amore", "tema potere", "preparazione maturita"],
+              "hours": 35
+            }
+          ]
+        },
+        "greco": {
+          "units": [
+            {
+              "id": "GR5-01",
+              "title": "Commedia",
+              "topics": ["Aristofane", "Menandro", "commedia antica e nuova"],
+              "hours": 35
+            },
+            {
+              "id": "GR5-02",
+              "title": "Eta ellenistica",
+              "topics": ["Callimaco", "Teocrito", "Polibio"],
+              "hours": 40
+            },
+            {
+              "id": "GR5-03",
+              "title": "Seconda sofistica",
+              "topics": ["Plutarco", "Luciano", "romanzo greco"],
+              "hours": 30
+            },
+            {
+              "id": "GR5-04",
+              "title": "Percorsi tematici",
+              "topics": ["collegamenti", "preparazione esame"],
+              "hours": 25
+            }
+          ]
+        },
+        "filosofia": {
+          "units": [
+            {
+              "id": "FI5-01",
+              "title": "Kant e Idealismo",
+              "topics": ["criticismo kantiano", "Fichte", "Schelling", "Hegel"],
+              "hours": 35
+            },
+            {
+              "id": "FI5-02",
+              "title": "Critica dell'Idealismo",
+              "topics": ["Schopenhauer", "Kierkegaard", "Feuerbach", "Marx"],
+              "hours": 30
+            },
+            {
+              "id": "FI5-03",
+              "title": "Positivismo e oltre",
+              "topics": ["Comte", "Darwin", "Nietzsche"],
+              "hours": 25
+            },
+            {
+              "id": "FI5-04",
+              "title": "Novecento",
+              "topics": ["Freud", "Husserl", "Heidegger", "filosofia contemporanea"],
+              "hours": 30
+            }
+          ]
+        }
+      }
+    }
+  },
+  "accessibility_notes": {
+    "dyslexia": "Latin and Greek texts with audio support, color-coded grammar",
+    "dyscalculia": "Minimal math, visual aids for logical reasoning",
+    "adhd": "Frequent changes between languages, 15-minute segments",
+    "autism": "Clear grammatical structures, predictable patterns",
+    "cerebral_palsy": "Voice input for translations, extended time"
+  },
+  "exam_preparation": {
+    "esame_di_stato": {
+      "year": 5,
+      "structure": {
+        "prima_prova": "Italian essay",
+        "seconda_prova": "Latin or Greek translation and analysis",
+        "oral": "Cross-disciplinary with focus on humanities"
+      }
+    }
+  },
+  "interdisciplinary_connections": {
+    "greco_latino_italiano": "Etymology, literary influences, translation comparison",
+    "filosofia_greco": "Original philosophical texts in Greek",
+    "storia_latino_greco": "Historical sources in original languages",
+    "arte_letteratura": "Visual and literary arts of same periods"
+  }
+}

@@ -18,16 +18,16 @@
 
 // Team member in a project
 typedef struct {
-    char* agent_name;       // Short name (e.g., "baccio")
-    char* role;             // Optional role description
+    char* agent_name; // Short name (e.g., "baccio")
+    char* role;       // Optional role description
 } ProjectTeamMember;
 
 // Project definition
 typedef struct {
-    char* name;             // Project name (e.g., "MyApp 2.0")
-    char* slug;             // URL-safe name (e.g., "myapp-2.0")
-    char* purpose;          // Project description/goal
-    char* template_name;    // Template used (if any)
+    char* name;          // Project name (e.g., "MyApp 2.0")
+    char* slug;          // URL-safe name (e.g., "myapp-2.0")
+    char* purpose;       // Project description/goal
+    char* template_name; // Template used (if any)
 
     ProjectTeamMember* team;
     size_t team_count;
@@ -35,7 +35,7 @@ typedef struct {
     time_t created;
     time_t last_active;
 
-    char* storage_path;     // Path to project directory
+    char* storage_path; // Path to project directory
 
     // Context summary (loaded from context.json)
     char* context_summary;
@@ -46,10 +46,10 @@ typedef struct {
 
 // Project manager state
 typedef struct {
-    ConvergioProject* current;      // Currently active project (NULL if none)
+    ConvergioProject* current; // Currently active project (NULL if none)
     ConvergioProject** all_projects;
     size_t project_count;
-    char* projects_base_path;       // ~/.convergio/projects/
+    char* projects_base_path; // ~/.convergio/projects/
 } ProjectManager;
 
 // Project template definition
@@ -79,8 +79,8 @@ ProjectManager* projects_get_manager(void);
 
 // Create a new project
 // team_names is comma-separated list of agent names (e.g., "baccio,davide,stefano")
-ConvergioProject* project_create(const char* name, const char* purpose,
-                                  const char* team_names, const char* template_name);
+ConvergioProject* project_create(const char* name, const char* purpose, const char* team_names,
+                                 const char* template_name);
 
 // Load a project from disk
 ConvergioProject* project_load(const char* slug);
@@ -154,12 +154,12 @@ bool project_save_context(ConvergioProject* project);
 // ============================================================================
 
 // Append a conversation turn to project history
-bool project_append_history(ConvergioProject* project, const char* role,
-                            const char* content, const char* agent_name);
+bool project_append_history(ConvergioProject* project, const char* role, const char* content,
+                            const char* agent_name);
 
 // Load recent history (returns number of turns loaded)
-size_t project_load_history(ConvergioProject* project, size_t max_turns,
-                            char*** roles, char*** contents, char*** agents);
+size_t project_load_history(ConvergioProject* project, size_t max_turns, char*** roles,
+                            char*** contents, char*** agents);
 
 // Clear project history
 bool project_clear_history(ConvergioProject* project);

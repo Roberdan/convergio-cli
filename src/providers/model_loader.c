@@ -10,11 +10,11 @@
 #include "nous/model_loader.h"
 #include "nous/nous.h"
 #include <cjson/cJSON.h>
+#include <pwd.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <pwd.h>
 
 // ============================================================================
 // STATIC STATE
@@ -46,10 +46,7 @@ static char* g_benchmark_model = NULL;
 static size_t g_benchmark_iterations = 3;
 
 // Fallback defaults (used if JSON not found)
-static const char* FALLBACK_COMPARE[] = {
-    "claude-opus-4.5",
-    "gpt-5.2-pro"
-};
+static const char* FALLBACK_COMPARE[] = {"claude-opus-4.5", "gpt-5.2-pro"};
 static const size_t FALLBACK_COMPARE_COUNT = 2;
 static const char* FALLBACK_BENCHMARK = "claude-haiku-4.5";
 
@@ -59,7 +56,8 @@ static const char* FALLBACK_BENCHMARK = "claude-haiku-4.5";
 
 static char* read_file(const char* path) {
     FILE* f = fopen(path, "rb");
-    if (!f) return NULL;
+    if (!f)
+        return NULL;
 
     fseek(f, 0, SEEK_END);
     long size_long = ftell(f);
@@ -89,10 +87,12 @@ static char* safe_strdup(const char* s) {
 
 static char* get_home_dir(void) {
     const char* home = getenv("HOME");
-    if (home) return strdup(home);
+    if (home)
+        return strdup(home);
 
     struct passwd* pw = getpwuid(getuid());
-    if (pw && pw->pw_dir) return strdup(pw->pw_dir);
+    if (pw && pw->pw_dir)
+        return strdup(pw->pw_dir);
 
     return NULL;
 }
@@ -101,8 +101,7 @@ static char* get_home_dir(void) {
 // JSON PARSING - FULL MODEL CATALOG
 // ============================================================================
 
-static bool parse_single_model(cJSON* model_json, const char* model_id,
-                               const char* provider_name) {
+static bool parse_single_model(cJSON* model_json, const char* model_id, const char* provider_name) {
     if (g_model_count >= MAX_TOTAL_MODELS) {
         LOG_WARN(LOG_CAT_SYSTEM, "Max models reached, skipping %s", model_id);
         return false;
@@ -204,10 +203,12 @@ static bool parse_all_providers(cJSON* root) {
 
 static bool parse_compare_defaults(cJSON* root) {
     cJSON* compare = cJSON_GetObjectItem(root, "compare_defaults");
-    if (!compare) return false;
+    if (!compare)
+        return false;
 
     cJSON* models = cJSON_GetObjectItem(compare, "models");
-    if (!models || !cJSON_IsArray(models)) return false;
+    if (!models || !cJSON_IsArray(models))
+        return false;
 
     g_compare_count = 0;
     cJSON* model;
@@ -222,7 +223,8 @@ static bool parse_compare_defaults(cJSON* root) {
 
 static bool parse_benchmark_defaults(cJSON* root) {
     cJSON* benchmark = cJSON_GetObjectItem(root, "benchmark_defaults");
-    if (!benchmark) return false;
+    if (!benchmark)
+        return false;
 
     cJSON* model = cJSON_GetObjectItem(benchmark, "model");
     if (model && cJSON_IsString(model)) {
@@ -239,14 +241,14 @@ static bool parse_benchmark_defaults(cJSON* root) {
 
 static bool load_json_file(const char* path) {
     char* content = read_file(path);
-    if (!content) return false;
+    if (!content)
+        return false;
 
     cJSON* root = cJSON_Parse(content);
     free(content);
 
     if (!root) {
-        LOG_WARN(LOG_CAT_SYSTEM, "Failed to parse JSON from %s: %s",
-                 path, cJSON_GetErrorPtr());
+        LOG_WARN(LOG_CAT_SYSTEM, "Failed to parse JSON from %s: %s", path, cJSON_GetErrorPtr());
         return false;
     }
 
@@ -270,8 +272,8 @@ static bool load_json_file(const char* path) {
     if (has_models || has_compare || has_benchmark) {
         g_loaded_path = strdup(path);
         g_loaded_from_json = true;
-        LOG_INFO(LOG_CAT_SYSTEM, "Loaded models config from %s (version: %s, models: %zu)",
-                 path, g_version ? g_version : "unknown", g_model_count);
+        LOG_INFO(LOG_CAT_SYSTEM, "Loaded models config from %s (version: %s, models: %zu)", path,
+                 g_version ? g_version : "unknown", g_model_count);
         return true;
     }
 
@@ -283,7 +285,8 @@ static bool load_json_file(const char* path) {
 // ============================================================================
 
 bool models_loader_init(void) {
-    if (g_loader_initialized) return true;
+    if (g_loader_initialized)
+        return true;
 
     // Try loading from various paths
     char path[1024];
@@ -320,20 +323,24 @@ bool models_loader_init(void) {
 }
 
 const char** models_get_compare_defaults(size_t* count) {
-    if (!g_loader_initialized) models_loader_init();
+    if (!g_loader_initialized)
+        models_loader_init();
 
     if (g_loaded_from_json && g_compare_count > 0) {
-        if (count) *count = g_compare_count;
+        if (count)
+            *count = g_compare_count;
         return (const char**)g_compare_defaults;
     }
 
     // Fallback
-    if (count) *count = FALLBACK_COMPARE_COUNT;
+    if (count)
+        *count = FALLBACK_COMPARE_COUNT;
     return FALLBACK_COMPARE;
 }
 
 const char* models_get_benchmark_default(void) {
-    if (!g_loader_initialized) models_loader_init();
+    if (!g_loader_initialized)
+        models_loader_init();
 
     if (g_loaded_from_json && g_benchmark_model) {
         return g_benchmark_model;
@@ -342,7 +349,8 @@ const char* models_get_benchmark_default(void) {
 }
 
 size_t models_get_benchmark_iterations(void) {
-    if (!g_loader_initialized) models_loader_init();
+    if (!g_loader_initialized)
+        models_loader_init();
     return g_benchmark_iterations;
 }
 
@@ -359,8 +367,10 @@ const char* models_get_version(void) {
 }
 
 const JsonModelConfig* models_get_json_model(const char* model_id) {
-    if (!model_id) return NULL;
-    if (!g_loader_initialized) models_loader_init();
+    if (!model_id)
+        return NULL;
+    if (!g_loader_initialized)
+        models_loader_init();
 
     for (size_t i = 0; i < g_model_count; i++) {
         if (strcmp(g_models[i].config.id, model_id) == 0) {
@@ -371,8 +381,10 @@ const JsonModelConfig* models_get_json_model(const char* model_id) {
 }
 
 const char* models_get_model_provider(const char* model_id) {
-    if (!model_id) return NULL;
-    if (!g_loader_initialized) models_loader_init();
+    if (!model_id)
+        return NULL;
+    if (!g_loader_initialized)
+        models_loader_init();
 
     for (size_t i = 0; i < g_model_count; i++) {
         if (strcmp(g_models[i].config.id, model_id) == 0) {
@@ -383,7 +395,8 @@ const char* models_get_model_provider(const char* model_id) {
 }
 
 size_t models_get_loaded_count(void) {
-    if (!g_loader_initialized) models_loader_init();
+    if (!g_loader_initialized)
+        models_loader_init();
     return g_model_count;
 }
 

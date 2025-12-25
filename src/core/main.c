@@ -7,39 +7,38 @@
  * With Ali as Chief of Staff orchestrating all agents
  */
 
-#include "nous/nous.h"
-#include "nous/orchestrator.h"
-#include "nous/tools.h"
+#include "../auth/oauth.h"
+#include "nous/commands.h"
 #include "nous/config.h"
 #include "nous/edition.h"
 #include "nous/hardware.h"
-#include "nous/updater.h"
-#include "nous/theme.h"
-#include "nous/statusbar.h"
-#include "nous/commands.h"
-#include "nous/repl.h"
-#include "nous/signals.h"
-#include "nous/safe_path.h"
-#include <fcntl.h>
-#include "nous/projects.h"
 #include "nous/mlx.h"
 #include "nous/notify.h"
-#include "nous/plan_db.h"
+#include "nous/nous.h"
+#include "nous/orchestrator.h"
 #include "nous/output_service.h"
+#include "nous/plan_db.h"
+#include "nous/projects.h"
+#include "nous/repl.h"
+#include "nous/safe_path.h"
+#include "nous/signals.h"
+#include "nous/statusbar.h"
 #include "nous/telemetry.h"
-#include "../auth/oauth.h"
+#include "nous/theme.h"
+#include "nous/tools.h"
+#include "nous/updater.h"
+#include <curl/curl.h> // For curl_global_init/cleanup - must be called once before any threads
+#include <fcntl.h>
+#include <limits.h>
+#include <readline/history.h>
+#include <readline/readline.h>
+#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
-#include <stdarg.h>
-#include <time.h>
-#include <limits.h>
 #include <sys/ioctl.h>
-#include <readline/readline.h>
-#include <readline/history.h>
-#include <curl/curl.h>  // For curl_global_init/cleanup - must be called once before any threads
-
+#include <time.h>
+#include <unistd.h>
 
 // ============================================================================
 // FORWARD DECLARATIONS
@@ -56,7 +55,7 @@ extern void nous_destroy_agent(NousAgent* agent);
 
 // MLX local mode flag
 static bool g_use_local_mlx = false;
-static char g_mlx_model[64] = {0};  // Selected MLX model
+static char g_mlx_model[64] = {0}; // Selected MLX model
 
 // External router function for local mode
 extern void router_set_local_mode(bool enabled, const char* model_id);
@@ -67,27 +66,25 @@ extern void router_set_local_mode(bool enabled, const char* model_id);
 
 LogLevel g_log_level = LOG_LEVEL_NONE;
 
-static const char* LOG_LEVEL_NAMES[] = {
-    "NONE", "ERROR", "WARN", "INFO", "DEBUG", "TRACE"
-};
+static const char* LOG_LEVEL_NAMES[] = {"NONE", "ERROR", "WARN", "INFO", "DEBUG", "TRACE"};
 
-static const char* LOG_CAT_NAMES[] = {
-    "SYSTEM", "AGENT", "TOOL", "API", "MEMORY", "MSGBUS", "COST", "WORKFLOW"
-};
+static const char* LOG_CAT_NAMES[] = {"SYSTEM", "AGENT",  "TOOL", "API",
+                                      "MEMORY", "MSGBUS", "COST", "WORKFLOW"};
 
 static const char* LOG_CAT_COLORS[] = {
-    "\033[36m",   // Cyan - SYSTEM
-    "\033[33m",   // Yellow - AGENT
-    "\033[32m",   // Green - TOOL
-    "\033[35m",   // Magenta - API
-    "\033[34m",   // Blue - MEMORY
-    "\033[37m",   // White - MSGBUS
-    "\033[31m",   // Red - COST
-    "\033[93m"    // Bright Yellow - WORKFLOW
+    "\033[36m", // Cyan - SYSTEM
+    "\033[33m", // Yellow - AGENT
+    "\033[32m", // Green - TOOL
+    "\033[35m", // Magenta - API
+    "\033[34m", // Blue - MEMORY
+    "\033[37m", // White - MSGBUS
+    "\033[31m", // Red - COST
+    "\033[93m"  // Bright Yellow - WORKFLOW
 };
 
 void nous_log(LogLevel level, LogCategory cat, const char* fmt, ...) {
-    if (level > g_log_level || g_log_level == LOG_LEVEL_NONE) return;
+    if (level > g_log_level || g_log_level == LOG_LEVEL_NONE)
+        return;
 
     // Timestamp
     time_t now = time(NULL);
@@ -98,19 +95,28 @@ void nous_log(LogLevel level, LogCategory cat, const char* fmt, ...) {
     // Level indicator
     const char* level_color;
     switch (level) {
-        case LOG_LEVEL_ERROR: level_color = "\033[31m"; break;  // Red
-        case LOG_LEVEL_WARN:  level_color = "\033[33m"; break;  // Yellow
-        case LOG_LEVEL_INFO:  level_color = "\033[32m"; break;  // Green
-        case LOG_LEVEL_DEBUG: level_color = "\033[36m"; break;  // Cyan
-        case LOG_LEVEL_TRACE: level_color = "\033[2m"; break;   // Dim
-        default: level_color = "\033[0m";
+    case LOG_LEVEL_ERROR:
+        level_color = "\033[31m";
+        break; // Red
+    case LOG_LEVEL_WARN:
+        level_color = "\033[33m";
+        break; // Yellow
+    case LOG_LEVEL_INFO:
+        level_color = "\033[32m";
+        break; // Green
+    case LOG_LEVEL_DEBUG:
+        level_color = "\033[36m";
+        break; // Cyan
+    case LOG_LEVEL_TRACE:
+        level_color = "\033[2m";
+        break; // Dim
+    default:
+        level_color = "\033[0m";
     }
 
     // Print header
-    fprintf(stderr, "\033[2m[%s]\033[0m %s[%-5s]\033[0m %s[%s]\033[0m ",
-            time_str,
-            level_color, LOG_LEVEL_NAMES[level],
-            LOG_CAT_COLORS[cat], LOG_CAT_NAMES[cat]);
+    fprintf(stderr, "\033[2m[%s]\033[0m %s[%-5s]\033[0m %s[%s]\033[0m ", time_str, level_color,
+            LOG_LEVEL_NAMES[level], LOG_CAT_COLORS[cat], LOG_CAT_NAMES[cat]);
 
     // Print message
     va_list args;
@@ -130,7 +136,8 @@ LogLevel nous_log_get_level(void) {
 }
 
 const char* nous_log_level_name(LogLevel level) {
-    if (level <= LOG_LEVEL_TRACE) return LOG_LEVEL_NAMES[level];
+    if (level <= LOG_LEVEL_TRACE)
+        return LOG_LEVEL_NAMES[level];
     return "UNKNOWN";
 }
 
@@ -141,7 +148,7 @@ const char* nous_log_level_name(LogLevel level) {
 volatile sig_atomic_t g_running = 1;
 void* g_current_space = NULL;
 void* g_assistant = NULL;
-bool g_streaming_enabled = false;  // Default OFF to enable tool support
+bool g_streaming_enabled = false; // Default OFF to enable tool support
 
 // ============================================================================
 // BANNER DISPLAY
@@ -158,7 +165,7 @@ static void print_colored_char(const char* ch, int len, int col, int total_cols)
 
     int color;
     if (t < 0.12f) {
-        color = 99;  // Light purple/violet
+        color = 99; // Light purple/violet
     } else if (t < 0.24f) {
         color = 135; // Medium purple
     } else if (t < 0.36f) {
@@ -188,10 +195,14 @@ static void print_gradient_line(const char* line) {
     while (*p) {
         if ((unsigned char)*p >= 0x80) {
             // UTF-8 multibyte
-            if ((*p & 0xE0) == 0xC0) p += 2;
-            else if ((*p & 0xF0) == 0xE0) p += 3;
-            else if ((*p & 0xF8) == 0xF0) p += 4;
-            else p++;
+            if ((*p & 0xE0) == 0xC0)
+                p += 2;
+            else if ((*p & 0xF0) == 0xE0)
+                p += 3;
+            else if ((*p & 0xF8) == 0xF0)
+                p += 4;
+            else
+                p++;
         } else {
             p++;
         }
@@ -204,9 +215,12 @@ static void print_gradient_line(const char* line) {
     while (*p) {
         int char_len = 1;
         if ((unsigned char)*p >= 0x80) {
-            if ((*p & 0xE0) == 0xC0) char_len = 2;
-            else if ((*p & 0xF0) == 0xE0) char_len = 3;
-            else if ((*p & 0xF8) == 0xF0) char_len = 4;
+            if ((*p & 0xE0) == 0xC0)
+                char_len = 2;
+            else if ((*p & 0xF0) == 0xE0)
+                char_len = 3;
+            else if ((*p & 0xF8) == 0xF0)
+                char_len = 4;
         }
 
         if (*p == ' ') {
@@ -221,23 +235,78 @@ static void print_gradient_line(const char* line) {
     printf("\n");
 }
 
+// Small ASCII edition labels - 3 lines, same gradient as main logo
+// Each letter is exactly 4 chars wide (3 char letter + 1 space) for perfect alignment
+static void print_edition_ascii(ConvergioEdition edition) {
+    switch (edition) {
+    case EDITION_EDUCATION:
+        // EDUCATION - 9 letters x 4 chars = 36 chars wide, centered under logo
+        print_gradient_line("                            █▀▀ █▀▄ █ █ █▀▀ ▄▀▄ ▀█▀ █ █▀█ █▀█");
+        print_gradient_line("                            █▄  █ █ █ █ █   █▀█  █  █ █ █ █ █");
+        print_gradient_line("                            ▀▀▀ ▀▀  ▀▀▀ ▀▀▀ ▀ ▀  ▀  ▀ ▀▀▀ ▀ ▀");
+        break;
+    case EDITION_BUSINESS:
+        // BUSINESS - 8 letters x 4 chars = 32 chars wide
+        print_gradient_line("                              █▀▄ █ █ █▀▀ █ █▀█ █▀▀ █▀▀ █▀▀");
+        print_gradient_line("                              █▀▄ █ █ ▀▀█ █ █ █ █▄  ▀▀█ ▀▀█");
+        print_gradient_line("                              ▀▀  ▀▀▀ ▀▀▀ ▀ ▀ ▀ ▀▀▀ ▀▀▀ ▀▀▀");
+        break;
+    case EDITION_DEVELOPER:
+        // DEVELOPER - 9 letters x 4 chars = 36 chars wide
+        print_gradient_line("                            █▀▄ █▀▀ █ █ █▀▀ █   █▀█ █▀▄ █▀▀ █▀▄");
+        print_gradient_line("                            █ █ █▄  ▀▄▀ █▄  █   █ █ █▀  █▄  █▀▄");
+        print_gradient_line("                            ▀▀  ▀▀▀  ▀  ▀▀▀ ▀▀▀ ▀▀▀ ▀   ▀▀▀ ▀ ▀");
+        break;
+    default:
+        // Master edition - no extra label needed
+        break;
+    }
+}
+
 static void print_banner(void) {
     const char* rst = "\033[0m";
     const char* dim = "\033[2m";
     const char* c3 = "\033[38;5;75m";
+    const char* green = "\033[38;5;40m";
 
     printf("\n");
     // Block-style > arrow with CONVERGIO text
-    print_gradient_line(" ███           ██████╗ ██████╗ ███╗   ██╗██╗   ██╗███████╗██████╗  ██████╗ ██╗ ██████╗ ");
-    print_gradient_line("  ░░███       ██╔════╝██╔═══██╗████╗  ██║██║   ██║██╔════╝██╔══██╗██╔════╝ ██║██╔═══██╗");
-    print_gradient_line("    ░░███     ██║     ██║   ██║██╔██╗ ██║██║   ██║█████╗  ██████╔╝██║  ███╗██║██║   ██║");
-    print_gradient_line("     ███░     ██║     ██║   ██║██║╚██╗██║╚██╗ ██╔╝██╔══╝  ██╔══██╗██║   ██║██║██║   ██║");
-    print_gradient_line("   ███░      ╚██████╗╚██████╔╝██║ ╚████║ ╚████╔╝ ███████╗██║  ██║╚██████╔╝██║╚██████╔╝");
-    print_gradient_line(" ███░         ╚═════╝ ╚═════╝ ╚═╝  ╚═══╝  ╚═══╝  ╚══════╝╚═╝  ╚═╝ ╚═════╝ ╚═╝ ╚═════╝ ");
+    print_gradient_line(
+        " ███           ██████╗ ██████╗ ███╗   ██╗██╗   ██╗███████╗██████╗  ██████╗ ██╗ ██████╗ ");
+    print_gradient_line(
+        "  ░░███       ██╔════╝██╔═══██╗████╗  ██║██║   ██║██╔════╝██╔══██╗██╔════╝ ██║██╔═══██╗");
+    print_gradient_line(
+        "    ░░███     ██║     ██║   ██║██╔██╗ ██║██║   ██║█████╗  ██████╔╝██║  ███╗██║██║   ██║");
+    print_gradient_line(
+        "     ███░     ██║     ██║   ██║██║╚██╗██║╚██╗ ██╔╝██╔══╝  ██╔══██╗██║   ██║██║██║   ██║");
+    print_gradient_line(
+        "   ███░      ╚██████╗╚██████╔╝██║ ╚████║ ╚████╔╝ ███████╗██║  ██║╚██████╔╝██║╚██████╔╝");
+    print_gradient_line(
+        " ███░         ╚═════╝ ╚═════╝ ╚═╝  ╚═══╝  ╚═══╝  ╚══════╝╚═╝  ╚═╝ ╚═════╝ ╚═╝ ╚═════╝ ");
+
+    // Edition ASCII branding (smaller, below main logo)
+    print_edition_ascii(edition_current());
     printf("\n");
-    print_gradient_line("          Your team, with human purpose and AI momentum.");
-    printf("\n");
-    printf("  %sv%s%s  •  %s/help%s for commands\n", dim, convergio_get_version(), rst, c3, rst);
+
+    // Edition-specific tagline
+    const EditionInfo* info = edition_get_current_info();
+    if (edition_current() == EDITION_EDUCATION) {
+        print_gradient_line("          Learn from history's greatest teachers.");
+        printf("  %s%s%s  •  %sv%s%s%s  •  %s/help%s for commands\n", green, info->name, rst, dim,
+               convergio_get_version(), info->version_suffix, rst, c3, rst);
+    } else if (edition_current() == EDITION_BUSINESS) {
+        print_gradient_line("          Your AI-powered business team.");
+        printf("  %s%s%s  •  %sv%s%s%s  •  %s/help%s for commands\n", green, info->name, rst, dim,
+               convergio_get_version(), info->version_suffix, rst, c3, rst);
+    } else if (edition_current() == EDITION_DEVELOPER) {
+        print_gradient_line("          Ship quality code faster.");
+        printf("  %s%s%s  •  %sv%s%s%s  •  %s/help%s for commands\n", green, info->name, rst, dim,
+               convergio_get_version(), info->version_suffix, rst, c3, rst);
+    } else {
+        print_gradient_line("          Your team, with human purpose and AI momentum.");
+        printf("  %sv%s%s  •  %s/help%s for commands\n", dim, convergio_get_version(), rst, c3,
+               rst);
+    }
     printf("\n");
 }
 
@@ -254,7 +323,8 @@ int main(int argc, char** argv) {
             nous_log_set_level(LOG_LEVEL_TRACE);
         } else if (strcmp(argv[i], "--quiet") == 0 || strcmp(argv[i], "-q") == 0) {
             nous_log_set_level(LOG_LEVEL_ERROR);
-        } else if ((strcmp(argv[i], "--workspace") == 0 || strcmp(argv[i], "-w") == 0) && i + 1 < argc) {
+        } else if ((strcmp(argv[i], "--workspace") == 0 || strcmp(argv[i], "-w") == 0) &&
+                   i + 1 < argc) {
             // Custom workspace path
             char resolved[PATH_MAX];
             if (realpath(argv[++i], resolved)) {
@@ -266,10 +336,12 @@ int main(int argc, char** argv) {
             }
         } else if (strcmp(argv[i], "--local") == 0 || strcmp(argv[i], "-l") == 0) {
             g_use_local_mlx = true;
-        } else if ((strcmp(argv[i], "--model") == 0 || strcmp(argv[i], "-m") == 0) && i + 1 < argc) {
+        } else if ((strcmp(argv[i], "--model") == 0 || strcmp(argv[i], "-m") == 0) &&
+                   i + 1 < argc) {
             strncpy(g_mlx_model, argv[++i], sizeof(g_mlx_model) - 1);
             g_mlx_model[sizeof(g_mlx_model) - 1] = '\0';
-        } else if ((strcmp(argv[i], "--edition") == 0 || strcmp(argv[i], "-e") == 0) && i + 1 < argc) {
+        } else if ((strcmp(argv[i], "--edition") == 0 || strcmp(argv[i], "-e") == 0) &&
+                   i + 1 < argc) {
             const char* ed = argv[++i];
             if (!edition_set_by_cli(ed)) {
                 // Error already printed by edition_set_by_cli
@@ -289,11 +361,13 @@ int main(int argc, char** argv) {
             printf("    execute <name>        Execute a workflow\n");
             printf("    resume <id>           Resume a checkpointed workflow\n\n");
             printf("Options:\n");
-            printf("  -a, --agent <name>      Start with specific agent (e.g., amy-cfo, rex-code-reviewer)\n");
+            printf("  -a, --agent <name>      Start with specific agent (e.g., amy-cfo, "
+                   "rex-code-reviewer)\n");
             printf("  -w, --workspace <path>  Set workspace directory (default: current dir)\n");
             printf("  -e, --edition <name>    Set edition (master, business, developer)\n");
             printf("  -l, --local             Use MLX local models (Apple Silicon only)\n");
-            printf("  -m, --model <model>     Specify model (e.g., llama-3.2-3b, deepseek-r1-7b)\n");
+            printf(
+                "  -m, --model <model>     Specify model (e.g., llama-3.2-3b, deepseek-r1-7b)\n");
             printf("  -d, --debug             Enable debug logging\n");
             printf("  -t, --trace             Enable trace logging (verbose)\n");
             printf("  -q, --quiet             Suppress non-error output\n");
@@ -340,7 +414,8 @@ int main(int argc, char** argv) {
     if (term_program && home_dir) {
         char term_file[PATH_MAX];
         snprintf(term_file, sizeof(term_file), "%s/.convergio/terminal", home_dir);
-        int fd = safe_path_open(term_file, safe_path_get_user_boundary(), O_WRONLY | O_CREAT | O_TRUNC, 0644);
+        int fd = safe_path_open(term_file, safe_path_get_user_boundary(),
+                                O_WRONLY | O_CREAT | O_TRUNC, 0644);
         FILE* f = fd >= 0 ? fdopen(fd, "w") : NULL;
         if (f) {
             fprintf(f, "%s", term_program);
@@ -370,6 +445,31 @@ int main(int argc, char** argv) {
 
     // Initialize edition system (displays edition info for non-master)
     edition_init();
+
+    // Validate Azure OpenAI credentials for Education edition
+    if (edition_uses_azure_openai()) {
+        const char* azure_key = getenv("AZURE_OPENAI_API_KEY");
+        const char* azure_endpoint = getenv("AZURE_OPENAI_ENDPOINT");
+
+        if (!azure_key || !azure_endpoint) {
+            fprintf(stderr, "\n");
+            fprintf(stderr, "  \033[31m✗ ERROR: Education edition requires Azure OpenAI\033[0m\n");
+            fprintf(stderr, "\n");
+            fprintf(stderr, "  ┌─────────────────────────────────────────────────────────────┐\n");
+            fprintf(stderr, "  │  \033[1mAzure OpenAI Configuration Required\033[0m                "
+                            "          │\n");
+            fprintf(stderr, "  │                                                             │\n");
+            fprintf(stderr, "  │  Education edition uses Azure OpenAI for GDPR compliance    │\n");
+            fprintf(stderr, "  │  and content safety for minors.                            │\n");
+            fprintf(stderr, "  │                                                             │\n");
+            fprintf(stderr, "  │  Please set the following environment variables:           │\n");
+            fprintf(stderr, "  │    AZURE_OPENAI_API_KEY=<your-key>                         │\n");
+            fprintf(stderr, "  │    AZURE_OPENAI_ENDPOINT=https://<region>.openai.azure.com/│\n");
+            fprintf(stderr, "  └─────────────────────────────────────────────────────────────┘\n");
+            fprintf(stderr, "\n");
+            return 1;
+        }
+    }
 
     // Initialize theme system
     theme_init();
@@ -417,8 +517,8 @@ int main(int argc, char** argv) {
         if (fgets(api_key, sizeof(api_key), stdin)) {
             // Trim newline
             size_t len = strlen(api_key);
-            if (len > 0 && api_key[len-1] == '\n') {
-                api_key[len-1] = '\0';
+            if (len > 0 && api_key[len - 1] == '\n') {
+                api_key[len - 1] = '\0';
                 len--;
             }
 
@@ -426,7 +526,8 @@ int main(int argc, char** argv) {
             if (len > 10 && strncmp(api_key, "sk-", 3) == 0) {
                 if (convergio_store_api_key(api_key) == 0) {
                     printf("\n  \033[32m✓ API key saved to macOS Keychain!\033[0m\n");
-                    printf("    Your key is stored securely and you won't need to enter it again.\n\n");
+                    printf("    Your key is stored securely and you won't need to enter it "
+                           "again.\n\n");
                     // Re-initialize auth with the new key
                     auth_init();
                 } else {
@@ -437,11 +538,13 @@ int main(int argc, char** argv) {
                     auth_init();
                 }
             } else if (len > 0) {
-                printf("\n  \033[33m⚠ Invalid key format.\033[0m Keys should start with 'sk-ant-'.\n");
+                printf(
+                    "\n  \033[33m⚠ Invalid key format.\033[0m Keys should start with 'sk-ant-'.\n");
                 printf("    You can run 'convergio setup' later to configure it.\n\n");
             } else {
                 printf("\n  \033[2mSkipped.\033[0m You can run 'convergio setup' later.\n");
-                printf("    \033[33mNote: Convergio won't work until you configure an API key.\033[0m\n\n");
+                printf("    \033[33mNote: Convergio won't work until you configure an API "
+                       "key.\033[0m\n\n");
             }
         }
     } else {
@@ -455,11 +558,13 @@ int main(int argc, char** argv) {
         const char* openai_key = getenv("OPENAI_API_KEY");
         const char* gemini_key = getenv("GEMINI_API_KEY");
 
-        bool has_anthropic = (auth_get_mode() != AUTH_MODE_NONE) || (anthropic_key && strlen(anthropic_key) > 0);
+        bool has_anthropic =
+            (auth_get_mode() != AUTH_MODE_NONE) || (anthropic_key && strlen(anthropic_key) > 0);
         bool has_openai = (openai_key && strlen(openai_key) > 0);
         bool has_gemini = (gemini_key && strlen(gemini_key) > 0);
 
-        int missing_count = (!has_anthropic ? 1 : 0) + (!has_openai ? 1 : 0) + (!has_gemini ? 1 : 0);
+        int missing_count =
+            (!has_anthropic ? 1 : 0) + (!has_openai ? 1 : 0) + (!has_gemini ? 1 : 0);
 
         // Always show provider status box if any key is missing
         if (missing_count > 0) {
@@ -483,18 +588,24 @@ int main(int argc, char** argv) {
             printf("  Add these lines to your ~/.zshrc (or ~/.bashrc):\n\n");
 
             if (!has_anthropic) {
-                printf("    export ANTHROPIC_API_KEY=\"sk-ant-...\"  \033[2m# https://console.anthropic.com/settings/keys\033[0m\n");
+                printf("    export ANTHROPIC_API_KEY=\"sk-ant-...\"  \033[2m# "
+                       "https://console.anthropic.com/settings/keys\033[0m\n");
             }
             if (!has_openai) {
-                printf("    export OPENAI_API_KEY=\"sk-...\"         \033[2m# https://platform.openai.com/api-keys\033[0m\n");
+                printf("    export OPENAI_API_KEY=\"sk-...\"         \033[2m# "
+                       "https://platform.openai.com/api-keys\033[0m\n");
             }
             if (!has_gemini) {
-                printf("    export GEMINI_API_KEY=\"...\"            \033[2m# https://aistudio.google.com/apikey\033[0m\n");
+                printf("    export GEMINI_API_KEY=\"...\"            \033[2m# "
+                       "https://aistudio.google.com/apikey\033[0m\n");
             }
 
             printf("\n  Then run: source ~/.zshrc\n\n");
         }
     }
+
+    // Initialize edition system (must be first)
+    edition_init();
 
     if (nous_init() != 0) {
         fprintf(stderr, "  \033[31m✗ Fabric initialization failed\033[0m\n");
@@ -519,6 +630,18 @@ int main(int argc, char** argv) {
         char config_path[PATH_MAX];
         snprintf(config_path, sizeof(config_path), "%s/config", workspace);
         agent_config_load_directory(config_path);
+    }
+
+    // Initialize workspace sandbox BEFORE orchestrator (persistence needs allowed paths)
+    tools_init_workspace(workspace);
+
+    // Also allow the home .convergio directory for database persistence
+    extern void tools_add_allowed_path(const char* path);
+    char convergio_home[PATH_MAX];
+    const char* home = getenv("HOME");
+    if (home) {
+        snprintf(convergio_home, sizeof(convergio_home), "%s/.convergio", home);
+        tools_add_allowed_path(convergio_home);
     }
 
     // Initialize Orchestrator with budget from config (or default)
@@ -572,7 +695,8 @@ int main(int argc, char** argv) {
 
                     MLXError err = mlx_download_model_with_progress(selected->huggingface_id);
                     if (err != MLX_OK) {
-                        printf("  \033[31m✗ Failed to download model: %s\033[0m\n", mlx_error_message(err));
+                        printf("  \033[31m✗ Failed to download model: %s\033[0m\n",
+                               mlx_error_message(err));
                         printf("  \033[90mTrying to continue anyway...\033[0m\n");
                     }
                 } else {
@@ -580,7 +704,8 @@ int main(int argc, char** argv) {
                 }
             } else {
                 printf("  \033[31m✗ Unknown model: %s\033[0m\n", model_id);
-                printf("  Available: llama-3.2-1b, llama-3.2-3b, deepseek-r1-1.5b, deepseek-r1-7b, etc.\n\n");
+                printf("  Available: llama-3.2-1b, llama-3.2-3b, deepseek-r1-1.5b, deepseek-r1-7b, "
+                       "etc.\n\n");
             }
         } else {
             printf("  \033[31m✗ MLX not available on this system\033[0m\n");
@@ -588,8 +713,7 @@ int main(int argc, char** argv) {
         }
     }
 
-    // Initialize workspace sandbox
-    tools_init_workspace(workspace);
+    // Workspace sandbox already initialized before orchestrator_init
 
     // Initialize projects
     projects_init();
@@ -607,7 +731,7 @@ int main(int argc, char** argv) {
     }
 
     // Only show status if there were errors during initialization
-    (void)init_errors;  // Suppress unused warning - errors already printed
+    (void)init_errors; // Suppress unused warning - errors already printed
 
     // Create fallback assistant (only used if orchestrator fails)
     g_assistant = nous_create_agent("Aria", "creative and collaborative assistant");
@@ -619,7 +743,13 @@ int main(int argc, char** argv) {
 
     // Status bar disabled - was causing terminal issues
     // If needed in future, call statusbar_init() and statusbar_set_visible(true)
-    (void)statusbar_init;  // Suppress unused warning
+    (void)statusbar_init; // Suppress unused warning
+
+    // Education edition: Show Ali's welcome message
+    if (edition_current() == EDITION_EDUCATION) {
+        extern int education_show_welcome(void);
+        education_show_welcome();
+    }
 
     // REPL with cost in prompt
     char prompt[256];
@@ -644,7 +774,8 @@ int main(int argc, char** argv) {
 
         // Print top separator line (dim horizontal line)
         printf("\033[2m");
-        for (int i = 0; i < term_width; i++) printf("─");
+        for (int i = 0; i < term_width; i++)
+            printf("─");
         printf("\033[0m\n");
 
         // Convergio prompt with separator style
@@ -671,8 +802,10 @@ int main(int argc, char** argv) {
             strncpy(short_name, current_agent->name, sizeof(short_name) - 1);
             short_name[sizeof(short_name) - 1] = '\0';
             char* hyphen = strchr(short_name, '-');
-            if (hyphen) *hyphen = '\0';
-            if (short_name[0] >= 'a' && short_name[0] <= 'z') short_name[0] -= 32;
+            if (hyphen)
+                *hyphen = '\0';
+            if (short_name[0] >= 'a' && short_name[0] <= 'z')
+                short_name[0] -= 32;
             snprintf(agents_ptr, agents_remaining, "%s", short_name);
         } else if (working_count > 0) {
             // Multiple agents working - show up to 3, then ...
@@ -682,11 +815,13 @@ int main(int argc, char** argv) {
                 strncpy(short_name, working_agents[i]->name, sizeof(short_name) - 1);
                 short_name[sizeof(short_name) - 1] = '\0';
                 char* hyphen = strchr(short_name, '-');
-                if (hyphen) *hyphen = '\0';
-                if (short_name[0] >= 'a' && short_name[0] <= 'z') short_name[0] -= 32;
+                if (hyphen)
+                    *hyphen = '\0';
+                if (short_name[0] >= 'a' && short_name[0] <= 'z')
+                    short_name[0] -= 32;
 
-                int written = snprintf(agents_ptr, agents_remaining, "%s%s",
-                                        i > 0 ? ", " : "", short_name);
+                int written =
+                    snprintf(agents_ptr, agents_remaining, "%s%s", i > 0 ? ", " : "", short_name);
                 if (written > 0 && (size_t)written < agents_remaining) {
                     agents_ptr += written;
                     agents_remaining -= (size_t)written;
@@ -705,12 +840,11 @@ int main(int argc, char** argv) {
         // Structure: [BOLD][COLOR]entire prompt text[RESET] - no mid-prompt resets
         if (current_proj) {
             snprintf(prompt, sizeof(prompt),
-                "\001\033[1m%s\002Convergio (%s) [%s] >\001\033[0m\002 ",
-                t->prompt_name, agents_str, current_proj->name);
+                     "\001\033[1m%s\002Convergio (%s) [%s] >\001\033[0m\002 ", t->prompt_name,
+                     agents_str, current_proj->name);
         } else {
-            snprintf(prompt, sizeof(prompt),
-                "\001\033[1m%s\002Convergio (%s) >\001\033[0m\002 ",
-                t->prompt_name, agents_str);
+            snprintf(prompt, sizeof(prompt), "\001\033[1m%s\002Convergio (%s) >\001\033[0m\002 ",
+                     t->prompt_name, agents_str);
         }
 
         line = readline(prompt);
@@ -762,10 +896,10 @@ int main(int argc, char** argv) {
 
     // Record session end in telemetry
     telemetry_record_session_end();
-    
+
     // Shutdown telemetry (flushes pending events)
     telemetry_shutdown();
-    
+
     nous_gpu_shutdown();
     nous_scheduler_shutdown();
     nous_shutdown();

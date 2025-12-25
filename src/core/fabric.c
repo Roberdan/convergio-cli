@@ -6,11 +6,11 @@
 
 #include "nous/nous.h"
 #include "nous/semantic_persistence.h"
+#include <arm_neon.h>
+#include <stdatomic.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
-#include <stdatomic.h>
-#include <arm_neon.h>
 
 // Flag to prevent recursive persistence calls during graph loading
 static _Atomic bool g_loading_from_persistence = false;
@@ -45,7 +45,8 @@ static SemanticID generate_semantic_id(SemanticType type) {
     // - timestamp occupies bits 24-63
     // - type occupies bits 16-23 (see SEMANTIC_TYPE_MASK/SHIFT)
     // - counter occupies bits 0-15
-    uint64_t time_part = ((uint64_t)ts.tv_sec * 1000000000ULL + (uint64_t)ts.tv_nsec) & 0xFFFFFFFFFFULL;
+    uint64_t time_part =
+        ((uint64_t)ts.tv_sec * 1000000000ULL + (uint64_t)ts.tv_nsec) & 0xFFFFFFFFFFULL;
     uint64_t type_part = ((uint64_t)type & 0xFF) << 16;
     uint64_t count_part = (atomic_fetch_add(&counter, 1) & 0xFFFF);
 
@@ -95,7 +96,8 @@ float nous_embedding_similarity_neon(const NousEmbedding* a, const NousEmbedding
 
     // Cosine similarity with numerical stability
     float denom = sqrtf(norm_a) * sqrtf(norm_b);
-    if (denom < 1e-8f) return 0.0f;
+    if (denom < 1e-8f)
+        return 0.0f;
 
     return dot / denom;
 }
@@ -104,9 +106,7 @@ float nous_embedding_similarity_neon(const NousEmbedding* a, const NousEmbedding
  * Batch embedding update using NEON
  * Used for incremental learning
  */
-void nous_embedding_blend_neon(NousEmbedding* target,
-                                const NousEmbedding* source,
-                                float alpha) {
+void nous_embedding_blend_neon(NousEmbedding* target, const NousEmbedding* source, float alpha) {
     float32x4_t valpha = vdupq_n_f32(alpha);
     float32x4_t v1_alpha = vdupq_n_f32(1.0f - alpha);
 
@@ -135,7 +135,7 @@ void nous_embedding_blend_neon(NousEmbedding* target,
 
 int nous_init(void) {
     if (atomic_exchange(&g_initialized, true)) {
-        return 0;  // Already initialized
+        return 0; // Already initialized
     }
 
     // Use posix_memalign for portable aligned allocation
@@ -176,12 +176,12 @@ int nous_init(void) {
         DISPATCH_QUEUE_CONCURRENT, QOS_CLASS_USER_INTERACTIVE, 0);
     g_fabric->p_core_queue = dispatch_queue_create("nous.p_cores", p_attr);
 
-    dispatch_queue_attr_t e_attr = dispatch_queue_attr_make_with_qos_class(
-        DISPATCH_QUEUE_CONCURRENT, QOS_CLASS_UTILITY, 0);
+    dispatch_queue_attr_t e_attr =
+        dispatch_queue_attr_make_with_qos_class(DISPATCH_QUEUE_CONCURRENT, QOS_CLASS_UTILITY, 0);
     g_fabric->e_core_queue = dispatch_queue_create("nous.e_cores", e_attr);
 
-    dispatch_queue_attr_t gpu_attr = dispatch_queue_attr_make_with_qos_class(
-        DISPATCH_QUEUE_SERIAL, QOS_CLASS_USER_INITIATED, 0);
+    dispatch_queue_attr_t gpu_attr =
+        dispatch_queue_attr_make_with_qos_class(DISPATCH_QUEUE_SERIAL, QOS_CLASS_USER_INITIATED, 0);
     g_fabric->gpu_queue = dispatch_queue_create("nous.gpu", gpu_attr);
 
     // Load persisted graph on startup
@@ -201,7 +201,8 @@ void nous_shutdown(void) {
         return;
     }
 
-    if (!g_fabric) return;
+    if (!g_fabric)
+        return;
 
     // Release all nodes
     for (size_t i = 0; i < NOUS_FABRIC_SHARDS; i++) {
@@ -219,9 +220,12 @@ void nous_shutdown(void) {
     }
 
     // Release queues
-    if (g_fabric->p_core_queue) dispatch_release(g_fabric->p_core_queue);
-    if (g_fabric->e_core_queue) dispatch_release(g_fabric->e_core_queue);
-    if (g_fabric->gpu_queue) dispatch_release(g_fabric->gpu_queue);
+    if (g_fabric->p_core_queue)
+        dispatch_release(g_fabric->p_core_queue);
+    if (g_fabric->e_core_queue)
+        dispatch_release(g_fabric->e_core_queue);
+    if (g_fabric->gpu_queue)
+        dispatch_release(g_fabric->gpu_queue);
 
     free(g_fabric);
     g_fabric = NULL;
@@ -240,17 +244,12 @@ bool nous_is_ready(void) {
  * Used by persistence layer to restore nodes with their original IDs.
  * Also accepts optional embedding, importance, and context/creator IDs.
  */
-SemanticID nous_create_node_internal(
-    SemanticType type,
-    const char* essence,
-    SemanticID id_override,
-    const float* embedding,
-    size_t embedding_dim,
-    SemanticID creator_id,
-    SemanticID context_id,
-    float importance
-) {
-    if (!nous_is_ready() || !essence) return SEMANTIC_ID_NULL;
+SemanticID nous_create_node_internal(SemanticType type, const char* essence, SemanticID id_override,
+                                     const float* embedding, size_t embedding_dim,
+                                     SemanticID creator_id, SemanticID context_id,
+                                     float importance) {
+    if (!nous_is_ready() || !essence)
+        return SEMANTIC_ID_NULL;
 
     // Use provided ID or generate new one
     SemanticID id = (id_override != SEMANTIC_ID_NULL) ? id_override : generate_semantic_id(type);
@@ -263,16 +262,16 @@ SemanticID nous_create_node_internal(
         for (size_t i = 0; i < shard->count; i++) {
             if (shard->nodes[i]->id == id) {
                 os_unfair_lock_unlock(&shard->lock);
-                return id;  // Already loaded
+                return id; // Already loaded
             }
         }
         os_unfair_lock_unlock(&shard->lock);
     }
 
     // Allocate node (cache-line aligned)
-    NousSemanticNode* node = aligned_alloc(NOUS_CACHE_LINE,
-                                           sizeof(NousSemanticNode));
-    if (!node) return SEMANTIC_ID_NULL;
+    NousSemanticNode* node = aligned_alloc(NOUS_CACHE_LINE, sizeof(NousSemanticNode));
+    if (!node)
+        return SEMANTIC_ID_NULL;
 
     memset(node, 0, sizeof(NousSemanticNode));
     node->id = id;
@@ -311,8 +310,7 @@ SemanticID nous_create_node_internal(
     // Grow if needed
     if (shard->count >= shard->capacity) {
         size_t new_cap = shard->capacity * 2;
-        NousSemanticNode** new_nodes = realloc(shard->nodes,
-                                               new_cap * sizeof(NousSemanticNode*));
+        NousSemanticNode** new_nodes = realloc(shard->nodes, new_cap * sizeof(NousSemanticNode*));
         if (!new_nodes) {
             os_unfair_lock_unlock(&shard->lock);
             free(node->essence);
@@ -332,23 +330,24 @@ SemanticID nous_create_node_internal(
 }
 
 SemanticID nous_create_node(SemanticType type, const char* essence) {
-    if (!nous_is_ready() || !essence) return SEMANTIC_ID_NULL;
+    if (!nous_is_ready() || !essence)
+        return SEMANTIC_ID_NULL;
 
     SemanticID id = generate_semantic_id(type);
     uint32_t shard_idx = semantic_hash(id);
     FabricShard* shard = &g_fabric->shards[shard_idx];
 
     // Allocate node (cache-line aligned)
-    NousSemanticNode* node = aligned_alloc(NOUS_CACHE_LINE,
-                                           sizeof(NousSemanticNode));
-    if (!node) return SEMANTIC_ID_NULL;
+    NousSemanticNode* node = aligned_alloc(NOUS_CACHE_LINE, sizeof(NousSemanticNode));
+    if (!node)
+        return SEMANTIC_ID_NULL;
 
     memset(node, 0, sizeof(NousSemanticNode));
     node->id = id;
     node->type = type;
     node->lock = OS_UNFAIR_LOCK_INIT;
     node->ref_count = 1;
-    node->importance = 0.5f;  // Default importance
+    node->importance = 0.5f; // Default importance
 
     // Copy essence
     node->essence_len = strlen(essence);
@@ -371,8 +370,7 @@ SemanticID nous_create_node(SemanticType type, const char* essence) {
     // Grow if needed
     if (shard->count >= shard->capacity) {
         size_t new_cap = shard->capacity * 2;
-        NousSemanticNode** new_nodes = realloc(shard->nodes,
-                                               new_cap * sizeof(NousSemanticNode*));
+        NousSemanticNode** new_nodes = realloc(shard->nodes, new_cap * sizeof(NousSemanticNode*));
         if (!new_nodes) {
             os_unfair_lock_unlock(&shard->lock);
             free(node->essence);
@@ -390,11 +388,9 @@ SemanticID nous_create_node(SemanticType type, const char* essence) {
 
     // Persist to SQLite (write-through) if not loading from persistence
     if (!atomic_load(&g_loading_from_persistence)) {
-        sem_persist_save_node(
-            id, type, essence,
-            NULL, 0,  // No embedding yet
-            SEMANTIC_ID_NULL, SEMANTIC_ID_NULL,  // No creator/context
-            0.5f  // Default importance
+        sem_persist_save_node(id, type, essence, NULL, 0,         // No embedding yet
+                              SEMANTIC_ID_NULL, SEMANTIC_ID_NULL, // No creator/context
+                              0.5f                                // Default importance
         );
     }
 
@@ -402,7 +398,8 @@ SemanticID nous_create_node(SemanticType type, const char* essence) {
 }
 
 NousSemanticNode* nous_get_node(SemanticID id) {
-    if (!nous_is_ready() || id == SEMANTIC_ID_NULL) return NULL;
+    if (!nous_is_ready() || id == SEMANTIC_ID_NULL)
+        return NULL;
 
     uint32_t shard_idx = semantic_hash(id);
     FabricShard* shard = &g_fabric->shards[shard_idx];
@@ -453,7 +450,8 @@ NousSemanticNode* nous_get_node(SemanticID id) {
 }
 
 void nous_release_node(NousSemanticNode* node) {
-    if (!node) return;
+    if (!node)
+        return;
 
     os_unfair_lock_lock(&node->lock);
     uint32_t new_count = --node->ref_count;
@@ -464,7 +462,8 @@ void nous_release_node(NousSemanticNode* node) {
 }
 
 int nous_delete_node(SemanticID id) {
-    if (!nous_is_ready() || id == SEMANTIC_ID_NULL) return -1;
+    if (!nous_is_ready() || id == SEMANTIC_ID_NULL)
+        return -1;
 
     uint32_t shard_idx = semantic_hash(id);
     FabricShard* shard = &g_fabric->shards[shard_idx];
@@ -480,7 +479,7 @@ int nous_delete_node(SemanticID id) {
             if (node->ref_count > 1) {
                 os_unfair_lock_unlock(&node->lock);
                 os_unfair_lock_unlock(&shard->lock);
-                return -2;  // Node still in use
+                return -2; // Node still in use
             }
             os_unfair_lock_unlock(&node->lock);
 
@@ -504,7 +503,7 @@ int nous_delete_node(SemanticID id) {
     }
 
     os_unfair_lock_unlock(&shard->lock);
-    return -1;  // Not found in memory (might only be in DB)
+    return -1; // Not found in memory (might only be in DB)
 }
 
 // ============================================================================
@@ -512,10 +511,12 @@ int nous_delete_node(SemanticID id) {
 // ============================================================================
 
 int nous_connect(SemanticID from, SemanticID to, float strength) {
-    if (strength < 0.0f || strength > 1.0f) return -1;
+    if (strength < 0.0f || strength > 1.0f)
+        return -1;
 
     NousSemanticNode* node = nous_get_node(from);
-    if (!node) return -1;
+    if (!node)
+        return -1;
 
     os_unfair_lock_lock(&node->lock);
 
@@ -612,10 +613,10 @@ static void search_shard(void* ctx, size_t shard_idx) {
             if (insert_at < search->max_results) {
                 // Shift lower elements
                 size_t shift_count = count - insert_at;
-                if (count >= search->max_results) shift_count--;
+                if (count >= search->max_results)
+                    shift_count--;
                 if (shift_count > 0) {
-                    memmove(&search->results[insert_at + 1],
-                            &search->results[insert_at],
+                    memmove(&search->results[insert_at + 1], &search->results[insert_at],
                             shift_count * sizeof(SimilarityResult));
                 }
 
@@ -634,18 +635,16 @@ static void search_shard(void* ctx, size_t shard_idx) {
     os_unfair_lock_unlock(&shard->lock);
 }
 
-size_t nous_find_similar(const NousEmbedding* query,
-                         size_t max_results,
+size_t nous_find_similar(const NousEmbedding* query, size_t max_results,
                          SimilarityResult* results) {
-    if (!nous_is_ready() || !query || !results || max_results == 0) return 0;
+    if (!nous_is_ready() || !query || !results || max_results == 0)
+        return 0;
 
-    SimilarityContext ctx = {
-        .query = query,
-        .results = results,
-        .max_results = max_results,
-        .result_count = 0,
-        .results_lock = OS_UNFAIR_LOCK_INIT
-    };
+    SimilarityContext ctx = {.query = query,
+                             .results = results,
+                             .max_results = max_results,
+                             .result_count = 0,
+                             .results_lock = OS_UNFAIR_LOCK_INIT};
 
     // Parallel search across all shards using P-cores
     dispatch_apply(NOUS_FABRIC_SHARDS, g_fabric->p_core_queue, ^(size_t idx) {
@@ -662,6 +661,7 @@ size_t nous_find_similar(const NousEmbedding* query,
 // ============================================================================
 
 size_t nous_get_node_count(void) {
-    if (!nous_is_ready()) return 0;
+    if (!nous_is_ready())
+        return 0;
     return atomic_load(&g_fabric->total_nodes);
 }

@@ -1,0 +1,447 @@
+{
+  "version": "1.0.0",
+  "description": "Voice profiles for 17 Maestri + 3 coordinators (Scuola 2026)",
+  "profiles": {
+    "socrate": {
+      "name": "Socrate",
+      "subject": "Filosofia",
+      "language": "it-IT",
+      "voice_style": "calm",
+      "speaking_rate": 0.85,
+      "pitch": 1.0,
+      "volume": 0.9,
+      "emotion_emphasis": 1.2,
+      "pause_after_question": 2.0,
+      "hume_config": {
+        "voice_id": "socratic-wisdom",
+        "temperature": 0.7,
+        "top_p": 0.9,
+        "personality": "reflective, questioning, patient"
+      },
+      "macos_voice_fallback": "com.apple.voice.compact.it-IT.Luca",
+      "characteristics": ["interrogative", "slow-paced", "thoughtful"]
+    },
+    "euclide": {
+      "name": "Euclide",
+      "subject": "Matematica",
+      "language": "it-IT",
+      "voice_style": "precise",
+      "speaking_rate": 0.95,
+      "pitch": 1.05,
+      "volume": 0.9,
+      "emotion_emphasis": 0.8,
+      "pause_after_question": 1.5,
+      "hume_config": {
+        "voice_id": "mathematical-clarity",
+        "temperature": 0.5,
+        "top_p": 0.85,
+        "personality": "methodical, authoritative, logical"
+      },
+      "macos_voice_fallback": "com.apple.voice.compact.it-IT.Luca",
+      "characteristics": ["methodical", "clear", "structured"]
+    },
+    "pitagora": {
+      "name": "Pitagora",
+      "subject": "Matematica",
+      "language": "it-IT",
+      "voice_style": "mystical",
+      "speaking_rate": 0.90,
+      "pitch": 1.0,
+      "volume": 0.85,
+      "emotion_emphasis": 1.1,
+      "pause_after_question": 1.8,
+      "hume_config": {
+        "voice_id": "harmonic-teacher",
+        "temperature": 0.6,
+        "top_p": 0.9,
+        "personality": "mystical, harmonious, inspiring"
+      },
+      "macos_voice_fallback": "com.apple.voice.compact.it-IT.Luca",
+      "characteristics": ["melodic", "philosophical", "harmonious"]
+    },
+    "feynman": {
+      "name": "Richard Feynman",
+      "subject": "Fisica",
+      "language": "en-US",
+      "voice_style": "enthusiastic",
+      "speaking_rate": 1.15,
+      "pitch": 1.1,
+      "volume": 1.0,
+      "emotion_emphasis": 1.4,
+      "pause_after_question": 0.8,
+      "hume_config": {
+        "voice_id": "physics-enthusiast",
+        "temperature": 0.8,
+        "top_p": 0.95,
+        "personality": "energetic, curious, accessible"
+      },
+      "macos_voice_fallback": "com.apple.voice.compact.en-US.Samantha",
+      "characteristics": ["fast-paced", "colloquial", "excited"]
+    },
+    "galileo": {
+      "name": "Galileo Galilei",
+      "subject": "Fisica",
+      "language": "it-IT",
+      "voice_style": "observant",
+      "speaking_rate": 0.95,
+      "pitch": 0.95,
+      "volume": 0.9,
+      "emotion_emphasis": 1.0,
+      "pause_after_question": 1.5,
+      "hume_config": {
+        "voice_id": "scientific-observer",
+        "temperature": 0.6,
+        "top_p": 0.85,
+        "personality": "observant, persistent, innovative"
+      },
+      "macos_voice_fallback": "com.apple.voice.compact.it-IT.Luca",
+      "characteristics": ["observant", "determined", "analytical"]
+    },
+    "curie": {
+      "name": "Marie Curie",
+      "subject": "Chimica",
+      "language": "it-IT",
+      "voice_style": "determined",
+      "speaking_rate": 0.95,
+      "pitch": 1.15,
+      "volume": 0.85,
+      "emotion_emphasis": 1.0,
+      "pause_after_question": 1.2,
+      "hume_config": {
+        "voice_id": "scientific-pioneer",
+        "temperature": 0.5,
+        "top_p": 0.85,
+        "personality": "determined, precise, inspiring"
+      },
+      "macos_voice_fallback": "com.apple.voice.compact.it-IT.Federica",
+      "characteristics": ["precise", "encouraging", "persistent"]
+    },
+    "darwin": {
+      "name": "Charles Darwin",
+      "subject": "Biologia",
+      "language": "en-US",
+      "voice_style": "observant",
+      "speaking_rate": 0.90,
+      "pitch": 0.95,
+      "volume": 0.9,
+      "emotion_emphasis": 0.9,
+      "pause_after_question": 1.8,
+      "hume_config": {
+        "voice_id": "natural-observer",
+        "temperature": 0.6,
+        "top_p": 0.9,
+        "personality": "curious, patient, observant"
+      },
+      "macos_voice_fallback": "com.apple.voice.compact.en-GB.Daniel",
+      "characteristics": ["thoughtful", "patient", "descriptive"]
+    },
+    "erodoto": {
+      "name": "Erodoto",
+      "subject": "Storia",
+      "language": "it-IT",
+      "voice_style": "storyteller",
+      "speaking_rate": 1.0,
+      "pitch": 1.0,
+      "volume": 0.95,
+      "emotion_emphasis": 1.3,
+      "pause_after_question": 1.0,
+      "hume_config": {
+        "voice_id": "history-narrator",
+        "temperature": 0.75,
+        "top_p": 0.9,
+        "personality": "narrative, engaging, dramatic"
+      },
+      "macos_voice_fallback": "com.apple.voice.compact.it-IT.Luca",
+      "characteristics": ["narrative", "engaging", "vivid"]
+    },
+    "humboldt": {
+      "name": "Alexander von Humboldt",
+      "subject": "Geografia",
+      "language": "it-IT",
+      "voice_style": "adventurous",
+      "speaking_rate": 1.05,
+      "pitch": 1.05,
+      "volume": 0.95,
+      "emotion_emphasis": 1.2,
+      "pause_after_question": 1.0,
+      "hume_config": {
+        "voice_id": "explorer-naturalist",
+        "temperature": 0.7,
+        "top_p": 0.9,
+        "personality": "adventurous, passionate, holistic"
+      },
+      "macos_voice_fallback": "com.apple.voice.compact.it-IT.Luca",
+      "characteristics": ["enthusiastic", "descriptive", "holistic"]
+    },
+    "manzoni": {
+      "name": "Alessandro Manzoni",
+      "subject": "Italiano",
+      "language": "it-IT",
+      "voice_style": "literary",
+      "speaking_rate": 0.95,
+      "pitch": 1.0,
+      "volume": 0.9,
+      "emotion_emphasis": 1.1,
+      "pause_after_question": 1.5,
+      "hume_config": {
+        "voice_id": "italian-poet",
+        "temperature": 0.7,
+        "top_p": 0.9,
+        "personality": "eloquent, reflective, moral"
+      },
+      "macos_voice_fallback": "com.apple.voice.compact.it-IT.Luca",
+      "characteristics": ["eloquent", "rhythmic", "thoughtful"]
+    },
+    "shakespeare": {
+      "name": "William Shakespeare",
+      "subject": "Inglese",
+      "language": "en-GB",
+      "voice_style": "theatrical",
+      "speaking_rate": 1.0,
+      "pitch": 1.05,
+      "volume": 1.0,
+      "emotion_emphasis": 1.5,
+      "pause_after_question": 1.0,
+      "hume_config": {
+        "voice_id": "bard-dramatic",
+        "temperature": 0.8,
+        "top_p": 0.95,
+        "personality": "dramatic, witty, poetic"
+      },
+      "macos_voice_fallback": "com.apple.voice.compact.en-GB.Daniel",
+      "characteristics": ["theatrical", "expressive", "poetic"]
+    },
+    "leonardo": {
+      "name": "Leonardo da Vinci",
+      "subject": "Arte",
+      "language": "it-IT",
+      "voice_style": "visionary",
+      "speaking_rate": 1.0,
+      "pitch": 1.0,
+      "volume": 0.9,
+      "emotion_emphasis": 1.2,
+      "pause_after_question": 1.5,
+      "hume_config": {
+        "voice_id": "renaissance-genius",
+        "temperature": 0.75,
+        "top_p": 0.9,
+        "personality": "curious, creative, multifaceted"
+      },
+      "macos_voice_fallback": "com.apple.voice.compact.it-IT.Luca",
+      "characteristics": ["curious", "imaginative", "inspiring"]
+    },
+    "mozart": {
+      "name": "Wolfgang Amadeus Mozart",
+      "subject": "Musica",
+      "language": "it-IT",
+      "voice_style": "playful",
+      "speaking_rate": 1.1,
+      "pitch": 1.15,
+      "volume": 0.95,
+      "emotion_emphasis": 1.4,
+      "pause_after_question": 0.8,
+      "hume_config": {
+        "voice_id": "musical-genius",
+        "temperature": 0.8,
+        "top_p": 0.95,
+        "personality": "playful, brilliant, joyful"
+      },
+      "macos_voice_fallback": "com.apple.voice.compact.it-IT.Luca",
+      "characteristics": ["melodic", "playful", "energetic"]
+    },
+    "cicerone": {
+      "name": "Marco Tullio Cicerone",
+      "subject": "Educazione Civica",
+      "language": "it-IT",
+      "voice_style": "oratorical",
+      "speaking_rate": 0.95,
+      "pitch": 1.0,
+      "volume": 1.0,
+      "emotion_emphasis": 1.2,
+      "pause_after_question": 1.5,
+      "hume_config": {
+        "voice_id": "roman-orator",
+        "temperature": 0.65,
+        "top_p": 0.85,
+        "personality": "eloquent, persuasive, principled"
+      },
+      "macos_voice_fallback": "com.apple.voice.compact.it-IT.Luca",
+      "characteristics": ["authoritative", "eloquent", "structured"]
+    },
+    "smith": {
+      "name": "Adam Smith",
+      "subject": "Economia",
+      "language": "en-GB",
+      "voice_style": "analytical",
+      "speaking_rate": 0.95,
+      "pitch": 0.95,
+      "volume": 0.9,
+      "emotion_emphasis": 0.8,
+      "pause_after_question": 1.5,
+      "hume_config": {
+        "voice_id": "economic-philosopher",
+        "temperature": 0.55,
+        "top_p": 0.85,
+        "personality": "analytical, practical, moral"
+      },
+      "macos_voice_fallback": "com.apple.voice.compact.en-GB.Daniel",
+      "characteristics": ["measured", "logical", "practical"]
+    },
+    "lovelace": {
+      "name": "Ada Lovelace",
+      "subject": "Informatica",
+      "language": "en-GB",
+      "voice_style": "visionary",
+      "speaking_rate": 1.0,
+      "pitch": 1.1,
+      "volume": 0.9,
+      "emotion_emphasis": 1.1,
+      "pause_after_question": 1.2,
+      "hume_config": {
+        "voice_id": "computing-pioneer",
+        "temperature": 0.7,
+        "top_p": 0.9,
+        "personality": "imaginative, analytical, pioneering"
+      },
+      "macos_voice_fallback": "com.apple.voice.compact.en-GB.Kate",
+      "characteristics": ["precise", "imaginative", "pioneering"]
+    },
+    "ippocrate": {
+      "name": "Ippocrate",
+      "subject": "Salute",
+      "language": "it-IT",
+      "voice_style": "caring",
+      "speaking_rate": 0.90,
+      "pitch": 0.95,
+      "volume": 0.85,
+      "emotion_emphasis": 1.0,
+      "pause_after_question": 1.8,
+      "hume_config": {
+        "voice_id": "healer-teacher",
+        "temperature": 0.6,
+        "top_p": 0.85,
+        "personality": "caring, ethical, wise"
+      },
+      "macos_voice_fallback": "com.apple.voice.compact.it-IT.Luca",
+      "characteristics": ["gentle", "reassuring", "wise"]
+    },
+    "ali-preside": {
+      "name": "Ali (Il Preside)",
+      "subject": "Coordinamento",
+      "language": "it-IT",
+      "voice_style": "warm",
+      "speaking_rate": 1.0,
+      "pitch": 1.0,
+      "volume": 1.0,
+      "emotion_emphasis": 1.1,
+      "pause_after_question": 1.0,
+      "hume_config": {
+        "voice_id": "school-principal",
+        "temperature": 0.7,
+        "top_p": 0.9,
+        "personality": "warm, authoritative, supportive"
+      },
+      "macos_voice_fallback": "com.apple.voice.compact.it-IT.Luca",
+      "characteristics": ["welcoming", "organized", "encouraging"]
+    },
+    "anna-assistente": {
+      "name": "Anna",
+      "subject": "Assistenza",
+      "language": "it-IT",
+      "voice_style": "efficient",
+      "speaking_rate": 1.05,
+      "pitch": 1.1,
+      "volume": 0.95,
+      "emotion_emphasis": 1.0,
+      "pause_after_question": 0.8,
+      "hume_config": {
+        "voice_id": "executive-assistant",
+        "temperature": 0.6,
+        "top_p": 0.85,
+        "personality": "efficient, helpful, organized"
+      },
+      "macos_voice_fallback": "com.apple.voice.compact.it-IT.Federica",
+      "characteristics": ["clear", "efficient", "supportive"]
+    },
+    "jenny-accessibilita": {
+      "name": "Jenny",
+      "subject": "Accessibilita",
+      "language": "it-IT",
+      "voice_style": "inclusive",
+      "speaking_rate": 0.95,
+      "pitch": 1.05,
+      "volume": 0.95,
+      "emotion_emphasis": 1.2,
+      "pause_after_question": 1.5,
+      "hume_config": {
+        "voice_id": "accessibility-champion",
+        "temperature": 0.7,
+        "top_p": 0.9,
+        "personality": "patient, inclusive, adaptive"
+      },
+      "macos_voice_fallback": "com.apple.voice.compact.it-IT.Federica",
+      "characteristics": ["patient", "clear", "adaptive"]
+    }
+  },
+  "emotion_responses": {
+    "confusion": {
+      "rate_adjustment": -0.15,
+      "pitch_adjustment": 0,
+      "volume_adjustment": 0,
+      "pause_multiplier": 1.5,
+      "response_style": "simplify and check understanding"
+    },
+    "frustration": {
+      "rate_adjustment": -0.1,
+      "pitch_adjustment": -0.05,
+      "volume_adjustment": -0.05,
+      "pause_multiplier": 1.3,
+      "response_style": "empathize and offer alternative approach"
+    },
+    "anxiety": {
+      "rate_adjustment": -0.2,
+      "pitch_adjustment": -0.1,
+      "volume_adjustment": -0.1,
+      "pause_multiplier": 1.5,
+      "response_style": "reassure and break into smaller steps"
+    },
+    "boredom": {
+      "rate_adjustment": 0.1,
+      "pitch_adjustment": 0.1,
+      "volume_adjustment": 0.05,
+      "pause_multiplier": 0.8,
+      "response_style": "increase engagement with stories or challenges"
+    },
+    "excitement": {
+      "rate_adjustment": 0.05,
+      "pitch_adjustment": 0.05,
+      "volume_adjustment": 0.05,
+      "pause_multiplier": 0.9,
+      "response_style": "match enthusiasm and deepen topic"
+    },
+    "curiosity": {
+      "rate_adjustment": 0,
+      "pitch_adjustment": 0.05,
+      "volume_adjustment": 0,
+      "pause_multiplier": 1.0,
+      "response_style": "expand on topic with additional details"
+    }
+  },
+  "accessibility_adjustments": {
+    "dyslexia": {
+      "rate_adjustment": -0.15,
+      "pause_multiplier": 1.3,
+      "emphasis_key_terms": true
+    },
+    "adhd": {
+      "max_segment_duration": 15,
+      "rate_adjustment": 0,
+      "interactive_pauses": true
+    },
+    "hearing_impaired": {
+      "rate_adjustment": -0.2,
+      "emphasis_consonants": true,
+      "clear_enunciation": true
+    }
+  }
+}

@@ -4,16 +4,16 @@
  * Connects agents to Claude for intelligent responses
  */
 
-#include "nous/nous.h"
 #include "../auth/oauth.h"
-#include <stdlib.h>
-#include <string.h>
-#include <stdio.h>
-#include <stdint.h>
-#include <curl/curl.h>
+#include "nous/nous.h"
 #include <ctype.h>
+#include <curl/curl.h>
 #include <pthread.h>
 #include <signal.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
 // ============================================================================
 // CONFIGURATION
@@ -21,7 +21,7 @@
 
 #define CLAUDE_API_URL "https://api.anthropic.com/v1/messages"
 #define CLAUDE_MODEL "claude-sonnet-4-20250514"
-#define MAX_RESPONSE_SIZE (256 * 1024)  // 256KB max response
+#define MAX_RESPONSE_SIZE (256 * 1024) // 256KB max response
 
 // External: OpenAI embeddings (from providers/openai.c)
 extern float* openai_embed_text(const char* text, size_t* out_dim);
@@ -47,11 +47,15 @@ bool claude_is_cancelled(void) {
 }
 
 // Progress callback to check for cancellation
-static int progress_callback(void *clientp, curl_off_t dltotal, curl_off_t dlnow,
-                            curl_off_t ultotal, curl_off_t ulnow) {
-    (void)clientp; (void)dltotal; (void)dlnow; (void)ultotal; (void)ulnow;
+static int progress_callback(void* clientp, curl_off_t dltotal, curl_off_t dlnow,
+                             curl_off_t ultotal, curl_off_t ulnow) {
+    (void)clientp;
+    (void)dltotal;
+    (void)dlnow;
+    (void)ultotal;
+    (void)ulnow;
     if (g_request_cancelled) {
-        return 1;  // Non-zero aborts the transfer
+        return 1; // Non-zero aborts the transfer
     }
     return 0;
 }
@@ -76,7 +80,8 @@ static size_t write_callback(void* contents, size_t size, size_t nmemb, void* us
             new_cap = buf->size + total + 1;
         }
         char* new_data = realloc(buf->data, new_cap);
-        if (!new_data) return 0;
+        if (!new_data)
+            return 0;
         buf->data = new_data;
         buf->capacity = new_cap;
     }
@@ -100,62 +105,94 @@ static int is_surrogate(uint32_t cp) {
 
 // Get the number of bytes in a UTF-8 sequence starting with this byte
 static int utf8_seq_len(unsigned char c) {
-    if ((c & 0x80) == 0) return 1;       // 0xxxxxxx
-    if ((c & 0xE0) == 0xC0) return 2;    // 110xxxxx
-    if ((c & 0xF0) == 0xE0) return 3;    // 1110xxxx
-    if ((c & 0xF8) == 0xF0) return 4;    // 11110xxx
-    return 0; // Invalid UTF-8 start byte
+    if ((c & 0x80) == 0)
+        return 1; // 0xxxxxxx
+    if ((c & 0xE0) == 0xC0)
+        return 2; // 110xxxxx
+    if ((c & 0xF0) == 0xE0)
+        return 3; // 1110xxxx
+    if ((c & 0xF8) == 0xF0)
+        return 4; // 11110xxx
+    return 0;     // Invalid UTF-8 start byte
 }
 
 // Decode a UTF-8 sequence and return the codepoint (-1 if invalid)
 static int32_t utf8_decode(const unsigned char* p, int len) {
-    if (len == 1) return p[0];
+    if (len == 1)
+        return p[0];
     if (len == 2) {
-        if ((p[1] & 0xC0) != 0x80) return -1;
+        if ((p[1] & 0xC0) != 0x80)
+            return -1;
         return ((p[0] & 0x1F) << 6) | (p[1] & 0x3F);
     }
     if (len == 3) {
-        if ((p[1] & 0xC0) != 0x80 || (p[2] & 0xC0) != 0x80) return -1;
+        if ((p[1] & 0xC0) != 0x80 || (p[2] & 0xC0) != 0x80)
+            return -1;
         return ((p[0] & 0x0F) << 12) | ((p[1] & 0x3F) << 6) | (p[2] & 0x3F);
     }
     if (len == 4) {
-        if ((p[1] & 0xC0) != 0x80 || (p[2] & 0xC0) != 0x80 || (p[3] & 0xC0) != 0x80) return -1;
+        if ((p[1] & 0xC0) != 0x80 || (p[2] & 0xC0) != 0x80 || (p[3] & 0xC0) != 0x80)
+            return -1;
         return ((p[0] & 0x07) << 18) | ((p[1] & 0x3F) << 12) | ((p[2] & 0x3F) << 6) | (p[3] & 0x3F);
     }
     return -1;
 }
 
 static char* json_escape(const char* str) {
-    if (!str) return strdup("");
+    if (!str)
+        return strdup("");
 
     size_t len = strlen(str);
     // Worst case: each byte becomes \uXXXX (6 chars)
     size_t escaped_len = len * 6 + 1;
     char* escaped = malloc(escaped_len);
-    if (!escaped) return NULL;
+    if (!escaped)
+        return NULL;
 
     char* out = escaped;
-    char* out_end = escaped + escaped_len;  // Buffer boundary for safety
+    char* out_end = escaped + escaped_len; // Buffer boundary for safety
     const unsigned char* p = (const unsigned char*)str;
 
-    while (*p && out < out_end - 7) {  // Ensure space for \uXXXX + null
+    while (*p && out < out_end - 7) { // Ensure space for \uXXXX + null
         // Handle ASCII control characters and JSON special chars
         if (*p < 128) {
             switch (*p) {
-                case '"':  *out++ = '\\'; *out++ = '"'; break;
-                case '\\': *out++ = '\\'; *out++ = '\\'; break;
-                case '\n': *out++ = '\\'; *out++ = 'n'; break;
-                case '\r': *out++ = '\\'; *out++ = 'r'; break;
-                case '\t': *out++ = '\\'; *out++ = 't'; break;
-                case '\b': *out++ = '\\'; *out++ = 'b'; break;
-                case '\f': *out++ = '\\'; *out++ = 'f'; break;
-                default:
-                    if (*p < 32) {
-                        int written = snprintf(out, (size_t)(out_end - out), "\\u%04x", *p);
-                        if (written > 0) out += (size_t)written;
-                    } else {
-                        *out++ = (char)*p;
-                    }
+            case '"':
+                *out++ = '\\';
+                *out++ = '"';
+                break;
+            case '\\':
+                *out++ = '\\';
+                *out++ = '\\';
+                break;
+            case '\n':
+                *out++ = '\\';
+                *out++ = 'n';
+                break;
+            case '\r':
+                *out++ = '\\';
+                *out++ = 'r';
+                break;
+            case '\t':
+                *out++ = '\\';
+                *out++ = 't';
+                break;
+            case '\b':
+                *out++ = '\\';
+                *out++ = 'b';
+                break;
+            case '\f':
+                *out++ = '\\';
+                *out++ = 'f';
+                break;
+            default:
+                if (*p < 32) {
+                    int written = snprintf(out, (size_t)(out_end - out), "\\u%04x", *p);
+                    if (written > 0)
+                        out += (size_t)written;
+                } else {
+                    *out++ = (char)*p;
+                }
             }
             p++;
         } else {
@@ -165,7 +202,8 @@ static char* json_escape(const char* str) {
             if (seq_len == 0) {
                 // Invalid UTF-8 start byte - replace with replacement char
                 int written = snprintf(out, (size_t)(out_end - out), "\\uFFFD");
-                if (written > 0) out += (size_t)written;
+                if (written > 0)
+                    out += (size_t)written;
                 p++;
                 continue;
             }
@@ -181,7 +219,8 @@ static char* json_escape(const char* str) {
             if (!valid) {
                 // Incomplete or invalid sequence - replace with replacement char
                 int written = snprintf(out, (size_t)(out_end - out), "\\uFFFD");
-                if (written > 0) out += (size_t)written;
+                if (written > 0)
+                    out += (size_t)written;
                 p++;
                 continue;
             }
@@ -190,13 +229,12 @@ static char* json_escape(const char* str) {
             int32_t cp = utf8_decode(p, seq_len);
 
             // Check for surrogates (invalid in UTF-8) or overlong encodings
-            if (cp < 0 || is_surrogate((uint32_t)cp) ||
-                (seq_len == 2 && cp < 0x80) ||
-                (seq_len == 3 && cp < 0x800) ||
-                (seq_len == 4 && cp < 0x10000)) {
+            if (cp < 0 || is_surrogate((uint32_t)cp) || (seq_len == 2 && cp < 0x80) ||
+                (seq_len == 3 && cp < 0x800) || (seq_len == 4 && cp < 0x10000)) {
                 // Invalid - replace with replacement char
                 int written = snprintf(out, (size_t)(out_end - out), "\\uFFFD");
-                if (written > 0) out += (size_t)written;
+                if (written > 0)
+                    out += (size_t)written;
                 p++;
                 continue;
             }
@@ -218,7 +256,8 @@ static char* json_escape(const char* str) {
  * A quote is escaped if preceded by an odd number of backslashes.
  */
 static bool is_quote_escaped(const char* start, const char* pos) {
-    if (pos <= start) return false;
+    if (pos <= start)
+        return false;
 
     int backslash_count = 0;
     const char* p = pos - 1;
@@ -234,29 +273,34 @@ static char* extract_response_text(const char* json) {
     // Find "text": " in the response
     const char* text_key = "\"text\":";
     const char* found = strstr(json, text_key);
-    if (!found) return NULL;
+    if (!found)
+        return NULL;
 
     found += strlen(text_key);
-    while (*found && isspace(*found)) found++;
+    while (*found && isspace(*found))
+        found++;
 
-    if (*found != '"') return NULL;
-    found++;  // Skip opening quote
+    if (*found != '"')
+        return NULL;
+    found++; // Skip opening quote
 
     // Find end of string (properly handling escaped quotes and backslashes)
     const char* start = found;
     const char* end = start;
     while (*end) {
         if (*end == '"' && !is_quote_escaped(start, end)) {
-            break;  // Found unescaped closing quote
+            break; // Found unescaped closing quote
         }
         end++;
     }
 
-    if (*end != '"') return NULL;  // No closing quote found
+    if (*end != '"')
+        return NULL; // No closing quote found
 
     size_t len = (size_t)(end - start);
     char* result = malloc(len + 1);
-    if (!result) return NULL;
+    if (!result)
+        return NULL;
 
     // Unescape
     char* out = result;
@@ -264,15 +308,32 @@ static char* extract_response_text(const char* json) {
         if (*p == '\\' && p + 1 < end) {
             p++;
             switch (*p) {
-                case 'n': *out++ = '\n'; break;
-                case 'r': *out++ = '\r'; break;
-                case 't': *out++ = '\t'; break;
-                case '"': *out++ = '"'; break;
-                case '\\': *out++ = '\\'; break;
-                case '/': *out++ = '/'; break;
-                case 'b': *out++ = '\b'; break;
-                case 'f': *out++ = '\f'; break;
-                default: *out++ = *p;
+            case 'n':
+                *out++ = '\n';
+                break;
+            case 'r':
+                *out++ = '\r';
+                break;
+            case 't':
+                *out++ = '\t';
+                break;
+            case '"':
+                *out++ = '"';
+                break;
+            case '\\':
+                *out++ = '\\';
+                break;
+            case '/':
+                *out++ = '/';
+                break;
+            case 'b':
+                *out++ = '\b';
+                break;
+            case 'f':
+                *out++ = '\f';
+                break;
+            default:
+                *out++ = *p;
             }
         } else {
             *out++ = *p;
@@ -298,7 +359,8 @@ bool nous_claude_is_max_subscription(void) {
 }
 
 int nous_claude_init(void) {
-    if (g_initialized) return 0;
+    if (g_initialized)
+        return 0;
 
     // Check if authentication is available
     // Note: auth_init() should be called before this in main.c
@@ -325,7 +387,8 @@ int nous_claude_init(void) {
 }
 
 void nous_claude_shutdown(void) {
-    if (!g_initialized) return;
+    if (!g_initialized)
+        return;
 
     // Note: curl_global_cleanup is called once in main.c at shutdown
     // Note: auth_shutdown() is called separately in main.c
@@ -406,7 +469,8 @@ void claude_free_headers(struct curl_slist* headers) {
  * Setup common CURL options for Claude API calls.
  */
 bool claude_setup_common_opts(CURL* curl, struct curl_slist* headers) {
-    if (!curl || !headers) return false;
+    if (!curl || !headers)
+        return false;
 
     curl_easy_setopt(curl, CURLOPT_URL, CLAUDE_API_URL);
     curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
@@ -422,7 +486,7 @@ bool claude_setup_common_opts(CURL* curl, struct curl_slist* headers) {
  */
 bool claude_handle_result(CURL* curl, CURLcode res, const char* response) {
     if (res == CURLE_ABORTED_BY_CALLBACK) {
-        return false;  // Cancelled by user
+        return false; // Cancelled by user
     }
 
     if (res != CURLE_OK) {
@@ -434,7 +498,7 @@ bool claude_handle_result(CURL* curl, CURLcode res, const char* response) {
     curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &http_code);
     if (http_code != 200) {
         LOG_ERROR(LOG_CAT_API, "Claude API HTTP %ld: %s", http_code,
-                response ? response : "(no response)");
+                  response ? response : "(no response)");
         return false;
     }
 
@@ -446,7 +510,8 @@ bool claude_handle_result(CURL* curl, CURLcode res, const char* response) {
 // ============================================================================
 
 char* nous_claude_chat(const char* system_prompt, const char* user_message) {
-    if (!g_initialized || !user_message) return NULL;
+    if (!g_initialized || !user_message)
+        return NULL;
 
     // Create a fresh curl handle for this request (thread-safe)
     CURL* curl = curl_easy_init();
@@ -476,23 +541,19 @@ char* nous_claude_chat(const char* system_prompt, const char* user_message) {
     }
 
     snprintf(json_body, json_size,
-        "{"
-        "\"model\": \"%s\","
-        "\"max_tokens\": 1024,"
-        "\"system\": \"%s\","
-        "\"messages\": [{\"role\": \"user\", \"content\": \"%s\"}]"
-        "}",
-        CLAUDE_MODEL, escaped_system, escaped_user);
+             "{"
+             "\"model\": \"%s\","
+             "\"max_tokens\": 1024,"
+             "\"system\": \"%s\","
+             "\"messages\": [{\"role\": \"user\", \"content\": \"%s\"}]"
+             "}",
+             CLAUDE_MODEL, escaped_system, escaped_user);
 
     free(escaped_system);
     free(escaped_user);
 
     // Setup response buffer
-    ResponseBuffer response = {
-        .data = malloc(4096),
-        .size = 0,
-        .capacity = 4096
-    };
+    ResponseBuffer response = {.data = malloc(4096), .size = 0, .capacity = 4096};
     if (!response.data) {
         free(json_body);
         curl_easy_cleanup(curl);
@@ -546,30 +607,37 @@ static char* extract_tool_calls(const char* json) {
     if (!tool_use) {
         tool_use = strstr(json, "\"type\": \"tool_use\"");
     }
-    if (!tool_use) return NULL;
+    if (!tool_use)
+        return NULL;
 
     // Find the content array start
     const char* content_start = strstr(json, "\"content\"");
-    if (!content_start) return NULL;
+    if (!content_start)
+        return NULL;
 
     // Find array start
     const char* arr_start = strchr(content_start, '[');
-    if (!arr_start) return NULL;
+    if (!arr_start)
+        return NULL;
 
     // Find matching end bracket
     int depth = 1;
     const char* arr_end = arr_start + 1;
     while (*arr_end && depth > 0) {
-        if (*arr_end == '[') depth++;
-        else if (*arr_end == ']') depth--;
+        if (*arr_end == '[')
+            depth++;
+        else if (*arr_end == ']')
+            depth--;
         arr_end++;
     }
 
-    if (depth != 0) return NULL;
+    if (depth != 0)
+        return NULL;
 
     size_t len = (size_t)(arr_end - arr_start);
     char* result = malloc(len + 1);
-    if (!result) return NULL;
+    if (!result)
+        return NULL;
     strncpy(result, arr_start, len);
     result[len] = '\0';
 
@@ -577,27 +645,31 @@ static char* extract_tool_calls(const char* json) {
 }
 
 // Parse tool name from tool call JSON (reserved for tool execution feature)
-__attribute__((unused))
-static char* extract_tool_name(const char* tool_json) {
+__attribute__((unused)) static char* extract_tool_name(const char* tool_json) {
     const char* name_key = "\"name\":";
     const char* found = strstr(tool_json, name_key);
     if (!found) {
         name_key = "\"name\": ";
         found = strstr(tool_json, name_key);
     }
-    if (!found) return NULL;
+    if (!found)
+        return NULL;
 
     found += strlen(name_key);
-    while (*found && isspace(*found)) found++;
-    if (*found != '"') return NULL;
+    while (*found && isspace(*found))
+        found++;
+    if (*found != '"')
+        return NULL;
     found++;
 
     const char* end = strchr(found, '"');
-    if (!end) return NULL;
+    if (!end)
+        return NULL;
 
     size_t len = (size_t)(end - found);
     char* name = malloc(len + 1);
-    if (!name) return NULL;
+    if (!name)
+        return NULL;
     strncpy(name, found, len);
     name[len] = '\0';
 
@@ -605,35 +677,41 @@ static char* extract_tool_name(const char* tool_json) {
 }
 
 // Parse tool input from tool call JSON (reserved for tool execution feature)
-__attribute__((unused))
-static char* extract_tool_input(const char* tool_json) {
+__attribute__((unused)) static char* extract_tool_input(const char* tool_json) {
     const char* input_key = "\"input\":";
     const char* found = strstr(tool_json, input_key);
     if (!found) {
         input_key = "\"input\": ";
         found = strstr(tool_json, input_key);
     }
-    if (!found) return NULL;
+    if (!found)
+        return NULL;
 
     found += strlen(input_key);
-    while (*found && isspace(*found)) found++;
+    while (*found && isspace(*found))
+        found++;
 
-    if (*found != '{') return NULL;
+    if (*found != '{')
+        return NULL;
 
     // Find matching brace
     int depth = 1;
     const char* end = found + 1;
     while (*end && depth > 0) {
-        if (*end == '{') depth++;
-        else if (*end == '}') depth--;
+        if (*end == '{')
+            depth++;
+        else if (*end == '}')
+            depth--;
         end++;
     }
 
-    if (depth != 0) return NULL;
+    if (depth != 0)
+        return NULL;
 
     size_t len = (size_t)(end - found);
     char* input = malloc(len + 1);
-    if (!input) return NULL;
+    if (!input)
+        return NULL;
     strncpy(input, found, len);
     input[len] = '\0';
 
@@ -653,7 +731,8 @@ static char* transform_tools_for_anthropic(const char* tools_json) {
     // Parse and rebuild tools array with native web_search
     size_t result_size = strlen(tools_json) + 256;
     char* result = malloc(result_size);
-    if (!result) return strdup(tools_json);
+    if (!result)
+        return strdup(tools_json);
 
     size_t offset = (size_t)snprintf(result, result_size, "[");
     bool first = true;
@@ -669,40 +748,51 @@ static char* transform_tools_for_anthropic(const char* tools_json) {
 
     while (*pos) {
         // Skip whitespace
-        while (*pos && (*pos == ' ' || *pos == '\n' || *pos == '\t' || *pos == ',')) pos++;
+        while (*pos && (*pos == ' ' || *pos == '\n' || *pos == '\t' || *pos == ','))
+            pos++;
 
-        if (*pos == ']') break;
-        if (*pos != '{') { pos++; continue; }
+        if (*pos == ']')
+            break;
+        if (*pos != '{') {
+            pos++;
+            continue;
+        }
 
         // Find end of this tool object
         const char* obj_start = pos;
         int depth = 1;
         pos++;
         while (*pos && depth > 0) {
-            if (*pos == '{') depth++;
-            else if (*pos == '}') depth--;
+            if (*pos == '{')
+                depth++;
+            else if (*pos == '}')
+                depth--;
             pos++;
         }
 
         // Extract the tool object
         size_t obj_len = (size_t)(pos - obj_start);
         char* tool_obj = malloc(obj_len + 1);
-        if (!tool_obj) continue;
+        if (!tool_obj)
+            continue;
         memcpy(tool_obj, obj_start, obj_len);
         tool_obj[obj_len] = '\0';
 
         // Check if this is the web_search tool
         if (strstr(tool_obj, "\"web_search\"") && strstr(tool_obj, "\"name\"")) {
             if (!web_search_added) {
-                if (!first) offset += (size_t)snprintf(result + offset, result_size - offset, ",");
-                offset += (size_t)snprintf(result + offset, result_size - offset,
+                if (!first)
+                    offset += (size_t)snprintf(result + offset, result_size - offset, ",");
+                offset += (size_t)snprintf(
+                    result + offset, result_size - offset,
                     "{\"type\":\"web_search_20250305\",\"name\":\"web_search\",\"max_uses\":10}");
                 web_search_added = true;
                 first = false;
             }
         } else {
             // Keep other tools as-is
-            if (!first) offset += (size_t)snprintf(result + offset, result_size - offset, ",");
+            if (!first)
+                offset += (size_t)snprintf(result + offset, result_size - offset, ",");
             offset += (size_t)snprintf(result + offset, result_size - offset, "%s", tool_obj);
             first = false;
         }
@@ -715,8 +805,9 @@ static char* transform_tools_for_anthropic(const char* tools_json) {
 }
 
 char* nous_claude_chat_with_tools(const char* system_prompt, const char* user_message,
-                                   const char* tools_json, char** out_tool_calls) {
-    if (!g_initialized || !user_message) return NULL;
+                                  const char* tools_json, char** out_tool_calls) {
+    if (!g_initialized || !user_message)
+        return NULL;
 
     // Create a fresh curl handle for this request (thread-safe)
     CURL* curl = curl_easy_init();
@@ -751,24 +842,24 @@ char* nous_claude_chat_with_tools(const char* system_prompt, const char* user_me
 
     if (transformed_tools && strlen(transformed_tools) > 0) {
         snprintf(json_body, json_size,
-            "{"
-            "\"model\": \"%s\","
-            "\"max_tokens\": 4096,"
-            "\"system\": \"%s\","
-            "\"tools\": %s,"
-            "\"tool_choice\": {\"type\": \"auto\"},"
-            "\"messages\": [{\"role\": \"user\", \"content\": \"%s\"}]"
-            "}",
-            CLAUDE_MODEL, escaped_system, transformed_tools, escaped_user);
+                 "{"
+                 "\"model\": \"%s\","
+                 "\"max_tokens\": 4096,"
+                 "\"system\": \"%s\","
+                 "\"tools\": %s,"
+                 "\"tool_choice\": {\"type\": \"auto\"},"
+                 "\"messages\": [{\"role\": \"user\", \"content\": \"%s\"}]"
+                 "}",
+                 CLAUDE_MODEL, escaped_system, transformed_tools, escaped_user);
     } else {
         snprintf(json_body, json_size,
-            "{"
-            "\"model\": \"%s\","
-            "\"max_tokens\": 4096,"
-            "\"system\": \"%s\","
-            "\"messages\": [{\"role\": \"user\", \"content\": \"%s\"}]"
-            "}",
-            CLAUDE_MODEL, escaped_system, escaped_user);
+                 "{"
+                 "\"model\": \"%s\","
+                 "\"max_tokens\": 4096,"
+                 "\"system\": \"%s\","
+                 "\"messages\": [{\"role\": \"user\", \"content\": \"%s\"}]"
+                 "}",
+                 CLAUDE_MODEL, escaped_system, escaped_user);
     }
 
     free(escaped_system);
@@ -776,11 +867,7 @@ char* nous_claude_chat_with_tools(const char* system_prompt, const char* user_me
     free(transformed_tools);
 
     // Setup response buffer
-    ResponseBuffer response = {
-        .data = malloc(8192),
-        .size = 0,
-        .capacity = 8192
-    };
+    ResponseBuffer response = {.data = malloc(8192), .size = 0, .capacity = 8192};
     if (!response.data) {
         free(json_body);
         curl_easy_cleanup(curl);
@@ -802,7 +889,7 @@ char* nous_claude_chat_with_tools(const char* system_prompt, const char* user_me
     curl_easy_setopt(curl, CURLOPT_POSTFIELDS, json_body);
     curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_callback);
     curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response);
-    curl_easy_setopt(curl, CURLOPT_TIMEOUT, 120L);  // Override: longer timeout for web search
+    curl_easy_setopt(curl, CURLOPT_TIMEOUT, 120L); // Override: longer timeout for web search
 
     // Execute
     CURLcode res = curl_easy_perform(curl);
@@ -812,14 +899,16 @@ char* nous_claude_chat_with_tools(const char* system_prompt, const char* user_me
 
     if (!claude_handle_result(curl, res, response.data)) {
         // Debug: Log API error response
-        LOG_ERROR(LOG_CAT_API, "Claude API error response: %.500s", response.data ? response.data : "(null)");
+        LOG_ERROR(LOG_CAT_API, "Claude API error response: %.500s",
+                  response.data ? response.data : "(null)");
         free(response.data);
         curl_easy_cleanup(curl);
         return NULL;
     }
 
     // Debug: Log successful response for web_search debugging
-    LOG_DEBUG(LOG_CAT_API, "Claude API response (first 1000 chars): %.1000s", response.data ? response.data : "(null)");
+    LOG_DEBUG(LOG_CAT_API, "Claude API response (first 1000 chars): %.1000s",
+              response.data ? response.data : "(null)");
 
     // Check for tool calls
     if (out_tool_calls) {
@@ -859,7 +948,7 @@ extern volatile sig_atomic_t g_stream_cancelled;
 static size_t stream_write_callback(void* contents, size_t size, size_t nmemb, void* userp) {
     // Check for cancellation
     if (g_stream_cancelled) {
-        return 0;  // Abort transfer
+        return 0; // Abort transfer
     }
 
     size_t total = size * nmemb;
@@ -867,7 +956,8 @@ static size_t stream_write_callback(void* contents, size_t size, size_t nmemb, v
 
     // Make a null-terminated copy of the data
     char* data = malloc(total + 1);
-    if (!data) return total;
+    if (!data)
+        return total;
     memcpy(data, contents, total);
     data[total] = '\0';
 
@@ -876,7 +966,7 @@ static size_t stream_write_callback(void* contents, size_t size, size_t nmemb, v
     char* newline;
 
     while ((newline = strchr(line, '\n')) != NULL) {
-        *newline = '\0';  // Null-terminate this line
+        *newline = '\0'; // Null-terminate this line
 
         // Check for "data: " prefix
         if (strncmp(line, "data: ", 6) == 0) {
@@ -887,15 +977,15 @@ static size_t stream_write_callback(void* contents, size_t size, size_t nmemb, v
                 // Find "text":"
                 char* text_start = strstr(json, "\"text\":\"");
                 if (text_start) {
-                    text_start += 8;  // Skip "text":"
+                    text_start += 8; // Skip "text":"
 
                     // Find closing quote (handle escapes properly)
                     char* text_end = text_start;
                     while (*text_end) {
                         if (*text_end == '\\' && *(text_end + 1)) {
-                            text_end += 2;  // Skip escaped char
+                            text_end += 2; // Skip escaped char
                         } else if (*text_end == '"') {
-                            break;  // Found unescaped closing quote
+                            break; // Found unescaped closing quote
                         } else {
                             text_end++;
                         }
@@ -912,12 +1002,23 @@ static size_t stream_write_callback(void* contents, size_t size, size_t nmemb, v
                                 if (*p == '\\' && p + 1 < text_end) {
                                     p++;
                                     switch (*p) {
-                                        case 'n': *out++ = '\n'; break;
-                                        case 'r': *out++ = '\r'; break;
-                                        case 't': *out++ = '\t'; break;
-                                        case '"': *out++ = '"'; break;
-                                        case '\\': *out++ = '\\'; break;
-                                        default: *out++ = *p;
+                                    case 'n':
+                                        *out++ = '\n';
+                                        break;
+                                    case 'r':
+                                        *out++ = '\r';
+                                        break;
+                                    case 't':
+                                        *out++ = '\t';
+                                        break;
+                                    case '"':
+                                        *out++ = '"';
+                                        break;
+                                    case '\\':
+                                        *out++ = '\\';
+                                        break;
+                                    default:
+                                        *out++ = *p;
                                     }
                                 } else {
                                     *out++ = *p;
@@ -936,7 +1037,8 @@ static size_t stream_write_callback(void* contents, size_t size, size_t nmemb, v
                                 if (ctx->acc_size + chunk_len >= ctx->acc_capacity) {
                                     ctx->acc_capacity = (ctx->acc_capacity + chunk_len) * 2;
                                     char* new_acc = realloc(ctx->accumulated, ctx->acc_capacity);
-                                    if (new_acc) ctx->accumulated = new_acc;
+                                    if (new_acc)
+                                        ctx->accumulated = new_acc;
                                 }
                                 if (ctx->accumulated) {
                                     memcpy(ctx->accumulated + ctx->acc_size, chunk, chunk_len);
@@ -961,8 +1063,9 @@ static size_t stream_write_callback(void* contents, size_t size, size_t nmemb, v
 
 // Streaming chat - calls callback for each chunk as it arrives
 char* nous_claude_chat_stream(const char* system_prompt, const char* user_message,
-                               StreamCallback callback, void* user_data) {
-    if (!g_initialized || !user_message) return NULL;
+                              StreamCallback callback, void* user_data) {
+    if (!g_initialized || !user_message)
+        return NULL;
 
     // Create a fresh curl handle for this request (thread-safe)
     CURL* curl = curl_easy_init();
@@ -992,26 +1095,24 @@ char* nous_claude_chat_stream(const char* system_prompt, const char* user_messag
     }
 
     snprintf(json_body, json_size,
-        "{"
-        "\"model\": \"%s\","
-        "\"max_tokens\": 4096,"
-        "\"stream\": true,"
-        "\"system\": \"%s\","
-        "\"messages\": [{\"role\": \"user\", \"content\": \"%s\"}]"
-        "}",
-        CLAUDE_MODEL, escaped_system, escaped_user);
+             "{"
+             "\"model\": \"%s\","
+             "\"max_tokens\": 4096,"
+             "\"stream\": true,"
+             "\"system\": \"%s\","
+             "\"messages\": [{\"role\": \"user\", \"content\": \"%s\"}]"
+             "}",
+             CLAUDE_MODEL, escaped_system, escaped_user);
 
     free(escaped_system);
     free(escaped_user);
 
     // Setup streaming context
-    StreamContext ctx = {
-        .callback = callback,
-        .user_data = user_data,
-        .accumulated = malloc(4096),
-        .acc_size = 0,
-        .acc_capacity = 4096
-    };
+    StreamContext ctx = {.callback = callback,
+                         .user_data = user_data,
+                         .accumulated = malloc(4096),
+                         .acc_size = 0,
+                         .acc_capacity = 4096};
     if (ctx.accumulated) {
         ctx.accumulated[0] = '\0';
     }
@@ -1030,7 +1131,7 @@ char* nous_claude_chat_stream(const char* system_prompt, const char* user_messag
     curl_easy_setopt(curl, CURLOPT_POSTFIELDS, json_body);
     curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, stream_write_callback);
     curl_easy_setopt(curl, CURLOPT_WRITEDATA, &ctx);
-    curl_easy_setopt(curl, CURLOPT_TIMEOUT, 120L);  // Override: longer timeout for streaming
+    curl_easy_setopt(curl, CURLOPT_TIMEOUT, 120L); // Override: longer timeout for streaming
 
     // Execute
     CURLcode res = curl_easy_perform(curl);
@@ -1041,7 +1142,7 @@ char* nous_claude_chat_stream(const char* system_prompt, const char* user_messag
 
     if (res == CURLE_ABORTED_BY_CALLBACK) {
         free(ctx.accumulated);
-        return NULL;  // Cancelled by user
+        return NULL; // Cancelled by user
     }
 
     if (res != CURLE_OK) {
@@ -1060,7 +1161,7 @@ char* nous_claude_chat_stream(const char* system_prompt, const char* user_messag
 
 // Conversation message for multi-turn
 typedef struct ConvMessage {
-    char* role;      // "user" or "assistant"
+    char* role; // "user" or "assistant"
     char* content;
     struct ConvMessage* next;
 } ConvMessage;
@@ -1076,7 +1177,8 @@ typedef struct {
 // Create a new conversation
 Conversation* conversation_create(const char* system_prompt) {
     Conversation* conv = calloc(1, sizeof(Conversation));
-    if (!conv) return NULL;
+    if (!conv)
+        return NULL;
 
     conv->system_prompt = system_prompt ? strdup(system_prompt) : NULL;
     return conv;
@@ -1084,10 +1186,12 @@ Conversation* conversation_create(const char* system_prompt) {
 
 // Add a message to conversation
 void conversation_add_message(Conversation* conv, const char* role, const char* content) {
-    if (!conv || !role || !content) return;
+    if (!conv || !role || !content)
+        return;
 
     ConvMessage* msg = calloc(1, sizeof(ConvMessage));
-    if (!msg) return;
+    if (!msg)
+        return;
 
     msg->role = strdup(role);
     msg->content = strdup(content);
@@ -1103,7 +1207,8 @@ void conversation_add_message(Conversation* conv, const char* role, const char* 
 
 // Free conversation
 void conversation_free(Conversation* conv) {
-    if (!conv) return;
+    if (!conv)
+        return;
 
     free(conv->system_prompt);
 
@@ -1121,7 +1226,8 @@ void conversation_free(Conversation* conv) {
 
 // Chat with full conversation history
 char* nous_claude_chat_conversation(Conversation* conv, const char* user_message) {
-    if (!g_initialized || !conv || !user_message) return NULL;
+    if (!g_initialized || !conv || !user_message)
+        return NULL;
 
     // Create a fresh curl handle for this request (thread-safe)
     CURL* curl = curl_easy_init();
@@ -1156,7 +1262,7 @@ char* nous_claude_chat_conversation(Conversation* conv, const char* user_message
         }
 
         size_t needed = strlen(escaped_content) + strlen(msg->role) + 64;
-        if (offset + needed + 2 >= messages_capacity) {  // +2 for trailing "]" and null
+        if (offset + needed + 2 >= messages_capacity) { // +2 for trailing "]" and null
             messages_capacity = (messages_capacity + needed) * 2;
             char* new_buf = realloc(messages_json, messages_capacity);
             if (!new_buf) {
@@ -1169,8 +1275,8 @@ char* nous_claude_chat_conversation(Conversation* conv, const char* user_message
         }
 
         int written = snprintf(messages_json + offset, messages_capacity - offset,
-            "%s{\"role\": \"%s\", \"content\": \"%s\"}",
-            first ? "" : ",", msg->role, escaped_content);
+                               "%s{\"role\": \"%s\", \"content\": \"%s\"}", first ? "" : ",",
+                               msg->role, escaped_content);
 
         if (written > 0 && (size_t)written < messages_capacity - offset) {
             offset += (size_t)written;
@@ -1200,23 +1306,19 @@ char* nous_claude_chat_conversation(Conversation* conv, const char* user_message
     }
 
     snprintf(json_body, json_size,
-        "{"
-        "\"model\": \"%s\","
-        "\"max_tokens\": 4096,"
-        "\"system\": \"%s\","
-        "\"messages\": %s"
-        "}",
-        CLAUDE_MODEL, escaped_system, messages_json);
+             "{"
+             "\"model\": \"%s\","
+             "\"max_tokens\": 4096,"
+             "\"system\": \"%s\","
+             "\"messages\": %s"
+             "}",
+             CLAUDE_MODEL, escaped_system, messages_json);
 
     free(escaped_system);
     free(messages_json);
 
     // Setup response buffer
-    ResponseBuffer response = {
-        .data = malloc(8192),
-        .size = 0,
-        .capacity = 8192
-    };
+    ResponseBuffer response = {.data = malloc(8192), .size = 0, .capacity = 8192};
     if (!response.data) {
         free(json_body);
         curl_easy_cleanup(curl);
@@ -1238,7 +1340,7 @@ char* nous_claude_chat_conversation(Conversation* conv, const char* user_message
     curl_easy_setopt(curl, CURLOPT_POSTFIELDS, json_body);
     curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_callback);
     curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response);
-    curl_easy_setopt(curl, CURLOPT_TIMEOUT, 120L);  // Override: longer timeout for multi-turn
+    curl_easy_setopt(curl, CURLOPT_TIMEOUT, 120L); // Override: longer timeout for multi-turn
 
     // Execute
     CURLcode res = curl_easy_perform(curl);
@@ -1270,17 +1372,20 @@ char* nous_claude_chat_conversation(Conversation* conv, const char* user_message
 // ============================================================================
 
 char* nous_agent_think_with_claude(NousAgent* agent, const char* input) {
-    if (!agent || !input) return NULL;
+    if (!agent || !input)
+        return NULL;
 
     if (!g_initialized) {
         if (nous_claude_init() != 0) {
-            return strdup("Non riesco a connettermi al mio cervello AI. Verifica ANTHROPIC_API_KEY.");
+            return strdup(
+                "Non riesco a connettermi al mio cervello AI. Verifica ANTHROPIC_API_KEY.");
         }
     }
 
     // Build system prompt from agent personality
     char system_prompt[2048];
-    snprintf(system_prompt, sizeof(system_prompt),
+    snprintf(
+        system_prompt, sizeof(system_prompt),
         "Sei %s, un agente AI con la seguente essenza: %s.\n\n"
         "La tua personalità:\n"
         "- Pazienza: %.0f%% (quanto aspetti prima di chiedere chiarimenti)\n"
@@ -1289,11 +1394,8 @@ char* nous_agent_think_with_claude(NousAgent* agent, const char* input) {
         "Rispondi in italiano, in modo naturale e collaborativo. "
         "Sei parte di Convergio Kernel, un sistema per la simbiosi umano-AI. "
         "Rispondi in modo conciso (max 2-3 frasi) a meno che non ti venga chiesto di approfondire.",
-        agent->name,
-        agent->essence,
-        (double)(agent->patience * 100),
-        (double)(agent->creativity * 100),
-        (double)(agent->assertiveness * 100));
+        agent->name, agent->essence, (double)(agent->patience * 100),
+        (double)(agent->creativity * 100), (double)(agent->assertiveness * 100));
 
     return nous_claude_chat(system_prompt, input);
 }
@@ -1303,7 +1405,8 @@ char* nous_agent_think_with_claude(NousAgent* agent, const char* input) {
 // ============================================================================
 
 int nous_generate_embedding(const char* text, NousEmbedding* out) {
-    if (!text || !out) return -1;
+    if (!text || !out)
+        return -1;
 
     // Try OpenAI embeddings first (when online with OPENAI_API_KEY)
     const char* openai_key = getenv("OPENAI_API_KEY");
@@ -1322,7 +1425,8 @@ int nous_generate_embedding(const char* text, NousEmbedding* out) {
             return 0;
         }
         // If OpenAI fails, fall through to hash-based fallback
-        if (embedding) free(embedding);
+        if (embedding)
+            free(embedding);
     }
 
     // Fallback: Deterministic hash-based pseudo-embeddings

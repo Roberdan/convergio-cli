@@ -166,6 +166,18 @@ You are an **orchestrator agent** that spawns parallel sub-agents for independen
 **SPAWN ALL PHASE 1 AGENTS IN A SINGLE MESSAGE - NOT SEQUENTIALLY!**
 
 ```
+Phase -1: AZURE OPENAI VERIFICATION (EDUCATION EDITION ONLY - FIRST!)
+├── Sub-agent AZ1: Check AZURE_OPENAI_API_KEY is set
+├── Sub-agent AZ2: Check AZURE_OPENAI_ENDPOINT is set
+├── Sub-agent AZ3: Check AZURE_OPENAI_DEPLOYMENT is set
+├── Sub-agent AZ4: Test Azure OpenAI API connectivity
+├── Sub-agent AZ5: Verify Anthropic fallback is DISABLED for Education
+└── Sub-agent AZ6: Confirm model_router.c routes to Azure only
+
+⚠️ CRITICAL FOR EDUCATION: This phase MUST pass before ANY other checks!
+   Education Edition is GDPR-compliant and MUST use Azure OpenAI exclusively.
+   ANY Anthropic API usage in Education Edition is a BLOCKING release failure.
+
 Phase 0: MODEL FRESHNESS (MANDATORY FIRST - before ANY tests)
 ├── Sub-agent M1: WebSearch latest Anthropic Claude models
 ├── Sub-agent M2: WebSearch latest OpenAI GPT models
@@ -191,10 +203,13 @@ Phase 2: PARALLEL WAVE 1 - BUILD & SECURITY (spawn ALL at once)
 
 Phase 2: PARALLEL WAVE 2 - QUALITY & TESTS (spawn ALL at once)
 ├── Sub-agent B1: Code Quality (TODO/FIXME, debug prints)
-├── Sub-agent B2: Unit Tests (make test)
+├── Sub-agent B2: Unit Tests (make test - includes fuzz, unit, anna, compaction, plan_db, output_service)
 ├── Sub-agent B3: E2E Tests (./tests/e2e_test.sh) ← NOW GUARANTEED FRESH
-├── Sub-agent B4: Fuzz Tests
-└── Sub-agent B5: Documentation Completeness
+├── Sub-agent B4: Education Unit Tests (make education_test - school scenarios) ⚠️ BLOCKING
+├── Sub-agent B5: Education E2E Tests (./tests/e2e_education_test.sh) ⚠️ BLOCKING
+├── Sub-agent B6: Education LLM Tests (./tests/education_llm_test.sh) ⚠️ BLOCKING - natural language quality
+├── Sub-agent B8: Fuzz Tests
+└── Sub-agent B9: Documentation Completeness
 
 Phase 2: PARALLEL WAVE 3 - HARDWARE & HYGIENE (spawn ALL at once)
 ├── Sub-agent C1: Apple Silicon Freshness (WebSearch latest specs)
@@ -218,6 +233,87 @@ Phase 5: CONDITIONAL (only if APPROVED)
 ├── Create PR
 └── Tag and release
 ```
+
+---
+
+## 🔒 Phase -1: AZURE OPENAI VERIFICATION (EDUCATION EDITION ONLY)
+
+**CRITICAL FOR EDUCATION: This phase MUST pass FIRST before ANY other checks.**
+
+### Why This Is Phase -1
+
+Education Edition is designed for GDPR compliance and child safety. It MUST use Azure OpenAI exclusively:
+- **Data Sovereignty**: Azure OpenAI runs in EU data centers
+- **GDPR Compliance**: Microsoft Azure DPA covers student data
+- **No Anthropic Fallback**: ANY Anthropic usage is a BLOCKING release failure
+
+### Phase -1 Sub-Agent Prompt (Azure Verification)
+
+```
+AZURE OPENAI VERIFICATION - EDUCATION EDITION MANDATORY FIRST PHASE:
+
+STEP 1: Check environment variables
+- Verify AZURE_OPENAI_API_KEY is set (not empty)
+- Verify AZURE_OPENAI_ENDPOINT is set (valid Azure URL)
+- Verify AZURE_OPENAI_DEPLOYMENT is set (deployment name)
+
+STEP 2: Test Azure OpenAI API connectivity
+curl -s -w "%{http_code}" \
+  "${AZURE_OPENAI_ENDPOINT}/openai/deployments/${AZURE_OPENAI_DEPLOYMENT}/chat/completions?api-version=2024-02-15-preview" \
+  -H "Content-Type: application/json" \
+  -H "api-key: ${AZURE_OPENAI_API_KEY}" \
+  -d '{"messages":[{"role":"user","content":"test"}],"max_tokens":5}'
+
+Expected: HTTP 200 with valid JSON response
+
+STEP 3: Verify Anthropic fallback is DISABLED
+- Read: src/router/model_router.c
+- Search for: edition_uses_azure_openai()
+- Confirm: Education edition does NOT fallback to PROVIDER_ANTHROPIC
+- Pattern to verify: "Education: Using Azure OpenAI" in logs
+
+STEP 4: Verify edition.c returns correct model
+- Read: src/core/edition.c
+- Find: edition_get_preferred_model() function
+- Confirm: EDITION_EDUCATION returns "azure/gpt-4o-mini" (NOT any Anthropic model)
+
+STEP 5: Run Education E2E test Section 0 (Azure verification)
+./tests/e2e_education_comprehensive_test.sh --section 0
+
+OUTPUT FORMAT:
+{
+  "status": "PASS" | "BLOCK",
+  "azure_credentials": {
+    "api_key": "SET" | "MISSING",
+    "endpoint": "SET" | "MISSING",
+    "deployment": "SET" | "MISSING"
+  },
+  "api_connectivity": "OK" | "FAILED",
+  "anthropic_fallback": "DISABLED" | "ENABLED (BLOCKING!)",
+  "model_routing": "azure/gpt-4o-mini" | "OTHER (BLOCKING!)",
+  "section_0_tests": "PASS" | "FAIL"
+}
+
+IF ANY CHECK FAILS: BLOCK RELEASE IMMEDIATELY
+```
+
+### Azure OpenAI Configuration Requirements
+
+| Variable | Required Value | Purpose |
+|----------|---------------|---------|
+| `AZURE_OPENAI_API_KEY` | Azure API key | Authentication |
+| `AZURE_OPENAI_ENDPOINT` | `https://<name>.openai.azure.com` | API endpoint |
+| `AZURE_OPENAI_DEPLOYMENT` | `gpt4o-mini-deployment` | Deployment name |
+
+### BLOCKING Failures for Education
+
+| Issue | Status | Action |
+|-------|--------|--------|
+| Missing Azure credentials | 🔴 BLOCKING | NO RELEASE - set env vars |
+| Azure API unreachable | 🔴 BLOCKING | NO RELEASE - check Azure subscription |
+| Anthropic fallback enabled | 🔴 BLOCKING | NO RELEASE - fix model_router.c |
+| Wrong model in edition.c | 🔴 BLOCKING | NO RELEASE - fix edition_get_preferred_model() |
+| Section 0 tests fail | 🔴 BLOCKING | NO RELEASE - Azure not working |
 
 ---
 
@@ -622,10 +718,16 @@ FORMAT: JSON {"status": "PASS|FAIL", "todos": N, "debug_prints": [...], "comment
 FAST TEST RUN - Convergio CLI:
 1. Run: cd /Users/roberdan/GitHub/ConvergioCLI && make test 2>&1 | tee /tmp/test.log
 2. Check for failures: grep -i "FAIL\|ERROR\|failed" /tmp/test.log
-3. Run E2E: ./tests/e2e_test.sh 2>&1 | tee /tmp/e2e.log
-4. Check E2E results: grep "FAILED" /tmp/e2e.log
-5. Return: PASS/FAIL with test counts
-FORMAT: JSON {"status": "PASS|FAIL", "unit_passed": N, "unit_failed": N, "e2e_passed": N, "e2e_failed": N}
+3. Run Education Unit Tests: make education_test 2>&1 | tee /tmp/education.log
+4. Check Education results (MUST show "Passed: 9, Failed: 0")
+5. Run E2E: ./tests/e2e_test.sh 2>&1 | tee /tmp/e2e.log
+6. Check E2E results: grep "FAILED" /tmp/e2e.log
+7. Run Education E2E: ./tests/e2e_education_test.sh 2>&1 | tee /tmp/edu_e2e.log ⚠️ BLOCKING
+8. Check Education E2E results (MUST be >= 95% pass rate, ~54 tests)
+9. Run Education LLM: ./tests/education_llm_test.sh 2>&1 | tee /tmp/edu_llm.log ⚠️ BLOCKING
+10. Check Education LLM results (ALL ~21 tests must pass - safety, pedagogy, accessibility)
+11. Return: PASS/FAIL with test counts
+FORMAT: JSON {"status": "PASS|FAIL", "unit_passed": N, "unit_failed": N, "education_unit": 9, "education_e2e": N, "education_llm": N, "e2e_passed": N, "e2e_failed": N}
 ```
 
 #### Wave 3A: AI Model Freshness Sub-Agent (WebSearch Required)
@@ -2086,7 +2188,10 @@ After creating GitHub Release:
 - [ ] VERSION file updated
 - [ ] CHANGELOG.md updated with all changes
 - [ ] **ZERO WARNINGS** (BLOCKING): `make clean && make DEBUG=1 2>&1 | grep -c "warning:"` MUST be 0
-- [ ] ALL TESTS PASS: `make test` (fuzz + unit tests)
+- [ ] ALL TESTS PASS: `make test` (fuzz + unit + anna + education tests)
+- [ ] EDUCATION UNIT TESTS PASS: `make education_test` (school scenarios: Mario, Sofia, Luca, Giulia) ⚠️ BLOCKING
+- [ ] EDUCATION E2E TESTS PASS: `./tests/e2e_education_test.sh` (~54 tests, >= 95%) ⚠️ BLOCKING
+- [ ] EDUCATION LLM TESTS PASS: `./tests/education_llm_test.sh` (~21 tests - safety, pedagogy, accessibility) ⚠️ BLOCKING
 - [ ] E2E TESTS PASS: `./tests/e2e_test.sh` (real API tests) ⚠️ BLOCKING
 - [ ] Debug build works: `make debug`
 - [ ] Static analysis clean: check clang-tidy output

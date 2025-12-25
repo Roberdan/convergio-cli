@@ -6,15 +6,15 @@
 
 #include "projects.h"
 #include "nous/safe_path.h"
+#include <ctype.h>
+#include <dirent.h>
+#include <errno.h>
+#include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
-#include <dirent.h>
-#include <errno.h>
-#include <ctype.h>
 #include <unistd.h>
-#include <fcntl.h>
 
 // ============================================================================
 // CONSTANTS
@@ -38,58 +38,40 @@ static ProjectManager* g_project_manager = NULL;
 // PROJECT TEMPLATES
 // ============================================================================
 
-static const char* template_app_dev_team[] = {
-    "baccio", "davide", "stefano", "tester", "devops", NULL
-};
+static const char* template_app_dev_team[] = {"baccio", "davide", "stefano",
+                                              "tester", "devops", NULL};
 
-static const char* template_marketing_team[] = {
-    "copywriter", "designer", "analyst", "matteo", NULL
-};
+static const char* template_marketing_team[] = {"copywriter", "designer", "analyst", "matteo",
+                                                NULL};
 
-static const char* template_research_team[] = {
-    "omri", "data-scientist", "researcher", "writer", NULL
-};
+static const char* template_research_team[] = {"omri", "data-scientist", "researcher", "writer",
+                                               NULL};
 
-static const char* template_executive_team[] = {
-    "matteo", "amy", "consultant", "writer", NULL
-};
+static const char* template_executive_team[] = {"matteo", "amy", "consultant", "writer", NULL};
 
-static const char* template_finance_team[] = {
-    "amy", "fiona", "analyst", "consultant", NULL
-};
+static const char* template_finance_team[] = {"amy", "fiona", "analyst", "consultant", NULL};
 
 static ProjectTemplate g_templates[] = {
-    {
-        .name = "app-dev",
-        .description = "Application development with architecture, coding, testing, and DevOps",
-        .default_team = template_app_dev_team,
-        .team_count = 5
-    },
-    {
-        .name = "marketing",
-        .description = "Marketing campaign with creative, analytics, and strategy",
-        .default_team = template_marketing_team,
-        .team_count = 4
-    },
-    {
-        .name = "research",
-        .description = "Research project with data science and documentation",
-        .default_team = template_research_team,
-        .team_count = 4
-    },
-    {
-        .name = "executive",
-        .description = "Executive presentation with strategy and finance",
-        .default_team = template_executive_team,
-        .team_count = 4
-    },
-    {
-        .name = "finance",
-        .description = "Financial analysis with CFO, market analyst, and consulting",
-        .default_team = template_finance_team,
-        .team_count = 4
-    }
-};
+    {.name = "app-dev",
+     .description = "Application development with architecture, coding, testing, and DevOps",
+     .default_team = template_app_dev_team,
+     .team_count = 5},
+    {.name = "marketing",
+     .description = "Marketing campaign with creative, analytics, and strategy",
+     .default_team = template_marketing_team,
+     .team_count = 4},
+    {.name = "research",
+     .description = "Research project with data science and documentation",
+     .default_team = template_research_team,
+     .team_count = 4},
+    {.name = "executive",
+     .description = "Executive presentation with strategy and finance",
+     .default_team = template_executive_team,
+     .team_count = 4},
+    {.name = "finance",
+     .description = "Financial analysis with CFO, market analyst, and consulting",
+     .default_team = template_finance_team,
+     .team_count = 4}};
 
 static const size_t g_template_count = sizeof(g_templates) / sizeof(g_templates[0]);
 
@@ -100,7 +82,8 @@ static const size_t g_template_count = sizeof(g_templates) / sizeof(g_templates[
 // Create directory recursively
 static bool mkdir_recursive(const char* path) {
     char* p = strdup(path);
-    if (!p) return false;
+    if (!p)
+        return false;
 
     for (char* s = p + 1; *s; s++) {
         if (*s == '/') {
@@ -130,7 +113,8 @@ static bool file_exists(const char* path) {
 static char* read_file(const char* path) {
     int fd = safe_path_open(path, safe_path_get_user_boundary(), O_RDONLY, 0);
     FILE* f = fd >= 0 ? fdopen(fd, "r") : NULL;
-    if (!f) return NULL;
+    if (!f)
+        return NULL;
 
     fseek(f, 0, SEEK_END);
     long size = ftell(f);
@@ -151,9 +135,11 @@ static char* read_file(const char* path) {
 
 // Write string to file
 static bool write_file(const char* path, const char* content) {
-    int fd = safe_path_open(path, safe_path_get_user_boundary(), O_WRONLY | O_CREAT | O_TRUNC, 0644);
+    int fd =
+        safe_path_open(path, safe_path_get_user_boundary(), O_WRONLY | O_CREAT | O_TRUNC, 0644);
     FILE* f = fd >= 0 ? fdopen(fd, "w") : NULL;
-    if (!f) return false;
+    if (!f)
+        return false;
 
     size_t len = strlen(content);
     size_t written = fwrite(content, 1, len, f);
@@ -164,21 +150,39 @@ static bool write_file(const char* path, const char* content) {
 
 // Escape string for JSON
 static char* json_escape_str(const char* str) {
-    if (!str) return strdup("");
+    if (!str)
+        return strdup("");
 
     size_t len = strlen(str);
     char* escaped = malloc(len * 2 + 1);
-    if (!escaped) return NULL;
+    if (!escaped)
+        return NULL;
 
     char* out = escaped;
     for (const char* p = str; *p; p++) {
         switch (*p) {
-            case '"': *out++ = '\\'; *out++ = '"'; break;
-            case '\\': *out++ = '\\'; *out++ = '\\'; break;
-            case '\n': *out++ = '\\'; *out++ = 'n'; break;
-            case '\r': *out++ = '\\'; *out++ = 'r'; break;
-            case '\t': *out++ = '\\'; *out++ = 't'; break;
-            default: *out++ = *p;
+        case '"':
+            *out++ = '\\';
+            *out++ = '"';
+            break;
+        case '\\':
+            *out++ = '\\';
+            *out++ = '\\';
+            break;
+        case '\n':
+            *out++ = '\\';
+            *out++ = 'n';
+            break;
+        case '\r':
+            *out++ = '\\';
+            *out++ = 'r';
+            break;
+        case '\t':
+            *out++ = '\\';
+            *out++ = 't';
+            break;
+        default:
+            *out++ = *p;
         }
     }
     *out = '\0';
@@ -191,28 +195,35 @@ static char* json_get_string(const char* json, const char* key) {
     snprintf(search, sizeof(search), "\"%s\"", key);
 
     const char* found = strstr(json, search);
-    if (!found) return NULL;
+    if (!found)
+        return NULL;
 
     // Find the colon
     const char* colon = strchr(found + strlen(search), ':');
-    if (!colon) return NULL;
+    if (!colon)
+        return NULL;
 
     // Skip whitespace and find opening quote
     const char* start = colon + 1;
-    while (*start && (*start == ' ' || *start == '\t' || *start == '\n')) start++;
-    if (*start != '"') return NULL;
+    while (*start && (*start == ' ' || *start == '\t' || *start == '\n'))
+        start++;
+    if (*start != '"')
+        return NULL;
     start++;
 
     // Find closing quote (handle escapes)
     const char* end = start;
     while (*end && *end != '"') {
-        if (*end == '\\' && *(end + 1)) end += 2;
-        else end++;
+        if (*end == '\\' && *(end + 1))
+            end += 2;
+        else
+            end++;
     }
 
     size_t len = (size_t)(end - start);
     char* value = malloc(len + 1);
-    if (!value) return NULL;
+    if (!value)
+        return NULL;
     strncpy(value, start, len);
     value[len] = '\0';
 
@@ -224,14 +235,16 @@ static char* json_get_string(const char* json, const char* key) {
 // ============================================================================
 
 char* project_name_to_slug(const char* name) {
-    if (!name) return NULL;
+    if (!name)
+        return NULL;
 
     size_t len = strlen(name);
     char* slug = malloc(len + 1);
-    if (!slug) return NULL;
+    if (!slug)
+        return NULL;
 
     char* out = slug;
-    bool last_was_dash = true;  // Prevent leading dash
+    bool last_was_dash = true; // Prevent leading dash
 
     for (const char* p = name; *p; p++) {
         if (isalnum(*p)) {
@@ -257,14 +270,17 @@ char* project_name_to_slug(const char* name) {
 // ============================================================================
 
 bool projects_init(void) {
-    if (g_project_manager) return true;  // Already initialized
+    if (g_project_manager)
+        return true; // Already initialized
 
     g_project_manager = calloc(1, sizeof(ProjectManager));
-    if (!g_project_manager) return false;
+    if (!g_project_manager)
+        return false;
 
     // Set base path
     const char* home = getenv("HOME");
-    if (!home) home = "/tmp";
+    if (!home)
+        home = "/tmp";
 
     size_t path_len = strlen(home) + 32;
     g_project_manager->projects_base_path = malloc(path_len);
@@ -273,8 +289,7 @@ bool projects_init(void) {
         g_project_manager = NULL;
         return false;
     }
-    snprintf(g_project_manager->projects_base_path, path_len,
-             "%s/.convergio/projects", home);
+    snprintf(g_project_manager->projects_base_path, path_len, "%s/.convergio/projects", home);
 
     // Create projects directory if it doesn't exist
     mkdir_recursive(g_project_manager->projects_base_path);
@@ -284,7 +299,8 @@ bool projects_init(void) {
     if (dir) {
         struct dirent* entry;
         while ((entry = readdir(dir)) && g_project_manager->project_count < MAX_PROJECTS) {
-            if (entry->d_name[0] == '.') continue;
+            if (entry->d_name[0] == '.')
+                continue;
 
             // Check if it's a directory with project.yaml
             char project_file[1024];
@@ -294,10 +310,9 @@ bool projects_init(void) {
             if (file_exists(project_file)) {
                 ConvergioProject* proj = project_load(entry->d_name);
                 if (proj) {
-                    ConvergioProject** new_all_projects = realloc(
-                        g_project_manager->all_projects,
-                        (g_project_manager->project_count + 1) * sizeof(ConvergioProject*)
-                    );
+                    ConvergioProject** new_all_projects =
+                        realloc(g_project_manager->all_projects,
+                                (g_project_manager->project_count + 1) * sizeof(ConvergioProject*));
                     if (!new_all_projects) {
                         project_free(proj);
                     } else {
@@ -312,15 +327,15 @@ bool projects_init(void) {
 
     // Check for last used project
     char last_project_file[1024];
-    snprintf(last_project_file, sizeof(last_project_file),
-             "%s/.convergio/last_project", home);
+    snprintf(last_project_file, sizeof(last_project_file), "%s/.convergio/last_project", home);
 
     if (file_exists(last_project_file)) {
         char* last_slug = read_file(last_project_file);
         if (last_slug) {
             // Trim whitespace
             char* end = last_slug + strlen(last_slug) - 1;
-            while (end > last_slug && isspace(*end)) *end-- = '\0';
+            while (end > last_slug && isspace(*end))
+                *end-- = '\0';
 
             project_use(last_slug);
             free(last_slug);
@@ -331,7 +346,8 @@ bool projects_init(void) {
 }
 
 void projects_shutdown(void) {
-    if (!g_project_manager) return;
+    if (!g_project_manager)
+        return;
 
     // Save current project
     if (g_project_manager->current) {
@@ -341,8 +357,8 @@ void projects_shutdown(void) {
         const char* home = getenv("HOME");
         if (home) {
             char last_project_file[1024];
-            snprintf(last_project_file, sizeof(last_project_file),
-                     "%s/.convergio/last_project", home);
+            snprintf(last_project_file, sizeof(last_project_file), "%s/.convergio/last_project",
+                     home);
             write_file(last_project_file, g_project_manager->current->slug);
         }
     }
@@ -366,11 +382,11 @@ ProjectManager* projects_get_manager(void) {
 // ============================================================================
 
 const char* project_get_storage_path(const char* slug) {
-    if (!g_project_manager || !slug) return NULL;
+    if (!g_project_manager || !slug)
+        return NULL;
 
     static char path[1024];
-    snprintf(path, sizeof(path), "%s/%s",
-             g_project_manager->projects_base_path, slug);
+    snprintf(path, sizeof(path), "%s/%s", g_project_manager->projects_base_path, slug);
     return path;
 }
 
@@ -378,12 +394,14 @@ const char* project_get_storage_path(const char* slug) {
 // PROJECT CREATE
 // ============================================================================
 
-ConvergioProject* project_create(const char* name, const char* purpose,
-                                  const char* team_names, const char* template_name) {
-    if (!g_project_manager || !name) return NULL;
+ConvergioProject* project_create(const char* name, const char* purpose, const char* team_names,
+                                 const char* template_name) {
+    if (!g_project_manager || !name)
+        return NULL;
 
     ConvergioProject* proj = calloc(1, sizeof(ConvergioProject));
-    if (!proj) return NULL;
+    if (!proj)
+        return NULL;
 
     proj->name = strdup(name);
     proj->slug = project_name_to_slug(name);
@@ -415,15 +433,15 @@ ConvergioProject* project_create(const char* name, const char* purpose,
         char* token = strtok(team_copy, ",");
         while (token && proj->team_count < MAX_TEAM_SIZE) {
             // Trim whitespace
-            while (*token == ' ') token++;
+            while (*token == ' ')
+                token++;
             char* end = token + strlen(token) - 1;
-            while (end > token && *end == ' ') *end-- = '\0';
+            while (end > token && *end == ' ')
+                *end-- = '\0';
 
             if (strlen(token) > 0) {
-                ProjectTeamMember* new_team = realloc(
-                    proj->team,
-                    (proj->team_count + 1) * sizeof(ProjectTeamMember)
-                );
+                ProjectTeamMember* new_team =
+                    realloc(proj->team, (proj->team_count + 1) * sizeof(ProjectTeamMember));
                 if (!new_team) {
                     break;
                 }
@@ -440,10 +458,8 @@ ConvergioProject* project_create(const char* name, const char* purpose,
         const ProjectTemplate* tmpl = project_get_template(template_name);
         if (tmpl) {
             for (size_t i = 0; i < tmpl->team_count && tmpl->default_team[i]; i++) {
-                ProjectTeamMember* new_team = realloc(
-                    proj->team,
-                    (proj->team_count + 1) * sizeof(ProjectTeamMember)
-                );
+                ProjectTeamMember* new_team =
+                    realloc(proj->team, (proj->team_count + 1) * sizeof(ProjectTeamMember));
                 if (!new_team) {
                     break;
                 }
@@ -462,10 +478,9 @@ ConvergioProject* project_create(const char* name, const char* purpose,
     }
 
     // Add to manager
-    ConvergioProject** new_all_projects = realloc(
-        g_project_manager->all_projects,
-        (g_project_manager->project_count + 1) * sizeof(ConvergioProject*)
-    );
+    ConvergioProject** new_all_projects =
+        realloc(g_project_manager->all_projects,
+                (g_project_manager->project_count + 1) * sizeof(ConvergioProject*));
     if (!new_all_projects) {
         project_free(proj);
         return NULL;
@@ -481,7 +496,8 @@ ConvergioProject* project_create(const char* name, const char* purpose,
 // ============================================================================
 
 bool project_save(ConvergioProject* project) {
-    if (!project || !project->storage_path) return false;
+    if (!project || !project->storage_path)
+        return false;
 
     const char* name = project->name ? project->name : "";
     const char* slug = project->slug ? project->slug : "";
@@ -505,18 +521,16 @@ bool project_save(ConvergioProject* project) {
     }
 
     char* yaml = malloc(yaml_size);
-    if (!yaml) return false;
+    if (!yaml)
+        return false;
 
     size_t off = 0;
-    int written = snprintf(
-        yaml + off,
-        yaml_size - off,
-        "version: 1\n"
-        "name: \"%s\"\n"
-        "slug: \"%s\"\n"
-        "purpose: \"%s\"\n",
-        name, slug, purpose
-    );
+    int written = snprintf(yaml + off, yaml_size - off,
+                           "version: 1\n"
+                           "name: \"%s\"\n"
+                           "slug: \"%s\"\n"
+                           "purpose: \"%s\"\n",
+                           name, slug, purpose);
     if (written < 0 || (size_t)written >= yaml_size - off) {
         free(yaml);
         return false;
@@ -532,14 +546,11 @@ bool project_save(ConvergioProject* project) {
         off += (size_t)written;
     }
 
-    written = snprintf(
-        yaml + off,
-        yaml_size - off,
-        "created: %ld\n"
-        "last_active: %ld\n"
-        "team:\n",
-        (long)project->created, (long)project->last_active
-    );
+    written = snprintf(yaml + off, yaml_size - off,
+                       "created: %ld\n"
+                       "last_active: %ld\n"
+                       "team:\n",
+                       (long)project->created, (long)project->last_active);
     if (written < 0 || (size_t)written >= yaml_size - off) {
         free(yaml);
         return false;
@@ -556,7 +567,8 @@ bool project_save(ConvergioProject* project) {
         off += (size_t)written;
 
         if (project->team[i].role) {
-            written = snprintf(yaml + off, yaml_size - off, "    role: \"%s\"\n", project->team[i].role);
+            written =
+                snprintf(yaml + off, yaml_size - off, "    role: \"%s\"\n", project->team[i].role);
             if (written < 0 || (size_t)written >= yaml_size - off) {
                 free(yaml);
                 return false;
@@ -571,7 +583,8 @@ bool project_save(ConvergioProject* project) {
     bool success = write_file(project_file, yaml);
     free(yaml);
 
-    if (!success) return false;
+    if (!success)
+        return false;
 
     // Also save context
     project_save_context(project);
@@ -584,14 +597,16 @@ bool project_save(ConvergioProject* project) {
 // ============================================================================
 
 ConvergioProject* project_load(const char* slug) {
-    if (!g_project_manager || !slug) return NULL;
+    if (!g_project_manager || !slug)
+        return NULL;
 
     const char* base_path = project_get_storage_path(slug);
     char project_file[1024];
     snprintf(project_file, sizeof(project_file), "%s/%s", base_path, PROJECT_FILE);
 
     char* yaml = read_file(project_file);
-    if (!yaml) return NULL;
+    if (!yaml)
+        return NULL;
 
     ConvergioProject* proj = calloc(1, sizeof(ConvergioProject));
     if (!proj) {
@@ -609,7 +624,8 @@ ConvergioProject* project_load(const char* slug) {
 
     while (line) {
         // Skip whitespace
-        while (*line == ' ' || *line == '\t') line++;
+        while (*line == ' ' || *line == '\t')
+            line++;
 
         if (strncmp(line, "name:", 5) == 0) {
             char* val = strchr(line, '"');
@@ -661,10 +677,8 @@ ConvergioProject* project_load(const char* slug) {
                     *end = '\0';
                     current_agent = strdup(val);
 
-                    ProjectTeamMember* new_team = realloc(
-                        proj->team,
-                        (proj->team_count + 1) * sizeof(ProjectTeamMember)
-                    );
+                    ProjectTeamMember* new_team =
+                        realloc(proj->team, (proj->team_count + 1) * sizeof(ProjectTeamMember));
                     if (!new_team) {
                         free(current_agent);
                         current_agent = NULL;
@@ -704,7 +718,8 @@ ConvergioProject* project_load(const char* slug) {
 // ============================================================================
 
 bool project_delete(const char* slug) {
-    if (!g_project_manager || !slug) return false;
+    if (!g_project_manager || !slug)
+        return false;
 
     // Remove from current if active
     if (g_project_manager->current && strcmp(g_project_manager->current->slug, slug) == 0) {
@@ -735,7 +750,8 @@ bool project_delete(const char* slug) {
 }
 
 bool project_archive(const char* slug) {
-    if (!g_project_manager || !slug) return false;
+    if (!g_project_manager || !slug)
+        return false;
 
     // Create archives directory
     char archives_path[1024];
@@ -748,7 +764,8 @@ bool project_archive(const char* slug) {
     char dst[1024];
     snprintf(dst, sizeof(dst), "%s/%s", archives_path, slug);
 
-    if (rename(src, dst) != 0) return false;
+    if (rename(src, dst) != 0)
+        return false;
 
     // Remove from current if active
     if (g_project_manager->current && strcmp(g_project_manager->current->slug, slug) == 0) {
@@ -776,20 +793,22 @@ bool project_archive(const char* slug) {
 
 ConvergioProject** project_list_all(size_t* count) {
     if (!g_project_manager) {
-        if (count) *count = 0;
+        if (count)
+            *count = 0;
         return NULL;
     }
-    if (count) *count = g_project_manager->project_count;
+    if (count)
+        *count = g_project_manager->project_count;
     return g_project_manager->all_projects;
 }
 
 ConvergioProject* project_find(const char* name_or_slug) {
-    if (!g_project_manager || !name_or_slug) return NULL;
+    if (!g_project_manager || !name_or_slug)
+        return NULL;
 
     for (size_t i = 0; i < g_project_manager->project_count; i++) {
         ConvergioProject* p = g_project_manager->all_projects[i];
-        if (strcasecmp(p->slug, name_or_slug) == 0 ||
-            strcasecmp(p->name, name_or_slug) == 0) {
+        if (strcasecmp(p->slug, name_or_slug) == 0 || strcasecmp(p->name, name_or_slug) == 0) {
             return p;
         }
     }
@@ -801,10 +820,12 @@ ConvergioProject* project_find(const char* name_or_slug) {
 // ============================================================================
 
 bool project_use(const char* name_or_slug) {
-    if (!g_project_manager || !name_or_slug) return false;
+    if (!g_project_manager || !name_or_slug)
+        return false;
 
     ConvergioProject* proj = project_find(name_or_slug);
-    if (!proj) return false;
+    if (!proj)
+        return false;
 
     // Save previous project
     if (g_project_manager->current) {
@@ -832,7 +853,8 @@ void project_clear_current(void) {
 
 bool project_has_agent(const char* agent_name) {
     ConvergioProject* proj = project_current();
-    if (!proj || !agent_name) return true;  // No project = all agents available
+    if (!proj || !agent_name)
+        return true; // No project = all agents available
 
     for (size_t i = 0; i < proj->team_count; i++) {
         if (strcasecmp(proj->team[i].agent_name, agent_name) == 0) {
@@ -852,7 +874,8 @@ bool project_has_agent(const char* agent_name) {
 
 const char** project_get_team_agents(void) {
     ConvergioProject* proj = project_current();
-    if (!proj) return NULL;
+    if (!proj)
+        return NULL;
 
     static const char* agents[MAX_TEAM_SIZE + 1];
     for (size_t i = 0; i < proj->team_count && i < MAX_TEAM_SIZE; i++) {
@@ -867,20 +890,20 @@ const char** project_get_team_agents(void) {
 // ============================================================================
 
 bool project_team_add(ConvergioProject* project, const char* agent_name, const char* role) {
-    if (!project || !agent_name || project->team_count >= MAX_TEAM_SIZE) return false;
+    if (!project || !agent_name || project->team_count >= MAX_TEAM_SIZE)
+        return false;
 
     // Check if already in team
     for (size_t i = 0; i < project->team_count; i++) {
         if (strcasecmp(project->team[i].agent_name, agent_name) == 0) {
-            return false;  // Already in team
+            return false; // Already in team
         }
     }
 
-    ProjectTeamMember* new_team = realloc(
-        project->team,
-        (project->team_count + 1) * sizeof(ProjectTeamMember)
-    );
-    if (!new_team) return false;
+    ProjectTeamMember* new_team =
+        realloc(project->team, (project->team_count + 1) * sizeof(ProjectTeamMember));
+    if (!new_team)
+        return false;
     project->team = new_team;
 
     project->team[project->team_count].agent_name = strdup(agent_name);
@@ -892,7 +915,8 @@ bool project_team_add(ConvergioProject* project, const char* agent_name, const c
 }
 
 bool project_team_remove(ConvergioProject* project, const char* agent_name) {
-    if (!project || !agent_name) return false;
+    if (!project || !agent_name)
+        return false;
 
     for (size_t i = 0; i < project->team_count; i++) {
         if (strcasecmp(project->team[i].agent_name, agent_name) == 0) {
@@ -913,7 +937,8 @@ bool project_team_remove(ConvergioProject* project, const char* agent_name) {
 }
 
 bool project_team_set_role(ConvergioProject* project, const char* agent_name, const char* role) {
-    if (!project || !agent_name) return false;
+    if (!project || !agent_name)
+        return false;
 
     for (size_t i = 0; i < project->team_count; i++) {
         if (strcasecmp(project->team[i].agent_name, agent_name) == 0) {
@@ -933,7 +958,8 @@ bool project_team_set_role(ConvergioProject* project, const char* agent_name, co
 
 bool project_update_context(ConvergioProject* project, const char* summary,
                             const char* current_focus) {
-    if (!project) return false;
+    if (!project)
+        return false;
 
     if (summary) {
         free(project->context_summary);
@@ -949,13 +975,13 @@ bool project_update_context(ConvergioProject* project, const char* summary,
 }
 
 bool project_add_decision(ConvergioProject* project, const char* decision) {
-    if (!project || !decision || project->decision_count >= MAX_DECISIONS) return false;
+    if (!project || !decision || project->decision_count >= MAX_DECISIONS)
+        return false;
 
-    char** new_decisions = realloc(
-        project->key_decisions,
-        (project->decision_count + 1) * sizeof(char*)
-    );
-    if (!new_decisions) return false;
+    char** new_decisions =
+        realloc(project->key_decisions, (project->decision_count + 1) * sizeof(char*));
+    if (!new_decisions)
+        return false;
     project->key_decisions = new_decisions;
 
     project->key_decisions[project->decision_count++] = strdup(decision);
@@ -965,13 +991,15 @@ bool project_add_decision(ConvergioProject* project, const char* decision) {
 }
 
 bool project_load_context(ConvergioProject* project) {
-    if (!project || !project->storage_path) return false;
+    if (!project || !project->storage_path)
+        return false;
 
     char context_file[1024];
     snprintf(context_file, sizeof(context_file), "%s/%s", project->storage_path, CONTEXT_FILE);
 
     char* json = read_file(context_file);
-    if (!json) return false;
+    if (!json)
+        return false;
 
     project->context_summary = json_get_string(json, "summary");
     project->current_focus = json_get_string(json, "current_focus");
@@ -986,26 +1014,27 @@ bool project_load_context(ConvergioProject* project) {
             const char* p = arr_start + 1;
             while (p < arr_end) {
                 const char* quote_start = strchr(p, '"');
-                if (!quote_start || quote_start >= arr_end) break;
+                if (!quote_start || quote_start >= arr_end)
+                    break;
                 quote_start++;
 
                 const char* quote_end = quote_start;
                 while (*quote_end && *quote_end != '"') {
-                    if (*quote_end == '\\') quote_end++;
+                    if (*quote_end == '\\')
+                        quote_end++;
                     quote_end++;
                 }
 
                 size_t len = (size_t)(quote_end - quote_start);
                 if (len > 0 && project->decision_count < MAX_DECISIONS) {
-                    char** new_decisions = realloc(
-                        project->key_decisions,
-                        (project->decision_count + 1) * sizeof(char*)
-                    );
+                    char** new_decisions = realloc(project->key_decisions,
+                                                   (project->decision_count + 1) * sizeof(char*));
                     if (new_decisions) {
                         project->key_decisions = new_decisions;
                         project->key_decisions[project->decision_count] = malloc(len + 1);
                         if (project->key_decisions[project->decision_count]) {
-                            strncpy(project->key_decisions[project->decision_count], quote_start, len);
+                            strncpy(project->key_decisions[project->decision_count], quote_start,
+                                    len);
                             project->key_decisions[project->decision_count][len] = '\0';
                             project->decision_count++;
                         }
@@ -1021,12 +1050,14 @@ bool project_load_context(ConvergioProject* project) {
 }
 
 bool project_save_context(ConvergioProject* project) {
-    if (!project || !project->storage_path) return false;
+    if (!project || !project->storage_path)
+        return false;
 
     // Build JSON
     size_t json_size = 4096 + (project->decision_count * 256);
     char* json = malloc(json_size);
-    if (!json) return false;
+    if (!json)
+        return false;
 
     char* p = json;
     char* escaped;
@@ -1034,18 +1065,20 @@ bool project_save_context(ConvergioProject* project) {
     p += snprintf(p, json_size - (size_t)(p - json), "{\n");
 
     escaped = json_escape_str(project->context_summary);
-    p += snprintf(p, json_size - (size_t)(p - json), "  \"summary\": \"%s\",\n", escaped ? escaped : "");
+    p += snprintf(p, json_size - (size_t)(p - json), "  \"summary\": \"%s\",\n",
+                  escaped ? escaped : "");
     free(escaped);
 
     escaped = json_escape_str(project->current_focus);
-    p += snprintf(p, json_size - (size_t)(p - json), "  \"current_focus\": \"%s\",\n", escaped ? escaped : "");
+    p += snprintf(p, json_size - (size_t)(p - json), "  \"current_focus\": \"%s\",\n",
+                  escaped ? escaped : "");
     free(escaped);
 
     p += snprintf(p, json_size - (size_t)(p - json), "  \"key_decisions\": [\n");
     for (size_t i = 0; i < project->decision_count; i++) {
         escaped = json_escape_str(project->key_decisions[i]);
-        p += snprintf(p, json_size - (size_t)(p - json), "    \"%s\"%s\n",
-                      escaped ? escaped : "", i < project->decision_count - 1 ? "," : "");
+        p += snprintf(p, json_size - (size_t)(p - json), "    \"%s\"%s\n", escaped ? escaped : "",
+                      i < project->decision_count - 1 ? "," : "");
         free(escaped);
     }
     p += snprintf(p, json_size - (size_t)(p - json), "  ]\n}\n");
@@ -1062,22 +1095,24 @@ bool project_save_context(ConvergioProject* project) {
 // HISTORY MANAGEMENT
 // ============================================================================
 
-bool project_append_history(ConvergioProject* project, const char* role,
-                            const char* content, const char* agent_name) {
-    if (!project || !project->storage_path || !role || !content) return false;
+bool project_append_history(ConvergioProject* project, const char* role, const char* content,
+                            const char* agent_name) {
+    if (!project || !project->storage_path || !role || !content)
+        return false;
 
     char history_file[1024];
     snprintf(history_file, sizeof(history_file), "%s/%s", project->storage_path, HISTORY_FILE);
 
-    int fd = safe_path_open(history_file, safe_path_get_user_boundary(), O_WRONLY | O_CREAT | O_APPEND, 0644);
+    int fd = safe_path_open(history_file, safe_path_get_user_boundary(),
+                            O_WRONLY | O_CREAT | O_APPEND, 0644);
     FILE* f = fd >= 0 ? fdopen(fd, "a") : NULL;
-    if (!f) return false;
+    if (!f)
+        return false;
 
     char* escaped_content = json_escape_str(content);
     char* escaped_agent = agent_name ? json_escape_str(agent_name) : NULL;
 
-    fprintf(f, "{\"role\":\"%s\",\"content\":\"%s\"",
-            role, escaped_content ? escaped_content : "");
+    fprintf(f, "{\"role\":\"%s\",\"content\":\"%s\"", role, escaped_content ? escaped_content : "");
     if (escaped_agent) {
         fprintf(f, ",\"agent\":\"%s\"", escaped_agent);
     }
@@ -1090,21 +1125,24 @@ bool project_append_history(ConvergioProject* project, const char* role,
     return true;
 }
 
-size_t project_load_history(ConvergioProject* project, size_t max_turns,
-                            char*** roles, char*** contents, char*** agents) {
-    if (!project || !project->storage_path) return 0;
+size_t project_load_history(ConvergioProject* project, size_t max_turns, char*** roles,
+                            char*** contents, char*** agents) {
+    if (!project || !project->storage_path)
+        return 0;
 
     char history_file[1024];
     snprintf(history_file, sizeof(history_file), "%s/%s", project->storage_path, HISTORY_FILE);
 
     int fd = safe_path_open(history_file, safe_path_get_user_boundary(), O_RDONLY, 0);
     FILE* f = fd >= 0 ? fdopen(fd, "r") : NULL;
-    if (!f) return 0;
+    if (!f)
+        return 0;
 
     // Count lines first
     size_t line_count = 0;
     char line[MAX_HISTORY_LINE];
-    while (fgets(line, sizeof(line), f)) line_count++;
+    while (fgets(line, sizeof(line), f))
+        line_count++;
 
     // Calculate starting line
     size_t start_line = line_count > max_turns ? line_count - max_turns : 0;
@@ -1116,7 +1154,9 @@ size_t project_load_history(ConvergioProject* project, size_t max_turns,
     *agents = calloc(read_count + 1, sizeof(char*));
 
     if (!*roles || !*contents || !*agents) {
-        free(*roles); free(*contents); free(*agents);
+        free(*roles);
+        free(*contents);
+        free(*agents);
         fclose(f);
         return 0;
     }
@@ -1141,15 +1181,18 @@ size_t project_load_history(ConvergioProject* project, size_t max_turns,
 }
 
 bool project_clear_history(ConvergioProject* project) {
-    if (!project || !project->storage_path) return false;
+    if (!project || !project->storage_path)
+        return false;
 
     char history_file[1024];
     snprintf(history_file, sizeof(history_file), "%s/%s", project->storage_path, HISTORY_FILE);
 
     // Truncate file (safe path open)
-    int fd = safe_path_open(history_file, safe_path_get_user_boundary(), O_WRONLY | O_CREAT | O_TRUNC, 0644);
+    int fd = safe_path_open(history_file, safe_path_get_user_boundary(),
+                            O_WRONLY | O_CREAT | O_TRUNC, 0644);
     FILE* f = fd >= 0 ? fdopen(fd, "w") : NULL;
-    if (f) fclose(f);
+    if (f)
+        fclose(f);
     return true;
 }
 
@@ -1158,12 +1201,14 @@ bool project_clear_history(ConvergioProject* project) {
 // ============================================================================
 
 const ProjectTemplate* project_get_templates(size_t* count) {
-    if (count) *count = g_template_count;
+    if (count)
+        *count = g_template_count;
     return g_templates;
 }
 
 const ProjectTemplate* project_get_template(const char* name) {
-    if (!name) return NULL;
+    if (!name)
+        return NULL;
 
     for (size_t i = 0; i < g_template_count; i++) {
         if (strcasecmp(g_templates[i].name, name) == 0) {
@@ -1178,7 +1223,8 @@ const ProjectTemplate* project_get_template(const char* name) {
 // ============================================================================
 
 void project_free(ConvergioProject* project) {
-    if (!project) return;
+    if (!project)
+        return;
 
     free(project->name);
     free(project->slug);

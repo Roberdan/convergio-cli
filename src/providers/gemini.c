@@ -7,19 +7,19 @@
  * Copyright 2025 - Roberto D'Angelo & AI Team
  */
 
-#include "nous/provider.h"
-#include "nous/provider_common.h"
 #include "nous/config.h"
 #include "nous/nous.h"
+#include "nous/provider.h"
+#include "nous/provider_common.h"
 #include "nous/telemetry.h"
-#include <stdlib.h>
-#include <string.h>
-#include <stdio.h>
-#include <stdint.h>
-#include <curl/curl.h>
 #include <ctype.h>
+#include <curl/curl.h>
 #include <pthread.h>
 #include <signal.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include <time.h>
 
 // ============================================================================
@@ -28,7 +28,7 @@
 
 #define GEMINI_API_BASE "https://generativelanguage.googleapis.com/v1beta/models"
 #define MAX_RESPONSE_SIZE (256 * 1024)
-#define DEFAULT_MAX_TOKENS 8192  // Fallback only
+#define DEFAULT_MAX_TOKENS 8192 // Fallback only
 
 // ============================================================================
 // INTERNAL DATA STRUCTURES
@@ -51,17 +51,19 @@ typedef struct {
 static ProviderError gemini_init(Provider* self);
 static void gemini_shutdown(Provider* self);
 static bool gemini_validate_key(Provider* self);
-static char* gemini_chat(Provider* self, const char* model, const char* system,
-                         const char* user, TokenUsage* usage);
+static char* gemini_chat(Provider* self, const char* model, const char* system, const char* user,
+                         TokenUsage* usage);
 static char* gemini_chat_with_tools(Provider* self, const char* model, const char* system,
                                     const char* user, ToolDefinition* tools, size_t tool_count,
                                     ToolCall** out_tool_calls, size_t* out_tool_count,
                                     TokenUsage* usage);
 static ProviderError gemini_stream_chat(Provider* self, const char* model, const char* system,
-                                        const char* user, StreamHandler* handler, TokenUsage* usage);
+                                        const char* user, StreamHandler* handler,
+                                        TokenUsage* usage);
 static size_t gemini_estimate_tokens(Provider* self, const char* text);
 static ProviderErrorInfo* gemini_get_last_error(Provider* self);
-static ProviderError gemini_list_models(Provider* self, ModelConfig** out_models, size_t* out_count);
+static ProviderError gemini_list_models(Provider* self, ModelConfig** out_models,
+                                        size_t* out_count);
 
 // ============================================================================
 // HELPER FUNCTIONS
@@ -70,8 +72,11 @@ static ProviderError gemini_list_models(Provider* self, ModelConfig** out_models
 // write_callback now from provider_common.h (provider_write_callback)
 
 static int progress_callback(void* clientp, curl_off_t dltotal, curl_off_t dlnow,
-                            curl_off_t ultotal, curl_off_t ulnow) {
-    (void)dltotal; (void)dlnow; (void)ultotal; (void)ulnow;
+                             curl_off_t ultotal, curl_off_t ulnow) {
+    (void)dltotal;
+    (void)dlnow;
+    (void)ultotal;
+    (void)ulnow;
     GeminiProviderData* data = (GeminiProviderData*)clientp;
     if (data && data->request_cancelled) {
         return 1;
@@ -81,12 +86,14 @@ static int progress_callback(void* clientp, curl_off_t dltotal, curl_off_t dlnow
 
 // JSON escape helper
 static char* json_escape(const char* str) {
-    if (!str) return strdup("");
+    if (!str)
+        return strdup("");
 
     size_t len = strlen(str);
     size_t escaped_len = len * 6 + 1;
     char* escaped = malloc(escaped_len);
-    if (!escaped) return NULL;
+    if (!escaped)
+        return NULL;
 
     char* out = escaped;
     const unsigned char* p = (const unsigned char*)str;
@@ -94,18 +101,34 @@ static char* json_escape(const char* str) {
     while (*p) {
         if (*p < 128) {
             switch (*p) {
-                case '"':  *out++ = '\\'; *out++ = '"'; break;
-                case '\\': *out++ = '\\'; *out++ = '\\'; break;
-                case '\n': *out++ = '\\'; *out++ = 'n'; break;
-                case '\r': *out++ = '\\'; *out++ = 'r'; break;
-                case '\t': *out++ = '\\'; *out++ = 't'; break;
-                default:
-                    if (*p < 32) {
-                        int written = snprintf(out, 7, "\\u%04x", *p);
-                        if (written > 0) out += (size_t)written;
-                    } else {
-                        *out++ = (char)*p;
-                    }
+            case '"':
+                *out++ = '\\';
+                *out++ = '"';
+                break;
+            case '\\':
+                *out++ = '\\';
+                *out++ = '\\';
+                break;
+            case '\n':
+                *out++ = '\\';
+                *out++ = 'n';
+                break;
+            case '\r':
+                *out++ = '\\';
+                *out++ = 'r';
+                break;
+            case '\t':
+                *out++ = '\\';
+                *out++ = 't';
+                break;
+            default:
+                if (*p < 32) {
+                    int written = snprintf(out, 7, "\\u%04x", *p);
+                    if (written > 0)
+                        out += (size_t)written;
+                } else {
+                    *out++ = (char)*p;
+                }
             }
             p++;
         } else {
@@ -121,12 +144,15 @@ static char* json_escape(const char* str) {
 static char* extract_response_text(const char* json) {
     const char* text_key = "\"text\":";
     const char* found = strstr(json, text_key);
-    if (!found) return NULL;
+    if (!found)
+        return NULL;
 
     found += strlen(text_key);
-    while (*found && isspace(*found)) found++;
+    while (*found && isspace(*found))
+        found++;
 
-    if (*found != '"') return NULL;
+    if (*found != '"')
+        return NULL;
     found++;
 
     const char* start = found;
@@ -149,11 +175,13 @@ static char* extract_response_text(const char* json) {
         end++;
     }
 
-    if (*end != '"') return NULL;
+    if (*end != '"')
+        return NULL;
 
     size_t len = (size_t)(end - start);
     char* result = malloc(len + 1);
-    if (!result) return NULL;
+    if (!result)
+        return NULL;
 
     // Unescape
     char* out = result;
@@ -161,12 +189,23 @@ static char* extract_response_text(const char* json) {
         if (*p == '\\' && p + 1 < end) {
             p++;
             switch (*p) {
-                case 'n': *out++ = '\n'; break;
-                case 'r': *out++ = '\r'; break;
-                case 't': *out++ = '\t'; break;
-                case '"': *out++ = '"'; break;
-                case '\\': *out++ = '\\'; break;
-                default: *out++ = *p;
+            case 'n':
+                *out++ = '\n';
+                break;
+            case 'r':
+                *out++ = '\r';
+                break;
+            case 't':
+                *out++ = '\t';
+                break;
+            case '"':
+                *out++ = '"';
+                break;
+            case '\\':
+                *out++ = '\\';
+                break;
+            default:
+                *out++ = *p;
             }
         } else {
             *out++ = *p;
@@ -179,17 +218,20 @@ static char* extract_response_text(const char* json) {
 
 // Extract token usage from Gemini response
 static void extract_token_usage(const char* json, TokenUsage* usage) {
-    if (!json || !usage) return;
+    if (!json || !usage)
+        return;
 
     const char* usage_key = "\"usageMetadata\":";
     const char* found = strstr(json, usage_key);
-    if (!found) return;
+    if (!found)
+        return;
 
     // promptTokenCount
     const char* prompt = strstr(found, "\"promptTokenCount\":");
     if (prompt) {
         prompt += strlen("\"promptTokenCount\":");
-        while (*prompt && isspace(*prompt)) prompt++;
+        while (*prompt && isspace(*prompt))
+            prompt++;
         usage->input_tokens = (size_t)atol(prompt);
     }
 
@@ -197,7 +239,8 @@ static void extract_token_usage(const char* json, TokenUsage* usage) {
     const char* candidates = strstr(found, "\"candidatesTokenCount\":");
     if (candidates) {
         candidates += strlen("\"candidatesTokenCount\":");
-        while (*candidates && isspace(*candidates)) candidates++;
+        while (*candidates && isspace(*candidates))
+            candidates++;
         usage->output_tokens = (size_t)atol(candidates);
     }
 
@@ -205,22 +248,24 @@ static void extract_token_usage(const char* json, TokenUsage* usage) {
     const char* cached = strstr(found, "\"cachedContentTokenCount\":");
     if (cached) {
         cached += strlen("\"cachedContentTokenCount\":");
-        while (*cached && isspace(*cached)) cached++;
+        while (*cached && isspace(*cached))
+            cached++;
         usage->cached_tokens = (size_t)atol(cached);
     }
 }
 
 // Build Gemini API URL
 static char* build_api_url(const char* model, const char* api_key) {
-    // Format: https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={key}
+    // Format:
+    // https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={key}
     const char* model_name = model ? model : "gemini-2.0-flash";
 
     size_t url_len = strlen(GEMINI_API_BASE) + strlen(model_name) + strlen(api_key) + 64;
     char* url = malloc(url_len);
-    if (!url) return NULL;
+    if (!url)
+        return NULL;
 
-    snprintf(url, url_len, "%s/%s:generateContent?key=%s",
-             GEMINI_API_BASE, model_name, api_key);
+    snprintf(url, url_len, "%s/%s:generateContent?key=%s", GEMINI_API_BASE, model_name, api_key);
     return url;
 }
 
@@ -229,10 +274,12 @@ static char* build_api_url(const char* model, const char* api_key) {
 // ============================================================================
 
 static ProviderError gemini_init(Provider* self) {
-    if (!self) return PROVIDER_ERR_INVALID_REQUEST;
+    if (!self)
+        return PROVIDER_ERR_INVALID_REQUEST;
 
     GeminiProviderData* data = (GeminiProviderData*)self->impl_data;
-    if (!data) return PROVIDER_ERR_INVALID_REQUEST;
+    if (!data)
+        return PROVIDER_ERR_INVALID_REQUEST;
 
     pthread_mutex_lock(&data->mutex);
 
@@ -261,10 +308,12 @@ static ProviderError gemini_init(Provider* self) {
 }
 
 static void gemini_shutdown(Provider* self) {
-    if (!self) return;
+    if (!self)
+        return;
 
     GeminiProviderData* data = (GeminiProviderData*)self->impl_data;
-    if (!data) return;
+    if (!data)
+        return;
 
     pthread_mutex_lock(&data->mutex);
 
@@ -290,17 +339,20 @@ static bool gemini_validate_key(Provider* self) {
     return (api_key && strlen(api_key) > 0);
 }
 
-static char* gemini_chat(Provider* self, const char* model, const char* system,
-                         const char* user, TokenUsage* usage) {
-    if (!self || !user) return NULL;
+static char* gemini_chat(Provider* self, const char* model, const char* system, const char* user,
+                         TokenUsage* usage) {
+    if (!self || !user)
+        return NULL;
 
     GeminiProviderData* data = (GeminiProviderData*)self->impl_data;
-    if (!data) return NULL;
+    if (!data)
+        return NULL;
 
     // Ensure initialized
     if (!data->initialized) {
         ProviderError err = gemini_init(self);
-        if (err != PROVIDER_OK) return NULL;
+        if (err != PROVIDER_OK)
+            return NULL;
     }
 
     // Get API key
@@ -352,30 +404,26 @@ static char* gemini_chat(Provider* self, const char* model, const char* system,
     StyleSettings style = convergio_get_style_settings();
     if (system && strlen(system) > 0) {
         snprintf(json_body, json_size,
-            "{"
-            "\"systemInstruction\": {\"parts\": [{\"text\": \"%s\"}]},"
-            "\"contents\": [{\"parts\": [{\"text\": \"%s\"}]}],"
-            "\"generationConfig\": {\"maxOutputTokens\": %d, \"temperature\": %.2f}"
-            "}",
-            escaped_system, escaped_user, style.max_tokens, style.temperature);
+                 "{"
+                 "\"systemInstruction\": {\"parts\": [{\"text\": \"%s\"}]},"
+                 "\"contents\": [{\"parts\": [{\"text\": \"%s\"}]}],"
+                 "\"generationConfig\": {\"maxOutputTokens\": %d, \"temperature\": %.2f}"
+                 "}",
+                 escaped_system, escaped_user, style.max_tokens, style.temperature);
     } else {
         snprintf(json_body, json_size,
-            "{"
-            "\"contents\": [{\"parts\": [{\"text\": \"%s\"}]}],"
-            "\"generationConfig\": {\"maxOutputTokens\": %d, \"temperature\": %.2f}"
-            "}",
-            escaped_user, style.max_tokens, style.temperature);
+                 "{"
+                 "\"contents\": [{\"parts\": [{\"text\": \"%s\"}]}],"
+                 "\"generationConfig\": {\"maxOutputTokens\": %d, \"temperature\": %.2f}"
+                 "}",
+                 escaped_user, style.max_tokens, style.temperature);
     }
 
     free(escaped_system);
     free(escaped_user);
 
     // Setup response buffer
-    ResponseBuffer response = {
-        .data = malloc(4096),
-        .size = 0,
-        .capacity = 4096
-    };
+    ResponseBuffer response = {.data = malloc(4096), .size = 0, .capacity = 4096};
     if (!response.data) {
         free(json_body);
         free(url);
@@ -444,11 +492,12 @@ static char* gemini_chat(Provider* self, const char* model, const char* system,
         } else if (usage) {
             memset(usage, 0, sizeof(TokenUsage));
             extract_token_usage(response.data, usage);
-            usage->estimated_cost = model_estimate_cost(model, usage->input_tokens, usage->output_tokens);
+            usage->estimated_cost =
+                model_estimate_cost(model, usage->input_tokens, usage->output_tokens);
             tokens_input = usage->input_tokens;
             tokens_output = usage->output_tokens;
-            LOG_DEBUG(LOG_CAT_COST, "Tokens: in=%zu out=%zu cost=$%.6f",
-                     usage->input_tokens, usage->output_tokens, usage->estimated_cost);
+            LOG_DEBUG(LOG_CAT_COST, "Tokens: in=%zu out=%zu cost=$%.6f", usage->input_tokens,
+                      usage->output_tokens, usage->estimated_cost);
         }
         // Record successful API call in telemetry
         if (result) {
@@ -469,22 +518,27 @@ static char* gemini_chat_with_tools(Provider* self, const char* model, const cha
                                     const char* user, ToolDefinition* tools, size_t tool_count,
                                     ToolCall** out_tool_calls, size_t* out_tool_count,
                                     TokenUsage* usage) {
-    if (out_tool_calls) *out_tool_calls = NULL;
-    if (out_tool_count) *out_tool_count = 0;
+    if (out_tool_calls)
+        *out_tool_calls = NULL;
+    if (out_tool_count)
+        *out_tool_count = 0;
 
     // If no tools, fall back to regular chat
     if (!tools || tool_count == 0) {
         return gemini_chat(self, model, system, user, usage);
     }
 
-    if (!self || !user) return NULL;
+    if (!self || !user)
+        return NULL;
 
     GeminiProviderData* data = (GeminiProviderData*)self->impl_data;
-    if (!data) return NULL;
+    if (!data)
+        return NULL;
 
     if (!data->initialized) {
         ProviderError err = gemini_init(self);
-        if (err != PROVIDER_OK) return NULL;
+        if (err != PROVIDER_OK)
+            return NULL;
     }
 
     const char* api_key = getenv("GEMINI_API_KEY");
@@ -543,21 +597,21 @@ static char* gemini_chat_with_tools(Provider* self, const char* model, const cha
     StyleSettings style = convergio_get_style_settings();
     if (system && strlen(system) > 0) {
         snprintf(json_body, json_size,
-            "{"
-            "\"systemInstruction\": {\"parts\": [{\"text\": \"%s\"}]},"
-            "\"contents\": [{\"parts\": [{\"text\": \"%s\"}]}],"
-            "\"tools\": %s,"
-            "\"generationConfig\": {\"maxOutputTokens\": %d, \"temperature\": %.2f}"
-            "}",
-            escaped_system, escaped_user, tools_json, style.max_tokens, style.temperature);
+                 "{"
+                 "\"systemInstruction\": {\"parts\": [{\"text\": \"%s\"}]},"
+                 "\"contents\": [{\"parts\": [{\"text\": \"%s\"}]}],"
+                 "\"tools\": %s,"
+                 "\"generationConfig\": {\"maxOutputTokens\": %d, \"temperature\": %.2f}"
+                 "}",
+                 escaped_system, escaped_user, tools_json, style.max_tokens, style.temperature);
     } else {
         snprintf(json_body, json_size,
-            "{"
-            "\"contents\": [{\"parts\": [{\"text\": \"%s\"}]}],"
-            "\"tools\": %s,"
-            "\"generationConfig\": {\"maxOutputTokens\": %d, \"temperature\": %.2f}"
-            "}",
-            escaped_user, tools_json, style.max_tokens, style.temperature);
+                 "{"
+                 "\"contents\": [{\"parts\": [{\"text\": \"%s\"}]}],"
+                 "\"tools\": %s,"
+                 "\"generationConfig\": {\"maxOutputTokens\": %d, \"temperature\": %.2f}"
+                 "}",
+                 escaped_user, tools_json, style.max_tokens, style.temperature);
     }
 
     free(escaped_system);
@@ -565,11 +619,7 @@ static char* gemini_chat_with_tools(Provider* self, const char* model, const cha
     free(tools_json);
 
     // Setup response buffer
-    ResponseBuffer response = {
-        .data = malloc(4096),
-        .size = 0,
-        .capacity = 4096
-    };
+    ResponseBuffer response = {.data = malloc(4096), .size = 0, .capacity = 4096};
     if (!response.data) {
         free(json_body);
         free(url);
@@ -624,8 +674,10 @@ static char* gemini_chat_with_tools(Provider* self, const char* model, const cha
     size_t tc_count = 0;
     ToolCall* tc = parse_gemini_tool_calls(response.data, &tc_count);
     if (tc && tc_count > 0) {
-        if (out_tool_calls) *out_tool_calls = tc;
-        if (out_tool_count) *out_tool_count = tc_count;
+        if (out_tool_calls)
+            *out_tool_calls = tc;
+        if (out_tool_count)
+            *out_tool_count = tc_count;
     }
 
     // Extract text response
@@ -655,9 +707,10 @@ static char* build_stream_api_url(const char* model, const char* api_key) {
     const char* model_name = model ? model : "gemini-2.0-flash";
     size_t url_len = strlen(GEMINI_API_BASE) + strlen(model_name) + strlen(api_key) + 80;
     char* url = malloc(url_len);
-    if (!url) return NULL;
-    snprintf(url, url_len, "%s/%s:streamGenerateContent?alt=sse&key=%s",
-             GEMINI_API_BASE, model_name, api_key);
+    if (!url)
+        return NULL;
+    snprintf(url, url_len, "%s/%s:streamGenerateContent?alt=sse&key=%s", GEMINI_API_BASE,
+             model_name, api_key);
     return url;
 }
 
@@ -706,21 +759,26 @@ static void gemini_stream_error_bridge(ProviderError error, const char* message,
     if (bridge) {
         bridge->error = error;
         if (bridge->handler && bridge->handler->on_error) {
-            bridge->handler->on_error(message ? message : "Stream error", bridge->handler->user_ctx);
+            bridge->handler->on_error(message ? message : "Stream error",
+                                      bridge->handler->user_ctx);
         }
     }
 }
 
 static ProviderError gemini_stream_chat(Provider* self, const char* model, const char* system,
-                                        const char* user, StreamHandler* handler, TokenUsage* usage) {
-    if (!self || !user) return PROVIDER_ERR_INVALID_REQUEST;
+                                        const char* user, StreamHandler* handler,
+                                        TokenUsage* usage) {
+    if (!self || !user)
+        return PROVIDER_ERR_INVALID_REQUEST;
 
     GeminiProviderData* data = (GeminiProviderData*)self->impl_data;
-    if (!data) return PROVIDER_ERR_INVALID_REQUEST;
+    if (!data)
+        return PROVIDER_ERR_INVALID_REQUEST;
 
     if (!data->initialized) {
         ProviderError err = gemini_init(self);
-        if (err != PROVIDER_OK) return err;
+        if (err != PROVIDER_OK)
+            return err;
     }
 
     // Get API key
@@ -760,19 +818,19 @@ static ProviderError gemini_stream_chat(Provider* self, const char* model, const
     StyleSettings style = convergio_get_style_settings();
     if (system && strlen(system) > 0) {
         snprintf(json_body, json_size,
-            "{"
-            "\"systemInstruction\": {\"parts\": [{\"text\": \"%s\"}]},"
-            "\"contents\": [{\"parts\": [{\"text\": \"%s\"}]}],"
-            "\"generationConfig\": {\"maxOutputTokens\": %d, \"temperature\": %.2f}"
-            "}",
-            escaped_system, escaped_user, style.max_tokens, style.temperature);
+                 "{"
+                 "\"systemInstruction\": {\"parts\": [{\"text\": \"%s\"}]},"
+                 "\"contents\": [{\"parts\": [{\"text\": \"%s\"}]}],"
+                 "\"generationConfig\": {\"maxOutputTokens\": %d, \"temperature\": %.2f}"
+                 "}",
+                 escaped_system, escaped_user, style.max_tokens, style.temperature);
     } else {
         snprintf(json_body, json_size,
-            "{"
-            "\"contents\": [{\"parts\": [{\"text\": \"%s\"}]}],"
-            "\"generationConfig\": {\"maxOutputTokens\": %d, \"temperature\": %.2f}"
-            "}",
-            escaped_user, style.max_tokens, style.temperature);
+                 "{"
+                 "\"contents\": [{\"parts\": [{\"text\": \"%s\"}]}],"
+                 "\"generationConfig\": {\"maxOutputTokens\": %d, \"temperature\": %.2f}"
+                 "}",
+                 escaped_user, style.max_tokens, style.temperature);
     }
 
     free(escaped_system);
@@ -787,11 +845,7 @@ static ProviderError gemini_stream_chat(Provider* self, const char* model, const
     }
 
     // Setup bridge context
-    GeminiStreamBridge bridge = {
-        .handler = handler,
-        .usage = usage,
-        .error = PROVIDER_OK
-    };
+    GeminiStreamBridge bridge = {.handler = handler, .usage = usage, .error = PROVIDER_OK};
 
     // Set callbacks
     stream_set_callbacks(stream_ctx, gemini_stream_chunk_bridge, gemini_stream_complete_bridge,
@@ -809,7 +863,7 @@ static ProviderError gemini_stream_chat(Provider* self, const char* model, const
     if (result < 0) {
         return bridge.error != PROVIDER_OK ? bridge.error : PROVIDER_ERR_NETWORK;
     } else if (result == 1) {
-        return PROVIDER_OK;  // Cancelled
+        return PROVIDER_OK; // Cancelled
     }
 
     return PROVIDER_OK;
@@ -817,20 +871,24 @@ static ProviderError gemini_stream_chat(Provider* self, const char* model, const
 
 static size_t gemini_estimate_tokens(Provider* self, const char* text) {
     (void)self;
-    if (!text) return 0;
+    if (!text)
+        return 0;
     // SentencePiece tokenizer: ~4 chars per token
     size_t len = strlen(text);
     return (len + 3) / 4;
 }
 
 static ProviderErrorInfo* gemini_get_last_error(Provider* self) {
-    if (!self) return NULL;
+    if (!self)
+        return NULL;
     GeminiProviderData* data = (GeminiProviderData*)self->impl_data;
-    if (!data) return NULL;
+    if (!data)
+        return NULL;
     return &data->last_error;
 }
 
-static ProviderError gemini_list_models(Provider* self, ModelConfig** out_models, size_t* out_count) {
+static ProviderError gemini_list_models(Provider* self, ModelConfig** out_models,
+                                        size_t* out_count) {
     (void)self;
     if (out_models) {
         *out_models = (ModelConfig*)model_get_by_provider(PROVIDER_GEMINI, out_count);
@@ -844,7 +902,8 @@ static ProviderError gemini_list_models(Provider* self, ModelConfig** out_models
 
 Provider* gemini_provider_create(void) {
     Provider* provider = calloc(1, sizeof(Provider));
-    if (!provider) return NULL;
+    if (!provider)
+        return NULL;
 
     GeminiProviderData* data = calloc(1, sizeof(GeminiProviderData));
     if (!data) {

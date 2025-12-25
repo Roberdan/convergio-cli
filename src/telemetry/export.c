@@ -7,15 +7,15 @@
  * Copyright 2025 - Roberto D'Angelo & AI Team
  */
 
-#include "nous/telemetry.h"
 #include "nous/safe_path.h"
+#include "nous/telemetry.h"
+#include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
-#include <unistd.h>
 #include <time.h>
-#include <fcntl.h>
+#include <unistd.h>
 
 // ============================================================================
 // EXPORT
@@ -162,17 +162,11 @@ void telemetry_view(void) {
             }
 
             // Display key fields
-            if (strstr(line, "\"type\"") ||
-                strstr(line, "\"timestamp\"") ||
-                strstr(line, "\"provider\"") ||
-                strstr(line, "\"model\"") ||
-                strstr(line, "\"tokens_input\"") ||
-                strstr(line, "\"tokens_output\"") ||
-                strstr(line, "\"latency_ms\"") ||
-                strstr(line, "\"error_type\"") ||
-                strstr(line, "\"from_provider\"") ||
-                strstr(line, "\"to_provider\"")) {
-
+            if (strstr(line, "\"type\"") || strstr(line, "\"timestamp\"") ||
+                strstr(line, "\"provider\"") || strstr(line, "\"model\"") ||
+                strstr(line, "\"tokens_input\"") || strstr(line, "\"tokens_output\"") ||
+                strstr(line, "\"latency_ms\"") || strstr(line, "\"error_type\"") ||
+                strstr(line, "\"from_provider\"") || strstr(line, "\"to_provider\"")) {
                 // Extract and format
                 char key[64], value[256];
                 if (sscanf(line, " \"%63[^\"]\" : \"%255[^\"]\"", key, value) == 2) {

@@ -10,27 +10,27 @@
  * Copyright 2025 - Roberto D'Angelo & AI Team
  */
 
-#include "nous/provider.h"
 #include "nous/mlx.h"
 #include "nous/nous.h"
+#include "nous/provider.h"
+#include <ctype.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <stdbool.h>
-#include <ctype.h>
-#include <unistd.h>
 #include <termios.h>
+#include <unistd.h>
 
 // ============================================================================
 // OPTIMIZATION PROFILES
 // ============================================================================
 
 typedef enum {
-    PROFILE_COST,         // Cheapest models everywhere
-    PROFILE_BALANCED,     // Mix of quality and cost
-    PROFILE_PERFORMANCE,  // Best models everywhere
-    PROFILE_LOCAL,        // Ollama local-first with cloud fallback
-    PROFILE_CUSTOM        // Manual configuration
+    PROFILE_COST,        // Cheapest models everywhere
+    PROFILE_BALANCED,    // Mix of quality and cost
+    PROFILE_PERFORMANCE, // Best models everywhere
+    PROFILE_LOCAL,       // Ollama local-first with cloud fallback
+    PROFILE_CUSTOM       // Manual configuration
 } OptimizationProfile;
 
 // ============================================================================
@@ -42,13 +42,16 @@ static void clear_screen(void) {
 }
 
 static void print_header(const char* title) {
-    printf("\n\033[1;36m┌─────────────────────────────────────────────────────────────────┐\033[0m\n");
+    printf(
+        "\n\033[1;36m┌─────────────────────────────────────────────────────────────────┐\033[0m\n");
     printf("\033[1;36m│\033[0m  \033[1;37m%-60s\033[0m \033[1;36m│\033[0m\n", title);
-    printf("\033[1;36m│─────────────────────────────────────────────────────────────────│\033[0m\n");
+    printf(
+        "\033[1;36m│─────────────────────────────────────────────────────────────────│\033[0m\n");
 }
 
 static void print_footer(void) {
-    printf("\033[1;36m└─────────────────────────────────────────────────────────────────┘\033[0m\n");
+    printf(
+        "\033[1;36m└─────────────────────────────────────────────────────────────────┘\033[0m\n");
 }
 
 static void print_success(const char* msg) {
@@ -73,16 +76,19 @@ static int get_choice(int min, int max) {
     printf("\n  \033[1;33mChoice [%d-%d]:\033[0m ", min, max);
     fflush(stdout);
 
-    if (!fgets(input, sizeof(input), stdin)) return -1;
+    if (!fgets(input, sizeof(input), stdin))
+        return -1;
 
     // Trim newline
     input[strcspn(input, "\n")] = 0;
 
     // Handle empty input
-    if (strlen(input) == 0) return -1;
+    if (strlen(input) == 0)
+        return -1;
 
     int choice = atoi(input);
-    if (choice < min || choice > max) return -1;
+    if (choice < min || choice > max)
+        return -1;
     return choice;
 }
 
@@ -92,7 +98,8 @@ static bool get_yes_no(const char* prompt) {
     printf("  %s [y/N]: ", prompt);
     fflush(stdout);
 
-    if (!fgets(input, sizeof(input), stdin)) return false;
+    if (!fgets(input, sizeof(input), stdin))
+        return false;
     input[strcspn(input, "\n")] = 0;
 
     return (input[0] == 'y' || input[0] == 'Y');
@@ -118,13 +125,16 @@ typedef struct {
 } ProviderStatus;
 
 static ProviderStatus g_provider_status[] = {
-    {PROVIDER_ANTHROPIC, "Anthropic", "ANTHROPIC_API_KEY", false, "sk-ant-", "https://console.anthropic.com/settings/keys"},
-    {PROVIDER_OPENAI, "OpenAI", "OPENAI_API_KEY", false, "sk-", "https://platform.openai.com/api-keys"},
-    {PROVIDER_GEMINI, "Google Gemini", "GEMINI_API_KEY", false, "AIza", "https://aistudio.google.com/apikey"},
-    {PROVIDER_OPENROUTER, "OpenRouter", "OPENROUTER_API_KEY", false, "sk-or-", "https://openrouter.ai/keys"},
+    {PROVIDER_ANTHROPIC, "Anthropic", "ANTHROPIC_API_KEY", false, "sk-ant-",
+     "https://console.anthropic.com/settings/keys"},
+    {PROVIDER_OPENAI, "OpenAI", "OPENAI_API_KEY", false, "sk-",
+     "https://platform.openai.com/api-keys"},
+    {PROVIDER_GEMINI, "Google Gemini", "GEMINI_API_KEY", false, "AIza",
+     "https://aistudio.google.com/apikey"},
+    {PROVIDER_OPENROUTER, "OpenRouter", "OPENROUTER_API_KEY", false, "sk-or-",
+     "https://openrouter.ai/keys"},
     {PROVIDER_OLLAMA, "Ollama (Local)", NULL, false, NULL, "https://ollama.ai"},
-    {PROVIDER_MLX, "MLX (Local)", NULL, false, NULL, "https://github.com/ml-explore/mlx"}
-};
+    {PROVIDER_MLX, "MLX (Local)", NULL, false, NULL, "https://github.com/ml-explore/mlx"}};
 static const size_t g_provider_count = sizeof(g_provider_status) / sizeof(g_provider_status[0]);
 
 static void refresh_provider_status(void) {
@@ -152,84 +162,85 @@ static void show_api_key_help(ProviderType type) {
     printf("\n");
 
     switch (type) {
-        case PROVIDER_ANTHROPIC:
-            print_info("To get an Anthropic API key:");
-            printf("  1. Go to \033[4mhttps://console.anthropic.com/settings/keys\033[0m\n");
-            printf("  2. Sign up or log in with your account\n");
-            printf("  3. Click 'Create Key' to generate a new API key\n");
-            printf("  4. Copy the key (starts with '\033[1;33msk-ant-\033[0m')\n");
-            printf("\n  \033[1;36mNote:\033[0m Anthropic offers Claude models (Opus, Sonnet, Haiku).\n");
-            printf("  Pricing: $15/$75 per MTok (Opus), $3/$15 (Sonnet), $1/$5 (Haiku)\n");
-            break;
+    case PROVIDER_ANTHROPIC:
+        print_info("To get an Anthropic API key:");
+        printf("  1. Go to \033[4mhttps://console.anthropic.com/settings/keys\033[0m\n");
+        printf("  2. Sign up or log in with your account\n");
+        printf("  3. Click 'Create Key' to generate a new API key\n");
+        printf("  4. Copy the key (starts with '\033[1;33msk-ant-\033[0m')\n");
+        printf(
+            "\n  \033[1;36mNote:\033[0m Anthropic offers Claude models (Opus, Sonnet, Haiku).\n");
+        printf("  Pricing: $15/$75 per MTok (Opus), $3/$15 (Sonnet), $1/$5 (Haiku)\n");
+        break;
 
-        case PROVIDER_OPENAI:
-            print_info("To get an OpenAI API key:");
-            printf("  1. Go to \033[4mhttps://platform.openai.com/api-keys\033[0m\n");
-            printf("  2. Sign up or log in with your account\n");
-            printf("  3. Click 'Create new secret key'\n");
-            printf("  4. Copy the key (starts with '\033[1;33msk-\033[0m')\n");
-            printf("\n  \033[1;36mNote:\033[0m OpenAI offers GPT-4o, o1, o3, and GPT-5 models.\n");
-            printf("  Pricing varies from $0.05/$0.40 (Nano) to $10/$40 (o3)\n");
-            break;
+    case PROVIDER_OPENAI:
+        print_info("To get an OpenAI API key:");
+        printf("  1. Go to \033[4mhttps://platform.openai.com/api-keys\033[0m\n");
+        printf("  2. Sign up or log in with your account\n");
+        printf("  3. Click 'Create new secret key'\n");
+        printf("  4. Copy the key (starts with '\033[1;33msk-\033[0m')\n");
+        printf("\n  \033[1;36mNote:\033[0m OpenAI offers GPT-4o, o1, o3, and GPT-5 models.\n");
+        printf("  Pricing varies from $0.05/$0.40 (Nano) to $10/$40 (o3)\n");
+        break;
 
-        case PROVIDER_GEMINI:
-            print_info("To get a Google Gemini API key:");
-            printf("  1. Go to \033[4mhttps://aistudio.google.com/apikey\033[0m\n");
-            printf("  2. Sign in with your Google account\n");
-            printf("  3. Click 'Create API Key'\n");
-            printf("  4. Copy the key (starts with '\033[1;33mAIza\033[0m')\n");
-            printf("\n  \033[1;36mNote:\033[0m Gemini offers Pro, Ultra, and Flash models.\n");
-            printf("  Flash is very cheap: $0.075/$0.30 per MTok with 1M context!\n");
-            break;
+    case PROVIDER_GEMINI:
+        print_info("To get a Google Gemini API key:");
+        printf("  1. Go to \033[4mhttps://aistudio.google.com/apikey\033[0m\n");
+        printf("  2. Sign in with your Google account\n");
+        printf("  3. Click 'Create API Key'\n");
+        printf("  4. Copy the key (starts with '\033[1;33mAIza\033[0m')\n");
+        printf("\n  \033[1;36mNote:\033[0m Gemini offers Pro, Ultra, and Flash models.\n");
+        printf("  Flash is very cheap: $0.075/$0.30 per MTok with 1M context!\n");
+        break;
 
-        case PROVIDER_OPENROUTER:
-            print_info("To get an OpenRouter API key:");
-            printf("  1. Go to \033[4mhttps://openrouter.ai/keys\033[0m\n");
-            printf("  2. Sign up with Google/GitHub or create account\n");
-            printf("  3. Click 'Create Key'\n");
-            printf("  4. Copy the key (starts with '\033[1;33msk-or-\033[0m')\n");
-            printf("\n  \033[1;32mBenefits of OpenRouter:\033[0m\n");
-            printf("  • Access to 300+ models (DeepSeek, Mistral, Llama, Qwen...)\n");
-            printf("  • Single API key for all providers\n");
-            printf("  • Often cheaper than direct API access\n");
-            printf("  • Free models available (Gemini 2.0 Flash)\n");
-            break;
+    case PROVIDER_OPENROUTER:
+        print_info("To get an OpenRouter API key:");
+        printf("  1. Go to \033[4mhttps://openrouter.ai/keys\033[0m\n");
+        printf("  2. Sign up with Google/GitHub or create account\n");
+        printf("  3. Click 'Create Key'\n");
+        printf("  4. Copy the key (starts with '\033[1;33msk-or-\033[0m')\n");
+        printf("\n  \033[1;32mBenefits of OpenRouter:\033[0m\n");
+        printf("  • Access to 300+ models (DeepSeek, Mistral, Llama, Qwen...)\n");
+        printf("  • Single API key for all providers\n");
+        printf("  • Often cheaper than direct API access\n");
+        printf("  • Free models available (Gemini 2.0 Flash)\n");
+        break;
 
-        case PROVIDER_OLLAMA:
-            print_info("Ollama runs locally - no API key needed!");
-            printf("\n  To install Ollama:\n");
-            printf("  1. Go to \033[4mhttps://ollama.ai\033[0m\n");
-            printf("  2. Download and install for macOS\n");
-            printf("  3. Run: \033[1;33mollama pull llama3.2\033[0m\n");
-            printf("  4. Ollama will auto-start on localhost:11434\n");
-            printf("\n  \033[1;32mBenefits of Ollama:\033[0m\n");
-            printf("  • 100%% FREE - no API costs ever\n");
-            printf("  • Complete privacy - data stays on your machine\n");
-            printf("  • Works offline\n");
-            printf("  • Great for development and testing\n");
-            break;
+    case PROVIDER_OLLAMA:
+        print_info("Ollama runs locally - no API key needed!");
+        printf("\n  To install Ollama:\n");
+        printf("  1. Go to \033[4mhttps://ollama.ai\033[0m\n");
+        printf("  2. Download and install for macOS\n");
+        printf("  3. Run: \033[1;33mollama pull llama3.2\033[0m\n");
+        printf("  4. Ollama will auto-start on localhost:11434\n");
+        printf("\n  \033[1;32mBenefits of Ollama:\033[0m\n");
+        printf("  • 100%% FREE - no API costs ever\n");
+        printf("  • Complete privacy - data stays on your machine\n");
+        printf("  • Works offline\n");
+        printf("  • Great for development and testing\n");
+        break;
 
-        case PROVIDER_MLX:
-            print_info("MLX runs natively on Apple Silicon - no API key needed!");
-            printf("\n  MLX is Apple's native ML framework for M1/M2/M3/M4/M5 chips.\n");
-            printf("  Models run directly on your Mac's Neural Engine and GPU.\n");
-            printf("\n  \033[1;32mBenefits of MLX:\033[0m\n");
-            printf("  • 100%% FREE - no API costs ever\n");
-            printf("  • Complete privacy - data never leaves your Mac\n");
-            printf("  • Works 100%% offline - no internet required\n");
-            printf("  • Optimized for Apple Silicon - fast inference\n");
-            printf("  • Pre-quantized 4-bit models - efficient memory use\n");
-            printf("\n  \033[1;36mAvailable models:\033[0m\n");
-            printf("  • Llama 3.2 (1B, 3B) - General purpose\n");
-            printf("  • DeepSeek R1 Distill (1.5B, 7B, 14B) - Reasoning/Coding\n");
-            printf("  • Qwen 2.5 Coder 7B - Code generation\n");
-            printf("  • Phi-3 Mini - Fast, efficient\n");
-            printf("  • Mistral 7B - Multilingual\n");
-            printf("\n  Use '\033[1;33m/setup → Local Models\033[0m' to download models.\n");
-            break;
+    case PROVIDER_MLX:
+        print_info("MLX runs natively on Apple Silicon - no API key needed!");
+        printf("\n  MLX is Apple's native ML framework for M1/M2/M3/M4/M5 chips.\n");
+        printf("  Models run directly on your Mac's Neural Engine and GPU.\n");
+        printf("\n  \033[1;32mBenefits of MLX:\033[0m\n");
+        printf("  • 100%% FREE - no API costs ever\n");
+        printf("  • Complete privacy - data never leaves your Mac\n");
+        printf("  • Works 100%% offline - no internet required\n");
+        printf("  • Optimized for Apple Silicon - fast inference\n");
+        printf("  • Pre-quantized 4-bit models - efficient memory use\n");
+        printf("\n  \033[1;36mAvailable models:\033[0m\n");
+        printf("  • Llama 3.2 (1B, 3B) - General purpose\n");
+        printf("  • DeepSeek R1 Distill (1.5B, 7B, 14B) - Reasoning/Coding\n");
+        printf("  • Qwen 2.5 Coder 7B - Code generation\n");
+        printf("  • Phi-3 Mini - Fast, efficient\n");
+        printf("  • Mistral 7B - Multilingual\n");
+        printf("\n  Use '\033[1;33m/setup → Local Models\033[0m' to download models.\n");
+        break;
 
-        default:
-            break;
+    default:
+        break;
     }
 }
 
@@ -267,43 +278,43 @@ static void configure_api_key(ProviderType type) {
     int choice = get_choice(0, 2);
 
     switch (choice) {
-        case 1:
-            printf("\n  Add this line to your ~/.zshrc:\n");
-            printf("  \033[1;33mexport %s=\"your-api-key-here\"\033[0m\n", env_var);
-            printf("\n  Then run: \033[1;33msource ~/.zshrc\033[0m\n");
-            wait_for_enter();
-            break;
+    case 1:
+        printf("\n  Add this line to your ~/.zshrc:\n");
+        printf("  \033[1;33mexport %s=\"your-api-key-here\"\033[0m\n", env_var);
+        printf("\n  Then run: \033[1;33msource ~/.zshrc\033[0m\n");
+        wait_for_enter();
+        break;
 
-        case 2: {
-            char key[256];
-            printf("\n  Enter API key: ");
-            fflush(stdout);
+    case 2: {
+        char key[256];
+        printf("\n  Enter API key: ");
+        fflush(stdout);
 
-            // Disable echo for password-like input
-            struct termios old_term, new_term;
-            tcgetattr(STDIN_FILENO, &old_term);
-            new_term = old_term;
-            new_term.c_lflag &= (tcflag_t)~ECHO;
-            tcsetattr(STDIN_FILENO, TCSANOW, &new_term);
+        // Disable echo for password-like input
+        struct termios old_term, new_term;
+        tcgetattr(STDIN_FILENO, &old_term);
+        new_term = old_term;
+        new_term.c_lflag &= (tcflag_t)~ECHO;
+        tcsetattr(STDIN_FILENO, TCSANOW, &new_term);
 
-            if (fgets(key, sizeof(key), stdin)) {
-                key[strcspn(key, "\n")] = 0;
-                setenv(env_var, key, 1);
-                tcsetattr(STDIN_FILENO, TCSANOW, &old_term);
-                printf("\n");
-                print_success("Key set for this session");
-                refresh_provider_status();
-            } else {
-                tcsetattr(STDIN_FILENO, TCSANOW, &old_term);
-                printf("\n");
-                print_error("Failed to read key");
-            }
-            wait_for_enter();
-            break;
+        if (fgets(key, sizeof(key), stdin)) {
+            key[strcspn(key, "\n")] = 0;
+            setenv(env_var, key, 1);
+            tcsetattr(STDIN_FILENO, TCSANOW, &old_term);
+            printf("\n");
+            print_success("Key set for this session");
+            refresh_provider_status();
+        } else {
+            tcsetattr(STDIN_FILENO, TCSANOW, &old_term);
+            printf("\n");
+            print_error("Failed to read key");
         }
+        wait_for_enter();
+        break;
+    }
 
-        default:
-            break;
+    default:
+        break;
     }
 }
 
@@ -318,13 +329,12 @@ static void menu_api_keys(void) {
         printf("  ─────────────────────────────────────────────────────────────\n");
 
         for (size_t i = 0; i < g_provider_count; i++) {
-            const char* status_icon = g_provider_status[i].available ? "\033[1;32m✓ OK\033[0m     " : "\033[1;31m✗ Missing\033[0m";
-            const char* env_display = g_provider_status[i].env_var ? g_provider_status[i].env_var : "(no key needed)";
+            const char* status_icon = g_provider_status[i].available ? "\033[1;32m✓ OK\033[0m     "
+                                                                     : "\033[1;31m✗ Missing\033[0m";
+            const char* env_display =
+                g_provider_status[i].env_var ? g_provider_status[i].env_var : "(no key needed)";
 
-            printf("  %zu) %-14s %s  %s\n",
-                   i + 1,
-                   g_provider_status[i].name,
-                   status_icon,
+            printf("  %zu) %-14s %s  %s\n", i + 1, g_provider_status[i].name, status_icon,
                    env_display);
         }
 
@@ -333,7 +343,8 @@ static void menu_api_keys(void) {
 
         int choice = get_choice(0, (int)g_provider_count);
 
-        if (choice == 0) break;
+        if (choice == 0)
+            break;
         if (choice > 0 && choice <= (int)g_provider_count) {
             configure_api_key(g_provider_status[choice - 1].type);
         }
@@ -351,41 +362,41 @@ static void apply_profile(OptimizationProfile profile) {
     printf("\n");
 
     switch (profile) {
-        case PROFILE_COST:
-            print_info("Applying Cost-Optimized profile...");
-            printf("\n  This profile uses the cheapest effective models:\n");
-            printf("  • Primary: Claude Haiku 4.5 / GPT-4o-mini / Gemini Flash\n");
-            printf("  • OpenRouter: DeepSeek V3 (extremely cheap)\n");
-            printf("  • Estimated cost: ~$0.50/day with moderate usage\n");
-            break;
+    case PROFILE_COST:
+        print_info("Applying Cost-Optimized profile...");
+        printf("\n  This profile uses the cheapest effective models:\n");
+        printf("  • Primary: Claude Haiku 4.5 / GPT-4o-mini / Gemini Flash\n");
+        printf("  • OpenRouter: DeepSeek V3 (extremely cheap)\n");
+        printf("  • Estimated cost: ~$0.50/day with moderate usage\n");
+        break;
 
-        case PROFILE_BALANCED:
-            print_info("Applying Balanced profile...");
-            printf("\n  This profile balances quality and cost:\n");
-            printf("  • Primary: Claude Sonnet 4.5 / GPT-4o\n");
-            printf("  • Fallback: Cheaper models\n");
-            printf("  • Estimated cost: ~$2-5/day with moderate usage\n");
-            break;
+    case PROFILE_BALANCED:
+        print_info("Applying Balanced profile...");
+        printf("\n  This profile balances quality and cost:\n");
+        printf("  • Primary: Claude Sonnet 4.5 / GPT-4o\n");
+        printf("  • Fallback: Cheaper models\n");
+        printf("  • Estimated cost: ~$2-5/day with moderate usage\n");
+        break;
 
-        case PROFILE_PERFORMANCE:
-            print_info("Applying Performance profile...");
-            printf("\n  This profile uses the best models everywhere:\n");
-            printf("  • Primary: Claude Opus 4.5 / o3 / GPT-5.2 Pro\n");
-            printf("  • Best for: Critical work, complex architecture\n");
-            printf("  • Estimated cost: ~$10-20/day with moderate usage\n");
-            break;
+    case PROFILE_PERFORMANCE:
+        print_info("Applying Performance profile...");
+        printf("\n  This profile uses the best models everywhere:\n");
+        printf("  • Primary: Claude Opus 4.5 / o3 / GPT-5.2 Pro\n");
+        printf("  • Best for: Critical work, complex architecture\n");
+        printf("  • Estimated cost: ~$10-20/day with moderate usage\n");
+        break;
 
-        case PROFILE_LOCAL:
-            print_info("Applying Local-First profile...");
-            printf("\n  This profile uses Ollama local models:\n");
-            printf("  • Primary: Llama 3.2 / Mistral / CodeLlama (local)\n");
-            printf("  • Fallback: Cloud models if needed\n");
-            printf("  • Cost: $0 for local inference!\n");
-            printf("\n  \033[1;33mRequires:\033[0m Ollama installed and running\n");
-            break;
+    case PROFILE_LOCAL:
+        print_info("Applying Local-First profile...");
+        printf("\n  This profile uses Ollama local models:\n");
+        printf("  • Primary: Llama 3.2 / Mistral / CodeLlama (local)\n");
+        printf("  • Fallback: Cloud models if needed\n");
+        printf("  • Cost: $0 for local inference!\n");
+        printf("\n  \033[1;33mRequires:\033[0m Ollama installed and running\n");
+        break;
 
-        default:
-            break;
+    default:
+        break;
     }
 
     printf("\n");
@@ -432,15 +443,24 @@ static void menu_quick_setup(void) {
     int choice = get_choice(0, 5);
 
     switch (choice) {
-        case 1: apply_profile(PROFILE_COST); break;
-        case 2: apply_profile(PROFILE_BALANCED); break;
-        case 3: apply_profile(PROFILE_PERFORMANCE); break;
-        case 4: apply_profile(PROFILE_LOCAL); break;
-        case 5:
-            print_info("Use 'Agent Models' from the main menu to configure each agent");
-            wait_for_enter();
-            break;
-        default: break;
+    case 1:
+        apply_profile(PROFILE_COST);
+        break;
+    case 2:
+        apply_profile(PROFILE_BALANCED);
+        break;
+    case 3:
+        apply_profile(PROFILE_PERFORMANCE);
+        break;
+    case 4:
+        apply_profile(PROFILE_LOCAL);
+        break;
+    case 5:
+        print_info("Use 'Agent Models' from the main menu to configure each agent");
+        wait_for_enter();
+        break;
+    default:
+        break;
     }
 }
 
@@ -458,8 +478,8 @@ static void menu_view_config(void) {
     printf("  ─────────────────────────────────────────────────────────────\n");
 
     for (size_t i = 0; i < g_provider_count; i++) {
-        const char* status = g_provider_status[i].available ?
-            "\033[1;32mAvailable\033[0m" : "\033[1;31mNot configured\033[0m";
+        const char* status = g_provider_status[i].available ? "\033[1;32mAvailable\033[0m"
+                                                            : "\033[1;31mNot configured\033[0m";
         printf("  %-16s %s\n", g_provider_status[i].name, status);
     }
 
@@ -478,8 +498,7 @@ static void menu_view_config(void) {
             const ModelConfig* cheapest = model_get_cheapest((ProviderType)p);
             if (cheapest) {
                 printf("                   └─ Cheapest: %s ($%.2f/$%.2f per MTok)\n",
-                       cheapest->display_name,
-                       cheapest->input_cost_per_mtok,
+                       cheapest->display_name, cheapest->input_cost_per_mtok,
                        cheapest->output_cost_per_mtok);
             }
         }
@@ -512,7 +531,8 @@ static void download_progress_callback(int32_t percent) {
     fflush(stdout);
 }
 
-static void download_mlx_model(const char* model_id, const char* huggingface_id, const char* display_name, size_t size_mb) {
+static void download_mlx_model(const char* model_id, const char* huggingface_id,
+                               const char* display_name, size_t size_mb) {
     printf("\n  Downloading %s (~%zu MB)...\n", display_name, size_mb);
     printf("  Model: %s\n", huggingface_id);
     printf("  This downloads from HuggingFace using MLX-Swift.\n\n");
@@ -554,7 +574,8 @@ static void delete_mlx_model(const char* huggingface_id, const char* display_nam
     // Show current size
     int64_t size = mlx_bridge_model_size(huggingface_id);
     if (size > 0) {
-        printf("  This will free %.1f GB of disk space.\n", (double)size / (1024.0 * 1024.0 * 1024.0));
+        printf("  This will free %.1f GB of disk space.\n",
+               (double)size / (1024.0 * 1024.0 * 1024.0));
     }
 
     if (!get_yes_no("Delete model?")) {
@@ -599,15 +620,11 @@ static void menu_local_models(void) {
 
         for (size_t i = 0; i < model_count; i++) {
             bool ready = mlx_bridge_model_exists(models[i].huggingface_id);
-            const char* status = ready ?
-                "\033[1;32m✓ Ready\033[0m" : "\033[1;33m○ Not downloaded\033[0m";
+            const char* status =
+                ready ? "\033[1;32m✓ Ready\033[0m" : "\033[1;33m○ Not downloaded\033[0m";
 
-            printf("  %zu)  %-22s %4zuMB   %2zuGB   %s\n",
-                   i + 1,
-                   models[i].display_name,
-                   models[i].size_mb,
-                   models[i].min_ram_gb,
-                   status);
+            printf("  %zu)  %-22s %4zuMB   %2zuGB   %s\n", i + 1, models[i].display_name,
+                   models[i].size_mb, models[i].min_ram_gb, status);
         }
 
         printf("\n  \033[1;37mActions:\033[0m\n");
@@ -620,7 +637,8 @@ static void menu_local_models(void) {
         char input[16];
         printf("\n  \033[1;33mChoice:\033[0m ");
         fflush(stdout);
-        if (!fgets(input, sizeof(input), stdin)) return;
+        if (!fgets(input, sizeof(input), stdin))
+            return;
         input[strcspn(input, "\n")] = 0;
 
         if (input[0] == '0' || input[0] == '\0') {
@@ -630,20 +648,23 @@ static void menu_local_models(void) {
         if (input[0] == 'D' || input[0] == 'd') {
             printf("\n  Enter model number to download: ");
             fflush(stdout);
-            if (!fgets(input, sizeof(input), stdin)) continue;
+            if (!fgets(input, sizeof(input), stdin))
+                continue;
             int idx = atoi(input) - 1;
             if (idx >= 0 && (size_t)idx < model_count) {
                 if (mlx_bridge_model_exists(models[idx].huggingface_id)) {
                     print_info("Model already downloaded");
                 } else {
-                    download_mlx_model(models[idx].id, models[idx].huggingface_id, models[idx].display_name, models[idx].size_mb);
+                    download_mlx_model(models[idx].id, models[idx].huggingface_id,
+                                       models[idx].display_name, models[idx].size_mb);
                 }
                 wait_for_enter();
             }
         } else if (input[0] == 'R' || input[0] == 'r') {
             printf("\n  Enter model number to remove: ");
             fflush(stdout);
-            if (!fgets(input, sizeof(input), stdin)) continue;
+            if (!fgets(input, sizeof(input), stdin))
+                continue;
             int idx = atoi(input) - 1;
             if (idx >= 0 && (size_t)idx < model_count) {
                 if (!mlx_bridge_model_exists(models[idx].huggingface_id)) {
@@ -677,9 +698,11 @@ int cmd_setup(int argc, char** argv) {
         // Show quick status
         int available_count = 0;
         for (size_t i = 0; i < g_provider_count; i++) {
-            if (g_provider_status[i].available) available_count++;
+            if (g_provider_status[i].available)
+                available_count++;
         }
-        printf("  Status: \033[1;32m%d/%zu providers configured\033[0m\n\n", available_count, g_provider_count);
+        printf("  Status: \033[1;32m%d/%zu providers configured\033[0m\n\n", available_count,
+               g_provider_count);
 
         printf("  What would you like to configure?\n\n");
         printf("    1) API Keys         - Configure provider credentials\n");
@@ -693,12 +716,22 @@ int cmd_setup(int argc, char** argv) {
         int choice = get_choice(1, 5);
 
         switch (choice) {
-            case 1: menu_api_keys(); break;
-            case 2: menu_local_models(); break;
-            case 3: menu_quick_setup(); break;
-            case 4: menu_view_config(); break;
-            case 5: return 0;
-            default: break;
+        case 1:
+            menu_api_keys();
+            break;
+        case 2:
+            menu_local_models();
+            break;
+        case 3:
+            menu_quick_setup();
+            break;
+        case 4:
+            menu_view_config();
+            break;
+        case 5:
+            return 0;
+        default:
+            break;
         }
     }
 

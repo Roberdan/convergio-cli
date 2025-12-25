@@ -129,7 +129,9 @@ All new requests must be tracked in this plan. Procedure:
 
 ### Backlog
 
-_No requests in backlog at this time._
+| ID | Task | Status | Effort | Note |
+|----|------|--------|--------|------|
+| P7 | Conversational Config Module | 🔄 | 1h | Reusable LLM-based config gathering. Extract from ali_onboarding.c, generalize for all wizards/forms across Convergio |
 
 <!--
 To add requests to backlog:

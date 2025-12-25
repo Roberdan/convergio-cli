@@ -29,7 +29,8 @@ typedef enum {
     PROVIDER_OPENROUTER  = 3,
     PROVIDER_OLLAMA      = 4,
     PROVIDER_MLX         = 5,   // Local MLX inference (Apple Silicon native)
-    PROVIDER_COUNT       = 6
+    PROVIDER_APPLE_FOUNDATION = 6,  // Apple Foundation Models (macOS 26+)
+    PROVIDER_COUNT       = 7
 } ProviderType;
 
 // Cost tier for model selection

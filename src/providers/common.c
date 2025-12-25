@@ -6,9 +6,9 @@
  */
 
 #include "nous/provider_common.h"
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <stdio.h>
 
 // ============================================================================
 // RESPONSE BUFFER IMPLEMENTATION
@@ -19,7 +19,8 @@ bool response_buffer_init(ResponseBuffer* buf) {
 }
 
 bool response_buffer_init_with_capacity(ResponseBuffer* buf, size_t capacity) {
-    if (!buf) return false;
+    if (!buf)
+        return false;
 
     buf->data = malloc(capacity);
     if (!buf->data) {
@@ -35,7 +36,8 @@ bool response_buffer_init_with_capacity(ResponseBuffer* buf, size_t capacity) {
 }
 
 void response_buffer_free(ResponseBuffer* buf) {
-    if (!buf) return;
+    if (!buf)
+        return;
     free(buf->data);
     buf->data = NULL;
     buf->size = 0;
@@ -43,13 +45,15 @@ void response_buffer_free(ResponseBuffer* buf) {
 }
 
 void response_buffer_clear(ResponseBuffer* buf) {
-    if (!buf || !buf->data) return;
+    if (!buf || !buf->data)
+        return;
     buf->data[0] = '\0';
     buf->size = 0;
 }
 
 bool response_buffer_append(ResponseBuffer* buf, const char* data, size_t len) {
-    if (!buf || !data) return false;
+    if (!buf || !data)
+        return false;
 
     // Check max size limit
     if (buf->size + len > RESPONSE_BUFFER_MAX_SIZE) {
@@ -68,7 +72,8 @@ bool response_buffer_append(ResponseBuffer* buf, const char* data, size_t len) {
         }
 
         char* new_data = realloc(buf->data, new_cap);
-        if (!new_data) return false;
+        if (!new_data)
+            return false;
         buf->data = new_data;
         buf->capacity = new_cap;
     }
@@ -88,17 +93,18 @@ size_t provider_write_callback(void* contents, size_t size, size_t nmemb, void* 
     size_t total = size * nmemb;
     ResponseBuffer* buf = (ResponseBuffer*)userp;
 
-    if (!buf) return 0;
+    if (!buf)
+        return 0;
 
     // Lazy initialization if buffer was declared with RESPONSE_BUFFER_INIT
     if (!buf->data) {
         if (!response_buffer_init(buf)) {
-            return 0;  // Signal error to curl
+            return 0; // Signal error to curl
         }
     }
 
     if (!response_buffer_append(buf, contents, total)) {
-        return 0;  // Signal error to curl
+        return 0; // Signal error to curl
     }
 
     return total;
@@ -109,7 +115,8 @@ size_t provider_write_callback(void* contents, size_t size, size_t nmemb, void* 
 // ============================================================================
 
 void provider_set_common_curl_opts(CURL* curl, long timeout) {
-    if (!curl) return;
+    if (!curl)
+        return;
 
     // Follow redirects (up to 5 hops)
     curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
@@ -144,7 +151,8 @@ struct curl_slist* provider_json_headers(void) {
 }
 
 struct curl_slist* provider_add_auth_header(struct curl_slist* headers, const char* token) {
-    if (!token) return headers;
+    if (!token)
+        return headers;
 
     char auth_header[512];
     snprintf(auth_header, sizeof(auth_header), "Authorization: Bearer %s", token);

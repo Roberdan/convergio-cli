@@ -46,9 +46,9 @@ cat > "$OUTPUT_FILE" << 'EOF'
 
 EOF
 
-# Process each .md file
+# Process each .md file (including education subdirectory)
 count=0
-for file in "$AGENTS_DIR"/*.md; do
+for file in "$AGENTS_DIR"/*.md "$AGENTS_DIR"/education/*.md; do
     if [ -f "$file" ]; then
         filename=$(basename "$file")
         varname=$(echo "$filename" | sed 's/[^a-zA-Z0-9]/_/g' | sed 's/^/agent_/')
@@ -73,7 +73,7 @@ done
 # Generate the array
 echo "const EmbeddedAgent EMBEDDED_AGENTS[] = {" >> "$OUTPUT_FILE"
 
-for file in "$AGENTS_DIR"/*.md; do
+for file in "$AGENTS_DIR"/*.md "$AGENTS_DIR"/education/*.md; do
     if [ -f "$file" ]; then
         filename=$(basename "$file")
         varname=$(echo "$filename" | sed 's/[^a-zA-Z0-9]/_/g' | sed 's/^/agent_/')

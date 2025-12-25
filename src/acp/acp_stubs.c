@@ -5,12 +5,12 @@
  * that are needed by convergio-acp but defined in main.c
  */
 
+#include "nous/nous.h"
 #include <signal.h>
+#include <stdarg.h>
 #include <stdbool.h>
 #include <stddef.h>
-#include <stdarg.h>
 #include <stdio.h>
-#include "nous/nous.h"
 
 // Global state stubs (normally defined in main.c)
 volatile sig_atomic_t g_running = 1;
@@ -39,6 +39,7 @@ LogLevel nous_log_get_level(void) {
 
 const char* nous_log_level_name(LogLevel level) {
     static const char* names[] = {"NONE", "ERROR", "WARN", "INFO", "DEBUG", "TRACE"};
-    if (level <= LOG_LEVEL_TRACE) return names[level];
+    if (level <= LOG_LEVEL_TRACE)
+        return names[level];
     return "UNKNOWN";
 }

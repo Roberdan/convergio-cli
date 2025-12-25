@@ -20,26 +20,26 @@
 #include "nous/notify.h"
 #include "nous/config.h"
 
+#include <dispatch/dispatch.h>
+#include <errno.h>
+#include <fcntl.h>
+#include <limits.h>
+#include <mach-o/dyld.h>
+#include <mach/mach.h>
+#include <os/log.h>
+#include <pthread.h>
+#include <signal.h>
+#include <spawn.h>
+#include <sqlite3.h>
+#include <stdatomic.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
-#include <fcntl.h>
-#include <signal.h>
-#include <spawn.h>
-#include <errno.h>
-#include <limits.h>
-#include <sys/wait.h>
 #include <sys/stat.h>
-#include <dispatch/dispatch.h>
-#include <os/log.h>
-#include <mach/mach.h>
-#include <sqlite3.h>
-#include <pthread.h>
-#include <stdatomic.h>
-#include <mach-o/dyld.h>
+#include <sys/wait.h>
+#include <unistd.h>
 
-extern char **environ;
+extern char** environ;
 
 // Global database connection (from persistence module)
 extern sqlite3* g_db;
@@ -55,10 +55,10 @@ extern pthread_mutex_t g_db_mutex;
 #define LAUNCH_AGENT_PLIST "~/Library/LaunchAgents/io.convergio.daemon.plist"
 
 // Polling intervals
-#define POLL_INTERVAL_NORMAL_NS  (60 * NSEC_PER_SEC)   // 60 seconds
-#define POLL_INTERVAL_IDLE_NS    (300 * NSEC_PER_SEC)  // 5 minutes when no pending
-#define POLL_INTERVAL_FAST_NS    (30 * NSEC_PER_SEC)   // 30 seconds when many pending
-#define TIMER_LEEWAY_NS          (10 * NSEC_PER_SEC)   // 10 second leeway for coalescing
+#define POLL_INTERVAL_NORMAL_NS (60 * NSEC_PER_SEC) // 60 seconds
+#define POLL_INTERVAL_IDLE_NS (300 * NSEC_PER_SEC)  // 5 minutes when no pending
+#define POLL_INTERVAL_FAST_NS (30 * NSEC_PER_SEC)   // 30 seconds when many pending
+#define TIMER_LEEWAY_NS (10 * NSEC_PER_SEC)         // 10 second leeway for coalescing
 
 // Batch size for notification processing
 #define MAX_BATCH_SIZE 16
@@ -72,7 +72,7 @@ static os_log_t g_notify_log = NULL;
 
 // Available methods (detected at init)
 static struct {
-    bool convergio_notify;   // Native helper app (best - proper icon)
+    bool convergio_notify; // Native helper app (best - proper icon)
     bool terminal_notifier;
     bool osascript;
     bool terminal;
@@ -136,12 +136,10 @@ int notify_init(void) {
     check_method_availability();
 
     os_log_info(g_notify_log, "Notification system initialized");
-    os_log_info(g_notify_log, "Available methods: terminal-notifier=%d osascript=%d terminal=%d sound=%d log=%d",
-                g_available_methods.terminal_notifier,
-                g_available_methods.osascript,
-                g_available_methods.terminal,
-                g_available_methods.sound,
-                g_available_methods.log);
+    os_log_info(g_notify_log,
+                "Available methods: terminal-notifier=%d osascript=%d terminal=%d sound=%d log=%d",
+                g_available_methods.terminal_notifier, g_available_methods.osascript,
+                g_available_methods.terminal, g_available_methods.sound, g_available_methods.log);
 
     return 0;
 }
@@ -222,8 +220,7 @@ static void check_method_availability(void) {
 
     // ConvergioNotify.app: Check if found next to binary (best - shows correct icon)
     g_available_methods.convergio_notify =
-        (g_convergio_notify_path[0] != '\0' &&
-         access(g_convergio_notify_path, X_OK) == 0);
+        (g_convergio_notify_path[0] != '\0' && access(g_convergio_notify_path, X_OK) == 0);
 
     // terminal-notifier: Check if installed
     g_available_methods.terminal_notifier =
@@ -293,15 +290,13 @@ NotifyResult notify_send(const NotifyOptions* options) {
 }
 
 NotifyResult notify_send_simple(const char* title, const char* body) {
-    NotifyOptions opts = {
-        .title = title,
-        .body = body,
-        .subtitle = NULL,
-        .sound = NULL,
-        .group = "convergio",
-        .action_url = NULL,
-        .timeout_ms = 0
-    };
+    NotifyOptions opts = {.title = title,
+                          .body = body,
+                          .subtitle = NULL,
+                          .sound = NULL,
+                          .group = "convergio",
+                          .action_url = NULL,
+                          .timeout_ms = 0};
     return notify_send(&opts);
 }
 
@@ -311,26 +306,26 @@ NotifyResult notify_send_with_method(NotifyMethod method, const NotifyOptions* o
     }
 
     switch (method) {
-        case NOTIFY_METHOD_NATIVE:
-            if (g_available_methods.terminal_notifier) {
-                return send_via_terminal_notifier(options);
-            }
-            return send_via_osascript(options);
+    case NOTIFY_METHOD_NATIVE:
+        if (g_available_methods.terminal_notifier) {
+            return send_via_terminal_notifier(options);
+        }
+        return send_via_osascript(options);
 
-        case NOTIFY_METHOD_OSASCRIPT:
-            return send_via_osascript(options);
+    case NOTIFY_METHOD_OSASCRIPT:
+        return send_via_osascript(options);
 
-        case NOTIFY_METHOD_TERMINAL:
-            return send_via_terminal(options);
+    case NOTIFY_METHOD_TERMINAL:
+        return send_via_terminal(options);
 
-        case NOTIFY_METHOD_SOUND:
-            return send_via_sound(options);
+    case NOTIFY_METHOD_SOUND:
+        return send_via_sound(options);
 
-        case NOTIFY_METHOD_LOG:
-            return send_via_log(options);
+    case NOTIFY_METHOD_LOG:
+        return send_via_log(options);
 
-        default:
-            return NOTIFY_ERROR_INVALID_ARGS;
+    default:
+        return NOTIFY_ERROR_INVALID_ARGS;
     }
 }
 
@@ -340,18 +335,21 @@ NotifyResult notify_send_with_method(NotifyMethod method, const NotifyOptions* o
 
 // Escape quotes in a string for shell commands
 static char* escape_quotes(const char* str, char quote_char) {
-    if (!str) return strdup("");
+    if (!str)
+        return strdup("");
 
     size_t len = strlen(str);
     size_t escaped_len = len;
 
     // Count quotes to escape
     for (size_t i = 0; i < len; i++) {
-        if (str[i] == quote_char) escaped_len++;
+        if (str[i] == quote_char)
+            escaped_len++;
     }
 
     char* escaped = malloc(escaped_len + 1);
-    if (!escaped) return strdup("");
+    if (!escaped)
+        return strdup("");
 
     size_t j = 0;
     for (size_t i = 0; i < len; i++) {
@@ -382,15 +380,12 @@ static NotifyResult send_via_convergio_notify(const NotifyOptions* opts) {
 
     // Path is single-quoted and comes from trusted sources (see security note above)
     int written = snprintf(cmd, sizeof(cmd),
-        "'%s' "
-        "-title '%s' "
-        "-message '%s'%s%s%s",
-        g_convergio_notify_path,
-        escaped_title,
-        escaped_body,
-        escaped_subtitle ? " -subtitle '" : "",
-        escaped_subtitle ? escaped_subtitle : "",
-        escaped_subtitle ? "'" : "");
+                           "'%s' "
+                           "-title '%s' "
+                           "-message '%s'%s%s%s",
+                           g_convergio_notify_path, escaped_title, escaped_body,
+                           escaped_subtitle ? " -subtitle '" : "",
+                           escaped_subtitle ? escaped_subtitle : "", escaped_subtitle ? "'" : "");
 
     free(escaped_title);
     free(escaped_body);
@@ -417,8 +412,9 @@ static NotifyResult send_via_terminal_notifier(const NotifyOptions* opts) {
         // For reminders: open Terminal with Convergio
         // The AppleScript opens Terminal and runs convergio
         snprintf(click_action, sizeof(click_action),
-            "-execute \"osascript -e 'tell application \\\"Terminal\\\" to do script \\\"convergio\\\"' "
-            "-e 'tell application \\\"Terminal\\\" to activate'\" ");
+                 "-execute \"osascript -e 'tell application \\\"Terminal\\\" to do script "
+                 "\\\"convergio\\\"' "
+                 "-e 'tell application \\\"Terminal\\\" to activate'\" ");
     } else if (opts->action_url) {
         // For other notifications with URL
         snprintf(click_action, sizeof(click_action), "-open '%s' ", opts->action_url);
@@ -426,21 +422,18 @@ static NotifyResult send_via_terminal_notifier(const NotifyOptions* opts) {
 
     // Build command with "Convergio" branding using -sender for icon (from Convergio.app bundle)
     int written = snprintf(cmd, sizeof(cmd),
-        "terminal-notifier "
-        "-title 'Convergio' "
-        "-subtitle '%s%s%s' "
-        "-message '%s' "
-        "-sound '%s' "
-        "-sender com.convergio.cli "
-        "-group '%s' "
-        "%s",
-        escaped_title,
-        escaped_subtitle ? " - " : "",
-        escaped_subtitle ? escaped_subtitle : "",
-        escaped_body,
-        opts->sound ? opts->sound : "Glass",
-        opts->group ? opts->group : "convergio",
-        click_action);
+                           "terminal-notifier "
+                           "-title 'Convergio' "
+                           "-subtitle '%s%s%s' "
+                           "-message '%s' "
+                           "-sound '%s' "
+                           "-sender com.convergio.cli "
+                           "-group '%s' "
+                           "%s",
+                           escaped_title, escaped_subtitle ? " - " : "",
+                           escaped_subtitle ? escaped_subtitle : "", escaped_body,
+                           opts->sound ? opts->sound : "Glass",
+                           opts->group ? opts->group : "convergio", click_action);
 
     free(escaped_title);
     free(escaped_body);
@@ -462,16 +455,14 @@ static NotifyResult send_via_osascript(const NotifyOptions* opts) {
     char* escaped_subtitle = opts->subtitle ? escape_quotes(opts->subtitle, '"') : NULL;
 
     // Format: "Convergio" as main title, original title as subtitle
-    int written = snprintf(cmd, sizeof(cmd),
-        "osascript -e 'display notification \"%s\" "
-        "with title \"Convergio\" "
-        "subtitle \"%s%s%s\" "
-        "sound name \"%s\"'",
-        escaped_body,
-        escaped_title,
-        escaped_subtitle ? " - " : "",
-        escaped_subtitle ? escaped_subtitle : "",
-        opts->sound ? opts->sound : "Glass");
+    int written =
+        snprintf(cmd, sizeof(cmd),
+                 "osascript -e 'display notification \"%s\" "
+                 "with title \"Convergio\" "
+                 "subtitle \"%s%s%s\" "
+                 "sound name \"%s\"'",
+                 escaped_body, escaped_title, escaped_subtitle ? " - " : "",
+                 escaped_subtitle ? escaped_subtitle : "", opts->sound ? opts->sound : "Glass");
 
     free(escaped_title);
     free(escaped_body);
@@ -492,7 +483,7 @@ static NotifyResult send_via_terminal(const NotifyOptions* opts) {
     }
 
     // Use bell and colored output
-    fprintf(stderr, "\a\n");  // Bell
+    fprintf(stderr, "\a\n"); // Bell
     fprintf(stderr, "\033[1;33m╔═══════════════════════════════════════════════════╗\033[0m\n");
     fprintf(stderr, "\033[1;33m║ 🔔 %s\033[0m\n", opts->title);
     if (opts->subtitle) {
@@ -521,7 +512,8 @@ static NotifyResult send_via_sound(const NotifyOptions* opts) {
 // Method 5: Log file only (last resort)
 static NotifyResult send_via_log(const NotifyOptions* opts) {
     FILE* log = fopen(NOTIFY_LOG_PATH, "a");
-    if (!log) return NOTIFY_ERROR_UNKNOWN;
+    if (!log)
+        return NOTIFY_ERROR_UNKNOWN;
 
     time_t now = time(NULL);
     char timestr[64];
@@ -548,41 +540,52 @@ static NotifyResult send_via_log(const NotifyOptions* opts) {
 
 bool notify_is_available(NotifyMethod method) {
     switch (method) {
-        case NOTIFY_METHOD_NATIVE:
-            return g_available_methods.terminal_notifier || g_available_methods.osascript;
-        case NOTIFY_METHOD_OSASCRIPT:
-            return g_available_methods.osascript;
-        case NOTIFY_METHOD_TERMINAL:
-            return g_available_methods.terminal;
-        case NOTIFY_METHOD_SOUND:
-            return g_available_methods.sound;
-        case NOTIFY_METHOD_LOG:
-            return g_available_methods.log;
-        default:
-            return false;
+    case NOTIFY_METHOD_NATIVE:
+        return g_available_methods.terminal_notifier || g_available_methods.osascript;
+    case NOTIFY_METHOD_OSASCRIPT:
+        return g_available_methods.osascript;
+    case NOTIFY_METHOD_TERMINAL:
+        return g_available_methods.terminal;
+    case NOTIFY_METHOD_SOUND:
+        return g_available_methods.sound;
+    case NOTIFY_METHOD_LOG:
+        return g_available_methods.log;
+    default:
+        return false;
     }
 }
 
 NotifyMethod notify_get_best_method(void) {
     // Prefer ConvergioNotify.app (native helper with proper icon)
-    if (g_available_methods.convergio_notify) return NOTIFY_METHOD_NATIVE;
+    if (g_available_methods.convergio_notify)
+        return NOTIFY_METHOD_NATIVE;
     // Fallback to terminal-notifier
-    if (g_available_methods.terminal_notifier) return NOTIFY_METHOD_NATIVE;
+    if (g_available_methods.terminal_notifier)
+        return NOTIFY_METHOD_NATIVE;
     // Fallback to osascript (no icon support, but always available)
-    if (g_available_methods.osascript) return NOTIFY_METHOD_OSASCRIPT;
-    if (g_available_methods.terminal) return NOTIFY_METHOD_TERMINAL;
-    if (g_available_methods.sound) return NOTIFY_METHOD_SOUND;
+    if (g_available_methods.osascript)
+        return NOTIFY_METHOD_OSASCRIPT;
+    if (g_available_methods.terminal)
+        return NOTIFY_METHOD_TERMINAL;
+    if (g_available_methods.sound)
+        return NOTIFY_METHOD_SOUND;
     return NOTIFY_METHOD_LOG;
 }
 
 const char* notify_method_to_string(NotifyMethod method) {
     switch (method) {
-        case NOTIFY_METHOD_NATIVE: return "native";
-        case NOTIFY_METHOD_OSASCRIPT: return "osascript";
-        case NOTIFY_METHOD_TERMINAL: return "terminal";
-        case NOTIFY_METHOD_SOUND: return "sound";
-        case NOTIFY_METHOD_LOG: return "log";
-        default: return "unknown";
+    case NOTIFY_METHOD_NATIVE:
+        return "native";
+    case NOTIFY_METHOD_OSASCRIPT:
+        return "osascript";
+    case NOTIFY_METHOD_TERMINAL:
+        return "terminal";
+    case NOTIFY_METHOD_SOUND:
+        return "sound";
+    case NOTIFY_METHOD_LOG:
+        return "log";
+    default:
+        return "unknown";
     }
 }
 
@@ -592,11 +595,11 @@ const char* notify_method_to_string(NotifyMethod method) {
 
 int64_t notify_schedule(int64_t task_id, time_t fire_at, NotifyMethod method) {
     sqlite3* db = g_db;
-    if (!db) return -1;
+    if (!db)
+        return -1;
 
-    const char* sql =
-        "INSERT INTO notification_queue (task_id, scheduled_at, method, status) "
-        "VALUES (?, datetime(?, 'unixepoch'), ?, 'pending')";
+    const char* sql = "INSERT INTO notification_queue (task_id, scheduled_at, method, status) "
+                      "VALUES (?, datetime(?, 'unixepoch'), ?, 'pending')";
 
     sqlite3_stmt* stmt;
     if (sqlite3_prepare_v2(db, sql, -1, &stmt, NULL) != SQLITE_OK) {
@@ -617,8 +620,8 @@ int64_t notify_schedule(int64_t task_id, time_t fire_at, NotifyMethod method) {
     return sqlite3_last_insert_rowid(db);
 }
 
-int64_t notify_schedule_custom(int64_t task_id, time_t fire_at,
-                                const char* title, const char* body) {
+int64_t notify_schedule_custom(int64_t task_id, time_t fire_at, const char* title,
+                               const char* body) {
     // For custom notifications, we store them with task_id=0 and the title/body
     // in a separate custom_notifications table
     // For now, just use the standard scheduling
@@ -627,7 +630,8 @@ int64_t notify_schedule_custom(int64_t task_id, time_t fire_at,
 
 int notify_cancel(int64_t notification_id) {
     sqlite3* db = g_db;
-    if (!db) return -1;
+    if (!db)
+        return -1;
 
     const char* sql = "DELETE FROM notification_queue WHERE id = ?";
 
@@ -645,7 +649,8 @@ int notify_cancel(int64_t notification_id) {
 
 int notify_snooze(int64_t notification_id, time_t new_time) {
     sqlite3* db = g_db;
-    if (!db) return -1;
+    if (!db)
+        return -1;
 
     const char* sql =
         "UPDATE notification_queue "
@@ -676,11 +681,10 @@ ScheduledNotification** notify_list_pending(int* count) {
         return NULL;
     }
 
-    const char* sql =
-        "SELECT id, task_id, scheduled_at, method, status, retry_count, max_retries, "
-        "last_error, sent_at, acknowledged_at "
-        "FROM notification_queue WHERE status IN ('pending', 'snoozed') "
-        "ORDER BY scheduled_at ASC";
+    const char* sql = "SELECT id, task_id, scheduled_at, method, status, retry_count, max_retries, "
+                      "last_error, sent_at, acknowledged_at "
+                      "FROM notification_queue WHERE status IN ('pending', 'snoozed') "
+                      "ORDER BY scheduled_at ASC";
 
     sqlite3_stmt* stmt;
     if (sqlite3_prepare_v2(db, sql, -1, &stmt, NULL) != SQLITE_OK) {
@@ -690,7 +694,8 @@ ScheduledNotification** notify_list_pending(int* count) {
 
     // Count results first
     int total = 0;
-    while (sqlite3_step(stmt) == SQLITE_ROW) total++;
+    while (sqlite3_step(stmt) == SQLITE_ROW)
+        total++;
     sqlite3_reset(stmt);
 
     if (total == 0) {
@@ -717,27 +722,38 @@ ScheduledNotification** notify_list_pending(int* count) {
 
         const char* method_str = (const char*)sqlite3_column_text(stmt, 3);
         if (method_str) {
-            if (strcmp(method_str, "native") == 0) n->method = NOTIFY_METHOD_NATIVE;
-            else if (strcmp(method_str, "osascript") == 0) n->method = NOTIFY_METHOD_OSASCRIPT;
-            else if (strcmp(method_str, "terminal") == 0) n->method = NOTIFY_METHOD_TERMINAL;
-            else if (strcmp(method_str, "sound") == 0) n->method = NOTIFY_METHOD_SOUND;
-            else n->method = NOTIFY_METHOD_LOG;
+            if (strcmp(method_str, "native") == 0)
+                n->method = NOTIFY_METHOD_NATIVE;
+            else if (strcmp(method_str, "osascript") == 0)
+                n->method = NOTIFY_METHOD_OSASCRIPT;
+            else if (strcmp(method_str, "terminal") == 0)
+                n->method = NOTIFY_METHOD_TERMINAL;
+            else if (strcmp(method_str, "sound") == 0)
+                n->method = NOTIFY_METHOD_SOUND;
+            else
+                n->method = NOTIFY_METHOD_LOG;
         }
 
         const char* status = (const char*)sqlite3_column_text(stmt, 4);
         if (status) {
-            if (strcmp(status, "pending") == 0) n->status = NOTIFY_STATUS_PENDING;
-            else if (strcmp(status, "sent") == 0) n->status = NOTIFY_STATUS_SENT;
-            else if (strcmp(status, "failed") == 0) n->status = NOTIFY_STATUS_FAILED;
-            else if (strcmp(status, "acknowledged") == 0) n->status = NOTIFY_STATUS_ACKNOWLEDGED;
-            else if (strcmp(status, "snoozed") == 0) n->status = NOTIFY_STATUS_SNOOZED;
+            if (strcmp(status, "pending") == 0)
+                n->status = NOTIFY_STATUS_PENDING;
+            else if (strcmp(status, "sent") == 0)
+                n->status = NOTIFY_STATUS_SENT;
+            else if (strcmp(status, "failed") == 0)
+                n->status = NOTIFY_STATUS_FAILED;
+            else if (strcmp(status, "acknowledged") == 0)
+                n->status = NOTIFY_STATUS_ACKNOWLEDGED;
+            else if (strcmp(status, "snoozed") == 0)
+                n->status = NOTIFY_STATUS_SNOOZED;
         }
 
         n->retry_count = sqlite3_column_int(stmt, 5);
         n->max_retries = sqlite3_column_int(stmt, 6);
 
         const char* error = (const char*)sqlite3_column_text(stmt, 7);
-        if (error) n->last_error = strdup(error);
+        if (error)
+            n->last_error = strdup(error);
 
         list[i++] = n;
     }
@@ -749,12 +765,12 @@ ScheduledNotification** notify_list_pending(int* count) {
 
 ScheduledNotification* notify_get(int64_t id) {
     sqlite3* db = g_db;
-    if (!db) return NULL;
+    if (!db)
+        return NULL;
 
-    const char* sql =
-        "SELECT id, task_id, scheduled_at, method, status, retry_count, max_retries, "
-        "last_error, sent_at, acknowledged_at "
-        "FROM notification_queue WHERE id = ?";
+    const char* sql = "SELECT id, task_id, scheduled_at, method, status, retry_count, max_retries, "
+                      "last_error, sent_at, acknowledged_at "
+                      "FROM notification_queue WHERE id = ?";
 
     sqlite3_stmt* stmt;
     if (sqlite3_prepare_v2(db, sql, -1, &stmt, NULL) != SQLITE_OK) {
@@ -781,40 +797,53 @@ ScheduledNotification* notify_get(int64_t id) {
 
     const char* method_str = (const char*)sqlite3_column_text(stmt, 3);
     if (method_str) {
-        if (strcmp(method_str, "native") == 0) n->method = NOTIFY_METHOD_NATIVE;
-        else if (strcmp(method_str, "osascript") == 0) n->method = NOTIFY_METHOD_OSASCRIPT;
-        else if (strcmp(method_str, "terminal") == 0) n->method = NOTIFY_METHOD_TERMINAL;
-        else if (strcmp(method_str, "sound") == 0) n->method = NOTIFY_METHOD_SOUND;
-        else n->method = NOTIFY_METHOD_LOG;
+        if (strcmp(method_str, "native") == 0)
+            n->method = NOTIFY_METHOD_NATIVE;
+        else if (strcmp(method_str, "osascript") == 0)
+            n->method = NOTIFY_METHOD_OSASCRIPT;
+        else if (strcmp(method_str, "terminal") == 0)
+            n->method = NOTIFY_METHOD_TERMINAL;
+        else if (strcmp(method_str, "sound") == 0)
+            n->method = NOTIFY_METHOD_SOUND;
+        else
+            n->method = NOTIFY_METHOD_LOG;
     }
 
     const char* status = (const char*)sqlite3_column_text(stmt, 4);
     if (status) {
-        if (strcmp(status, "pending") == 0) n->status = NOTIFY_STATUS_PENDING;
-        else if (strcmp(status, "sent") == 0) n->status = NOTIFY_STATUS_SENT;
-        else if (strcmp(status, "failed") == 0) n->status = NOTIFY_STATUS_FAILED;
-        else if (strcmp(status, "acknowledged") == 0) n->status = NOTIFY_STATUS_ACKNOWLEDGED;
-        else if (strcmp(status, "snoozed") == 0) n->status = NOTIFY_STATUS_SNOOZED;
+        if (strcmp(status, "pending") == 0)
+            n->status = NOTIFY_STATUS_PENDING;
+        else if (strcmp(status, "sent") == 0)
+            n->status = NOTIFY_STATUS_SENT;
+        else if (strcmp(status, "failed") == 0)
+            n->status = NOTIFY_STATUS_FAILED;
+        else if (strcmp(status, "acknowledged") == 0)
+            n->status = NOTIFY_STATUS_ACKNOWLEDGED;
+        else if (strcmp(status, "snoozed") == 0)
+            n->status = NOTIFY_STATUS_SNOOZED;
     }
 
     n->retry_count = sqlite3_column_int(stmt, 5);
     n->max_retries = sqlite3_column_int(stmt, 6);
 
     const char* error = (const char*)sqlite3_column_text(stmt, 7);
-    if (error) n->last_error = strdup(error);
+    if (error)
+        n->last_error = strdup(error);
 
     sqlite3_finalize(stmt);
     return n;
 }
 
 void notify_free(ScheduledNotification* notif) {
-    if (!notif) return;
+    if (!notif)
+        return;
     free(notif->last_error);
     free(notif);
 }
 
 void notify_free_list(ScheduledNotification** list, int count) {
-    if (!list) return;
+    if (!list)
+        return;
     for (int i = 0; i < count; i++) {
         notify_free(list[i]);
     }
@@ -830,8 +859,8 @@ static int daemon_init(void) {
     // E-cores only queue with UTILITY QoS
     dispatch_queue_attr_t attr = dispatch_queue_attr_make_with_qos_class(
         DISPATCH_QUEUE_SERIAL,
-        QOS_CLASS_UTILITY,  // E-cores preferred
-        -10                 // Relative priority (lower = more power efficient)
+        QOS_CLASS_UTILITY, // E-cores preferred
+        -10                // Relative priority (lower = more power efficient)
     );
     g_daemon.queue = dispatch_queue_create("io.convergio.daemon", attr);
 
@@ -843,14 +872,13 @@ static int daemon_init(void) {
     }
 
     // Prepare statements for reuse (hot path optimization)
-    const char* check_sql =
-        "SELECT n.id, n.task_id, t.title, t.description "
-        "FROM notification_queue n "
-        "LEFT JOIN tasks t ON n.task_id = t.id "
-        "WHERE n.status IN ('pending', 'snoozed') "
-        "AND datetime(n.scheduled_at) <= datetime('now') "
-        "ORDER BY n.scheduled_at ASC "
-        "LIMIT ?";
+    const char* check_sql = "SELECT n.id, n.task_id, t.title, t.description "
+                            "FROM notification_queue n "
+                            "LEFT JOIN tasks t ON n.task_id = t.id "
+                            "WHERE n.status IN ('pending', 'snoozed') "
+                            "AND datetime(n.scheduled_at) <= datetime('now') "
+                            "ORDER BY n.scheduled_at ASC "
+                            "LIMIT ?";
 
     if (sqlite3_prepare_v3(g_daemon.db, check_sql, -1, SQLITE_PREPARE_PERSISTENT,
                            &g_daemon.check_stmt, NULL) != SQLITE_OK) {
@@ -858,9 +886,8 @@ static int daemon_init(void) {
         return -1;
     }
 
-    const char* update_sql =
-        "UPDATE notification_queue SET status = ?, sent_at = datetime('now'), "
-        "last_error = ? WHERE id = ?";
+    const char* update_sql = "UPDATE notification_queue SET status = ?, sent_at = datetime('now'), "
+                             "last_error = ? WHERE id = ?";
 
     if (sqlite3_prepare_v3(g_daemon.db, update_sql, -1, SQLITE_PREPARE_PERSISTENT,
                            &g_daemon.update_stmt, NULL) != SQLITE_OK) {
@@ -897,10 +924,10 @@ static void adjust_poll_interval(void) {
 
         // Update timer with new interval
         if (g_daemon.timer) {
-            dispatch_source_set_timer(g_daemon.timer,
+            dispatch_source_set_timer(
+                g_daemon.timer,
                 dispatch_time(DISPATCH_TIME_NOW, (int64_t)g_daemon.poll_interval_ns),
-                g_daemon.poll_interval_ns,
-                TIMER_LEEWAY_NS);
+                g_daemon.poll_interval_ns, TIMER_LEEWAY_NS);
         }
 
         os_log_debug(g_notify_log, "Poll interval changed to %llu seconds",
@@ -936,7 +963,8 @@ static void daemon_check_pending(void) {
     atomic_store(&g_daemon.pending_count, batch_count);
     adjust_poll_interval();
 
-    if (batch_count == 0) return;
+    if (batch_count == 0)
+        return;
 
     os_log_info(g_notify_log, "Processing %d notifications", batch_count);
 
@@ -952,22 +980,20 @@ static void daemon_check_pending(void) {
             snprintf(action_body, sizeof(action_body), "%s", n->title);
         }
 
-        NotifyOptions opts = {
-            .title = "Reminder",
-            .subtitle = n->title,
-            .body = action_body,
-            .sound = n->sound,
-            .group = "convergio-reminders",  // Click opens Convergio in Terminal
-            .action_url = NULL,
-            .timeout_ms = 0
-        };
+        NotifyOptions opts = {.title = "Reminder",
+                              .subtitle = n->title,
+                              .body = action_body,
+                              .sound = n->sound,
+                              .group = "convergio-reminders", // Click opens Convergio in Terminal
+                              .action_url = NULL,
+                              .timeout_ms = 0};
 
         NotifyResult result = notify_send(&opts);
 
         // Update status in database
         sqlite3_reset(g_daemon.update_stmt);
-        sqlite3_bind_text(g_daemon.update_stmt, 1,
-                          result == NOTIFY_SUCCESS ? "sent" : "failed", -1, SQLITE_STATIC);
+        sqlite3_bind_text(g_daemon.update_stmt, 1, result == NOTIFY_SUCCESS ? "sent" : "failed", -1,
+                          SQLITE_STATIC);
         sqlite3_bind_text(g_daemon.update_stmt, 2,
                           result == NOTIFY_SUCCESS ? NULL : "delivery failed", -1, SQLITE_STATIC);
         sqlite3_bind_int64(g_daemon.update_stmt, 3, n->id);
@@ -987,7 +1013,7 @@ static void daemon_check_pending(void) {
 
 int notify_daemon_start(void) {
     if (atomic_load(&g_daemon.running)) {
-        return 0;  // Already running
+        return 0; // Already running
     }
 
     if (daemon_init() != 0) {
@@ -995,14 +1021,13 @@ int notify_daemon_start(void) {
     }
 
     // Create timer source on E-core queue
-    g_daemon.timer = dispatch_source_create(
-        DISPATCH_SOURCE_TYPE_TIMER, 0, 0, g_daemon.queue);
+    g_daemon.timer = dispatch_source_create(DISPATCH_SOURCE_TYPE_TIMER, 0, 0, g_daemon.queue);
 
     // Initial timer: immediate first check, then poll_interval
     dispatch_source_set_timer(g_daemon.timer,
-        dispatch_time(DISPATCH_TIME_NOW, 0),      // Fire immediately
-        g_daemon.poll_interval_ns,                // Then every interval
-        TIMER_LEEWAY_NS);                         // Leeway for power optimization
+                              dispatch_time(DISPATCH_TIME_NOW, 0), // Fire immediately
+                              g_daemon.poll_interval_ns,           // Then every interval
+                              TIMER_LEEWAY_NS);                    // Leeway for power optimization
 
     dispatch_source_set_event_handler(g_daemon.timer, ^{
         daemon_check_pending();
@@ -1010,8 +1035,10 @@ int notify_daemon_start(void) {
 
     // Handle graceful shutdown
     dispatch_source_set_cancel_handler(g_daemon.timer, ^{
-        if (g_daemon.check_stmt) sqlite3_finalize(g_daemon.check_stmt);
-        if (g_daemon.update_stmt) sqlite3_finalize(g_daemon.update_stmt);
+        if (g_daemon.check_stmt)
+            sqlite3_finalize(g_daemon.check_stmt);
+        if (g_daemon.update_stmt)
+            sqlite3_finalize(g_daemon.update_stmt);
         g_daemon.check_stmt = NULL;
         g_daemon.update_stmt = NULL;
         os_log_info(g_notify_log, "Daemon stopped cleanly");
@@ -1033,7 +1060,7 @@ int notify_daemon_start(void) {
 
 int notify_daemon_stop(void) {
     if (!atomic_load(&g_daemon.running)) {
-        return 0;  // Not running
+        return 0; // Not running
     }
 
     atomic_store(&g_daemon.running, false);
@@ -1062,7 +1089,8 @@ pid_t notify_daemon_get_pid(void) {
     if (!atomic_load(&g_daemon.running)) {
         // Check PID file for external daemon
         FILE* pidfile = fopen(DAEMON_PID_FILE, "r");
-        if (!pidfile) return 0;
+        if (!pidfile)
+            return 0;
 
         pid_t pid = 0;
         if (fscanf(pidfile, "%d", &pid) == 1) {
@@ -1085,10 +1113,12 @@ pid_t notify_daemon_get_pid(void) {
 int notify_daemon_install(void) {
     char plist_path[PATH_MAX];
     const char* home = getenv("HOME");
-    if (!home) return -1;
+    if (!home)
+        return -1;
 
     // Expand ~ in LAUNCH_AGENT_PLIST
-    snprintf(plist_path, sizeof(plist_path), "%s/Library/LaunchAgents/io.convergio.daemon.plist", home);
+    snprintf(plist_path, sizeof(plist_path), "%s/Library/LaunchAgents/io.convergio.daemon.plist",
+             home);
 
     // Create directory if needed
     char dir_path[PATH_MAX];
@@ -1104,52 +1134,54 @@ int notify_daemon_install(void) {
 
     // Write plist
     FILE* f = fopen(plist_path, "w");
-    if (!f) return -1;
+    if (!f)
+        return -1;
 
-    fprintf(f, "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
-        "<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" "
-        "\"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n"
-        "<plist version=\"1.0\">\n"
-        "<dict>\n"
-        "    <key>Label</key>\n"
-        "    <string>%s</string>\n"
-        "    <key>ProgramArguments</key>\n"
-        "    <array>\n"
-        "        <string>%s</string>\n"
-        "        <string>daemon</string>\n"
-        "        <string>run</string>\n"
-        "        <string>--foreground</string>\n"
-        "    </array>\n"
-        "    <key>RunAtLoad</key>\n"
-        "    <true/>\n"
-        "    <key>KeepAlive</key>\n"
-        "    <dict>\n"
-        "        <key>SuccessfulExit</key>\n"
-        "        <false/>\n"
-        "        <key>Crashed</key>\n"
-        "        <true/>\n"
-        "    </dict>\n"
-        "    <key>ThrottleInterval</key>\n"
-        "    <integer>10</integer>\n"
-        "    <key>ProcessType</key>\n"
-        "    <string>Background</string>\n"
-        "    <key>LowPriorityIO</key>\n"
-        "    <true/>\n"
-        "    <key>Nice</key>\n"
-        "    <integer>10</integer>\n"
-        "    <key>StandardOutPath</key>\n"
-        "    <string>/tmp/convergio-daemon.log</string>\n"
-        "    <key>StandardErrorPath</key>\n"
-        "    <string>/tmp/convergio-daemon.err</string>\n"
-        "</dict>\n"
-        "</plist>\n",
-        LAUNCH_AGENT_LABEL, exe_path);
+    fprintf(f,
+            "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
+            "<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" "
+            "\"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n"
+            "<plist version=\"1.0\">\n"
+            "<dict>\n"
+            "    <key>Label</key>\n"
+            "    <string>%s</string>\n"
+            "    <key>ProgramArguments</key>\n"
+            "    <array>\n"
+            "        <string>%s</string>\n"
+            "        <string>daemon</string>\n"
+            "        <string>run</string>\n"
+            "        <string>--foreground</string>\n"
+            "    </array>\n"
+            "    <key>RunAtLoad</key>\n"
+            "    <true/>\n"
+            "    <key>KeepAlive</key>\n"
+            "    <dict>\n"
+            "        <key>SuccessfulExit</key>\n"
+            "        <false/>\n"
+            "        <key>Crashed</key>\n"
+            "        <true/>\n"
+            "    </dict>\n"
+            "    <key>ThrottleInterval</key>\n"
+            "    <integer>10</integer>\n"
+            "    <key>ProcessType</key>\n"
+            "    <string>Background</string>\n"
+            "    <key>LowPriorityIO</key>\n"
+            "    <true/>\n"
+            "    <key>Nice</key>\n"
+            "    <integer>10</integer>\n"
+            "    <key>StandardOutPath</key>\n"
+            "    <string>/tmp/convergio-daemon.log</string>\n"
+            "    <key>StandardErrorPath</key>\n"
+            "    <string>/tmp/convergio-daemon.err</string>\n"
+            "</dict>\n"
+            "</plist>\n",
+            LAUNCH_AGENT_LABEL, exe_path);
 
     fclose(f);
 
     // Load the agent using posix_spawn (safer than system())
     pid_t pid;
-    char *argv[] = { "launchctl", "load", plist_path, NULL };
+    char* argv[] = {"launchctl", "load", plist_path, NULL};
     int status = 0;
 
     if (posix_spawnp(&pid, "launchctl", NULL, NULL, argv, environ) != 0) {
@@ -1166,17 +1198,19 @@ int notify_daemon_install(void) {
 int notify_daemon_uninstall(void) {
     char plist_path[PATH_MAX];
     const char* home = getenv("HOME");
-    if (!home) return -1;
+    if (!home)
+        return -1;
 
-    snprintf(plist_path, sizeof(plist_path), "%s/Library/LaunchAgents/io.convergio.daemon.plist", home);
+    snprintf(plist_path, sizeof(plist_path), "%s/Library/LaunchAgents/io.convergio.daemon.plist",
+             home);
 
     // Unload the agent using posix_spawn (safer than system())
     pid_t pid;
-    char *argv[] = { "launchctl", "unload", plist_path, NULL };
+    char* argv[] = {"launchctl", "unload", plist_path, NULL};
 
     if (posix_spawnp(&pid, "launchctl", NULL, NULL, argv, environ) == 0) {
         int status;
-        waitpid(pid, &status, 0);  // Ignore errors - file might not exist
+        waitpid(pid, &status, 0); // Ignore errors - file might not exist
     }
 
     // Remove plist
@@ -1212,12 +1246,12 @@ int notify_daemon_run_foreground(void) {
     printf("Press Ctrl+C to stop...\n");
 
     // Set up signal handlers using dispatch sources
-    dispatch_source_t sig_int = dispatch_source_create(
-        DISPATCH_SOURCE_TYPE_SIGNAL, SIGINT, 0, dispatch_get_main_queue());
-    dispatch_source_t sig_term = dispatch_source_create(
-        DISPATCH_SOURCE_TYPE_SIGNAL, SIGTERM, 0, dispatch_get_main_queue());
+    dispatch_source_t sig_int =
+        dispatch_source_create(DISPATCH_SOURCE_TYPE_SIGNAL, SIGINT, 0, dispatch_get_main_queue());
+    dispatch_source_t sig_term =
+        dispatch_source_create(DISPATCH_SOURCE_TYPE_SIGNAL, SIGTERM, 0, dispatch_get_main_queue());
 
-    signal(SIGINT, SIG_IGN);  // Ignore default handler
+    signal(SIGINT, SIG_IGN); // Ignore default handler
     signal(SIGTERM, SIG_IGN);
 
     dispatch_source_set_event_handler(sig_int, ^{
@@ -1288,15 +1322,15 @@ NotifyHealth* notify_get_health(void) {
     // Get memory usage
     struct task_basic_info info;
     mach_msg_type_number_t count = TASK_BASIC_INFO_COUNT;
-    kern_return_t kr = task_info(mach_task_self(), TASK_BASIC_INFO,
-                                  (task_info_t)&info, &count);
+    kern_return_t kr = task_info(mach_task_self(), TASK_BASIC_INFO, (task_info_t)&info, &count);
     health->memory_usage_bytes = (kr == KERN_SUCCESS) ? info.resident_size : 0;
 
     return health;
 }
 
 void notify_free_health(NotifyHealth* health) {
-    if (!health) return;
+    if (!health)
+        return;
     free(health->last_error);
     free(health);
 }
@@ -1313,8 +1347,7 @@ void notify_print_health(void) {
     printf("║        NOTIFICATION SYSTEM HEALTH                 ║\n");
     printf("╠═══════════════════════════════════════════════════╣\n");
 
-    printf("║ Daemon Status: %s%-23s\033[0m ║\n",
-           health->daemon_running ? "\033[32m" : "\033[31m",
+    printf("║ Daemon Status: %s%-23s\033[0m ║\n", health->daemon_running ? "\033[32m" : "\033[31m",
            health->daemon_running ? "RUNNING" : "STOPPED");
 
     if (health->daemon_running) {
@@ -1363,14 +1396,18 @@ NotifyStats notify_get_stats(void) {
     NotifyStats stats = {0};
 
     sqlite3* db = g_db;
-    if (!db) return stats;
+    if (!db)
+        return stats;
 
     const char* sql =
         "SELECT "
         "  (SELECT COUNT(*) FROM notification_queue WHERE status IN ('pending', 'snoozed')), "
-        "  (SELECT COUNT(*) FROM notification_queue WHERE status = 'sent' AND date(sent_at) = date('now')), "
-        "  (SELECT COUNT(*) FROM notification_queue WHERE status = 'sent' AND date(sent_at) > date('now', '-7 days')), "
-        "  (SELECT COUNT(*) FROM notification_queue WHERE status = 'failed' AND date(sent_at) = date('now')), "
+        "  (SELECT COUNT(*) FROM notification_queue WHERE status = 'sent' AND date(sent_at) = "
+        "date('now')), "
+        "  (SELECT COUNT(*) FROM notification_queue WHERE status = 'sent' AND date(sent_at) > "
+        "date('now', '-7 days')), "
+        "  (SELECT COUNT(*) FROM notification_queue WHERE status = 'failed' AND date(sent_at) = "
+        "date('now')), "
         "  (SELECT COUNT(*) FROM notification_queue WHERE status = 'snoozed')";
 
     sqlite3_stmt* stmt;

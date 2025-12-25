@@ -43,9 +43,9 @@ char* orchestrator_converge(ExecutionPlan* plan) {
         return NULL;
     }
 
-    size_t offset = (size_t)snprintf(combined, buf_size,
-        "Synthesize the following results into a unified response:\n\nGoal: %s\n\n",
-        plan->goal);
+    size_t offset = (size_t)snprintf(
+        combined, buf_size,
+        "Synthesize the following results into a unified response:\n\nGoal: %s\n\n", plan->goal);
 
     Task* task = plan->tasks;
     while (task && offset < buf_size - 512) {
@@ -58,10 +58,9 @@ char* orchestrator_converge(ExecutionPlan* plan) {
                 }
             }
 
-            offset += (size_t)snprintf(combined + offset, buf_size - offset,
-                "## %s's Analysis\n%s\n\n",
-                agent ? agent->name : "Agent",
-                task->result);
+            offset +=
+                (size_t)snprintf(combined + offset, buf_size - offset, "## %s's Analysis\n%s\n\n",
+                                 agent ? agent->name : "Agent", task->result);
         }
         task = task->next;
     }
@@ -71,13 +70,10 @@ char* orchestrator_converge(ExecutionPlan* plan) {
     Provider* provider = provider_get(PROVIDER_ANTHROPIC);
     if (provider && provider->chat) {
         TokenUsage usage = {0};
-        final = provider->chat(
-            provider,
-            ORCHESTRATOR_MODEL,
-            "You are Ali. Synthesize the following multi-agent analysis into a clear, actionable response.",
-            combined,
-            &usage
-        );
+        final = provider->chat(provider, ORCHESTRATOR_MODEL,
+                               "You are Ali. Synthesize the following multi-agent analysis into a "
+                               "clear, actionable response.",
+                               combined, &usage);
     }
 
     free(combined);

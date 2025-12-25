@@ -6,10 +6,10 @@
  */
 
 #include "nous/nous.h"
+#include <dispatch/dispatch.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
-#include <dispatch/dispatch.h>
 
 // ============================================================================
 // SPACE REGISTRY
@@ -25,11 +25,7 @@ typedef struct {
     dispatch_queue_t sync_queue;
 } SpaceRegistry;
 
-static SpaceRegistry g_spaces = {
-    .count = 0,
-    .lock = OS_UNFAIR_LOCK_INIT,
-    .sync_queue = NULL
-};
+static SpaceRegistry g_spaces = {.count = 0, .lock = OS_UNFAIR_LOCK_INIT, .sync_queue = NULL};
 
 // ============================================================================
 // RHYTHM SYSTEM
@@ -39,11 +35,12 @@ typedef struct {
     float base_urgency;
     uint64_t last_interaction_ns;
     uint64_t deadline_ns;  // 0 = no deadline
-    float attention_level;  // How focused participants are [0,1]
+    float attention_level; // How focused participants are [0,1]
 } SpaceRhythm;
 
 static void update_rhythm(NousSpace* space) {
-    if (!space) return;
+    if (!space)
+        return;
 
     struct timespec ts;
     clock_gettime(CLOCK_REALTIME, &ts);
@@ -57,13 +54,15 @@ static void update_rhythm(NousSpace* space) {
     float base = space->urgency_level;
 
     // Decay: urgency reduces over time without activity
-    float decay = 1.0f / (1.0f + idle_seconds / 60.0f);  // Half-life ~1 minute
+    float decay = 1.0f / (1.0f + idle_seconds / 60.0f); // Half-life ~1 minute
 
     space->urgency_level = base * decay;
 
     // Clamp
-    if (space->urgency_level < 0.1f) space->urgency_level = 0.1f;
-    if (space->urgency_level > 1.0f) space->urgency_level = 1.0f;
+    if (space->urgency_level < 0.1f)
+        space->urgency_level = 0.1f;
+    if (space->urgency_level > 1.0f)
+        space->urgency_level = 1.0f;
 }
 
 // ============================================================================
@@ -80,12 +79,14 @@ static void initialize_space_registry(void) {
 }
 
 NousSpace* nous_create_space(const char* name, const char* purpose) {
-    if (!name || !purpose) return NULL;
+    if (!name || !purpose)
+        return NULL;
 
     initialize_space_registry();
 
     NousSpace* space = calloc(1, sizeof(NousSpace));
-    if (!space) return NULL;
+    if (!space)
+        return NULL;
 
     // Generate semantic identity
     space->id = nous_create_node(SEMANTIC_TYPE_SPACE, purpose);
@@ -120,7 +121,7 @@ NousSpace* nous_create_space(const char* name, const char* purpose) {
     struct timespec ts;
     clock_gettime(CLOCK_REALTIME, &ts);
     space->last_activity = (uint64_t)ts.tv_sec * 1000000000ULL + (uint64_t)ts.tv_nsec;
-    space->urgency_level = 0.5f;  // Default: medium urgency
+    space->urgency_level = 0.5f; // Default: medium urgency
 
     // Defaults
     space->allow_external_agents = false;
@@ -137,7 +138,8 @@ NousSpace* nous_create_space(const char* name, const char* purpose) {
 }
 
 void nous_destroy_space(NousSpace* space) {
-    if (!space) return;
+    if (!space)
+        return;
 
     // Unregister
     os_unfair_lock_lock(&g_spaces.lock);
@@ -162,7 +164,8 @@ void nous_destroy_space(NousSpace* space) {
 // ============================================================================
 
 int nous_join_space(SemanticID entity, SemanticID space_id) {
-    if (entity == SEMANTIC_ID_NULL || space_id == SEMANTIC_ID_NULL) return -1;
+    if (entity == SEMANTIC_ID_NULL || space_id == SEMANTIC_ID_NULL)
+        return -1;
 
     // Find space
     NousSpace* space = NULL;
@@ -175,7 +178,8 @@ int nous_join_space(SemanticID entity, SemanticID space_id) {
     }
     os_unfair_lock_unlock(&g_spaces.lock);
 
-    if (!space) return -1;
+    if (!space)
+        return -1;
 
     // Determine entity type from SemanticID
     SemanticType type = (SemanticType)((entity & SEMANTIC_TYPE_MASK) >> SEMANTIC_TYPE_SHIFT);
@@ -191,7 +195,8 @@ int nous_join_space(SemanticID entity, SemanticID space_id) {
         if (space->agent_count < MAX_PARTICIPANTS_PER_SPACE) {
             // Check not already present
             for (size_t i = 0; i < space->agent_count; i++) {
-                if (space->agents[i] == entity) return 0;  // Already joined
+                if (space->agents[i] == entity)
+                    return 0; // Already joined
             }
             space->agents[space->agent_count++] = entity;
         }
@@ -199,7 +204,8 @@ int nous_join_space(SemanticID entity, SemanticID space_id) {
         // Treat as human
         if (space->human_count < MAX_PARTICIPANTS_PER_SPACE) {
             for (size_t i = 0; i < space->human_count; i++) {
-                if (space->humans[i] == entity) return 0;
+                if (space->humans[i] == entity)
+                    return 0;
             }
             space->humans[space->human_count++] = entity;
         }
@@ -207,7 +213,7 @@ int nous_join_space(SemanticID entity, SemanticID space_id) {
 
     // Create semantic connection
     nous_connect(entity, space_id, 0.9f);
-    nous_connect(space_id, entity, 0.9f);  // Bidirectional
+    nous_connect(space_id, entity, 0.9f); // Bidirectional
 
     // Update activity
     struct timespec ts;
@@ -218,7 +224,8 @@ int nous_join_space(SemanticID entity, SemanticID space_id) {
 }
 
 int nous_leave_space(SemanticID entity, SemanticID space_id) {
-    if (entity == SEMANTIC_ID_NULL || space_id == SEMANTIC_ID_NULL) return -1;
+    if (entity == SEMANTIC_ID_NULL || space_id == SEMANTIC_ID_NULL)
+        return -1;
 
     NousSpace* space = NULL;
     os_unfair_lock_lock(&g_spaces.lock);
@@ -230,7 +237,8 @@ int nous_leave_space(SemanticID entity, SemanticID space_id) {
     }
     os_unfair_lock_unlock(&g_spaces.lock);
 
-    if (!space) return -1;
+    if (!space)
+        return -1;
 
     // Remove from appropriate list
     SemanticType type = (SemanticType)((entity & SEMANTIC_TYPE_MASK) >> SEMANTIC_TYPE_SHIFT);
@@ -270,11 +278,11 @@ typedef struct {
 } SpaceMessageBus;
 
 // Forward declaration - implementation pending for message bus feature
-__attribute__((unused))
-static SpaceMessageBus* get_or_create_bus(SemanticID space_id);
+__attribute__((unused)) static SpaceMessageBus* get_or_create_bus(SemanticID space_id);
 
 int nous_space_broadcast(SemanticID space_id, SemanticID sender, const char* message) {
-    if (space_id == SEMANTIC_ID_NULL || !message) return -1;
+    if (space_id == SEMANTIC_ID_NULL || !message)
+        return -1;
 
     // Find space
     NousSpace* space = NULL;
@@ -287,13 +295,14 @@ int nous_space_broadcast(SemanticID space_id, SemanticID sender, const char* mes
     }
     os_unfair_lock_unlock(&g_spaces.lock);
 
-    if (!space) return -1;
+    if (!space)
+        return -1;
 
     // Create semantic node for message
     SemanticID msg_node = nous_create_node(SEMANTIC_TYPE_EVENT, message);
     if (msg_node != SEMANTIC_ID_NULL) {
-        nous_connect(sender, msg_node, 1.0f);       // Sender -> message
-        nous_connect(msg_node, space_id, 0.8f);    // Message -> space
+        nous_connect(sender, msg_node, 1.0f);   // Sender -> message
+        nous_connect(msg_node, space_id, 0.8f); // Message -> space
     }
 
     // Update rhythm (activity = higher urgency)
@@ -315,14 +324,16 @@ typedef struct {
     SemanticID* opposers;
     size_t support_count;
     size_t oppose_count;
-    float consensus_threshold;  // Required agreement level
+    float consensus_threshold; // Required agreement level
 } ConsensusProcess;
 
 ConsensusProcess* nous_space_propose(NousSpace* space, const char* proposal_text) {
-    if (!space || !proposal_text) return NULL;
+    if (!space || !proposal_text)
+        return NULL;
 
     ConsensusProcess* process = calloc(1, sizeof(ConsensusProcess));
-    if (!process) return NULL;
+    if (!process)
+        return NULL;
 
     // Create proposal as semantic node
     process->proposal = nous_create_node(SEMANTIC_TYPE_INTENT, proposal_text);
@@ -346,13 +357,14 @@ ConsensusProcess* nous_space_propose(NousSpace* space, const char* proposal_text
         return NULL;
     }
 
-    process->consensus_threshold = 0.7f;  // 70% agreement by default
+    process->consensus_threshold = 0.7f; // 70% agreement by default
 
     return process;
 }
 
 int nous_consensus_vote(ConsensusProcess* process, SemanticID voter, bool support) {
-    if (!process) return -1;
+    if (!process)
+        return -1;
 
     if (support) {
         // Remove from opposers if present
@@ -386,17 +398,20 @@ int nous_consensus_vote(ConsensusProcess* process, SemanticID voter, bool suppor
 }
 
 bool nous_consensus_reached(ConsensusProcess* process) {
-    if (!process) return false;
+    if (!process)
+        return false;
 
     size_t total = process->support_count + process->oppose_count;
-    if (total == 0) return false;
+    if (total == 0)
+        return false;
 
     float support_ratio = (float)process->support_count / (float)total;
     return support_ratio >= process->consensus_threshold;
 }
 
 void nous_consensus_free(ConsensusProcess* process) {
-    if (!process) return;
+    if (!process)
+        return;
     free(process->supporters);
     free(process->opposers);
     free(process);
@@ -407,7 +422,8 @@ void nous_consensus_free(ConsensusProcess* process) {
 // ============================================================================
 
 NousSpace* nous_space_find_by_name(const char* name) {
-    if (!name) return NULL;
+    if (!name)
+        return NULL;
 
     os_unfair_lock_lock(&g_spaces.lock);
 
@@ -438,25 +454,31 @@ void nous_spaces_foreach(void (*fn)(NousSpace* space, void* ctx), void* ctx) {
 // ============================================================================
 
 float nous_space_urgency(NousSpace* space) {
-    if (!space) return 0.0f;
+    if (!space)
+        return 0.0f;
     update_rhythm(space);
     return space->urgency_level;
 }
 
 void nous_space_set_urgency(NousSpace* space, float urgency) {
-    if (!space) return;
-    if (urgency < 0.0f) urgency = 0.0f;
-    if (urgency > 1.0f) urgency = 1.0f;
+    if (!space)
+        return;
+    if (urgency < 0.0f)
+        urgency = 0.0f;
+    if (urgency > 1.0f)
+        urgency = 1.0f;
     space->urgency_level = urgency;
 }
 
 size_t nous_space_participant_count(NousSpace* space) {
-    if (!space) return 0;
+    if (!space)
+        return 0;
     return space->agent_count + space->human_count;
 }
 
 bool nous_space_is_active(NousSpace* space) {
-    if (!space) return false;
+    if (!space)
+        return false;
 
     struct timespec ts;
     clock_gettime(CLOCK_REALTIME, &ts);

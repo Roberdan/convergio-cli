@@ -469,4 +469,55 @@ bool orchestrator_workflow_available(void);
  */
 const char* orchestrator_get_recommended_function(const char* function_name);
 
+// ============================================================================
+// LLM FACADE API
+// ============================================================================
+//
+// Higher-level modules (workflow, education, context) should use these
+// functions instead of directly including provider.h. This provides:
+// - Centralized cost tracking through orchestrator
+// - Automatic provider selection (best available)
+// - Consistent error handling
+// - Logging and monitoring
+//
+
+/**
+ * @brief Send a chat request via the best available provider
+ * @param system System prompt
+ * @param user User message
+ * @param usage Output parameter for token usage (can be NULL)
+ * @return Response string (caller must free) or NULL on error
+ * @note Automatically selects the best available provider and tracks costs
+ */
+char* llm_chat(const char* system, const char* user, TokenUsage* usage);
+
+/**
+ * @brief Send a chat request with a specific model
+ * @param model Model ID (e.g., "claude-sonnet-4-20250514")
+ * @param system System prompt
+ * @param user User message
+ * @param usage Output parameter for token usage (can be NULL)
+ * @return Response string (caller must free) or NULL on error
+ */
+char* llm_chat_with_model(const char* model, const char* system, const char* user, TokenUsage* usage);
+
+/**
+ * @brief Estimate token count for text
+ * @param text Text to tokenize
+ * @return Estimated token count
+ */
+size_t llm_estimate_tokens(const char* text);
+
+/**
+ * @brief Check if any LLM provider is available
+ * @return true if at least one provider is available
+ */
+bool llm_is_available(void);
+
+/**
+ * @brief Get the last error message from LLM operations
+ * @return Error message (do not free) or NULL if no error
+ */
+const char* llm_get_last_error(void);
+
 #endif // CONVERGIO_ORCHESTRATOR_H

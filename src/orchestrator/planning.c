@@ -44,7 +44,7 @@ ExecutionPlan* orch_plan_create(const char* goal) {
         return NULL;
     }
     plan->created_at = time(NULL);
-    plan->db_id[0] = '\0';  // Initialize
+    plan->db_id[0] = '\0'; // Initialize
 
     // Persist to SQLite if plan_db is ready
     if (plan_db_is_ready()) {
@@ -63,7 +63,8 @@ ExecutionPlan* orch_plan_create(const char* goal) {
 
 Task* orch_task_create(const char* description, SemanticID assignee) {
     Task* task = calloc(1, sizeof(Task));
-    if (!task) return NULL;
+    if (!task)
+        return NULL;
 
     task->id = __sync_fetch_and_add(&g_next_task_id, 1);
     task->description = strdup(description);
@@ -74,13 +75,14 @@ Task* orch_task_create(const char* description, SemanticID assignee) {
     task->assigned_to = assignee;
     task->status = TASK_STATUS_PENDING;
     task->created_at = time(NULL);
-    task->db_id[0] = '\0';  // Initialize
+    task->db_id[0] = '\0'; // Initialize
 
     return task;
 }
 
 void orch_plan_add_task(ExecutionPlan* plan, Task* task) {
-    if (!plan || !task) return;
+    if (!plan || !task)
+        return;
 
     // Add to linked list
     task->next = plan->tasks;
@@ -90,7 +92,8 @@ void orch_plan_add_task(ExecutionPlan* plan, Task* task) {
     if (plan->db_id[0] && plan_db_is_ready()) {
         char task_db_id[64];
         const char* agent_name = get_agent_name(task->assigned_to);
-        if (plan_db_add_task(plan->db_id, task->description, agent_name, 50, NULL, task_db_id) == PLAN_DB_OK) {
+        if (plan_db_add_task(plan->db_id, task->description, agent_name, 50, NULL, task_db_id) ==
+            PLAN_DB_OK) {
             strncpy(task->db_id, task_db_id, sizeof(task->db_id) - 1);
             task->db_id[sizeof(task->db_id) - 1] = '\0';
         }
@@ -98,7 +101,8 @@ void orch_plan_add_task(ExecutionPlan* plan, Task* task) {
 }
 
 void orch_task_complete(Task* task, const char* result) {
-    if (!task) return;
+    if (!task)
+        return;
 
     task->status = TASK_STATUS_COMPLETED;
     task->result = result ? strdup(result) : NULL;
@@ -115,15 +119,19 @@ void orch_task_complete(Task* task, const char* result) {
 // ============================================================================
 
 bool orch_plan_get_progress(ExecutionPlan* plan, int* total, int* completed, float* percent) {
-    if (!plan) return false;
+    if (!plan)
+        return false;
 
     // If plan has db_id, get from SQLite for accurate progress
     if (plan->db_id[0] && plan_db_is_ready()) {
         PlanProgress progress;
         if (plan_db_get_progress(plan->db_id, &progress) == PLAN_DB_OK) {
-            if (total) *total = progress.total;
-            if (completed) *completed = progress.completed;
-            if (percent) *percent = (float)progress.percent_complete;
+            if (total)
+                *total = progress.total;
+            if (completed)
+                *completed = progress.completed;
+            if (percent)
+                *percent = (float)progress.percent_complete;
             return true;
         }
     }
@@ -132,10 +140,14 @@ bool orch_plan_get_progress(ExecutionPlan* plan, int* total, int* completed, flo
     int t = 0, c = 0;
     for (Task* task = plan->tasks; task; task = task->next) {
         t++;
-        if (task->status == TASK_STATUS_COMPLETED) c++;
+        if (task->status == TASK_STATUS_COMPLETED)
+            c++;
     }
-    if (total) *total = t;
-    if (completed) *completed = c;
-    if (percent) *percent = t > 0 ? (float)c / (float)t * 100.0f : 0.0f;
+    if (total)
+        *total = t;
+    if (completed)
+        *completed = c;
+    if (percent)
+        *percent = t > 0 ? (float)c / (float)t * 100.0f : 0.0f;
     return true;
 }

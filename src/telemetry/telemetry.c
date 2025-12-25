@@ -9,14 +9,15 @@
 
 #include "nous/telemetry.h"
 #include "nous/config.h"
+#include "nous/nous.h"
 #include "nous/safe_path.h"
+#include <errno.h>
+#include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
 #include <unistd.h>
-#include <fcntl.h>
-#include <errno.h>
 
 // ============================================================================
 // CONSTANTS
@@ -57,10 +58,10 @@ int telemetry_init(void) {
     }
 
     // Build paths
-    snprintf(g_telemetry_config.config_path, sizeof(g_telemetry_config.config_path),
-             "%s/%s", g_config.config_dir, TELEMETRY_CONFIG_FILE);
-    snprintf(g_telemetry_config.data_path, sizeof(g_telemetry_config.data_path),
-             "%s/%s", g_config.config_dir, TELEMETRY_DATA_FILE);
+    snprintf(g_telemetry_config.config_path, sizeof(g_telemetry_config.config_path), "%s/%s",
+             g_config.config_dir, TELEMETRY_CONFIG_FILE);
+    snprintf(g_telemetry_config.data_path, sizeof(g_telemetry_config.data_path), "%s/%s",
+             g_config.config_dir, TELEMETRY_DATA_FILE);
 
     // Load or create configuration
     if (load_config() != 0) {
@@ -68,29 +69,21 @@ int telemetry_init(void) {
         g_telemetry_config.enabled = false;
         g_telemetry_config.anonymous_id[0] = '\0';
 
-        #ifdef CONVERGIO_VERSION
-        snprintf(g_telemetry_config.convergio_version,
-                 sizeof(g_telemetry_config.convergio_version),
+#ifdef CONVERGIO_VERSION
+        snprintf(g_telemetry_config.convergio_version, sizeof(g_telemetry_config.convergio_version),
                  "%s", CONVERGIO_VERSION);
-        #else
-        snprintf(g_telemetry_config.convergio_version,
-                 sizeof(g_telemetry_config.convergio_version),
+#else
+        snprintf(g_telemetry_config.convergio_version, sizeof(g_telemetry_config.convergio_version),
                  "unknown");
-        #endif
+#endif
 
-        #ifdef __APPLE__
-        snprintf(g_telemetry_config.os_type,
-                 sizeof(g_telemetry_config.os_type),
-                 "darwin");
-        #elif defined(__linux__)
-        snprintf(g_telemetry_config.os_type,
-                 sizeof(g_telemetry_config.os_type),
-                 "linux");
-        #else
-        snprintf(g_telemetry_config.os_type,
-                 sizeof(g_telemetry_config.os_type),
-                 "unknown");
-        #endif
+#ifdef __APPLE__
+        snprintf(g_telemetry_config.os_type, sizeof(g_telemetry_config.os_type), "darwin");
+#elif defined(__linux__)
+        snprintf(g_telemetry_config.os_type, sizeof(g_telemetry_config.os_type), "linux");
+#else
+        snprintf(g_telemetry_config.os_type, sizeof(g_telemetry_config.os_type), "unknown");
+#endif
 
         save_config();
     }
@@ -99,7 +92,7 @@ int telemetry_init(void) {
     g_event_capacity = MAX_EVENTS_IN_MEMORY;
     g_events = calloc(g_event_capacity, sizeof(TelemetryEvent));
     if (!g_events) {
-        fprintf(stderr, "telemetry: Failed to allocate event buffer\n");
+        LOG_ERROR(LOG_CAT_SYSTEM, "telemetry: Failed to allocate event buffer");
         return -1;
     }
     g_event_count = 0;
@@ -154,13 +147,8 @@ const TelemetryConfig* telemetry_get_config(void) {
 // EVENT RECORDING
 // ============================================================================
 
-void telemetry_record_api_call(
-    const char* provider,
-    const char* model,
-    uint64_t tokens_input,
-    uint64_t tokens_output,
-    double latency_ms
-) {
+void telemetry_record_api_call(const char* provider, const char* model, uint64_t tokens_input,
+                               uint64_t tokens_output, double latency_ms) {
     if (!telemetry_is_enabled() || !provider || !model) {
         return;
     }
@@ -192,10 +180,7 @@ void telemetry_record_error(const char* error_type) {
     add_event(&event);
 }
 
-void telemetry_record_fallback(
-    const char* from_provider,
-    const char* to_provider
-) {
+void telemetry_record_fallback(const char* from_provider, const char* to_provider) {
     if (!telemetry_is_enabled() || !from_provider || !to_provider) {
         return;
     }
@@ -234,11 +219,8 @@ void telemetry_record_session_end(void) {
     add_event(&event);
 }
 
-void telemetry_record_performance(
-    const char* operation,
-    double duration_ms,
-    uint64_t memory_bytes
-) {
+void telemetry_record_performance(const char* operation, double duration_ms,
+                                  uint64_t memory_bytes) {
     if (!telemetry_is_enabled()) {
         return;
     }
@@ -255,11 +237,7 @@ void telemetry_record_performance(
     add_event(&event);
 }
 
-void telemetry_record_security(
-    const char* security_event,
-    const char* context,
-    bool success
-) {
+void telemetry_record_security(const char* security_event, const char* context, bool success) {
     if (!telemetry_is_enabled()) {
         return;
     }
@@ -278,11 +256,7 @@ void telemetry_record_security(
     add_event(&event);
 }
 
-void telemetry_record_retry(
-    const char* reason,
-    int attempt,
-    int max_retries
-) {
+void telemetry_record_retry(const char* reason, int attempt, int max_retries) {
     if (!telemetry_is_enabled()) {
         return;
     }
@@ -299,10 +273,7 @@ void telemetry_record_retry(
     add_event(&event);
 }
 
-void telemetry_record_checkpoint(
-    const char* workflow_type,
-    double duration_ms
-) {
+void telemetry_record_checkpoint(const char* workflow_type, double duration_ms) {
     if (!telemetry_is_enabled()) {
         return;
     }
@@ -338,20 +309,20 @@ char* telemetry_get_stats(void) {
     for (size_t i = 0; i < g_event_count; i++) {
         const TelemetryEvent* e = &g_events[i];
         switch (e->type) {
-            case TELEMETRY_EVENT_API_CALL:
-                total_api_calls++;
-                total_tokens_input += e->tokens_input;
-                total_tokens_output += e->tokens_output;
-                total_latency += e->latency_ms;
-                break;
-            case TELEMETRY_EVENT_ERROR:
-                total_errors++;
-                break;
-            case TELEMETRY_EVENT_FALLBACK:
-                total_fallbacks++;
-                break;
-            default:
-                break;
+        case TELEMETRY_EVENT_API_CALL:
+            total_api_calls++;
+            total_tokens_input += e->tokens_input;
+            total_tokens_output += e->tokens_output;
+            total_latency += e->latency_ms;
+            break;
+        case TELEMETRY_EVENT_ERROR:
+            total_errors++;
+            break;
+        case TELEMETRY_EVENT_FALLBACK:
+            total_fallbacks++;
+            break;
+        default:
+            break;
         }
     }
 
@@ -364,23 +335,18 @@ char* telemetry_get_stats(void) {
     }
 
     snprintf(stats, 2048,
-        "{\n"
-        "  \"total_api_calls\": %llu,\n"
-        "  \"total_tokens_input\": %llu,\n"
-        "  \"total_tokens_output\": %llu,\n"
-        "  \"average_latency_ms\": %.2f,\n"
-        "  \"total_errors\": %llu,\n"
-        "  \"total_fallbacks\": %llu,\n"
-        "  \"events_recorded\": %zu\n"
-        "}",
-        (unsigned long long)total_api_calls,
-        (unsigned long long)total_tokens_input,
-        (unsigned long long)total_tokens_output,
-        avg_latency,
-        (unsigned long long)total_errors,
-        (unsigned long long)total_fallbacks,
-        g_event_count
-    );
+             "{\n"
+             "  \"total_api_calls\": %llu,\n"
+             "  \"total_tokens_input\": %llu,\n"
+             "  \"total_tokens_output\": %llu,\n"
+             "  \"average_latency_ms\": %.2f,\n"
+             "  \"total_errors\": %llu,\n"
+             "  \"total_fallbacks\": %llu,\n"
+             "  \"events_recorded\": %zu\n"
+             "}",
+             (unsigned long long)total_api_calls, (unsigned long long)total_tokens_input,
+             (unsigned long long)total_tokens_output, avg_latency, (unsigned long long)total_errors,
+             (unsigned long long)total_fallbacks, g_event_count);
 
     return stats;
 }
@@ -391,11 +357,12 @@ int telemetry_flush(void) {
     }
 
     // Open data file for writing
-    int fd = safe_path_open(g_telemetry_config.data_path, safe_path_get_user_boundary(), O_WRONLY | O_CREAT | O_TRUNC, 0644);
+    int fd = safe_path_open(g_telemetry_config.data_path, safe_path_get_user_boundary(),
+                            O_WRONLY | O_CREAT | O_TRUNC, 0644);
     FILE* f = fd >= 0 ? fdopen(fd, "w") : NULL;
     if (!f) {
-        fprintf(stderr, "telemetry: Failed to open data file for writing: %s\n",
-                strerror(errno));
+        LOG_ERROR(LOG_CAT_SYSTEM, "telemetry: Failed to open data file for writing: %s",
+                  strerror(errno));
         return -1;
     }
 
@@ -412,50 +379,50 @@ int telemetry_flush(void) {
         fprintf(f, "      \"type\": ");
 
         switch (e->type) {
-            case TELEMETRY_EVENT_API_CALL:
-                fprintf(f, "\"api_call\",\n");
-                fprintf(f, "      \"timestamp\": %ld,\n", e->timestamp);
-                fprintf(f, "      \"provider\": \"%s\",\n", e->provider);
-                fprintf(f, "      \"model\": \"%s\",\n", e->model);
-                fprintf(f, "      \"tokens_input\": %llu,\n", (unsigned long long)e->tokens_input);
-                fprintf(f, "      \"tokens_output\": %llu,\n", (unsigned long long)e->tokens_output);
-                fprintf(f, "      \"latency_ms\": %.2f\n", e->latency_ms);
-                break;
-            case TELEMETRY_EVENT_ERROR:
-                fprintf(f, "\"error\",\n");
-                fprintf(f, "      \"timestamp\": %ld,\n", e->timestamp);
-                fprintf(f, "      \"error_type\": \"%s\"\n", e->error_type);
-                break;
-            case TELEMETRY_EVENT_FALLBACK:
-                fprintf(f, "\"fallback\",\n");
-                fprintf(f, "      \"timestamp\": %ld,\n", e->timestamp);
-                fprintf(f, "      \"from_provider\": \"%s\",\n", e->from_provider);
-                fprintf(f, "      \"to_provider\": \"%s\"\n", e->to_provider);
-                break;
-            case TELEMETRY_EVENT_SESSION_START:
-                fprintf(f, "\"session_start\",\n");
-                fprintf(f, "      \"timestamp\": %ld\n", e->timestamp);
-                break;
-            case TELEMETRY_EVENT_SESSION_END:
-                fprintf(f, "\"session_end\",\n");
-                fprintf(f, "      \"timestamp\": %ld\n", e->timestamp);
-                break;
-            case TELEMETRY_EVENT_WORKFLOW_START:
-            case TELEMETRY_EVENT_WORKFLOW_END:
-            case TELEMETRY_EVENT_WORKFLOW_NODE:
-            case TELEMETRY_EVENT_WORKFLOW_ERROR:
-            case TELEMETRY_EVENT_ORCHESTRATOR_DELEGATION:
-            case TELEMETRY_EVENT_ORCHESTRATOR_PLANNING:
-            case TELEMETRY_EVENT_ORCHESTRATOR_CONVERGENCE:
-                // These events are handled by workflow_observability.c
-                // For export, just include basic info
-                fprintf(f, "\"workflow_event\",\n");
-                fprintf(f, "      \"timestamp\": %ld\n", e->timestamp);
-                break;
-            default:
-                fprintf(f, "\"unknown\",\n");
-                fprintf(f, "      \"timestamp\": %ld\n", e->timestamp);
-                break;
+        case TELEMETRY_EVENT_API_CALL:
+            fprintf(f, "\"api_call\",\n");
+            fprintf(f, "      \"timestamp\": %ld,\n", e->timestamp);
+            fprintf(f, "      \"provider\": \"%s\",\n", e->provider);
+            fprintf(f, "      \"model\": \"%s\",\n", e->model);
+            fprintf(f, "      \"tokens_input\": %llu,\n", (unsigned long long)e->tokens_input);
+            fprintf(f, "      \"tokens_output\": %llu,\n", (unsigned long long)e->tokens_output);
+            fprintf(f, "      \"latency_ms\": %.2f\n", e->latency_ms);
+            break;
+        case TELEMETRY_EVENT_ERROR:
+            fprintf(f, "\"error\",\n");
+            fprintf(f, "      \"timestamp\": %ld,\n", e->timestamp);
+            fprintf(f, "      \"error_type\": \"%s\"\n", e->error_type);
+            break;
+        case TELEMETRY_EVENT_FALLBACK:
+            fprintf(f, "\"fallback\",\n");
+            fprintf(f, "      \"timestamp\": %ld,\n", e->timestamp);
+            fprintf(f, "      \"from_provider\": \"%s\",\n", e->from_provider);
+            fprintf(f, "      \"to_provider\": \"%s\"\n", e->to_provider);
+            break;
+        case TELEMETRY_EVENT_SESSION_START:
+            fprintf(f, "\"session_start\",\n");
+            fprintf(f, "      \"timestamp\": %ld\n", e->timestamp);
+            break;
+        case TELEMETRY_EVENT_SESSION_END:
+            fprintf(f, "\"session_end\",\n");
+            fprintf(f, "      \"timestamp\": %ld\n", e->timestamp);
+            break;
+        case TELEMETRY_EVENT_WORKFLOW_START:
+        case TELEMETRY_EVENT_WORKFLOW_END:
+        case TELEMETRY_EVENT_WORKFLOW_NODE:
+        case TELEMETRY_EVENT_WORKFLOW_ERROR:
+        case TELEMETRY_EVENT_ORCHESTRATOR_DELEGATION:
+        case TELEMETRY_EVENT_ORCHESTRATOR_PLANNING:
+        case TELEMETRY_EVENT_ORCHESTRATOR_CONVERGENCE:
+            // These events are handled by workflow_observability.c
+            // For export, just include basic info
+            fprintf(f, "\"workflow_event\",\n");
+            fprintf(f, "      \"timestamp\": %ld\n", e->timestamp);
+            break;
+        default:
+            fprintf(f, "\"unknown\",\n");
+            fprintf(f, "      \"timestamp\": %ld\n", e->timestamp);
+            break;
         }
 
         fprintf(f, "    }%s\n", (i < g_event_count - 1) ? "," : "");
@@ -473,7 +440,8 @@ int telemetry_flush(void) {
 // ============================================================================
 
 static int load_config(void) {
-    int fd = safe_path_open(g_telemetry_config.config_path, safe_path_get_user_boundary(), O_RDONLY, 0);
+    int fd =
+        safe_path_open(g_telemetry_config.config_path, safe_path_get_user_boundary(), O_RDONLY, 0);
     FILE* f = fd >= 0 ? fdopen(fd, "r") : NULL;
     if (!f) {
         return -1;
@@ -486,17 +454,14 @@ static int load_config(void) {
             if (strcmp(key, "enabled") == 0) {
                 g_telemetry_config.enabled = (strcmp(value, "true") == 0);
             } else if (strcmp(key, "anonymous_id") == 0) {
-                snprintf(g_telemetry_config.anonymous_id,
-                         sizeof(g_telemetry_config.anonymous_id),
+                snprintf(g_telemetry_config.anonymous_id, sizeof(g_telemetry_config.anonymous_id),
                          "%s", value);
             } else if (strcmp(key, "convergio_version") == 0) {
                 snprintf(g_telemetry_config.convergio_version,
-                         sizeof(g_telemetry_config.convergio_version),
-                         "%s", value);
+                         sizeof(g_telemetry_config.convergio_version), "%s", value);
             } else if (strcmp(key, "os_type") == 0) {
-                snprintf(g_telemetry_config.os_type,
-                         sizeof(g_telemetry_config.os_type),
-                         "%s", value);
+                snprintf(g_telemetry_config.os_type, sizeof(g_telemetry_config.os_type), "%s",
+                         value);
             }
         } else if (sscanf(line, " \"%255[^\"]\" : %511[^,}]", key, value) == 2) {
             if (strcmp(key, "enabled") == 0) {
@@ -510,10 +475,11 @@ static int load_config(void) {
 }
 
 static int save_config(void) {
-    int fd = safe_path_open(g_telemetry_config.config_path, safe_path_get_user_boundary(), O_WRONLY | O_CREAT | O_TRUNC, 0644);
+    int fd = safe_path_open(g_telemetry_config.config_path, safe_path_get_user_boundary(),
+                            O_WRONLY | O_CREAT | O_TRUNC, 0644);
     FILE* f = fd >= 0 ? fdopen(fd, "w") : NULL;
     if (!f) {
-        fprintf(stderr, "telemetry: Failed to save config: %s\n", strerror(errno));
+        LOG_ERROR(LOG_CAT_SYSTEM, "telemetry: Failed to save config: %s", strerror(errno));
         return -1;
     }
 
@@ -594,15 +560,14 @@ int telemetry_enable(void) {
     // Generate anonymous ID if not set
     if (g_telemetry_config.anonymous_id[0] == '\0') {
         generate_anonymous_id(g_telemetry_config.anonymous_id,
-                            sizeof(g_telemetry_config.anonymous_id));
+                              sizeof(g_telemetry_config.anonymous_id));
     }
 
     g_telemetry_config.enabled = true;
 
     int result = save_config();
     if (result == 0) {
-        printf("Telemetry enabled. Anonymous ID: %s\n",
-               g_telemetry_config.anonymous_id);
+        printf("Telemetry enabled. Anonymous ID: %s\n", g_telemetry_config.anonymous_id);
     }
 
     return result;

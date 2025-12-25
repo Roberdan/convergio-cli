@@ -480,7 +480,10 @@ static void test_e2e_class_council_workflow(void) {
 
 static void test_e2e_security_audit_workflow(void) {
     printf("test_e2e_security_audit_workflow:\n");
-    
+
+    #undef LUCA_SECURITY_ID
+    #undef BACCIO_CODER_ID
+    #undef MARCO_DEVOPS_ID
     #define LUCA_SECURITY_ID 6001
     #define BACCIO_CODER_ID 6002
     #define MARCO_DEVOPS_ID 6003
@@ -538,7 +541,11 @@ static void test_e2e_security_audit_workflow(void) {
 
 static void test_e2e_performance_optimization_workflow(void) {
     printf("test_e2e_performance_optimization_workflow:\n");
-    
+
+    #undef OMRI_ANALYST_ID
+    #undef BACCIO_CODER_ID
+    #undef MARCO_DEVOPS_ID
+    #undef THOR_QA_ID
     #define OMRI_ANALYST_ID 7001
     #define BACCIO_CODER_ID 7002
     #define MARCO_DEVOPS_ID 7003
@@ -599,7 +606,12 @@ static void test_e2e_performance_optimization_workflow(void) {
 
 static void test_e2e_incident_response_workflow(void) {
     printf("test_e2e_incident_response_workflow:\n");
-    
+
+    #undef ALI_ORCHESTRATOR_ID
+    #undef DOMIK_ANALYST_ID
+    #undef LUCA_SECURITY_ID
+    #undef BACCIO_CODER_ID
+    #undef MARCO_DEVOPS_ID
     #define ALI_ORCHESTRATOR_ID 8001
     #define DOMIK_ANALYST_ID 8002
     #define LUCA_SECURITY_ID 8003

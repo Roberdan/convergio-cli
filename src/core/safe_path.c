@@ -5,14 +5,14 @@
  */
 
 #include "nous/safe_path.h"
+#include <errno.h>
+#include <fcntl.h>
+#include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
-#include <limits.h>
-#include <fcntl.h>
 #include <sys/stat.h>
-#include <errno.h>
+#include <unistd.h>
 
 // Static buffer for user boundary
 static char g_user_boundary[PATH_MAX] = {0};
@@ -20,31 +20,29 @@ static char g_cwd_boundary[PATH_MAX] = {0};
 
 const char* safe_path_strerror(SafePathResult result) {
     switch (result) {
-        case SAFE_PATH_OK:
-            return "Success";
-        case SAFE_PATH_NULL_INPUT:
-            return "NULL input parameter";
-        case SAFE_PATH_TOO_LONG:
-            return "Path exceeds maximum length";
-        case SAFE_PATH_RESOLVE_FAILED:
-            return "Failed to resolve path";
-        case SAFE_PATH_OUTSIDE_BOUNDARY:
-            return "Path escapes allowed directory boundary";
-        case SAFE_PATH_SYMLINK_ATTACK:
-            return "Potential symlink attack detected";
-        case SAFE_PATH_OPEN_FAILED:
-            return "Failed to open file";
-        case SAFE_PATH_STAT_FAILED:
-            return "Failed to stat path";
-        default:
-            return "Unknown error";
+    case SAFE_PATH_OK:
+        return "Success";
+    case SAFE_PATH_NULL_INPUT:
+        return "NULL input parameter";
+    case SAFE_PATH_TOO_LONG:
+        return "Path exceeds maximum length";
+    case SAFE_PATH_RESOLVE_FAILED:
+        return "Failed to resolve path";
+    case SAFE_PATH_OUTSIDE_BOUNDARY:
+        return "Path escapes allowed directory boundary";
+    case SAFE_PATH_SYMLINK_ATTACK:
+        return "Potential symlink attack detected";
+    case SAFE_PATH_OPEN_FAILED:
+        return "Failed to open file";
+    case SAFE_PATH_STAT_FAILED:
+        return "Failed to stat path";
+    default:
+        return "Unknown error";
     }
 }
 
-SafePathResult safe_path_resolve(const char* path,
-                                  const char* boundary,
-                                  char* resolved_out,
-                                  size_t resolved_size) {
+SafePathResult safe_path_resolve(const char* path, const char* boundary, char* resolved_out,
+                                 size_t resolved_size) {
     if (!path || !resolved_out || resolved_size == 0) {
         return SAFE_PATH_NULL_INPUT;
     }
@@ -68,7 +66,7 @@ SafePathResult safe_path_resolve(const char* path,
 
         if (last_slash) {
             strncpy(filename, last_slash + 1, sizeof(filename) - 1);
-            *last_slash = '\0';  // Truncate to get directory
+            *last_slash = '\0'; // Truncate to get directory
 
             // Resolve the directory
             char dir_resolved[PATH_MAX];
@@ -77,8 +75,7 @@ SafePathResult safe_path_resolve(const char* path,
             }
 
             // Join back with filename
-            int written = snprintf(resolved_out, resolved_size, "%s/%s",
-                                   dir_resolved, filename);
+            int written = snprintf(resolved_out, resolved_size, "%s/%s", dir_resolved, filename);
             if (written < 0 || (size_t)written >= resolved_size) {
                 return SAFE_PATH_TOO_LONG;
             }
@@ -89,8 +86,7 @@ SafePathResult safe_path_resolve(const char* path,
                 return SAFE_PATH_RESOLVE_FAILED;
             }
 
-            int written = snprintf(resolved_out, resolved_size, "%s/%s",
-                                   cwd, path);
+            int written = snprintf(resolved_out, resolved_size, "%s/%s", cwd, path);
             if (written < 0 || (size_t)written >= resolved_size) {
                 return SAFE_PATH_TOO_LONG;
             }
@@ -147,10 +143,7 @@ bool safe_path_within_boundary_weak(const char* path, const char* boundary) {
     return true;
 }
 
-int safe_path_open(const char* path,
-                   const char* boundary,
-                   int flags,
-                   int mode) {
+int safe_path_open(const char* path, const char* boundary, int flags, int mode) {
     if (!path) {
         errno = EINVAL;
         return -1;
@@ -203,8 +196,7 @@ int safe_path_open(const char* path,
     }
 
     // Build final path
-    int written = snprintf(resolved, sizeof(resolved), "%s/%s",
-                           parent_resolved, filename);
+    int written = snprintf(resolved, sizeof(resolved), "%s/%s", parent_resolved, filename);
     if (written < 0 || (size_t)written >= sizeof(resolved)) {
         errno = ENAMETOOLONG;
         return -1;
@@ -215,10 +207,8 @@ int safe_path_open(const char* path,
     return open(resolved, flags | O_NOFOLLOW | O_EXCL, mode);
 }
 
-SafePathResult safe_path_join(const char* base,
-                               const char* component,
-                               char* result,
-                               size_t result_size) {
+SafePathResult safe_path_join(const char* base, const char* component, char* result,
+                              size_t result_size) {
     if (!base || !component || !result || result_size == 0) {
         return SAFE_PATH_NULL_INPUT;
     }
@@ -252,8 +242,7 @@ const char* safe_path_get_user_boundary(void) {
     if (g_user_boundary[0] == '\0') {
         const char* home = getenv("HOME");
         if (home) {
-            snprintf(g_user_boundary, sizeof(g_user_boundary),
-                     "%s/.convergio", home);
+            snprintf(g_user_boundary, sizeof(g_user_boundary), "%s/.convergio", home);
 
             // Create if doesn't exist
             mkdir(g_user_boundary, 0700);
