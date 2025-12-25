@@ -40,23 +40,8 @@ bool mastery_can_advance(int64_t student_id, const char* target_skill_id,
     return true; // All prerequisites mastered, can advance
 }
 
-/**
- * Get mastery level for a skill (0.0 - 1.0)
- */
-float mastery_get_level(int64_t student_id, const char* skill_id) {
-    if (!skill_id)
-        return 0.0f;
-    return education_mastery_get_level(student_id, skill_id);
-}
-
-/**
- * Check if skill is mastered (80%+)
- */
-bool mastery_is_mastered(int64_t student_id, const char* skill_id) {
-    if (!skill_id)
-        return false;
-    return education_mastery_is_mastered(student_id, skill_id);
-}
+// Note: mastery_get_level() is implemented in mastery.c
+// Note: mastery_is_mastered() - use education_mastery_is_mastered() directly
 
 /**
  * Get blocking message if student cannot advance
