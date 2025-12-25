@@ -36,11 +36,19 @@ enum OpenAIVoice: String, CaseIterable {
 protocol OpenAIRealtimeDelegate: AnyObject {
     func realtimeDidConnect(_ realtime: OpenAIRealtimeWebSocket)
     func realtimeDidDisconnect(_ realtime: OpenAIRealtimeWebSocket, error: Error?)
+    func realtimeDidReconnect(_ realtime: OpenAIRealtimeWebSocket, attempt: Int)
+    func realtimeReconnectionFailed(_ realtime: OpenAIRealtimeWebSocket, error: Error)
     func realtime(_ realtime: OpenAIRealtimeWebSocket, didReceiveTranscript text: String, isFinal: Bool)
     func realtime(_ realtime: OpenAIRealtimeWebSocket, didReceiveResponse text: String)
     func realtime(_ realtime: OpenAIRealtimeWebSocket, didReceiveAudio audioData: Data)
     func realtime(_ realtime: OpenAIRealtimeWebSocket, didCompleteResponse: Void)
     func realtime(_ realtime: OpenAIRealtimeWebSocket, didEncounterError error: Error)
+}
+
+// Optional delegate methods
+extension OpenAIRealtimeDelegate {
+    func realtimeDidReconnect(_ realtime: OpenAIRealtimeWebSocket, attempt: Int) {}
+    func realtimeReconnectionFailed(_ realtime: OpenAIRealtimeWebSocket, error: Error) {}
 }
 
 // MARK: - Audio Buffer Actor (Thread-safe)
@@ -95,6 +103,13 @@ final class OpenAIRealtimeWebSocket: NSObject {
     // Connection state tracking
     private var connectionContinuation: CheckedContinuation<Void, Error>?
     private var connectionError: Error?
+
+    // Reconnection configuration
+    private var reconnectionAttempts: Int = 0
+    private let maxReconnectionAttempts: Int = 5
+    private var isReconnecting: Bool = false
+    private var shouldAutoReconnect: Bool = true
+    private var reconnectionTask: Task<Void, Never>?
 
     // Debug callback for UI
     var onDebugLog: ((String) -> Void)?
@@ -213,9 +228,16 @@ final class OpenAIRealtimeWebSocket: NSObject {
     }
 
     func disconnect() async {
-        guard isConnected else { return }
+        guard isConnected || isReconnecting else { return }
 
         logInfo("OpenAI Realtime: Disconnecting...")
+
+        // Stop auto-reconnection
+        shouldAutoReconnect = false
+        reconnectionTask?.cancel()
+        reconnectionTask = nil
+        isReconnecting = false
+        reconnectionAttempts = 0
 
         webSocketTask?.cancel(with: .normalClosure, reason: nil)
         webSocketTask = nil
@@ -225,6 +247,78 @@ final class OpenAIRealtimeWebSocket: NSObject {
 
         delegate?.realtimeDidDisconnect(self, error: nil)
         logInfo("OpenAI Realtime: Disconnected")
+    }
+
+    // MARK: - Reconnection
+
+    /// Attempt to reconnect with exponential backoff
+    private func attemptReconnection() {
+        guard shouldAutoReconnect, !isReconnecting else { return }
+        guard reconnectionAttempts < maxReconnectionAttempts else {
+            logError("OpenAI Realtime: Max reconnection attempts reached (\(maxReconnectionAttempts))")
+            delegate?.realtimeReconnectionFailed(self, error: OpenAIRealtimeError.serverError("Max reconnection attempts reached"))
+            return
+        }
+
+        isReconnecting = true
+        reconnectionAttempts += 1
+
+        // Exponential backoff: 1s, 2s, 4s, 8s, 16s
+        let delay = pow(2.0, Double(reconnectionAttempts - 1))
+        logInfo("OpenAI Realtime: Reconnection attempt \(reconnectionAttempts)/\(maxReconnectionAttempts) in \(delay)s...")
+        onDebugLog?("🔄 Reconnecting in \(Int(delay))s (attempt \(reconnectionAttempts)/\(maxReconnectionAttempts))")
+
+        reconnectionTask = Task {
+            do {
+                try await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
+
+                guard shouldAutoReconnect else { return }
+
+                // Reset connection state
+                webSocketTask?.cancel(with: .goingAway, reason: nil)
+                webSocketTask = nil
+                urlSession?.invalidateAndCancel()
+                urlSession = nil
+                isConnected = false
+
+                // Attempt to reconnect
+                try await connect(voice: currentVoice, systemPrompt: systemPrompt)
+
+                // Success!
+                isReconnecting = false
+                reconnectionAttempts = 0
+                logInfo("OpenAI Realtime: Reconnected successfully!")
+                onDebugLog?("✅ Reconnected successfully!")
+                delegate?.realtimeDidReconnect(self, attempt: reconnectionAttempts)
+
+            } catch {
+                isReconnecting = false
+                logError("OpenAI Realtime: Reconnection failed: \(error.localizedDescription)")
+                onDebugLog?("❌ Reconnection failed: \(error.localizedDescription)")
+
+                // Try again if not cancelled
+                if shouldAutoReconnect {
+                    attemptReconnection()
+                }
+            }
+        }
+    }
+
+    /// Enable or disable auto-reconnection
+    func setAutoReconnect(_ enabled: Bool) {
+        shouldAutoReconnect = enabled
+        if !enabled {
+            reconnectionTask?.cancel()
+            reconnectionTask = nil
+            isReconnecting = false
+        }
+    }
+
+    /// Reset reconnection state (call after successful manual reconnection)
+    func resetReconnectionState() {
+        reconnectionAttempts = 0
+        isReconnecting = false
+        shouldAutoReconnect = true
     }
 
     // MARK: - Session Configuration
@@ -417,8 +511,14 @@ final class OpenAIRealtimeWebSocket: NSObject {
             }
         } catch {
             if isConnected {
+                isConnected = false
                 logError("OpenAI Realtime: Receive error: \(error.localizedDescription)")
+                onDebugLog?("⚠️ Connection lost: \(error.localizedDescription)")
                 delegate?.realtime(self, didEncounterError: error)
+                delegate?.realtimeDidDisconnect(self, error: error)
+
+                // Attempt to reconnect
+                attemptReconnection()
             }
         }
     }
@@ -528,6 +628,7 @@ extension OpenAIRealtimeWebSocket: URLSessionWebSocketDelegate {
     }
 
     func urlSession(_ session: URLSession, webSocketTask: URLSessionWebSocketTask, didCloseWith closeCode: URLSessionWebSocketTask.CloseCode, reason: Data?) {
+        let wasConnected = isConnected
         isConnected = false
         let reasonString = reason.flatMap { String(data: $0, encoding: .utf8) } ?? "Unknown"
         logInfo("OpenAI Realtime: WebSocket closed - Code: \(closeCode.rawValue) - Reason: \(reasonString)")
@@ -565,6 +666,11 @@ extension OpenAIRealtimeWebSocket: URLSessionWebSocketDelegate {
                 errorMessage = "Unknown connection error (code: \(closeCode.rawValue))"
             }
             continuation.resume(throwing: OpenAIRealtimeError.serverError(errorMessage))
+        } else if wasConnected && closeCode != .normalClosure {
+            // Connection was established but closed unexpectedly - attempt reconnection
+            onDebugLog?("⚠️ Connection closed unexpectedly: \(closeCode.rawValue)")
+            delegate?.realtimeDidDisconnect(self, error: OpenAIRealtimeError.serverError(reasonString))
+            attemptReconnection()
         }
     }
 
