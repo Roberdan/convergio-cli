@@ -27,6 +27,116 @@ This plan consolidates **4 feature branches** into a stable V6 release using a *
 
 ---
 
+## 🧪 TESTING STRATEGY: Ollama Local vs Production Providers
+
+### Obiettivo
+Separare chiaramente i **test di sviluppo/integrazione** dai **test di produzione**:
+
+| Fase | Provider | Modello | Scopo |
+|------|----------|---------|-------|
+| **Sviluppo & CI** | Ollama (locale) | `llama3.2:1b` o `qwen2.5:0.5b` | Verificare che il codice funzioni |
+| **Pre-Release** | Provider configurati | Come da agent config | Verificare compatibilità API reali |
+| **Produzione EDU** | Azure OpenAI ONLY | `gpt-4o` via Azure | GDPR compliance scuole |
+| **Produzione FULL** | Multi-provider | Anthropic/OpenAI/Azure | Flessibilità utente |
+
+### Perché Ollama per i Test di Sviluppo?
+
+1. **Zero costi API** - Nessun consumo di crediti durante sviluppo
+2. **Velocità** - Modelli piccoli rispondono in millisecondi
+3. **Offline** - Funziona senza connessione internet
+4. **Riproducibilità** - Stesso modello = stesso comportamento
+5. **CI/CD friendly** - Può girare in GitHub Actions con self-hosted runner
+
+### Setup Ollama per Test
+
+```bash
+# Installare Ollama (se non già presente)
+brew install ollama
+
+# Scaricare modello leggero per test
+ollama pull llama3.2:1b     # 1.3GB, velocissimo
+# oppure
+ollama pull qwen2.5:0.5b    # 400MB, ancora più veloce
+
+# Verificare che Ollama sia attivo
+ollama list
+curl http://localhost:11434/api/tags
+```
+
+### Configurazione Test con Ollama
+
+```bash
+# Per i test di sviluppo, impostare:
+export CONVERGIO_TEST_PROVIDER=ollama
+export CONVERGIO_TEST_MODEL=llama3.2:1b
+export OLLAMA_HOST=http://localhost:11434
+
+# Eseguire test
+make test                    # Unit test (no LLM)
+make test_llm PROVIDER=ollama  # Test LLM con Ollama
+make test_e2e PROVIDER=ollama  # E2E con Ollama
+```
+
+### Configurazione Pre-Release (Provider Reali)
+
+```bash
+# Prima del release, verificare con provider reali:
+export CONVERGIO_TEST_PROVIDER=azure  # Per EDU
+export AZURE_OPENAI_ENDPOINT=https://xxx.openai.azure.com
+export AZURE_OPENAI_KEY=xxx
+export AZURE_OPENAI_DEPLOYMENT=gpt-4o
+
+# Test con Azure
+make test_llm PROVIDER=azure
+make test_e2e PROVIDER=azure
+```
+
+### ⚠️ Regola Fondamentale per Education Edition
+
+```
+╔══════════════════════════════════════════════════════════════════╗
+║  EDUCATION EDITION IN PRODUZIONE = SOLO AZURE OPENAI             ║
+║                                                                   ║
+║  • Ollama OK per TEST di sviluppo                                ║
+║  • Azure OBBLIGATORIO per RELEASE e PRODUZIONE                   ║
+║  • MAI Anthropic/OpenAI diretto in EDU                           ║
+║  • GDPR richiede data residency EU (Azure West Europe)           ║
+╚══════════════════════════════════════════════════════════════════╝
+```
+
+### Implementazione nel Codice
+
+Il provider selector deve rispettare questa logica:
+
+```c
+// In src/providers/provider_selector.c
+Provider* select_provider(ConvergioEdition edition, bool is_test_mode) {
+    // In test mode, allow Ollama for any edition
+    if (is_test_mode && getenv("CONVERGIO_TEST_PROVIDER")) {
+        return provider_from_env("CONVERGIO_TEST_PROVIDER");
+    }
+
+    // In production, EDU edition MUST use Azure
+    if (edition == EDITION_EDUCATION) {
+        return provider_azure_openai();  // ONLY Azure for EDU
+    }
+
+    // Other editions can use configured provider
+    return provider_from_config();
+}
+```
+
+### Checklist Test Pre-Release
+
+- [ ] `make test` passa (unit test, no LLM)
+- [ ] `make test_llm PROVIDER=ollama` passa (verifica funzionamento base)
+- [ ] `make test_e2e PROVIDER=ollama` passa (verifica flusso completo)
+- [ ] `make test_llm PROVIDER=azure` passa (verifica Azure per EDU)
+- [ ] Nessun riferimento hardcoded a Anthropic in codice EDU
+- [ ] Provider selector rispetta edition restrictions
+
+---
+
 ## PHASE 0: PREPARATION
 **Status**: [ ] NOT STARTED
 
