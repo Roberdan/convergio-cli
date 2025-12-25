@@ -47,7 +47,7 @@ Last Updated: 2025-12-25 10:27
 
 ### P2: UI Improvements
 - [ ] **Improve Settings window UI** (current design is poor)
-- [ ] **Fix theme management** (dark/light/system) - not working correctly
+- [x] **Fix theme management** (dark/light/system) - FIXED: added preferredColorScheme
 - [ ] Verify all 18 maestri images display correctly
 - [ ] Replace placeholder images:
   - Manzoni (currently red "M" placeholder)
@@ -112,6 +112,7 @@ Response audio → AVAudioPlayerNode
 - `c0ab3f2` fix(assets): convert all maestri images to proper PNG format
 - `a2f2c02` feat: add Grozio maestro for International Law with documentation
 - `8685951` feat(edu): enforce Azure OpenAI only for EDU edition (GDPR compliance)
+- `4f1b9c9` fix(ui): apply theme setting to main window and settings
 
 ---
 
