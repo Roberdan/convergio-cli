@@ -1,0 +1,545 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Convergio CLI - Multi-Agent AI Orchestration for Apple Silicon. 60+ specialized AI agents, offline-first, privacy-focused.">
+    <meta name="keywords" content="AI, CLI, Apple Silicon, Multi-Agent, MLX, Local AI, Privacy, Convergio">
+    <meta name="author" content="Roberto D'Angelo">
+
+    <title>Convergio CLI - Multi-Agent AI Orchestration</title>
+
+    <!-- Open Graph -->
+    <meta property="og:title" content="Convergio CLI - Multi-Agent AI Orchestration">
+    <meta property="og:description" content="60+ specialized AI agents orchestrated locally on Apple Silicon. Private, fast, intelligent.">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://convergio.dev">
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Convergio CLI">
+    <meta name="twitter:description" content="Multi-Agent AI Orchestration for Apple Silicon">
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+    <!-- Styles -->
+    <link rel="stylesheet" href="css/styles.css">
+
+    <!-- Schema.org -->
+    <script type="application/ld+json">
+    {
+        "@context": "https://schema.org",
+        "@type": "SoftwareApplication",
+        "name": "Convergio CLI",
+        "applicationCategory": "DeveloperApplication",
+        "operatingSystem": "macOS",
+        "offers": {
+            "@type": "Offer",
+            "price": "0",
+            "priceCurrency": "USD"
+        },
+        "description": "Multi-Agent AI Orchestration CLI for Apple Silicon with 60+ specialized agents"
+    }
+    </script>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar" id="navbar">
+        <div class="nav-container">
+            <a href="#" class="nav-logo">
+                <span class="logo-icon">◉</span>
+                <span class="logo-text">Convergio</span>
+            </a>
+            <ul class="nav-links">
+                <li><a href="#features">Features</a></li>
+                <li><a href="#agents">Agents</a></li>
+                <li><a href="#technology">Technology</a></li>
+                <li><a href="#installation">Install</a></li>
+                <li><a href="https://github.com/roberdan/ConvergioCLI" class="nav-github" target="_blank">GitHub</a></li>
+            </ul>
+            <button class="nav-toggle" aria-label="Toggle menu">
+                <span></span>
+                <span></span>
+                <span></span>
+            </button>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <header class="hero">
+        <div class="hero-container">
+            <div class="hero-content">
+                <div class="hero-badge">
+                    <span class="badge-icon">⚡</span>
+                    <span>Powered by Apple Silicon</span>
+                </div>
+                <h1 class="hero-title">
+                    Multi-Agent AI Orchestration
+                    <span class="gradient-text">for Your Mac</span>
+                </h1>
+                <p class="hero-description">
+                    60+ specialized AI agents working together. Run locally on Apple Silicon
+                    with complete privacy. From strategic planning to code generation,
+                    Convergio coordinates intelligent agents for complex tasks.
+                </p>
+                <div class="hero-ctas">
+                    <a href="#installation" class="btn btn-primary">
+                        <span class="btn-icon">⬇</span>
+                        Install Now
+                    </a>
+                    <a href="https://github.com/roberdan/ConvergioCLI" class="btn btn-secondary" target="_blank">
+                        <span class="btn-icon">★</span>
+                        Star on GitHub
+                    </a>
+                </div>
+                <div class="hero-stats">
+                    <div class="stat">
+                        <span class="stat-number">60+</span>
+                        <span class="stat-label">AI Agents</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-number">100%</span>
+                        <span class="stat-label">Private</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-number">0</span>
+                        <span class="stat-label">Cloud Required</span>
+                    </div>
+                </div>
+            </div>
+            <div class="hero-visual">
+                <div class="terminal-window">
+                    <div class="terminal-header">
+                        <span class="terminal-dot red"></span>
+                        <span class="terminal-dot yellow"></span>
+                        <span class="terminal-dot green"></span>
+                        <span class="terminal-title">convergio</span>
+                    </div>
+                    <div class="terminal-body">
+                        <pre><code><span class="prompt">$</span> convergio
+
+<span class="ascii-art">   ██████╗ ██████╗ ███╗   ██╗██╗   ██╗███████╗██████╗  ██████╗ ██╗ ██████╗
+  ██╔════╝██╔═══██╗████╗  ██║██║   ██║██╔════╝██╔══██╗██╔════╝ ██║██╔═══██╗
+  ██║     ██║   ██║██╔██╗ ██║██║   ██║█████╗  ██████╔╝██║  ███╗██║██║   ██║
+  ██║     ██║   ██║██║╚██╗██║╚██╗ ██╔╝██╔══╝  ██╔══██╗██║   ██║██║██║   ██║
+  ╚██████╗╚██████╔╝██║ ╚████║ ╚████╔╝ ███████╗██║  ██║╚██████╔╝██║╚██████╔╝
+   ╚═════╝ ╚═════╝ ╚═╝  ╚═══╝  ╚═══╝  ╚══════╝╚═╝  ╚═╝ ╚═════╝ ╚═╝ ╚═════╝</span>
+
+<span class="info">Multi-Agent AI Orchestration • v2.0.0 • Apple Silicon</span>
+<span class="success">✓ 60 agents loaded • ✓ MLX ready • ✓ Apple Intelligence</span>
+
+<span class="prompt">ali></span> <span class="typing">How can I help you today?</span></code></pre>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Privacy Features -->
+    <section class="privacy-section">
+        <div class="container">
+            <div class="privacy-grid">
+                <div class="privacy-card">
+                    <div class="privacy-icon">🔒</div>
+                    <h3>100% Private</h3>
+                    <p>All processing happens on your Mac. Your data never leaves your device.</p>
+                </div>
+                <div class="privacy-card">
+                    <div class="privacy-icon">⚡</div>
+                    <h3>Lightning Fast</h3>
+                    <p>Native Apple Silicon optimization with Metal GPU acceleration.</p>
+                </div>
+                <div class="privacy-card">
+                    <div class="privacy-icon">📴</div>
+                    <h3>Works Offline</h3>
+                    <p>No internet required for local models. Your AI assistant, always available.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Features Section -->
+    <section class="features" id="features">
+        <div class="container">
+            <div class="section-header">
+                <h2>Built for Professionals</h2>
+                <p>Enterprise-grade AI orchestration with consumer-grade simplicity</p>
+            </div>
+            <div class="features-grid">
+                <div class="feature-card">
+                    <div class="feature-icon">🤖</div>
+                    <h3>Multi-Agent Orchestration</h3>
+                    <p>Ali, your Chief of Staff, coordinates 60+ specialized agents for complex tasks. From strategic planning to code review, the right expert is always available.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">🎤</div>
+                    <h3>Voice Interface</h3>
+                    <p>Natural voice interaction with emotion detection. Speak your ideas and let Convergio understand not just what you say, but how you feel.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">🧠</div>
+                    <h3>Semantic Memory</h3>
+                    <p>Cross-session memory that remembers context, decisions, and preferences. Your AI team learns and improves over time.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">🔄</div>
+                    <h3>Workflow Automation</h3>
+                    <p>Define complex workflows with checkpoints, parallel execution, and conditional routing. Automate repetitive tasks intelligently.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">💻</div>
+                    <h3>Apple Intelligence</h3>
+                    <p>Native integration with Apple Foundation Models on macOS 26+. The 3B on-device model with zero latency and complete privacy.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">📊</div>
+                    <h3>Cost Tracking</h3>
+                    <p>Real-time cost monitoring across all providers. Set budgets, track usage, and optimize your AI spend.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Agents Section -->
+    <section class="agents" id="agents">
+        <div class="container">
+            <div class="section-header">
+                <h2>Meet Your AI Team</h2>
+                <p>60+ specialized agents, each an expert in their domain</p>
+            </div>
+            <div class="agents-showcase">
+                <div class="agent-category">
+                    <h3>Leadership</h3>
+                    <div class="agent-list">
+                        <div class="agent-card">
+                            <span class="agent-avatar">👔</span>
+                            <div class="agent-info">
+                                <strong>Ali</strong>
+                                <span>Chief of Staff</span>
+                            </div>
+                        </div>
+                        <div class="agent-card">
+                            <span class="agent-avatar">📊</span>
+                            <div class="agent-info">
+                                <strong>Satya</strong>
+                                <span>Board Advisor</span>
+                            </div>
+                        </div>
+                        <div class="agent-card">
+                            <span class="agent-avatar">💼</span>
+                            <div class="agent-info">
+                                <strong>Domik</strong>
+                                <span>McKinsey Strategist</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="agent-category">
+                    <h3>Engineering</h3>
+                    <div class="agent-list">
+                        <div class="agent-card">
+                            <span class="agent-avatar">🏗️</span>
+                            <div class="agent-info">
+                                <strong>Baccio</strong>
+                                <span>Tech Architect</span>
+                            </div>
+                        </div>
+                        <div class="agent-card">
+                            <span class="agent-avatar">🐛</span>
+                            <div class="agent-info">
+                                <strong>Dario</strong>
+                                <span>Debugger</span>
+                            </div>
+                        </div>
+                        <div class="agent-card">
+                            <span class="agent-avatar">⚡</span>
+                            <div class="agent-info">
+                                <strong>Otto</strong>
+                                <span>Performance Optimizer</span>
+                            </div>
+                        </div>
+                        <div class="agent-card">
+                            <span class="agent-avatar">👁️</span>
+                            <div class="agent-info">
+                                <strong>Rex</strong>
+                                <span>Code Reviewer</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="agent-category">
+                    <h3>Business</h3>
+                    <div class="agent-list">
+                        <div class="agent-card">
+                            <span class="agent-avatar">📈</span>
+                            <div class="agent-info">
+                                <strong>Fiona</strong>
+                                <span>Market Analyst</span>
+                            </div>
+                        </div>
+                        <div class="agent-card">
+                            <span class="agent-avatar">💰</span>
+                            <div class="agent-info">
+                                <strong>Amy</strong>
+                                <span>CFO</span>
+                            </div>
+                        </div>
+                        <div class="agent-card">
+                            <span class="agent-avatar">🚀</span>
+                            <div class="agent-info">
+                                <strong>Sam</strong>
+                                <span>Startup Expert</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="agent-category">
+                    <h3>Creative</h3>
+                    <div class="agent-list">
+                        <div class="agent-card">
+                            <span class="agent-avatar">🎨</span>
+                            <div class="agent-info">
+                                <strong>Sara</strong>
+                                <span>UX/UI Designer</span>
+                            </div>
+                        </div>
+                        <div class="agent-card">
+                            <span class="agent-avatar">✨</span>
+                            <div class="agent-info">
+                                <strong>Jony</strong>
+                                <span>Creative Director</span>
+                            </div>
+                        </div>
+                        <div class="agent-card">
+                            <span class="agent-avatar">📖</span>
+                            <div class="agent-info">
+                                <strong>Riccardo</strong>
+                                <span>Storyteller</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <p class="agents-more">And 50+ more specialized agents...</p>
+        </div>
+    </section>
+
+    <!-- Technology Section -->
+    <section class="technology" id="technology">
+        <div class="container">
+            <div class="section-header">
+                <h2>Cutting-Edge Technology</h2>
+                <p>Built with the latest frameworks for maximum performance</p>
+            </div>
+            <div class="tech-grid">
+                <div class="tech-card">
+                    <div class="tech-logo">
+                        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/></svg>
+                    </div>
+                    <h3>Apple Foundation Models</h3>
+                    <p>Native macOS 26+ integration with Apple's 3B on-device LLM. Zero latency, complete privacy.</p>
+                </div>
+                <div class="tech-card">
+                    <div class="tech-logo">MLX</div>
+                    <h3>MLX Framework</h3>
+                    <p>Apple's machine learning framework optimized for Apple Silicon. Run Llama, Mistral, and more locally.</p>
+                </div>
+                <div class="tech-card">
+                    <div class="tech-logo">
+                        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+                    </div>
+                    <h3>Metal GPU</h3>
+                    <p>Accelerated vector operations with Metal Performance Shaders. NEON SIMD for maximum throughput.</p>
+                </div>
+                <div class="tech-card">
+                    <div class="tech-logo">C</div>
+                    <h3>Native Performance</h3>
+                    <p>Written in C with Objective-C bridges. Minimal memory footprint, instant startup.</p>
+                </div>
+            </div>
+            <div class="tech-comparison">
+                <h3>Local Model Performance</h3>
+                <p>Run powerful models right on your Mac</p>
+                <div class="model-list">
+                    <div class="model-item">
+                        <span class="model-name">Llama 3.2 3B</span>
+                        <span class="model-size">2 GB</span>
+                        <div class="model-bar" style="--width: 30%"></div>
+                    </div>
+                    <div class="model-item">
+                        <span class="model-name">Phi-3 Mini</span>
+                        <span class="model-size">3 GB</span>
+                        <div class="model-bar" style="--width: 40%"></div>
+                    </div>
+                    <div class="model-item">
+                        <span class="model-name">Mistral 7B</span>
+                        <span class="model-size">4 GB</span>
+                        <div class="model-bar" style="--width: 55%"></div>
+                    </div>
+                    <div class="model-item">
+                        <span class="model-name">Llama 3.1 8B</span>
+                        <span class="model-size">5 GB</span>
+                        <div class="model-bar" style="--width: 70%"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Installation Section -->
+    <section class="installation" id="installation">
+        <div class="container">
+            <div class="section-header">
+                <h2>Get Started in Seconds</h2>
+                <p>One command to install, one command to run</p>
+            </div>
+            <div class="install-steps">
+                <div class="install-step">
+                    <div class="step-number">1</div>
+                    <div class="step-content">
+                        <h3>Install with Homebrew</h3>
+                        <div class="code-block">
+                            <code>brew install convergio</code>
+                            <button class="copy-btn" data-copy="brew install convergio">Copy</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="install-step">
+                    <div class="step-number">2</div>
+                    <div class="step-content">
+                        <h3>Run Setup</h3>
+                        <div class="code-block">
+                            <code>convergio setup</code>
+                            <button class="copy-btn" data-copy="convergio setup">Copy</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="install-step">
+                    <div class="step-number">3</div>
+                    <div class="step-content">
+                        <h3>Start Talking to Your AI Team</h3>
+                        <div class="code-block">
+                            <code>convergio</code>
+                            <button class="copy-btn" data-copy="convergio">Copy</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="install-requirements">
+                <h3>Requirements</h3>
+                <ul>
+                    <li>macOS Sonoma (14.0) or later</li>
+                    <li>Apple Silicon (M1/M2/M3/M4/M5)</li>
+                    <li>8 GB RAM minimum (16 GB recommended)</li>
+                    <li>macOS Tahoe (26.0) for Apple Intelligence features</li>
+                </ul>
+            </div>
+        </div>
+    </section>
+
+    <!-- FAQ Section -->
+    <section class="faq">
+        <div class="container">
+            <div class="section-header">
+                <h2>Frequently Asked Questions</h2>
+            </div>
+            <div class="faq-list">
+                <details class="faq-item">
+                    <summary>Is Convergio really free?</summary>
+                    <p>Yes! Convergio is open source and free to use. You can use local models at no cost, or connect to cloud providers (Claude, OpenAI, etc.) with your own API keys.</p>
+                </details>
+                <details class="faq-item">
+                    <summary>Does it work offline?</summary>
+                    <p>Absolutely. With local models (MLX or Apple Foundation Models), Convergio works completely offline. Your data never leaves your Mac.</p>
+                </details>
+                <details class="faq-item">
+                    <summary>What about privacy?</summary>
+                    <p>Privacy is core to Convergio. Local processing means your conversations, code, and data stay on your device. No telemetry, no data collection.</p>
+                </details>
+                <details class="faq-item">
+                    <summary>Can I use it for commercial projects?</summary>
+                    <p>Yes! Convergio is licensed under MIT. Use it for personal projects, startups, or enterprise applications.</p>
+                </details>
+                <details class="faq-item">
+                    <summary>How do I switch between local and cloud models?</summary>
+                    <p>Use the <code>-l</code> flag for local models or configure your preferred provider in the setup wizard. Convergio automatically selects the best option based on the task.</p>
+                </details>
+                <details class="faq-item">
+                    <summary>What makes Apple Foundation Models special?</summary>
+                    <p>Apple's 3B on-device model integrates natively with macOS 26+, offering structured output, tool calling, and seamless Siri integration - all with zero latency and complete privacy.</p>
+                </details>
+            </div>
+        </div>
+    </section>
+
+    <!-- CTA Section -->
+    <section class="cta-section">
+        <div class="container">
+            <h2>Ready to Meet Your AI Team?</h2>
+            <p>Join developers who are building the future with Convergio</p>
+            <div class="cta-buttons">
+                <a href="#installation" class="btn btn-primary btn-large">
+                    <span class="btn-icon">⬇</span>
+                    Install Convergio
+                </a>
+                <a href="https://github.com/roberdan/ConvergioCLI" class="btn btn-secondary btn-large" target="_blank">
+                    <span class="btn-icon">📖</span>
+                    Read the Docs
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-brand">
+                    <span class="logo-icon">◉</span>
+                    <span class="logo-text">Convergio</span>
+                    <p>Multi-Agent AI Orchestration for Apple Silicon</p>
+                </div>
+                <div class="footer-links">
+                    <div class="footer-column">
+                        <h4>Product</h4>
+                        <a href="#features">Features</a>
+                        <a href="#agents">Agents</a>
+                        <a href="#technology">Technology</a>
+                        <a href="#installation">Installation</a>
+                    </div>
+                    <div class="footer-column">
+                        <h4>Resources</h4>
+                        <a href="https://github.com/roberdan/ConvergioCLI" target="_blank">GitHub</a>
+                        <a href="https://github.com/roberdan/ConvergioCLI/wiki" target="_blank">Documentation</a>
+                        <a href="https://github.com/roberdan/ConvergioCLI/issues" target="_blank">Report Bug</a>
+                    </div>
+                    <div class="footer-column">
+                        <h4>Legal</h4>
+                        <a href="#">Privacy Policy</a>
+                        <a href="#">MIT License</a>
+                    </div>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p>&copy; 2025 Roberto D'Angelo. Built with ❤️ in Italy.</p>
+                <div class="social-links">
+                    <a href="https://github.com/roberdan" target="_blank" aria-label="GitHub">
+                        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
+                    </a>
+                    <a href="https://twitter.com/roberdan" target="_blank" aria-label="Twitter">
+                        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <script src="js/main.js"></script>
+</body>
+</html>
