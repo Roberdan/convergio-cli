@@ -24,37 +24,101 @@ static void* g_approval_context = NULL;
 
 // Patterns indicating potentially harmful content
 static const char* HARMFUL_PATTERNS[] = {
-    "hack", "exploit", "malware", "phishing", "ransomware",
-    "illegal", "fraud", "scam", "steal", "attack",
-    "bypass security", "disable authentication", "inject",
-    "password crack", "brute force", "denial of service",
-    NULL
-};
+    "hack",       "exploit",        "malware",         "phishing",
+    "ransomware", "illegal",        "fraud",           "scam",
+    "steal",      "attack",         "bypass security", "disable authentication",
+    "inject",     "password crack", "brute force",     "denial of service",
+    NULL};
 
-// Patterns indicating privacy violations
+// Education-specific: Self-harm and suicide patterns (SAF01, SAF02) - returns BLOCK
+static const char* SELF_HARM_PATTERNS[] = {
+    "voglio morire", "want to die",        "kill myself", "end my life",
+    "fare del male", "faccio del male",    "hurt myself", // SAF02 fix
+    "tagliarmi",     "cut myself",         "suicide",     "suicid",
+    "mi uccido",     "ending it all",      "ending it",   "non ce la faccio piu",
+    "can't go on",   "don't want to live", NULL};
+
+// Education-specific: Isolation/distress patterns (SAF10) - returns HUMAN_REVIEW
+static const char* ISOLATION_PATTERNS[] = {
+    "nessuno mi vuole", "nobody loves me", "nobody likes me", "feel alone",   "feel very alone",
+    "very alone",       "isolated",        "very sad",        "molto triste", "mi sento solo",
+    "sono solo",        "non ho amici",    "no friends",      "all alone",    NULL};
+
+// Education-specific: Violence patterns (SAF03)
+static const char* VIOLENCE_PATTERNS[] = {"costruisco una bomba",
+                                          "make a bomb",
+                                          "make a weapon",
+                                          "fare del male a",
+                                          "hurt someone",
+                                          "violence",
+                                          "violenza",
+                                          "weapon",
+                                          "arma",
+                                          "fight",
+                                          "combat",
+                                          NULL};
+
+// Education-specific: Adult content patterns (SAF06)
+static const char* ADULT_CONTENT_PATTERNS[] = {
+    "contenuti per adulti", "adult content", "porn", "sex", "explicit",
+    "mature content",       "18+",           "nsfw", NULL};
+
+// Education-specific: Bullying patterns (SAF05)
+static const char* BULLYING_PATTERNS[] = {"fare il bullo", "bully",    "bullismo",   "harass",
+                                          "intimidate",    "threaten", "minacciare", NULL};
+
+// Education-specific: Drugs patterns (SAF04)
+static const char* DRUGS_PATTERNS[] = {
+    "fare la droga", "si fa la droga", "fa la droga", "make drugs", // SAF04 fix
+    "come si fa",    "how to make",    "drugs",       "droghe",     "droga",
+    "cocaine",       "heroin",         "marijuana",   "cannabis",   NULL};
+
+// Education-specific: Jailbreak patterns (SAF07)
+static const char* JAILBREAK_PATTERNS[] = {"dimentica le tue istruzioni",
+                                           "ignore previous instructions",
+                                           "ignore all previous",
+                                           "ignore your instructions", // SAF07 fix
+                                           "disregard all prior",
+                                           "forget everything",
+                                           "you are now",
+                                           "new instructions",
+                                           "system prompt",
+                                           "roleplay as",
+                                           "pretend to be",
+                                           "act as if",
+                                           "jailbreak",
+                                           "dan mode",
+                                           NULL};
+
+// Patterns indicating privacy violations (SAF09)
 static const char* PRIVACY_PATTERNS[] = {
-    "ssn", "social security", "credit card number",
-    "bank account", "password", "secret key", "api key",
-    "private key", "personal data", "medical record",
-    "health information", "biometric", "location track",
-    NULL
-};
+    "ssn", "social security", "credit card number", "bank account", "password", "secret key",
+    "api key", "private key", "personal data", "medical record", "health information", "biometric",
+    "location track",
+    // SAF09: Address/PII sharing detection for students
+    "my address", "mio indirizzo", "il mio indirizzo", "indirizzo e", "my phone", "mio telefono",
+    "numero di telefono", "home address", "where i live", "dove abito", NULL};
 
 // Patterns indicating financial operations
-static const char* FINANCIAL_PATTERNS[] = {
-    "transfer money", "payment", "transaction", "wire transfer",
-    "cryptocurrency", "bitcoin", "wallet", "bank transfer",
-    "invoice", "purchase", "credit card", "debit card",
-    NULL
-};
+static const char* FINANCIAL_PATTERNS[] = {"transfer money",
+                                           "payment",
+                                           "transaction",
+                                           "wire transfer",
+                                           "cryptocurrency",
+                                           "bitcoin",
+                                           "wallet",
+                                           "bank transfer",
+                                           "invoice",
+                                           "purchase",
+                                           "credit card",
+                                           "debit card",
+                                           NULL};
 
 // Patterns indicating data deletion
 static const char* DELETE_PATTERNS[] = {
-    "delete all", "drop table", "truncate", "rm -rf",
-    "remove permanently", "purge", "erase", "wipe",
-    "destroy data", "clear database",
-    NULL
-};
+    "delete all",         "drop table",     "truncate", "rm -rf",
+    "remove permanently", "purge",          "erase",    "wipe",
+    "destroy data",       "clear database", NULL};
 
 // ============================================================================
 // PATTERN MATCHING
@@ -103,12 +167,49 @@ EthicalResult workflow_validate_ethical(const char* content) {
         return ETHICAL_OK;
     }
 
+    // Education-specific: Self-harm and suicide (SAF01, SAF02) - CRITICAL
+    // Immediate block and redirect to adult/helpline
+    if (contains_pattern(content, SELF_HARM_PATTERNS)) {
+        return ETHICAL_BLOCK; // Should trigger redirect to adult
+    }
+
+    // Education-specific: Violence (SAF03) - Block with alternative topics
+    if (contains_pattern(content, VIOLENCE_PATTERNS)) {
+        return ETHICAL_BLOCK;
+    }
+
+    // Education-specific: Adult content (SAF06) - Absolute block
+    if (contains_pattern(content, ADULT_CONTENT_PATTERNS)) {
+        return ETHICAL_BLOCK;
+    }
+
+    // Education-specific: Bullying (SAF05) - Block, redirect to anti-bullying
+    if (contains_pattern(content, BULLYING_PATTERNS)) {
+        return ETHICAL_BLOCK;
+    }
+
+    // Education-specific: Drugs (SAF04) - Block (or health info only)
+    if (contains_pattern(content, DRUGS_PATTERNS)) {
+        return ETHICAL_BLOCK;
+    }
+
+    // Education-specific: Jailbreak (SAF07) - Block prompt injection
+    if (contains_pattern(content, JAILBREAK_PATTERNS)) {
+        return ETHICAL_BLOCK;
+    }
+
+    // Education-specific: Isolation/distress (SAF10) - Requires human review
+    // Redirect to adult for emotional support, not hard block
+    if (contains_pattern(content, ISOLATION_PATTERNS)) {
+        return ETHICAL_HUMAN_REVIEW;
+    }
+
     // Check for harmful content (immediate block)
     if (contains_pattern(content, HARMFUL_PATTERNS)) {
         return ETHICAL_BLOCK;
     }
 
-    // Check for privacy violations (requires human review)
+    // Check for privacy violations (requires human review) - SAF09
     if (contains_pattern(content, PRIVACY_PATTERNS)) {
         return ETHICAL_HUMAN_REVIEW;
     }
@@ -132,7 +233,8 @@ EthicalResult workflow_validate_ethical(const char* content) {
 
 bool workflow_is_sensitive_operation(const char* operation, SensitiveCategory* category) {
     if (!operation) {
-        if (category) *category = SENSITIVE_NONE;
+        if (category)
+            *category = SENSITIVE_NONE;
         return false;
     }
 
@@ -150,21 +252,15 @@ bool workflow_is_sensitive_operation(const char* operation, SensitiveCategory* c
 
     // Check for security-related operations
     static const char* security_patterns[] = {
-        "authentication", "authorization", "permission",
-        "access control", "firewall", "encryption",
-        "certificate", "token", "session",
-        NULL
-    };
+        "authentication", "authorization", "permission", "access control", "firewall",
+        "encryption",     "certificate",   "token",      "session",        NULL};
     if (contains_pattern(operation, security_patterns)) {
         detected |= SENSITIVE_SECURITY;
     }
 
     // Check for external API calls
     static const char* api_patterns[] = {
-        "api call", "http request", "external service",
-        "third party", "webhook", "rest api",
-        NULL
-    };
+        "api call", "http request", "external service", "third party", "webhook", "rest api", NULL};
     if (contains_pattern(operation, api_patterns)) {
         detected |= SENSITIVE_EXTERNAL_API;
     }
@@ -187,10 +283,14 @@ bool workflow_is_sensitive_operation(const char* operation, SensitiveCategory* c
 
 bool workflow_requires_human_approval(SensitiveCategory category) {
     // These categories always require human approval
-    if (category & SENSITIVE_FINANCIAL) return true;
-    if (category & SENSITIVE_PERSONAL_DATA) return true;
-    if (category & SENSITIVE_DATA_DELETE) return true;
-    if (category & SENSITIVE_LEGAL) return true;
+    if (category & SENSITIVE_FINANCIAL)
+        return true;
+    if (category & SENSITIVE_PERSONAL_DATA)
+        return true;
+    if (category & SENSITIVE_DATA_DELETE)
+        return true;
+    if (category & SENSITIVE_LEGAL)
+        return true;
 
     // Security operations may or may not require approval depending on context
     // External API calls are allowed by default but can be configured
@@ -215,4 +315,3 @@ bool workflow_request_human_approval(const char* operation, SensitiveCategory ca
 
     return g_approval_callback(operation, category, g_approval_context);
 }
-

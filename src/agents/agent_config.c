@@ -10,12 +10,12 @@
  * Copyright 2025 - Roberto D'Angelo & AI Team
  */
 
-#include "nous/provider.h"
 #include "nous/orchestrator.h"
+#include "nous/provider.h"
+#include <dirent.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <dirent.h>
 #include <sys/stat.h>
 
 // ============================================================================
@@ -35,7 +35,7 @@ typedef struct {
     // Model configuration
     ModelSpec primary;
     ModelSpec fallback;
-    ModelSpec economy;     // For budget-constrained scenarios
+    ModelSpec economy; // For budget-constrained scenarios
 
     // Behavior settings
     int max_tokens;
@@ -144,8 +144,7 @@ static AgentConfig g_default_configs[] = {
         .session_budget = 0.5,
     },
     // Sentinel
-    {.agent_name = NULL}
-};
+    {.agent_name = NULL}};
 
 // ============================================================================
 // CONFIGURATION REGISTRY
@@ -181,14 +180,16 @@ int agent_config_init(void) {
     // Load defaults
     g_config_capacity = 16;
     g_configs = calloc(g_config_capacity, sizeof(AgentConfig));
-    if (!g_configs) return -1;
+    if (!g_configs)
+        return -1;
 
     // Copy default configs
     for (int i = 0; g_default_configs[i].agent_name != NULL; i++) {
         if (g_config_count >= g_config_capacity) {
             g_config_capacity *= 2;
             g_configs = realloc(g_configs, g_config_capacity * sizeof(AgentConfig));
-            if (!g_configs) return -1;
+            if (!g_configs)
+                return -1;
         }
 
         AgentConfig* config = &g_configs[g_config_count++];
@@ -223,7 +224,8 @@ void agent_config_shutdown(void) {
 
 AgentConfig* agent_config_get(const char* agent_name) {
     AgentConfig* config = config_find(agent_name);
-    if (config) return config;
+    if (config)
+        return config;
 
     // Check defaults
     return config_find_default(agent_name);
@@ -231,7 +233,8 @@ AgentConfig* agent_config_get(const char* agent_name) {
 
 const char* agent_config_get_model(const char* agent_name, double remaining_budget) {
     AgentConfig* config = agent_config_get(agent_name);
-    if (!config) return "claude-sonnet-4";  // Ultimate fallback
+    if (!config)
+        return "claude-sonnet-4"; // Ultimate fallback
 
     // Budget-based selection
     if (remaining_budget < 0.1) {
@@ -245,7 +248,8 @@ const char* agent_config_get_model(const char* agent_name, double remaining_budg
 
 ProviderType agent_config_get_provider(const char* agent_name, double remaining_budget) {
     AgentConfig* config = agent_config_get(agent_name);
-    if (!config) return PROVIDER_ANTHROPIC;
+    if (!config)
+        return PROVIDER_ANTHROPIC;
 
     if (remaining_budget < 0.1) {
         return config->economy.provider;
@@ -260,10 +264,10 @@ ProviderType agent_config_get_provider(const char* agent_name, double remaining_
 // CONFIGURATION UPDATE
 // ============================================================================
 
-int agent_config_set_model(const char* agent_name, ProviderType provider,
-                           const char* model_id) {
+int agent_config_set_model(const char* agent_name, ProviderType provider, const char* model_id) {
     AgentConfig* config = config_find(agent_name);
-    if (!config) return -1;
+    if (!config)
+        return -1;
 
     free(config->primary.model_id);
     config->primary.provider = provider;
@@ -272,10 +276,10 @@ int agent_config_set_model(const char* agent_name, ProviderType provider,
     return 0;
 }
 
-int agent_config_set_fallback(const char* agent_name, ProviderType provider,
-                              const char* model_id) {
+int agent_config_set_fallback(const char* agent_name, ProviderType provider, const char* model_id) {
     AgentConfig* config = config_find(agent_name);
-    if (!config) return -1;
+    if (!config)
+        return -1;
 
     free(config->fallback.model_id);
     config->fallback.provider = provider;
@@ -286,7 +290,8 @@ int agent_config_set_fallback(const char* agent_name, ProviderType provider,
 
 int agent_config_set_temperature(const char* agent_name, double temperature) {
     AgentConfig* config = config_find(agent_name);
-    if (!config) return -1;
+    if (!config)
+        return -1;
 
     config->temperature = temperature;
     return 0;
@@ -294,7 +299,8 @@ int agent_config_set_temperature(const char* agent_name, double temperature) {
 
 int agent_config_set_max_tokens(const char* agent_name, int max_tokens) {
     AgentConfig* config = config_find(agent_name);
-    if (!config) return -1;
+    if (!config)
+        return -1;
 
     config->max_tokens = max_tokens;
     return 0;
@@ -332,24 +338,38 @@ int agent_config_set_max_tokens(const char* agent_name, int max_tokens) {
  * }
  */
 static ProviderType parse_provider(const char* str) {
-    if (!str) return PROVIDER_ANTHROPIC;
-    if (strstr(str, "anthropic")) return PROVIDER_ANTHROPIC;
-    if (strstr(str, "openai")) return PROVIDER_OPENAI;
-    if (strstr(str, "gemini")) return PROVIDER_GEMINI;
-    if (strstr(str, "ollama")) return PROVIDER_OLLAMA;
+    if (!str)
+        return PROVIDER_ANTHROPIC;
+    if (strstr(str, "anthropic"))
+        return PROVIDER_ANTHROPIC;
+    if (strstr(str, "openai"))
+        return PROVIDER_OPENAI;
+    if (strstr(str, "gemini"))
+        return PROVIDER_GEMINI;
+    if (strstr(str, "ollama"))
+        return PROVIDER_OLLAMA;
     return PROVIDER_ANTHROPIC;
 }
 
 static AgentRole parse_role(const char* str) {
-    if (!str) return AGENT_ROLE_EXECUTOR;
-    if (strstr(str, "orchestrator")) return AGENT_ROLE_ORCHESTRATOR;
-    if (strstr(str, "analyst")) return AGENT_ROLE_ANALYST;
-    if (strstr(str, "coder")) return AGENT_ROLE_CODER;
-    if (strstr(str, "writer")) return AGENT_ROLE_WRITER;
-    if (strstr(str, "critic")) return AGENT_ROLE_CRITIC;
-    if (strstr(str, "planner")) return AGENT_ROLE_PLANNER;
-    if (strstr(str, "executor")) return AGENT_ROLE_EXECUTOR;
-    if (strstr(str, "memory")) return AGENT_ROLE_MEMORY;
+    if (!str)
+        return AGENT_ROLE_EXECUTOR;
+    if (strstr(str, "orchestrator"))
+        return AGENT_ROLE_ORCHESTRATOR;
+    if (strstr(str, "analyst"))
+        return AGENT_ROLE_ANALYST;
+    if (strstr(str, "coder"))
+        return AGENT_ROLE_CODER;
+    if (strstr(str, "writer"))
+        return AGENT_ROLE_WRITER;
+    if (strstr(str, "critic"))
+        return AGENT_ROLE_CRITIC;
+    if (strstr(str, "planner"))
+        return AGENT_ROLE_PLANNER;
+    if (strstr(str, "executor"))
+        return AGENT_ROLE_EXECUTOR;
+    if (strstr(str, "memory"))
+        return AGENT_ROLE_MEMORY;
     return AGENT_ROLE_EXECUTOR;
 }
 
@@ -359,11 +379,13 @@ static char* extract_string(const char* json, const char* key) {
     snprintf(search, sizeof(search), "\"%s\":\"", key);
 
     const char* start = strstr(json, search);
-    if (!start) return NULL;
+    if (!start)
+        return NULL;
 
     start += strlen(search);
     const char* end = strchr(start, '"');
-    if (!end) return NULL;
+    if (!end)
+        return NULL;
 
     return strndup(start, (size_t)(end - start));
 }
@@ -373,10 +395,12 @@ static double extract_number(const char* json, const char* key, double default_v
     snprintf(search, sizeof(search), "\"%s\":", key);
 
     const char* start = strstr(json, search);
-    if (!start) return default_val;
+    if (!start)
+        return default_val;
 
     start += strlen(search);
-    while (*start == ' ') start++;
+    while (*start == ' ')
+        start++;
 
     return atof(start);
 }
@@ -386,19 +410,23 @@ static bool extract_bool(const char* json, const char* key, bool default_val) {
     snprintf(search, sizeof(search), "\"%s\":", key);
 
     const char* start = strstr(json, search);
-    if (!start) return default_val;
+    if (!start)
+        return default_val;
 
     start += strlen(search);
-    while (*start == ' ') start++;
+    while (*start == ' ')
+        start++;
 
     return strncmp(start, "true", 4) == 0;
 }
 
 int agent_config_load_json(const char* json) {
-    if (!json) return -1;
+    if (!json)
+        return -1;
 
     char* name = extract_string(json, "name");
-    if (!name) return -1;
+    if (!name)
+        return -1;
 
     // Find or create config
     AgentConfig* config = config_find(name);
@@ -462,16 +490,20 @@ int agent_config_load_json(const char* json) {
     // Parse settings
     const char* settings_section = strstr(json, "\"settings\":");
     if (settings_section) {
-        config->max_tokens = (int)extract_number(settings_section, "max_tokens", config->max_tokens);
+        config->max_tokens =
+            (int)extract_number(settings_section, "max_tokens", config->max_tokens);
         config->temperature = extract_number(settings_section, "temperature", config->temperature);
-        config->streaming_enabled = extract_bool(settings_section, "streaming", config->streaming_enabled);
-        config->tool_calling_enabled = extract_bool(settings_section, "tools", config->tool_calling_enabled);
+        config->streaming_enabled =
+            extract_bool(settings_section, "streaming", config->streaming_enabled);
+        config->tool_calling_enabled =
+            extract_bool(settings_section, "tools", config->tool_calling_enabled);
     }
 
     // Parse budget
     const char* budget_section = strstr(json, "\"budget\":");
     if (budget_section) {
-        config->max_cost_per_call = extract_number(budget_section, "max_per_call", config->max_cost_per_call);
+        config->max_cost_per_call =
+            extract_number(budget_section, "max_per_call", config->max_cost_per_call);
         config->session_budget = extract_number(budget_section, "session", config->session_budget);
     }
 
@@ -484,7 +516,8 @@ int agent_config_load_json(const char* json) {
 
 int agent_config_load_directory(const char* dir_path) {
     DIR* dir = opendir(dir_path);
-    if (!dir) return -1;
+    if (!dir)
+        return -1;
 
     struct dirent* entry;
     int loaded = 0;
@@ -492,7 +525,8 @@ int agent_config_load_directory(const char* dir_path) {
     while ((entry = readdir(dir)) != NULL) {
         // Skip non-JSON files
         const char* ext = strrchr(entry->d_name, '.');
-        if (!ext || strcmp(ext, ".json") != 0) continue;
+        if (!ext || strcmp(ext, ".json") != 0)
+            continue;
 
         // Build full path
         char path[PATH_MAX];
@@ -500,7 +534,8 @@ int agent_config_load_directory(const char* dir_path) {
 
         // Read file
         FILE* f = fopen(path, "r");
-        if (!f) continue;
+        if (!f)
+            continue;
 
         fseek(f, 0, SEEK_END);
         long size = ftell(f);
@@ -534,39 +569,36 @@ int agent_config_load_directory(const char* dir_path) {
 
 char* agent_config_to_json(const char* agent_name) {
     AgentConfig* config = agent_config_get(agent_name);
-    if (!config) return NULL;
+    if (!config)
+        return NULL;
 
     const char* provider_names[] = {"anthropic", "openai", "gemini", "ollama"};
-    const char* role_names[] = {"orchestrator", "analyst", "coder", "writer",
-                                 "critic", "planner", "executor", "memory"};
+    const char* role_names[] = {"orchestrator", "analyst", "coder",    "writer",
+                                "critic",       "planner", "executor", "memory"};
 
     size_t size = 1024;
     char* json = malloc(size);
-    if (!json) return NULL;
+    if (!json)
+        return NULL;
 
     snprintf(json, size,
-        "{"
-        "\"name\":\"%s\","
-        "\"description\":\"%s\","
-        "\"role\":\"%s\","
-        "\"model\":{\"provider\":\"%s\",\"model_id\":\"%s\"},"
-        "\"fallback\":{\"provider\":\"%s\",\"model_id\":\"%s\"},"
-        "\"settings\":{\"max_tokens\":%d,\"temperature\":%.2f,\"streaming\":%s,\"tools\":%s},"
-        "\"budget\":{\"max_per_call\":%.2f,\"session\":%.2f}"
-        "}",
-        config->agent_name,
-        config->description ? config->description : "",
-        role_names[config->role],
-        provider_names[config->primary.provider],
-        config->primary.model_id ? config->primary.model_id : "",
-        provider_names[config->fallback.provider],
-        config->fallback.model_id ? config->fallback.model_id : "",
-        config->max_tokens,
-        config->temperature,
-        config->streaming_enabled ? "true" : "false",
-        config->tool_calling_enabled ? "true" : "false",
-        config->max_cost_per_call,
-        config->session_budget);
+             "{"
+             "\"name\":\"%s\","
+             "\"description\":\"%s\","
+             "\"role\":\"%s\","
+             "\"model\":{\"provider\":\"%s\",\"model_id\":\"%s\"},"
+             "\"fallback\":{\"provider\":\"%s\",\"model_id\":\"%s\"},"
+             "\"settings\":{\"max_tokens\":%d,\"temperature\":%.2f,\"streaming\":%s,\"tools\":%s},"
+             "\"budget\":{\"max_per_call\":%.2f,\"session\":%.2f}"
+             "}",
+             config->agent_name, config->description ? config->description : "",
+             role_names[config->role], provider_names[config->primary.provider],
+             config->primary.model_id ? config->primary.model_id : "",
+             provider_names[config->fallback.provider],
+             config->fallback.model_id ? config->fallback.model_id : "", config->max_tokens,
+             config->temperature, config->streaming_enabled ? "true" : "false",
+             config->tool_calling_enabled ? "true" : "false", config->max_cost_per_call,
+             config->session_budget);
 
     return json;
 }
@@ -574,7 +606,8 @@ char* agent_config_to_json(const char* agent_name) {
 char* agent_config_list_json(void) {
     size_t size = 256 + g_config_count * 128;
     char* json = malloc(size);
-    if (!json) return NULL;
+    if (!json)
+        return NULL;
 
     size_t offset = (size_t)snprintf(json, size, "[");
 
@@ -582,10 +615,9 @@ char* agent_config_list_json(void) {
         if (i > 0) {
             offset += (size_t)snprintf(json + offset, size - offset, ",");
         }
-        offset += (size_t)snprintf(json + offset, size - offset,
-            "{\"name\":\"%s\",\"role\":\"%s\",\"model\":\"%s\"}",
-            g_configs[i].agent_name,
-            g_configs[i].description ? g_configs[i].description : "",
+        offset += (size_t)snprintf(
+            json + offset, size - offset, "{\"name\":\"%s\",\"role\":\"%s\",\"model\":\"%s\"}",
+            g_configs[i].agent_name, g_configs[i].description ? g_configs[i].description : "",
             g_configs[i].primary.model_id ? g_configs[i].primary.model_id : "");
     }
 

@@ -9,24 +9,24 @@
  */
 
 #include "nous/nous.h"
-#include <stdlib.h>
-#include <string.h>
-#include <stdatomic.h>
+#include <arm_neon.h>
 #include <dispatch/dispatch.h>
-#include <pthread.h>
 #include <mach/mach.h>
 #include <mach/thread_policy.h>
-#include <arm_neon.h>
+#include <pthread.h>
+#include <stdatomic.h>
+#include <stdlib.h>
+#include <string.h>
 
 // ============================================================================
 // CORE TOPOLOGY
 // ============================================================================
 
 typedef enum {
-    CORE_CLASS_PERFORMANCE,     // P-cores: high-frequency, interactive
-    CORE_CLASS_EFFICIENCY,      // E-cores: power-efficient, background
-    CORE_CLASS_GPU,            // Metal GPU cores
-    CORE_CLASS_NEURAL          // Neural Engine
+    CORE_CLASS_PERFORMANCE, // P-cores: high-frequency, interactive
+    CORE_CLASS_EFFICIENCY,  // E-cores: power-efficient, background
+    CORE_CLASS_GPU,         // Metal GPU cores
+    CORE_CLASS_NEURAL       // Neural Engine
 } CoreClass;
 
 typedef struct {
@@ -49,7 +49,7 @@ typedef struct {
 
     // Metrics
     _Atomic uint64_t total_tasks_scheduled;
-    _Atomic uint64_t tasks_stolen;  // E-core took P-core work
+    _Atomic uint64_t tasks_stolen; // E-core took P-core work
 
     bool initialized;
 } NousScheduler;
@@ -70,19 +70,18 @@ static NousScheduler g_scheduler = {0};
  * QOS_CLASS_BACKGROUND        -> E-cores only (lowest priority)
  */
 
-__attribute__((unused))
-static dispatch_qos_class_t core_class_to_qos(CoreClass class) {
+__attribute__((unused)) static dispatch_qos_class_t core_class_to_qos(CoreClass class) {
     switch (class) {
-        case CORE_CLASS_PERFORMANCE:
-            return QOS_CLASS_USER_INTERACTIVE;
-        case CORE_CLASS_EFFICIENCY:
-            return QOS_CLASS_UTILITY;
-        case CORE_CLASS_GPU:
-            return QOS_CLASS_USER_INITIATED;
-        case CORE_CLASS_NEURAL:
-            return QOS_CLASS_USER_INITIATED;
-        default:
-            return QOS_CLASS_DEFAULT;
+    case CORE_CLASS_PERFORMANCE:
+        return QOS_CLASS_USER_INTERACTIVE;
+    case CORE_CLASS_EFFICIENCY:
+        return QOS_CLASS_UTILITY;
+    case CORE_CLASS_GPU:
+        return QOS_CLASS_USER_INITIATED;
+    case CORE_CLASS_NEURAL:
+        return QOS_CLASS_USER_INITIATED;
+    default:
+        return QOS_CLASS_DEFAULT;
     }
 }
 
@@ -91,7 +90,8 @@ static dispatch_qos_class_t core_class_to_qos(CoreClass class) {
 // ============================================================================
 
 int nous_scheduler_init(void) {
-    if (g_scheduler.initialized) return 0;
+    if (g_scheduler.initialized)
+        return 0;
 
     // Performance cores queue (concurrent, high priority)
     dispatch_queue_attr_t p_attr = dispatch_queue_attr_make_with_qos_class(
@@ -101,22 +101,22 @@ int nous_scheduler_init(void) {
     g_scheduler.performance.class = CORE_CLASS_PERFORMANCE;
 
     // Efficiency cores queue (concurrent, low priority)
-    dispatch_queue_attr_t e_attr = dispatch_queue_attr_make_with_qos_class(
-        DISPATCH_QUEUE_CONCURRENT, QOS_CLASS_UTILITY, 0);
+    dispatch_queue_attr_t e_attr =
+        dispatch_queue_attr_make_with_qos_class(DISPATCH_QUEUE_CONCURRENT, QOS_CLASS_UTILITY, 0);
     g_scheduler.efficiency.queue = dispatch_queue_create("nous.eff", e_attr);
     g_scheduler.efficiency.group = dispatch_group_create();
     g_scheduler.efficiency.class = CORE_CLASS_EFFICIENCY;
 
     // GPU queue (serial for Metal command buffer ordering)
-    dispatch_queue_attr_t gpu_attr = dispatch_queue_attr_make_with_qos_class(
-        DISPATCH_QUEUE_SERIAL, QOS_CLASS_USER_INITIATED, 0);
+    dispatch_queue_attr_t gpu_attr =
+        dispatch_queue_attr_make_with_qos_class(DISPATCH_QUEUE_SERIAL, QOS_CLASS_USER_INITIATED, 0);
     g_scheduler.gpu.queue = dispatch_queue_create("nous.gpu", gpu_attr);
     g_scheduler.gpu.group = dispatch_group_create();
     g_scheduler.gpu.class = CORE_CLASS_GPU;
 
     // Neural Engine queue (serial for model inference)
-    dispatch_queue_attr_t ne_attr = dispatch_queue_attr_make_with_qos_class(
-        DISPATCH_QUEUE_SERIAL, QOS_CLASS_USER_INITIATED, 0);
+    dispatch_queue_attr_t ne_attr =
+        dispatch_queue_attr_make_with_qos_class(DISPATCH_QUEUE_SERIAL, QOS_CLASS_USER_INITIATED, 0);
     g_scheduler.neural.queue = dispatch_queue_create("nous.neural", ne_attr);
     g_scheduler.neural.group = dispatch_group_create();
     g_scheduler.neural.class = CORE_CLASS_NEURAL;
@@ -129,7 +129,8 @@ int nous_scheduler_init(void) {
 }
 
 void nous_scheduler_shutdown(void) {
-    if (!g_scheduler.initialized) return;
+    if (!g_scheduler.initialized)
+        return;
 
     // Wait for all work to complete
     dispatch_group_wait(g_scheduler.performance.group, DISPATCH_TIME_FOREVER);
@@ -155,11 +156,11 @@ void nous_scheduler_shutdown(void) {
 // ============================================================================
 
 typedef enum {
-    TASK_PRIORITY_CRITICAL,     // Must run on P-cores immediately
-    TASK_PRIORITY_HIGH,         // P-cores preferred
-    TASK_PRIORITY_NORMAL,       // P or E cores OK
-    TASK_PRIORITY_LOW,          // E-cores preferred
-    TASK_PRIORITY_BACKGROUND    // E-cores only
+    TASK_PRIORITY_CRITICAL,  // Must run on P-cores immediately
+    TASK_PRIORITY_HIGH,      // P-cores preferred
+    TASK_PRIORITY_NORMAL,    // P or E cores OK
+    TASK_PRIORITY_LOW,       // E-cores preferred
+    TASK_PRIORITY_BACKGROUND // E-cores only
 } TaskPriority;
 
 typedef struct {
@@ -173,25 +174,26 @@ typedef struct {
 
 static CorePool* select_pool(TaskPriority priority) {
     switch (priority) {
-        case TASK_PRIORITY_CRITICAL:
-        case TASK_PRIORITY_HIGH:
+    case TASK_PRIORITY_CRITICAL:
+    case TASK_PRIORITY_HIGH:
+        return &g_scheduler.performance;
+    case TASK_PRIORITY_BACKGROUND:
+    case TASK_PRIORITY_LOW:
+        return &g_scheduler.efficiency;
+    case TASK_PRIORITY_NORMAL:
+    default:
+        // Load balance: prefer less loaded pool
+        if (atomic_load(&g_scheduler.performance.pending_tasks) <
+            atomic_load(&g_scheduler.efficiency.pending_tasks)) {
             return &g_scheduler.performance;
-        case TASK_PRIORITY_BACKGROUND:
-        case TASK_PRIORITY_LOW:
-            return &g_scheduler.efficiency;
-        case TASK_PRIORITY_NORMAL:
-        default:
-            // Load balance: prefer less loaded pool
-            if (atomic_load(&g_scheduler.performance.pending_tasks) <
-                atomic_load(&g_scheduler.efficiency.pending_tasks)) {
-                return &g_scheduler.performance;
-            }
-            return &g_scheduler.efficiency;
+        }
+        return &g_scheduler.efficiency;
     }
 }
 
 void nous_schedule(void (*fn)(void*), void* ctx, TaskPriority priority) {
-    if (!g_scheduler.initialized || !fn) return;
+    if (!g_scheduler.initialized || !fn)
+        return;
 
     CorePool* pool = select_pool(priority);
     atomic_fetch_add(&pool->pending_tasks, 1);
@@ -205,7 +207,7 @@ void nous_schedule(void (*fn)(void*), void* ctx, TaskPriority priority) {
 
         clock_gettime(CLOCK_MONOTONIC, &end);
         uint64_t elapsed = (uint64_t)(end.tv_sec - start.tv_sec) * 1000000000ULL +
-                          (uint64_t)(end.tv_nsec - start.tv_nsec);
+                           (uint64_t)(end.tv_nsec - start.tv_nsec);
 
         atomic_fetch_add(&pool->total_time_ns, elapsed);
         atomic_fetch_sub(&pool->pending_tasks, 1);
@@ -214,7 +216,8 @@ void nous_schedule(void (*fn)(void*), void* ctx, TaskPriority priority) {
 }
 
 void nous_schedule_gpu(void (*fn)(void*), void* ctx) {
-    if (!g_scheduler.initialized || !fn) return;
+    if (!g_scheduler.initialized || !fn)
+        return;
 
     atomic_fetch_add(&g_scheduler.gpu.pending_tasks, 1);
 
@@ -226,7 +229,8 @@ void nous_schedule_gpu(void (*fn)(void*), void* ctx) {
 }
 
 void nous_schedule_neural(void (*fn)(void*), void* ctx) {
-    if (!g_scheduler.initialized || !fn) return;
+    if (!g_scheduler.initialized || !fn)
+        return;
 
     atomic_fetch_add(&g_scheduler.neural.pending_tasks, 1);
 
@@ -248,7 +252,8 @@ typedef void (*ParallelBody)(size_t index, void* ctx);
  * Splits work across P-cores for small arrays, adds E-cores for large arrays
  */
 void nous_parallel_for(size_t start, size_t end, ParallelBody body, void* ctx) {
-    if (start >= end || !body) return;
+    if (start >= end || !body)
+        return;
 
     size_t count = end - start;
 
@@ -261,7 +266,7 @@ void nous_parallel_for(size_t start, size_t end, ParallelBody body, void* ctx) {
     }
 
     // For large workloads, split between P and E cores
-    size_t p_core_share = count * 7 / 10;  // 70% to P-cores
+    size_t p_core_share = count * 7 / 10; // 70% to P-cores
     size_t e_core_share = count - p_core_share;
 
     dispatch_group_t group = dispatch_group_create();
@@ -290,9 +295,9 @@ void nous_parallel_for(size_t start, size_t end, ParallelBody body, void* ctx) {
  */
 typedef float (*ReduceOp)(float a, float b);
 
-float nous_parallel_reduce(const float* array, size_t count,
-                            float identity, ReduceOp op) {
-    if (!array || count == 0) return identity;
+float nous_parallel_reduce(const float* array, size_t count, float identity, ReduceOp op) {
+    if (!array || count == 0)
+        return identity;
 
     // Process 4 elements at a time with NEON
     size_t simd_count = count & ~3ULL;
@@ -338,22 +343,19 @@ typedef struct {
 } WorkStealingQueue;
 
 static WorkStealingQueue g_steal_queue = {
-    .tasks = NULL,
-    .capacity = 0,
-    .head = 0,
-    .tail = 0,
-    .lock = OS_UNFAIR_LOCK_INIT
-};
+    .tasks = NULL, .capacity = 0, .head = 0, .tail = 0, .lock = OS_UNFAIR_LOCK_INIT};
 
 int nous_init_work_stealing(size_t capacity) {
     g_steal_queue.tasks = calloc(capacity, sizeof(ScheduledTask));
-    if (!g_steal_queue.tasks) return -1;
+    if (!g_steal_queue.tasks)
+        return -1;
     g_steal_queue.capacity = capacity;
     return 0;
 }
 
 bool nous_try_steal_work(ScheduledTask* out_task) {
-    if (!out_task) return false;
+    if (!out_task)
+        return false;
 
     os_unfair_lock_lock(&g_steal_queue.lock);
 
@@ -389,7 +391,8 @@ typedef struct {
 } SchedulerMetrics;
 
 void nous_scheduler_get_metrics(SchedulerMetrics* metrics) {
-    if (!metrics) return;
+    if (!metrics)
+        return;
 
     metrics->p_core_tasks = atomic_load(&g_scheduler.performance.completed_tasks);
     metrics->e_core_tasks = atomic_load(&g_scheduler.efficiency.completed_tasks);
@@ -398,15 +401,13 @@ void nous_scheduler_get_metrics(SchedulerMetrics* metrics) {
     metrics->tasks_stolen = atomic_load(&g_scheduler.tasks_stolen);
 
     if (metrics->p_core_tasks > 0) {
-        metrics->p_core_avg_time_ms =
-            (double)atomic_load(&g_scheduler.performance.total_time_ns) /
-            (double)metrics->p_core_tasks / 1e6;
+        metrics->p_core_avg_time_ms = (double)atomic_load(&g_scheduler.performance.total_time_ns) /
+                                      (double)metrics->p_core_tasks / 1e6;
     }
 
     if (metrics->e_core_tasks > 0) {
-        metrics->e_core_avg_time_ms =
-            (double)atomic_load(&g_scheduler.efficiency.total_time_ns) /
-            (double)metrics->e_core_tasks / 1e6;
+        metrics->e_core_avg_time_ms = (double)atomic_load(&g_scheduler.efficiency.total_time_ns) /
+                                      (double)metrics->e_core_tasks / 1e6;
     }
 }
 
@@ -433,13 +434,9 @@ void nous_scheduler_print_metrics(void) {
 int nous_pin_to_p_cores(void) {
     thread_t thread = mach_thread_self();
 
-    thread_affinity_policy_data_t policy = { .affinity_tag = 1 };
+    thread_affinity_policy_data_t policy = {.affinity_tag = 1};
     kern_return_t result = thread_policy_set(
-        thread,
-        THREAD_AFFINITY_POLICY,
-        (thread_policy_t)&policy,
-        THREAD_AFFINITY_POLICY_COUNT
-    );
+        thread, THREAD_AFFINITY_POLICY, (thread_policy_t)&policy, THREAD_AFFINITY_POLICY_COUNT);
 
     mach_port_deallocate(mach_task_self(), thread);
     return (result == KERN_SUCCESS) ? 0 : -1;
@@ -451,13 +448,9 @@ int nous_pin_to_p_cores(void) {
 int nous_unpin_thread(void) {
     thread_t thread = mach_thread_self();
 
-    thread_affinity_policy_data_t policy = { .affinity_tag = 0 };
+    thread_affinity_policy_data_t policy = {.affinity_tag = 0};
     kern_return_t result = thread_policy_set(
-        thread,
-        THREAD_AFFINITY_POLICY,
-        (thread_policy_t)&policy,
-        THREAD_AFFINITY_POLICY_COUNT
-    );
+        thread, THREAD_AFFINITY_POLICY, (thread_policy_t)&policy, THREAD_AFFINITY_POLICY_COUNT);
 
     mach_port_deallocate(mach_task_self(), thread);
     return (result == KERN_SUCCESS) ? 0 : -1;

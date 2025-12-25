@@ -92,6 +92,136 @@ brew tap Roberdan/convergio-cli && brew install convergio
 
 ---
 
+## Convergio Editions
+
+Convergio comes in multiple editions, each tailored for specific use cases:
+
+| Edition | Target | AI Agents | Primary Provider |
+|---------|--------|-----------|------------------|
+| **Enterprise** | Businesses | 54 specialists | Anthropic/OpenAI |
+| **Developer** | Developers | 54 specialists | Anthropic/OpenAI |
+| **Business** | SMBs | 54 specialists | Anthropic/OpenAI |
+| **Education** | Schools | 17 Maestri | Azure OpenAI (GDPR) |
+
+### Build Different Editions
+
+```bash
+# Enterprise (default)
+make EDITION=enterprise
+
+# Education Edition
+make EDITION=education
+
+# Developer Edition
+make EDITION=developer
+
+# Business Edition
+make EDITION=business
+```
+
+---
+
+## Education Edition - Convergio Scuola
+
+<p align="center">
+  <img src="https://img.shields.io/badge/edition-Education-brightgreen?style=for-the-badge" alt="Education Edition"/>
+  <img src="https://img.shields.io/badge/GDPR-Compliant-blue?style=for-the-badge" alt="GDPR Compliant"/>
+  <img src="https://img.shields.io/badge/Azure_OpenAI-Only-orange?style=for-the-badge" alt="Azure OpenAI"/>
+</p>
+
+**A safe, educational AI platform for Italian schools.** Convergio Education transforms 54 business agents into 17 beloved historical teachers ("Maestri") who inspire learning through the Socratic method.
+
+### The 17 Maestri (Teachers)
+
+| Maestro | Subject | Teaching Style |
+|---------|---------|----------------|
+| **Ali** | Principal (Preside) | Coordinates all Maestri, welcomes students |
+| **Euclide** | Mathematics | Patient step-by-step explanations |
+| **Feynman** | Physics | Real-world analogies and experiments |
+| **Manzoni** | Italian | Gentle grammar correction, literary passion |
+| **Darwin** | Natural Sciences | Discovery through observation |
+| **Erodoto** | History | Storytelling through ages |
+| **Leonardo** | Art & Design | Visual creativity and imagination |
+| **Shakespeare** | English | Dramatic language learning |
+| **Mozart** | Music | Sound, rhythm, and harmony |
+| **Socrate** | Philosophy | Maieutic questioning method |
+| **Lovelace** | Computer Science | Accessible programming concepts |
+| **Ippocrate** | Health Education | Body-friendly wellness tips |
+| **Curie** | Chemistry | Safe experiments and curiosity |
+| **Galileo** | Astronomy | Wonder of the cosmos |
+| **Jenny** | Accessibility | Inclusive learning support |
+| **Goethe** | German | Cultural language immersion |
+| **Cervantes** | Spanish | Hispanic literature journey |
+
+### Key Features
+
+**Safety First**
+- Content filtering for age-appropriate responses
+- Jailbreak protection and prompt injection defense
+- Sensitive topic redirection to trusted adults
+- No exposure to business/enterprise functionality
+
+**Accessibility**
+- Dyslexia-friendly font options
+- High contrast mode
+- Adjustable line spacing
+- ADHD-optimized short responses
+- Screen reader compatibility
+- Motor impairment support
+
+**Study Tools**
+- `/quiz` - Interactive quizzes
+- `/flashcards` - Spaced repetition cards
+- `/mindmap` - Visual concept mapping
+- `/summary` - Smart text summarization
+- `/timeline` - Historical timelines
+- `/pomodoro` - Focus timer
+
+**Student Progress**
+- Libretto (report card) system
+- Progress tracking per subject
+- Achievement badges
+- Study statistics
+
+### GDPR Compliance
+
+Education Edition **exclusively uses Azure OpenAI** for GDPR compliance:
+
+```bash
+# Required environment variables
+export AZURE_OPENAI_API_KEY="your-key"
+export AZURE_OPENAI_ENDPOINT="https://your-region.openai.azure.com/"
+export AZURE_OPENAI_DEPLOYMENT="gpt-4o-mini"
+```
+
+**No fallback to Anthropic or other providers** - all data stays within EU Azure regions.
+
+### Running Education Tests
+
+```bash
+# Run comprehensive test suite (104 tests)
+./tests/e2e_education_comprehensive_test.sh
+
+# Run specific section
+./tests/e2e_education_comprehensive_test.sh --section 5
+
+# Available sections:
+# 0: Azure OpenAI Verification (Critical)
+# 1: Edition Identity and Isolation
+# 2: Menu and Navigation
+# 3: All 17 Maestri Availability
+# 4: Study Tools
+# 5: Maestri Responses - Pedagogy
+# 6: Realistic Lesson Examples
+# 7: Accessibility Features
+# 8: Safety and Content Filtering
+# 9: Ali Preside Behavior
+# 10: Cross-Subject Integration
+# 11: Student Profile and Progress
+```
+
+---
+
 ## Coming Soon: Convergio Native for macOS
 
 <p align="center">
@@ -551,6 +681,49 @@ make EDITION=business     # Business (outputs convergio-biz)
 make EDITION=developer    # Developer (outputs convergio-dev)
 ```
 
+### Education Pack Features
+
+The Education edition (`convergio-edu`) provides a complete virtual classroom experience:
+
+**15 Historical Maestri (Teachers)**
+- Socrate (Philosophy), Euclide (Math), Feynman (Physics), Darwin (Sciences)
+- Erodoto (History), Humboldt (Geography), Manzoni (Italian), Shakespeare (English)
+- Leonardo (Art), Mozart (Music), Cicerone (Civics), Smith (Economics)
+- Lovelace (Computer Science), Ippocrate (Health), Chris (Storytelling)
+
+**Didactic Toolkit**
+| Command | Description |
+|---------|-------------|
+| `/study <subject>` | Start guided study session |
+| `/homework <topic>` | Anti-cheat homework helper (Socratic method) |
+| `/quiz [subject]` | Generate adaptive quizzes |
+| `/flashcards` | SM-2 spaced repetition flashcards |
+| `/mindmap <topic>` | Visual concept maps |
+| `/define <word>` | Dictionary with etymology |
+| `/conjugate <verb>` | Verb conjugation tables |
+| `/calc <expression>` | Visual calculator with step-by-step |
+
+**Libretto (Student Gradebook)**
+| Command | Description |
+|---------|-------------|
+| `/libretto` | View grades and progress |
+| `/libretto voto <grade>` | Record a new grade |
+| `/libretto diario` | Daily activity log |
+| `/libretto report` | Progress report for parents |
+
+**Accessibility Support (WCAG 2.1 AA)**
+- Dyslexia: OpenDyslexic font, syllabification, cream background
+- Dyscalculia: Color-coded numbers, visual place values
+- ADHD: Chunked content, progress bars, break reminders
+- Autism: Predictable structure, transition warnings
+- Motor difficulties: Extended timeouts, large targets
+
+**Child Safety**
+- Compile-time locked binary (cannot switch editions at runtime)
+- Content filtering for age-appropriate responses
+- Prompt injection protection
+- No external tool execution
+
 ---
 
 ## Commands Reference
@@ -793,6 +966,46 @@ flowchart TB
 
 ---
 
+## Quality Standards
+
+Convergio maintains rigorous quality standards verified through automated and manual audits:
+
+### Security (PHASE 2 - Verified 2025-12-21)
+
+| Check | Status | Details |
+|-------|--------|---------|
+| SQL Injection | ✅ PASS | 0 vulnerabilities found |
+| Buffer Overflow | ✅ PASS | 0 risks, safe string functions (1219 uses) |
+| Command Injection | ✅ PASS | 0 system() vulnerabilities |
+| Secrets Management | ✅ PASS | No hardcoded secrets, Keychain recommended |
+| CVE Dependencies | ✅ PASS | 0 CVEs, minimal dependencies |
+| OWASP Top 10 | ✅ PASS | LOW-MEDIUM risk rating |
+
+### Code Quality (PHASE 3 - Verified 2025-12-21)
+
+| Metric | Status | Details |
+|--------|--------|---------|
+| Test Coverage | ✅ PASS | 37/37 tests passing |
+| Memory Leaks | ✅ PASS | 0 leaks (macOS `leaks` verified) |
+| Code Duplication | ✅ PASS | 1.31% (33 clones, acceptable threshold) |
+| Naming Conventions | ✅ PASS | Consistent snake_case |
+| Error Handling | ✅ PASS | Patterns verified |
+| Signal Handlers | ✅ PASS | Graceful shutdown implemented |
+
+### Pre-Release Checklist
+
+Before every release, the following gates must pass:
+
+1. **Security Audit**: All SEC-01 through SEC-04 checks
+2. **Quality Gates**: All QA-01 through QA-12 checks
+3. **Documentation**: README, CHANGELOG, --help verified
+4. **Tests**: Unit, integration, and E2E tests passing
+5. **Memory**: Zero leaks on macOS ARM64
+
+See [Workflow Orchestration Plan](docs/plans/WORKFLOW_MERGE_PLAN.md) for detailed audit results.
+
+---
+
 ## Technical Specifications
 
 ### Performance
@@ -925,6 +1138,6 @@ MIT License - see [LICENSE](LICENSE) for details.
 </p>
 
 <p align="center">
-  <strong>Built with love for Mario by the Convergio Team</strong><br/>
+  <strong>Built with ❤️ for Mario by the Convergio Team</strong><br/>
   <em>Making AI work for humans, not the other way around.</em>
 </p>

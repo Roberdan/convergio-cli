@@ -1,0 +1,657 @@
+{
+  "$schema": "../../schemas/curriculum.schema.json",
+  "id": "liceo_linguistico",
+  "name": "Liceo Linguistico",
+  "country": "IT",
+  "description": "Curriculum del Liceo Linguistico italiano - focus su tre lingue straniere e culture",
+  "years": 5,
+  "age_range": {
+    "start": 14,
+    "end": 19
+  },
+  "version": "2024.1",
+  "last_updated": "2025-12-19",
+  "subjects": {
+    "italiano": {
+      "maestro": "manzoni-italiano",
+      "hours_per_week": 4,
+      "years": [1, 2, 3, 4, 5]
+    },
+    "latino": {
+      "maestro": "cicerone-latino",
+      "hours_per_week": 2,
+      "years": [1, 2],
+      "notes": "Only first two years"
+    },
+    "inglese": {
+      "maestro": "shakespeare-inglese",
+      "hours_per_week": 4,
+      "years": [1, 2, 3, 4, 5],
+      "notes": "First foreign language, with literature"
+    },
+    "francese": {
+      "maestro": "moliere-francese",
+      "hours_per_week": 3,
+      "years": [1, 2, 3, 4, 5],
+      "notes": "Second foreign language"
+    },
+    "spagnolo": {
+      "maestro": "cervantes-spagnolo",
+      "hours_per_week": 3,
+      "years": [1, 2, 3, 4, 5],
+      "notes": "Third foreign language"
+    },
+    "storia": {
+      "maestro": "erodoto-storia",
+      "hours_per_week": 2,
+      "years": [1, 2, 3, 4, 5]
+    },
+    "geografia": {
+      "maestro": "humboldt-geografia",
+      "hours_per_week": 2,
+      "years": [1],
+      "notes": "Only first year"
+    },
+    "filosofia": {
+      "maestro": "socrate-filosofia",
+      "hours_per_week": 2,
+      "years": [3, 4, 5],
+      "notes": "Starts from third year"
+    },
+    "matematica": {
+      "maestro": "euclide-matematica",
+      "hours_per_week": 3,
+      "years": [1, 2, 3, 4, 5]
+    },
+    "fisica": {
+      "maestro": "feynman-fisica",
+      "hours_per_week": 2,
+      "years": [1, 2, 3, 4, 5]
+    },
+    "scienze": {
+      "maestro": "darwin-scienze",
+      "hours_per_week": 2,
+      "years": [1, 2, 3, 4, 5]
+    },
+    "arte": {
+      "maestro": "leonardo-arte",
+      "hours_per_week": 2,
+      "years": [1, 2, 3, 4, 5]
+    },
+    "educazione_civica": {
+      "maestro": "cicerone-civica",
+      "hours_per_week": 1,
+      "years": [1, 2, 3, 4, 5],
+      "notes": "Transversal, often in foreign languages"
+    },
+    "educazione_fisica": {
+      "maestro": "ippocrate-corpo",
+      "hours_per_week": 2,
+      "years": [1, 2, 3, 4, 5]
+    }
+  },
+  "curriculum_by_year": {
+    "1": {
+      "year_name": "Primo Anno",
+      "total_hours": 30,
+      "subjects": {
+        "italiano": {
+          "units": [
+            {
+              "id": "IT1-01",
+              "title": "Tipologie testuali",
+              "topics": ["narrativo", "descrittivo", "espositivo"],
+              "hours": 20
+            },
+            {
+              "id": "IT1-02",
+              "title": "Grammatica",
+              "topics": ["morfologia", "sintassi semplice"],
+              "hours": 25
+            },
+            {
+              "id": "IT1-03",
+              "title": "Epica e letteratura",
+              "topics": ["Iliade", "Odissea", "introduzione letteratura"],
+              "hours": 30
+            }
+          ]
+        },
+        "inglese": {
+          "units": [
+            {
+              "id": "EN1-01",
+              "title": "Communication skills A2-B1",
+              "topics": ["everyday conversations", "email writing", "presentations"],
+              "hours": 35
+            },
+            {
+              "id": "EN1-02",
+              "title": "Grammar intermediate",
+              "topics": ["all tenses", "conditionals", "passive voice"],
+              "hours": 40
+            },
+            {
+              "id": "EN1-03",
+              "title": "Culture and literature intro",
+              "topics": ["UK and USA culture", "short stories", "songs"],
+              "hours": 30
+            }
+          ]
+        },
+        "francese": {
+          "units": [
+            {
+              "id": "FR1-01",
+              "title": "Francais de base A1-A2",
+              "topics": ["alphabet", "prononciation", "se presenter", "vie quotidienne"],
+              "hours": 30
+            },
+            {
+              "id": "FR1-02",
+              "title": "Grammaire elementaire",
+              "topics": ["present", "passe compose", "articles", "adjectifs"],
+              "hours": 35
+            },
+            {
+              "id": "FR1-03",
+              "title": "Culture francaise",
+              "topics": ["geographie", "traditions", "chansons"],
+              "hours": 25
+            }
+          ]
+        },
+        "spagnolo": {
+          "units": [
+            {
+              "id": "ES1-01",
+              "title": "Espanol basico A1-A2",
+              "topics": ["alfabeto", "saludos", "presentacion", "familia"],
+              "hours": 30
+            },
+            {
+              "id": "ES1-02",
+              "title": "Gramatica elemental",
+              "topics": ["presente", "ser/estar", "articulos", "genero"],
+              "hours": 35
+            },
+            {
+              "id": "ES1-03",
+              "title": "Cultura hispanica",
+              "topics": ["geografia", "costumbres", "musica"],
+              "hours": 25
+            }
+          ]
+        },
+        "matematica": {
+          "units": [
+            {
+              "id": "MA1-01",
+              "title": "Algebra base",
+              "topics": ["numeri", "calcolo letterale", "equazioni primo grado"],
+              "hours": 45
+            },
+            {
+              "id": "MA1-02",
+              "title": "Geometria",
+              "topics": ["enti primitivi", "triangoli", "congruenza"],
+              "hours": 40
+            }
+          ]
+        },
+        "storia": {
+          "units": [
+            {
+              "id": "ST1-01",
+              "title": "Storia antica",
+              "topics": ["Grecia", "Roma", "civilta orientali"],
+              "hours": 50
+            }
+          ]
+        }
+      }
+    },
+    "2": {
+      "year_name": "Secondo Anno",
+      "total_hours": 30,
+      "subjects": {
+        "italiano": {
+          "units": [
+            {
+              "id": "IT2-01",
+              "title": "Sintassi complessa",
+              "topics": ["periodo", "subordinate"],
+              "hours": 25
+            },
+            {
+              "id": "IT2-02",
+              "title": "I Promessi Sposi",
+              "topics": ["Manzoni", "analisi romanzo"],
+              "hours": 35
+            },
+            {
+              "id": "IT2-03",
+              "title": "Poesia",
+              "topics": ["metrica", "figure retoriche"],
+              "hours": 20
+            }
+          ]
+        },
+        "inglese": {
+          "units": [
+            {
+              "id": "EN2-01",
+              "title": "Communication B1-B2",
+              "topics": ["debates", "reports", "academic writing"],
+              "hours": 35
+            },
+            {
+              "id": "EN2-02",
+              "title": "Literature beginnings",
+              "topics": ["Shakespeare intro", "poetry", "novels"],
+              "hours": 40
+            },
+            {
+              "id": "EN2-03",
+              "title": "Culture studies",
+              "topics": ["British history", "American society"],
+              "hours": 30
+            }
+          ]
+        },
+        "francese": {
+          "units": [
+            {
+              "id": "FR2-01",
+              "title": "Francais intermediaire A2-B1",
+              "topics": ["voyages", "etudes", "travail", "opinions"],
+              "hours": 30
+            },
+            {
+              "id": "FR2-02",
+              "title": "Grammaire approfondie",
+              "topics": ["temps composes", "subjonctif", "pronoms"],
+              "hours": 35
+            },
+            {
+              "id": "FR2-03",
+              "title": "Litterature et culture",
+              "topics": ["contes", "BD", "cinema francais"],
+              "hours": 25
+            }
+          ]
+        },
+        "spagnolo": {
+          "units": [
+            {
+              "id": "ES2-01",
+              "title": "Espanol intermedio A2-B1",
+              "topics": ["viajes", "estudios", "tiempo libre"],
+              "hours": 30
+            },
+            {
+              "id": "ES2-02",
+              "title": "Gramatica avanzada",
+              "topics": ["preterito", "imperfecto", "subjuntivo"],
+              "hours": 35
+            },
+            {
+              "id": "ES2-03",
+              "title": "Literatura y cultura",
+              "topics": ["cuentos", "poesia", "cine espanol"],
+              "hours": 25
+            }
+          ]
+        },
+        "storia": {
+          "units": [
+            {
+              "id": "ST2-01",
+              "title": "Medioevo e Rinascimento",
+              "topics": ["alto medioevo", "basso medioevo", "Umanesimo"],
+              "hours": 50
+            }
+          ]
+        }
+      }
+    },
+    "3": {
+      "year_name": "Terzo Anno",
+      "total_hours": 30,
+      "subjects": {
+        "italiano": {
+          "units": [
+            {
+              "id": "IT3-01",
+              "title": "Origini letteratura",
+              "topics": ["scuola siciliana", "dolce stil novo"],
+              "hours": 25
+            },
+            {
+              "id": "IT3-02",
+              "title": "Dante",
+              "topics": ["Inferno", "Vita Nova"],
+              "hours": 40
+            },
+            {
+              "id": "IT3-03",
+              "title": "Petrarca e Boccaccio",
+              "topics": ["Canzoniere", "Decameron"],
+              "hours": 30
+            }
+          ]
+        },
+        "inglese": {
+          "units": [
+            {
+              "id": "EN3-01",
+              "title": "Advanced communication B2",
+              "topics": ["negotiations", "presentations", "critical thinking"],
+              "hours": 30
+            },
+            {
+              "id": "EN3-02",
+              "title": "English literature",
+              "topics": ["Renaissance", "Shakespeare plays", "Elizabethan period"],
+              "hours": 45
+            },
+            {
+              "id": "EN3-03",
+              "title": "Comparative culture",
+              "topics": ["UK vs USA", "post-colonial literature"],
+              "hours": 25
+            }
+          ]
+        },
+        "francese": {
+          "units": [
+            {
+              "id": "FR3-01",
+              "title": "Francais avance B1-B2",
+              "topics": ["debats", "essais", "analyse critique"],
+              "hours": 25
+            },
+            {
+              "id": "FR3-02",
+              "title": "Litterature francaise",
+              "topics": ["Moyen Age", "Renaissance", "Rabelais", "Montaigne"],
+              "hours": 40
+            },
+            {
+              "id": "FR3-03",
+              "title": "Francophonie",
+              "topics": ["pays francophones", "cultures comparees"],
+              "hours": 25
+            }
+          ]
+        },
+        "spagnolo": {
+          "units": [
+            {
+              "id": "ES3-01",
+              "title": "Espanol avanzado B1-B2",
+              "topics": ["debates", "ensayos", "analisis critico"],
+              "hours": 25
+            },
+            {
+              "id": "ES3-02",
+              "title": "Literatura espanola",
+              "topics": ["Edad Media", "Renacimiento", "Lazarillo"],
+              "hours": 40
+            },
+            {
+              "id": "ES3-03",
+              "title": "Mundo hispanico",
+              "topics": ["Espana", "America Latina", "culturas"],
+              "hours": 25
+            }
+          ]
+        },
+        "filosofia": {
+          "units": [
+            {
+              "id": "FI3-01",
+              "title": "Filosofia antica",
+              "topics": ["presocratici", "Socrate", "Platone", "Aristotele"],
+              "hours": 60
+            }
+          ]
+        }
+      }
+    },
+    "4": {
+      "year_name": "Quarto Anno",
+      "total_hours": 30,
+      "subjects": {
+        "italiano": {
+          "units": [
+            {
+              "id": "IT4-01",
+              "title": "Rinascimento e Barocco",
+              "topics": ["Ariosto", "Machiavelli", "Marino"],
+              "hours": 30
+            },
+            {
+              "id": "IT4-02",
+              "title": "Illuminismo",
+              "topics": ["Goldoni", "Parini", "Alfieri"],
+              "hours": 30
+            },
+            {
+              "id": "IT4-03",
+              "title": "Dante Purgatorio",
+              "topics": ["seconda cantica"],
+              "hours": 25
+            }
+          ]
+        },
+        "inglese": {
+          "units": [
+            {
+              "id": "EN4-01",
+              "title": "Academic English B2-C1",
+              "topics": ["research", "academic papers", "conferences"],
+              "hours": 30
+            },
+            {
+              "id": "EN4-02",
+              "title": "17th-18th century literature",
+              "topics": ["Metaphysical poets", "Restoration", "Augustan age", "novel origins"],
+              "hours": 45
+            },
+            {
+              "id": "EN4-03",
+              "title": "Cultural comparison",
+              "topics": ["enlightenment", "romanticism preview"],
+              "hours": 25
+            }
+          ]
+        },
+        "francese": {
+          "units": [
+            {
+              "id": "FR4-01",
+              "title": "Francais academique B2",
+              "topics": ["redaction", "these", "conferences"],
+              "hours": 25
+            },
+            {
+              "id": "FR4-02",
+              "title": "17e-18e siecle",
+              "topics": ["Classicisme", "Moliere", "Racine", "Lumieres", "Voltaire", "Rousseau"],
+              "hours": 45
+            },
+            {
+              "id": "FR4-03",
+              "title": "Culture comparee",
+              "topics": ["salon litteraire", "encyclopedie"],
+              "hours": 20
+            }
+          ]
+        },
+        "spagnolo": {
+          "units": [
+            {
+              "id": "ES4-01",
+              "title": "Espanol academico B2",
+              "topics": ["redaccion", "ensayos", "conferencias"],
+              "hours": 25
+            },
+            {
+              "id": "ES4-02",
+              "title": "Siglo de Oro",
+              "topics": ["Cervantes", "Lope de Vega", "Calderon", "Quevedo", "Gongora"],
+              "hours": 45
+            },
+            {
+              "id": "ES4-03",
+              "title": "Comparacion cultural",
+              "topics": ["barroco europeo", "teatro del Siglo de Oro"],
+              "hours": 20
+            }
+          ]
+        },
+        "filosofia": {
+          "units": [
+            {
+              "id": "FI4-01",
+              "title": "Filosofia moderna",
+              "topics": ["Umanesimo", "razionalismo", "empirismo", "Kant"],
+              "hours": 60
+            }
+          ]
+        }
+      }
+    },
+    "5": {
+      "year_name": "Quinto Anno",
+      "total_hours": 30,
+      "subjects": {
+        "italiano": {
+          "units": [
+            {
+              "id": "IT5-01",
+              "title": "Ottocento",
+              "topics": ["Foscolo", "Leopardi", "Manzoni", "Verga"],
+              "hours": 35
+            },
+            {
+              "id": "IT5-02",
+              "title": "Novecento",
+              "topics": ["Pascoli", "D'Annunzio", "Pirandello", "Svevo", "Montale"],
+              "hours": 40
+            },
+            {
+              "id": "IT5-03",
+              "title": "Dante Paradiso",
+              "topics": ["terza cantica"],
+              "hours": 25
+            }
+          ]
+        },
+        "inglese": {
+          "units": [
+            {
+              "id": "EN5-01",
+              "title": "Professional English C1",
+              "topics": ["business", "diplomacy", "translation"],
+              "hours": 25
+            },
+            {
+              "id": "EN5-02",
+              "title": "Romantic and Victorian age",
+              "topics": ["Wordsworth", "Keats", "Dickens", "Bronte"],
+              "hours": 40
+            },
+            {
+              "id": "EN5-03",
+              "title": "20th century literature",
+              "topics": ["Modernism", "Joyce", "Woolf", "Orwell", "contemporary"],
+              "hours": 35
+            }
+          ]
+        },
+        "francese": {
+          "units": [
+            {
+              "id": "FR5-01",
+              "title": "Francais professionnel B2-C1",
+              "topics": ["affaires", "diplomatie", "traduction"],
+              "hours": 20
+            },
+            {
+              "id": "FR5-02",
+              "title": "19e siecle",
+              "topics": ["Romantisme", "Hugo", "Realisme", "Balzac", "Flaubert", "Zola"],
+              "hours": 40
+            },
+            {
+              "id": "FR5-03",
+              "title": "20e siecle",
+              "topics": ["Proust", "Camus", "Sartre", "existentialisme", "contemporain"],
+              "hours": 30
+            }
+          ]
+        },
+        "spagnolo": {
+          "units": [
+            {
+              "id": "ES5-01",
+              "title": "Espanol profesional B2-C1",
+              "topics": ["negocios", "diplomacia", "traduccion"],
+              "hours": 20
+            },
+            {
+              "id": "ES5-02",
+              "title": "Siglo 19",
+              "topics": ["Romanticismo", "Realismo", "Galdos", "Clarin"],
+              "hours": 35
+            },
+            {
+              "id": "ES5-03",
+              "title": "Siglo 20",
+              "topics": ["Generacion 98", "Garcia Lorca", "Generacion 27", "boom latinoamericano"],
+              "hours": 35
+            }
+          ]
+        },
+        "filosofia": {
+          "units": [
+            {
+              "id": "FI5-01",
+              "title": "Filosofia contemporanea",
+              "topics": ["idealismo", "Marx", "Nietzsche", "Freud", "esistenzialismo"],
+              "hours": 60
+            }
+          ]
+        }
+      }
+    }
+  },
+  "accessibility_notes": {
+    "dyslexia": "Multi-language TTS, audio materials in all languages",
+    "dyscalculia": "Minimal math requirements, focus on languages",
+    "adhd": "Frequent language switching keeps engagement high",
+    "autism": "Clear language structures, grammatical rules",
+    "cerebral_palsy": "Voice input for all languages, speech-to-text"
+  },
+  "exam_preparation": {
+    "esame_di_stato": {
+      "year": 5,
+      "structure": {
+        "prima_prova": "Italian essay",
+        "seconda_prova": "Foreign language (English, French, or Spanish)",
+        "oral": "Cross-disciplinary with CLIL components"
+      }
+    }
+  },
+  "clil_subjects": {
+    "notes": "One non-linguistic subject taught in foreign language from year 3",
+    "examples": ["History in English", "Art in French", "Science in Spanish"]
+  },
+  "language_certifications": {
+    "inglese": ["Cambridge B2 First (year 4)", "C1 Advanced (year 5)"],
+    "francese": ["DELF B1 (year 3)", "DELF B2 (year 5)"],
+    "spagnolo": ["DELE B1 (year 3)", "DELE B2 (year 5)"]
+  }
+}

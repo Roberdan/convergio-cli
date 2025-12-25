@@ -6,10 +6,10 @@
  */
 
 #include "nous/nous.h"
+#include <arm_neon.h>
+#include <ctype.h>
 #include <stdlib.h>
 #include <string.h>
-#include <ctype.h>
-#include <arm_neon.h>
 
 // ============================================================================
 // INTENT PATTERNS - Semantic fingerprints
@@ -73,8 +73,7 @@ static const IntentPattern INTENT_PATTERNS[] = {
     {"sono preoccupato", INTENT_KIND_FEEL, 0.8f},
     {"non mi piace", INTENT_KIND_FEEL, 0.7f},
 
-    {NULL, 0, 0.0f}
-};
+    {NULL, 0, 0.0f}};
 
 // ============================================================================
 // URGENCY MARKERS
@@ -86,16 +85,9 @@ typedef struct {
 } UrgencyMarker;
 
 static const UrgencyMarker URGENCY_MARKERS[] = {
-    {"urgente", 0.9f},
-    {"subito", 0.85f},
-    {"adesso", 0.8f},
-    {"immediatamente", 0.95f},
-    {"prima possibile", 0.75f},
-    {"quando puoi", 0.3f},
-    {"con calma", 0.1f},
-    {"appena riesci", 0.4f},
-    {NULL, 0.0f}
-};
+    {"urgente", 0.9f},         {"subito", 0.85f},          {"adesso", 0.8f},
+    {"immediatamente", 0.95f}, {"prima possibile", 0.75f}, {"quando puoi", 0.3f},
+    {"con calma", 0.1f},       {"appena riesci", 0.4f},    {NULL, 0.0f}};
 
 // ============================================================================
 // TEXT UTILITIES (SIMD-optimized)
@@ -110,8 +102,8 @@ static void to_lowercase_neon(char* str, size_t len) {
         uint8x16_t chars = vld1q_u8((uint8_t*)&str[i]);
 
         // Create masks for uppercase letters (A-Z: 65-90)
-        uint8x16_t lower_bound = vcgtq_u8(chars, vdupq_n_u8(64));  // > 64
-        uint8x16_t upper_bound = vcltq_u8(chars, vdupq_n_u8(91));  // < 91
+        uint8x16_t lower_bound = vcgtq_u8(chars, vdupq_n_u8(64)); // > 64
+        uint8x16_t upper_bound = vcltq_u8(chars, vdupq_n_u8(91)); // < 91
         uint8x16_t is_upper = vandq_u8(lower_bound, upper_bound);
 
         // Add 32 to uppercase letters to convert to lowercase
@@ -130,22 +122,25 @@ static void to_lowercase_neon(char* str, size_t len) {
 }
 
 // Fast substring search using NEON (Boyer-Moore-Horspool simplified)
-static const char* find_substring(const char* haystack, size_t hay_len,
-                                   const char* needle, size_t needle_len) {
-    if (needle_len == 0) return haystack;
-    if (needle_len > hay_len) return NULL;
+static const char* find_substring(const char* haystack, size_t hay_len, const char* needle,
+                                  size_t needle_len) {
+    if (needle_len == 0)
+        return haystack;
+    if (needle_len > hay_len)
+        return NULL;
 
     // Use NEON for first-character scan
     uint8x16_t first_char = vdupq_n_u8((uint8_t)needle[0]);
 
-    for (size_t i = 0; i <= hay_len - needle_len; ) {
+    for (size_t i = 0; i <= hay_len - needle_len;) {
         // Scan for first character using SIMD
         if (i + 16 <= hay_len) {
             uint8x16_t chunk = vld1q_u8((const uint8_t*)&haystack[i]);
             uint8x16_t matches = vceqq_u8(chunk, first_char);
 
-            uint64_t match_bits = vget_lane_u64(vreinterpret_u64_u8(vget_low_u8(matches)), 0) |
-                                  ((uint64_t)vget_lane_u64(vreinterpret_u64_u8(vget_high_u8(matches)), 0) << 8);
+            uint64_t match_bits =
+                vget_lane_u64(vreinterpret_u64_u8(vget_low_u8(matches)), 0) |
+                ((uint64_t)vget_lane_u64(vreinterpret_u64_u8(vget_high_u8(matches)), 0) << 8);
 
             if (match_bits == 0) {
                 i += 16;
@@ -162,8 +157,7 @@ static const char* find_substring(const char* haystack, size_t hay_len,
             }
             i += 16;
         } else {
-            if (haystack[i] == needle[0] &&
-                memcmp(&haystack[i], needle, needle_len) == 0) {
+            if (haystack[i] == needle[0] && memcmp(&haystack[i], needle, needle_len) == 0) {
                 return &haystack[i];
             }
             i++;
@@ -178,10 +172,12 @@ static const char* find_substring(const char* haystack, size_t hay_len,
 // ============================================================================
 
 ParsedIntent* nous_parse_intent(const char* input, size_t len) {
-    if (!input || len == 0) return NULL;
+    if (!input || len == 0)
+        return NULL;
 
     ParsedIntent* intent = calloc(1, sizeof(ParsedIntent));
-    if (!intent) return NULL;
+    if (!intent)
+        return NULL;
 
     // Copy and normalize input
     char* normalized = malloc(len + 1);
@@ -202,7 +198,7 @@ ParsedIntent* nous_parse_intent(const char* input, size_t len) {
 
     // Phase 1: Detect intent kind
     float best_confidence = 0.0f;
-    IntentKind detected_kind = INTENT_KIND_CREATE;  // Default
+    IntentKind detected_kind = INTENT_KIND_CREATE; // Default
 
     for (const IntentPattern* p = INTENT_PATTERNS; p->pattern != NULL; p++) {
         if (find_substring(normalized, len, p->pattern, strlen(p->pattern))) {
@@ -217,7 +213,7 @@ ParsedIntent* nous_parse_intent(const char* input, size_t len) {
     intent->confidence = best_confidence;
 
     // Phase 2: Detect urgency
-    float urgency = 0.5f;  // Default: medium
+    float urgency = 0.5f; // Default: medium
     for (const UrgencyMarker* m = URGENCY_MARKERS; m->marker != NULL; m++) {
         if (find_substring(normalized, len, m->marker, strlen(m->marker))) {
             urgency = m->urgency_boost;
@@ -232,22 +228,22 @@ ParsedIntent* nous_parse_intent(const char* input, size_t len) {
         intent->questions = malloc(3 * sizeof(char*));
         if (intent->questions) {
             switch (detected_kind) {
-                case INTENT_KIND_CREATE:
-                    intent->questions[0] = strdup("Cosa vorresti creare esattamente?");
-                    intent->question_count = 1;
-                    break;
-                case INTENT_KIND_TRANSFORM:
-                    intent->questions[0] = strdup("Cosa vuoi trasformare?");
-                    intent->questions[1] = strdup("In cosa vuoi trasformarlo?");
-                    intent->question_count = 2;
-                    break;
-                case INTENT_KIND_FIND:
-                    intent->questions[0] = strdup("Cosa stai cercando?");
-                    intent->question_count = 1;
-                    break;
-                default:
-                    intent->questions[0] = strdup("Puoi spiegare meglio cosa desideri?");
-                    intent->question_count = 1;
+            case INTENT_KIND_CREATE:
+                intent->questions[0] = strdup("Cosa vorresti creare esattamente?");
+                intent->question_count = 1;
+                break;
+            case INTENT_KIND_TRANSFORM:
+                intent->questions[0] = strdup("Cosa vuoi trasformare?");
+                intent->questions[1] = strdup("In cosa vuoi trasformarlo?");
+                intent->question_count = 2;
+                break;
+            case INTENT_KIND_FIND:
+                intent->questions[0] = strdup("Cosa stai cercando?");
+                intent->question_count = 1;
+                break;
+            default:
+                intent->questions[0] = strdup("Puoi spiegare meglio cosa desideri?");
+                intent->question_count = 1;
             }
         }
     }
@@ -257,7 +253,8 @@ ParsedIntent* nous_parse_intent(const char* input, size_t len) {
 }
 
 void nous_free_intent(ParsedIntent* intent) {
-    if (!intent) return;
+    if (!intent)
+        return;
 
     free(intent->raw_input);
 
@@ -276,7 +273,8 @@ void nous_free_intent(ParsedIntent* intent) {
 // ============================================================================
 
 int nous_execute_intent(ParsedIntent* intent) {
-    if (!intent || !nous_is_ready()) return -1;
+    if (!intent || !nous_is_ready())
+        return -1;
 
     // If ambiguous, signal need for clarification
     if (intent->confidence < 0.6f && intent->question_count > 0) {
@@ -284,35 +282,34 @@ int nous_execute_intent(ParsedIntent* intent) {
     }
 
     switch (intent->kind) {
-        case INTENT_KIND_CREATE: {
-            // Create a new semantic node representing the created thing
-            SemanticID node = nous_create_node(SEMANTIC_TYPE_ENTITY,
-                                               intent->raw_input);
-            if (node == SEMANTIC_ID_NULL) return -1;
-            intent->object = node;
-            break;
-        }
+    case INTENT_KIND_CREATE: {
+        // Create a new semantic node representing the created thing
+        SemanticID node = nous_create_node(SEMANTIC_TYPE_ENTITY, intent->raw_input);
+        if (node == SEMANTIC_ID_NULL)
+            return -1;
+        intent->object = node;
+        break;
+    }
 
-        case INTENT_KIND_FIND: {
-            // This would trigger similarity search
-            // For now, create a query node
-            SemanticID query = nous_create_node(SEMANTIC_TYPE_INTENT,
-                                                intent->raw_input);
-            if (query == SEMANTIC_ID_NULL) return -1;
-            intent->subject = query;
-            break;
-        }
+    case INTENT_KIND_FIND: {
+        // This would trigger similarity search
+        // For now, create a query node
+        SemanticID query = nous_create_node(SEMANTIC_TYPE_INTENT, intent->raw_input);
+        if (query == SEMANTIC_ID_NULL)
+            return -1;
+        intent->subject = query;
+        break;
+    }
 
-        case INTENT_KIND_TRANSFORM:
-        case INTENT_KIND_CONNECT:
-        case INTENT_KIND_UNDERSTAND:
-        case INTENT_KIND_COLLABORATE:
-        case INTENT_KIND_FEEL:
-            // These require more complex handling
-            // Create placeholder semantic nodes
-            intent->subject = nous_create_node(SEMANTIC_TYPE_INTENT,
-                                               intent->raw_input);
-            break;
+    case INTENT_KIND_TRANSFORM:
+    case INTENT_KIND_CONNECT:
+    case INTENT_KIND_UNDERSTAND:
+    case INTENT_KIND_COLLABORATE:
+    case INTENT_KIND_FEEL:
+        // These require more complex handling
+        // Create placeholder semantic nodes
+        intent->subject = nous_create_node(SEMANTIC_TYPE_INTENT, intent->raw_input);
+        break;
     }
 
     return INTENT_PARSE_OK;
@@ -333,7 +330,8 @@ typedef struct {
 
 StreamingParser* nous_parser_create(void) {
     StreamingParser* parser = calloc(1, sizeof(StreamingParser));
-    if (!parser) return NULL;
+    if (!parser)
+        return NULL;
 
     parser->capacity = 1024;
     parser->buffer = malloc(parser->capacity);
@@ -350,15 +348,16 @@ StreamingParser* nous_parser_create(void) {
 }
 
 // Feed characters as user types (for real-time understanding)
-IntentParseResult nous_parser_feed(StreamingParser* parser,
-                                    const char* chars, size_t len) {
-    if (!parser || !chars) return INTENT_PARSE_ERROR;
+IntentParseResult nous_parser_feed(StreamingParser* parser, const char* chars, size_t len) {
+    if (!parser || !chars)
+        return INTENT_PARSE_ERROR;
 
     // Grow buffer if needed
     if (parser->len + len >= parser->capacity) {
         size_t new_cap = parser->capacity * 2;
         char* new_buf = realloc(parser->buffer, new_cap);
-        if (!new_buf) return INTENT_PARSE_ERROR;
+        if (!new_buf)
+            return INTENT_PARSE_ERROR;
         parser->buffer = new_buf;
         parser->capacity = new_cap;
     }
@@ -368,7 +367,8 @@ IntentParseResult nous_parser_feed(StreamingParser* parser,
 
     // Quick analysis without full parse
     char* normalized = malloc(parser->len + 1);
-    if (!normalized) return INTENT_PARSE_ERROR;
+    if (!normalized)
+        return INTENT_PARSE_ERROR;
     memcpy(normalized, parser->buffer, parser->len);
     normalized[parser->len] = '\0';
     to_lowercase_neon(normalized, parser->len);
@@ -388,13 +388,16 @@ IntentParseResult nous_parser_feed(StreamingParser* parser,
 
     free(normalized);
 
-    if (best_conf >= 0.7f) return INTENT_PARSE_OK;
-    if (best_conf >= 0.4f) return INTENT_PARSE_INCOMPLETE;
+    if (best_conf >= 0.7f)
+        return INTENT_PARSE_OK;
+    if (best_conf >= 0.4f)
+        return INTENT_PARSE_INCOMPLETE;
     return INTENT_PARSE_AMBIGUOUS;
 }
 
 ParsedIntent* nous_parser_finalize(StreamingParser* parser) {
-    if (!parser) return NULL;
+    if (!parser)
+        return NULL;
 
     ParsedIntent* intent = nous_parse_intent(parser->buffer, parser->len);
 
@@ -407,7 +410,8 @@ ParsedIntent* nous_parser_finalize(StreamingParser* parser) {
 }
 
 void nous_parser_destroy(StreamingParser* parser) {
-    if (!parser) return;
+    if (!parser)
+        return;
     free(parser->buffer);
     free(parser);
 }

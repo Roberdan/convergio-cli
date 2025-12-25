@@ -5,10 +5,10 @@
  * /workflow list, /workflow execute, /workflow resume, etc.
  */
 
-#include "nous/commands.h"
 #include "nous/workflow.h"
-#include "nous/workflow_visualization.h"
+#include "nous/commands.h"
 #include "nous/nous.h"
+#include "nous/workflow_visualization.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -38,7 +38,7 @@ static Workflow* workflow_load_by_id(uint64_t id) {
 static int cmd_workflow_list(int argc, char** argv) {
     (void)argc;
     (void)argv;
-    
+
     printf("Available workflows:\n");
     printf("  (Workflow persistence layer not yet implemented)\n");
     printf("  Use workflow templates from src/workflow/templates/\n");
@@ -46,7 +46,7 @@ static int cmd_workflow_list(int argc, char** argv) {
     printf("Templates available:\n");
     printf("  - code-review.json\n");
     printf("  - product-launch.json\n");
-    
+
     return 0;
 }
 
@@ -57,7 +57,7 @@ static int cmd_workflow_list(int argc, char** argv) {
 static int cmd_workflow_show(int argc, char** argv) {
     bool mermaid_only = false;
     const char* name = NULL;
-    
+
     // Parse arguments
     for (int i = 1; i < argc; i++) {
         if (strcmp(argv[i], "--mermaid") == 0 || strcmp(argv[i], "-m") == 0) {
@@ -72,25 +72,25 @@ static int cmd_workflow_show(int argc, char** argv) {
             name = argv[i];
         }
     }
-    
+
     if (!name) {
         printf("Usage: /workflow show [--mermaid] <name>\n");
         printf("Show workflow details and Mermaid diagram\n");
         return 1;
     }
-    
+
     // Try to load from database (when persistence is implemented)
     Workflow* wf = workflow_load_by_name(name);
-    
+
     if (!wf) {
         printf("Workflow '%s' not found in database.\n", name);
         printf("(Persistence layer not yet fully implemented)\n");
         return 1;
     }
-    
+
     // Export Mermaid
     char* mermaid = workflow_export_mermaid_alloc(wf);
-    
+
     if (mermaid_only) {
         // Output only Mermaid diagram
         if (mermaid) {
@@ -109,7 +109,7 @@ static int cmd_workflow_show(int argc, char** argv) {
         }
         printf("Status: %d\n", wf->status);
         printf("Current node ID: %llu\n", (unsigned long long)wf->current_node_id);
-        
+
         if (mermaid) {
             printf("\nWorkflow diagram:\n```mermaid\n%s\n```\n", mermaid);
             free(mermaid);
@@ -117,7 +117,7 @@ static int cmd_workflow_show(int argc, char** argv) {
             printf("\n(Mermaid export failed)\n");
         }
     }
-    
+
     workflow_destroy(wf);
     return 0;
 }
@@ -132,23 +132,23 @@ static int cmd_workflow_execute(int argc, char** argv) {
         printf("Execute a workflow with optional input\n");
         return 1;
     }
-    
+
     const char* name = argv[1];
     const char* input = argc > 2 ? argv[2] : "";
-    
+
     // Try to load workflow
     Workflow* wf = workflow_load_by_name(name);
-    
+
     if (!wf) {
         printf("Workflow '%s' not found.\n", name);
         printf("(Persistence layer not yet fully implemented)\n");
         printf("Use workflow_create() to create workflows programmatically.\n");
         return 1;
     }
-    
+
     char* output = NULL;
     int result = workflow_execute(wf, input, &output);
-    
+
     if (result == 0) {
         if (output) {
             printf("%s\n", output);
@@ -165,7 +165,7 @@ static int cmd_workflow_execute(int argc, char** argv) {
             printf(".\n");
         }
     }
-    
+
     workflow_destroy(wf);
     return result;
 }
@@ -180,42 +180,40 @@ static int cmd_workflow_resume(int argc, char** argv) {
         printf("Resume workflow from checkpoint\n");
         return 1;
     }
-    
+
     uint64_t workflow_id = strtoull(argv[1], NULL, 10);
     if (workflow_id == 0) {
         printf("Invalid workflow ID: %s\n", argv[1]);
         return 1;
     }
-    
+
     uint64_t checkpoint_id = 0;
     if (argc > 2) {
         checkpoint_id = strtoull(argv[2], NULL, 10);
     }
-    
+
     // Load workflow
     Workflow* wf = workflow_load_by_id(workflow_id);
     if (!wf) {
         printf("Workflow ID %llu not found.\n", (unsigned long long)workflow_id);
         return 1;
     }
-    
+
     // If checkpoint_id specified, restore from that checkpoint
     if (checkpoint_id > 0) {
         int result = workflow_restore_from_checkpoint(wf, checkpoint_id);
         if (result != 0) {
-            printf("Failed to restore from checkpoint %llu\n", 
-                   (unsigned long long)checkpoint_id);
+            printf("Failed to restore from checkpoint %llu\n", (unsigned long long)checkpoint_id);
             workflow_destroy(wf);
             return 1;
         }
-        printf("Restored workflow from checkpoint %llu\n", 
-               (unsigned long long)checkpoint_id);
+        printf("Restored workflow from checkpoint %llu\n", (unsigned long long)checkpoint_id);
     }
-    
+
     // Resume execution
     char* output = NULL;
     int result = workflow_resume(wf, checkpoint_id);
-    
+
     if (result == 0) {
         printf("Workflow resumed successfully.\n");
         if (output) {
@@ -231,7 +229,7 @@ static int cmd_workflow_resume(int argc, char** argv) {
             printf(".\n");
         }
     }
-    
+
     workflow_destroy(wf);
     return result;
 }
@@ -251,9 +249,9 @@ int cmd_workflow(int argc, char** argv) {
         printf("Use /help workflow for detailed help\n");
         return 0;
     }
-    
+
     const char* subcommand = argv[1];
-    
+
     if (strcmp(subcommand, "list") == 0) {
         return cmd_workflow_list(argc - 1, argv + 1);
     } else if (strcmp(subcommand, "show") == 0) {
@@ -268,4 +266,3 @@ int cmd_workflow(int argc, char** argv) {
         return 1;
     }
 }
-

@@ -10,16 +10,16 @@
  * Copyright 2025 - Roberto D'Angelo & AI Team
  */
 
-#include "nous/statusbar.h"
 #include "nous/nous.h"
+#include "nous/statusbar.h"
+#include <pthread.h>
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
-#include <signal.h>
 #include <sys/ioctl.h>
 #include <termios.h>
-#include <pthread.h>
+#include <unistd.h>
 
 // ============================================================================
 // STATE
@@ -51,9 +51,7 @@ typedef struct {
     bool initialized;
 } TerminalState;
 
-static TerminalState g_terminal = {
-    .mutex = PTHREAD_MUTEX_INITIALIZER
-};
+static TerminalState g_terminal = {.mutex = PTHREAD_MUTEX_INITIALIZER};
 
 // ============================================================================
 // INTERNAL HELPERS
@@ -135,8 +133,7 @@ int terminal_init(void) {
 
     pthread_mutex_unlock(&g_terminal.mutex);
 
-    LOG_DEBUG(LOG_CAT_SYSTEM, "Terminal initialized: %dx%d",
-              g_terminal.width, g_terminal.height);
+    LOG_DEBUG(LOG_CAT_SYSTEM, "Terminal initialized: %dx%d", g_terminal.width, g_terminal.height);
 
     return 0;
 }
@@ -175,8 +172,10 @@ void terminal_shutdown(void) {
 void terminal_get_size(int* width, int* height) {
     pthread_mutex_lock(&g_terminal.mutex);
 
-    if (width) *width = g_terminal.width;
-    if (height) *height = g_terminal.height;
+    if (width)
+        *width = g_terminal.width;
+    if (height)
+        *height = g_terminal.height;
 
     pthread_mutex_unlock(&g_terminal.mutex);
 }
@@ -205,7 +204,8 @@ void terminal_set_resize_callback(void (*callback)(int, int, void*), void* ctx) 
 // ============================================================================
 
 int terminal_enable_raw_mode(void) {
-    if (!isatty(STDIN_FILENO)) return -1;
+    if (!isatty(STDIN_FILENO))
+        return -1;
 
     pthread_mutex_lock(&g_terminal.mutex);
 
@@ -225,13 +225,13 @@ int terminal_enable_raw_mode(void) {
     struct termios raw = g_terminal.original_termios;
 
     // Disable echo and canonical mode
-    raw.c_lflag &= (tcflag_t)~(ECHO | ICANON | ISIG | IEXTEN);
+    raw.c_lflag &= (tcflag_t) ~(ECHO | ICANON | ISIG | IEXTEN);
 
     // Disable flow control
-    raw.c_iflag &= (tcflag_t)~(IXON | ICRNL | BRKINT | INPCK | ISTRIP);
+    raw.c_iflag &= (tcflag_t) ~(IXON | ICRNL | BRKINT | INPCK | ISTRIP);
 
     // Disable output processing
-    raw.c_oflag &= (tcflag_t)~(OPOST);
+    raw.c_oflag &= (tcflag_t) ~(OPOST);
 
     // Set character size to 8 bits
     raw.c_cflag |= CS8;
@@ -283,28 +283,29 @@ bool terminal_is_raw_mode(void) {
 
 bool terminal_supports_color(void) {
     const char* term = getenv("TERM");
-    if (!term) return false;
+    if (!term)
+        return false;
 
     // Check for common color-supporting terminals
-    if (strstr(term, "color") || strstr(term, "xterm") ||
-        strstr(term, "screen") || strstr(term, "tmux") ||
-        strstr(term, "256color") || strstr(term, "ansi")) {
+    if (strstr(term, "color") || strstr(term, "xterm") || strstr(term, "screen") ||
+        strstr(term, "tmux") || strstr(term, "256color") || strstr(term, "ansi")) {
         return true;
     }
 
     // Check COLORTERM environment variable
     const char* colorterm = getenv("COLORTERM");
-    if (colorterm) return true;
+    if (colorterm)
+        return true;
 
     return false;
 }
 
 bool terminal_supports_truecolor(void) {
     const char* colorterm = getenv("COLORTERM");
-    if (!colorterm) return false;
+    if (!colorterm)
+        return false;
 
-    return (strcmp(colorterm, "truecolor") == 0 ||
-            strcmp(colorterm, "24bit") == 0);
+    return (strcmp(colorterm, "truecolor") == 0 || strcmp(colorterm, "24bit") == 0);
 }
 
 bool terminal_supports_hyperlinks(void) {
@@ -313,10 +314,8 @@ bool terminal_supports_hyperlinks(void) {
     const char* term_program = getenv("TERM_PROGRAM");
 
     if (term_program) {
-        if (strcmp(term_program, "iTerm.app") == 0 ||
-            strcmp(term_program, "WezTerm") == 0 ||
-            strcmp(term_program, "vscode") == 0 ||
-            strcmp(term_program, "Hyper") == 0) {
+        if (strcmp(term_program, "iTerm.app") == 0 || strcmp(term_program, "WezTerm") == 0 ||
+            strcmp(term_program, "vscode") == 0 || strcmp(term_program, "Hyper") == 0) {
             return true;
         }
     }
@@ -324,10 +323,12 @@ bool terminal_supports_hyperlinks(void) {
     if (term) {
         // VTE-based terminals support hyperlinks
         const char* vte = getenv("VTE_VERSION");
-        if (vte && atoi(vte) >= 5000) return true;
+        if (vte && atoi(vte) >= 5000)
+            return true;
 
         // Kitty supports hyperlinks
-        if (getenv("KITTY_WINDOW_ID")) return true;
+        if (getenv("KITTY_WINDOW_ID"))
+            return true;
     }
 
     return false;
@@ -339,10 +340,11 @@ bool terminal_supports_unicode(void) {
     const char* lc_ctype = getenv("LC_CTYPE");
 
     const char* locale = lc_all ? lc_all : (lc_ctype ? lc_ctype : lang);
-    if (!locale) return false;
+    if (!locale)
+        return false;
 
-    return (strstr(locale, "UTF-8") || strstr(locale, "utf-8") ||
-            strstr(locale, "UTF8") || strstr(locale, "utf8"));
+    return (strstr(locale, "UTF-8") || strstr(locale, "utf-8") || strstr(locale, "UTF8") ||
+            strstr(locale, "utf8"));
 }
 
 // ============================================================================
@@ -452,46 +454,69 @@ typedef enum {
 int terminal_read_key(void) {
     char c;
     ssize_t nread = read(STDIN_FILENO, &c, 1);
-    if (nread <= 0) return -1;
+    if (nread <= 0)
+        return -1;
 
     // Handle escape sequences
     if (c == '\033') {
         char seq[5];
-        if (read(STDIN_FILENO, &seq[0], 1) != 1) return KEY_ESCAPE;
-        if (read(STDIN_FILENO, &seq[1], 1) != 1) return KEY_ESCAPE;
+        if (read(STDIN_FILENO, &seq[0], 1) != 1)
+            return KEY_ESCAPE;
+        if (read(STDIN_FILENO, &seq[1], 1) != 1)
+            return KEY_ESCAPE;
 
         if (seq[0] == '[') {
             if (seq[1] >= '0' && seq[1] <= '9') {
-                if (read(STDIN_FILENO, &seq[2], 1) != 1) return KEY_ESCAPE;
+                if (read(STDIN_FILENO, &seq[2], 1) != 1)
+                    return KEY_ESCAPE;
                 if (seq[2] == '~') {
                     switch (seq[1]) {
-                        case '1': return KEY_HOME;
-                        case '3': return KEY_DELETE;
-                        case '4': return KEY_END;
-                        case '5': return KEY_PAGE_UP;
-                        case '6': return KEY_PAGE_DOWN;
-                        case '7': return KEY_HOME;
-                        case '8': return KEY_END;
+                    case '1':
+                        return KEY_HOME;
+                    case '3':
+                        return KEY_DELETE;
+                    case '4':
+                        return KEY_END;
+                    case '5':
+                        return KEY_PAGE_UP;
+                    case '6':
+                        return KEY_PAGE_DOWN;
+                    case '7':
+                        return KEY_HOME;
+                    case '8':
+                        return KEY_END;
                     }
                 }
             } else {
                 switch (seq[1]) {
-                    case 'A': return KEY_UP;
-                    case 'B': return KEY_DOWN;
-                    case 'C': return KEY_RIGHT;
-                    case 'D': return KEY_LEFT;
-                    case 'H': return KEY_HOME;
-                    case 'F': return KEY_END;
+                case 'A':
+                    return KEY_UP;
+                case 'B':
+                    return KEY_DOWN;
+                case 'C':
+                    return KEY_RIGHT;
+                case 'D':
+                    return KEY_LEFT;
+                case 'H':
+                    return KEY_HOME;
+                case 'F':
+                    return KEY_END;
                 }
             }
         } else if (seq[0] == 'O') {
             switch (seq[1]) {
-                case 'H': return KEY_HOME;
-                case 'F': return KEY_END;
-                case 'P': return KEY_F1;
-                case 'Q': return KEY_F2;
-                case 'R': return KEY_F3;
-                case 'S': return KEY_F4;
+            case 'H':
+                return KEY_HOME;
+            case 'F':
+                return KEY_END;
+            case 'P':
+                return KEY_F1;
+            case 'Q':
+                return KEY_F2;
+            case 'R':
+                return KEY_F3;
+            case 'S':
+                return KEY_F4;
             }
         }
 
@@ -516,32 +541,30 @@ const char* terminal_get_term(void) {
 // Print terminal info for debugging
 char* terminal_info(void) {
     char* info = malloc(1024);
-    if (!info) return NULL;
+    if (!info)
+        return NULL;
 
     pthread_mutex_lock(&g_terminal.mutex);
 
     snprintf(info, 1024,
-        "Terminal Information:\n"
-        "  Size: %dx%d\n"
-        "  TERM: %s\n"
-        "  TERM_PROGRAM: %s\n"
-        "  COLORTERM: %s\n"
-        "  Is TTY: %s\n"
-        "  Raw mode: %s\n"
-        "  Supports color: %s\n"
-        "  Supports truecolor: %s\n"
-        "  Supports hyperlinks: %s\n"
-        "  Supports unicode: %s\n",
-        g_terminal.width, g_terminal.height,
-        getenv("TERM") ? getenv("TERM") : "(not set)",
-        getenv("TERM_PROGRAM") ? getenv("TERM_PROGRAM") : "(not set)",
-        getenv("COLORTERM") ? getenv("COLORTERM") : "(not set)",
-        terminal_is_tty() ? "yes" : "no",
-        g_terminal.raw_mode ? "yes" : "no",
-        terminal_supports_color() ? "yes" : "no",
-        terminal_supports_truecolor() ? "yes" : "no",
-        terminal_supports_hyperlinks() ? "yes" : "no",
-        terminal_supports_unicode() ? "yes" : "no");
+             "Terminal Information:\n"
+             "  Size: %dx%d\n"
+             "  TERM: %s\n"
+             "  TERM_PROGRAM: %s\n"
+             "  COLORTERM: %s\n"
+             "  Is TTY: %s\n"
+             "  Raw mode: %s\n"
+             "  Supports color: %s\n"
+             "  Supports truecolor: %s\n"
+             "  Supports hyperlinks: %s\n"
+             "  Supports unicode: %s\n",
+             g_terminal.width, g_terminal.height, getenv("TERM") ? getenv("TERM") : "(not set)",
+             getenv("TERM_PROGRAM") ? getenv("TERM_PROGRAM") : "(not set)",
+             getenv("COLORTERM") ? getenv("COLORTERM") : "(not set)",
+             terminal_is_tty() ? "yes" : "no", g_terminal.raw_mode ? "yes" : "no",
+             terminal_supports_color() ? "yes" : "no", terminal_supports_truecolor() ? "yes" : "no",
+             terminal_supports_hyperlinks() ? "yes" : "no",
+             terminal_supports_unicode() ? "yes" : "no");
 
     pthread_mutex_unlock(&g_terminal.mutex);
     return info;

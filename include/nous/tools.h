@@ -48,6 +48,9 @@ typedef enum {
     TOOL_GLOB,            // Find files by glob pattern
     TOOL_GREP,            // Search file contents with regex
     TOOL_EDIT,            // Precise string replacement in file
+    // Education tools
+    TOOL_HTML_INTERACTIVE,// Save HTML and open in browser
+    TOOL_MINDMAP,         // Create Mermaid mindmap in browser
 } ToolType;
 
 // Local tool definition (distinct from provider.h's ToolDefinition for API calls)

@@ -10,22 +10,23 @@
  */
 
 #include "nous/orchestrator.h"
-#include "nous/delegation.h"
-#include "nous/planning.h"
-#include "nous/convergence.h"
-#include "nous/updater.h"
 #include "nous/compaction.h"
 #include "nous/config.h"
+#include "nous/convergence.h"
+#include "nous/debug_mutex.h"
+#include "nous/delegation.h"
+#include "nous/edition.h"
 #include "nous/nous.h"
+#include "nous/planning.h"
 #include "nous/projects.h"
+#include "nous/updater.h"
+#include <dirent.h>
+#include <dispatch/dispatch.h>
+#include <limits.h>
+#include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <pthread.h>
-#include <dispatch/dispatch.h>
-#include <dirent.h>
-#include <limits.h>
-#include "nous/debug_mutex.h"
 
 // Global orchestrator instance
 static Orchestrator* g_orchestrator = NULL;
@@ -43,7 +44,7 @@ extern void msgbus_shutdown(void);
 extern char* persistence_create_session(const char* user_name);
 extern char* persistence_get_or_create_session(void);
 extern int persistence_save_conversation(const char* session_id, const char* role,
-                                          const char* content, int tokens);
+                                         const char* content, int tokens);
 extern char* persistence_load_conversation_context(const char* session_id, size_t max_messages);
 extern char* persistence_load_recent_context(size_t max_messages);
 extern char** persistence_get_important_memories(size_t limit, size_t* out_count);
@@ -62,10 +63,11 @@ CONVERGIO_MUTEX_DECLARE(g_session_mutex);
 
 // Helper to save conversation to both persistence and project history
 static void save_conversation(const char* role, const char* content, const char* agent_name) {
-    // Save to regular persistence
+    // Save to regular persistence (FIX-04: protect session_id access)
     CONVERGIO_MUTEX_LOCK(&g_session_mutex);
     if (g_current_session_id) {
-        persistence_save_conversation(g_current_session_id, role, content, (int)strlen(content) / 4);
+        persistence_save_conversation(g_current_session_id, role, content,
+                                      (int)strlen(content) / 4);
     }
     CONVERGIO_MUTEX_UNLOCK(&g_session_mutex);
 
@@ -84,7 +86,7 @@ static void save_conversation(const char* role, const char* content, const char*
 extern int nous_claude_init(void);
 extern void nous_claude_shutdown(void);
 extern char* nous_claude_chat_with_tools(const char* system_prompt, const char* user_message,
-                                          const char* tools_json, char** out_tool_calls);
+                                         const char* tools_json, char** out_tool_calls);
 
 // Tools header
 #include "nous/tools.h"
@@ -133,7 +135,7 @@ static const char* ALI_CONSTITUTION =
 
 // Helper to parse YAML frontmatter from embedded content
 static void parse_agent_frontmatter(const char* content, char* name, size_t name_size,
-                                     char* description, size_t desc_size) {
+                                    char* description, size_t desc_size) {
     name[0] = '\0';
     description[0] = '\0';
 
@@ -143,12 +145,14 @@ static void parse_agent_frontmatter(const char* content, char* name, size_t name
     while (*ptr) {
         // Find end of line
         const char* eol = strchr(ptr, '\n');
-        if (!eol) eol = ptr + strlen(ptr);
+        if (!eol)
+            eol = ptr + strlen(ptr);
         size_t line_len = (size_t)(eol - ptr);
 
         // Check for frontmatter delimiter
         if (line_len >= 3 && strncmp(ptr, "---", 3) == 0) {
-            if (in_frontmatter) break;  // End of frontmatter
+            if (in_frontmatter)
+                break; // End of frontmatter
             in_frontmatter = true;
             ptr = (*eol) ? eol + 1 : eol;
             continue;
@@ -157,16 +161,20 @@ static void parse_agent_frontmatter(const char* content, char* name, size_t name
         if (in_frontmatter && line_len > 0) {
             if (strncmp(ptr, "name:", 5) == 0) {
                 const char* val = ptr + 5;
-                while (*val == ' ') val++;
+                while (*val == ' ')
+                    val++;
                 size_t val_len = (size_t)(eol - val);
-                if (val_len >= name_size) val_len = name_size - 1;
+                if (val_len >= name_size)
+                    val_len = name_size - 1;
                 strncpy(name, val, val_len);
                 name[val_len] = '\0';
             } else if (strncmp(ptr, "description:", 12) == 0) {
                 const char* val = ptr + 12;
-                while (*val == ' ') val++;
+                while (*val == ' ')
+                    val++;
                 size_t val_len = (size_t)(eol - val);
-                if (val_len >= desc_size) val_len = desc_size - 1;
+                if (val_len >= desc_size)
+                    val_len = desc_size - 1;
                 strncpy(description, val, val_len);
                 description[val_len] = '\0';
             }
@@ -179,12 +187,13 @@ static void parse_agent_frontmatter(const char* content, char* name, size_t name
 // Check if agent is in current project team (returns true if no project active)
 static bool agent_in_project_team(const char* agent_name) {
     ConvergioProject* proj = project_current();
-    if (!proj) return true;  // No project = all agents available
+    if (!proj)
+        return true; // No project = all agents available
     return project_has_agent(agent_name);
 }
 
 // Load all agent definitions and build a list for the system prompt
-// Filters by current project team if a project is active
+// Filters by current edition AND by current project team if active
 static char* load_agent_list(void) {
     size_t agent_count = 0;
     const EmbeddedAgent* agents = get_all_embedded_agents(&agent_count);
@@ -195,7 +204,10 @@ static char* load_agent_list(void) {
 
     // Check if we have an active project
     ConvergioProject* current_project = project_current();
-    bool filtering = (current_project != NULL);
+    bool project_filtering = (current_project != NULL);
+
+    // Check current edition for filtering
+    bool is_education = (edition_current() == EDITION_EDUCATION);
 
     size_t capacity = 8192;
     char* list = malloc(capacity);
@@ -203,10 +215,10 @@ static char* load_agent_list(void) {
     size_t len = 0;
 
     // If filtering by project, add a header
-    if (filtering) {
-        len += (size_t)snprintf(list + len, capacity - len,
-            "**Project Team: %s** (%zu members)\n\n",
-            current_project->name, current_project->team_count);
+    if (project_filtering) {
+        len +=
+            (size_t)snprintf(list + len, capacity - len, "**Project Team: %s** (%zu members)\n\n",
+                             current_project->name, current_project->team_count);
     }
 
     int included_count = 0;
@@ -214,25 +226,42 @@ static char* load_agent_list(void) {
         const EmbeddedAgent* agent = &agents[i];
 
         // Skip non-agent files
-        if (strstr(agent->filename, "CommonValues")) continue;
-        if (strstr(agent->filename, "ali-chief")) continue;  // Skip Ali himself
+        if (strstr(agent->filename, "CommonValues"))
+            continue;
+        if (strstr(agent->filename, "SAFETY_AND_INCLUSIVITY"))
+            continue;
+
+        // Skip Ali himself (different for each edition)
+        if (is_education) {
+            if (strstr(agent->filename, "ali-principal"))
+                continue;
+        } else {
+            if (strstr(agent->filename, "ali-chief"))
+                continue;
+        }
 
         char name[256] = "";
         char description[512] = "";
-        parse_agent_frontmatter(agent->content, name, sizeof(name),
-                                description, sizeof(description));
+        parse_agent_frontmatter(agent->content, name, sizeof(name), description,
+                                sizeof(description));
 
         if (name[0] && description[0]) {
+            // CRITICAL: Filter by edition - only show agents available for this edition
+            if (!edition_has_agent(name)) {
+                continue; // Skip agents not available in current edition
+            }
+
             // Extract short name (first part before -)
             char short_name[64];
             strncpy(short_name, name, sizeof(short_name) - 1);
             short_name[sizeof(short_name) - 1] = '\0';
             char* dash = strchr(short_name, '-');
-            if (dash) *dash = '\0';
+            if (dash)
+                *dash = '\0';
 
             // Filter by project team if active
-            if (filtering && !agent_in_project_team(short_name)) {
-                continue;  // Skip agents not in project team
+            if (project_filtering && !agent_in_project_team(short_name)) {
+                continue; // Skip agents not in project team
             }
 
             // Capitalize first letter
@@ -254,21 +283,21 @@ static char* load_agent_list(void) {
                 list = realloc(list, capacity);
             }
 
-            len += (size_t)snprintf(list + len, capacity - len,
-                "- **%s**: %s\n", short_name, description);
+            len += (size_t)snprintf(list + len, capacity - len, "- **%s**: %s\n", short_name,
+                                    description);
             included_count++;
         }
     }
 
     // Add note if filtering limited agents
-    if (filtering && included_count < (int)agent_count / 2) {
+    if (project_filtering && included_count < (int)agent_count / 2) {
         size_t needed = len + 128;
         if (needed > capacity) {
             capacity = needed * 2;
             list = realloc(list, capacity);
         }
         len += (size_t)snprintf(list + len, capacity - len,
-            "\n_Note: Other agents available via `project clear`_\n");
+                                "\n_Note: Other agents available via `project clear`_\n");
     }
 
     return list;
@@ -278,6 +307,68 @@ static char* load_agent_list(void) {
 // ALI'S SYSTEM PROMPT
 // ============================================================================
 
+// Education Edition: Ali as School Principal
+static const char* ALI_EDUCATION_SYSTEM_PROMPT_TEMPLATE =
+    "You are **Ali**, the Principal of Convergio Education — a warm, supportive school leader who "
+    "coordinates the 15 historical Maestri (teachers) to provide the best possible education for "
+    "each student.\n\n"
+    "## System Information\n"
+    "- **Current date**: %s\n"
+    "- **Convergio Education version**: %s\n"
+    "- **Your role**: School Principal (Preside)\n"
+    "- **Available teachers**: %d Maestri ready to help students\n\n"
+    "## Working Directory\n"
+    "**School workspace**: `%s`\n\n"
+    "## Your Role as Principal\n"
+    "As Principal, you:\n"
+    "- **Welcome students** and help them feel comfortable in our virtual school\n"
+    "- **Understand each student's needs** including learning style, accessibility requirements, "
+    "and goals\n"
+    "- **Assign the right teacher** for each subject and learning objective\n"
+    "- **Coordinate multi-subject learning** when topics span multiple disciplines\n"
+    "- **Track progress** and celebrate achievements with students\n"
+    "- **Support struggling students** by adjusting difficulty and approach\n\n"
+    "## Communication Style\n"
+    "As a Principal, you MUST:\n"
+    "- Speak warmly and encouragingly to students in Italian\n"
+    "- NEVER make students feel stupid for not knowing something\n"
+    "- Celebrate effort, not just results\n"
+    "- Adapt your language to the student's age (6-19 years)\n"
+    "- Use simple language for younger students\n"
+    "- Be patient and never rush students\n"
+    "- Show empathy and understanding\n"
+    "- Be proactive in offering help\n\n"
+    "## Your Teaching Staff (15 Maestri)\n"
+    "%s\n\n"
+    "## When a Student Asks for Help\n"
+    "1. **Understand the need**: What subject? What specific topic? What's the goal?\n"
+    "2. **Check the student profile**: Age, grade level, accessibility needs\n"
+    "3. **Select the best Maestro**: Match subject and teaching style\n"
+    "4. **Brief the Maestro**: Share student context and learning goals\n"
+    "5. **Follow up**: Check if the student understood and needs more help\n\n"
+    "## Delegation to Teachers\n"
+    "When a student needs help with a specific subject, delegate to the appropriate Maestro:\n"
+    "[DELEGATE: euclide-matematica] for math questions\n"
+    "[DELEGATE: feynman-fisica] for physics problems\n"
+    "[DELEGATE: manzoni-italiano] for Italian language and literature\n"
+    "etc.\n\n"
+    "## Important Principles\n"
+    "1. **Every student can learn** - It's just about finding the right approach\n"
+    "2. **The Maieutic method** - Guide students to discover, don't just give answers\n"
+    "3. **Accessibility first** - Adapt to each student's needs (dyslexia, ADHD, etc.)\n"
+    "4. **Encouragement always** - Learning is a journey, not a race\n"
+    "5. **Coordination** - You're the conductor of an educational orchestra\n\n"
+    "## Example Welcome\n"
+    "When a student first arrives, welcome them warmly:\n"
+    "\"Ciao! Benvenuto/a a Convergio Education! Sono Ali, il tuo Preside. Sono qui per aiutarti a "
+    "imparare e crescere. Abbiamo 17 maestri straordinari, ognuno esperto nella propria materia. "
+    "Cosa vorresti imparare oggi?\"\n\n"
+    "## Output Format\n"
+    "IMPORTANT: Always respond in Italian unless the student writes in another language.\n"
+    "Be warm, supportive, and educational in every response.\n"
+    "Never use corporate or business language - this is a school!\n";
+
+// Business/Developer Edition: Ali as Chief of Staff
 static const char* ALI_SYSTEM_PROMPT_TEMPLATE =
     "You are Ali, the Chief of Staff and master orchestrator for the Convergio ecosystem.\n\n"
     "## System Information\n"
@@ -287,18 +378,24 @@ static const char* ALI_SYSTEM_PROMPT_TEMPLATE =
     "- **Available agents**: %d specialists ready to assist\n\n"
     "## Working Directory\n"
     "**Current workspace**: `%s`\n"
-    "All file operations and shell commands should use paths relative to this directory, or absolute paths within it.\n"
-    "When the user references files without a full path, assume they are relative to this workspace.\n\n"
+    "All file operations and shell commands should use paths relative to this directory, or "
+    "absolute paths within it.\n"
+    "When the user references files without a full path, assume they are relative to this "
+    "workspace.\n\n"
     "## Your Role\n"
-    "You are the single point of contact for the user. You coordinate all specialist agents and use tools to deliver comprehensive solutions.\n"
-    "You have MEMORY - you remember past conversations and can store important information for future reference.\n\n"
+    "You are the single point of contact for the user. You coordinate all specialist agents and "
+    "use tools to deliver comprehensive solutions.\n"
+    "You have MEMORY - you remember past conversations and can store important information for "
+    "future reference.\n\n"
     "## Memory System\n"
     "You have access to:\n"
-    "- **Conversation history**: Previous messages from this and past sessions are loaded automatically\n"
+    "- **Conversation history**: Previous messages from this and past sessions are loaded "
+    "automatically\n"
     "- **Important memories**: Key information is retrieved and shown in context\n"
     "- **Notes**: Persistent markdown notes you can create and reference\n"
     "- **Knowledge base**: A searchable repository of documents and information\n\n"
-    "When you learn something important about the user (preferences, projects, context), store it using memory_store or note_write.\n\n"
+    "When you learn something important about the user (preferences, projects, context), store it "
+    "using memory_store or note_write.\n\n"
     "## Tools Available\n"
     "### File & System Tools\n"
     "- **file_read**: Read file contents from the filesystem\n"
@@ -307,7 +404,8 @@ static const char* ALI_SYSTEM_PROMPT_TEMPLATE =
     "- **file_delete**: Safely delete files (moves to Trash, not permanent)\n"
     "- **glob**: Find files by pattern (e.g., `**/*.c` for all C files) - PREFER over shell find\n"
     "- **grep**: Search file contents with regex - PREFER over shell grep\n"
-    "- **edit**: Precise string replacement with automatic backup - PREFER over file_write for modifications\n"
+    "- **edit**: Precise string replacement with automatic backup - PREFER over file_write for "
+    "modifications\n"
     "- **shell_exec**: Execute shell commands (with safety restrictions)\n"
     "- **web_fetch**: Fetch content from URLs\n\n"
     "### Best Practices for File Tools\n"
@@ -345,7 +443,8 @@ static const char* ALI_SYSTEM_PROMPT_TEMPLATE =
     "%s\n"
     "## CRITICAL: MANDATORY TOOL USAGE\n"
     "**When the user asks you to perform an action, you MUST use the appropriate tool:**\n"
-    "- Create/write/modify files → MUST call `file_write` or `edit` (prefer edit for modifications)\n"
+    "- Create/write/modify files → MUST call `file_write` or `edit` (prefer edit for "
+    "modifications)\n"
     "- Read file contents → MUST call `file_read`\n"
     "- Find files by pattern → MUST call `glob` (prefer over shell find)\n"
     "- Search in file contents → MUST call `grep` (prefer over shell grep)\n"
@@ -387,7 +486,7 @@ int orchestrator_init(double budget_limit_usd) {
 
     if (g_orchestrator != NULL) {
         CONVERGIO_MUTEX_UNLOCK(&g_orch_mutex);
-        return 0;  // Already initialized
+        return 0; // Already initialized
     }
 
     // Allocate orchestrator
@@ -428,7 +527,8 @@ int orchestrator_init(double budget_limit_usd) {
 
     // Start notification daemon automatically for reminder delivery
     if (notify_daemon_start() != 0) {
-        LOG_WARN(LOG_CAT_SYSTEM, "notification daemon failed to start, reminders may not be delivered");
+        LOG_WARN(LOG_CAT_SYSTEM,
+                 "notification daemon failed to start, reminders may not be delivered");
     }
 
     if (msgbus_init() != 0) {
@@ -443,7 +543,12 @@ int orchestrator_init(double budget_limit_usd) {
     g_orchestrator->ali = calloc(1, sizeof(ManagedAgent));
     if (g_orchestrator->ali) {
         g_orchestrator->ali->id = 1;
-        g_orchestrator->ali->name = strdup("Ali");
+        // Use the correct agent ID for edition filtering
+        if (edition_current() == EDITION_EDUCATION) {
+            g_orchestrator->ali->name = strdup("ali-principal");
+        } else {
+            g_orchestrator->ali->name = strdup("ali-chief-of-staff");
+        }
         if (!g_orchestrator->ali->name) {
             free(g_orchestrator->ali);
             g_orchestrator->ali = NULL;
@@ -453,7 +558,8 @@ int orchestrator_init(double budget_limit_usd) {
             // Build system prompt with date, version, workspace, and dynamic agent list
             char* agent_list = load_agent_list();
             const char* workspace = tools_get_workspace();
-            if (!workspace) workspace = ".";  // Fallback to current directory
+            if (!workspace)
+                workspace = "."; // Fallback to current directory
 
             // Get current date
             time_t now = time(NULL);
@@ -467,11 +573,24 @@ int orchestrator_init(double budget_limit_usd) {
             // Count agents dynamically from embedded agents
             size_t embedded_count = 0;
             get_all_embedded_agents(&embedded_count);
-            int agent_count = (int)(embedded_count - 1);  // -1 for CommonValuesAndPrinciples
+            int agent_count = (int)(embedded_count - 1); // -1 for CommonValuesAndPrinciples
 
             // CRITICAL: Include the anti-hallucination constitution in Ali's prompt
+            // Select the appropriate system prompt based on edition
+            const char* ali_prompt_template;
+            if (edition_current() == EDITION_EDUCATION) {
+                ali_prompt_template = ALI_EDUCATION_SYSTEM_PROMPT_TEMPLATE;
+                LOG_INFO(LOG_CAT_SYSTEM,
+                         "[Ali] Initialized as School Principal (Education Edition)");
+            } else {
+                ali_prompt_template = ALI_SYSTEM_PROMPT_TEMPLATE;
+                LOG_INFO(LOG_CAT_SYSTEM, "[Ali] Initialized as Chief of Staff");
+            }
+
             size_t constitution_len = strlen(ALI_CONSTITUTION);
-            size_t prompt_size = constitution_len + strlen(ALI_SYSTEM_PROMPT_TEMPLATE) + strlen(workspace) + strlen(agent_list) + strlen(date_str) + strlen(version) + 512;
+            size_t prompt_size = constitution_len + strlen(ali_prompt_template) +
+                                 strlen(workspace) + strlen(agent_list) + strlen(date_str) +
+                                 strlen(version) + 512;
             char* full_prompt = malloc(prompt_size);
             if (!full_prompt) {
                 free(g_orchestrator->ali->name);
@@ -483,7 +602,9 @@ int orchestrator_init(double budget_limit_usd) {
                 memcpy(full_prompt, ALI_CONSTITUTION, constitution_len);
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wformat-nonliteral"
-                snprintf(full_prompt + constitution_len, prompt_size - constitution_len, ALI_SYSTEM_PROMPT_TEMPLATE, date_str, version, agent_count, workspace, agent_list);
+                snprintf(full_prompt + constitution_len, prompt_size - constitution_len,
+                         ali_prompt_template, date_str, version, agent_count, workspace,
+                         agent_list);
 #pragma clang diagnostic pop
                 g_orchestrator->ali->system_prompt = full_prompt;
                 free(agent_list);
@@ -509,7 +630,7 @@ int orchestrator_init(double budget_limit_usd) {
     }
 
     // Load all agent definitions from embedded data
-    int loaded = agent_load_definitions(NULL);  // NULL = use embedded agents
+    int loaded = agent_load_definitions(NULL); // NULL = use embedded agents
     if (loaded > 0) {
         // Agents loaded successfully
     }
@@ -548,9 +669,9 @@ void orchestrator_shutdown(void) {
     }
 
     // Shutdown subsystems
-    notify_daemon_stop();   // Stop notification daemon first
-    todo_shutdown();        // Must be before persistence_shutdown
-    compaction_shutdown();  // Must be before persistence_shutdown
+    notify_daemon_stop();  // Stop notification daemon first
+    todo_shutdown();       // Must be before persistence_shutdown
+    compaction_shutdown(); // Must be before persistence_shutdown
     persistence_shutdown();
     msgbus_shutdown();
     nous_claude_shutdown();
@@ -631,16 +752,20 @@ Orchestrator* orchestrator_get(void) {
 static char* parse_tool_name_from_block(const char* block) {
     const char* name_key = "\"name\"";
     const char* pos = strstr(block, name_key);
-    if (!pos) return NULL;
+    if (!pos)
+        return NULL;
 
     pos = strchr(pos, ':');
-    if (!pos) return NULL;
+    if (!pos)
+        return NULL;
     pos++;
 
-    while (*pos == ' ' || *pos == '"') pos++;
+    while (*pos == ' ' || *pos == '"')
+        pos++;
 
     const char* end = pos;
-    while (*end && *end != '"' && *end != ',' && *end != '}') end++;
+    while (*end && *end != '"' && *end != ',' && *end != '}')
+        end++;
 
     size_t len = (size_t)(end - pos);
     char* name = malloc(len + 1);
@@ -654,15 +779,19 @@ static char* parse_tool_name_from_block(const char* block) {
 static char* parse_tool_input_from_block(const char* block) {
     const char* input_key = "\"input\"";
     const char* pos = strstr(block, input_key);
-    if (!pos) return NULL;
+    if (!pos)
+        return NULL;
 
     pos = strchr(pos, ':');
-    if (!pos) return NULL;
+    if (!pos)
+        return NULL;
     pos++;
 
-    while (*pos == ' ') pos++;
+    while (*pos == ' ')
+        pos++;
 
-    if (*pos != '{') return NULL;
+    if (*pos != '{')
+        return NULL;
 
     // Find matching brace
     int depth = 1;
@@ -670,8 +799,10 @@ static char* parse_tool_input_from_block(const char* block) {
     pos++;
 
     while (*pos && depth > 0) {
-        if (*pos == '{') depth++;
-        else if (*pos == '}') depth--;
+        if (*pos == '{')
+            depth++;
+        else if (*pos == '}')
+            depth--;
         pos++;
     }
 
@@ -687,16 +818,20 @@ static char* parse_tool_input_from_block(const char* block) {
 static char* parse_tool_id_from_block(const char* block) {
     const char* id_key = "\"id\"";
     const char* pos = strstr(block, id_key);
-    if (!pos) return NULL;
+    if (!pos)
+        return NULL;
 
     pos = strchr(pos, ':');
-    if (!pos) return NULL;
+    if (!pos)
+        return NULL;
     pos++;
 
-    while (*pos == ' ' || *pos == '"') pos++;
+    while (*pos == ' ' || *pos == '"')
+        pos++;
 
     const char* end = pos;
-    while (*end && *end != '"' && *end != ',' && *end != '}') end++;
+    while (*end && *end != '"' && *end != ',' && *end != '}')
+        end++;
 
     size_t len = (size_t)(end - pos);
     char* id = malloc(len + 1);
@@ -743,46 +878,46 @@ static char* execute_tool_call(const char* tool_name, const char* tool_input) {
 static char* build_context_prompt(const char* user_input) {
     size_t capacity = 65536;
     char* context = malloc(capacity);
-    if (!context) return NULL;
+    if (!context)
+        return NULL;
     context[0] = '\0';
     size_t len = 0;
 
     // 0. Add project context if active
     ConvergioProject* proj = project_current();
     if (proj) {
-        len += (size_t)snprintf(context + len, capacity - len,
-            "## Active Project: %s\n", proj->name);
+        len +=
+            (size_t)snprintf(context + len, capacity - len, "## Active Project: %s\n", proj->name);
         if (proj->purpose) {
-            len += (size_t)snprintf(context + len, capacity - len,
-                "**Purpose**: %s\n", proj->purpose);
+            len +=
+                (size_t)snprintf(context + len, capacity - len, "**Purpose**: %s\n", proj->purpose);
         }
         if (proj->current_focus) {
-            len += (size_t)snprintf(context + len, capacity - len,
-                "**Current Focus**: %s\n", proj->current_focus);
+            len += (size_t)snprintf(context + len, capacity - len, "**Current Focus**: %s\n",
+                                    proj->current_focus);
         }
         len += (size_t)snprintf(context + len, capacity - len, "**Team**: ");
         for (size_t i = 0; i < proj->team_count; i++) {
-            len += (size_t)snprintf(context + len, capacity - len, "%s%s",
-                proj->team[i].agent_name,
-                i < proj->team_count - 1 ? ", " : "");
+            len += (size_t)snprintf(context + len, capacity - len, "%s%s", proj->team[i].agent_name,
+                                    i < proj->team_count - 1 ? ", " : "");
         }
         len += (size_t)snprintf(context + len, capacity - len, "\n");
         if (proj->decision_count > 0) {
             len += (size_t)snprintf(context + len, capacity - len, "**Key Decisions**:\n");
             for (size_t i = 0; i < proj->decision_count && i < 5; i++) {
-                len += (size_t)snprintf(context + len, capacity - len, "- %s\n", proj->key_decisions[i]);
+                len += (size_t)snprintf(context + len, capacity - len, "- %s\n",
+                                        proj->key_decisions[i]);
             }
         }
         len += (size_t)snprintf(context + len, capacity - len,
-            "\n**Note**: Only delegate to team members listed above.\n\n");
+                                "\n**Note**: Only delegate to team members listed above.\n\n");
     }
 
     // 1. Load important memories
     size_t mem_count = 0;
     char** memories = persistence_get_important_memories(5, &mem_count);
     if (memories && mem_count > 0) {
-        len += (size_t)snprintf(context + len, capacity - len,
-            "## Important Memories\n");
+        len += (size_t)snprintf(context + len, capacity - len, "## Important Memories\n");
         for (size_t i = 0; i < mem_count; i++) {
             if (memories[i]) {
                 len += (size_t)snprintf(context + len, capacity - len, "- %s\n", memories[i]);
@@ -797,8 +932,7 @@ static char* build_context_prompt(const char* user_input) {
     size_t rel_count = 0;
     char** relevant = persistence_search_memories(user_input, 3, 0.3f, &rel_count);
     if (relevant && rel_count > 0) {
-        len += (size_t)snprintf(context + len, capacity - len,
-            "## Relevant Context\n");
+        len += (size_t)snprintf(context + len, capacity - len, "## Relevant Context\n");
         for (size_t i = 0; i < rel_count; i++) {
             if (relevant[i]) {
                 len += (size_t)snprintf(context + len, capacity - len, "- %s\n", relevant[i]);
@@ -811,6 +945,7 @@ static char* build_context_prompt(const char* user_input) {
 
     // 3. Load only recent conversation from current session (not full history)
     // Full session summaries are created on quit and loaded via /recall if needed
+    // FIX-04: protect session_id access with mutex
     CONVERGIO_MUTEX_LOCK(&g_session_mutex);
     char* session_id_copy = g_current_session_id ? strdup(g_current_session_id) : NULL;
     CONVERGIO_MUTEX_UNLOCK(&g_session_mutex);
@@ -819,16 +954,15 @@ static char* build_context_prompt(const char* user_input) {
         // Only load last 10 messages for immediate context
         char* conv_history = persistence_load_conversation_context(session_id_copy, 10);
         if (conv_history && strlen(conv_history) > 0) {
-            len += (size_t)snprintf(context + len, capacity - len,
-                "## Recent Conversation\n%s\n", conv_history);
+            len += (size_t)snprintf(context + len, capacity - len, "## Recent Conversation\n%s\n",
+                                    conv_history);
             free(conv_history);
         }
         free(session_id_copy);
     }
 
     // 4. Add current user input
-    len += (size_t)snprintf(context + len, capacity - len,
-        "## Current Request\n%s", user_input);
+    len += (size_t)snprintf(context + len, capacity - len, "## Current Request\n%s", user_input);
 
     return context;
 }
@@ -867,30 +1001,33 @@ char* orchestrator_process(const char* user_input) {
     char* effective_prompt = NULL;
     if (!style.markdown) {
         // APPEND strong no-markdown instruction at the END (more effective)
-        const char* no_md = "\n\n## CRITICAL OUTPUT FORMAT RULES ##\nYou MUST follow these rules for THIS response:\n1. NO markdown whatsoever - no #headers, no **bold**, no *italic*, no `code`, no ```blocks```\n2. NO bullet points or lists - write in flowing paragraphs\n3. NO emojis\n4. Be BRIEF and DIRECT - 2-3 sentences maximum\n5. Plain text only, like a quick chat message\nVIOLATING THESE RULES IS NOT ALLOWED.";
+        const char* no_md =
+            "\n\n## CRITICAL OUTPUT FORMAT RULES ##\nYou MUST follow these rules for THIS "
+            "response:\n1. NO markdown whatsoever - no #headers, no **bold**, no *italic*, no "
+            "`code`, no ```blocks```\n2. NO bullet points or lists - write in flowing "
+            "paragraphs\n3. NO emojis\n4. Be BRIEF and DIRECT - 2-3 sentences maximum\n5. Plain "
+            "text only, like a quick chat message\nVIOLATING THESE RULES IS NOT ALLOWED.";
         size_t prompt_len = strlen(g_orchestrator->ali->system_prompt) + strlen(no_md) + 1;
         effective_prompt = malloc(prompt_len);
         if (effective_prompt) {
-            snprintf(effective_prompt, prompt_len, "%s%s", g_orchestrator->ali->system_prompt, no_md);
+            snprintf(effective_prompt, prompt_len, "%s%s", g_orchestrator->ali->system_prompt,
+                     no_md);
         }
     }
-    const char* prompt_to_use = effective_prompt ? effective_prompt : g_orchestrator->ali->system_prompt;
+    const char* prompt_to_use =
+        effective_prompt ? effective_prompt : g_orchestrator->ali->system_prompt;
 
     char* final_response = NULL;
     int iteration = 0;
-    const char* last_error_reason = NULL;  // Track what failed
+    const char* last_error_reason = NULL; // Track what failed
 
     while (iteration < MAX_TOOL_ITERATIONS) {
         iteration++;
 
         // Call Claude with tools (using specialized tool handler from claude.c)
         char* tool_calls_json = NULL;
-        char* response = nous_claude_chat_with_tools(
-            prompt_to_use,
-            conversation,
-            tools_json,
-            &tool_calls_json
-        );
+        char* response =
+            nous_claude_chat_with_tools(prompt_to_use, conversation, tools_json, &tool_calls_json);
 
         if (!response && !tool_calls_json) {
             free(conversation);
@@ -905,9 +1042,10 @@ char* orchestrator_process(const char* user_input) {
         }
 
         // Record cost
-        cost_record_agent_usage(g_orchestrator->ali,
-                                strlen(g_orchestrator->ali->system_prompt) / 4 + strlen(conversation) / 4,
-                                (response ? strlen(response) : 0) / 4);
+        cost_record_agent_usage(
+            g_orchestrator->ali,
+            strlen(g_orchestrator->ali->system_prompt) / 4 + strlen(conversation) / 4,
+            (response ? strlen(response) : 0) / 4);
 
         // Check if there are tool calls to process
         if (tool_calls_json && strstr(tool_calls_json, "tool_use")) {
@@ -920,7 +1058,8 @@ char* orchestrator_process(const char* user_input) {
                 free(tool_calls_json);
                 free(conversation);
                 free(effective_prompt);
-                if (response) free(response);
+                if (response)
+                    free(response);
                 return strdup("Error: Memory allocation failed");
             }
             tool_results[0] = '\0';
@@ -931,18 +1070,20 @@ char* orchestrator_process(const char* user_input) {
                 // Check if this is a tool_use type
                 if (strstr(search_pos, "\"tool_use\"") &&
                     (strstr(search_pos, "\"tool_use\"") - search_pos) < 50) {
-
                     // Find the enclosing object
                     // Go back to find the opening brace
                     const char* block_start = search_pos;
-                    while (block_start > tool_calls_json && *block_start != '{') block_start--;
+                    while (block_start > tool_calls_json && *block_start != '{')
+                        block_start--;
 
                     // Find closing brace
                     int depth = 1;
                     const char* block_end = block_start + 1;
                     while (*block_end && depth > 0) {
-                        if (*block_end == '{') depth++;
-                        else if (*block_end == '}') depth--;
+                        if (*block_end == '{')
+                            depth++;
+                        else if (*block_end == '}')
+                            depth--;
                         block_end++;
                     }
 
@@ -963,9 +1104,8 @@ char* orchestrator_process(const char* user_input) {
 
                         // Append to results
                         char result_entry[8192];
-                        snprintf(result_entry, sizeof(result_entry),
-                            "\n\n[Tool: %s]\nResult: %s",
-                            tool_name, tool_result);
+                        snprintf(result_entry, sizeof(result_entry), "\n\n[Tool: %s]\nResult: %s",
+                                 tool_name, tool_result);
 
                         size_t entry_len = strlen(result_entry);
                         if (results_len + entry_len + 1 < tool_results_capacity) {
@@ -989,7 +1129,7 @@ char* orchestrator_process(const char* user_input) {
             }
 
             free(tool_calls_json);
-            tool_calls_json = NULL;  // Prevent double-free
+            tool_calls_json = NULL; // Prevent double-free
 
             if (tool_count > 0) {
                 // Build new conversation with tool results
@@ -1001,10 +1141,12 @@ char* orchestrator_process(const char* user_input) {
 
                 // Append tool results and ask for final response using snprintf
                 size_t conv_len = strlen(conversation);
-                size_t append_len = (size_t)snprintf(conversation + conv_len, conv_capacity - conv_len,
-                    "\n\n[Tool Results]%s\n\nBased on these tool results, provide your response to the user.",
-                    tool_results);
-                (void)append_len;  // Suppress unused warning
+                size_t append_len =
+                    (size_t)snprintf(conversation + conv_len, conv_capacity - conv_len,
+                                     "\n\n[Tool Results]%s\n\nBased on these tool results, provide "
+                                     "your response to the user.",
+                                     tool_results);
+                (void)append_len; // Suppress unused warning
 
                 free(tool_results);
                 free(response);
@@ -1027,7 +1169,7 @@ char* orchestrator_process(const char* user_input) {
     free(conversation);
 
     if (!final_response) {
-        free(effective_prompt);  // Prevent memory leak
+        free(effective_prompt); // Prevent memory leak
         // Provide a more helpful error message
         if (iteration >= MAX_TOOL_ITERATIONS) {
             return strdup("Error: Too many tool iterations - AI may be stuck in a loop");
@@ -1044,29 +1186,32 @@ char* orchestrator_process(const char* user_input) {
     // Check for delegation requests in final response (supports multiple)
     DelegationList* delegations = parse_all_delegations(final_response);
     if (delegations && delegations->count > 0) {
-        LOG_INFO(LOG_CAT_AGENT, "Found %zu delegation request(s) in Ali's response", delegations->count);
+        LOG_INFO(LOG_CAT_AGENT, "Found %zu delegation request(s) in Ali's response",
+                 delegations->count);
         for (size_t i = 0; i < delegations->count; i++) {
-            LOG_INFO(LOG_CAT_AGENT, "  Delegation %zu: agent='%s' reason='%s'",
-                     i + 1,
-                     delegations->requests[i]->agent_name ? delegations->requests[i]->agent_name : "(null)",
-                     delegations->requests[i]->reason ? delegations->requests[i]->reason : "(null)");
+            LOG_INFO(
+                LOG_CAT_AGENT, "  Delegation %zu: agent='%s' reason='%s'", i + 1,
+                delegations->requests[i]->agent_name ? delegations->requests[i]->agent_name
+                                                     : "(null)",
+                delegations->requests[i]->reason ? delegations->requests[i]->reason : "(null)");
         }
         // Execute all delegations in parallel and get synthesized result
-        char* synthesized = execute_delegations(delegations, user_input, final_response, g_orchestrator->ali);
+        char* synthesized =
+            execute_delegations(delegations, user_input, final_response, g_orchestrator->ali);
         free_delegation_list(delegations);
         free(final_response);
 
         if (synthesized) {
-            // Save synthesized response
+            // Save synthesized response (FIX-04: protect session_id)
             CONVERGIO_MUTEX_LOCK(&g_session_mutex);
             if (g_current_session_id) {
                 persistence_save_conversation(g_current_session_id, "assistant", synthesized,
-                                               (int)strlen(synthesized) / 4);
+                                              (int)strlen(synthesized) / 4);
             }
             CONVERGIO_MUTEX_UNLOCK(&g_session_mutex);
 
-            Message* response_msg = message_create(MSG_TYPE_AGENT_RESPONSE,
-                                                    g_orchestrator->ali->id, 0, synthesized);
+            Message* response_msg =
+                message_create(MSG_TYPE_AGENT_RESPONSE, g_orchestrator->ali->id, 0, synthesized);
             if (response_msg) {
                 message_send(response_msg);
             }
@@ -1085,16 +1230,19 @@ char* orchestrator_process(const char* user_input) {
         Provider* check_provider = provider_get(PROVIDER_ANTHROPIC);
         if (!check_provider) {
             LOG_ERROR(LOG_CAT_AGENT, "Provider check: Anthropic provider is NULL");
-            return strdup("Error: Delegation failed - Anthropic provider not configured. Run /setup");
+            return strdup(
+                "Error: Delegation failed - Anthropic provider not configured. Run /setup");
         }
         if (!check_provider->chat) {
             LOG_ERROR(LOG_CAT_AGENT, "Provider check: chat function is NULL");
             return strdup("Error: Delegation failed - Provider chat function not available");
         }
 
-        LOG_ERROR(LOG_CAT_AGENT, "Provider exists but delegation still failed - check agent spawn/response");
+        LOG_ERROR(LOG_CAT_AGENT,
+                  "Provider exists but delegation still failed - check agent spawn/response");
         // Generic failure - agent didn't respond or synthesis failed
-        return strdup("Error: Delegation failed - agent could not be spawned or did not respond. Enable /debug info for details.");
+        return strdup("Error: Delegation failed - agent could not be spawned or did not respond. "
+                      "Enable /debug info for details.");
     }
 
     // Save assistant response to persistence and project history
@@ -1103,8 +1251,8 @@ char* orchestrator_process(const char* user_input) {
     }
 
     // Create response message
-    Message* response_msg = message_create(MSG_TYPE_AGENT_RESPONSE,
-                                            g_orchestrator->ali->id, 0, final_response);
+    Message* response_msg =
+        message_create(MSG_TYPE_AGENT_RESPONSE, g_orchestrator->ali->id, 0, final_response);
     if (response_msg) {
         message_send(response_msg);
     }
@@ -1115,20 +1263,23 @@ char* orchestrator_process(const char* user_input) {
 
 // External streaming function from claude.c
 extern char* nous_claude_chat_stream(const char* system_prompt, const char* user_message,
-                                      void (*callback)(const char*, void*), void* user_data);
+                                     void (*callback)(const char*, void*), void* user_data);
 
 // Streaming variant - uses callback for live output, no tool support
-char* orchestrator_process_stream(const char* user_input, OrchestratorStreamCallback callback, void* user_data) {
+char* orchestrator_process_stream(const char* user_input, OrchestratorStreamCallback callback,
+                                  void* user_data) {
     if (!g_orchestrator || !g_orchestrator->initialized || !user_input) {
         const char* err = "Error: Orchestrator not initialized";
-        if (callback) callback(err, user_data);
+        if (callback)
+            callback(err, user_data);
         return strdup(err);
     }
 
     // Check budget
     if (g_orchestrator->cost.budget_exceeded) {
         const char* err = "Budget exceeded. Use 'cost set <amount>' to increase budget.";
-        if (callback) callback(err, user_data);
+        if (callback)
+            callback(err, user_data);
         return strdup(err);
     }
 
@@ -1145,7 +1296,8 @@ char* orchestrator_process_stream(const char* user_input, OrchestratorStreamCall
     char* conversation = build_context_prompt(user_input);
     if (!conversation) {
         const char* err2 = "Error: Memory allocation failed";
-        if (callback) callback(err2, user_data);
+        if (callback)
+            callback(err2, user_data);
         return strdup(err2);
     }
 
@@ -1154,28 +1306,32 @@ char* orchestrator_process_stream(const char* user_input, OrchestratorStreamCall
     char* effective_prompt = NULL;
     if (!style.markdown) {
         // APPEND strong no-markdown instruction at the END (more effective)
-        const char* no_md = "\n\n## CRITICAL OUTPUT FORMAT RULES ##\nYou MUST follow these rules for THIS response:\n1. NO markdown whatsoever - no #headers, no **bold**, no *italic*, no `code`, no ```blocks```\n2. NO bullet points or lists - write in flowing paragraphs\n3. NO emojis\n4. Be BRIEF and DIRECT - 2-3 sentences maximum\n5. Plain text only, like a quick chat message\nVIOLATING THESE RULES IS NOT ALLOWED.";
+        const char* no_md =
+            "\n\n## CRITICAL OUTPUT FORMAT RULES ##\nYou MUST follow these rules for THIS "
+            "response:\n1. NO markdown whatsoever - no #headers, no **bold**, no *italic*, no "
+            "`code`, no ```blocks```\n2. NO bullet points or lists - write in flowing "
+            "paragraphs\n3. NO emojis\n4. Be BRIEF and DIRECT - 2-3 sentences maximum\n5. Plain "
+            "text only, like a quick chat message\nVIOLATING THESE RULES IS NOT ALLOWED.";
         size_t prompt_len = strlen(g_orchestrator->ali->system_prompt) + strlen(no_md) + 1;
         effective_prompt = malloc(prompt_len);
         if (effective_prompt) {
-            snprintf(effective_prompt, prompt_len, "%s%s", g_orchestrator->ali->system_prompt, no_md);
+            snprintf(effective_prompt, prompt_len, "%s%s", g_orchestrator->ali->system_prompt,
+                     no_md);
         }
     }
 
     // Call Claude with streaming - no tools in streaming mode
     char* response = nous_claude_chat_stream(
-        effective_prompt ? effective_prompt : g_orchestrator->ali->system_prompt,
-        conversation,
-        callback,
-        user_data
-    );
+        effective_prompt ? effective_prompt : g_orchestrator->ali->system_prompt, conversation,
+        callback, user_data);
     free(effective_prompt);
 
     free(conversation);
 
     // Track costs (estimate based on input/output length)
     if (response) {
-        size_t input_tokens = strlen(g_orchestrator->ali->system_prompt) / 4 + strlen(user_input) / 4;
+        size_t input_tokens =
+            strlen(g_orchestrator->ali->system_prompt) / 4 + strlen(user_input) / 4;
         size_t output_tokens = strlen(response) / 4;
         cost_record_usage(input_tokens, output_tokens);
         cost_record_agent_usage(g_orchestrator->ali, input_tokens, output_tokens);
@@ -1184,8 +1340,8 @@ char* orchestrator_process_stream(const char* user_input, OrchestratorStreamCall
         save_conversation("assistant", response, "Ali");
 
         // Create response message
-        Message* response_msg = message_create(MSG_TYPE_AGENT_RESPONSE,
-                                                g_orchestrator->ali->id, 0, response);
+        Message* response_msg =
+            message_create(MSG_TYPE_AGENT_RESPONSE, g_orchestrator->ali->id, 0, response);
         if (response_msg) {
             message_send(response_msg);
         }
@@ -1227,14 +1383,16 @@ static const char* AGENT_TOOLS_INSTRUCTIONS =
 
 // Chat directly with a specific agent, with full tool support
 char* orchestrator_agent_chat(ManagedAgent* agent, const char* user_message) {
-    if (!g_orchestrator || !agent || !user_message) return NULL;
+    if (!g_orchestrator || !agent || !user_message)
+        return NULL;
 
     const char* tools_json = tools_get_definitions_json();
 
     // Build enhanced system prompt with tools instructions
     size_t prompt_len = strlen(agent->system_prompt) + strlen(AGENT_TOOLS_INSTRUCTIONS) + 1;
     char* enhanced_prompt = malloc(prompt_len);
-    if (!enhanced_prompt) return NULL;
+    if (!enhanced_prompt)
+        return NULL;
     snprintf(enhanced_prompt, prompt_len, "%s%s", agent->system_prompt, AGENT_TOOLS_INSTRUCTIONS);
 
     // Build conversation
@@ -1247,8 +1405,9 @@ char* orchestrator_agent_chat(ManagedAgent* agent, const char* user_message) {
     snprintf(conversation, conv_capacity, "%s", user_message);
 
     char* final_response = NULL;
-    char* last_error_reason = NULL;  // Track error context
-    int max_iterations = 5;  // Max tool loop iterations
+    char* last_error_reason = NULL; // Track error context
+    int max_iterations =
+        15; // Max tool loop iterations (increased for complex tasks like HTML creation)
     int iteration = 0;
     bool was_cancelled = false;
 
@@ -1265,12 +1424,8 @@ char* orchestrator_agent_chat(ManagedAgent* agent, const char* user_message) {
 
         // Call Claude with tools (using enhanced prompt with tools instructions)
         char* tool_calls_json = NULL;
-        char* response = nous_claude_chat_with_tools(
-            enhanced_prompt,
-            conversation,
-            tools_json,
-            &tool_calls_json
-        );
+        char* response = nous_claude_chat_with_tools(enhanced_prompt, conversation, tools_json,
+                                                     &tool_calls_json);
 
         if (!response && !tool_calls_json) {
             free(conversation);
@@ -1278,14 +1433,14 @@ char* orchestrator_agent_chat(ManagedAgent* agent, const char* user_message) {
             // Provide more context about the failure
             char error_msg[256];
             snprintf(error_msg, sizeof(error_msg),
-                "Error: Agent '%s' failed to respond (iteration %d). Check API connectivity and authentication.",
-                agent->name, iteration);
+                     "Error: Agent '%s' failed to respond (iteration %d). Check API connectivity "
+                     "and authentication.",
+                     agent->name, iteration);
             return strdup(error_msg);
         }
 
         // Record cost
-        cost_record_agent_usage(agent,
-                                strlen(enhanced_prompt) / 4 + strlen(conversation) / 4,
+        cost_record_agent_usage(agent, strlen(enhanced_prompt) / 4 + strlen(conversation) / 4,
                                 (response ? strlen(response) : 0) / 4);
 
         // Check if there are tool calls to process
@@ -1298,7 +1453,8 @@ char* orchestrator_agent_chat(ManagedAgent* agent, const char* user_message) {
                 free(tool_calls_json);
                 free(conversation);
                 free(enhanced_prompt);
-                if (response) free(response);
+                if (response)
+                    free(response);
                 return strdup("Error: Memory allocation failed");
             }
             tool_results[0] = '\0';
@@ -1308,15 +1464,17 @@ char* orchestrator_agent_chat(ManagedAgent* agent, const char* user_message) {
             while ((search_pos = strstr(search_pos, "\"type\"")) != NULL) {
                 if (strstr(search_pos, "\"tool_use\"") &&
                     (strstr(search_pos, "\"tool_use\"") - search_pos) < 50) {
-
                     const char* block_start = search_pos;
-                    while (block_start > tool_calls_json && *block_start != '{') block_start--;
+                    while (block_start > tool_calls_json && *block_start != '{')
+                        block_start--;
 
                     int depth = 1;
                     const char* block_end = block_start + 1;
                     while (*block_end && depth > 0) {
-                        if (*block_end == '{') depth++;
-                        else if (*block_end == '}') depth--;
+                        if (*block_end == '{')
+                            depth++;
+                        else if (*block_end == '}')
+                            depth--;
                         block_end++;
                     }
 
@@ -1333,8 +1491,7 @@ char* orchestrator_agent_chat(ManagedAgent* agent, const char* user_message) {
 
                         char result_entry[8192];
                         (void)snprintf(result_entry, sizeof(result_entry),
-                            "\n\n[Tool: %s]\nResult: %s",
-                            tool_name, tool_result);
+                                       "\n\n[Tool: %s]\nResult: %s", tool_name, tool_result);
 
                         size_t entry_len = strlen(result_entry);
                         if (results_len + entry_len + 1 < tool_results_capacity) {
@@ -1367,12 +1524,13 @@ char* orchestrator_agent_chat(ManagedAgent* agent, const char* user_message) {
 
                 size_t conv_len = strlen(conversation);
                 snprintf(conversation + conv_len, conv_capacity - conv_len,
-                    "\n\n[Tool Results]%s\n\nBased on these tool results, provide your response to the user.",
-                    tool_results);
+                         "\n\n[Tool Results]%s\n\nBased on these tool results, provide your "
+                         "response to the user.",
+                         tool_results);
 
                 free(tool_results);
                 free(response);
-                continue;  // Continue loop to get response with tool results
+                continue; // Continue loop to get response with tool results
             }
 
             free(tool_results);
@@ -1388,21 +1546,22 @@ char* orchestrator_agent_chat(ManagedAgent* agent, const char* user_message) {
 
     free(conversation);
     free(enhanced_prompt);
-    (void)was_cancelled;  // Suppress unused warning when not cancelled
+    (void)was_cancelled; // Suppress unused warning when not cancelled
 
     if (!final_response) {
         // Provide detailed error context
         char error_msg[256];
         if (iteration >= max_iterations) {
             snprintf(error_msg, sizeof(error_msg),
-                "Error: Agent '%s' exceeded maximum iterations (%d) without producing a final response. "
-                "The task may be too complex or tools may be returning unexpected results.",
-                agent->name, max_iterations);
+                     "Error: Agent '%s' exceeded maximum iterations (%d) without producing a final "
+                     "response. "
+                     "The task may be too complex or tools may be returning unexpected results.",
+                     agent->name, max_iterations);
         } else {
             snprintf(error_msg, sizeof(error_msg),
-                "Error: Agent '%s' completed but produced no response. "
-                "The model may have returned only tool calls without text.",
-                agent->name);
+                     "Error: Agent '%s' completed but produced no response. "
+                     "The model may have returned only tool calls without text.",
+                     agent->name);
         }
         free(last_error_reason);
         return strdup(error_msg);
@@ -1423,14 +1582,16 @@ typedef struct {
 } ParallelTask;
 
 // Execute task with multiple agents in parallel
-char* orchestrator_parallel_analyze(const char* input, const char** agent_names, size_t agent_count) {
+char* orchestrator_parallel_analyze(const char* input, const char** agent_names,
+                                    size_t agent_count) {
     if (!g_orchestrator || !input || !agent_names || agent_count == 0) {
         return NULL;
     }
 
     // Create execution plan
     ExecutionPlan* plan = orch_plan_create(input);
-    if (!plan) return NULL;
+    if (!plan)
+        return NULL;
 
     // Create dispatch group for parallel execution
     dispatch_group_t group = dispatch_group_create();
@@ -1460,13 +1621,9 @@ char* orchestrator_parallel_analyze(const char* input, const char** agent_names,
                 char* response = NULL;
                 if (provider && provider->chat) {
                     TokenUsage usage = {0};
-                    response = provider->chat(
-                        provider,
-                        ORCHESTRATOR_MODEL,
-                        tasks[i].agent->system_prompt,
-                        tasks[i].input,
-                        &usage
-                    );
+                    response =
+                        provider->chat(provider, ORCHESTRATOR_MODEL, tasks[i].agent->system_prompt,
+                                       tasks[i].input, &usage);
                 }
                 tasks[i].output = response;
                 if (response) {
@@ -1517,7 +1674,8 @@ char* orchestrator_parallel_analyze(const char* input, const char** agent_names,
 // ============================================================================
 
 void orchestrator_set_user(const char* name, const char* preferences) {
-    if (!g_orchestrator) return;
+    if (!g_orchestrator)
+        return;
 
     CONVERGIO_MUTEX_LOCK(&g_orch_mutex);
 
@@ -1535,27 +1693,27 @@ void orchestrator_set_user(const char* name, const char* preferences) {
 // ============================================================================
 
 char* orchestrator_status(void) {
-    if (!g_orchestrator) return strdup("Orchestrator not initialized");
+    if (!g_orchestrator)
+        return strdup("Orchestrator not initialized");
 
     char* status = malloc(4096);
-    if (!status) return NULL;
+    if (!status)
+        return NULL;
 
     char* cost_line = cost_get_status_line();
 
     snprintf(status, 4096,
-        "╔═══════════════════════════════════════════════════════════════╗\n"
-        "║                 CONVERGIO ORCHESTRATOR                        ║\n"
-        "╠═══════════════════════════════════════════════════════════════╣\n"
-        "║ Chief of Staff: Ali %s                                        \n"
-        "║ Active Agents:  %zu                                           \n"
-        "║ Messages:       %zu                                           \n"
-        "║ Cost:           %s                                            \n"
-        "╚═══════════════════════════════════════════════════════════════╝\n",
-        g_orchestrator->ali && g_orchestrator->ali->is_active ? "[ACTIVE]" : "[INACTIVE]",
-        g_orchestrator->agent_count,
-        g_orchestrator->message_count,
-        cost_line ? cost_line : "N/A"
-    );
+             "╔═══════════════════════════════════════════════════════════════╗\n"
+             "║                 CONVERGIO ORCHESTRATOR                        ║\n"
+             "╠═══════════════════════════════════════════════════════════════╣\n"
+             "║ Chief of Staff: Ali %s                                        \n"
+             "║ Active Agents:  %zu                                           \n"
+             "║ Messages:       %zu                                           \n"
+             "║ Cost:           %s                                            \n"
+             "╚═══════════════════════════════════════════════════════════════╝\n",
+             g_orchestrator->ali && g_orchestrator->ali->is_active ? "[ACTIVE]" : "[INACTIVE]",
+             g_orchestrator->agent_count, g_orchestrator->message_count,
+             cost_line ? cost_line : "N/A");
 
     free(cost_line);
 
@@ -1567,7 +1725,7 @@ char* orchestrator_status(void) {
 // ============================================================================
 
 // Get current session ID (for external use)
-// Note: Caller must not modify or free the returned pointer
+// FIX-04: Note - caller must not modify or free the returned pointer
 const char* orchestrator_get_session_id(void) {
     CONVERGIO_MUTEX_LOCK(&g_session_mutex);
     const char* session_id = g_current_session_id;
@@ -1578,67 +1736,196 @@ const char* orchestrator_get_session_id(void) {
 // Compact current session into a summary (called on quit)
 // Returns 0 on success, -1 on error
 int orchestrator_compact_session(void (*progress_callback)(int percent, const char* msg)) {
-    // Make a protected copy of session ID to avoid holding mutex during I/O
+    // FIX-04: Make a protected copy of session ID to avoid holding mutex during I/O
     CONVERGIO_MUTEX_LOCK(&g_session_mutex);
     char* session_id = g_current_session_id ? strdup(g_current_session_id) : NULL;
     CONVERGIO_MUTEX_UNLOCK(&g_session_mutex);
 
     if (!session_id) {
-        return 0;  // No session to compact
+        return 0; // No session to compact
     }
 
     // Check if there are enough messages to warrant compaction (use real count, not ID math)
     int msg_count = persistence_get_session_message_count(session_id);
     if (msg_count < 5) {
         free(session_id);
-        return 0;  // Too few messages, skip compaction
+        return 0; // Too few messages, skip compaction
     }
 
     // Get message ID range for loading
     int64_t first_msg_id = 0, last_msg_id = 0;
     if (persistence_get_message_id_range(session_id, &first_msg_id, &last_msg_id) != 0) {
         free(session_id);
-        return 0;  // No messages
+        return 0; // No messages
     }
 
-    if (progress_callback) progress_callback(10, "Loading conversation...");
+    if (progress_callback)
+        progress_callback(10, "Loading conversation...");
 
     // Load all messages from this session
     size_t count = 0;
-    char* messages = persistence_load_messages_range(
-        session_id, first_msg_id, last_msg_id, &count);
+    char* messages = persistence_load_messages_range(session_id, first_msg_id, last_msg_id, &count);
 
     if (!messages || count == 0) {
-        if (messages) free(messages);
+        if (messages)
+            free(messages);
         free(session_id);
         return 0;
     }
 
-    if (progress_callback) progress_callback(30, "Generating summary...");
+    if (progress_callback)
+        progress_callback(30, "Generating summary...");
 
     // Create summary using compaction module
-    CompactionResult* result = compaction_summarize(
-        session_id,
-        first_msg_id,
-        last_msg_id,
-        messages
-    );
+    CompactionResult* result =
+        compaction_summarize(session_id, first_msg_id, last_msg_id, messages);
 
     free(session_id);
 
     free(messages);
 
     if (!result) {
-        if (progress_callback) progress_callback(100, "No summary needed");
+        if (progress_callback)
+            progress_callback(100, "No summary needed");
         return 0;
     }
 
-    if (progress_callback) progress_callback(90, "Saving summary...");
+    if (progress_callback)
+        progress_callback(90, "Saving summary...");
 
     // Result already saved by compaction_summarize
     compaction_result_free(result);
 
-    if (progress_callback) progress_callback(100, "Done");
+    if (progress_callback)
+        progress_callback(100, "Done");
 
     return 0;
+}
+
+// ============================================================================
+// LLM FACADE IMPLEMENTATION
+// ============================================================================
+// Provides simplified access to LLM providers for higher-level modules
+// (workflow, education, context) without requiring direct provider access.
+
+// Thread-safe error storage
+static __thread char g_llm_last_error[512] = {0};
+
+char* llm_chat(const char* system, const char* user, TokenUsage* usage) {
+    return llm_chat_with_model(ORCHESTRATOR_MODEL, system, user, usage);
+}
+
+char* llm_chat_with_model(const char* model, const char* system, const char* user,
+                          TokenUsage* usage) {
+    if (!system || !user) {
+        snprintf(g_llm_last_error, sizeof(g_llm_last_error),
+                 "Invalid arguments: system or user is NULL");
+        return NULL;
+    }
+
+    // Get preferred provider from edition system (Education uses Azure OpenAI, others use
+    // Anthropic)
+    int preferred = edition_get_preferred_provider();
+
+    // Build provider array with preferred provider first
+    ProviderType providers[5];
+    size_t provider_count = 0;
+
+    // Add preferred provider first
+    providers[provider_count++] = (ProviderType)preferred;
+
+    // Add remaining providers in fallback order
+    ProviderType fallbacks[] = {PROVIDER_ANTHROPIC, PROVIDER_OPENAI, PROVIDER_GEMINI,
+                                PROVIDER_OLLAMA};
+    for (size_t i = 0; i < 4; i++) {
+        if (fallbacks[i] != (ProviderType)preferred) {
+            providers[provider_count++] = fallbacks[i];
+        }
+    }
+
+    nous_log(LOG_LEVEL_DEBUG, LOG_CAT_API, "Provider priority: %s first (edition preference)",
+             preferred == PROVIDER_OPENAI ? "OpenAI/Azure" : "Anthropic");
+
+    for (size_t i = 0; i < provider_count; i++) {
+        Provider* provider = provider_get(providers[i]);
+        if (!provider)
+            continue;
+
+        // Initialize provider if needed
+        if (!provider->initialized && provider->init) {
+            ProviderError err = provider->init(provider);
+            if (err != PROVIDER_OK)
+                continue;
+        }
+
+        if (!provider->initialized || !provider->chat)
+            continue;
+
+        // Make the chat call
+        TokenUsage local_usage = {0};
+        char* response = provider->chat(provider, model, system, user, &local_usage);
+
+        if (response) {
+            // Track cost through orchestrator
+            cost_record_usage(local_usage.input_tokens, local_usage.output_tokens);
+
+            // Return usage to caller if requested
+            if (usage) {
+                *usage = local_usage;
+            }
+
+            nous_log(LOG_LEVEL_DEBUG, LOG_CAT_API, "LLM chat: %zu in, %zu out tokens via %s",
+                     local_usage.input_tokens, local_usage.output_tokens, provider->name);
+
+            g_llm_last_error[0] = '\0';
+            return response;
+        }
+
+        // Try to get error info for logging
+        if (provider->get_last_error) {
+            ProviderErrorInfo* err = provider->get_last_error(provider);
+            if (err && err->message) {
+                snprintf(g_llm_last_error, sizeof(g_llm_last_error), "%s: %s", provider->name,
+                         err->message);
+            }
+        }
+    }
+
+    // All providers failed
+    if (g_llm_last_error[0] == '\0') {
+        snprintf(g_llm_last_error, sizeof(g_llm_last_error), "All LLM providers unavailable");
+    }
+    return NULL;
+}
+
+size_t llm_estimate_tokens(const char* text) {
+    if (!text)
+        return 0;
+
+    // Try to use a provider's token estimation
+    ProviderType providers[] = {PROVIDER_ANTHROPIC, PROVIDER_OPENAI, PROVIDER_GEMINI};
+    for (size_t i = 0; i < 3; i++) {
+        Provider* provider = provider_get(providers[i]);
+        if (provider && provider->initialized && provider->estimate_tokens) {
+            return provider->estimate_tokens(provider, text);
+        }
+    }
+
+    // Fallback: approximate 4 characters per token
+    return strlen(text) / 4;
+}
+
+bool llm_is_available(void) {
+    ProviderType providers[] = {PROVIDER_ANTHROPIC, PROVIDER_OPENAI, PROVIDER_GEMINI,
+                                PROVIDER_OLLAMA};
+    for (size_t i = 0; i < 4; i++) {
+        if (provider_is_available(providers[i])) {
+            return true;
+        }
+    }
+    return false;
+}
+
+const char* llm_get_last_error(void) {
+    return g_llm_last_error[0] ? g_llm_last_error : NULL;
 }

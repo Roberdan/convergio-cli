@@ -7,20 +7,20 @@
  * Copyright 2025 - Roberto D'Angelo & AI Team
  */
 
+#include "nous/config.h"
+#include "nous/model_loader.h"
+#include "nous/nous.h"
 #include "nous/provider.h"
 #include "nous/provider_common.h"
-#include "nous/model_loader.h"
-#include "nous/config.h"
-#include "nous/nous.h"
 #include "nous/telemetry.h"
-#include <stdlib.h>
-#include <string.h>
-#include <stdio.h>
-#include <stdint.h>
-#include <curl/curl.h>
 #include <ctype.h>
+#include <curl/curl.h>
 #include <pthread.h>
 #include <signal.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include <time.h>
 
 // ============================================================================
@@ -55,17 +55,19 @@ typedef struct {
 static ProviderError openai_init(Provider* self);
 static void openai_shutdown(Provider* self);
 static bool openai_validate_key(Provider* self);
-static char* openai_chat(Provider* self, const char* model, const char* system,
-                         const char* user, TokenUsage* usage);
+static char* openai_chat(Provider* self, const char* model, const char* system, const char* user,
+                         TokenUsage* usage);
 static char* openai_chat_with_tools(Provider* self, const char* model, const char* system,
                                     const char* user, ToolDefinition* tools, size_t tool_count,
                                     ToolCall** out_tool_calls, size_t* out_tool_count,
                                     TokenUsage* usage);
 static ProviderError openai_stream_chat(Provider* self, const char* model, const char* system,
-                                        const char* user, StreamHandler* handler, TokenUsage* usage);
+                                        const char* user, StreamHandler* handler,
+                                        TokenUsage* usage);
 static size_t openai_estimate_tokens(Provider* self, const char* text);
 static ProviderErrorInfo* openai_get_last_error(Provider* self);
-static ProviderError openai_list_models(Provider* self, ModelConfig** out_models, size_t* out_count);
+static ProviderError openai_list_models(Provider* self, ModelConfig** out_models,
+                                        size_t* out_count);
 
 // ============================================================================
 // HELPER FUNCTIONS
@@ -74,8 +76,11 @@ static ProviderError openai_list_models(Provider* self, ModelConfig** out_models
 // write_callback now from provider_common.h (provider_write_callback)
 
 static int progress_callback(void* clientp, curl_off_t dltotal, curl_off_t dlnow,
-                            curl_off_t ultotal, curl_off_t ulnow) {
-    (void)dltotal; (void)dlnow; (void)ultotal; (void)ulnow;
+                             curl_off_t ultotal, curl_off_t ulnow) {
+    (void)dltotal;
+    (void)dlnow;
+    (void)ultotal;
+    (void)ulnow;
     OpenAIProviderData* data = (OpenAIProviderData*)clientp;
     if (data && data->request_cancelled) {
         return 1;
@@ -85,12 +90,14 @@ static int progress_callback(void* clientp, curl_off_t dltotal, curl_off_t dlnow
 
 // JSON escape helper (simplified)
 static char* json_escape(const char* str) {
-    if (!str) return strdup("");
+    if (!str)
+        return strdup("");
 
     size_t len = strlen(str);
     size_t escaped_len = len * 6 + 1;
     char* escaped = malloc(escaped_len);
-    if (!escaped) return NULL;
+    if (!escaped)
+        return NULL;
 
     char* out = escaped;
     const unsigned char* p = (const unsigned char*)str;
@@ -98,18 +105,34 @@ static char* json_escape(const char* str) {
     while (*p) {
         if (*p < 128) {
             switch (*p) {
-                case '"':  *out++ = '\\'; *out++ = '"'; break;
-                case '\\': *out++ = '\\'; *out++ = '\\'; break;
-                case '\n': *out++ = '\\'; *out++ = 'n'; break;
-                case '\r': *out++ = '\\'; *out++ = 'r'; break;
-                case '\t': *out++ = '\\'; *out++ = 't'; break;
-                default:
-                    if (*p < 32) {
-                        int written = snprintf(out, 7, "\\u%04x", *p);
-                        if (written > 0) out += (size_t)written;
-                    } else {
-                        *out++ = (char)*p;
-                    }
+            case '"':
+                *out++ = '\\';
+                *out++ = '"';
+                break;
+            case '\\':
+                *out++ = '\\';
+                *out++ = '\\';
+                break;
+            case '\n':
+                *out++ = '\\';
+                *out++ = 'n';
+                break;
+            case '\r':
+                *out++ = '\\';
+                *out++ = 'r';
+                break;
+            case '\t':
+                *out++ = '\\';
+                *out++ = 't';
+                break;
+            default:
+                if (*p < 32) {
+                    int written = snprintf(out, 7, "\\u%04x", *p);
+                    if (written > 0)
+                        out += (size_t)written;
+                } else {
+                    *out++ = (char)*p;
+                }
             }
             p++;
         } else {
@@ -122,7 +145,8 @@ static char* json_escape(const char* str) {
 
 // Get model API ID from model name (uses JSON config as source of truth)
 static const char* get_model_api_id(const char* model) {
-    if (!model) return "gpt-5.2";
+    if (!model)
+        return "gpt-5.2";
 
     // FIRST: Check JSON config for api_id
     const JsonModelConfig* json = models_get_json_model(model);
@@ -146,7 +170,8 @@ static bool has_web_search_tool(ToolDefinition* tools, size_t tool_count) {
 
 // Build tools JSON excluding web_search (for native search)
 static char* build_tools_json_excluding_web_search(ToolDefinition* tools, size_t count) {
-    if (!tools || count == 0) return strdup("[]");
+    if (!tools || count == 0)
+        return strdup("[]");
 
     // Count non-web_search tools
     size_t non_ws_count = 0;
@@ -156,26 +181,31 @@ static char* build_tools_json_excluding_web_search(ToolDefinition* tools, size_t
         }
     }
 
-    if (non_ws_count == 0) return strdup("[]");
+    if (non_ws_count == 0)
+        return strdup("[]");
 
     size_t size = 256 + non_ws_count * 2048;
     char* json = malloc(size);
-    if (!json) return NULL;
+    if (!json)
+        return NULL;
 
     size_t offset = (size_t)snprintf(json, size, "[");
     bool first = true;
 
     for (size_t i = 0; i < count; i++) {
         if (tools[i].name && strcmp(tools[i].name, "web_search") == 0) {
-            continue;  // Skip web_search
+            continue; // Skip web_search
         }
         if (!first) {
             offset += (size_t)snprintf(json + offset, size - offset, ",");
         }
-        offset += (size_t)snprintf(json + offset, size - offset,
-            "{\"type\":\"function\",\"function\":{\"name\":\"%s\",\"description\":\"%s\",\"parameters\":%s}}",
-            tools[i].name, tools[i].description,
-            tools[i].parameters_json ? tools[i].parameters_json : "{\"type\":\"object\",\"properties\":{}}");
+        offset +=
+            (size_t)snprintf(json + offset, size - offset,
+                             "{\"type\":\"function\",\"function\":{\"name\":\"%s\",\"description\":"
+                             "\"%s\",\"parameters\":%s}}",
+                             tools[i].name, tools[i].description,
+                             tools[i].parameters_json ? tools[i].parameters_json
+                                                      : "{\"type\":\"object\",\"properties\":{}}");
         first = false;
     }
 
@@ -188,8 +218,10 @@ static char* build_tools_json_excluding_web_search(ToolDefinition* tools, size_t
 
 // Check if model is GPT-5.x series (requires max_completion_tokens instead of max_tokens)
 static bool is_gpt5_model(const char* model) {
-    if (!model) return false;
-    return strstr(model, "gpt-5") != NULL || strstr(model, "o3") != NULL || strstr(model, "o4") != NULL;
+    if (!model)
+        return false;
+    return strstr(model, "gpt-5") != NULL || strstr(model, "o3") != NULL ||
+           strstr(model, "o4") != NULL;
 }
 
 // Get the correct token limit parameter name for the model
@@ -202,12 +234,15 @@ static const char* get_token_param_name(const char* model) {
 static char* extract_response_content(const char* json) {
     const char* content_key = "\"content\":";
     const char* found = strstr(json, content_key);
-    if (!found) return NULL;
+    if (!found)
+        return NULL;
 
     found += strlen(content_key);
-    while (*found && isspace(*found)) found++;
+    while (*found && isspace(*found))
+        found++;
 
-    if (*found != '"') return NULL;
+    if (*found != '"')
+        return NULL;
     found++;
 
     const char* start = found;
@@ -230,11 +265,13 @@ static char* extract_response_content(const char* json) {
         end++;
     }
 
-    if (*end != '"') return NULL;
+    if (*end != '"')
+        return NULL;
 
     size_t len = (size_t)(end - start);
     char* result = malloc(len + 1);
-    if (!result) return NULL;
+    if (!result)
+        return NULL;
 
     // Unescape
     char* out = result;
@@ -242,12 +279,23 @@ static char* extract_response_content(const char* json) {
         if (*p == '\\' && p + 1 < end) {
             p++;
             switch (*p) {
-                case 'n': *out++ = '\n'; break;
-                case 'r': *out++ = '\r'; break;
-                case 't': *out++ = '\t'; break;
-                case '"': *out++ = '"'; break;
-                case '\\': *out++ = '\\'; break;
-                default: *out++ = *p;
+            case 'n':
+                *out++ = '\n';
+                break;
+            case 'r':
+                *out++ = '\r';
+                break;
+            case 't':
+                *out++ = '\t';
+                break;
+            case '"':
+                *out++ = '"';
+                break;
+            case '\\':
+                *out++ = '\\';
+                break;
+            default:
+                *out++ = *p;
             }
         } else {
             *out++ = *p;
@@ -260,17 +308,20 @@ static char* extract_response_content(const char* json) {
 
 // Extract token usage from OpenAI response
 static void extract_token_usage(const char* json, TokenUsage* usage) {
-    if (!json || !usage) return;
+    if (!json || !usage)
+        return;
 
     const char* usage_key = "\"usage\":";
     const char* found = strstr(json, usage_key);
-    if (!found) return;
+    if (!found)
+        return;
 
     // prompt_tokens
     const char* prompt = strstr(found, "\"prompt_tokens\":");
     if (prompt) {
         prompt += strlen("\"prompt_tokens\":");
-        while (*prompt && isspace(*prompt)) prompt++;
+        while (*prompt && isspace(*prompt))
+            prompt++;
         usage->input_tokens = (size_t)atol(prompt);
     }
 
@@ -278,7 +329,8 @@ static void extract_token_usage(const char* json, TokenUsage* usage) {
     const char* completion = strstr(found, "\"completion_tokens\":");
     if (completion) {
         completion += strlen("\"completion_tokens\":");
-        while (*completion && isspace(*completion)) completion++;
+        while (*completion && isspace(*completion))
+            completion++;
         usage->output_tokens = (size_t)atol(completion);
     }
 }
@@ -288,10 +340,12 @@ static void extract_token_usage(const char* json, TokenUsage* usage) {
 // ============================================================================
 
 static ProviderError openai_init(Provider* self) {
-    if (!self) return PROVIDER_ERR_INVALID_REQUEST;
+    if (!self)
+        return PROVIDER_ERR_INVALID_REQUEST;
 
     OpenAIProviderData* data = (OpenAIProviderData*)self->impl_data;
-    if (!data) return PROVIDER_ERR_INVALID_REQUEST;
+    if (!data)
+        return PROVIDER_ERR_INVALID_REQUEST;
 
     pthread_mutex_lock(&data->mutex);
 
@@ -320,10 +374,12 @@ static ProviderError openai_init(Provider* self) {
 }
 
 static void openai_shutdown(Provider* self) {
-    if (!self) return;
+    if (!self)
+        return;
 
     OpenAIProviderData* data = (OpenAIProviderData*)self->impl_data;
-    if (!data) return;
+    if (!data)
+        return;
 
     pthread_mutex_lock(&data->mutex);
 
@@ -349,17 +405,20 @@ static bool openai_validate_key(Provider* self) {
     return (api_key && strlen(api_key) > 0);
 }
 
-static char* openai_chat(Provider* self, const char* model, const char* system,
-                         const char* user, TokenUsage* usage) {
-    if (!self || !user) return NULL;
+static char* openai_chat(Provider* self, const char* model, const char* system, const char* user,
+                         TokenUsage* usage) {
+    if (!self || !user)
+        return NULL;
 
     OpenAIProviderData* data = (OpenAIProviderData*)self->impl_data;
-    if (!data) return NULL;
+    if (!data)
+        return NULL;
 
     // Ensure initialized
     if (!data->initialized) {
         ProviderError err = openai_init(self);
-        if (err != PROVIDER_OK) return NULL;
+        if (err != PROVIDER_OK)
+            return NULL;
     }
 
     // Get API key
@@ -401,26 +460,23 @@ static char* openai_chat(Provider* self, const char* model, const char* system,
 
     StyleSettings style = convergio_get_style_settings();
     snprintf(json_body, json_size,
-        "{"
-        "\"model\": \"%s\","
-        "\"%s\": %d,"
-        "\"temperature\": %.2f,"
-        "\"messages\": ["
-        "{\"role\": \"system\", \"content\": \"%s\"},"
-        "{\"role\": \"user\", \"content\": \"%s\"}"
-        "]"
-        "}",
-        api_model, get_token_param_name(api_model), style.max_tokens, style.temperature, escaped_system, escaped_user);
+             "{"
+             "\"model\": \"%s\","
+             "\"%s\": %d,"
+             "\"temperature\": %.2f,"
+             "\"messages\": ["
+             "{\"role\": \"system\", \"content\": \"%s\"},"
+             "{\"role\": \"user\", \"content\": \"%s\"}"
+             "]"
+             "}",
+             api_model, get_token_param_name(api_model), style.max_tokens, style.temperature,
+             escaped_system, escaped_user);
 
     free(escaped_system);
     free(escaped_user);
 
     // Setup response buffer
-    ResponseBuffer response = {
-        .data = malloc(4096),
-        .size = 0,
-        .capacity = 4096
-    };
+    ResponseBuffer response = {.data = malloc(4096), .size = 0, .capacity = 4096};
     if (!response.data) {
         free(json_body);
         curl_easy_cleanup(curl);
@@ -491,11 +547,12 @@ static char* openai_chat(Provider* self, const char* model, const char* system,
         } else if (usage) {
             memset(usage, 0, sizeof(TokenUsage));
             extract_token_usage(response.data, usage);
-            usage->estimated_cost = model_estimate_cost(model, usage->input_tokens, usage->output_tokens);
+            usage->estimated_cost =
+                model_estimate_cost(model, usage->input_tokens, usage->output_tokens);
             tokens_input = usage->input_tokens;
             tokens_output = usage->output_tokens;
-            LOG_DEBUG(LOG_CAT_COST, "Tokens: in=%zu out=%zu cost=$%.6f",
-                     usage->input_tokens, usage->output_tokens, usage->estimated_cost);
+            LOG_DEBUG(LOG_CAT_COST, "Tokens: in=%zu out=%zu cost=$%.6f", usage->input_tokens,
+                      usage->output_tokens, usage->estimated_cost);
         }
         // Record successful API call in telemetry
         if (result) {
@@ -515,22 +572,27 @@ static char* openai_chat_with_tools(Provider* self, const char* model, const cha
                                     const char* user, ToolDefinition* tools, size_t tool_count,
                                     ToolCall** out_tool_calls, size_t* out_tool_count,
                                     TokenUsage* usage) {
-    if (out_tool_calls) *out_tool_calls = NULL;
-    if (out_tool_count) *out_tool_count = 0;
+    if (out_tool_calls)
+        *out_tool_calls = NULL;
+    if (out_tool_count)
+        *out_tool_count = 0;
 
     // If no tools, fall back to regular chat
     if (!tools || tool_count == 0) {
         return openai_chat(self, model, system, user, usage);
     }
 
-    if (!self || !user) return NULL;
+    if (!self || !user)
+        return NULL;
 
     OpenAIProviderData* data = (OpenAIProviderData*)self->impl_data;
-    if (!data) return NULL;
+    if (!data)
+        return NULL;
 
     if (!data->initialized) {
         ProviderError err = openai_init(self);
-        if (err != PROVIDER_OK) return NULL;
+        if (err != PROVIDER_OK)
+            return NULL;
     }
 
     const char* api_key = getenv("OPENAI_API_KEY");
@@ -551,9 +613,8 @@ static char* openai_chat_with_tools(Provider* self, const char* model, const cha
     bool use_native_search = has_web_search_tool(tools, tool_count);
 
     // Build tools JSON (excluding web_search if using native search)
-    char* tools_json = use_native_search
-        ? build_tools_json_excluding_web_search(tools, tool_count)
-        : build_openai_tools_json(tools, tool_count);
+    char* tools_json = use_native_search ? build_tools_json_excluding_web_search(tools, tool_count)
+                                         : build_openai_tools_json(tools, tool_count);
     if (!tools_json) {
         curl_easy_cleanup(curl);
         return NULL;
@@ -590,31 +651,33 @@ static char* openai_chat_with_tools(Provider* self, const char* model, const cha
     if (use_native_search) {
         LOG_INFO(LOG_CAT_API, "OpenAI: Using native web search with %s", OPENAI_SEARCH_MODEL);
         snprintf(json_body, json_size,
-            "{"
-            "\"model\": \"%s\","
-            "\"%s\": %d,"
-            "\"temperature\": %.2f,"
-            "\"web_search_options\": {\"search_context_size\": \"medium\"},"
-            "\"tools\": %s,"
-            "\"messages\": ["
-            "{\"role\": \"system\", \"content\": \"%s\"},"
-            "{\"role\": \"user\", \"content\": \"%s\"}"
-            "]"
-            "}",
-            api_model, get_token_param_name(api_model), style.max_tokens, style.temperature, tools_json, escaped_system, escaped_user);
+                 "{"
+                 "\"model\": \"%s\","
+                 "\"%s\": %d,"
+                 "\"temperature\": %.2f,"
+                 "\"web_search_options\": {\"search_context_size\": \"medium\"},"
+                 "\"tools\": %s,"
+                 "\"messages\": ["
+                 "{\"role\": \"system\", \"content\": \"%s\"},"
+                 "{\"role\": \"user\", \"content\": \"%s\"}"
+                 "]"
+                 "}",
+                 api_model, get_token_param_name(api_model), style.max_tokens, style.temperature,
+                 tools_json, escaped_system, escaped_user);
     } else {
         snprintf(json_body, json_size,
-            "{"
-            "\"model\": \"%s\","
-            "\"%s\": %d,"
-            "\"temperature\": %.2f,"
-            "\"tools\": %s,"
-            "\"messages\": ["
-            "{\"role\": \"system\", \"content\": \"%s\"},"
-            "{\"role\": \"user\", \"content\": \"%s\"}"
-            "]"
-            "}",
-            api_model, get_token_param_name(api_model), style.max_tokens, style.temperature, tools_json, escaped_system, escaped_user);
+                 "{"
+                 "\"model\": \"%s\","
+                 "\"%s\": %d,"
+                 "\"temperature\": %.2f,"
+                 "\"tools\": %s,"
+                 "\"messages\": ["
+                 "{\"role\": \"system\", \"content\": \"%s\"},"
+                 "{\"role\": \"user\", \"content\": \"%s\"}"
+                 "]"
+                 "}",
+                 api_model, get_token_param_name(api_model), style.max_tokens, style.temperature,
+                 tools_json, escaped_system, escaped_user);
     }
 
     free(escaped_system);
@@ -622,11 +685,7 @@ static char* openai_chat_with_tools(Provider* self, const char* model, const cha
     free(tools_json);
 
     // Setup response buffer
-    ResponseBuffer response = {
-        .data = malloc(4096),
-        .size = 0,
-        .capacity = 4096
-    };
+    ResponseBuffer response = {.data = malloc(4096), .size = 0, .capacity = 4096};
     if (!response.data) {
         free(json_body);
         curl_easy_cleanup(curl);
@@ -682,8 +741,10 @@ static char* openai_chat_with_tools(Provider* self, const char* model, const cha
     size_t tc_count = 0;
     ToolCall* tc = parse_openai_tool_calls(response.data, &tc_count);
     if (tc && tc_count > 0) {
-        if (out_tool_calls) *out_tool_calls = tc;
-        if (out_tool_count) *out_tool_count = tc_count;
+        if (out_tool_calls)
+            *out_tool_calls = tc;
+        if (out_tool_count)
+            *out_tool_count = tc_count;
     }
 
     // Extract text response
@@ -753,21 +814,26 @@ static void openai_stream_error_bridge(ProviderError error, const char* message,
     if (bridge) {
         bridge->error = error;
         if (bridge->handler && bridge->handler->on_error) {
-            bridge->handler->on_error(message ? message : "Stream error", bridge->handler->user_ctx);
+            bridge->handler->on_error(message ? message : "Stream error",
+                                      bridge->handler->user_ctx);
         }
     }
 }
 
 static ProviderError openai_stream_chat(Provider* self, const char* model, const char* system,
-                                        const char* user, StreamHandler* handler, TokenUsage* usage) {
-    if (!self || !user) return PROVIDER_ERR_INVALID_REQUEST;
+                                        const char* user, StreamHandler* handler,
+                                        TokenUsage* usage) {
+    if (!self || !user)
+        return PROVIDER_ERR_INVALID_REQUEST;
 
     OpenAIProviderData* data = (OpenAIProviderData*)self->impl_data;
-    if (!data) return PROVIDER_ERR_INVALID_REQUEST;
+    if (!data)
+        return PROVIDER_ERR_INVALID_REQUEST;
 
     if (!data->initialized) {
         ProviderError err = openai_init(self);
-        if (err != PROVIDER_OK) return err;
+        if (err != PROVIDER_OK)
+            return err;
     }
 
     // Get API key
@@ -800,17 +866,18 @@ static ProviderError openai_stream_chat(Provider* self, const char* model, const
 
     StyleSettings style = convergio_get_style_settings();
     snprintf(json_body, json_size,
-        "{"
-        "\"model\": \"%s\","
-        "\"%s\": %d,"
-        "\"temperature\": %.2f,"
-        "\"stream\": true,"
-        "\"messages\": ["
-        "{\"role\": \"system\", \"content\": \"%s\"},"
-        "{\"role\": \"user\", \"content\": \"%s\"}"
-        "]"
-        "}",
-        api_model, get_token_param_name(api_model), style.max_tokens, style.temperature, escaped_system, escaped_user);
+             "{"
+             "\"model\": \"%s\","
+             "\"%s\": %d,"
+             "\"temperature\": %.2f,"
+             "\"stream\": true,"
+             "\"messages\": ["
+             "{\"role\": \"system\", \"content\": \"%s\"},"
+             "{\"role\": \"user\", \"content\": \"%s\"}"
+             "]"
+             "}",
+             api_model, get_token_param_name(api_model), style.max_tokens, style.temperature,
+             escaped_system, escaped_user);
 
     free(escaped_system);
     free(escaped_user);
@@ -823,11 +890,7 @@ static ProviderError openai_stream_chat(Provider* self, const char* model, const
     }
 
     // Setup bridge context
-    OpenAIStreamBridge bridge = {
-        .handler = handler,
-        .usage = usage,
-        .error = PROVIDER_OK
-    };
+    OpenAIStreamBridge bridge = {.handler = handler, .usage = usage, .error = PROVIDER_OK};
 
     // Set callbacks
     stream_set_callbacks(stream_ctx, openai_stream_chunk_bridge, openai_stream_complete_bridge,
@@ -844,7 +907,7 @@ static ProviderError openai_stream_chat(Provider* self, const char* model, const
     if (result < 0) {
         return bridge.error != PROVIDER_OK ? bridge.error : PROVIDER_ERR_NETWORK;
     } else if (result == 1) {
-        return PROVIDER_OK;  // Cancelled
+        return PROVIDER_OK; // Cancelled
     }
 
     return PROVIDER_OK;
@@ -852,20 +915,24 @@ static ProviderError openai_stream_chat(Provider* self, const char* model, const
 
 static size_t openai_estimate_tokens(Provider* self, const char* text) {
     (void)self;
-    if (!text) return 0;
+    if (!text)
+        return 0;
     // cl100k_base tokenizer: ~4 chars per token
     size_t len = strlen(text);
     return (len + 3) / 4;
 }
 
 static ProviderErrorInfo* openai_get_last_error(Provider* self) {
-    if (!self) return NULL;
+    if (!self)
+        return NULL;
     OpenAIProviderData* data = (OpenAIProviderData*)self->impl_data;
-    if (!data) return NULL;
+    if (!data)
+        return NULL;
     return &data->last_error;
 }
 
-static ProviderError openai_list_models(Provider* self, ModelConfig** out_models, size_t* out_count) {
+static ProviderError openai_list_models(Provider* self, ModelConfig** out_models,
+                                        size_t* out_count) {
     (void)self;
     if (out_models) {
         *out_models = (ModelConfig*)model_get_by_provider(PROVIDER_OPENAI, out_count);
@@ -883,7 +950,8 @@ static ProviderError openai_list_models(Provider* self, ModelConfig** out_models
  * Returns NULL on error
  */
 float* openai_embed_text(const char* text, size_t* out_dim) {
-    if (!text || !out_dim) return NULL;
+    if (!text || !out_dim)
+        return NULL;
 
     const char* api_key = getenv("OPENAI_API_KEY");
     if (!api_key || strlen(api_key) == 0) {
@@ -912,18 +980,13 @@ float* openai_embed_text(const char* text, size_t* out_dim) {
         return NULL;
     }
 
-    snprintf(json_body, json_size,
-        "{\"model\": \"%s\", \"input\": \"%s\", \"dimensions\": %d}",
-        OPENAI_EMBED_MODEL, escaped_text, OPENAI_EMBED_DIM);
+    snprintf(json_body, json_size, "{\"model\": \"%s\", \"input\": \"%s\", \"dimensions\": %d}",
+             OPENAI_EMBED_MODEL, escaped_text, OPENAI_EMBED_DIM);
 
     free(escaped_text);
 
     // Setup response buffer
-    ResponseBuffer response = {
-        .data = malloc(65536),
-        .size = 0,
-        .capacity = 65536
-    };
+    ResponseBuffer response = {.data = malloc(65536), .size = 0, .capacity = 65536};
     if (!response.data) {
         free(json_body);
         curl_easy_cleanup(curl);
@@ -951,7 +1014,8 @@ float* openai_embed_text(const char* text, size_t* out_dim) {
     struct timespec start_time, end_time;
     clock_gettime(CLOCK_MONOTONIC, &start_time);
 
-    LOG_DEBUG(LOG_CAT_API, "OpenAI embeddings API call: model=%s dim=%d", OPENAI_EMBED_MODEL, OPENAI_EMBED_DIM);
+    LOG_DEBUG(LOG_CAT_API, "OpenAI embeddings API call: model=%s dim=%d", OPENAI_EMBED_MODEL,
+              OPENAI_EMBED_DIM);
     CURLcode res = curl_easy_perform(curl);
 
     // Calculate latency
@@ -1006,12 +1070,15 @@ float* openai_embed_text(const char* text, size_t* out_dim) {
     int idx = 0;
     const char* p = found;
     while (*p && idx < OPENAI_EMBED_DIM) {
-        while (*p && (isspace(*p) || *p == ',')) p++;
-        if (*p == ']') break;
+        while (*p && (isspace(*p) || *p == ','))
+            p++;
+        if (*p == ']')
+            break;
 
         char* end;
         embedding[idx] = strtof(p, &end);
-        if (end == p) break;
+        if (end == p)
+            break;
         p = end;
         idx++;
     }
@@ -1033,7 +1100,8 @@ float* openai_embed_text(const char* text, size_t* out_dim) {
 
 Provider* openai_provider_create(void) {
     Provider* provider = calloc(1, sizeof(Provider));
-    if (!provider) return NULL;
+    if (!provider)
+        return NULL;
 
     OpenAIProviderData* data = calloc(1, sizeof(OpenAIProviderData));
     if (!data) {

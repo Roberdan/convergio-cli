@@ -6,22 +6,22 @@
  */
 
 #include "nous/acp.h"
-#include "nous/orchestrator.h"
 #include "nous/config.h"
 #include "nous/embedded_agents.h"
-#include "nous/nous.h"
-#include "nous/updater.h"
 #include "nous/memory.h"
+#include "nous/nous.h"
+#include "nous/orchestrator.h"
+#include "nous/updater.h"
+#include <cjson/cJSON.h>
+#include <dirent.h>
+#include <errno.h>
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
-#include <signal.h>
-#include <time.h>
-#include <errno.h>
 #include <sys/stat.h>
-#include <dirent.h>
-#include <cjson/cJSON.h>
+#include <time.h>
+#include <unistd.h>
 
 // ============================================================================
 // CONTEXT SHARING (F2: Ali consapevole di tutte le conversazioni)
@@ -36,7 +36,8 @@ static char* expand_path(const char* path) {
         return strdup(path);
     }
     const char* home = getenv("HOME");
-    if (!home) home = "/tmp";
+    if (!home)
+        home = "/tmp";
     size_t len = strlen(home) + strlen(path);
     char* expanded = malloc(len);
     snprintf(expanded, len, "%s%s", home, path + 1);
@@ -51,8 +52,10 @@ static void ensure_context_dir(void) {
 }
 
 // Save agent conversation context (summary of last interaction)
-static void save_agent_context(const char* agent_name, const char* user_prompt, const char* agent_response) {
-    if (!agent_name || !user_prompt || !agent_response) return;
+static void save_agent_context(const char* agent_name, const char* user_prompt,
+                               const char* agent_response) {
+    if (!agent_name || !user_prompt || !agent_response)
+        return;
 
     ensure_context_dir();
 
@@ -102,19 +105,21 @@ static char* load_all_agent_contexts(void) {
     char* summary = malloc(capacity);
     size_t len = 0;
     len += snprintf(summary + len, capacity - len,
-        "\n## Recent Agent Conversations (Context for Ali)\n\n");
+                    "\n## Recent Agent Conversations (Context for Ali)\n\n");
 
     struct dirent* entry;
     int count = 0;
 
     while ((entry = readdir(d)) != NULL) {
-        if (strstr(entry->d_name, ".json") == NULL) continue;
+        if (strstr(entry->d_name, ".json") == NULL)
+            continue;
 
         char filepath[512];
         snprintf(filepath, sizeof(filepath), "%s/%s", dir, entry->d_name);
 
         FILE* f = fopen(filepath, "r");
-        if (!f) continue;
+        if (!f)
+            continue;
 
         fseek(f, 0, SEEK_END);
         long fsize = ftell(f);
@@ -127,29 +132,30 @@ static char* load_all_agent_contexts(void) {
 
         cJSON* ctx = cJSON_Parse(content);
         free(content);
-        if (!ctx) continue;
+        if (!ctx)
+            continue;
 
         cJSON* agent = cJSON_GetObjectItem(ctx, "agent");
         cJSON* user_msg = cJSON_GetObjectItem(ctx, "last_user_message");
         cJSON* agent_resp = cJSON_GetObjectItem(ctx, "last_agent_response");
 
-        if (agent && user_msg && agent_resp &&
-            cJSON_IsString(agent) && cJSON_IsString(user_msg) && cJSON_IsString(agent_resp)) {
-            len += snprintf(summary + len, capacity - len,
-                "### %s\n"
-                "**User asked**: %.200s%s\n"
-                "**Agent replied**: %.300s%s\n\n",
-                agent->valuestring,
-                user_msg->valuestring,
-                strlen(user_msg->valuestring) > 200 ? "..." : "",
-                agent_resp->valuestring,
-                strlen(agent_resp->valuestring) > 300 ? "..." : "");
+        if (agent && user_msg && agent_resp && cJSON_IsString(agent) && cJSON_IsString(user_msg) &&
+            cJSON_IsString(agent_resp)) {
+            len +=
+                snprintf(summary + len, capacity - len,
+                         "### %s\n"
+                         "**User asked**: %.200s%s\n"
+                         "**Agent replied**: %.300s%s\n\n",
+                         agent->valuestring, user_msg->valuestring,
+                         strlen(user_msg->valuestring) > 200 ? "..." : "", agent_resp->valuestring,
+                         strlen(agent_resp->valuestring) > 300 ? "..." : "");
             count++;
         }
 
         cJSON_Delete(ctx);
 
-        if (len > capacity - 1024) break;  // Prevent overflow
+        if (len > capacity - 1024)
+            break; // Prevent overflow
     }
 
     closedir(d);
@@ -282,13 +288,15 @@ static char* find_session_by_agent_name(const char* agent_name) {
 
     struct dirent* entry;
     while ((entry = readdir(d)) != NULL) {
-        if (strstr(entry->d_name, ".json") == NULL) continue;
+        if (strstr(entry->d_name, ".json") == NULL)
+            continue;
 
         char filepath[512];
         snprintf(filepath, sizeof(filepath), "%s/%s", dir, entry->d_name);
 
         FILE* f = fopen(filepath, "r");
-        if (!f) continue;
+        if (!f)
+            continue;
 
         fseek(f, 0, SEEK_END);
         long fsize = ftell(f);
@@ -301,20 +309,20 @@ static char* find_session_by_agent_name(const char* agent_name) {
 
         cJSON* root = cJSON_Parse(content);
         free(content);
-        if (!root) continue;
+        if (!root)
+            continue;
 
         cJSON* saved_agent = cJSON_GetObjectItem(root, "agent_name");
         cJSON* timestamp = cJSON_GetObjectItem(root, "timestamp");
         cJSON* session_id = cJSON_GetObjectItem(root, "session_id");
 
-        if (saved_agent && cJSON_IsString(saved_agent) &&
-            session_id && cJSON_IsString(session_id) &&
-            strcmp(saved_agent->valuestring, agent_name) == 0) {
-
+        if (saved_agent && cJSON_IsString(saved_agent) && session_id &&
+            cJSON_IsString(session_id) && strcmp(saved_agent->valuestring, agent_name) == 0) {
             long ts = timestamp && cJSON_IsNumber(timestamp) ? (long)timestamp->valuedouble : 0;
             if (ts > best_timestamp) {
                 best_timestamp = ts;
-                if (best_session_id) free(best_session_id);
+                if (best_session_id)
+                    free(best_session_id);
                 best_session_id = strdup(session_id->valuestring);
             }
         }
@@ -329,7 +337,8 @@ static char* find_session_by_agent_name(const char* agent_name) {
 
 // Save session to disk
 int acp_session_save(ACPSession* session) {
-    if (!session || !session->active) return -1;
+    if (!session || !session->active)
+        return -1;
 
     char* filepath = get_session_filepath(session->session_id);
 
@@ -344,7 +353,8 @@ int acp_session_save(ACPSession* session) {
     for (int i = 0; i < session->message_count; i++) {
         cJSON* msg = cJSON_CreateObject();
         cJSON_AddStringToObject(msg, "role", session->messages[i].role);
-        cJSON_AddStringToObject(msg, "content", session->messages[i].content ? session->messages[i].content : "");
+        cJSON_AddStringToObject(msg, "content",
+                                session->messages[i].content ? session->messages[i].content : "");
         cJSON_AddNumberToObject(msg, "timestamp", (double)session->messages[i].timestamp);
         cJSON_AddItemToArray(messages, msg);
     }
@@ -389,7 +399,8 @@ ACPSession* acp_session_load(const char* session_id) {
 
     cJSON* root = cJSON_Parse(content);
     free(content);
-    if (!root) return NULL;
+    if (!root)
+        return NULL;
 
     // Create new session slot
     if (g_server.session_count >= ACP_MAX_SESSIONS) {
@@ -421,16 +432,18 @@ ACPSession* acp_session_load(const char* session_id) {
     if (messages && cJSON_IsArray(messages)) {
         cJSON* msg;
         cJSON_ArrayForEach(msg, messages) {
-            if (session->message_count >= ACP_MAX_MESSAGES) break;
+            if (session->message_count >= ACP_MAX_MESSAGES)
+                break;
 
             cJSON* role = cJSON_GetObjectItem(msg, "role");
             cJSON* content_item = cJSON_GetObjectItem(msg, "content");
             cJSON* ts = cJSON_GetObjectItem(msg, "timestamp");
 
             if (role && cJSON_IsString(role) && content_item && cJSON_IsString(content_item)) {
-                strncpy(session->messages[session->message_count].role,
-                        role->valuestring, sizeof(session->messages[0].role) - 1);
-                session->messages[session->message_count].content = strdup(content_item->valuestring);
+                strncpy(session->messages[session->message_count].role, role->valuestring,
+                        sizeof(session->messages[0].role) - 1);
+                session->messages[session->message_count].content =
+                    strdup(content_item->valuestring);
                 session->messages[session->message_count].timestamp =
                     ts && cJSON_IsNumber(ts) ? (long)ts->valuedouble : time(NULL);
                 session->message_count++;
@@ -447,10 +460,12 @@ ACPSession* acp_session_load(const char* session_id) {
 
 // Add message to session history
 void acp_session_add_message(ACPSession* session, const char* role, const char* content) {
-    if (!session || !role || !content) return;
+    if (!session || !role || !content)
+        return;
     if (session->message_count >= ACP_MAX_MESSAGES) {
         // Shift messages to make room (remove oldest)
-        if (session->messages[0].content) free(session->messages[0].content);
+        if (session->messages[0].content)
+            free(session->messages[0].content);
         memmove(&session->messages[0], &session->messages[1],
                 sizeof(ACPMessage) * (ACP_MAX_MESSAGES - 1));
         session->message_count--;
@@ -491,7 +506,8 @@ static ACPSession* create_session(const char* cwd, const char* agent_name) {
         strncpy(session->agent_name, agent_name, sizeof(session->agent_name) - 1);
     } else if (g_server.selected_agent[0] != '\0') {
         // Use server's selected agent as default
-        snprintf(session->agent_name, sizeof(session->agent_name), "Convergio-%s", g_server.selected_agent);
+        snprintf(session->agent_name, sizeof(session->agent_name), "Convergio-%s",
+                 g_server.selected_agent);
     }
     session->active = true;
     session->orchestrator_ctx = NULL;
@@ -546,7 +562,7 @@ void acp_handle_initialize(int request_id, const char* params_json) {
     cJSON* prompt_caps = cJSON_CreateObject();
     cJSON_AddBoolToObject(prompt_caps, "image", false);
     cJSON_AddBoolToObject(prompt_caps, "audio", false);
-    cJSON_AddBoolToObject(prompt_caps, "embeddedContext", true);  // X3: Enable editor context
+    cJSON_AddBoolToObject(prompt_caps, "embeddedContext", true); // X3: Enable editor context
     cJSON_AddItemToObject(caps, "promptCapabilities", prompt_caps);
 
     cJSON* session_caps = cJSON_CreateObject();
@@ -651,7 +667,8 @@ void acp_handle_session_new(int request_id, const char* params_json) {
         for (int i = 0; i < session->message_count; i++) {
             cJSON* msg = cJSON_CreateObject();
             cJSON_AddStringToObject(msg, "role", session->messages[i].role);
-            cJSON_AddStringToObject(msg, "content", session->messages[i].content ? session->messages[i].content : "");
+            cJSON_AddStringToObject(
+                msg, "content", session->messages[i].content ? session->messages[i].content : "");
             cJSON_AddItemToArray(history, msg);
         }
         cJSON_AddItemToObject(result, "history", history);
@@ -674,8 +691,8 @@ void acp_handle_session_new(int request_id, const char* params_json) {
         for (int i = 0; i < session->message_count; i++) {
             cJSON* msg = cJSON_CreateObject();
             cJSON_AddStringToObject(msg, "role", session->messages[i].role);
-            cJSON_AddStringToObject(msg, "content",
-                session->messages[i].content ? session->messages[i].content : "");
+            cJSON_AddStringToObject(
+                msg, "content", session->messages[i].content ? session->messages[i].content : "");
             cJSON_AddNumberToObject(msg, "timestamp", session->messages[i].timestamp);
             cJSON_AddItemToArray(messages, msg);
         }
@@ -696,7 +713,8 @@ void acp_handle_session_new(int request_id, const char* params_json) {
 static void stream_callback(const char* chunk, void* user_data) {
     (void)user_data;
 
-    if (!chunk || strlen(chunk) == 0) return;
+    if (!chunk || strlen(chunk) == 0)
+        return;
 
     // Build session/update notification (ACP schema format)
     cJSON* params = cJSON_CreateObject();
@@ -752,24 +770,27 @@ void acp_handle_session_prompt(int request_id, const char* params_json) {
 
     // Extract prompt text and context (ACP format: prompt[])
     cJSON* prompt_array = cJSON_GetObjectItem(params, "prompt");
-    char prompt_text[16384] = {0};  // Larger buffer for context
-    char context_text[8192] = {0};  // Buffer for embedded context
+    char prompt_text[16384] = {0}; // Larger buffer for context
+    char context_text[8192] = {0}; // Buffer for embedded context
 
     if (prompt_array && cJSON_IsArray(prompt_array)) {
         cJSON* item;
         cJSON_ArrayForEach(item, prompt_array) {
             cJSON* type = cJSON_GetObjectItem(item, "type");
-            if (!type || !cJSON_IsString(type)) continue;
+            if (!type || !cJSON_IsString(type))
+                continue;
 
             if (strcmp(type->valuestring, "text") == 0) {
                 // ACP format: { "type": "text", "text": "..." }
                 cJSON* text = cJSON_GetObjectItem(item, "text");
                 if (text && cJSON_IsString(text)) {
-                    strncat(prompt_text, text->valuestring, sizeof(prompt_text) - strlen(prompt_text) - 1);
+                    strncat(prompt_text, text->valuestring,
+                            sizeof(prompt_text) - strlen(prompt_text) - 1);
                 }
             } else if (strcmp(type->valuestring, "context") == 0) {
                 // X3: Handle embedded context (file, selection, cursor)
-                // ACP format: { "type": "context", "path": "...", "content": "...", "selection": {...} }
+                // ACP format: { "type": "context", "path": "...", "content": "...", "selection":
+                // {...} }
                 cJSON* path = cJSON_GetObjectItem(item, "path");
                 cJSON* content = cJSON_GetObjectItem(item, "content");
                 cJSON* selection = cJSON_GetObjectItem(item, "selection");
@@ -802,8 +823,8 @@ void acp_handle_session_prompt(int request_id, const char* params_json) {
     // Prepend context to prompt if available
     if (strlen(context_text) > 0) {
         char combined[24576];
-        snprintf(combined, sizeof(combined), "[Editor Context]%s\n[User Message]\n%s",
-                 context_text, prompt_text);
+        snprintf(combined, sizeof(combined), "[Editor Context]%s\n[User Message]\n%s", context_text,
+                 prompt_text);
         strncpy(prompt_text, combined, sizeof(prompt_text) - 1);
     }
 
@@ -825,8 +846,9 @@ void acp_handle_session_prompt(int request_id, const char* params_json) {
         size_t ctx_size = 16384;
         history_context = malloc(ctx_size);
         size_t ctx_len = 0;
-        ctx_len += snprintf(history_context + ctx_len, ctx_size - ctx_len,
-            "\n[Previous conversation history - continue from where we left off]\n");
+        ctx_len +=
+            snprintf(history_context + ctx_len, ctx_size - ctx_len,
+                     "\n[Previous conversation history - continue from where we left off]\n");
 
         // Include recent messages (limit to last 10 for context window)
         int start = session->message_count > 10 ? session->message_count - 10 : 0;
@@ -836,16 +858,16 @@ void acp_handle_session_prompt(int request_id, const char* params_json) {
             if (content) {
                 // Truncate very long messages
                 size_t max_len = 500;
-                ctx_len += snprintf(history_context + ctx_len, ctx_size - ctx_len,
-                    "\n**%s**: %.500s%s\n",
-                    strcmp(role, "user") == 0 ? "You" : "Assistant",
-                    content,
-                    strlen(content) > max_len ? "..." : "");
+                ctx_len +=
+                    snprintf(history_context + ctx_len, ctx_size - ctx_len, "\n**%s**: %.500s%s\n",
+                             strcmp(role, "user") == 0 ? "You" : "Assistant", content,
+                             strlen(content) > max_len ? "..." : "");
             }
-            if (ctx_len > ctx_size - 1024) break;
+            if (ctx_len > ctx_size - 1024)
+                break;
         }
         ctx_len += snprintf(history_context + ctx_len, ctx_size - ctx_len,
-            "\n[End of history - now responding to new message]\n\n");
+                            "\n[End of history - now responding to new message]\n\n");
     }
 
     // Route to specific agent or orchestrator
@@ -863,7 +885,8 @@ void acp_handle_session_prompt(int request_id, const char* params_json) {
 
             response = orchestrator_agent_chat(agent, enhanced_prompt);
 
-            if (enhanced_prompt != prompt_text) free(enhanced_prompt);
+            if (enhanced_prompt != prompt_text)
+                free(enhanced_prompt);
 
             // Send full response as single chunk
             if (response) {
@@ -890,8 +913,10 @@ void acp_handle_session_prompt(int request_id, const char* params_json) {
 
         // Build enhanced prompt with all context
         size_t enhanced_len = strlen(prompt_text) + 1024;
-        if (agent_contexts) enhanced_len += strlen(agent_contexts);
-        if (historical_memory) enhanced_len += strlen(historical_memory);
+        if (agent_contexts)
+            enhanced_len += strlen(agent_contexts);
+        if (historical_memory)
+            enhanced_len += strlen(historical_memory);
 
         char* enhanced_prompt = malloc(enhanced_len);
         size_t pos = 0;
@@ -899,22 +924,21 @@ void acp_handle_session_prompt(int request_id, const char* params_json) {
         // Add historical memory first (long-term context)
         if (historical_memory) {
             pos += snprintf(enhanced_prompt + pos, enhanced_len - pos,
-                "[Historical Memory - Cross-Session Context]\n%s\n---\n\n",
-                historical_memory);
+                            "[Historical Memory - Cross-Session Context]\n%s\n---\n\n",
+                            historical_memory);
             free(historical_memory);
         }
 
         // Add recent agent conversations (short-term context)
         if (agent_contexts) {
             pos += snprintf(enhanced_prompt + pos, enhanced_len - pos,
-                "[Recent Agent Conversations]\n%s\n---\n\n",
-                agent_contexts);
+                            "[Recent Agent Conversations]\n%s\n---\n\n", agent_contexts);
             free(agent_contexts);
         }
 
         // Add the actual user prompt
-        pos += snprintf(enhanced_prompt + pos, enhanced_len - pos,
-            "[User Message]\n%s", prompt_text);
+        pos +=
+            snprintf(enhanced_prompt + pos, enhanced_len - pos, "[User Message]\n%s", prompt_text);
 
         response = orchestrator_process_stream(enhanced_prompt, stream_callback, NULL);
         free(enhanced_prompt);
@@ -940,8 +964,8 @@ void acp_handle_session_prompt(int request_id, const char* params_json) {
         }
 
         MemoryEntry mem_entry;
-        if (memory_generate_summary(session->agent_name, messages, roles,
-                                    session->message_count, &mem_entry) == 0) {
+        if (memory_generate_summary(session->agent_name, messages, roles, session->message_count,
+                                    &mem_entry) == 0) {
             memory_save(&mem_entry);
         }
     }
@@ -977,7 +1001,8 @@ void acp_handle_session_cancel(int request_id, const char* params_json) {
         if (params) {
             cJSON* sid = cJSON_GetObjectItem(params, "sessionId");
             if (sid && cJSON_IsString(sid)) {
-                strncpy(session_id_from_params, sid->valuestring, sizeof(session_id_from_params) - 1);
+                strncpy(session_id_from_params, sid->valuestring,
+                        sizeof(session_id_from_params) - 1);
                 session_id = session_id_from_params;
             }
             cJSON_Delete(params);
@@ -1077,31 +1102,31 @@ static void dispatch_request(cJSON* request) {
 int acp_server_init(void) {
     // Initialize config
     if (convergio_config_init() != 0) {
-        fprintf(stderr, "Failed to initialize config\n");
+        LOG_ERROR(LOG_CAT_SYSTEM, "Failed to initialize config");
         return -1;
     }
 
     // Initialize auth
     extern int auth_init(void);
     if (auth_init() != 0) {
-        fprintf(stderr, "Warning: No API key configured\n");
+        LOG_WARN(LOG_CAT_SYSTEM, "No API key configured");
     }
 
     // Initialize core systems
     if (nous_init() != 0) {
-        fprintf(stderr, "Failed to initialize nous\n");
+        LOG_ERROR(LOG_CAT_SYSTEM, "Failed to initialize nous");
         return -1;
     }
 
     // Initialize orchestrator with generous budget for ACP sessions
     if (orchestrator_init(100.0) != 0) {
-        fprintf(stderr, "Failed to initialize orchestrator\n");
+        LOG_ERROR(LOG_CAT_SYSTEM, "Failed to initialize orchestrator");
         return -1;
     }
 
     // Initialize memory system for Ali's historical memory
     if (memory_init() != 0) {
-        fprintf(stderr, "Warning: Failed to initialize memory system\n");
+        LOG_WARN(LOG_CAT_SYSTEM, "Failed to initialize memory system");
         // Non-fatal, continue without memory
     }
 
@@ -1126,7 +1151,8 @@ int acp_server_run(void) {
         ssize_t n = read(STDIN_FILENO, &c, 1);
 
         if (n < 0) {
-            if (errno == EINTR) continue;
+            if (errno == EINTR)
+                continue;
             break;
         }
 
@@ -1184,7 +1210,7 @@ static void list_agents(void) {
     // Quick init just to load agents
     convergio_config_init();
     nous_init();
-    orchestrator_init(1.0);  // Minimal budget for listing
+    orchestrator_init(1.0); // Minimal budget for listing
 
     ManagedAgent* agents[64];
     size_t count = agent_get_all(agents, 64);

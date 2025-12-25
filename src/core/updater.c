@@ -8,18 +8,18 @@
 
 #include "nous/updater.h"
 #include "nous/nous.h"
+#include <ctype.h>
+#include <curl/curl.h>
+#include <spawn.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <stdbool.h>
-#include <ctype.h>
-#include <curl/curl.h>
-#include <unistd.h>
 #include <sys/stat.h>
 #include <sys/wait.h>
-#include <spawn.h>
+#include <unistd.h>
 
-extern char **environ;
+extern char** environ;
 
 // Version is defined at compile time
 #ifndef CONVERGIO_VERSION
@@ -35,7 +35,8 @@ extern char **environ;
  * Only allows: alphanumeric, dots, dashes
  */
 static int is_safe_version_string(const char* str) {
-    if (!str || !*str) return 0;
+    if (!str || !*str)
+        return 0;
     for (const char* p = str; *p; p++) {
         if (!isalnum((unsigned char)*p) && *p != '.' && *p != '-' && *p != '_') {
             return 0;
@@ -81,7 +82,7 @@ static size_t write_callback(void* contents, size_t size, size_t nmemb, void* us
 
     // Check response size limit to prevent OOM
     if (buf->size + realsize > MAX_UPDATER_RESPONSE_SIZE) {
-        return 0;  // Abort transfer
+        return 0; // Abort transfer
     }
 
     char* ptr = realloc(buf->data, buf->size + realsize + 1);
@@ -105,28 +106,35 @@ static size_t write_file_callback(void* contents, size_t size, size_t nmemb, voi
 // JSON PARSING (minimal, just for GitHub API response)
 // ============================================================================
 
-static const char* find_json_string(const char* json, const char* key, char* value, size_t value_size) {
+static const char* find_json_string(const char* json, const char* key, char* value,
+                                    size_t value_size) {
     char search_key[128];
     snprintf(search_key, sizeof(search_key), "\"%s\"", key);
 
     const char* pos = strstr(json, search_key);
-    if (!pos) return NULL;
+    if (!pos)
+        return NULL;
 
     pos = strchr(pos + strlen(search_key), ':');
-    if (!pos) return NULL;
+    if (!pos)
+        return NULL;
 
     // Skip whitespace
-    while (*pos && (*pos == ':' || *pos == ' ' || *pos == '\t')) pos++;
+    while (*pos && (*pos == ':' || *pos == ' ' || *pos == '\t'))
+        pos++;
 
-    if (*pos != '"') return NULL;
-    pos++;  // Skip opening quote
+    if (*pos != '"')
+        return NULL;
+    pos++; // Skip opening quote
 
     // Find closing quote
     const char* end = strchr(pos, '"');
-    if (!end) return NULL;
+    if (!end)
+        return NULL;
 
     size_t len = (size_t)(end - pos);
-    if (len >= value_size) len = value_size - 1;
+    if (len >= value_size)
+        len = value_size - 1;
 
     strncpy(value, pos, len);
     value[len] = '\0';
@@ -149,9 +157,12 @@ int convergio_version_compare(const char* v1, const char* v2) {
         return 0;
     }
 
-    if (major1 != major2) return (major1 > major2) ? 1 : -1;
-    if (minor1 != minor2) return (minor1 > minor2) ? 1 : -1;
-    if (patch1 != patch2) return (patch1 > patch2) ? 1 : -1;
+    if (major1 != major2)
+        return (major1 > major2) ? 1 : -1;
+    if (minor1 != minor2)
+        return (minor1 > minor2) ? 1 : -1;
+    if (patch1 != patch2)
+        return (patch1 > patch2) ? 1 : -1;
 
     return 0;
 }
@@ -165,7 +176,8 @@ const char* convergio_get_version(void) {
 // ============================================================================
 
 int convergio_check_update(UpdateInfo* info) {
-    if (!info) return -1;
+    if (!info)
+        return -1;
 
     memset(info, 0, sizeof(UpdateInfo));
     strncpy(info->current_version, CONVERGIO_VERSION, sizeof(info->current_version) - 1);
@@ -225,20 +237,23 @@ int convergio_check_update(UpdateInfo* info) {
     find_json_string(response.data, "body", info->release_notes, sizeof(info->release_notes));
 
     // Check if prerelease
-    if (strstr(response.data, "\"prerelease\":true") || strstr(response.data, "\"prerelease\": true")) {
+    if (strstr(response.data, "\"prerelease\":true") ||
+        strstr(response.data, "\"prerelease\": true")) {
         info->is_prerelease = true;
     }
 
     free(response.data);
 
     // Compare versions
-    info->update_available = (convergio_version_compare(info->latest_version, info->current_version) > 0);
+    info->update_available =
+        (convergio_version_compare(info->latest_version, info->current_version) > 0);
 
     return 0;
 }
 
 void convergio_print_update_info(const UpdateInfo* info) {
-    if (!info) return;
+    if (!info)
+        return;
 
     printf("\n");
     printf("Current version: %s\n", info->current_version);
@@ -267,7 +282,8 @@ int convergio_download_update(const UpdateInfo* info, const char* dest_path) {
         return -1;
     }
     if (strlen(info->download_url) == 0) {
-        fprintf(stderr, "\033[31mError: No download URL found for your platform (arm64-darwin)\033[0m\n");
+        fprintf(stderr,
+                "\033[31mError: No download URL found for your platform (arm64-darwin)\033[0m\n");
         fprintf(stderr, "\033[33mPlease update manually:\033[0m brew upgrade convergio\n\n");
         return -1;
     }
@@ -291,7 +307,8 @@ int convergio_download_update(const UpdateInfo* info, const char* dest_path) {
     curl_easy_setopt(curl, CURLOPT_WRITEDATA, fp);
     curl_easy_setopt(curl, CURLOPT_USERAGENT, "Convergio-CLI/" CONVERGIO_VERSION);
     curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
-    curl_easy_setopt(curl, CURLOPT_NOPROGRESS, 1L);  // Hide useless progress (GitHub doesn't send Content-Length)
+    curl_easy_setopt(curl, CURLOPT_NOPROGRESS,
+                     1L); // Hide useless progress (GitHub doesn't send Content-Length)
 
     CURLcode res = curl_easy_perform(curl);
 
@@ -313,25 +330,26 @@ int convergio_download_update(const UpdateInfo* info, const char* dest_path) {
 }
 
 int convergio_apply_update(const char* new_binary_path) {
-    if (!new_binary_path) return -1;
+    if (!new_binary_path)
+        return -1;
 
     // Get current binary path
     char current_path[1024];
     uint32_t size = sizeof(current_path);
 
-    #ifdef __APPLE__
+#ifdef __APPLE__
     if (_NSGetExecutablePath(current_path, &size) != 0) {
         fprintf(stderr, "\033[31mError: Cannot determine current executable path\033[0m\n");
         return -1;
     }
-    #else
+#else
     ssize_t len = readlink("/proc/self/exe", current_path, sizeof(current_path) - 1);
     if (len == -1) {
         fprintf(stderr, "\033[31mError: Cannot determine current executable path\033[0m\n");
         return -1;
     }
     current_path[len] = '\0';
-    #endif
+#endif
 
     // Check if installed via Homebrew
     if (strstr(current_path, "/homebrew/") || strstr(current_path, "/Cellar/")) {
@@ -352,7 +370,8 @@ int convergio_apply_update(const char* new_binary_path) {
     if (need_sudo) {
         // Use sudo for privileged locations
         printf("Administrator privileges required.\n");
-        char* sudo_mv[] = {"/usr/bin/sudo", "-p", "Password: ", "/bin/mv", current_path, backup_path, NULL};
+        char* sudo_mv[] = {"/usr/bin/sudo", "-p",        "Password: ", "/bin/mv",
+                           current_path,    backup_path, NULL};
         if (safe_exec(sudo_mv) != 0) {
             fprintf(stderr, "\033[31mError: Cannot create backup\033[0m\n");
             return -1;
@@ -399,13 +418,13 @@ int convergio_rollback_update(void) {
     char current_path[1024];
     uint32_t size = sizeof(current_path);
 
-    #ifdef __APPLE__
+#ifdef __APPLE__
     if (_NSGetExecutablePath(current_path, &size) != 0) {
         return -1;
     }
-    #else
+#else
     return -1;
-    #endif
+#endif
 
     char backup_path[1100];
     snprintf(backup_path, sizeof(backup_path), "%s.backup", current_path);
@@ -482,7 +501,7 @@ static int convergio_do_update_install(const UpdateInfo* info) {
     // Cleanup using rm (no shell)
     unlink(temp_path);
     char* rm_args[] = {"/bin/rm", "-rf", extract_dir, NULL};
-    (void)safe_exec(rm_args);  // Ignore cleanup errors
+    (void)safe_exec(rm_args); // Ignore cleanup errors
 
     return 0;
 }
@@ -584,7 +603,8 @@ int convergio_cmd_update_changelog(void) {
                 col++;
             }
             printf(" ║\n");
-            if (*p == '\n') p++;
+            if (*p == '\n')
+                p++;
         }
     } else {
         printf("║  No release notes available.                         ║\n");
@@ -601,7 +621,8 @@ int convergio_cmd_update_changelog(void) {
 // ============================================================================
 
 int convergio_fetch_release(const char* version, UpdateInfo* info) {
-    if (!info) return -1;
+    if (!info)
+        return -1;
 
     memset(info, 0, sizeof(UpdateInfo));
     strncpy(info->current_version, CONVERGIO_VERSION, sizeof(info->current_version) - 1);
@@ -620,13 +641,11 @@ int convergio_fetch_release(const char* version, UpdateInfo* info) {
     if (version && *version) {
         // Ensure version has 'v' prefix for GitHub tags
         if (version[0] == 'v') {
-            snprintf(url, sizeof(url),
-                "https://api.github.com/repos/%s/releases/tags/%s",
-                CONVERGIO_GITHUB_REPO, version);
+            snprintf(url, sizeof(url), "https://api.github.com/repos/%s/releases/tags/%s",
+                     CONVERGIO_GITHUB_REPO, version);
         } else {
-            snprintf(url, sizeof(url),
-                "https://api.github.com/repos/%s/releases/tags/v%s",
-                CONVERGIO_GITHUB_REPO, version);
+            snprintf(url, sizeof(url), "https://api.github.com/repos/%s/releases/tags/v%s",
+                     CONVERGIO_GITHUB_REPO, version);
         }
     } else {
         strncpy(url, CONVERGIO_GITHUB_API, sizeof(url) - 1);
@@ -665,7 +684,8 @@ int convergio_fetch_release(const char* version, UpdateInfo* info) {
     find_json_string(response.data, "body", info->release_notes, sizeof(info->release_notes));
 
     // Check if prerelease
-    if (strstr(response.data, "\"prerelease\":true") || strstr(response.data, "\"prerelease\": true")) {
+    if (strstr(response.data, "\"prerelease\":true") ||
+        strstr(response.data, "\"prerelease\": true")) {
         info->is_prerelease = true;
     }
 

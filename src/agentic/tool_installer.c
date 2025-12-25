@@ -23,22 +23,21 @@ typedef struct {
 } ToolPackageMap;
 
 static const ToolPackageMap TOOL_PACKAGES[] = {
-    {"gh",      "gh",           "gh",           "gh",           "github-cli"},
-    {"git",     "git",          "git",          "git",          "git"},
-    {"node",    "node",         "nodejs",       "nodejs",       "nodejs"},
-    {"npm",     "node",         "npm",          "npm",          "npm"},
-    {"python3", "python@3",     "python3",      "python3",      "python"},
-    {"pip3",    "python@3",     "python3-pip",  "python3-pip",  "python-pip"},
-    {"cargo",   "rust",         "cargo",        "cargo",        "rust"},
-    {"go",      "go",           "golang",       "golang",       "go"},
-    {"make",    "make",         "build-essential", "make",      "base-devel"},
-    {"cmake",   "cmake",        "cmake",        "cmake",        "cmake"},
-    {"docker",  "docker",       "docker.io",    "docker",       "docker"},
-    {"jq",      "jq",           "jq",           "jq",           "jq"},
-    {"curl",    "curl",         "curl",         "curl",         "curl"},
-    {"wget",    "wget",         "wget",         "wget",         "wget"},
-    {NULL, NULL, NULL, NULL, NULL}
-};
+    {"gh", "gh", "gh", "gh", "github-cli"},
+    {"git", "git", "git", "git", "git"},
+    {"node", "node", "nodejs", "nodejs", "nodejs"},
+    {"npm", "node", "npm", "npm", "npm"},
+    {"python3", "python@3", "python3", "python3", "python"},
+    {"pip3", "python@3", "python3-pip", "python3-pip", "python-pip"},
+    {"cargo", "rust", "cargo", "cargo", "rust"},
+    {"go", "go", "golang", "golang", "go"},
+    {"make", "make", "build-essential", "make", "base-devel"},
+    {"cmake", "cmake", "cmake", "cmake", "cmake"},
+    {"docker", "docker", "docker.io", "docker", "docker"},
+    {"jq", "jq", "jq", "jq", "jq"},
+    {"curl", "curl", "curl", "curl", "curl"},
+    {"wget", "wget", "wget", "wget", "wget"},
+    {NULL, NULL, NULL, NULL, NULL}};
 
 static const ToolPackageMap* find_tool_package(const char* tool_name) {
     for (const ToolPackageMap* map = TOOL_PACKAGES; map->tool_name != NULL; map++) {
@@ -57,7 +56,7 @@ const char* get_install_command(const char* tool_name) {
     // Find the tool's package mapping
     const ToolPackageMap* map = find_tool_package(tool_name);
     if (!map) {
-        return NULL;  // Unknown tool
+        return NULL; // Unknown tool
     }
 
     // Detect package manager
@@ -68,40 +67,40 @@ const char* get_install_command(const char* tool_name) {
     const char* package = NULL;
 
     switch (pm) {
-        case PACKAGE_MANAGER_BREW:
-            package = map->brew_package;
-            if (package) {
-                snprintf(cmd_buffer, sizeof(cmd_buffer), "brew install %s", package);
-                return cmd_buffer;
-            }
-            break;
+    case PACKAGE_MANAGER_BREW:
+        package = map->brew_package;
+        if (package) {
+            snprintf(cmd_buffer, sizeof(cmd_buffer), "brew install %s", package);
+            return cmd_buffer;
+        }
+        break;
 
-        case PACKAGE_MANAGER_APT:
-            package = map->apt_package;
-            if (package) {
-                snprintf(cmd_buffer, sizeof(cmd_buffer), "sudo apt-get install -y %s", package);
-                return cmd_buffer;
-            }
-            break;
+    case PACKAGE_MANAGER_APT:
+        package = map->apt_package;
+        if (package) {
+            snprintf(cmd_buffer, sizeof(cmd_buffer), "sudo apt-get install -y %s", package);
+            return cmd_buffer;
+        }
+        break;
 
-        case PACKAGE_MANAGER_DNF:
-            package = map->dnf_package;
-            if (package) {
-                snprintf(cmd_buffer, sizeof(cmd_buffer), "sudo dnf install -y %s", package);
-                return cmd_buffer;
-            }
-            break;
+    case PACKAGE_MANAGER_DNF:
+        package = map->dnf_package;
+        if (package) {
+            snprintf(cmd_buffer, sizeof(cmd_buffer), "sudo dnf install -y %s", package);
+            return cmd_buffer;
+        }
+        break;
 
-        case PACKAGE_MANAGER_PACMAN:
-            package = map->pacman_package;
-            if (package) {
-                snprintf(cmd_buffer, sizeof(cmd_buffer), "sudo pacman -S --noconfirm %s", package);
-                return cmd_buffer;
-            }
-            break;
+    case PACKAGE_MANAGER_PACMAN:
+        package = map->pacman_package;
+        if (package) {
+            snprintf(cmd_buffer, sizeof(cmd_buffer), "sudo pacman -S --noconfirm %s", package);
+            return cmd_buffer;
+        }
+        break;
 
-        default:
-            break;
+    default:
+        break;
     }
 
     return NULL;
@@ -132,12 +131,10 @@ int install_tool(const char* tool_name, const char* reason) {
     }
 
     // Build approval request
-    ApprovalRequest req = {
-        .action = tool_name,
-        .reason = reason ? reason : "Development tool required",
-        .command = install_cmd,
-        .is_destructive = false
-    };
+    ApprovalRequest req = {.action = tool_name,
+                           .reason = reason ? reason : "Development tool required",
+                           .command = install_cmd,
+                           .is_destructive = false};
 
     // Request approval (CRITICAL: never skip this)
     if (!request_user_approval(&req)) {
@@ -157,7 +154,8 @@ int install_tool(const char* tool_name, const char* reason) {
             printf("\n\033[32m✓ Successfully installed %s\033[0m\n", tool_name);
             return 0;
         } else {
-            fprintf(stderr, "\n\033[31m✗ Installation completed but %s not found in PATH\033[0m\n", tool_name);
+            fprintf(stderr, "\n\033[31m✗ Installation completed but %s not found in PATH\033[0m\n",
+                    tool_name);
             fprintf(stderr, "You may need to restart your shell or add it to PATH manually\n");
             return -1;
         }

@@ -5,15 +5,15 @@
  */
 
 #include "nous/delegation.h"
-#include "nous/orchestrator.h"
 #include "nous/nous.h"
+#include "nous/orchestrator.h"
 #include "nous/projects.h"
 #include "nous/provider.h"
 #include "nous/telemetry.h"
+#include <dispatch/dispatch.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <dispatch/dispatch.h>
 #include <time.h>
 
 // Model used for agent delegation (matches previous claude.c default)
@@ -21,12 +21,13 @@
 
 // External functions from orchestrator
 extern int persistence_save_conversation(const char* session_id, const char* role,
-                                          const char* content, int tokens);
+                                         const char* content, int tokens);
 extern void agent_set_working(ManagedAgent* agent, AgentWorkState state, const char* task);
 extern void agent_set_idle(ManagedAgent* agent);
 extern ManagedAgent* agent_find_by_name(const char* name);
 extern ManagedAgent* agent_spawn(AgentRole role, const char* name, const char* context);
-extern void cost_record_agent_usage(ManagedAgent* agent, uint64_t input_tokens, uint64_t output_tokens);
+extern void cost_record_agent_usage(ManagedAgent* agent, uint64_t input_tokens,
+                                    uint64_t output_tokens);
 
 // Structure for parallel agent execution
 typedef struct {
@@ -44,7 +45,8 @@ typedef struct {
 // Parse ALL delegation requests from response
 DelegationList* parse_all_delegations(const char* response) {
     DelegationList* list = calloc(1, sizeof(DelegationList));
-    if (!list) return NULL;
+    if (!list)
+        return NULL;
 
     list->capacity = 16;
     list->requests = calloc(list->capacity, sizeof(DelegationRequest*));
@@ -58,11 +60,13 @@ DelegationList* parse_all_delegations(const char* response) {
 
     while ((pos = strstr(pos, marker)) != NULL) {
         DelegationRequest* req = calloc(1, sizeof(DelegationRequest));
-        if (!req) break;
+        if (!req)
+            break;
 
         // Extract agent name
         pos += strlen(marker);
-        while (*pos == ' ') pos++;
+        while (*pos == ' ')
+            pos++;
 
         const char* end = strchr(pos, ']');
         if (!end) {
@@ -77,18 +81,21 @@ DelegationList* parse_all_delegations(const char* response) {
             req->agent_name[name_len] = '\0';
             // Trim trailing spaces
             char* trim = req->agent_name + strlen(req->agent_name) - 1;
-            while (trim > req->agent_name && *trim == ' ') *trim-- = '\0';
+            while (trim > req->agent_name && *trim == ' ')
+                *trim-- = '\0';
         }
 
         // Extract reason (until next [DELEGATE: or newline)
         pos = end + 1;
-        while (*pos == ' ') pos++;
+        while (*pos == ' ')
+            pos++;
 
         const char* reason_end = strstr(pos, "[DELEGATE:");
         if (!reason_end) {
             // Find end of line or end of string
             reason_end = strchr(pos, '\n');
-            if (!reason_end) reason_end = pos + strlen(pos);
+            if (!reason_end)
+                reason_end = pos + strlen(pos);
         }
 
         if (reason_end > pos) {
@@ -99,7 +106,8 @@ DelegationList* parse_all_delegations(const char* response) {
                 req->reason[reason_len] = '\0';
                 // Trim
                 char* trim = req->reason + strlen(req->reason) - 1;
-                while (trim > req->reason && (*trim == ' ' || *trim == '\n')) *trim-- = '\0';
+                while (trim > req->reason && (*trim == ' ' || *trim == '\n'))
+                    *trim-- = '\0';
             }
         }
 
@@ -123,7 +131,8 @@ DelegationList* parse_all_delegations(const char* response) {
 }
 
 void free_delegation_list(DelegationList* list) {
-    if (!list) return;
+    if (!list)
+        return;
     for (size_t i = 0; i < list->count; i++) {
         if (list->requests[i]) {
             free(list->requests[i]->agent_name);
@@ -143,8 +152,11 @@ void free_delegation_list(DelegationList* list) {
 char* execute_delegations(DelegationList* delegations, const char* user_input,
                           const char* ali_response, ManagedAgent* ali) {
     if (!delegations || delegations->count == 0 || !user_input || !ali) {
-        LOG_ERROR(LOG_CAT_AGENT, "execute_delegations: invalid params (delegations=%p, count=%zu, input=%p, ali=%p)",
-                  (void*)delegations, delegations ? delegations->count : 0, (void*)user_input, (void*)ali);
+        LOG_ERROR(
+            LOG_CAT_AGENT,
+            "execute_delegations: invalid params (delegations=%p, count=%zu, input=%p, ali=%p)",
+            (void*)delegations, delegations ? delegations->count : 0, (void*)user_input,
+            (void*)ali);
         telemetry_record_error("orchestrator_delegation_invalid_params");
         return NULL;
     }
@@ -200,10 +212,8 @@ char* execute_delegations(DelegationList* delegations, const char* user_input,
         tasks[i].completed = false;
 
         // Create delegation message
-        Message* delegate_msg = message_create(MSG_TYPE_TASK_DELEGATE,
-                                                ali->id,
-                                                specialist->id,
-                                                user_input);
+        Message* delegate_msg =
+            message_create(MSG_TYPE_TASK_DELEGATE, ali->id, specialist->id, user_input);
         if (delegate_msg) {
             message_send(delegate_msg);
         }
@@ -219,20 +229,16 @@ char* execute_delegations(DelegationList* delegations, const char* user_input,
             char* prompt_with_context = malloc(prompt_size);
             if (prompt_with_context) {
                 snprintf(prompt_with_context, prompt_size, "%s\n\nContext from Ali: %s",
-                        tasks[i].agent->system_prompt,
-                        tasks[i].context ? tasks[i].context : "Please analyze and respond.");
+                         tasks[i].agent->system_prompt,
+                         tasks[i].context ? tasks[i].context : "Please analyze and respond.");
 
                 // Use Provider interface for agent chat
                 Provider* provider = provider_get(PROVIDER_ANTHROPIC);
                 if (provider && provider->chat) {
                     TokenUsage usage = {0};
-                    tasks[i].response = provider->chat(
-                        provider,
-                        DELEGATION_MODEL,
-                        prompt_with_context,
-                        tasks[i].user_input,
-                        &usage
-                    );
+                    tasks[i].response =
+                        provider->chat(provider, DELEGATION_MODEL, prompt_with_context,
+                                       tasks[i].user_input, &usage);
                 } else {
                     LOG_ERROR(LOG_CAT_AGENT, "Provider not available for agent '%s'",
                               tasks[i].agent->name);
@@ -240,13 +246,15 @@ char* execute_delegations(DelegationList* delegations, const char* user_input,
                 free(prompt_with_context);
 
                 if (tasks[i].response) {
-                    cost_record_agent_usage(tasks[i].agent,
-                                            strlen(tasks[i].agent->system_prompt) / 4 + strlen(tasks[i].user_input) / 4,
-                                            strlen(tasks[i].response) / 4);
+                    cost_record_agent_usage(
+                        tasks[i].agent,
+                        strlen(tasks[i].agent->system_prompt) / 4 + strlen(tasks[i].user_input) / 4,
+                        strlen(tasks[i].response) / 4);
                     tasks[i].completed = true;
                     LOG_INFO(LOG_CAT_AGENT, "Agent '%s' completed response", tasks[i].agent->name);
                 } else {
-                    LOG_ERROR(LOG_CAT_AGENT, "Agent '%s' returned empty response", tasks[i].agent->name);
+                    LOG_ERROR(LOG_CAT_AGENT, "Agent '%s' returned empty response",
+                              tasks[i].agent->name);
                 }
             }
 
@@ -276,22 +284,24 @@ char* execute_delegations(DelegationList* delegations, const char* user_input,
         return NULL;
     }
 
-    size_t offset = (size_t)snprintf(convergence_prompt, convergence_size,
-        "You delegated to %zu specialist agents. Here are their responses:\n\n",
-        delegations->count);
+    size_t offset =
+        (size_t)snprintf(convergence_prompt, convergence_size,
+                         "You delegated to %zu specialist agents. Here are their responses:\n\n",
+                         delegations->count);
 
     for (size_t i = 0; i < delegations->count; i++) {
         if (tasks[i].completed && tasks[i].response) {
-            offset += (size_t)snprintf(convergence_prompt + offset, convergence_size - offset,
-                "## %s's Response\n%s\n\n",
-                tasks[i].agent ? tasks[i].agent->name : "Agent",
-                tasks[i].response);
+            offset += (size_t)snprintf(
+                convergence_prompt + offset, convergence_size - offset, "## %s's Response\n%s\n\n",
+                tasks[i].agent ? tasks[i].agent->name : "Agent", tasks[i].response);
         }
     }
 
-    offset += (size_t)snprintf(convergence_prompt + offset, convergence_size - offset,
+    offset += (size_t)snprintf(
+        convergence_prompt + offset, convergence_size - offset,
         "---\n\nOriginal user request: %s\n\n"
-        "Please synthesize all these specialist perspectives into a unified, comprehensive response for the user. "
+        "Please synthesize all these specialist perspectives into a unified, comprehensive "
+        "response for the user. "
         "Integrate insights from each agent, highlight agreements and different viewpoints, "
         "and provide actionable conclusions.",
         user_input);
@@ -301,13 +311,8 @@ char* execute_delegations(DelegationList* delegations, const char* user_input,
     Provider* synth_provider = provider_get(PROVIDER_ANTHROPIC);
     if (synth_provider && synth_provider->chat) {
         TokenUsage synth_usage = {0};
-        synthesized = synth_provider->chat(
-            synth_provider,
-            DELEGATION_MODEL,
-            ali->system_prompt,
-            convergence_prompt,
-            &synth_usage
-        );
+        synthesized = synth_provider->chat(synth_provider, DELEGATION_MODEL, ali->system_prompt,
+                                           convergence_prompt, &synth_usage);
     }
     free(convergence_prompt);
 
@@ -322,7 +327,8 @@ char* execute_delegations(DelegationList* delegations, const char* user_input,
 
     if (synthesized) {
         // Record successful delegation as API call (orchestrator internal operation)
-        telemetry_record_api_call("orchestrator", "delegation", delegations->count, strlen(synthesized) / 4, latency_ms);
+        telemetry_record_api_call("orchestrator", "delegation", delegations->count,
+                                  strlen(synthesized) / 4, latency_ms);
         LOG_DEBUG(LOG_CAT_AGENT, "Delegation completed in %.2f ms", latency_ms);
     } else {
         telemetry_record_error("orchestrator_delegation_failed");

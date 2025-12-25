@@ -17,12 +17,12 @@
  */
 
 #include "nous/hyperlink.h"
+#include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
-#include <limits.h>
 #include <sys/stat.h>
+#include <unistd.h>
 
 // ============================================================================
 // OSC 8 ESCAPE SEQUENCES
@@ -30,19 +30,15 @@
 
 // ESC character as hex to avoid preprocessor interpretation issues
 #define ESC_CHAR "\x1b"
-#define OSC8_START  ESC_CHAR "]8;;"
-#define OSC8_SEP    ESC_CHAR "\\"
-#define OSC8_END    ESC_CHAR "]8;;" ESC_CHAR "\\"
+#define OSC8_START ESC_CHAR "]8;;"
+#define OSC8_SEP ESC_CHAR "\\"
+#define OSC8_END ESC_CHAR "]8;;" ESC_CHAR "\\"
 
 // ============================================================================
 // TERMINAL DETECTION STATE
 // ============================================================================
 
-typedef enum {
-    HYPERLINK_AUTO,
-    HYPERLINK_FORCED_ON,
-    HYPERLINK_FORCED_OFF
-} HyperlinkMode;
+typedef enum { HYPERLINK_AUTO, HYPERLINK_FORCED_ON, HYPERLINK_FORCED_OFF } HyperlinkMode;
 
 static HyperlinkMode g_hyperlink_mode = HYPERLINK_AUTO;
 static bool g_detection_done = false;
@@ -54,7 +50,8 @@ static const char* g_terminal_name = "unknown";
 // ============================================================================
 
 static void detect_terminal(void) {
-    if (g_detection_done) return;
+    if (g_detection_done)
+        return;
     g_detection_done = true;
 
     // Check if stdout is a TTY
@@ -116,7 +113,7 @@ static void detect_terminal(void) {
     // VTE-based terminals (GNOME Terminal, Tilix, etc.) version 0.50+
     if (vte_version) {
         int version = atoi(vte_version);
-        if (version >= 5000) {  // VTE 0.50+
+        if (version >= 5000) { // VTE 0.50+
             g_terminal_supports_hyperlinks = true;
             g_terminal_name = "VTE-based";
             return;
@@ -179,13 +176,13 @@ const char* hyperlink_get_terminal(void) {
 
 bool hyperlink_enabled(void) {
     switch (g_hyperlink_mode) {
-        case HYPERLINK_FORCED_ON:
-            return true;
-        case HYPERLINK_FORCED_OFF:
-            return false;
-        case HYPERLINK_AUTO:
-        default:
-            return hyperlink_supported();
+    case HYPERLINK_FORCED_ON:
+        return true;
+    case HYPERLINK_FORCED_OFF:
+        return false;
+    case HYPERLINK_AUTO:
+    default:
+        return hyperlink_supported();
     }
 }
 
@@ -202,7 +199,8 @@ void hyperlink_auto(void) {
 // ============================================================================
 
 char* hyperlink_file(const char* filepath, const char* display_text) {
-    if (!filepath) return strdup("");
+    if (!filepath)
+        return strdup("");
 
     const char* display = display_text ? display_text : filepath;
 
@@ -243,8 +241,8 @@ char* hyperlink_file(const char* filepath, const char* display_text) {
     char* result = malloc(total_len);
 
     if (result) {
-        snprintf(result, total_len, "%sfile://%s%s%s%s",
-                 OSC8_START, abs_path, OSC8_SEP, display, OSC8_END);
+        snprintf(result, total_len, "%sfile://%s%s%s%s", OSC8_START, abs_path, OSC8_SEP, display,
+                 OSC8_END);
     }
 
     free(abs_path);
@@ -252,7 +250,8 @@ char* hyperlink_file(const char* filepath, const char* display_text) {
 }
 
 char* hyperlink_file_line(const char* filepath, int line, const char* display_text) {
-    if (!filepath) return strdup("");
+    if (!filepath)
+        return strdup("");
 
     // Create default display text if not provided
     char default_display[512];
@@ -299,16 +298,18 @@ char* hyperlink_file_line(const char* filepath, int line, const char* display_te
     char* result = malloc(len);
 
     if (result) {
-        snprintf(result, len, "%sfile://%s%s%s%s%s",
-                 OSC8_START, abs_path, line_suffix, OSC8_SEP, display_text, OSC8_END);
+        snprintf(result, len, "%sfile://%s%s%s%s%s", OSC8_START, abs_path, line_suffix, OSC8_SEP,
+                 display_text, OSC8_END);
     }
 
     free(abs_path);
     return result ? result : strdup(display_text);
 }
 
-char* hyperlink_file_line_col(const char* filepath, int line, int column, const char* display_text) {
-    if (!filepath) return strdup("");
+char* hyperlink_file_line_col(const char* filepath, int line, int column,
+                              const char* display_text) {
+    if (!filepath)
+        return strdup("");
 
     // Create default display text if not provided
     char default_display[512];
@@ -354,8 +355,8 @@ char* hyperlink_file_line_col(const char* filepath, int line, int column, const 
     char* result = malloc(len);
 
     if (result) {
-        snprintf(result, len, "%sfile://%s%s%s%s%s",
-                 OSC8_START, abs_path, line_col_suffix, OSC8_SEP, display_text, OSC8_END);
+        snprintf(result, len, "%sfile://%s%s%s%s%s", OSC8_START, abs_path, line_col_suffix,
+                 OSC8_SEP, display_text, OSC8_END);
     }
 
     free(abs_path);
@@ -363,7 +364,8 @@ char* hyperlink_file_line_col(const char* filepath, int line, int column, const 
 }
 
 char* hyperlink_url(const char* url, const char* display_text) {
-    if (!url) return strdup("");
+    if (!url)
+        return strdup("");
 
     const char* display = display_text ? display_text : url;
 
@@ -380,8 +382,7 @@ char* hyperlink_url(const char* url, const char* display_text) {
     char* result = malloc(total_len);
 
     if (result) {
-        snprintf(result, total_len, "%s%s%s%s%s",
-                 OSC8_START, url, OSC8_SEP, display, OSC8_END);
+        snprintf(result, total_len, "%s%s%s%s%s", OSC8_START, url, OSC8_SEP, display, OSC8_END);
     }
 
     return result ? result : strdup(display);
@@ -392,39 +393,42 @@ char* hyperlink_url(const char* url, const char* display_text) {
 // ============================================================================
 
 char* hyperlink_strip(const char* text) {
-    if (!text) return strdup("");
+    if (!text)
+        return strdup("");
 
     // Allocate result buffer (same size as input is safe upper bound)
     size_t len = strlen(text);
     char* result = malloc(len + 1);
-    if (!result) return strdup(text);
+    if (!result)
+        return strdup(text);
 
     const char* src = text;
     char* dst = result;
 
     while (*src) {
         // Check for OSC 8 start sequence: \033]8;;
-        if (src[0] == '\033' && src[1] == ']' && src[2] == '8' &&
-            src[3] == ';' && src[4] == ';') {
+        if (src[0] == '\033' && src[1] == ']' && src[2] == '8' && src[3] == ';' && src[4] == ';') {
             // Skip past the URL until we find the separator
             src += 5;
             while (*src && !(src[0] == '\033' && src[1] == '\\')) {
                 src++;
             }
-            if (*src) src += 2;  // Skip \033\\ separator
+            if (*src)
+                src += 2; // Skip \033\\ separator
             // Now we're at the display text, which we want to keep
             // Continue until we find the end sequence
-            while (*src && !(src[0] == '\033' && src[1] == ']' && src[2] == '8' &&
-                            src[3] == ';' && src[4] == ';')) {
+            while (*src && !(src[0] == '\033' && src[1] == ']' && src[2] == '8' && src[3] == ';' &&
+                             src[4] == ';')) {
                 *dst++ = *src++;
             }
             // Skip the end sequence
             if (*src) {
-                src += 5;  // Skip \033]8;;
+                src += 5; // Skip \033]8;;
                 while (*src && !(src[0] == '\033' && src[1] == '\\')) {
                     src++;
                 }
-                if (*src) src += 2;  // Skip ESC-backslash
+                if (*src)
+                    src += 2; // Skip ESC-backslash
             }
         } else {
             *dst++ = *src++;
@@ -436,10 +440,12 @@ char* hyperlink_strip(const char* text) {
 }
 
 size_t hyperlink_display_len(const char* hyperlink_text) {
-    if (!hyperlink_text) return 0;
+    if (!hyperlink_text)
+        return 0;
 
     char* stripped = hyperlink_strip(hyperlink_text);
-    if (!stripped) return strlen(hyperlink_text);
+    if (!stripped)
+        return strlen(hyperlink_text);
 
     size_t len = strlen(stripped);
     free(stripped);

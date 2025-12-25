@@ -11,15 +11,15 @@
  */
 
 #include "nous/statusbar.h"
-#include "nous/theme.h"
 #include "nous/nous.h"
+#include "nous/theme.h"
+#include <pthread.h>
+#include <pwd.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
 #include <sys/ioctl.h>
-#include <pwd.h>
-#include <pthread.h>
+#include <unistd.h>
 
 // ============================================================================
 // VERSION
@@ -33,30 +33,30 @@
 // ANSI ESCAPE CODES
 // ============================================================================
 
-#define ANSI_SAVE_CURSOR    "\033[s"
+#define ANSI_SAVE_CURSOR "\033[s"
 #define ANSI_RESTORE_CURSOR "\033[u"
 #define ANSI_MOVE_TO(row, col) "\033[" #row ";" #col "H"
-#define ANSI_CLEAR_LINE     "\033[2K"
-#define ANSI_RESET          "\033[0m"
-#define ANSI_DIM            "\033[2m"
-#define ANSI_BOLD           "\033[1m"
+#define ANSI_CLEAR_LINE "\033[2K"
+#define ANSI_RESET "\033[0m"
+#define ANSI_DIM "\033[2m"
+#define ANSI_BOLD "\033[1m"
 
 // Scroll region control - reserves bottom lines for status bar
 #define ANSI_SCROLL_REGION(top, bottom) "\033[%d;%dr"
 #define ANSI_RESET_SCROLL_REGION "\033[r"
 
 // Colors (using 256-color mode for consistency)
-#define COLOR_USER          "\033[38;5;81m"   // Cyan
-#define COLOR_PATH          "\033[38;5;252m"  // Light gray
-#define COLOR_MODEL         "\033[38;5;214m"  // Orange
-#define COLOR_PROFILE       "\033[38;5;141m"  // Purple
-#define COLOR_TOKENS        "\033[38;5;77m"   // Green
-#define COLOR_COST          "\033[38;5;220m"  // Yellow
-#define COLOR_WARNING       "\033[38;5;208m"  // Orange warning
-#define COLOR_AGENT         "\033[38;5;117m"  // Light blue
-#define COLOR_VERSION       "\033[38;5;245m"  // Gray
-#define COLOR_EDITOR        "\033[38;5;183m"  // Light purple
-#define COLOR_ARROW         "\033[38;5;240m"  // Dark gray
+#define COLOR_USER "\033[38;5;81m"     // Cyan
+#define COLOR_PATH "\033[38;5;252m"    // Light gray
+#define COLOR_MODEL "\033[38;5;214m"   // Orange
+#define COLOR_PROFILE "\033[38;5;141m" // Purple
+#define COLOR_TOKENS "\033[38;5;77m"   // Green
+#define COLOR_COST "\033[38;5;220m"    // Yellow
+#define COLOR_WARNING "\033[38;5;208m" // Orange warning
+#define COLOR_AGENT "\033[38;5;117m"   // Light blue
+#define COLOR_VERSION "\033[38;5;245m" // Gray
+#define COLOR_EDITOR "\033[38;5;183m"  // Light purple
+#define COLOR_ARROW "\033[38;5;240m"   // Dark gray
 
 // ============================================================================
 // STATE
@@ -76,7 +76,8 @@ static bool g_scroll_region_set = false;
  * This prevents output from overwriting the status bar.
  */
 void statusbar_setup_scroll_region(void) {
-    if (!g_initialized || !g_status.visible || !isatty(STDOUT_FILENO)) return;
+    if (!g_initialized || !g_status.visible || !isatty(STDOUT_FILENO))
+        return;
 
     pthread_mutex_lock(&g_status_mutex);
 
@@ -102,7 +103,8 @@ void statusbar_setup_scroll_region(void) {
  * Reset scroll region to full terminal.
  */
 void statusbar_reset_scroll_region(void) {
-    if (!isatty(STDOUT_FILENO)) return;
+    if (!isatty(STDOUT_FILENO))
+        return;
 
     printf("%s", ANSI_RESET_SCROLL_REGION);
     fflush(stdout);
@@ -144,8 +146,10 @@ static char* get_cwd_basename(void) {
 
 static char* detect_editor(void) {
     const char* editor = getenv("EDITOR");
-    if (!editor) editor = getenv("VISUAL");
-    if (!editor) return strdup("vim");
+    if (!editor)
+        editor = getenv("VISUAL");
+    if (!editor)
+        return strdup("vim");
 
     // Extract basename
     const char* base = strrchr(editor, '/');
@@ -246,7 +250,8 @@ void statusbar_shutdown(void) {
 }
 
 bool statusbar_available(void) {
-    if (!isatty(STDOUT_FILENO)) return false;
+    if (!isatty(STDOUT_FILENO))
+        return false;
 
     update_terminal_size();
 
@@ -277,27 +282,19 @@ void statusbar_render(void) {
     printf("\033[%d;1H%s", height - 1, ANSI_CLEAR_LINE);
 
     // Left side: ◆ user ▶ workspace ▶ Model ▶ [profile]
-    printf("%s◆%s %s%s%s",
-           COLOR_AGENT, ANSI_RESET,
-           COLOR_USER, g_status.username, ANSI_RESET);
+    printf("%s◆%s %s%s%s", COLOR_AGENT, ANSI_RESET, COLOR_USER, g_status.username, ANSI_RESET);
 
-    printf(" %s▶%s %s%s%s",
-           COLOR_ARROW, ANSI_RESET,
-           COLOR_PATH, g_status.cwd_basename, ANSI_RESET);
+    printf(" %s▶%s %s%s%s", COLOR_ARROW, ANSI_RESET, COLOR_PATH, g_status.cwd_basename, ANSI_RESET);
 
-    printf(" %s▶%s %s%s%s",
-           COLOR_ARROW, ANSI_RESET,
-           COLOR_MODEL, g_status.active_model, ANSI_RESET);
+    printf(" %s▶%s %s%s%s", COLOR_ARROW, ANSI_RESET, COLOR_MODEL, g_status.active_model,
+           ANSI_RESET);
 
-    printf(" %s▶%s %s[%s]%s",
-           COLOR_ARROW, ANSI_RESET,
-           COLOR_PROFILE, g_status.profile_name, ANSI_RESET);
+    printf(" %s▶%s %s[%s]%s", COLOR_ARROW, ANSI_RESET, COLOR_PROFILE, g_status.profile_name,
+           ANSI_RESET);
 
     // Calculate left side length (approximate)
-    int left_len = 4 + (int)strlen(g_status.username) + 3 +
-                   (int)strlen(g_status.cwd_basename) + 3 +
-                   (int)strlen(g_status.active_model) + 3 +
-                   (int)strlen(g_status.profile_name) + 4;
+    int left_len = 4 + (int)strlen(g_status.username) + 3 + (int)strlen(g_status.cwd_basename) + 3 +
+                   (int)strlen(g_status.active_model) + 3 + (int)strlen(g_status.profile_name) + 4;
 
     // Right side: tokens count
     char token_str[32];
@@ -324,32 +321,30 @@ void statusbar_render(void) {
     printf("%s▶▶%s ", COLOR_ARROW, ANSI_RESET);
 
     if (g_status.bypass_permissions) {
-        printf("%sbypass permissions on%s %s·%s ",
-               COLOR_WARNING, ANSI_RESET, COLOR_ARROW, ANSI_RESET);
+        printf("%sbypass permissions on%s %s·%s ", COLOR_WARNING, ANSI_RESET, COLOR_ARROW,
+               ANSI_RESET);
     }
 
-    printf("%s%d background tasks%s",
-           COLOR_AGENT, g_status.background_tasks, ANSI_RESET);
+    printf("%s%d background tasks%s", COLOR_AGENT, g_status.background_tasks, ANSI_RESET);
 
     // Cost display if > 0
     if (g_status.session_cost > 0.001) {
-        printf(" %s·%s %s$%.4f%s",
-               COLOR_ARROW, ANSI_RESET,
-               COLOR_COST, g_status.session_cost, ANSI_RESET);
+        printf(" %s·%s %s$%.4f%s", COLOR_ARROW, ANSI_RESET, COLOR_COST, g_status.session_cost,
+               ANSI_RESET);
     }
 
     // Right side: version and editor
     char right2_str[128];
     if (g_status.editor) {
-        snprintf(right2_str, sizeof(right2_str), "current: %s ▶ %s",
-                 g_status.version, g_status.editor);
+        snprintf(right2_str, sizeof(right2_str), "current: %s ▶ %s", g_status.version,
+                 g_status.editor);
     } else {
         snprintf(right2_str, sizeof(right2_str), "current: %s", g_status.version);
     }
 
     // Calculate remaining space
-    int left2_len = 3 + 18 + (g_status.bypass_permissions ? 22 : 0) +
-                    (g_status.session_cost > 0.001 ? 12 : 0);
+    int left2_len =
+        3 + 18 + (g_status.bypass_permissions ? 22 : 0) + (g_status.session_cost > 0.001 ? 12 : 0);
     int right2_len = (int)strlen(right2_str);
     int padding2 = width - left2_len - right2_len - 4;
 
@@ -369,7 +364,8 @@ void statusbar_render(void) {
 }
 
 void statusbar_clear(void) {
-    if (!g_initialized || !isatty(STDOUT_FILENO)) return;
+    if (!g_initialized || !isatty(STDOUT_FILENO))
+        return;
 
     pthread_mutex_lock(&g_status_mutex);
 
@@ -529,7 +525,9 @@ void statusbar_handle_resize(void) {
 
 void statusbar_get_terminal_size(int* width, int* height) {
     pthread_mutex_lock(&g_status_mutex);
-    if (width) *width = g_status.terminal_width;
-    if (height) *height = g_status.terminal_height;
+    if (width)
+        *width = g_status.terminal_width;
+    if (height)
+        *height = g_status.terminal_height;
     pthread_mutex_unlock(&g_status_mutex);
 }

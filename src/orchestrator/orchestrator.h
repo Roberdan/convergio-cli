@@ -26,45 +26,45 @@ typedef struct {
 } TokenUsage;
 
 typedef struct {
-    double budget_limit_usd;      // Max spend allowed
-    double current_spend_usd;     // Current session spend
-    double total_spend_usd;       // All-time spend (from DB)
-    TokenUsage session_usage;     // Current session
-    TokenUsage total_usage;       // All-time
+    double budget_limit_usd;  // Max spend allowed
+    double current_spend_usd; // Current session spend
+    double total_spend_usd;   // All-time spend (from DB)
+    TokenUsage session_usage; // Current session
+    TokenUsage total_usage;   // All-time
     bool budget_exceeded;
     time_t session_start;
 } CostController;
 
 // Claude pricing (per 1M tokens) - Sonnet 4
-#define CLAUDE_SONNET_INPUT_COST   3.00   // $3 per 1M input
-#define CLAUDE_SONNET_OUTPUT_COST  15.00  // $15 per 1M output
+#define CLAUDE_SONNET_INPUT_COST 3.00   // $3 per 1M input
+#define CLAUDE_SONNET_OUTPUT_COST 15.00 // $15 per 1M output
 
 // ============================================================================
 // MESSAGE TYPES
 // ============================================================================
 
 typedef enum {
-    MSG_TYPE_USER_INPUT,      // From human
-    MSG_TYPE_AGENT_THOUGHT,   // Internal reasoning
-    MSG_TYPE_AGENT_ACTION,    // Tool/action request
-    MSG_TYPE_AGENT_RESPONSE,  // Response to user/other agent
-    MSG_TYPE_TASK_DELEGATE,   // Delegate to sub-agent
-    MSG_TYPE_TASK_REPORT,     // Report back to orchestrator
-    MSG_TYPE_CONVERGENCE,     // Final converged answer
-    MSG_TYPE_ERROR,           // Error condition
+    MSG_TYPE_USER_INPUT,     // From human
+    MSG_TYPE_AGENT_THOUGHT,  // Internal reasoning
+    MSG_TYPE_AGENT_ACTION,   // Tool/action request
+    MSG_TYPE_AGENT_RESPONSE, // Response to user/other agent
+    MSG_TYPE_TASK_DELEGATE,  // Delegate to sub-agent
+    MSG_TYPE_TASK_REPORT,    // Report back to orchestrator
+    MSG_TYPE_CONVERGENCE,    // Final converged answer
+    MSG_TYPE_ERROR,          // Error condition
 } MessageType;
 
 typedef struct Message {
     uint64_t id;
     MessageType type;
-    SemanticID sender;        // Agent or user ID
-    SemanticID recipient;     // Target agent (0 = broadcast)
+    SemanticID sender;    // Agent or user ID
+    SemanticID recipient; // Target agent (0 = broadcast)
     char* content;
-    char* metadata_json;      // Additional context
+    char* metadata_json; // Additional context
     time_t timestamp;
-    uint64_t parent_id;       // For threading
-    TokenUsage tokens_used;   // Cost tracking per message
-    struct Message* next;     // Linked list
+    uint64_t parent_id;     // For threading
+    TokenUsage tokens_used; // Cost tracking per message
+    struct Message* next;   // Linked list
 } Message;
 
 // ============================================================================
@@ -72,14 +72,14 @@ typedef struct Message {
 // ============================================================================
 
 typedef enum {
-    AGENT_ROLE_ORCHESTRATOR,  // Ali - coordinates everything
-    AGENT_ROLE_ANALYST,       // Deep analysis, research
-    AGENT_ROLE_CODER,         // Code generation/review
-    AGENT_ROLE_WRITER,        // Content creation
-    AGENT_ROLE_CRITIC,        // Review and validate
-    AGENT_ROLE_PLANNER,       // Break down tasks
-    AGENT_ROLE_EXECUTOR,      // Execute tools/actions
-    AGENT_ROLE_MEMORY,        // RAG and context retrieval
+    AGENT_ROLE_ORCHESTRATOR, // Ali - coordinates everything
+    AGENT_ROLE_ANALYST,      // Deep analysis, research
+    AGENT_ROLE_CODER,        // Code generation/review
+    AGENT_ROLE_WRITER,       // Content creation
+    AGENT_ROLE_CRITIC,       // Review and validate
+    AGENT_ROLE_PLANNER,      // Break down tasks
+    AGENT_ROLE_EXECUTOR,     // Execute tools/actions
+    AGENT_ROLE_MEMORY,       // RAG and context retrieval
 } AgentRole;
 
 typedef struct {
@@ -102,7 +102,7 @@ typedef struct {
 typedef enum {
     TASK_STATUS_PENDING,
     TASK_STATUS_IN_PROGRESS,
-    TASK_STATUS_WAITING,      // Waiting for sub-task
+    TASK_STATUS_WAITING, // Waiting for sub-task
     TASK_STATUS_COMPLETED,
     TASK_STATUS_FAILED,
 } TaskStatus;
@@ -134,21 +134,21 @@ typedef struct {
 // ============================================================================
 
 typedef struct {
-    ManagedAgent* ali;              // The chief of staff
-    ManagedAgent** agents;          // Pool of available agents
+    ManagedAgent* ali;     // The chief of staff
+    ManagedAgent** agents; // Pool of available agents
     size_t agent_count;
     size_t agent_capacity;
 
-    CostController cost;            // Budget and spending
+    CostController cost; // Budget and spending
 
-    Message* message_history;       // Conversation history
+    Message* message_history; // Conversation history
     size_t message_count;
 
-    ExecutionPlan* current_plan;    // Active execution plan
+    ExecutionPlan* current_plan; // Active execution plan
 
-    SemanticID user_id;             // Current user identity
+    SemanticID user_id; // Current user identity
     char* user_name;
-    char* user_preferences;         // Learned from memory
+    char* user_preferences; // Learned from memory
 
     // Callbacks
     void (*on_message)(Message* msg, void* ctx);
@@ -184,8 +184,8 @@ ManagedAgent* agent_find_by_name(const char* name);
 bool agent_is_known_name(const char* name);
 
 // Messaging
-Message* message_create(MessageType type, SemanticID sender,
-                        SemanticID recipient, const char* content);
+Message* message_create(MessageType type, SemanticID sender, SemanticID recipient,
+                        const char* content);
 void message_send(Message* msg);
 void message_broadcast(Message* msg);
 
@@ -202,7 +202,8 @@ char* orchestrator_process(const char* user_input);
 char* orchestrator_converge(ExecutionPlan* plan);
 
 // Parallel execution
-char* orchestrator_parallel_analyze(const char* input, const char** agent_names, size_t agent_count);
+char* orchestrator_parallel_analyze(const char* input, const char** agent_names,
+                                    size_t agent_count);
 
 // User management
 void orchestrator_set_user(const char* name, const char* preferences);
@@ -227,8 +228,8 @@ char* persistence_load_agent_prompt(const char* name);
 int persistence_set_pref(const char* key, const char* value);
 char* persistence_get_pref(const char* key);
 
-int persistence_save_cost_daily(const char* date, uint64_t input_tokens,
-                                 uint64_t output_tokens, double cost, uint32_t calls);
+int persistence_save_cost_daily(const char* date, uint64_t input_tokens, uint64_t output_tokens,
+                                double cost, uint32_t calls);
 double persistence_get_total_cost(void);
 
 int persistence_save_memory(const char* content, float importance);
@@ -252,7 +253,7 @@ void message_send_async(Message* msg, void (*on_delivered)(Message*, void*), voi
 Message* message_reply(Message* original, MessageType type, const char* content);
 Message** message_get_thread(uint64_t message_id, size_t* out_count);
 Message* message_create_convergence(SemanticID sender, const char* content,
-                                     Message** source_messages, size_t source_count);
+                                    Message** source_messages, size_t source_count);
 void message_print(Message* msg);
 
 // ============================================================================
@@ -261,7 +262,8 @@ void message_print(Message* msg);
 
 size_t agent_get_active(ManagedAgent** out_agents, size_t max_count);
 int agent_load_definitions(const char* dir_path);
-size_t agent_select_for_task(const char* task_description, ManagedAgent** out_agents, size_t max_count);
+size_t agent_select_for_task(const char* task_description, ManagedAgent** out_agents,
+                             size_t max_count);
 void agent_execute_parallel(ManagedAgent** agents, size_t count, const char* input, char** outputs);
 char* agent_registry_status(void);
 

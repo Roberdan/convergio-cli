@@ -16,29 +16,29 @@
 
 // ANSI Styles
 #define BOLD "\033[1m"
-#define DIM  "\033[2m"
+#define DIM "\033[2m"
 #define ITAL "\033[3m"
 #define ULINE "\033[4m"
 
 // ANSI Colors (foreground)
-#define BLACK   "\033[30m"
-#define RED     "\033[31m"
-#define GREEN   "\033[32m"
-#define YELLOW  "\033[33m"
-#define BLUE    "\033[34m"
+#define BLACK "\033[30m"
+#define RED "\033[31m"
+#define GREEN "\033[32m"
+#define YELLOW "\033[33m"
+#define BLUE "\033[34m"
 #define MAGENTA "\033[35m"
-#define CYAN    "\033[36m"
-#define WHITE   "\033[37m"
-#define GRAY    "\033[90m"
+#define CYAN "\033[36m"
+#define WHITE "\033[37m"
+#define GRAY "\033[90m"
 
 // Bright colors
-#define BRIGHT_RED     "\033[91m"
-#define BRIGHT_GREEN   "\033[92m"
-#define BRIGHT_YELLOW  "\033[93m"
-#define BRIGHT_BLUE    "\033[94m"
+#define BRIGHT_RED "\033[91m"
+#define BRIGHT_GREEN "\033[92m"
+#define BRIGHT_YELLOW "\033[93m"
+#define BRIGHT_BLUE "\033[94m"
 #define BRIGHT_MAGENTA "\033[95m"
-#define BRIGHT_CYAN    "\033[96m"
-#define BRIGHT_WHITE   "\033[97m"
+#define BRIGHT_CYAN "\033[96m"
+#define BRIGHT_WHITE "\033[97m"
 
 // 256-color mode
 #define COLOR256(n) "\033[38;5;" #n "m"
@@ -53,180 +53,180 @@ static const Theme THEMES[THEME_COUNT] = {
     {
         .name = "Ocean",
 
-        .prompt_name   = BOLD_COLOR256(39),      // Bright blue (bold)
-        .prompt_arrow  = COLOR256(39),           // Blue arrow
-        .user_input    = COLOR256(117),          // Light cyan for user text
+        .prompt_name = BOLD_COLOR256(39), // Bright blue (bold)
+        .prompt_arrow = COLOR256(39),     // Blue arrow
+        .user_input = COLOR256(117),      // Light cyan for user text
 
-        .agent_name    = BOLD CYAN,
-        .agent_text    = RST,
+        .agent_name = BOLD CYAN,
+        .agent_text = RST,
 
-        .md_header1    = BOLD BRIGHT_CYAN,
-        .md_header2    = BOLD CYAN,
-        .md_header3    = BOLD WHITE,
-        .md_bold       = BOLD,
-        .md_italic     = ITAL,
-        .md_code       = DIM GREEN,
-        .md_link       = ULINE BLUE,
-        .md_bullet     = CYAN,
+        .md_header1 = BOLD BRIGHT_CYAN,
+        .md_header2 = BOLD CYAN,
+        .md_header3 = BOLD WHITE,
+        .md_bold = BOLD,
+        .md_italic = ITAL,
+        .md_code = DIM GREEN,
+        .md_link = ULINE BLUE,
+        .md_bullet = CYAN,
 
-        .success       = BRIGHT_GREEN,
-        .warning       = YELLOW,
-        .error         = BRIGHT_RED,
-        .info          = DIM,
+        .success = BRIGHT_GREEN,
+        .warning = YELLOW,
+        .error = BRIGHT_RED,
+        .info = DIM,
 
-        .separator     = DIM CYAN,
-        .cost          = COLOR256(39),
-        .spinner       = COLOR256(208),          // Orange (like Claude Code)
+        .separator = DIM CYAN,
+        .cost = COLOR256(39),
+        .spinner = COLOR256(208), // Orange (like Claude Code)
     },
 
     // THEME_FOREST - Green nature tones
     {
         .name = "Forest",
 
-        .prompt_name   = BOLD_COLOR256(34),      // Forest green (bold)
-        .prompt_arrow  = COLOR256(76),           // Lime green arrow
-        .user_input    = COLOR256(157),          // Light green for user text
+        .prompt_name = BOLD_COLOR256(34), // Forest green (bold)
+        .prompt_arrow = COLOR256(76),     // Lime green arrow
+        .user_input = COLOR256(157),      // Light green for user text
 
-        .agent_name    = BOLD GREEN,
-        .agent_text    = RST,
+        .agent_name = BOLD GREEN,
+        .agent_text = RST,
 
-        .md_header1    = BOLD BRIGHT_GREEN,
-        .md_header2    = BOLD GREEN,
-        .md_header3    = BOLD COLOR256(157),
-        .md_bold       = BOLD,
-        .md_italic     = ITAL,
-        .md_code       = DIM COLOR256(22),       // Dark green
-        .md_link       = ULINE COLOR256(30),     // Teal
-        .md_bullet     = GREEN,
+        .md_header1 = BOLD BRIGHT_GREEN,
+        .md_header2 = BOLD GREEN,
+        .md_header3 = BOLD COLOR256(157),
+        .md_bold = BOLD,
+        .md_italic = ITAL,
+        .md_code = DIM COLOR256(22),   // Dark green
+        .md_link = ULINE COLOR256(30), // Teal
+        .md_bullet = GREEN,
 
-        .success       = BRIGHT_GREEN,
-        .warning       = YELLOW,
-        .error         = BRIGHT_RED,
-        .info          = DIM,
+        .success = BRIGHT_GREEN,
+        .warning = YELLOW,
+        .error = BRIGHT_RED,
+        .info = DIM,
 
-        .separator     = DIM GREEN,
-        .cost          = COLOR256(34),
-        .spinner       = COLOR256(208),          // Orange (like Claude Code)
+        .separator = DIM GREEN,
+        .cost = COLOR256(34),
+        .spinner = COLOR256(208), // Orange (like Claude Code)
     },
 
     // THEME_SUNSET - Warm orange/red tones
     {
         .name = "Sunset",
 
-        .prompt_name   = BOLD_COLOR256(208),     // Orange (bold)
-        .prompt_arrow  = COLOR256(203),          // Coral arrow
-        .user_input    = COLOR256(223),          // Peach for user text
+        .prompt_name = BOLD_COLOR256(208), // Orange (bold)
+        .prompt_arrow = COLOR256(203),     // Coral arrow
+        .user_input = COLOR256(223),       // Peach for user text
 
-        .agent_name    = BOLD COLOR256(208),
-        .agent_text    = RST,
+        .agent_name = BOLD COLOR256(208),
+        .agent_text = RST,
 
-        .md_header1    = BOLD COLOR256(196),     // Red
-        .md_header2    = BOLD COLOR256(208),     // Orange
-        .md_header3    = BOLD COLOR256(220),     // Gold
-        .md_bold       = BOLD,
-        .md_italic     = ITAL,
-        .md_code       = DIM COLOR256(130),      // Brown
-        .md_link       = ULINE COLOR256(203),    // Coral
-        .md_bullet     = COLOR256(208),
+        .md_header1 = BOLD COLOR256(196), // Red
+        .md_header2 = BOLD COLOR256(208), // Orange
+        .md_header3 = BOLD COLOR256(220), // Gold
+        .md_bold = BOLD,
+        .md_italic = ITAL,
+        .md_code = DIM COLOR256(130),   // Brown
+        .md_link = ULINE COLOR256(203), // Coral
+        .md_bullet = COLOR256(208),
 
-        .success       = BRIGHT_GREEN,
-        .warning       = COLOR256(220),          // Gold warning
-        .error         = BRIGHT_RED,
-        .info          = DIM,
+        .success = BRIGHT_GREEN,
+        .warning = COLOR256(220), // Gold warning
+        .error = BRIGHT_RED,
+        .info = DIM,
 
-        .separator     = DIM COLOR256(208),
-        .cost          = COLOR256(208),
-        .spinner       = COLOR256(208),          // Orange (same as theme)
+        .separator = DIM COLOR256(208),
+        .cost = COLOR256(208),
+        .spinner = COLOR256(208), // Orange (same as theme)
     },
 
     // THEME_MONO - Classic grayscale
     {
         .name = "Mono",
 
-        .prompt_name   = BOLD WHITE,
-        .prompt_arrow  = GRAY,
-        .user_input    = BRIGHT_WHITE,           // Bright white for user text
+        .prompt_name = BOLD WHITE,
+        .prompt_arrow = GRAY,
+        .user_input = BRIGHT_WHITE, // Bright white for user text
 
-        .agent_name    = BOLD WHITE,
-        .agent_text    = RST,
+        .agent_name = BOLD WHITE,
+        .agent_text = RST,
 
-        .md_header1    = BOLD BRIGHT_WHITE,
-        .md_header2    = BOLD WHITE,
-        .md_header3    = WHITE,
-        .md_bold       = BOLD,
-        .md_italic     = ITAL,
-        .md_code       = DIM,
-        .md_link       = ULINE,
-        .md_bullet     = GRAY,
+        .md_header1 = BOLD BRIGHT_WHITE,
+        .md_header2 = BOLD WHITE,
+        .md_header3 = WHITE,
+        .md_bold = BOLD,
+        .md_italic = ITAL,
+        .md_code = DIM,
+        .md_link = ULINE,
+        .md_bullet = GRAY,
 
-        .success       = BRIGHT_WHITE,
-        .warning       = WHITE,
-        .error         = BOLD WHITE,
-        .info          = DIM,
+        .success = BRIGHT_WHITE,
+        .warning = WHITE,
+        .error = BOLD WHITE,
+        .info = DIM,
 
-        .separator     = DIM,
-        .cost          = WHITE,
-        .spinner       = WHITE,                  // White spinner for mono theme
+        .separator = DIM,
+        .cost = WHITE,
+        .spinner = WHITE, // White spinner for mono theme
     },
 
     // THEME_LIGHT - Light mode for bright environments
     {
         .name = "Light",
 
-        .prompt_name   = BOLD COLOR256(24),      // Dark blue
-        .prompt_arrow  = COLOR256(24),           // Dark blue arrow
-        .user_input    = BLACK,                  // Black for user text
+        .prompt_name = BOLD COLOR256(24), // Dark blue
+        .prompt_arrow = COLOR256(24),     // Dark blue arrow
+        .user_input = BLACK,              // Black for user text
 
-        .agent_name    = BOLD COLOR256(24),
-        .agent_text    = BLACK,
+        .agent_name = BOLD COLOR256(24),
+        .agent_text = BLACK,
 
-        .md_header1    = BOLD COLOR256(24),      // Dark blue
-        .md_header2    = BOLD COLOR256(30),      // Teal
-        .md_header3    = BOLD COLOR256(238),     // Dark gray
-        .md_bold       = BOLD BLACK,
-        .md_italic     = ITAL BLACK,
-        .md_code       = COLOR256(22),           // Dark green
-        .md_link       = ULINE COLOR256(24),     // Dark blue
-        .md_bullet     = COLOR256(238),
+        .md_header1 = BOLD COLOR256(24),  // Dark blue
+        .md_header2 = BOLD COLOR256(30),  // Teal
+        .md_header3 = BOLD COLOR256(238), // Dark gray
+        .md_bold = BOLD BLACK,
+        .md_italic = ITAL BLACK,
+        .md_code = COLOR256(22),       // Dark green
+        .md_link = ULINE COLOR256(24), // Dark blue
+        .md_bullet = COLOR256(238),
 
-        .success       = COLOR256(22),           // Dark green
-        .warning       = COLOR256(130),          // Brown/orange
-        .error         = COLOR256(124),          // Dark red
-        .info          = COLOR256(240),          // Gray
+        .success = COLOR256(22),  // Dark green
+        .warning = COLOR256(130), // Brown/orange
+        .error = COLOR256(124),   // Dark red
+        .info = COLOR256(240),    // Gray
 
-        .separator     = COLOR256(250),          // Light gray
-        .cost          = COLOR256(24),
-        .spinner       = COLOR256(208),          // Orange (like Claude Code)
+        .separator = COLOR256(250), // Light gray
+        .cost = COLOR256(24),
+        .spinner = COLOR256(208), // Orange (like Claude Code)
     },
 
     // THEME_DARK - Dark mode optimized for OLED
     {
         .name = "Dark",
 
-        .prompt_name   = BOLD COLOR256(141),     // Soft purple
-        .prompt_arrow  = COLOR256(141),          // Purple arrow
-        .user_input    = COLOR256(252),          // Soft white
+        .prompt_name = BOLD COLOR256(141), // Soft purple
+        .prompt_arrow = COLOR256(141),     // Purple arrow
+        .user_input = COLOR256(252),       // Soft white
 
-        .agent_name    = BOLD COLOR256(141),
-        .agent_text    = COLOR256(250),          // Light gray
+        .agent_name = BOLD COLOR256(141),
+        .agent_text = COLOR256(250), // Light gray
 
-        .md_header1    = BOLD COLOR256(213),     // Pink
-        .md_header2    = BOLD COLOR256(141),     // Purple
-        .md_header3    = BOLD COLOR256(183),     // Light purple
-        .md_bold       = BOLD,
-        .md_italic     = ITAL,
-        .md_code       = COLOR256(114),          // Soft green
-        .md_link       = ULINE COLOR256(117),    // Light cyan
-        .md_bullet     = COLOR256(141),
+        .md_header1 = BOLD COLOR256(213), // Pink
+        .md_header2 = BOLD COLOR256(141), // Purple
+        .md_header3 = BOLD COLOR256(183), // Light purple
+        .md_bold = BOLD,
+        .md_italic = ITAL,
+        .md_code = COLOR256(114),       // Soft green
+        .md_link = ULINE COLOR256(117), // Light cyan
+        .md_bullet = COLOR256(141),
 
-        .success       = COLOR256(114),          // Soft green
-        .warning       = COLOR256(221),          // Soft yellow
-        .error         = COLOR256(210),          // Soft red
-        .info          = COLOR256(244),          // Gray
+        .success = COLOR256(114), // Soft green
+        .warning = COLOR256(221), // Soft yellow
+        .error = COLOR256(210),   // Soft red
+        .info = COLOR256(244),    // Gray
 
-        .separator     = COLOR256(238),          // Dark gray
-        .cost          = COLOR256(141),
-        .spinner       = COLOR256(208),          // Orange (like Claude Code)
+        .separator = COLOR256(238), // Dark gray
+        .cost = COLOR256(141),
+        .spinner = COLOR256(208), // Orange (like Claude Code)
     },
 
     // THEME_COLORBLIND - Accessible for all color vision types
@@ -236,30 +236,30 @@ static const Theme THEMES[THEME_COUNT] = {
     {
         .name = "Colorblind",
 
-        .prompt_name   = BOLD COLOR256(33),      // Bright blue
-        .prompt_arrow  = COLOR256(33),           // Blue arrow
-        .user_input    = BRIGHT_WHITE,           // White for user text
+        .prompt_name = BOLD COLOR256(33), // Bright blue
+        .prompt_arrow = COLOR256(33),     // Blue arrow
+        .user_input = BRIGHT_WHITE,       // White for user text
 
-        .agent_name    = BOLD COLOR256(33),      // Blue
-        .agent_text    = RST,
+        .agent_name = BOLD COLOR256(33), // Blue
+        .agent_text = RST,
 
-        .md_header1    = BOLD COLOR256(33),      // Blue (high contrast)
-        .md_header2    = BOLD COLOR256(214),     // Yellow-orange (bright)
-        .md_header3    = BOLD WHITE,
-        .md_bold       = BOLD,
-        .md_italic     = ITAL,
-        .md_code       = COLOR256(252),          // Light gray (high contrast)
-        .md_link       = ULINE BOLD COLOR256(75), // Bright sky blue
-        .md_bullet     = COLOR256(214),          // Yellow-orange
+        .md_header1 = BOLD COLOR256(33),  // Blue (high contrast)
+        .md_header2 = BOLD COLOR256(214), // Yellow-orange (bright)
+        .md_header3 = BOLD WHITE,
+        .md_bold = BOLD,
+        .md_italic = ITAL,
+        .md_code = COLOR256(252),           // Light gray (high contrast)
+        .md_link = ULINE BOLD COLOR256(75), // Bright sky blue
+        .md_bullet = COLOR256(214),         // Yellow-orange
 
-        .success       = BOLD COLOR256(75),      // Bright sky blue + symbols ✓
-        .warning       = COLOR256(214),          // Yellow-orange + symbols ⚠
-        .error         = BOLD BRIGHT_WHITE,      // Bold bright white + symbols ✗
-        .info          = DIM,
+        .success = BOLD COLOR256(75), // Bright sky blue + symbols ✓
+        .warning = COLOR256(214),     // Yellow-orange + symbols ⚠
+        .error = BOLD BRIGHT_WHITE,   // Bold bright white + symbols ✗
+        .info = DIM,
 
-        .separator     = COLOR256(244),          // Gray
-        .cost          = COLOR256(75),           // Sky blue
-        .spinner       = COLOR256(214),          // Orange (accessible contrast)
+        .separator = COLOR256(244), // Gray
+        .cost = COLOR256(75),       // Sky blue
+        .spinner = COLOR256(214),   // Orange (accessible contrast)
     },
 };
 
@@ -296,7 +296,8 @@ void theme_set(ThemeId id) {
 }
 
 bool theme_set_by_name(const char* name) {
-    if (!name) return false;
+    if (!name)
+        return false;
 
     for (int i = 0; i < THEME_COUNT; i++) {
         if (strcasecmp(name, THEMES[i].name) == 0) {
@@ -327,18 +328,11 @@ void theme_list(void) {
         bool is_current = ((ThemeId)i == g_current_theme);
 
         // Show theme name with its colors
-        printf("  %s%s%-10s%s",
-               is_current ? "▶ " : "  ",
-               t->prompt_name,
-               t->name,
-               RST);
+        printf("  %s%s%-10s%s", is_current ? "▶ " : "  ", t->prompt_name, t->name, RST);
 
         // Show preview
-        printf(" │ %sPrompt%s %s>%s %suser input%s │ %sAgent%s\n",
-               t->prompt_name, RST,
-               t->prompt_arrow, RST,
-               t->user_input, RST,
-               t->agent_name, RST);
+        printf(" │ %sPrompt%s %s>%s %suser input%s │ %sAgent%s\n", t->prompt_name, RST,
+               t->prompt_arrow, RST, t->user_input, RST, t->agent_name, RST);
     }
     printf("\n");
     printf("Current: %s%s%s\n", current->prompt_name, current->name, RST);
@@ -358,9 +352,9 @@ const char* theme_reset(void) {
 // INTERACTIVE THEME SELECTOR
 // ============================================================================
 
+#include <sys/ioctl.h>
 #include <termios.h>
 #include <unistd.h>
-#include <sys/ioctl.h>
 
 // Get a single keypress without waiting for Enter
 static int get_key(void) {
@@ -368,7 +362,7 @@ static int get_key(void) {
     int ch;
     tcgetattr(STDIN_FILENO, &oldt);
     newt = oldt;
-    newt.c_lflag &= (tcflag_t)~(ICANON | ECHO);
+    newt.c_lflag &= (tcflag_t) ~(ICANON | ECHO);
     tcsetattr(STDIN_FILENO, TCSANOW, &newt);
     ch = getchar();
     // Handle escape sequences (arrow keys)
@@ -378,14 +372,18 @@ static int get_key(void) {
             int arrow = getchar();
             tcsetattr(STDIN_FILENO, TCSANOW, &oldt);
             switch (arrow) {
-                case 'A': return -1;  // Up
-                case 'B': return -2;  // Down
-                case 'C': return -3;  // Right
-                case 'D': return -4;  // Left
+            case 'A':
+                return -1; // Up
+            case 'B':
+                return -2; // Down
+            case 'C':
+                return -3; // Right
+            case 'D':
+                return -4; // Left
             }
         }
         tcsetattr(STDIN_FILENO, TCSANOW, &oldt);
-        return 27;  // ESC
+        return 27; // ESC
     }
     tcsetattr(STDIN_FILENO, TCSANOW, &oldt);
     return ch;
@@ -395,19 +393,24 @@ static int get_key(void) {
 static void print_theme_preview(const Theme* t) {
     printf("\n");
     printf("  %s┌─ Preview ───────────────────────────────────────┐%s\n", t->separator, RST);
-    printf("  %s│%s                                                  %s│%s\n", t->separator, RST, t->separator, RST);
-    printf("  %s│%s  %sConvergio%s %s>%s %suser input here%s              %s│%s\n",
-           t->separator, RST, t->prompt_name, RST, t->prompt_arrow, RST, t->user_input, RST, t->separator, RST);
-    printf("  %s│%s                                                  %s│%s\n", t->separator, RST, t->separator, RST);
-    printf("  %s│%s  %sAli:%s Hello! I'm your assistant.              %s│%s\n",
-           t->separator, RST, t->agent_name, t->agent_text, t->separator, RST);
-    printf("  %s│%s                                                  %s│%s\n", t->separator, RST, t->separator, RST);
-    printf("  %s│%s  %s# Header%s  %s**bold**%s  %s`code`%s              %s│%s\n",
-           t->separator, RST, t->md_header1, RST, t->md_bold, RST, t->md_code, RST, t->separator, RST);
-    printf("  %s│%s                                                  %s│%s\n", t->separator, RST, t->separator, RST);
-    printf("  %s│%s  %s✓ Success%s  %s⚠ Warning%s  %s✗ Error%s          %s│%s\n",
-           t->separator, RST, t->success, RST, t->warning, RST, t->error, RST, t->separator, RST);
-    printf("  %s│%s                                                  %s│%s\n", t->separator, RST, t->separator, RST);
+    printf("  %s│%s                                                  %s│%s\n", t->separator, RST,
+           t->separator, RST);
+    printf("  %s│%s  %sConvergio%s %s>%s %suser input here%s              %s│%s\n", t->separator,
+           RST, t->prompt_name, RST, t->prompt_arrow, RST, t->user_input, RST, t->separator, RST);
+    printf("  %s│%s                                                  %s│%s\n", t->separator, RST,
+           t->separator, RST);
+    printf("  %s│%s  %sAli:%s Hello! I'm your assistant.              %s│%s\n", t->separator, RST,
+           t->agent_name, t->agent_text, t->separator, RST);
+    printf("  %s│%s                                                  %s│%s\n", t->separator, RST,
+           t->separator, RST);
+    printf("  %s│%s  %s# Header%s  %s**bold**%s  %s`code`%s              %s│%s\n", t->separator,
+           RST, t->md_header1, RST, t->md_bold, RST, t->md_code, RST, t->separator, RST);
+    printf("  %s│%s                                                  %s│%s\n", t->separator, RST,
+           t->separator, RST);
+    printf("  %s│%s  %s✓ Success%s  %s⚠ Warning%s  %s✗ Error%s          %s│%s\n", t->separator, RST,
+           t->success, RST, t->warning, RST, t->error, RST, t->separator, RST);
+    printf("  %s│%s                                                  %s│%s\n", t->separator, RST,
+           t->separator, RST);
     printf("  %s└──────────────────────────────────────────────────┘%s\n", t->separator, RST);
 }
 
@@ -419,8 +422,8 @@ ThemeId theme_select_interactive(void) {
 
     // Switch to alternate screen buffer (like vim/less)
     // This preserves the main terminal content
-    printf("\033[?1049h");  // Enter alternate screen
-    printf("\033[?25l");    // Hide cursor
+    printf("\033[?1049h"); // Enter alternate screen
+    printf("\033[?25l");   // Hide cursor
 
     while (running) {
         // Clear alternate screen and move to top
@@ -435,13 +438,10 @@ ThemeId theme_select_interactive(void) {
             bool is_current = ((ThemeId)i == original);
 
             if (is_selected) {
-                printf("  \033[7m");  // Inverted colors
+                printf("  \033[7m"); // Inverted colors
             }
 
-            printf("  %s%s%-12s%s",
-                   is_selected ? "" : "  ",
-                   is_selected ? "\033[1m" : "",
-                   t->name,
+            printf("  %s%s%-12s%s", is_selected ? "" : "  ", is_selected ? "\033[1m" : "", t->name,
                    RST);
 
             if (is_current && !is_selected) {
@@ -461,33 +461,37 @@ ThemeId theme_select_interactive(void) {
         // Get key
         int key = get_key();
         switch (key) {
-            case -1:  // Up
-                if (selected > 0) selected--;
-                else selected = THEME_COUNT - 1;
-                break;
-            case -2:  // Down
-                if (selected < THEME_COUNT - 1) selected++;
-                else selected = 0;
-                break;
-            case '\n':  // Enter
-            case '\r':
-                running = false;
-                break;
-            case 27:   // ESC
-                selected = original;  // Restore original
-                running = false;
-                break;
-            case 'q':
-            case 'Q':
-                selected = original;
-                running = false;
-                break;
+        case -1: // Up
+            if (selected > 0)
+                selected--;
+            else
+                selected = THEME_COUNT - 1;
+            break;
+        case -2: // Down
+            if (selected < THEME_COUNT - 1)
+                selected++;
+            else
+                selected = 0;
+            break;
+        case '\n': // Enter
+        case '\r':
+            running = false;
+            break;
+        case 27:                 // ESC
+            selected = original; // Restore original
+            running = false;
+            break;
+        case 'q':
+        case 'Q':
+            selected = original;
+            running = false;
+            break;
         }
     }
 
     // Show cursor and exit alternate screen buffer
-    printf("\033[?25h");    // Show cursor
-    printf("\033[?1049l");  // Exit alternate screen (restores original content)
+    printf("\033[?25h");   // Show cursor
+    printf("\033[?1049l"); // Exit alternate screen (restores original content)
 
     return selected;
 }

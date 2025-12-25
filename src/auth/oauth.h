@@ -31,11 +31,7 @@
  * AUTH_MODE_API_KEY - Using ANTHROPIC_API_KEY environment variable
  * AUTH_MODE_OAUTH   - Using Claude Max OAuth tokens
  */
-typedef enum {
-    AUTH_MODE_NONE = 0,
-    AUTH_MODE_API_KEY,
-    AUTH_MODE_OAUTH
-} AuthMode;
+typedef enum { AUTH_MODE_NONE = 0, AUTH_MODE_API_KEY, AUTH_MODE_OAUTH } AuthMode;
 
 // ============================================================================
 // TOKEN STRUCTURES

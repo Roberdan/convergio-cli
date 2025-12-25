@@ -63,4 +63,3 @@ int cmd_telemetry(int argc, char** argv) {
         return 1;
     }
 }
-

@@ -5,55 +5,55 @@
  * Uses a state machine with look-ahead buffer for ambiguous tokens.
  */
 
+#include "nous/stream_md.h"
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <stdbool.h>
-#include "nous/stream_md.h"
 
 // ANSI escape codes
-#define ANSI_RESET      "\033[0m"
-#define ANSI_BOLD       "\033[1m"
-#define ANSI_DIM        "\033[2m"
-#define ANSI_ITALIC     "\033[3m"
-#define ANSI_UNDERLINE  "\033[4m"
+#define ANSI_RESET "\033[0m"
+#define ANSI_BOLD "\033[1m"
+#define ANSI_DIM "\033[2m"
+#define ANSI_ITALIC "\033[3m"
+#define ANSI_UNDERLINE "\033[4m"
 
 // Colors
-#define ANSI_CYAN       "\033[36m"
-#define ANSI_GREEN      "\033[32m"
-#define ANSI_BLUE       "\033[34m"
-#define ANSI_WHITE      "\033[37m"
+#define ANSI_CYAN "\033[36m"
+#define ANSI_GREEN "\033[32m"
+#define ANSI_BLUE "\033[34m"
+#define ANSI_WHITE "\033[37m"
 
 // Bright colors
-#define ANSI_BRIGHT_CYAN    "\033[96m"
+#define ANSI_BRIGHT_CYAN "\033[96m"
 
 // Streaming state machine states
 typedef enum {
     STATE_NORMAL,
-    STATE_MAYBE_BOLD,        // Saw one *
-    STATE_IN_BOLD,           // Inside **...**
-    STATE_MAYBE_BOLD_END,    // Saw one * inside bold
-    STATE_IN_ITALIC,         // Inside *...*
-    STATE_MAYBE_CODE,        // Saw one `
-    STATE_MAYBE_CODE_BLOCK,  // Saw two ``
-    STATE_IN_CODE,           // Inside `...`
-    STATE_IN_CODE_BLOCK,     // Inside ```...```
-    STATE_MAYBE_HEADER,      // Saw # at line start
-    STATE_IN_HEADER,         // Reading header text
-    STATE_MAYBE_BULLET,      // Saw - or * at line start
-    STATE_IN_LINK_TEXT,      // Inside [text]
-    STATE_MAYBE_LINK_URL,    // Saw ](
-    STATE_IN_LINK_URL,       // Inside (url)
-    STATE_MAYBE_HR,          // Saw -- or ** at line start
+    STATE_MAYBE_BOLD,       // Saw one *
+    STATE_IN_BOLD,          // Inside **...**
+    STATE_MAYBE_BOLD_END,   // Saw one * inside bold
+    STATE_IN_ITALIC,        // Inside *...*
+    STATE_MAYBE_CODE,       // Saw one `
+    STATE_MAYBE_CODE_BLOCK, // Saw two ``
+    STATE_IN_CODE,          // Inside `...`
+    STATE_IN_CODE_BLOCK,    // Inside ```...```
+    STATE_MAYBE_HEADER,     // Saw # at line start
+    STATE_IN_HEADER,        // Reading header text
+    STATE_MAYBE_BULLET,     // Saw - or * at line start
+    STATE_IN_LINK_TEXT,     // Inside [text]
+    STATE_MAYBE_LINK_URL,   // Saw ](
+    STATE_IN_LINK_URL,      // Inside (url)
+    STATE_MAYBE_HR,         // Saw -- or ** at line start
 } StreamState;
 
 struct StreamMd {
     StreamState state;
     bool line_start;
     int header_level;
-    char pending[16];        // Buffer for ambiguous tokens
+    char pending[16]; // Buffer for ambiguous tokens
     int pending_len;
-    char link_text[256];     // Buffer for link text
+    char link_text[256]; // Buffer for link text
     int link_text_len;
 };
 
@@ -67,7 +67,8 @@ StreamMd* stream_md_create(void) {
 }
 
 void stream_md_destroy(StreamMd* sm) {
-    if (sm) free(sm);
+    if (sm)
+        free(sm);
 }
 
 // Flush pending buffer as-is (when token doesn't match expected pattern)
@@ -154,7 +155,8 @@ void stream_md_process_char(StreamMd* sm, char c) {
             return;
         }
         // Not a header, output the #'s
-        for (int i = 0; i < sm->header_level; i++) emit_char('#');
+        for (int i = 0; i < sm->header_level; i++)
+            emit_char('#');
         sm->state = STATE_NORMAL;
         sm->line_start = false;
         // Process current char normally
@@ -301,7 +303,7 @@ void stream_md_process_char(StreamMd* sm, char c) {
         sm->pending_len = 0;
         sm->state = STATE_IN_CODE;
         emit(ANSI_DIM ANSI_GREEN);
-        emit_char('`');  // The second backtick
+        emit_char('`'); // The second backtick
         stream_md_process_char(sm, c);
         break;
 

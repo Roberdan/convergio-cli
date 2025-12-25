@@ -8,18 +8,18 @@
  * Copyright 2025 - Roberto D'Angelo & AI Team
  */
 
+#include "nous/nous.h"
 #include "nous/provider.h"
 #include "nous/provider_common.h"
-#include "nous/nous.h"
 #include "nous/telemetry.h"
-#include <stdlib.h>
-#include <string.h>
-#include <stdio.h>
-#include <stdint.h>
-#include <curl/curl.h>
 #include <ctype.h>
+#include <curl/curl.h>
 #include <pthread.h>
 #include <signal.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include <time.h>
 
 // ============================================================================
@@ -45,7 +45,7 @@ typedef struct {
     ProviderErrorInfo last_error;
     pthread_mutex_t mutex;
     volatile sig_atomic_t request_cancelled;
-    char* host;  // Configurable host (default: localhost:11434)
+    char* host; // Configurable host (default: localhost:11434)
 } OllamaProviderData;
 
 // ============================================================================
@@ -55,17 +55,19 @@ typedef struct {
 static ProviderError ollama_init(Provider* self);
 static void ollama_shutdown(Provider* self);
 static bool ollama_validate_key(Provider* self);
-static char* ollama_chat(Provider* self, const char* model, const char* system,
-                         const char* user, TokenUsage* usage);
+static char* ollama_chat(Provider* self, const char* model, const char* system, const char* user,
+                         TokenUsage* usage);
 static char* ollama_chat_with_tools(Provider* self, const char* model, const char* system,
                                     const char* user, ToolDefinition* tools, size_t tool_count,
                                     ToolCall** out_tool_calls, size_t* out_tool_count,
                                     TokenUsage* usage);
 static ProviderError ollama_stream_chat(Provider* self, const char* model, const char* system,
-                                        const char* user, StreamHandler* handler, TokenUsage* usage);
+                                        const char* user, StreamHandler* handler,
+                                        TokenUsage* usage);
 static size_t ollama_estimate_tokens(Provider* self, const char* text);
 static ProviderErrorInfo* ollama_get_last_error(Provider* self);
-static ProviderError ollama_list_models(Provider* self, ModelConfig** out_models, size_t* out_count);
+static ProviderError ollama_list_models(Provider* self, ModelConfig** out_models,
+                                        size_t* out_count);
 
 // ============================================================================
 // HELPER FUNCTIONS
@@ -74,8 +76,11 @@ static ProviderError ollama_list_models(Provider* self, ModelConfig** out_models
 // write_callback now from provider_common.h (provider_write_callback)
 
 static int progress_callback(void* clientp, curl_off_t dltotal, curl_off_t dlnow,
-                            curl_off_t ultotal, curl_off_t ulnow) {
-    (void)dltotal; (void)dlnow; (void)ultotal; (void)ulnow;
+                             curl_off_t ultotal, curl_off_t ulnow) {
+    (void)dltotal;
+    (void)dlnow;
+    (void)ultotal;
+    (void)ulnow;
     OllamaProviderData* data = (OllamaProviderData*)clientp;
     if (data && data->request_cancelled) {
         return 1;
@@ -85,12 +90,14 @@ static int progress_callback(void* clientp, curl_off_t dltotal, curl_off_t dlnow
 
 // JSON escape helper (simplified)
 static char* json_escape(const char* str) {
-    if (!str) return strdup("");
+    if (!str)
+        return strdup("");
 
     size_t len = strlen(str);
     size_t escaped_len = len * 6 + 1;
     char* escaped = malloc(escaped_len);
-    if (!escaped) return NULL;
+    if (!escaped)
+        return NULL;
 
     char* out = escaped;
     const unsigned char* p = (const unsigned char*)str;
@@ -98,18 +105,34 @@ static char* json_escape(const char* str) {
     while (*p) {
         if (*p < 128) {
             switch (*p) {
-                case '"':  *out++ = '\\'; *out++ = '"'; break;
-                case '\\': *out++ = '\\'; *out++ = '\\'; break;
-                case '\n': *out++ = '\\'; *out++ = 'n'; break;
-                case '\r': *out++ = '\\'; *out++ = 'r'; break;
-                case '\t': *out++ = '\\'; *out++ = 't'; break;
-                default:
-                    if (*p < 32) {
-                        int written = snprintf(out, 7, "\\u%04x", *p);
-                        if (written > 0) out += written;
-                    } else {
-                        *out++ = (char)*p;
-                    }
+            case '"':
+                *out++ = '\\';
+                *out++ = '"';
+                break;
+            case '\\':
+                *out++ = '\\';
+                *out++ = '\\';
+                break;
+            case '\n':
+                *out++ = '\\';
+                *out++ = 'n';
+                break;
+            case '\r':
+                *out++ = '\\';
+                *out++ = 'r';
+                break;
+            case '\t':
+                *out++ = '\\';
+                *out++ = 't';
+                break;
+            default:
+                if (*p < 32) {
+                    int written = snprintf(out, 7, "\\u%04x", *p);
+                    if (written > 0)
+                        out += written;
+                } else {
+                    *out++ = (char)*p;
+                }
             }
             p++;
         } else {
@@ -125,12 +148,15 @@ static char* json_escape(const char* str) {
 static char* extract_ollama_response(const char* json) {
     const char* response_key = "\"response\":";
     const char* found = strstr(json, response_key);
-    if (!found) return NULL;
+    if (!found)
+        return NULL;
 
     found += strlen(response_key);
-    while (*found && isspace(*found)) found++;
+    while (*found && isspace(*found))
+        found++;
 
-    if (*found != '"') return NULL;
+    if (*found != '"')
+        return NULL;
     found++;
 
     const char* start = found;
@@ -153,11 +179,13 @@ static char* extract_ollama_response(const char* json) {
         end++;
     }
 
-    if (*end != '"') return NULL;
+    if (*end != '"')
+        return NULL;
 
     size_t len = (size_t)(end - start);
     char* result = malloc(len + 1);
-    if (!result) return NULL;
+    if (!result)
+        return NULL;
 
     // Unescape
     char* out = result;
@@ -165,12 +193,23 @@ static char* extract_ollama_response(const char* json) {
         if (*p == '\\' && p + 1 < end) {
             p++;
             switch (*p) {
-                case 'n': *out++ = '\n'; break;
-                case 'r': *out++ = '\r'; break;
-                case 't': *out++ = '\t'; break;
-                case '"': *out++ = '"'; break;
-                case '\\': *out++ = '\\'; break;
-                default: *out++ = *p;
+            case 'n':
+                *out++ = '\n';
+                break;
+            case 'r':
+                *out++ = '\r';
+                break;
+            case 't':
+                *out++ = '\t';
+                break;
+            case '"':
+                *out++ = '"';
+                break;
+            case '\\':
+                *out++ = '\\';
+                break;
+            default:
+                *out++ = *p;
             }
         } else {
             *out++ = *p;
@@ -186,12 +225,15 @@ static char* extract_ollama_response(const char* json) {
 static char* extract_ollama_chat_content(const char* json) {
     const char* content_key = "\"content\":";
     const char* found = strstr(json, content_key);
-    if (!found) return NULL;
+    if (!found)
+        return NULL;
 
     found += strlen(content_key);
-    while (*found && isspace(*found)) found++;
+    while (*found && isspace(*found))
+        found++;
 
-    if (*found != '"') return NULL;
+    if (*found != '"')
+        return NULL;
     found++;
 
     const char* start = found;
@@ -214,11 +256,13 @@ static char* extract_ollama_chat_content(const char* json) {
         end++;
     }
 
-    if (*end != '"') return NULL;
+    if (*end != '"')
+        return NULL;
 
     size_t len = (size_t)(end - start);
     char* result = malloc(len + 1);
-    if (!result) return NULL;
+    if (!result)
+        return NULL;
 
     // Unescape
     char* out = result;
@@ -226,12 +270,23 @@ static char* extract_ollama_chat_content(const char* json) {
         if (*p == '\\' && p + 1 < end) {
             p++;
             switch (*p) {
-                case 'n': *out++ = '\n'; break;
-                case 'r': *out++ = '\r'; break;
-                case 't': *out++ = '\t'; break;
-                case '"': *out++ = '"'; break;
-                case '\\': *out++ = '\\'; break;
-                default: *out++ = *p;
+            case 'n':
+                *out++ = '\n';
+                break;
+            case 'r':
+                *out++ = '\r';
+                break;
+            case 't':
+                *out++ = '\t';
+                break;
+            case '"':
+                *out++ = '"';
+                break;
+            case '\\':
+                *out++ = '\\';
+                break;
+            default:
+                *out++ = *p;
             }
         } else {
             *out++ = *p;
@@ -244,13 +299,15 @@ static char* extract_ollama_chat_content(const char* json) {
 
 // Extract token usage from Ollama response
 static void extract_ollama_token_usage(const char* json, TokenUsage* usage) {
-    if (!json || !usage) return;
+    if (!json || !usage)
+        return;
 
     // prompt_eval_count (input tokens)
     const char* prompt = strstr(json, "\"prompt_eval_count\":");
     if (prompt) {
         prompt += strlen("\"prompt_eval_count\":");
-        while (*prompt && isspace(*prompt)) prompt++;
+        while (*prompt && isspace(*prompt))
+            prompt++;
         usage->input_tokens = (size_t)atol(prompt);
     }
 
@@ -258,7 +315,8 @@ static void extract_ollama_token_usage(const char* json, TokenUsage* usage) {
     const char* eval = strstr(json, "\"eval_count\":");
     if (eval) {
         eval += strlen("\"eval_count\":");
-        while (*eval && isspace(*eval)) eval++;
+        while (*eval && isspace(*eval))
+            eval++;
         usage->output_tokens = (size_t)atol(eval);
     }
 
@@ -268,7 +326,8 @@ static void extract_ollama_token_usage(const char* json, TokenUsage* usage) {
 
 // Get Ollama host URL (from env or default)
 static const char* get_ollama_host(OllamaProviderData* data) {
-    if (data->host) return data->host;
+    if (data->host)
+        return data->host;
     const char* env_host = getenv("OLLAMA_HOST");
     if (env_host && strlen(env_host) > 0) {
         data->host = strdup(env_host);
@@ -280,7 +339,8 @@ static const char* get_ollama_host(OllamaProviderData* data) {
 // Check if Ollama is running by pinging the API
 static bool ollama_ping(const char* host) {
     CURL* curl = curl_easy_init();
-    if (!curl) return false;
+    if (!curl)
+        return false;
 
     char url[256];
     snprintf(url, sizeof(url), "%s/api/tags", host);
@@ -301,10 +361,12 @@ static bool ollama_ping(const char* host) {
 // ============================================================================
 
 static ProviderError ollama_init(Provider* self) {
-    if (!self) return PROVIDER_ERR_INVALID_REQUEST;
+    if (!self)
+        return PROVIDER_ERR_INVALID_REQUEST;
 
     OllamaProviderData* data = (OllamaProviderData*)self->impl_data;
-    if (!data) return PROVIDER_ERR_INVALID_REQUEST;
+    if (!data)
+        return PROVIDER_ERR_INVALID_REQUEST;
 
     pthread_mutex_lock(&data->mutex);
 
@@ -339,10 +401,12 @@ static ProviderError ollama_init(Provider* self) {
 }
 
 static void ollama_shutdown(Provider* self) {
-    if (!self) return;
+    if (!self)
+        return;
 
     OllamaProviderData* data = (OllamaProviderData*)self->impl_data;
-    if (!data) return;
+    if (!data)
+        return;
 
     pthread_mutex_lock(&data->mutex);
 
@@ -367,25 +431,30 @@ static void ollama_shutdown(Provider* self) {
 
 static bool ollama_validate_key(Provider* self) {
     // Ollama doesn't require an API key - just check if it's running
-    if (!self) return false;
+    if (!self)
+        return false;
     OllamaProviderData* data = (OllamaProviderData*)self->impl_data;
-    if (!data) return false;
+    if (!data)
+        return false;
 
     const char* host = get_ollama_host(data);
     return ollama_ping(host);
 }
 
-static char* ollama_chat(Provider* self, const char* model, const char* system,
-                         const char* user, TokenUsage* usage) {
-    if (!self || !user) return NULL;
+static char* ollama_chat(Provider* self, const char* model, const char* system, const char* user,
+                         TokenUsage* usage) {
+    if (!self || !user)
+        return NULL;
 
     OllamaProviderData* data = (OllamaProviderData*)self->impl_data;
-    if (!data) return NULL;
+    if (!data)
+        return NULL;
 
     // Ensure initialized
     if (!data->initialized) {
         ProviderError err = ollama_init(self);
-        if (err != PROVIDER_OK) return NULL;
+        if (err != PROVIDER_OK)
+            return NULL;
     }
 
     CURL* curl = curl_easy_init();
@@ -424,28 +493,24 @@ static char* ollama_chat(Provider* self, const char* model, const char* system,
 
     // Ollama /api/chat format with messages array
     snprintf(json_body, json_size,
-        "{"
-        "\"model\": \"%s\","
-        "\"stream\": false,"
-        "\"messages\": ["
-        "{\"role\": \"system\", \"content\": \"%s\"},"
-        "{\"role\": \"user\", \"content\": \"%s\"}"
-        "],"
-        "\"options\": {"
-        "\"num_ctx\": %d"
-        "}"
-        "}",
-        api_model, escaped_system, escaped_user, OLLAMA_DEFAULT_NUM_CTX);
+             "{"
+             "\"model\": \"%s\","
+             "\"stream\": false,"
+             "\"messages\": ["
+             "{\"role\": \"system\", \"content\": \"%s\"},"
+             "{\"role\": \"user\", \"content\": \"%s\"}"
+             "],"
+             "\"options\": {"
+             "\"num_ctx\": %d"
+             "}"
+             "}",
+             api_model, escaped_system, escaped_user, OLLAMA_DEFAULT_NUM_CTX);
 
     free(escaped_system);
     free(escaped_user);
 
     // Setup response buffer
-    ResponseBuffer response = {
-        .data = malloc(4096),
-        .size = 0,
-        .capacity = 4096
-    };
+    ResponseBuffer response = {.data = malloc(4096), .size = 0, .capacity = 4096};
     if (!response.data) {
         free(json_body);
         curl_easy_cleanup(curl);
@@ -463,7 +528,7 @@ static char* ollama_chat(Provider* self, const char* model, const char* system,
     curl_easy_setopt(curl, CURLOPT_POSTFIELDS, json_body);
     curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, provider_write_callback);
     curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response);
-    curl_easy_setopt(curl, CURLOPT_TIMEOUT, 300L);  // Longer timeout for local inference
+    curl_easy_setopt(curl, CURLOPT_TIMEOUT, 300L); // Longer timeout for local inference
     curl_easy_setopt(curl, CURLOPT_NOPROGRESS, 0L);
     curl_easy_setopt(curl, CURLOPT_XFERINFOFUNCTION, progress_callback);
     curl_easy_setopt(curl, CURLOPT_XFERINFODATA, data);
@@ -521,7 +586,7 @@ static char* ollama_chat(Provider* self, const char* model, const char* system,
             tokens_input = usage->input_tokens;
             tokens_output = usage->output_tokens;
             LOG_DEBUG(LOG_CAT_COST, "Tokens: in=%zu out=%zu cost=$0.00 (local)",
-                     usage->input_tokens, usage->output_tokens);
+                      usage->input_tokens, usage->output_tokens);
         }
         // Record successful API call in telemetry (local models, cost=0)
         if (result) {
@@ -546,8 +611,10 @@ static char* ollama_chat_with_tools(Provider* self, const char* model, const cha
     (void)tools;
     (void)tool_count;
 
-    if (out_tool_calls) *out_tool_calls = NULL;
-    if (out_tool_count) *out_tool_count = 0;
+    if (out_tool_calls)
+        *out_tool_calls = NULL;
+    if (out_tool_count)
+        *out_tool_count = 0;
 
     LOG_DEBUG(LOG_CAT_API, "Ollama: tool calling not supported, falling back to chat");
     return ollama_chat(self, model, system, user, usage);
@@ -573,7 +640,8 @@ static size_t ollama_stream_write_callback(void* contents, size_t size, size_t n
             new_cap = ctx->accumulated_size + total + 1;
         }
         char* new_data = realloc(ctx->accumulated, new_cap);
-        if (!new_data) return 0;
+        if (!new_data)
+            return 0;
         ctx->accumulated = new_data;
         ctx->accumulated_capacity = new_cap;
     }
@@ -621,15 +689,19 @@ static size_t ollama_stream_write_callback(void* contents, size_t size, size_t n
 }
 
 static ProviderError ollama_stream_chat(Provider* self, const char* model, const char* system,
-                                        const char* user, StreamHandler* handler, TokenUsage* usage) {
-    if (!self || !user) return PROVIDER_ERR_INVALID_REQUEST;
+                                        const char* user, StreamHandler* handler,
+                                        TokenUsage* usage) {
+    if (!self || !user)
+        return PROVIDER_ERR_INVALID_REQUEST;
 
     OllamaProviderData* data = (OllamaProviderData*)self->impl_data;
-    if (!data) return PROVIDER_ERR_INVALID_REQUEST;
+    if (!data)
+        return PROVIDER_ERR_INVALID_REQUEST;
 
     if (!data->initialized) {
         ProviderError err = ollama_init(self);
-        if (err != PROVIDER_OK) return err;
+        if (err != PROVIDER_OK)
+            return err;
     }
 
     CURL* curl = curl_easy_init();
@@ -667,29 +739,27 @@ static ProviderError ollama_stream_chat(Provider* self, const char* model, const
     }
 
     snprintf(json_body, json_size,
-        "{"
-        "\"model\": \"%s\","
-        "\"stream\": true,"
-        "\"messages\": ["
-        "{\"role\": \"system\", \"content\": \"%s\"},"
-        "{\"role\": \"user\", \"content\": \"%s\"}"
-        "],"
-        "\"options\": {"
-        "\"num_ctx\": %d"
-        "}"
-        "}",
-        api_model, escaped_system, escaped_user, OLLAMA_DEFAULT_NUM_CTX);
+             "{"
+             "\"model\": \"%s\","
+             "\"stream\": true,"
+             "\"messages\": ["
+             "{\"role\": \"system\", \"content\": \"%s\"},"
+             "{\"role\": \"user\", \"content\": \"%s\"}"
+             "],"
+             "\"options\": {"
+             "\"num_ctx\": %d"
+             "}"
+             "}",
+             api_model, escaped_system, escaped_user, OLLAMA_DEFAULT_NUM_CTX);
 
     free(escaped_system);
     free(escaped_user);
 
     // Setup streaming context
-    OllamaStreamContext stream_ctx = {
-        .handler = handler,
-        .accumulated = malloc(4096),
-        .accumulated_size = 0,
-        .accumulated_capacity = 4096
-    };
+    OllamaStreamContext stream_ctx = {.handler = handler,
+                                      .accumulated = malloc(4096),
+                                      .accumulated_size = 0,
+                                      .accumulated_capacity = 4096};
     if (!stream_ctx.accumulated) {
         free(json_body);
         curl_easy_cleanup(curl);
@@ -743,7 +813,7 @@ static ProviderError ollama_stream_chat(Provider* self, const char* model, const
     // Set usage (estimate - Ollama doesn't report in streaming)
     if (usage) {
         memset(usage, 0, sizeof(TokenUsage));
-        usage->estimated_cost = 0.0;  // Local is free
+        usage->estimated_cost = 0.0; // Local is free
     }
 
     curl_slist_free_all(headers);
@@ -756,20 +826,24 @@ static ProviderError ollama_stream_chat(Provider* self, const char* model, const
 
 static size_t ollama_estimate_tokens(Provider* self, const char* text) {
     (void)self;
-    if (!text) return 0;
+    if (!text)
+        return 0;
     // Generic tokenizer estimate: ~4 chars per token
     size_t len = strlen(text);
     return (len + 3) / 4;
 }
 
 static ProviderErrorInfo* ollama_get_last_error(Provider* self) {
-    if (!self) return NULL;
+    if (!self)
+        return NULL;
     OllamaProviderData* data = (OllamaProviderData*)self->impl_data;
-    if (!data) return NULL;
+    if (!data)
+        return NULL;
     return &data->last_error;
 }
 
-static ProviderError ollama_list_models(Provider* self, ModelConfig** out_models, size_t* out_count) {
+static ProviderError ollama_list_models(Provider* self, ModelConfig** out_models,
+                                        size_t* out_count) {
     (void)self;
     if (out_models) {
         *out_models = (ModelConfig*)model_get_by_provider(PROVIDER_OLLAMA, out_count);
@@ -783,7 +857,8 @@ static ProviderError ollama_list_models(Provider* self, ModelConfig** out_models
 
 Provider* ollama_provider_create(void) {
     Provider* provider = calloc(1, sizeof(Provider));
-    if (!provider) return NULL;
+    if (!provider)
+        return NULL;
 
     OllamaProviderData* data = calloc(1, sizeof(OllamaProviderData));
     if (!data) {
@@ -795,7 +870,7 @@ Provider* ollama_provider_create(void) {
 
     provider->type = PROVIDER_OLLAMA;
     provider->name = "Ollama";
-    provider->api_key_env = NULL;  // No API key needed
+    provider->api_key_env = NULL; // No API key needed
     provider->base_url = OLLAMA_DEFAULT_HOST;
     provider->initialized = false;
 
