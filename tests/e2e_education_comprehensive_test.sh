@@ -79,9 +79,24 @@ LAST_OUTPUT=""
 # Check if any LLM API key is available for tests that require LLM responses
 LLM_AVAILABLE=false
 BUDGET_EXCEEDED=false
+AZURE_OPENAI_AVAILABLE=false
 
-if [ -n "$ANTHROPIC_API_KEY" ] || [ -n "$OPENAI_API_KEY" ] || [ -n "$GOOGLE_API_KEY" ]; then
+# Education Edition: MUST use Azure OpenAI only, NOT Anthropic!
+if [ -n "$AZURE_OPENAI_API_KEY" ] && [ -n "$AZURE_OPENAI_ENDPOINT" ]; then
+    AZURE_OPENAI_AVAILABLE=true
     LLM_AVAILABLE=true
+    echo -e "${GREEN}✓ Azure OpenAI credentials found${NC}"
+else
+    echo -e "${RED}✗ ERROR: Education Edition requires Azure OpenAI!${NC}"
+    echo "  Set AZURE_OPENAI_API_KEY and AZURE_OPENAI_ENDPOINT"
+    echo ""
+fi
+
+# Warn if Anthropic is set (should NOT be used for Education)
+if [ -n "$ANTHROPIC_API_KEY" ]; then
+    echo -e "${YELLOW}⚠ WARNING: ANTHROPIC_API_KEY is set but will NOT be used for Education${NC}"
+    echo "  Education uses Azure OpenAI only for GDPR compliance"
+    echo ""
 fi
 
 # Check if budget is exceeded (quick test at startup)
@@ -332,6 +347,49 @@ if [ ! -x "$CONVERGIO" ]; then
     echo "Run 'make EDITION=education' first to build."
     exit 1
 fi
+
+# =============================================================================
+# SECTION 0: AZURE OPENAI VERIFICATION (Critical Pre-flight Check)
+# =============================================================================
+section_header 0 "Azure OpenAI Verification (Critical)"
+
+# Critical test: Azure OpenAI credentials must be available
+if [ "$AZURE_OPENAI_AVAILABLE" = true ]; then
+    ((TOTAL_TESTS++))
+    printf "  [%02d] Azure OpenAI credentials configured... " $TOTAL_TESTS
+    echo -e "${GREEN}PASS${NC}"
+    ((PASSED++))
+else
+    ((TOTAL_TESTS++))
+    printf "  [%02d] Azure OpenAI credentials configured... " $TOTAL_TESTS
+    echo -e "${RED}FAIL${NC}"
+    echo "    Missing: AZURE_OPENAI_API_KEY and/or AZURE_OPENAI_ENDPOINT"
+    ((FAILED++))
+fi
+
+# Verify Education edition doesn't mention Anthropic as primary
+run_test_not_contains "NOT using Anthropic (Education uses Azure only)" \
+    "help" \
+    "anthropic.*primary\|claude.*default"
+
+# Quick Azure API connectivity test
+if [ "$AZURE_OPENAI_AVAILABLE" = true ]; then
+    run_llm_test "Azure OpenAI API responds" \
+        "@ali Ciao" \
+        "benvenuto\|ciao\|salve\|aiutarti\|aiuto"
+
+    # Verify response came from Azure (not Anthropic fallback)
+    if echo "$LAST_OUTPUT" | grep -qi "anthropic\|claude"; then
+        echo -e "${RED}  [CRITICAL] FAIL: Response came from Anthropic instead of Azure OpenAI!${NC}"
+        ((FAILED++))
+    fi
+else
+    skip_test "Azure OpenAI API responds" "Azure credentials not configured"
+fi
+
+echo ""
+echo -e "${CYAN}  ➤ If Azure tests fail, ALL LLM tests will be skipped${NC}"
+echo ""
 
 # =============================================================================
 # SECTION 1: EDITION IDENTITY AND ISOLATION (Tests 1-8)
@@ -858,6 +916,7 @@ echo "  ./tests/e2e_education_comprehensive_test.sh --verbose # Show full output
 echo "  ./tests/e2e_education_comprehensive_test.sh --section 5  # Run section 5 only"
 echo ""
 echo "Sections:"
+echo "  0: Azure OpenAI Verification (Critical)"
 echo "  1: Edition Identity and Isolation"
 echo "  2: Menu and Navigation"
 echo "  3: All 17 Maestri Availability"

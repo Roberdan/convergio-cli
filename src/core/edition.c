@@ -426,9 +426,9 @@ bool edition_uses_azure_openai(void) {
 const char* edition_get_preferred_model(void) {
     switch (g_current_edition) {
     case EDITION_EDUCATION:
-        // Azure OpenAI GPT-5-Mini for education (cost-effective, good safety)
-        // Use gpt-5.2-edu for complex queries, gpt-5-nano for fast responses
-        return "gpt-5-edu-mini";
+        // Azure OpenAI GPT-4o-mini for education (GDPR compliant, cost-effective)
+        // Maps to AZURE_OPENAI_DEPLOYMENT environment variable
+        return "azure/gpt-4o-mini";
     case EDITION_BUSINESS:
         return "claude-sonnet-4";
     case EDITION_DEVELOPER:

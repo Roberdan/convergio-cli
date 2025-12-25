@@ -470,7 +470,7 @@ ModelSelection router_select_model_for_agent(const char* agent_name, double rema
         }
     }
 
-    // 3. Use edition-preferred model (education uses Azure OpenAI GPT-5)
+    // 3. Use edition-preferred model (education uses Azure OpenAI only)
     const char* edition_model = edition_get_preferred_model();
     if (edition_model && strlen(edition_model) > 0) {
         // Edition has a preferred model - use it
@@ -486,6 +486,17 @@ ModelSelection router_select_model_for_agent(const char* agent_name, double rema
             selection.provider = PROVIDER_OPENAI; // Default to OpenAI for education
         }
         LOG_INFO(LOG_CAT_API, "Using edition-preferred model: %s", edition_model);
+    } else if (edition_uses_azure_openai()) {
+        // EDUCATION EDITION: Azure OpenAI ONLY - no fallback to Anthropic!
+        if (provider_is_available(PROVIDER_OPENAI)) {
+            selection.model_id = "azure/gpt-4o-mini";
+            selection.provider = PROVIDER_OPENAI;
+            LOG_INFO(LOG_CAT_API, "Education: Using Azure OpenAI (azure/gpt-4o-mini)");
+        } else {
+            LOG_ERROR(LOG_CAT_API, "EDUCATION ERROR: Azure OpenAI not available! Check AZURE_OPENAI_API_KEY");
+            selection.model_id = NULL;
+            selection.provider = PROVIDER_OPENAI;
+        }
     } else if (provider_is_available(PROVIDER_ANTHROPIC)) {
         selection.model_id = "anthropic/claude-sonnet-4";
         selection.provider = PROVIDER_ANTHROPIC;
