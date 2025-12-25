@@ -274,15 +274,15 @@ export AZURE_OPENAI_DEPLOYMENT="gpt-4o-mini"
 
 ---
 
-## Convergio Native for macOS
+## Coming Soon: Convergio Native for macOS
 
 <p align="center">
-  <img src="https://img.shields.io/badge/✅_AVAILABLE-Native_macOS_App-green?style=for-the-badge" alt="Available"/>
+  <img src="https://img.shields.io/badge/🚧_IN_DEVELOPMENT-Native_macOS_App-purple?style=for-the-badge" alt="In Development"/>
 </p>
 
-A **stunning native macOS application** with Apple's Liquid Glass design language! The CLI remains fully supported, and now you also have a beautiful GUI option.
+We're building a **stunning native macOS application** with Apple's Liquid Glass design language! The CLI will remain fully supported, but soon you'll have a beautiful GUI option.
 
-**Features:**
+**Features in development:**
 - 🎨 Liquid Glass UI with glass-morphism effects
 - 🤖 Real-time Agent Interaction Visualizer
 - ⚙️ Full Settings UI (API keys, budgets, MCP servers)
@@ -291,18 +291,8 @@ A **stunning native macOS application** with Apple's Liquid Glass design languag
 - 🔔 Native macOS notifications
 - ⌨️ Global hotkey (Cmd+Shift+Space)
 
-**Installation:**
+**Want to contribute or follow progress?**
 
-The native app is included in the v6.0.0 release:
-```bash
-# Via Homebrew (recommended)
-brew tap Roberdan/convergio-cli && brew install convergio
-# ConvergioApp will be installed to /Applications
-
-# Or download directly from GitHub Releases
-```
-
-**Building from source:**
 ```bash
 git clone https://github.com/Roberdan/convergio-cli.git
 cd convergio-cli/ConvergioApp
