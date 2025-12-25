@@ -323,6 +323,7 @@ private struct ProviderSetupStep: View {
         switch provider {
         case .anthropic: return "Claude models"
         case .openai: return "GPT models"
+        case .azureOpenAI: return "Azure OpenAI"
         case .gemini: return "Gemini models"
         case .openrouter: return "Multi-provider"
         case .perplexity: return "Search AI"

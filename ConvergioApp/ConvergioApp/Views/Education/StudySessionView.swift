@@ -562,22 +562,27 @@ struct StudySessionView: View {
         """
 
         // Build conversation history for context
-        var conversationMessages = [ChatMessage(role: "system", content: systemPrompt)]
+        var conversationMessages = [ChatMessage(role: .system, content: systemPrompt)]
 
         // Add recent conversation history
         for msg in messages.suffix(10) {
             conversationMessages.append(ChatMessage(
-                role: msg.isFromMaestro ? "assistant" : "user",
+                role: msg.isFromMaestro ? .assistant : .user,
                 content: msg.content
             ))
         }
 
         // Add current user message
-        conversationMessages.append(ChatMessage(role: "user", content: userMessage))
+        conversationMessages.append(ChatMessage(role: .user, content: userMessage))
+
+        // Convert to API format
+        let apiMessages = conversationMessages.map { msg in
+            ["role": msg.role.rawValue, "content": msg.content]
+        }
 
         do {
-            let response = try await aiProvider.complete(
-                messages: conversationMessages,
+            let (response, _, _) = try await aiProvider.sendChatCompletion(
+                messages: apiMessages,
                 temperature: 0.8,
                 maxTokens: 1024
             )

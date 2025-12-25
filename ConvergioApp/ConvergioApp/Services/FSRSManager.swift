@@ -56,7 +56,7 @@ struct ReviewLog: Codable {
 class FSRSManager {
     private let parameters: FSRSParameters
     private let decay: Double = -0.5
-    private let factor: Double = 0.9 / ln(0.9) // ~19/81
+    private let factor: Double = 0.9 / Darwin.log(0.9) // ~19/81
 
     init(parameters: FSRSParameters = .default) {
         self.parameters = parameters
@@ -147,9 +147,9 @@ class FSRSManager {
     }
 
     /// Mean reversion for difficulty
-    private func meanReversion(_ init: Double, _ current: Double) -> Double {
+    private func meanReversion(_ initial: Double, _ current: Double) -> Double {
         let w = parameters.w
-        return w[7] * init + (1 - w[7]) * current
+        return w[7] * initial + (1 - w[7]) * current
     }
 
     /// Constrain difficulty to valid range [1, 10]

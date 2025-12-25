@@ -27,6 +27,9 @@ class VoiceViewModel: ObservableObject {
     @Published private(set) var currentResponse: String = ""
     @Published private(set) var transcriptHistory: [TranscriptEntry] = []
 
+    // Accumulated response text (for streaming deltas)
+    private var accumulatedResponse: String = ""
+
     @Published var errorMessage: String?
 
     // Debug log for UI display
@@ -395,17 +398,41 @@ extension VoiceViewModel: VoiceManagerDelegate {
 
     nonisolated func voiceManager(_ manager: VoiceManager, didReceiveResponse text: String) {
         Task { @MainActor in
-            addDebugLog("🤖 AI: \(text)")
-            currentResponse = text
+            // ACCUMULATE deltas instead of overwriting
+            // Each delta is a small piece of the streaming response (e.g., "S", "o", "m", "e")
+            accumulatedResponse += text
+            currentResponse = accumulatedResponse
 
-            let entry = TranscriptEntry(
-                text: text,
-                isUser: false,
-                emotion: currentEmotion
-            )
-            transcriptHistory.append(entry)
+            // Only log short responses or every 50 chars to reduce noise
+            if accumulatedResponse.count < 20 || accumulatedResponse.count % 50 == 0 {
+                addDebugLog("🤖 AI (streaming): \(accumulatedResponse.prefix(100))...")
+            }
 
-            logger.info("Assistant response: \(text)")
+            // DON'T add to transcript history here - wait for response completion
+            // Each delta would create a separate entry otherwise
+
+            logger.debug("Assistant response delta: \(text)")
+        }
+    }
+
+    nonisolated func voiceManager(_ manager: VoiceManager, didCompleteResponse: Void) {
+        Task { @MainActor in
+            // Response streaming is complete - save to transcript history
+            if !accumulatedResponse.isEmpty {
+                addDebugLog("🤖 AI (complete): \(accumulatedResponse.prefix(100))...")
+
+                let entry = TranscriptEntry(
+                    text: accumulatedResponse,
+                    isUser: false,
+                    emotion: currentEmotion
+                )
+                transcriptHistory.append(entry)
+
+                logger.info("Assistant response complete: \(accumulatedResponse.prefix(100))")
+
+                // Reset for next response
+                accumulatedResponse = ""
+            }
         }
     }
 
@@ -414,6 +441,9 @@ extension VoiceViewModel: VoiceManagerDelegate {
             addDebugLog("❌ Error: \(error.localizedDescription)")
             errorMessage = error.localizedDescription
             logger.error("Voice manager error: \(error.localizedDescription)")
+
+            // Reset accumulated response on error
+            accumulatedResponse = ""
         }
     }
 }

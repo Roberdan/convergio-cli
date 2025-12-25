@@ -12,6 +12,7 @@ import Foundation
 // MARK: - Provider Protocol
 
 /// Protocol for AI providers
+@MainActor
 public protocol AIProvider {
     var providerName: String { get }
     var isAvailable: Bool { get }
@@ -62,6 +63,7 @@ public enum ProviderType: String, CaseIterable, Identifiable {
 // MARK: - Azure OpenAI Provider Adapter
 
 /// Adapter for Azure OpenAI provider
+@MainActor
 private struct AzureProvider: AIProvider {
     let providerName = "Azure OpenAI"
 
@@ -91,6 +93,7 @@ private struct AzureProvider: AIProvider {
 // MARK: - OpenAI Provider Adapter
 
 /// Adapter for OpenAI provider (placeholder - to be implemented)
+@MainActor
 private struct OpenAIProvider: AIProvider {
     let providerName = "OpenAI"
 
@@ -113,6 +116,7 @@ private struct OpenAIProvider: AIProvider {
 // MARK: - Local Provider (say command)
 
 /// Local macOS say command as fallback
+@MainActor
 private struct LocalProvider: AIProvider {
     let providerName = "Local (say)"
 

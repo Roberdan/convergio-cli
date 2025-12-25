@@ -335,7 +335,7 @@ public struct EditionValidator {
 
 /// Environment key for EditionService
 private struct EditionServiceKey: EnvironmentKey {
-    static let defaultValue = EditionService.shared
+    @MainActor static let defaultValue = EditionService.shared
 }
 
 extension EnvironmentValues {
@@ -349,7 +349,7 @@ extension EnvironmentValues {
 
 extension View {
     /// Inject EditionService into environment
-    public func withEditionService(_ service: EditionService = .shared) -> some View {
+    @MainActor public func withEditionService(_ service: EditionService = .shared) -> some View {
         self.environment(\.editionService, service)
     }
 

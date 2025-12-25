@@ -441,7 +441,7 @@ class ADHDModeManager: ObservableObject {
 // MARK: - SwiftUI Environment Key
 
 private struct ADHDModeManagerKey: EnvironmentKey {
-    static let defaultValue = ADHDModeManager.shared
+    @MainActor static let defaultValue = ADHDModeManager.shared
 }
 
 extension EnvironmentValues {

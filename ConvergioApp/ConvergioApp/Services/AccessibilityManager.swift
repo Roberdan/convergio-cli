@@ -245,7 +245,7 @@ class AccessibilityManager: ObservableObject {
 // MARK: - SwiftUI Environment Key
 
 private struct AccessibilityManagerKey: EnvironmentKey {
-    static let defaultValue = AccessibilityManager.shared
+    @MainActor static let defaultValue = AccessibilityManager.shared
 }
 
 extension EnvironmentValues {

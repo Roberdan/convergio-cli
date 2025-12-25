@@ -73,6 +73,7 @@ protocol VoiceManagerDelegate: AnyObject {
     func voiceManager(_ manager: VoiceManager, didDetectEmotion emotion: EmotionType, confidence: Double)
     func voiceManager(_ manager: VoiceManager, didReceiveTranscript text: String, isFinal: Bool)
     func voiceManager(_ manager: VoiceManager, didReceiveResponse text: String)
+    func voiceManager(_ manager: VoiceManager, didCompleteResponse: Void)
     func voiceManager(_ manager: VoiceManager, didEncounterError error: Error)
 }
 
@@ -99,6 +100,12 @@ class VoiceManager: NSObject, ObservableObject {
     private let audioEngine = AVAudioEngine()
     private var inputNode: AVAudioInputNode?
     private var webSocket: OpenAIRealtimeWebSocket?
+
+    // MARK: - Playback Node (Reusable - prevents memory leak)
+    // IMPORTANT: Reuse a single AVAudioPlayerNode instead of creating new ones
+    // per audio chunk. Creating new nodes causes massive memory leaks (24GB+).
+    private var playbackNode: AVAudioPlayerNode?
+    private var isPlaybackNodeAttached: Bool = false
 
     private let audioFormat: AVAudioFormat
     private let logger = Logger.shared
@@ -212,6 +219,9 @@ class VoiceManager: NSObject, ObservableObject {
 
         await stopListening()
         await webSocket?.disconnect()
+
+        // Cleanup playback resources to prevent memory leaks
+        cleanupPlaybackNode()
 
         isConnected = false
         currentMaestro = nil
@@ -706,6 +716,8 @@ extension VoiceManager: OpenAIRealtimeDelegate {
     nonisolated func realtime(_ realtime: OpenAIRealtimeWebSocket, didCompleteResponse: Void) {
         Task { @MainActor in
             updateState(.listening)
+            // Notify delegate that response is complete
+            delegate?.voiceManager(self, didCompleteResponse: ())
         }
     }
 
@@ -721,45 +733,116 @@ extension VoiceManager: OpenAIRealtimeDelegate {
 
 extension VoiceManager {
 
+    /// Setup reusable playback node - call once before playing audio
+    /// This prevents memory leaks from creating new nodes for each audio chunk
+    private func setupPlaybackNodeIfNeeded() {
+        guard playbackNode == nil else { return }
+
+        // Create playback format (24kHz Float32 for output)
+        guard let playbackFormat = AVAudioFormat(
+            commonFormat: .pcmFormatFloat32,
+            sampleRate: Self.sampleRate,
+            channels: Self.channels,
+            interleaved: false
+        ) else {
+            logger.error("Failed to create playback format")
+            return
+        }
+
+        let node = AVAudioPlayerNode()
+        playbackNode = node
+
+        // Attach to engine
+        audioEngine.attach(node)
+        isPlaybackNodeAttached = true
+
+        // Connect to output mixer
+        audioEngine.connect(node, to: audioEngine.mainMixerNode, format: playbackFormat)
+
+        logger.info("Playback node created and attached (reusable)")
+    }
+
+    /// Play audio data using the reusable player node
+    /// IMPORTANT: This reuses a single AVAudioPlayerNode to prevent memory leaks.
+    /// Previous implementation created a new node for EVERY audio chunk, causing 24GB+ memory usage.
     private func playAudio(_ audioData: Data) async {
+        // Ensure playback node is ready
+        setupPlaybackNodeIfNeeded()
+
+        guard let node = playbackNode else {
+            logger.error("Playback node not available")
+            return
+        }
+
         // Create audio buffer from data
         guard let buffer = createAudioBuffer(from: audioData) else {
             logger.error("Failed to create audio buffer for playback")
             return
         }
 
-        // Create player node
-        let playerNode = AVAudioPlayerNode()
-        audioEngine.attach(playerNode)
+        // Update output audio levels for waveform visualization
+        updateOutputAudioLevels(from: buffer)
 
-        // Connect player node to output
-        audioEngine.connect(playerNode, to: audioEngine.mainMixerNode, format: buffer.format)
+        // Schedule buffer on the REUSABLE node (don't create new nodes!)
+        // Using completion handler without .interrupts to allow buffer queue
+        node.scheduleBuffer(buffer, completionHandler: nil)
 
-        // Schedule buffer
-        playerNode.scheduleBuffer(buffer) { [weak self] in
-            Task { @MainActor [weak self] in
-                self?.audioEngine.detach(playerNode)
-            }
+        // Start playing if not already
+        if !node.isPlaying {
+            node.play()
         }
+    }
 
-        // Play
-        playerNode.play()
+    /// Stop playback and reset node
+    func stopPlayback() {
+        playbackNode?.stop()
+    }
+
+    /// Cleanup playback resources when disconnecting
+    private func cleanupPlaybackNode() {
+        if let node = playbackNode, isPlaybackNodeAttached {
+            node.stop()
+            audioEngine.disconnectNodeOutput(node)
+            audioEngine.detach(node)
+            isPlaybackNodeAttached = false
+        }
+        playbackNode = nil
     }
 
     private func createAudioBuffer(from data: Data) -> AVAudioPCMBuffer? {
-        let frameCount = UInt32(data.count) / audioFormat.streamDescription.pointee.mBytesPerFrame
+        // Calculate frame count from PCM16 data
+        let bytesPerSample = 2 // Int16 = 2 bytes
+        let frameCount = UInt32(data.count / bytesPerSample)
 
-        guard let buffer = AVAudioPCMBuffer(pcmFormat: audioFormat, frameCapacity: frameCount) else {
+        // Create output format (Float32 for playback)
+        guard let playbackFormat = AVAudioFormat(
+            commonFormat: .pcmFormatFloat32,
+            sampleRate: Self.sampleRate,
+            channels: Self.channels,
+            interleaved: false
+        ) else {
+            return nil
+        }
+
+        guard let buffer = AVAudioPCMBuffer(pcmFormat: playbackFormat, frameCapacity: frameCount) else {
             return nil
         }
 
         buffer.frameLength = frameCount
 
-        let channels = UnsafeBufferPointer(start: buffer.int16ChannelData, count: Int(audioFormat.channelCount))
+        // Convert Int16 PCM data to Float32
+        guard let floatChannelData = buffer.floatChannelData else {
+            return nil
+        }
+
         data.withUnsafeBytes { rawBuffer in
             guard let source = rawBuffer.baseAddress?.assumingMemoryBound(to: Int16.self) else { return }
-            guard audioFormat.channelCount > 0 else { return }
-            channels[0].update(from: source, count: Int(frameCount))
+            let destination = floatChannelData[0]
+
+            // Convert Int16 (-32768 to 32767) to Float (-1.0 to 1.0)
+            for i in 0..<Int(frameCount) {
+                destination[i] = Float(source[i]) / 32768.0
+            }
         }
 
         return buffer

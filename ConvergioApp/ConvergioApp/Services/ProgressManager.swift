@@ -344,7 +344,7 @@ class ProgressManager: ObservableObject {
         if let data = UserDefaults.standard.data(forKey: "com.convergio.achievements"),
            let decoded = try? JSONDecoder().decode([Achievement].self, from: data) {
             // Merge with all achievements to include any new ones
-            var loadedDict = Dictionary(uniqueKeysWithValues: decoded.map { ($0.title, $0) })
+            let loadedDict = Dictionary(uniqueKeysWithValues: decoded.map { ($0.title, $0) })
             return Achievement.allAchievements.map { achievement in
                 loadedDict[achievement.title] ?? achievement
             }

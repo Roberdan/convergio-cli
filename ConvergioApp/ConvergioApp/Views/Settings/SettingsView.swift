@@ -360,6 +360,8 @@ private struct ProviderDetailView: View {
             return ["claude-sonnet-4-20250514", "claude-3-5-sonnet-20241022", "claude-3-opus-20240229"]
         case .openai:
             return ["gpt-4o", "gpt-4o-mini", "gpt-4-turbo"]
+        case .azureOpenAI:
+            return ["gpt-4o", "gpt-4o-mini", "gpt-4-turbo"]
         case .gemini:
             return ["gemini-2.0-flash", "gemini-1.5-pro", "gemini-1.5-flash"]
         case .openrouter:

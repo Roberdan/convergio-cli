@@ -20,6 +20,9 @@ set(CMAKE_C_STANDARD 17)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 set(CMAKE_OBJC_STANDARD 17)
 
+# Deployment target - match the native app (14.0)
+set(CMAKE_OSX_DEPLOYMENT_TARGET "14.0" CACHE STRING "Minimum macOS version")
+
 # Architecture-specific flags for Apple Silicon (generic for M1-M4 compatibility)
 # Using armv8.4-a which is the baseline for all Apple Silicon chips
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -march=armv8.4-a+fp16+dotprod+crypto")
@@ -83,8 +86,12 @@ set(NOUS_SOURCES
     src/core/stream_md.c
     src/core/theme.c
     src/core/config.c
+    src/core/edition.c
     src/core/updater.c
     src/core/safe_path.c
+    src/core/conversational_config.c
+    src/core/config_orchestrator.c
+    src/core/error.c
     src/intent/parser.c
     src/intent/interpreter.c
     src/agents/agent.c
@@ -99,6 +106,7 @@ set(NOUS_SOURCES
     src/orchestrator/orchestrator.c
     src/orchestrator/delegation.c
     src/orchestrator/planning.c
+    src/orchestrator/plan_db.c
     src/orchestrator/convergence.c
     src/memory/persistence.c
     src/memory/semantic_persistence.c
@@ -161,6 +169,33 @@ set(NOUS_SOURCES
     src/workflow/workflow_visualization.c
     # Voice History
     src/voice/voice_history.c
+    # Education Edition
+    src/education/accessibility_runtime.c
+    src/education/ali_onboarding.c
+    src/education/ali_preside.c
+    src/education/anna_integration.c
+    src/education/document_upload.c
+    src/education/education_db.c
+    src/education/error_interpreter.c
+    src/education/feature_flags.c
+    src/education/features/homework.c
+    src/education/features/progress.c
+    src/education/features/study_session.c
+    src/education/fsrs.c
+    src/education/mastery_gate.c
+    src/education/mastery_visualization.c
+    src/education/mastery.c
+    src/education/periodic_table.c
+    src/education/setup_wizard.c
+    src/education/storytelling.c
+    src/education/tools/audio_tts.c
+    src/education/tools/calculator.c
+    src/education/tools/flashcards.c
+    src/education/tools/html_generator.c
+    src/education/tools/linguistic_tools.c
+    src/education/tools/mindmap.c
+    src/education/tools/quiz.c
+    src/core/commands/education_commands.c
 )
 
 # Objective-C sources
@@ -173,6 +208,7 @@ set(NOUS_OBJC_SOURCES
     src/core/clipboard.m
     src/providers/mlx.m
     src/providers/apple_foundation.m
+    src/education/camera.m
 )
 
 # Metal shaders

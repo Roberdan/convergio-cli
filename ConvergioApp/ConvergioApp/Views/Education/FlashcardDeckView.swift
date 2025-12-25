@@ -453,22 +453,22 @@ private struct SessionSummaryView: View {
 
             // Statistics
             VStack(spacing: 20) {
-                StatRow(
+                FlashcardStatRow(
                     icon: "clock",
                     label: "Duration",
                     value: formatDuration(session.duration)
                 )
-                StatRow(
+                FlashcardStatRow(
                     icon: "rectangle.stack",
                     label: "Cards Reviewed",
                     value: "\(session.cardsReviewed)"
                 )
-                StatRow(
+                FlashcardStatRow(
                     icon: "gauge.medium",
                     label: "Success Rate",
                     value: String(format: "%.0f%%", session.successRate * 100)
                 )
-                StatRow(
+                FlashcardStatRow(
                     icon: "timer",
                     label: "Avg. Time/Card",
                     value: String(format: "%.1fs", session.averageTimePerCard)
@@ -533,7 +533,7 @@ private struct SessionSummaryView: View {
     }
 }
 
-private struct StatRow: View {
+private struct FlashcardStatRow: View {
     let icon: String
     let label: String
     let value: String

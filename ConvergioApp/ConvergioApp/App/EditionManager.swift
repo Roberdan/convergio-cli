@@ -325,7 +325,7 @@ public final class EditionManager: ObservableObject {
 
 /// Environment key for EditionManager
 private struct EditionManagerKey: EnvironmentKey {
-    static let defaultValue = EditionManager.shared
+    @MainActor static let defaultValue = EditionManager.shared
 }
 
 extension EnvironmentValues {
@@ -339,7 +339,7 @@ extension EnvironmentValues {
 
 extension View {
     /// Inject EditionManager into environment
-    public func withEditionManager(_ manager: EditionManager = .shared) -> some View {
+    @MainActor public func withEditionManager(_ manager: EditionManager = .shared) -> some View {
         self.environment(\.editionManager, manager)
     }
 }
