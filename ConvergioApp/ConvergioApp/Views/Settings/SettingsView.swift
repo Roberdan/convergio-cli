@@ -10,54 +10,113 @@
 import SwiftUI
 import ConvergioCore
 
+// MARK: - Settings Tab Definition
+
+enum SettingsTab: String, CaseIterable, Identifiable {
+    case general = "General"
+    case providers = "Providers"
+    case budget = "Budget"
+    case appearance = "Appearance"
+    case shortcuts = "Shortcuts"
+    case student = "Student"
+    case advanced = "Advanced"
+    case mcp = "MCP Services"
+
+    var id: String { rawValue }
+
+    var icon: String {
+        switch self {
+        case .general: return "gear"
+        case .providers: return "key.fill"
+        case .budget: return "dollarsign.circle.fill"
+        case .appearance: return "paintbrush.fill"
+        case .shortcuts: return "keyboard"
+        case .student: return "graduationcap.fill"
+        case .advanced: return "gearshape.2.fill"
+        case .mcp: return "server.rack"
+        }
+    }
+
+    var color: Color {
+        switch self {
+        case .general: return .gray
+        case .providers: return .blue
+        case .budget: return .green
+        case .appearance: return .purple
+        case .shortcuts: return .orange
+        case .student: return .indigo
+        case .advanced: return .red
+        case .mcp: return .teal
+        }
+    }
+}
+
 // MARK: - Main Settings View
 
 struct MainSettingsView: View {
     @EnvironmentObject var orchestratorVM: OrchestratorViewModel
+    @State private var selectedTab: SettingsTab = .general
 
     var body: some View {
-        TabView {
-            GeneralSettingsTab()
-                .tabItem {
-                    Label("General", systemImage: "gear")
+        NavigationSplitView {
+            // Sidebar
+            List(SettingsTab.allCases, selection: $selectedTab) { tab in
+                Label {
+                    Text(tab.rawValue)
+                        .font(.body)
+                } icon: {
+                    Image(systemName: tab.icon)
+                        .foregroundStyle(tab.color)
                 }
+                .tag(tab)
+                .padding(.vertical, 4)
+            }
+            .listStyle(.sidebar)
+            .navigationSplitViewColumnWidth(min: 180, ideal: 200, max: 220)
+        } detail: {
+            // Content area with glass effect header
+            VStack(spacing: 0) {
+                // Header bar
+                HStack {
+                    Image(systemName: selectedTab.icon)
+                        .font(.title2)
+                        .foregroundStyle(selectedTab.color)
+                    Text(selectedTab.rawValue)
+                        .font(.title2.weight(.semibold))
+                    Spacer()
+                }
+                .padding(.horizontal, 24)
+                .padding(.vertical, 16)
+                .background(.regularMaterial)
 
-            ProvidersSettingsTab()
-                .tabItem {
-                    Label("Providers", systemImage: "server.rack")
-                }
+                Divider()
 
-            BudgetSettingsTab()
-                .tabItem {
-                    Label("Budget", systemImage: "dollarsign.circle")
+                // Tab content
+                Group {
+                    switch selectedTab {
+                    case .general:
+                        GeneralSettingsTab()
+                    case .providers:
+                        ProvidersSettingsTab()
+                    case .budget:
+                        BudgetSettingsTab()
+                    case .appearance:
+                        AppearanceSettingsTab()
+                    case .shortcuts:
+                        ShortcutsSettingsTab()
+                    case .student:
+                        StudentProfileSettingsTab()
+                    case .advanced:
+                        AdvancedSettingsTab()
+                    case .mcp:
+                        MCPServicesSettingsTab()
+                    }
                 }
-
-            AppearanceSettingsTab()
-                .tabItem {
-                    Label("Appearance", systemImage: "paintbrush")
-                }
-
-            ShortcutsSettingsTab()
-                .tabItem {
-                    Label("Shortcuts", systemImage: "keyboard")
-                }
-
-            AdvancedSettingsTab()
-                .tabItem {
-                    Label("Advanced", systemImage: "gearshape.2")
-                }
-
-            MCPServicesSettingsTab()
-                .tabItem {
-                    Label("MCP Services", systemImage: "server.rack")
-                }
-
-            StudentProfileSettingsTab()
-                .tabItem {
-                    Label("Student", systemImage: "person.crop.circle")
-                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
         }
-        .frame(width: 700, height: 550)
+        .frame(width: 800, height: 600)
+        .navigationSplitViewStyle(.balanced)
     }
 }
 
