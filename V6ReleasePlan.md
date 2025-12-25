@@ -678,6 +678,195 @@ git push origin --delete development
 
 ---
 
+## PHASE 9: FINAL COMPREHENSIVE REVIEW (MANDATORY)
+**Status**: [ ] NOT STARTED
+**Estimate**: 4-8 hours
+**Criticality**: BLOCKING - Do not release without completing this phase
+
+> ⚠️ Questa fase è OBBLIGATORIA prima del release. Verifica che tutto sia coerente e funzionante.
+
+### 9.1 Verifica Ollama Locale (Pre-Test)
+
+```bash
+# Verificare che Ollama sia attivo e configurato
+ollama list
+# Deve mostrare almeno un modello, es: llama3.2:1b
+
+# Se non c'è un modello leggero, scaricarlo:
+ollama pull llama3.2:1b
+
+# Verificare che risponda:
+curl http://localhost:11434/api/tags
+
+# Test rapido:
+echo '{"model": "llama3.2:1b", "prompt": "Hello", "stream": false}' | \
+  curl -s http://localhost:11434/api/generate -d @-
+```
+
+- [ ] Ollama running e responsive
+- [ ] Modello leggero disponibile per test
+- [ ] Convergio può connettersi a Ollama
+
+### 9.2 Code Review Completo
+
+```bash
+# Cercare TODO, FIXME, HACK residui
+rg -i "TODO|FIXME|HACK|XXX" src/ include/ --type c | grep -v test
+
+# Cercare stub o placeholder
+rg -i "stub|placeholder|not.?implemented" src/ include/ --type c
+
+# Verificare nessun riferimento Anthropic in codice EDU
+rg -i "anthropic" src/education/ src/providers/ --type c
+
+# Verificare nessun hardcoded secret
+rg -i "api.?key.*=.*['\"]" src/ --type c
+```
+
+- [ ] Zero TODO/FIXME in production code
+- [ ] Zero stub o placeholder
+- [ ] Zero riferimenti Anthropic in codice EDU
+- [ ] Zero hardcoded secrets
+
+### 9.3 App Release Manager Check
+
+```bash
+# Eseguire app-release-manager per quality gates
+convergio
+> @app-release-manager check all
+
+# Oppure script automatico:
+./scripts/v6-release/v6-master.sh
+```
+
+- [ ] Security audit passed (HP-1, HP-2 fixed)
+- [ ] Code quality score > 80%
+- [ ] Test coverage > 90%
+- [ ] Zero compiler warnings
+- [ ] All 499+ tests pass
+
+### 9.4 Website Update
+
+```bash
+# Verificare che il sito sia aggiornato
+ls website/
+
+# Controllare versione nel sito
+grep -r "version\|Version\|6.0" website/
+```
+
+- [ ] Homepage aggiornata con V6 features
+- [ ] Education section presente
+- [ ] Native app section presente
+- [ ] Comparison matrix aggiornata
+- [ ] Download links corretti
+
+### 9.5 README e Documentation
+
+```bash
+# Verificare README principale
+head -100 README.md
+
+# Verificare che tutti i nuovi comandi siano documentati
+grep -E "^##|^###" README.md
+
+# Verificare CHANGELOG
+tail -50 CHANGELOG.md
+```
+
+- [ ] README.md aggiornato per V6
+- [ ] Tutti i nuovi comandi documentati
+- [ ] Sezione Education Edition presente
+- [ ] CHANGELOG.md aggiornato
+- [ ] Versione 6.0.0 in tutti i file
+
+### 9.6 Consistency Check
+
+```bash
+# Verificare versione coerente in tutti i file
+grep -r "6\.0\.0\|v6\|V6" --include="*.md" --include="*.json" --include="VERSION"
+
+# Verificare che i nomi siano coerenti
+grep -ri "convergio" --include="*.md" | grep -i "spelling\|typo"
+```
+
+- [ ] Versione 6.0.0 coerente ovunque
+- [ ] Naming coerente (Convergio, non ConvergioCLI ovunque)
+- [ ] Dates aggiornate nei file
+- [ ] Author/credits corretti
+
+### 9.7 Test Completi con Ollama
+
+```bash
+# Setup test environment
+export CONVERGIO_TEST_PROVIDER=ollama
+export CONVERGIO_TEST_MODEL=llama3.2:1b
+export OLLAMA_HOST=http://localhost:11434
+
+# Run all tests
+make clean && make
+make test                      # Unit tests
+make test_llm PROVIDER=ollama  # LLM integration tests
+make test_e2e PROVIDER=ollama  # End-to-end tests
+```
+
+- [ ] `make test` - 100% pass
+- [ ] `make test_llm PROVIDER=ollama` - 100% pass
+- [ ] `make test_e2e PROVIDER=ollama` - 100% pass
+- [ ] Zero memory leaks (valgrind/sanitizer)
+- [ ] Zero race conditions (thread sanitizer)
+
+### 9.8 Test Pre-Release con Azure (EDU Only)
+
+```bash
+# Solo per validare EDU edition
+export CONVERGIO_TEST_PROVIDER=azure
+export AZURE_OPENAI_ENDPOINT=$AZURE_OPENAI_ENDPOINT
+export AZURE_OPENAI_KEY=$AZURE_OPENAI_KEY
+
+# Test EDU specifici
+make test_edu PROVIDER=azure
+```
+
+- [ ] EDU edition usa SOLO Azure
+- [ ] GDPR compliance verificata
+- [ ] Azure endpoint EU West Europe
+
+### 9.9 Final Checklist
+
+| Item | Status | Verified By |
+|------|--------|-------------|
+| All branches merged | [ ] | |
+| Zero warnings | [ ] | |
+| All tests pass | [ ] | |
+| Ollama tests pass | [ ] | |
+| Azure EDU tests pass | [ ] | |
+| README updated | [ ] | |
+| CHANGELOG updated | [ ] | |
+| Website updated | [ ] | |
+| Version 6.0.0 everywhere | [ ] | |
+| Security audit clean | [ ] | |
+| No TODO/FIXME in prod | [ ] | |
+| Documentation English | [ ] | |
+
+### 9.10 Sign-Off
+
+```
+╔══════════════════════════════════════════════════════════════════╗
+║                    V6 RELEASE APPROVAL                            ║
+╠══════════════════════════════════════════════════════════════════╣
+║                                                                   ║
+║  All Phase 9 checks MUST be complete before release.             ║
+║                                                                   ║
+║  Reviewed by: _________________________                          ║
+║  Date: _________________________                                  ║
+║  Signature: _________________________                             ║
+║                                                                   ║
+╚══════════════════════════════════════════════════════════════════╝
+```
+
+---
+
 ## RISK MITIGATION
 
 ### Rollback Procedures
