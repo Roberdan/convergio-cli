@@ -11,7 +11,7 @@
 
 <p align="center">
   <a href="https://github.com/Roberdan/convergio-cli/actions/workflows/ci.yml"><img src="https://github.com/Roberdan/convergio-cli/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
-  <a href="https://github.com/Roberdan/convergio-cli/releases/latest"><img src="https://img.shields.io/badge/version-6.0.0-blue" alt="Version 6.0.0"></a>
+  <a href="https://github.com/Roberdan/convergio-cli/releases/latest"><img src="https://img.shields.io/badge/version-6.0.1-blue" alt="Version 6.0.1"></a>
   <a href="https://github.com/Roberdan/convergio-cli/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-green.svg" alt="License"></a>
   <a href="https://github.com/Roberdan/convergio-cli"><img src="https://img.shields.io/badge/platform-macOS%20(Apple%20Silicon)-black" alt="Platform"></a>
   <a href="https://github.com/Roberdan/convergio-cli/stargazers"><img src="https://img.shields.io/github/stars/Roberdan/convergio-cli?style=social" alt="Stars"></a>
@@ -689,15 +689,15 @@ Download pre-built binaries for your edition:
 
 | Edition | Download | Description |
 |---------|----------|-------------|
-| **Master** | [convergio-6.0.0-arm64-apple-darwin.tar.gz](https://github.com/Roberdan/convergio-cli/releases/download/v6.0.0/convergio-6.0.0-arm64-apple-darwin.tar.gz) | Full-featured for power users |
-| **Education** | [convergio-edu-6.0.0-arm64-apple-darwin.tar.gz](https://github.com/Roberdan/convergio-cli/releases/download/v6.0.0/convergio-edu-6.0.0-arm64-apple-darwin.tar.gz) | Schools, students (Scuola 2026) |
-| **Business** | [convergio-biz-6.0.0-arm64-apple-darwin.tar.gz](https://github.com/Roberdan/convergio-cli/releases/download/v6.0.0/convergio-biz-6.0.0-arm64-apple-darwin.tar.gz) | Enterprise features |
-| **Developer** | [convergio-dev-6.0.0-arm64-apple-darwin.tar.gz](https://github.com/Roberdan/convergio-cli/releases/download/v6.0.0/convergio-dev-6.0.0-arm64-apple-darwin.tar.gz) | Debug tools, APIs |
+| **Master** | [convergio-6.0.1-arm64-apple-darwin.tar.gz](https://github.com/Roberdan/convergio-cli/releases/download/v6.0.1/convergio-6.0.1-arm64-apple-darwin.tar.gz) | Full-featured for power users |
+| **Education** | [convergio-edu-6.0.1-arm64-apple-darwin.tar.gz](https://github.com/Roberdan/convergio-cli/releases/download/v6.0.1/convergio-edu-6.0.1-arm64-apple-darwin.tar.gz) | Schools, students (Scuola 2026) |
+| **Business** | [convergio-biz-6.0.1-arm64-apple-darwin.tar.gz](https://github.com/Roberdan/convergio-cli/releases/download/v6.0.1/convergio-biz-6.0.1-arm64-apple-darwin.tar.gz) | Enterprise features |
+| **Developer** | [convergio-dev-6.0.1-arm64-apple-darwin.tar.gz](https://github.com/Roberdan/convergio-cli/releases/download/v6.0.1/convergio-dev-6.0.1-arm64-apple-darwin.tar.gz) | Debug tools, APIs |
 
 ```bash
 # Example: Install Education Edition manually
-curl -LO https://github.com/Roberdan/convergio-cli/releases/download/v6.0.0/convergio-edu-6.0.0-arm64-apple-darwin.tar.gz
-tar -xzf convergio-edu-6.0.0-arm64-apple-darwin.tar.gz
+curl -LO https://github.com/Roberdan/convergio-cli/releases/download/v6.0.1/convergio-edu-6.0.1-arm64-apple-darwin.tar.gz
+tar -xzf convergio-edu-6.0.1-arm64-apple-darwin.tar.gz
 sudo mv convergio-edu /usr/local/bin/
 
 # Run
@@ -1204,7 +1204,7 @@ Before every release, E2E tests are run locally using the `app-release-manager` 
 
 # Or via release manager (includes all quality gates)
 convergio
-> @app-release-manager prepare release v6.0.0
+> @app-release-manager prepare release
 ```
 
 This ensures all features are tested with real AI providers while keeping API keys secure.
@@ -1240,7 +1240,7 @@ MIT License - see [LICENSE](LICENSE) for details.
 ---
 
 <p align="center">
-  <strong>Convergio CLI v6.0.0</strong><br/>
+  <strong>Convergio CLI v6.0.1</strong><br/>
   <em>Multi-Model AI Orchestration for Apple Silicon</em>
 </p>
 
