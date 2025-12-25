@@ -7,6 +7,64 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.0.0] - 2025-12-25
+
+### Added
+
+- **Apple Foundation Models (AFM)** - On-device AI for macOS 26+
+  - Native Swift bridge to FoundationModels framework
+  - Session-based inference with streaming support
+  - Graceful fallback to MLX on pre-macOS 26 systems
+  - Conditional compilation for cross-version compatibility
+  - ADR: `docs/adr/019-apple-foundation-models.md`
+
+- **Education Edition Complete** - Full Scuola 2026 integration
+  - FSRS (Free Spaced Repetition Scheduler) algorithm for optimal learning
+  - Mastery tracking with skill gap identification
+  - Italian school curriculum support (Liceo, Tecnico, Professionale)
+  - Accessibility runtime for students with disabilities (DSA, ADHD, Autism)
+  - Ali Preside dashboard for school administrators
+  - Error interpreter for proactive teaching
+  - Multi-profile system for family/school use
+  - Document upload and camera integration
+  - Azure OpenAI GDPR-compliant backend for EU schools
+
+- **Multi-Edition Build System**
+  - Master edition: Full-featured for power users
+  - Education edition: Optimized for schools (convergio-edu)
+  - Business edition: Enterprise features (convergio-biz)
+  - Developer edition: Debug tools and APIs (convergio-dev)
+
+- **Voice Gateway** - Real-time voice interaction
+  - OpenAI Realtime API integration
+  - Azure Realtime API for enterprise
+  - Voice history management
+  - VoiceOver accessibility integration
+
+- **ProviderManager** - Dynamic LLM provider registry
+  - Runtime provider registration and discovery
+  - Fallback chain configuration
+  - Health monitoring and auto-failover
+
+### Changed
+
+- **Build System** - Enhanced for multi-edition support
+  - Edition-specific feature flags
+  - Optimized linking for Apple Silicon
+  - Swift Package Manager integration for AFM and MLX
+
+### Fixed
+
+- **AFM Compatibility** - Conditional compilation for pre-macOS 26
+- **CI Warning Filter** - Excludes macOS version linker warnings
+- **Mastery API** - Fixed `mastery_identify_gaps` symbol resolution
+
+### Technical
+
+- Consolidated 4 feature branches into stable v6.0.0 release
+- Added `.editorconfig` and `.swiftformat` for code consistency
+- Zero-tolerance CI with comprehensive test coverage
+
 ## [5.4.0] - 2025-12-21
 
 ### Added

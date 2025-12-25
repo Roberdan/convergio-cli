@@ -383,7 +383,7 @@ float mastery_get_difficulty(int64_t student_id, const char* skill_id) {
 /**
  * Find skills with gaps (low mastery with sufficient attempts)
  */
-MasterySkillList* mastery_find_gaps(int64_t student_id, const char* subject) {
+MasterySkillList* mastery_identify_gaps(int64_t student_id, const char* subject) {
     if (!g_edu_db)
         return NULL;
 

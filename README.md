@@ -11,7 +11,7 @@
 
 <p align="center">
   <a href="https://github.com/Roberdan/convergio-cli/actions/workflows/ci.yml"><img src="https://github.com/Roberdan/convergio-cli/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
-  <a href="https://github.com/Roberdan/convergio-cli/releases/latest"><img src="https://img.shields.io/badge/version-5.4.0-blue" alt="Version 5.4.0"></a>
+  <a href="https://github.com/Roberdan/convergio-cli/releases/latest"><img src="https://img.shields.io/badge/version-6.0.0-blue" alt="Version 6.0.0"></a>
   <a href="https://github.com/Roberdan/convergio-cli/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-green.svg" alt="License"></a>
   <a href="https://github.com/Roberdan/convergio-cli"><img src="https://img.shields.io/badge/platform-macOS%20(Apple%20Silicon)-black" alt="Platform"></a>
   <a href="https://github.com/Roberdan/convergio-cli/stargazers"><img src="https://img.shields.io/github/stars/Roberdan/convergio-cli?style=social" alt="Stars"></a>
@@ -274,45 +274,72 @@ python3 -m http.server 8080
 
 ---
 
-## What's New in v5.4.0
+## What's New in v6.0.0
 
-### Workflow Orchestration - Multi-Agent Collaboration Engine
+### Multi-Edition Release
 
-Full-featured workflow orchestration system for complex multi-agent collaboration:
+Convergio v6.0.0 introduces **four specialized editions**:
+
+| Edition | Binary | Target Users |
+|---------|--------|--------------|
+| **Master** | `convergio` | Power users, full features |
+| **Education** | `convergio-edu` | Schools, students (Scuola 2026) |
+| **Business** | `convergio-biz` | Enterprise, teams |
+| **Developer** | `convergio-dev` | Debug tools, APIs |
+
+### Apple Foundation Models (AFM)
+
+Native on-device AI for macOS 26+ with Apple Intelligence:
 
 ```bash
-# List available workflows
-> /workflow list
+# AFM automatically used when available
+> convergio --provider afm "Explain this code"
 
-# Execute a workflow
-> /workflow execute security-audit --input "Review src/auth"
-
-# Resume a paused workflow
-> /workflow resume wf-12345
+# Check AFM availability
+> convergio info --providers
 ```
 
-**Workflow Orchestration Features:**
-- **DAG-Based Workflows**: Complex directed acyclic graph execution
-- **State Machine Engine**: Robust state transitions with checkpointing
-- **Multi-Agent Patterns**: Router, Group Chat, Sequential, Parallel
-- **Task Decomposition**: LLM-powered automatic task breakdown
-- **Error Handling**: Comprehensive retry policies with exponential backoff
-- **Conditional Routing**: Dynamic path selection based on results
-- **Checkpointing**: Resume workflows from any point after crashes
-- **Security Hardened**: Path traversal protection, SQL injection prevention, input validation
+- Zero API costs with on-device inference
+- Privacy-first: data never leaves your Mac
+- Graceful fallback to MLX on pre-macOS 26
 
-**9 Workflow Templates Included:**
-- Code Review & Refinement
-- Security Audit Pipeline
-- Bug Triage & Fix
-- Performance Optimization
-- API Design Review
-- Incident Response
-- Product Launch Checklist
-- Pre-Release Quality Gates
-- Class Council (Education)
+### Education Edition - Scuola 2026
 
-See [Workflow Orchestration Documentation](docs/workflow-orchestration/USER_GUIDE.md) for complete details.
+Complete learning platform for Italian schools:
+
+```bash
+# Start education edition
+convergio-edu
+
+# Student features
+> /study matematica           # Start study session
+> /quiz fisica 10            # Generate quiz
+> /flashcards storia         # Spaced repetition cards
+> /progress                  # View learning progress
+```
+
+**Education Features:**
+- **FSRS Algorithm**: Optimal spaced repetition scheduling
+- **Mastery Tracking**: Skill gap identification and remediation
+- **Accessibility**: DSA, ADHD, Autism support with adaptive UI
+- **Ali Preside**: School administrator dashboard
+- **GDPR Compliant**: Azure OpenAI backend for EU schools
+- **15 Maestri AI**: Subject-specific teaching agents
+
+### Voice Gateway
+
+Real-time voice interaction:
+
+```bash
+> /voice start              # Start voice mode
+> /voice history            # View voice history
+```
+
+- OpenAI Realtime API integration
+- Azure Realtime for enterprise
+- VoiceOver accessibility
+
+See [CHANGELOG.md](CHANGELOG.md) for complete v6.0.0 details.
 
 ---
 
@@ -1129,7 +1156,7 @@ MIT License - see [LICENSE](LICENSE) for details.
 ---
 
 <p align="center">
-  <strong>Convergio CLI v5.4.0</strong><br/>
+  <strong>Convergio CLI v6.0.0</strong><br/>
   <em>Multi-Model AI Orchestration for Apple Silicon</em>
 </p>
 
