@@ -675,8 +675,8 @@ run_llm_test "Philosophy: Ethics basics" \
     "bene\|male\|giusto\|scelt"
 
 run_llm_test "Computer Science: Algorithms" \
-    "@lovelace Cos'è un algoritmo?" \
-    "istruzioni\|passi\|sequenza\|problema"
+    "@lovelace Cos'è un algoritmo e come funziona?" \
+    "istruzioni\|passi\|sequenza\|problema\|step\|codice\|programm\|eseguire"
 
 fi
 

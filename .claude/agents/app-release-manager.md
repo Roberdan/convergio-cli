@@ -166,6 +166,18 @@ You are an **orchestrator agent** that spawns parallel sub-agents for independen
 **SPAWN ALL PHASE 1 AGENTS IN A SINGLE MESSAGE - NOT SEQUENTIALLY!**
 
 ```
+Phase -1: AZURE OPENAI VERIFICATION (EDUCATION EDITION ONLY - FIRST!)
+├── Sub-agent AZ1: Check AZURE_OPENAI_API_KEY is set
+├── Sub-agent AZ2: Check AZURE_OPENAI_ENDPOINT is set
+├── Sub-agent AZ3: Check AZURE_OPENAI_DEPLOYMENT is set
+├── Sub-agent AZ4: Test Azure OpenAI API connectivity
+├── Sub-agent AZ5: Verify Anthropic fallback is DISABLED for Education
+└── Sub-agent AZ6: Confirm model_router.c routes to Azure only
+
+⚠️ CRITICAL FOR EDUCATION: This phase MUST pass before ANY other checks!
+   Education Edition is GDPR-compliant and MUST use Azure OpenAI exclusively.
+   ANY Anthropic API usage in Education Edition is a BLOCKING release failure.
+
 Phase 0: MODEL FRESHNESS (MANDATORY FIRST - before ANY tests)
 ├── Sub-agent M1: WebSearch latest Anthropic Claude models
 ├── Sub-agent M2: WebSearch latest OpenAI GPT models
@@ -221,6 +233,87 @@ Phase 5: CONDITIONAL (only if APPROVED)
 ├── Create PR
 └── Tag and release
 ```
+
+---
+
+## 🔒 Phase -1: AZURE OPENAI VERIFICATION (EDUCATION EDITION ONLY)
+
+**CRITICAL FOR EDUCATION: This phase MUST pass FIRST before ANY other checks.**
+
+### Why This Is Phase -1
+
+Education Edition is designed for GDPR compliance and child safety. It MUST use Azure OpenAI exclusively:
+- **Data Sovereignty**: Azure OpenAI runs in EU data centers
+- **GDPR Compliance**: Microsoft Azure DPA covers student data
+- **No Anthropic Fallback**: ANY Anthropic usage is a BLOCKING release failure
+
+### Phase -1 Sub-Agent Prompt (Azure Verification)
+
+```
+AZURE OPENAI VERIFICATION - EDUCATION EDITION MANDATORY FIRST PHASE:
+
+STEP 1: Check environment variables
+- Verify AZURE_OPENAI_API_KEY is set (not empty)
+- Verify AZURE_OPENAI_ENDPOINT is set (valid Azure URL)
+- Verify AZURE_OPENAI_DEPLOYMENT is set (deployment name)
+
+STEP 2: Test Azure OpenAI API connectivity
+curl -s -w "%{http_code}" \
+  "${AZURE_OPENAI_ENDPOINT}/openai/deployments/${AZURE_OPENAI_DEPLOYMENT}/chat/completions?api-version=2024-02-15-preview" \
+  -H "Content-Type: application/json" \
+  -H "api-key: ${AZURE_OPENAI_API_KEY}" \
+  -d '{"messages":[{"role":"user","content":"test"}],"max_tokens":5}'
+
+Expected: HTTP 200 with valid JSON response
+
+STEP 3: Verify Anthropic fallback is DISABLED
+- Read: src/router/model_router.c
+- Search for: edition_uses_azure_openai()
+- Confirm: Education edition does NOT fallback to PROVIDER_ANTHROPIC
+- Pattern to verify: "Education: Using Azure OpenAI" in logs
+
+STEP 4: Verify edition.c returns correct model
+- Read: src/core/edition.c
+- Find: edition_get_preferred_model() function
+- Confirm: EDITION_EDUCATION returns "azure/gpt-4o-mini" (NOT any Anthropic model)
+
+STEP 5: Run Education E2E test Section 0 (Azure verification)
+./tests/e2e_education_comprehensive_test.sh --section 0
+
+OUTPUT FORMAT:
+{
+  "status": "PASS" | "BLOCK",
+  "azure_credentials": {
+    "api_key": "SET" | "MISSING",
+    "endpoint": "SET" | "MISSING",
+    "deployment": "SET" | "MISSING"
+  },
+  "api_connectivity": "OK" | "FAILED",
+  "anthropic_fallback": "DISABLED" | "ENABLED (BLOCKING!)",
+  "model_routing": "azure/gpt-4o-mini" | "OTHER (BLOCKING!)",
+  "section_0_tests": "PASS" | "FAIL"
+}
+
+IF ANY CHECK FAILS: BLOCK RELEASE IMMEDIATELY
+```
+
+### Azure OpenAI Configuration Requirements
+
+| Variable | Required Value | Purpose |
+|----------|---------------|---------|
+| `AZURE_OPENAI_API_KEY` | Azure API key | Authentication |
+| `AZURE_OPENAI_ENDPOINT` | `https://<name>.openai.azure.com` | API endpoint |
+| `AZURE_OPENAI_DEPLOYMENT` | `gpt4o-mini-deployment` | Deployment name |
+
+### BLOCKING Failures for Education
+
+| Issue | Status | Action |
+|-------|--------|--------|
+| Missing Azure credentials | 🔴 BLOCKING | NO RELEASE - set env vars |
+| Azure API unreachable | 🔴 BLOCKING | NO RELEASE - check Azure subscription |
+| Anthropic fallback enabled | 🔴 BLOCKING | NO RELEASE - fix model_router.c |
+| Wrong model in edition.c | 🔴 BLOCKING | NO RELEASE - fix edition_get_preferred_model() |
+| Section 0 tests fail | 🔴 BLOCKING | NO RELEASE - Azure not working |
 
 ---
 
