@@ -21,6 +21,18 @@ struct ConvergioApp: App {
 
     @Environment(\.openWindow) private var openWindow
 
+    /// Theme setting from AppStorage
+    @AppStorage("appearanceMode") private var appearanceMode = "system"
+
+    /// Convert stored appearance mode to ColorScheme
+    private var preferredColorScheme: ColorScheme? {
+        switch appearanceMode {
+        case "light": return .light
+        case "dark": return .dark
+        default: return nil  // "system" uses nil for automatic
+        }
+    }
+
     /// Check if any API key is configured
     private var hasAnyApiKey: Bool {
         keychainManager.hasAnthropicKey ||
@@ -53,6 +65,7 @@ struct ConvergioApp: App {
                     .environmentObject(conversationVM)
                     .environmentObject(keychainManager)
                     .environmentObject(logger)
+                    .preferredColorScheme(preferredColorScheme)
                     .frame(minWidth: 900, minHeight: 600)
                     .task {
                         logInfo("Initializing orchestrator", category: "System")
@@ -164,6 +177,7 @@ struct ConvergioApp: App {
         Settings {
             SettingsView()
                 .environmentObject(orchestratorVM)
+                .preferredColorScheme(preferredColorScheme)
         }
 
         // Debug log viewer window
