@@ -1,8 +1,8 @@
 /**
  * Apple Foundation Models Provider Implementation
  *
- * Objective-C implementation for interfacing with Apple's
- * Foundation Models framework (macOS 26+).
+ * Objective-C bridge to the Swift FoundationModels wrapper.
+ * Uses C-compatible functions exported from FoundationModelsBridge.swift.
  *
  * Copyright 2025 - Roberto D'Angelo & AI Team
  */
@@ -17,18 +17,37 @@
 #include <string.h>
 #include <dlfcn.h>
 
-// Compile-time check for macOS version
-#if __MAC_OS_X_VERSION_MAX_ALLOWED >= 260000
+// ============================================================================
+// SWIFT BRIDGE FUNCTION DECLARATIONS
+// ============================================================================
 
-@import FoundationModels;
+// These functions are exported from ConvergioAFM Swift library
+extern int32_t swift_afm_check_availability(
+    bool* outIsAvailable,
+    bool* outIntelligenceEnabled,
+    bool* outModelReady
+) __attribute__((weak));
 
-#define AFM_SUPPORTED 1
+extern int32_t swift_afm_session_create(int64_t* outSessionId) __attribute__((weak));
+extern void swift_afm_session_destroy(int64_t sessionId) __attribute__((weak));
+extern int32_t swift_afm_session_set_instructions(int64_t sessionId, const char* instructions) __attribute__((weak));
 
-#else
+extern int32_t swift_afm_generate(
+    int64_t sessionId,
+    const char* prompt,
+    char** outResponse
+) __attribute__((weak));
 
-#define AFM_SUPPORTED 0
+typedef void (*AFMSwiftStreamCallback)(const char*, bool, void*);
+extern int32_t swift_afm_generate_stream(
+    int64_t sessionId,
+    const char* prompt,
+    AFMSwiftStreamCallback callback,
+    void* userCtx
+) __attribute__((weak));
 
-#endif
+extern void swift_afm_free_string(char* str) __attribute__((weak));
+extern int32_t swift_afm_get_model_info(char** outName, float* outSizeBillions) __attribute__((weak));
 
 // ============================================================================
 // PRIVATE STATE
@@ -36,6 +55,15 @@
 
 static bool g_afm_initialized = false;
 static os_log_t g_log = NULL;
+
+// Provider-specific data
+typedef struct {
+    int64_t session_id;
+    bool session_active;
+    ProviderErrorInfo last_error;
+} AFMProviderData;
+
+static AFMProviderData g_afm_data = {0};
 
 // ============================================================================
 // HELPER FUNCTIONS
@@ -55,94 +83,14 @@ static bool is_macos_26_or_later(void) {
     return version.majorVersion >= 26;
 }
 
-static char* ns_string_to_c(NSString* str) {
-    if (!str) return NULL;
-    const char* cstr = [str UTF8String];
-    if (!cstr) return NULL;
-    return strdup(cstr);
+static bool swift_bridge_available(void) {
+    // Check if Swift bridge functions are linked
+    return swift_afm_check_availability != NULL;
 }
 
 // ============================================================================
-// PUBLIC API - AVAILABILITY CHECK
+// PUBLIC API - ERROR DESCRIPTIONS
 // ============================================================================
-
-AppleFoundationError afm_check_availability(AppleFoundationStatus* out_status) {
-    if (!g_log) {
-        g_log = os_log_create("com.convergio.cli", "apple_foundation");
-    }
-
-    AppleFoundationStatus status = {0};
-    status.is_apple_silicon = is_apple_silicon();
-    status.is_macos_26 = is_macos_26_or_later();
-
-    // Get OS version string
-    NSOperatingSystemVersion ver = [[NSProcessInfo processInfo] operatingSystemVersion];
-    NSString* verStr = [NSString stringWithFormat:@"macOS %ld.%ld.%ld",
-                        (long)ver.majorVersion, (long)ver.minorVersion, (long)ver.patchVersion];
-    status.os_version = [verStr UTF8String];
-
-    // Get chip name
-    char chip[64] = {0};
-    size_t chip_size = sizeof(chip);
-    if (sysctlbyname("machdep.cpu.brand_string", chip, &chip_size, NULL, 0) == 0) {
-        status.chip_name = strdup(chip);
-    } else {
-        status.chip_name = "Apple Silicon";
-    }
-
-    if (!status.is_apple_silicon) {
-        if (out_status) *out_status = status;
-        return AFM_ERR_NOT_APPLE_SILICON;
-    }
-
-    if (!status.is_macos_26) {
-        if (out_status) *out_status = status;
-        return AFM_ERR_NOT_MACOS_26;
-    }
-
-#if AFM_SUPPORTED
-    // Check if Apple Intelligence is enabled and model is ready
-    @autoreleasepool {
-        @try {
-            // Check model availability
-            LanguageModelAvailability *availability = [[LanguageModelAvailability alloc] init];
-
-            switch (availability.availability) {
-                case LanguageModelAvailabilityAvailable:
-                    status.is_available = true;
-                    status.intelligence_enabled = true;
-                    status.model_ready = true;
-                    status.model_size_billions = 3;
-                    break;
-
-                case LanguageModelAvailabilityUnavailable:
-                    status.is_available = false;
-                    status.intelligence_enabled = false;
-                    if (out_status) *out_status = status;
-                    return AFM_ERR_INTELLIGENCE_DISABLED;
-
-                case LanguageModelAvailabilityModelNotReady:
-                    status.is_available = true;
-                    status.intelligence_enabled = true;
-                    status.model_ready = false;
-                    if (out_status) *out_status = status;
-                    return AFM_ERR_MODEL_NOT_READY;
-            }
-        } @catch (NSException *exception) {
-            os_log_error(g_log, "Exception checking availability: %{public}@", exception);
-            if (out_status) *out_status = status;
-            return AFM_ERR_UNKNOWN;
-        }
-    }
-
-    if (out_status) *out_status = status;
-    return AFM_AVAILABLE;
-#else
-    status.is_available = false;
-    if (out_status) *out_status = status;
-    return AFM_ERR_NOT_MACOS_26;
-#endif
-}
 
 const char* afm_status_description(AppleFoundationError error) {
     switch (error) {
@@ -170,35 +118,102 @@ const char* afm_status_description(AppleFoundationError error) {
 }
 
 // ============================================================================
-// SESSION MANAGEMENT
+// FOUNDATION MODELS API IMPLEMENTATION
 // ============================================================================
 
-#if AFM_SUPPORTED
+AppleFoundationError afm_check_availability(AppleFoundationStatus* out_status) {
+    if (!g_log) {
+        g_log = os_log_create("com.convergio.cli", "apple_foundation");
+    }
+
+    AppleFoundationStatus status = {0};
+    status.is_apple_silicon = is_apple_silicon();
+    status.is_macos_26 = is_macos_26_or_later();
+
+    // Get OS version string
+    NSOperatingSystemVersion ver = [[NSProcessInfo processInfo] operatingSystemVersion];
+    static char version_str[64];
+    snprintf(version_str, sizeof(version_str), "macOS %ld.%ld.%ld",
+             (long)ver.majorVersion, (long)ver.minorVersion, (long)ver.patchVersion);
+    status.os_version = version_str;
+
+    // Get chip name
+    char chip[64] = {0};
+    size_t chip_size = sizeof(chip);
+    if (sysctlbyname("machdep.cpu.brand_string", chip, &chip_size, NULL, 0) == 0) {
+        static char chip_name[64];
+        strncpy(chip_name, chip, sizeof(chip_name) - 1);
+        status.chip_name = chip_name;
+    } else {
+        status.chip_name = is_apple_silicon() ? "Apple Silicon" : "Intel";
+    }
+
+    if (!status.is_apple_silicon) {
+        if (out_status) *out_status = status;
+        return AFM_ERR_NOT_APPLE_SILICON;
+    }
+
+    if (!status.is_macos_26) {
+        if (out_status) *out_status = status;
+        os_log_info(g_log, "Apple Foundation Models: Not available (requires macOS 26+, current: %{public}s)",
+                    status.os_version);
+        return AFM_ERR_NOT_MACOS_26;
+    }
+
+    // Check Swift bridge availability
+    if (!swift_bridge_available()) {
+        os_log_info(g_log, "Apple Foundation Models: Swift bridge not available");
+        if (out_status) *out_status = status;
+        return AFM_ERR_NOT_MACOS_26;
+    }
+
+    // Call Swift bridge to check actual availability
+    bool isAvailable = false, intelligenceEnabled = false, modelReady = false;
+    int32_t result = swift_afm_check_availability(&isAvailable, &intelligenceEnabled, &modelReady);
+
+    status.is_available = isAvailable;
+    status.intelligence_enabled = intelligenceEnabled;
+    status.model_ready = modelReady;
+    status.model_size_billions = 3;  // Apple's on-device model is ~3B
+
+    if (out_status) *out_status = status;
+
+    // Convert Swift error code to our enum
+    switch (result) {
+        case 0: return AFM_AVAILABLE;
+        case -3: return AFM_ERR_INTELLIGENCE_DISABLED;
+        case -4: return AFM_ERR_MODEL_NOT_READY;
+        default: return AFM_ERR_UNKNOWN;
+    }
+}
 
 AppleFoundationError afm_session_create(AFMSession* out_session) {
     if (!out_session) return AFM_ERR_UNKNOWN;
 
     memset(out_session, 0, sizeof(AFMSession));
 
-    @autoreleasepool {
-        @try {
-            LanguageModelSession *session = [[LanguageModelSession alloc] init];
-            out_session->_session = (__bridge_retained void*)session;
-            out_session->is_active = true;
-            return AFM_AVAILABLE;
-        } @catch (NSException *exception) {
-            os_log_error(g_log, "Failed to create session: %{public}@", exception);
-            return AFM_ERR_SESSION_FAILED;
-        }
+    if (!swift_bridge_available()) {
+        return AFM_ERR_NOT_MACOS_26;
     }
+
+    int64_t sessionId = 0;
+    int32_t result = swift_afm_session_create(&sessionId);
+
+    if (result != 0) {
+        return AFM_ERR_SESSION_FAILED;
+    }
+
+    out_session->_session = (void*)(intptr_t)sessionId;
+    out_session->is_active = true;
+    return AFM_AVAILABLE;
 }
 
 void afm_session_destroy(AFMSession* session) {
     if (!session || !session->_session) return;
 
-    @autoreleasepool {
-        LanguageModelSession *lmSession = (__bridge_transfer LanguageModelSession*)session->_session;
-        lmSession = nil;
+    if (swift_bridge_available() && swift_afm_session_destroy) {
+        int64_t sessionId = (int64_t)(intptr_t)session->_session;
+        swift_afm_session_destroy(sessionId);
     }
 
     session->_session = NULL;
@@ -216,48 +231,48 @@ AppleFoundationError afm_generate(
         return AFM_ERR_UNKNOWN;
     }
 
-    @autoreleasepool {
-        @try {
-            LanguageModelSession *lmSession = (__bridge LanguageModelSession*)session->_session;
-            NSString *promptStr = [NSString stringWithUTF8String:prompt];
+    (void)options; // Reserved for future use
 
-            // Build instructions if system prompt provided
-            if (system_prompt) {
-                NSString *instructions = [NSString stringWithUTF8String:system_prompt];
-                lmSession.instructions = instructions;
-            }
+    if (!swift_bridge_available()) {
+        *out_response = NULL;
+        return AFM_ERR_NOT_MACOS_26;
+    }
 
-            // Run synchronous generation
-            __block NSString *responseStr = nil;
-            __block NSError *error = nil;
+    int64_t sessionId = (int64_t)(intptr_t)session->_session;
 
-            dispatch_semaphore_t semaphore = dispatch_semaphore_create(0);
+    // Set system prompt if provided
+    if (system_prompt && swift_afm_session_set_instructions) {
+        swift_afm_session_set_instructions(sessionId, system_prompt);
+    }
 
-            [lmSession respondTo:promptStr completionHandler:^(LanguageModelSession.Response *response, NSError *err) {
-                if (err) {
-                    error = err;
-                } else {
-                    responseStr = response.content;
-                }
-                dispatch_semaphore_signal(semaphore);
-            }];
+    // Generate response
+    char* response = NULL;
+    int32_t result = swift_afm_generate(sessionId, prompt, &response);
 
-            dispatch_semaphore_wait(semaphore, DISPATCH_TIME_FOREVER);
-
-            if (error) {
-                os_log_error(g_log, "Generation error: %{public}@", error);
-                return AFM_ERR_GENERATION_FAILED;
-            }
-
-            *out_response = ns_string_to_c(responseStr);
-            session->tokens_generated += responseStr.length / 4; // Rough estimate
-
-            return AFM_AVAILABLE;
-
-        } @catch (NSException *exception) {
-            os_log_error(g_log, "Generation exception: %{public}@", exception);
-            return AFM_ERR_GENERATION_FAILED;
+    if (result != 0) {
+        if (response && swift_afm_free_string) {
+            swift_afm_free_string(response);
         }
+        *out_response = NULL;
+        return AFM_ERR_GENERATION_FAILED;
+    }
+
+    *out_response = response;
+    session->tokens_generated += strlen(response) / 4;
+
+    return AFM_AVAILABLE;
+}
+
+// Streaming callback wrapper
+typedef struct {
+    AFMStreamCallback user_callback;
+    void* user_ctx;
+} StreamCallbackContext;
+
+static void stream_callback_wrapper(const char* content, bool isFinal, void* ctx) {
+    StreamCallbackContext* wrapper = (StreamCallbackContext*)ctx;
+    if (wrapper && wrapper->user_callback) {
+        wrapper->user_callback(content, isFinal, wrapper->user_ctx);
     }
 }
 
@@ -273,55 +288,51 @@ AppleFoundationError afm_generate_stream(
         return AFM_ERR_UNKNOWN;
     }
 
-    @autoreleasepool {
-        @try {
-            LanguageModelSession *lmSession = (__bridge LanguageModelSession*)session->_session;
-            NSString *promptStr = [NSString stringWithUTF8String:prompt];
+    (void)options;
 
-            if (system_prompt) {
-                lmSession.instructions = [NSString stringWithUTF8String:system_prompt];
-            }
-
-            __block NSError *streamError = nil;
-            dispatch_semaphore_t semaphore = dispatch_semaphore_create(0);
-
-            // Use streaming API
-            [lmSession streamResponseTo:promptStr handler:^(NSString *partialContent, BOOL isFinal, NSError *error) {
-                if (error) {
-                    streamError = error;
-                    dispatch_semaphore_signal(semaphore);
-                    return;
-                }
-
-                if (partialContent) {
-                    callback([partialContent UTF8String], isFinal, user_ctx);
-                }
-
-                if (isFinal) {
-                    dispatch_semaphore_signal(semaphore);
-                }
-            }];
-
-            dispatch_semaphore_wait(semaphore, DISPATCH_TIME_FOREVER);
-
-            if (streamError) {
-                os_log_error(g_log, "Streaming error: %{public}@", streamError);
-                return AFM_ERR_GENERATION_FAILED;
-            }
-
-            return AFM_AVAILABLE;
-
-        } @catch (NSException *exception) {
-            os_log_error(g_log, "Streaming exception: %{public}@", exception);
-            return AFM_ERR_GENERATION_FAILED;
-        }
+    if (!swift_bridge_available() || !swift_afm_generate_stream) {
+        return AFM_ERR_NOT_MACOS_26;
     }
+
+    int64_t sessionId = (int64_t)(intptr_t)session->_session;
+
+    if (system_prompt && swift_afm_session_set_instructions) {
+        swift_afm_session_set_instructions(sessionId, system_prompt);
+    }
+
+    StreamCallbackContext ctx = {
+        .user_callback = callback,
+        .user_ctx = user_ctx
+    };
+
+    int32_t result = swift_afm_generate_stream(
+        sessionId,
+        prompt,
+        stream_callback_wrapper,
+        &ctx
+    );
+
+    return result == 0 ? AFM_AVAILABLE : AFM_ERR_GENERATION_FAILED;
+}
+
+AppleFoundationError afm_generate_structured(
+    AFMSession* session,
+    const char* prompt,
+    const AFMSchema* schema,
+    char** out_json
+) {
+    (void)session;
+    (void)prompt;
+    (void)schema;
+    if (out_json) *out_json = NULL;
+    return AFM_ERR_GUIDED_GEN_FAILED;
 }
 
 AppleFoundationError afm_simple_generate(const char* prompt, char** out_response) {
     AFMSession session = {0};
     AppleFoundationError err = afm_session_create(&session);
     if (err != AFM_AVAILABLE) {
+        if (out_response) *out_response = NULL;
         return err;
     }
 
@@ -330,213 +341,251 @@ AppleFoundationError afm_simple_generate(const char* prompt, char** out_response
     return err;
 }
 
-#else // !AFM_SUPPORTED
-
-AppleFoundationError afm_session_create(AFMSession* out_session) {
-    return AFM_ERR_NOT_MACOS_26;
-}
-
-void afm_session_destroy(AFMSession* session) {
-    // No-op
-}
-
-AppleFoundationError afm_generate(
-    AFMSession* session,
-    const char* prompt,
-    const char* system_prompt,
-    const AFMGenerationOptions* options,
-    char** out_response
-) {
-    return AFM_ERR_NOT_MACOS_26;
-}
-
-AppleFoundationError afm_generate_stream(
-    AFMSession* session,
-    const char* prompt,
-    const char* system_prompt,
-    const AFMGenerationOptions* options,
-    AFMStreamCallback callback,
-    void* user_ctx
-) {
-    return AFM_ERR_NOT_MACOS_26;
-}
-
-AppleFoundationError afm_simple_generate(const char* prompt, char** out_response) {
-    return AFM_ERR_NOT_MACOS_26;
-}
-
-#endif // AFM_SUPPORTED
-
 // ============================================================================
-// CONVERGIO PROVIDER INTEGRATION
+// CONVERGIO PROVIDER INTERFACE IMPLEMENTATION
 // ============================================================================
 
-typedef struct {
-    AFMSession session;
-    char* last_error;
-} AFMProviderData;
+static ProviderError afm_provider_init(Provider* self) {
+    if (!self) return PROVIDER_ERR_NOT_INITIALIZED;
 
-static int afm_provider_init(Provider* provider) {
-    AFMProviderData* data = calloc(1, sizeof(AFMProviderData));
-    if (!data) return -1;
+    AFMProviderData* data = (AFMProviderData*)self->impl_data;
+    if (!data) return PROVIDER_ERR_NOT_INITIALIZED;
 
-    AppleFoundationError err = afm_session_create(&data->session);
-    if (err != AFM_AVAILABLE) {
-        data->last_error = strdup(afm_status_description(err));
-        // Don't fail - allow graceful degradation
-    }
-
-    provider->data = data;
-    return 0;
-}
-
-static void afm_provider_cleanup(Provider* provider) {
-    if (!provider || !provider->data) return;
-
-    AFMProviderData* data = (AFMProviderData*)provider->data;
-    afm_session_destroy(&data->session);
-    free(data->last_error);
-    free(data);
-    provider->data = NULL;
-}
-
-static int afm_provider_complete(
-    Provider* provider,
-    const ProviderRequest* request,
-    ProviderResponse* response
-) {
-    if (!provider || !provider->data || !request || !response) {
-        return -1;
-    }
-
-    AFMProviderData* data = (AFMProviderData*)provider->data;
-
-    // Ensure session is active
-    if (!data->session.is_active) {
-        AppleFoundationError err = afm_session_create(&data->session);
-        if (err != AFM_AVAILABLE) {
-            response->error_message = strdup(afm_status_description(err));
-            return -1;
-        }
-    }
-
-    char* result = NULL;
-    AppleFoundationError err = afm_generate(
-        &data->session,
-        request->prompt,
-        request->system_prompt,
-        NULL,
-        &result
-    );
-
-    if (err != AFM_AVAILABLE) {
-        response->error_message = strdup(afm_status_description(err));
-        return -1;
-    }
-
-    response->content = result;
-    response->input_tokens = strlen(request->prompt) / 4;  // Estimate
-    response->output_tokens = strlen(result) / 4;
-    response->cost_usd = 0.0;  // On-device, no cost
-
-    return 0;
-}
-
-static void afm_provider_stream_callback_wrapper(
-    const char* token,
-    bool is_final,
-    void* ctx
-) {
-    ProviderStreamContext* stream_ctx = (ProviderStreamContext*)ctx;
-    if (stream_ctx && stream_ctx->callback) {
-        stream_ctx->callback(token, stream_ctx->user_data);
-    }
-}
-
-static int afm_provider_complete_stream(
-    Provider* provider,
-    const ProviderRequest* request,
-    ProviderStreamCallback callback,
-    void* user_data,
-    ProviderResponse* response
-) {
-    if (!provider || !provider->data || !request) {
-        return -1;
-    }
-
-    AFMProviderData* data = (AFMProviderData*)provider->data;
-
-    if (!data->session.is_active) {
-        AppleFoundationError err = afm_session_create(&data->session);
-        if (err != AFM_AVAILABLE) {
-            if (response) response->error_message = strdup(afm_status_description(err));
-            return -1;
-        }
-    }
-
-    ProviderStreamContext ctx = {
-        .callback = callback,
-        .user_data = user_data
-    };
-
-    AppleFoundationError err = afm_generate_stream(
-        &data->session,
-        request->prompt,
-        request->system_prompt,
-        NULL,
-        afm_provider_stream_callback_wrapper,
-        &ctx
-    );
-
-    if (err != AFM_AVAILABLE) {
-        if (response) response->error_message = strdup(afm_status_description(err));
-        return -1;
-    }
-
-    if (response) {
-        response->cost_usd = 0.0;
-    }
-
-    return 0;
-}
-
-Provider* afm_provider_create(void) {
+    // Check availability
     AppleFoundationStatus status;
     AppleFoundationError err = afm_check_availability(&status);
 
     if (err != AFM_AVAILABLE) {
-        LOG_WARN("Apple Foundation Models not available: %s", afm_status_description(err));
+        data->last_error.code = PROVIDER_ERR_NOT_INITIALIZED;
+        data->last_error.message = (char*)afm_status_description(err);
+        return PROVIDER_ERR_NOT_INITIALIZED;
+    }
+
+    // Create session
+    int64_t sessionId = 0;
+    if (swift_afm_session_create && swift_afm_session_create(&sessionId) == 0) {
+        data->session_id = sessionId;
+        data->session_active = true;
+    }
+
+    self->initialized = true;
+    return PROVIDER_OK;
+}
+
+static void afm_provider_shutdown(Provider* self) {
+    if (!self) return;
+
+    AFMProviderData* data = (AFMProviderData*)self->impl_data;
+    if (data && data->session_active && swift_afm_session_destroy) {
+        swift_afm_session_destroy(data->session_id);
+        data->session_active = false;
+        data->session_id = 0;
+    }
+
+    self->initialized = false;
+}
+
+static bool afm_provider_validate_key(Provider* self) {
+    (void)self;
+    // No API key needed for local on-device model
+    return true;
+}
+
+static char* afm_provider_chat(Provider* self, const char* model,
+                               const char* system, const char* user,
+                               TokenUsage* usage) {
+    if (!self || !user) return NULL;
+    (void)model;  // Single model
+
+    AFMProviderData* data = (AFMProviderData*)self->impl_data;
+    if (!data || !data->session_active) return NULL;
+
+    // Set system prompt if provided
+    if (system && swift_afm_session_set_instructions) {
+        swift_afm_session_set_instructions(data->session_id, system);
+    }
+
+    // Generate response
+    char* response = NULL;
+    if (swift_afm_generate && swift_afm_generate(data->session_id, user, &response) == 0) {
+        if (usage) {
+            usage->input_tokens = strlen(user) / 4;
+            usage->output_tokens = response ? strlen(response) / 4 : 0;
+            usage->estimated_cost = 0.0;  // Local model, no cost
+        }
+        return response;
+    }
+
+    data->last_error.code = PROVIDER_ERR_UNKNOWN;
+    data->last_error.message = (char*)"Generation failed";
+    return NULL;
+}
+
+static char* afm_provider_chat_with_tools(Provider* self, const char* model,
+                                          const char* system, const char* user,
+                                          ToolDefinition* tools, size_t tool_count,
+                                          ToolCall** out_tool_calls, size_t* out_tool_count,
+                                          TokenUsage* usage) {
+    (void)tools;
+    (void)tool_count;
+    if (out_tool_calls) *out_tool_calls = NULL;
+    if (out_tool_count) *out_tool_count = 0;
+
+    // For now, just do regular chat (tool calling to be implemented)
+    return afm_provider_chat(self, model, system, user, usage);
+}
+
+// Streaming handler context
+typedef struct {
+    StreamHandler* handler;
+    Provider* provider;
+} AFMStreamContext;
+
+static void afm_stream_callback(const char* content, bool isFinal, void* ctx) {
+    AFMStreamContext* stream_ctx = (AFMStreamContext*)ctx;
+    if (!stream_ctx || !stream_ctx->handler) return;
+
+    if (content && stream_ctx->handler->on_chunk) {
+        stream_ctx->handler->on_chunk(content, isFinal, stream_ctx->handler->user_ctx);
+    }
+
+    if (isFinal && stream_ctx->handler->on_complete) {
+        stream_ctx->handler->on_complete(content, stream_ctx->handler->user_ctx);
+    }
+}
+
+static ProviderError afm_provider_stream_chat(Provider* self, const char* model,
+                                              const char* system, const char* user,
+                                              StreamHandler* handler, TokenUsage* usage) {
+    if (!self || !user || !handler) return PROVIDER_ERR_INVALID_REQUEST;
+    (void)model;
+
+    AFMProviderData* data = (AFMProviderData*)self->impl_data;
+    if (!data || !data->session_active) return PROVIDER_ERR_NOT_INITIALIZED;
+
+    if (!swift_afm_generate_stream) {
+        return PROVIDER_ERR_UNKNOWN;
+    }
+
+    // Set system prompt
+    if (system && swift_afm_session_set_instructions) {
+        swift_afm_session_set_instructions(data->session_id, system);
+    }
+
+    AFMStreamContext ctx = {
+        .handler = handler,
+        .provider = self
+    };
+
+    int32_t result = swift_afm_generate_stream(
+        data->session_id,
+        user,
+        afm_stream_callback,
+        &ctx
+    );
+
+    if (usage) {
+        usage->input_tokens = strlen(user) / 4;
+        usage->output_tokens = 0;  // Hard to track in streaming
+        usage->estimated_cost = 0.0;  // Local model, no cost
+    }
+
+    return result == 0 ? PROVIDER_OK : PROVIDER_ERR_UNKNOWN;
+}
+
+static size_t afm_provider_estimate_tokens(Provider* self, const char* text) {
+    (void)self;
+    if (!text) return 0;
+    // Rough estimate: ~4 characters per token
+    return strlen(text) / 4;
+}
+
+static ProviderErrorInfo* afm_provider_get_last_error(Provider* self) {
+    if (!self || !self->impl_data) return NULL;
+    AFMProviderData* data = (AFMProviderData*)self->impl_data;
+    return &data->last_error;
+}
+
+static ProviderError afm_provider_list_models(Provider* self,
+                                              ModelConfig** out_models,
+                                              size_t* out_count) {
+    (void)self;
+
+    if (!out_models || !out_count) return PROVIDER_ERR_INVALID_REQUEST;
+
+    // Single on-device model
+    ModelConfig* models = calloc(1, sizeof(ModelConfig));
+    if (!models) return PROVIDER_ERR_NOT_INITIALIZED;
+
+    models[0].id = "apple-foundation-3b";
+    models[0].display_name = "Apple Foundation Model (3B)";
+    models[0].provider = PROVIDER_APPLE_FOUNDATION;
+    models[0].context_window = 32768;
+    models[0].max_output = 4096;
+    models[0].input_cost_per_mtok = 0.0;
+    models[0].output_cost_per_mtok = 0.0;
+    models[0].supports_vision = false;
+    models[0].supports_streaming = true;
+    models[0].supports_tools = true;
+
+    *out_models = models;
+    *out_count = 1;
+    return PROVIDER_OK;
+}
+
+// ============================================================================
+// PROVIDER FACTORY
+// ============================================================================
+
+Provider* afm_provider_create(void) {
+    // Check basic requirements first
+    if (!is_apple_silicon()) {
+        LOG_DEBUG(LOG_CAT_SYSTEM, "AFM provider not created: not Apple Silicon");
+        return NULL;
+    }
+
+    if (!is_macos_26_or_later()) {
+        LOG_DEBUG(LOG_CAT_SYSTEM, "AFM provider not created: requires macOS 26+");
+        return NULL;
+    }
+
+    if (!swift_bridge_available()) {
+        LOG_DEBUG(LOG_CAT_SYSTEM, "AFM provider not created: Swift bridge not available");
         return NULL;
     }
 
     Provider* provider = calloc(1, sizeof(Provider));
     if (!provider) return NULL;
 
-    provider->name = "apple_foundation";
-    provider->display_name = "Apple Intelligence";
-    provider->model_id = "apple-foundation-3b";
-    provider->supports_streaming = true;
-    provider->supports_tools = true;
-    provider->is_local = true;
-    provider->cost_per_input_token = 0.0;
-    provider->cost_per_output_token = 0.0;
+    provider->type = PROVIDER_APPLE_FOUNDATION;
+    provider->name = "Apple Foundation Models";
+    provider->api_key_env = NULL;  // No API key needed
+    provider->base_url = NULL;     // Local inference
+    provider->initialized = false;
 
+    // Core operations
     provider->init = afm_provider_init;
-    provider->cleanup = afm_provider_cleanup;
-    provider->complete = afm_provider_complete;
-    provider->complete_stream = afm_provider_complete_stream;
+    provider->shutdown = afm_provider_shutdown;
+    provider->validate_key = afm_provider_validate_key;
 
-    if (provider->init(provider) != 0) {
-        free(provider);
-        return NULL;
-    }
+    // Chat operations
+    provider->chat = afm_provider_chat;
+    provider->chat_with_tools = afm_provider_chat_with_tools;
+    provider->stream_chat = afm_provider_stream_chat;
 
-    LOG_INFO("Apple Foundation Models provider created (3B on-device model)");
+    // Utilities
+    provider->estimate_tokens = afm_provider_estimate_tokens;
+    provider->get_last_error = afm_provider_get_last_error;
+    provider->list_models = afm_provider_list_models;
+
+    provider->impl_data = &g_afm_data;
+
+    LOG_INFO(LOG_CAT_SYSTEM, "Apple Foundation Models provider created (on-device 3B)");
     return provider;
 }
 
 // ============================================================================
-// INTEGRATION HELPERS
+// UTILITY FUNCTIONS
 // ============================================================================
 
 bool afm_should_prefer_over_mlx(size_t prompt_length, bool needs_tools) {
@@ -545,11 +594,8 @@ bool afm_should_prefer_over_mlx(size_t prompt_length, bool needs_tools) {
         return false;
     }
 
-    // Prefer AFM when:
-    // 1. Tool calling is needed (AFM has better tool support)
-    // 2. Prompts are moderate length (AFM optimized for typical queries)
     if (needs_tools) return true;
-    if (prompt_length < 8000) return true;  // AFM optimized for shorter contexts
+    if (prompt_length < 8000) return true;
 
     return false;
 }
@@ -571,17 +617,43 @@ int afm_convergio_init(void) {
     AppleFoundationError err = afm_check_availability(&status);
 
     if (err == AFM_AVAILABLE) {
-        LOG_INFO("Apple Foundation Models: Available (%s, %s)",
-                 status.os_version, status.chip_name);
-        g_afm_initialized = true;
-        return 0;
+        os_log_info(g_log, "Apple Foundation Models: Available (%{public}s, %{public}s)",
+                    status.os_version, status.chip_name);
     } else {
-        LOG_INFO("Apple Foundation Models: %s", afm_status_description(err));
-        // Not a fatal error - graceful degradation to MLX
-        return 0;
+        os_log_info(g_log, "Apple Foundation Models: %{public}s", afm_status_description(err));
     }
+
+    g_afm_initialized = true;
+    return 0;
 }
 
 void afm_convergio_shutdown(void) {
     g_afm_initialized = false;
+}
+
+// Schema helpers
+AFMSchema* afm_schema_text_response(void) {
+    return afm_schema_create("TextResponse", "A simple text response");
+}
+
+AFMSchema* afm_schema_create(const char* name, const char* description) {
+    AFMSchema* schema = calloc(1, sizeof(AFMSchema));
+    if (!schema) return NULL;
+    schema->name = name;
+    schema->description = description;
+    return schema;
+}
+
+void afm_schema_add_field(AFMSchema* schema, const char* name, const char* description,
+                          AFMSchemaType type, bool required) {
+    (void)schema; (void)name; (void)description; (void)type; (void)required;
+}
+
+void afm_schema_add_enum(AFMSchema* schema, const char* name, const char* description,
+                         const char** values, size_t value_count, bool required) {
+    (void)schema; (void)name; (void)description; (void)values; (void)value_count; (void)required;
+}
+
+void afm_schema_free(AFMSchema* schema) {
+    free(schema);
 }

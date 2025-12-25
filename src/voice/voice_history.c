@@ -126,7 +126,7 @@ static int init_database(void) {
     char* err_msg = NULL;
     int rc = sqlite3_exec(g_voice_db, schema, NULL, NULL, &err_msg);
     if (rc != SQLITE_OK) {
-        LOG_ERROR("Failed to create voice history schema: %s", err_msg);
+        LOG_ERROR(LOG_CAT_MEMORY, "Failed to create voice history schema: %s", err_msg);
         sqlite3_free(err_msg);
         return -1;
     }
@@ -146,21 +146,21 @@ int voice_history_init(void) {
     // Get home directory and create voice history path
     const char* home = getenv("HOME");
     if (!home) {
-        LOG_ERROR("HOME environment variable not set");
+        LOG_ERROR(LOG_CAT_MEMORY, "HOME environment variable not set");
         return -1;
     }
 
     char base_path[256];
     snprintf(base_path, sizeof(base_path), "%s/.convergio", home);
     if (ensure_directory(base_path) != 0) {
-        LOG_ERROR("Failed to create .convergio directory");
+        LOG_ERROR(LOG_CAT_MEMORY, "Failed to create .convergio directory");
         return -1;
     }
 
     char voice_path[256];
     snprintf(voice_path, sizeof(voice_path), "%s/.convergio/voice_history", home);
     if (ensure_directory(voice_path) != 0) {
-        LOG_ERROR("Failed to create voice_history directory");
+        LOG_ERROR(LOG_CAT_MEMORY, "Failed to create voice_history directory");
         return -1;
     }
 
@@ -169,7 +169,7 @@ int voice_history_init(void) {
 
     int rc = sqlite3_open(g_db_path, &g_voice_db);
     if (rc != SQLITE_OK) {
-        LOG_ERROR("Failed to open voice history database: %s", sqlite3_errmsg(g_voice_db));
+        LOG_ERROR(LOG_CAT_MEMORY, "Failed to open voice history database: %s", sqlite3_errmsg(g_voice_db));
         return -1;
     }
 
@@ -185,7 +185,7 @@ int voice_history_init(void) {
     }
 
     g_initialized = true;
-    LOG_INFO("Voice history system initialized: %s", g_db_path);
+    LOG_INFO(LOG_CAT_MEMORY, "Voice history system initialized: %s", g_db_path);
     return 0;
 }
 
@@ -200,7 +200,7 @@ void voice_history_shutdown(void) {
     }
 
     g_initialized = false;
-    LOG_INFO("Voice history system shutdown");
+    LOG_INFO(LOG_CAT_MEMORY, "Voice history system shutdown");
 }
 
 int voice_session_start(const char* agent_name, char* out_session_id) {
@@ -217,7 +217,7 @@ int voice_session_start(const char* agent_name, char* out_session_id) {
     sqlite3_stmt* stmt;
     int rc = sqlite3_prepare_v2(g_voice_db, sql, -1, &stmt, NULL);
     if (rc != SQLITE_OK) {
-        LOG_ERROR("Failed to prepare session start: %s", sqlite3_errmsg(g_voice_db));
+        LOG_ERROR(LOG_CAT_MEMORY, "Failed to prepare session start: %s", sqlite3_errmsg(g_voice_db));
         return -1;
     }
 
@@ -229,7 +229,7 @@ int voice_session_start(const char* agent_name, char* out_session_id) {
     sqlite3_finalize(stmt);
 
     if (rc != SQLITE_DONE) {
-        LOG_ERROR("Failed to insert session: %s", sqlite3_errmsg(g_voice_db));
+        LOG_ERROR(LOG_CAT_MEMORY, "Failed to insert session: %s", sqlite3_errmsg(g_voice_db));
         return -1;
     }
 
@@ -246,7 +246,7 @@ int voice_session_start(const char* agent_name, char* out_session_id) {
         }
     }
 
-    LOG_INFO("Voice session started: %s with agent %s", out_session_id, agent_name);
+    LOG_INFO(LOG_CAT_MEMORY, "Voice session started: %s with agent %s", out_session_id, agent_name);
     return 0;
 }
 
@@ -274,7 +274,7 @@ int voice_session_end(const char* session_id) {
         return -1;
     }
 
-    LOG_INFO("Voice session ended: %s", session_id);
+    LOG_INFO(LOG_CAT_MEMORY, "Voice session ended: %s", session_id);
     return 0;
 }
 
@@ -294,7 +294,7 @@ int voice_history_save(const VoiceTranscriptEntry* entry) {
     sqlite3_stmt* stmt;
     int rc = sqlite3_prepare_v2(g_voice_db, sql, -1, &stmt, NULL);
     if (rc != SQLITE_OK) {
-        LOG_ERROR("Failed to prepare transcript insert: %s", sqlite3_errmsg(g_voice_db));
+        LOG_ERROR(LOG_CAT_MEMORY, "Failed to prepare transcript insert: %s", sqlite3_errmsg(g_voice_db));
         return -1;
     }
 
@@ -320,7 +320,7 @@ int voice_history_save(const VoiceTranscriptEntry* entry) {
     sqlite3_finalize(stmt);
 
     if (rc != SQLITE_DONE) {
-        LOG_ERROR("Failed to insert transcript: %s", sqlite3_errmsg(g_voice_db));
+        LOG_ERROR(LOG_CAT_MEMORY, "Failed to insert transcript: %s", sqlite3_errmsg(g_voice_db));
         return -1;
     }
 
@@ -550,4 +550,69 @@ void voice_session_metadata_free(VoiceSessionMetadata* metadata) {
     }
 
     memset(metadata, 0, sizeof(VoiceSessionMetadata));
+}
+
+// Stub implementations for functions declared in header but not yet needed
+int voice_history_load_session(
+    const char* session_id,
+    VoiceTranscriptEntry* out_entries,
+    size_t max_entries,
+    size_t* out_count
+) {
+    (void)session_id;
+    (void)out_entries;
+    (void)max_entries;
+    if (out_count) *out_count = 0;
+    return -1;  // Not implemented yet
+}
+
+int voice_history_search(
+    const char* query,
+    size_t max_results,
+    VoiceTranscriptEntry* out_entries,
+    size_t* out_count
+) {
+    (void)query;
+    (void)max_results;
+    (void)out_entries;
+    if (out_count) *out_count = 0;
+    return -1;  // Not implemented yet
+}
+
+int voice_history_load_recent_sessions(
+    size_t max_sessions,
+    VoiceSessionMetadata* out_sessions,
+    size_t* out_count
+) {
+    (void)max_sessions;
+    (void)out_sessions;
+    if (out_count) *out_count = 0;
+    return -1;  // Not implemented yet
+}
+
+int voice_session_get_metadata(
+    const char* session_id,
+    VoiceSessionMetadata* out_metadata
+) {
+    (void)session_id;
+    (void)out_metadata;
+    return -1;  // Not implemented yet
+}
+
+int voice_session_generate_summary(
+    const char* session_id,
+    char** out_summary
+) {
+    (void)session_id;
+    if (out_summary) *out_summary = NULL;
+    return -1;  // Not implemented yet
+}
+
+int voice_session_emotion_distribution(
+    const char* session_id,
+    float* out_distribution
+) {
+    (void)session_id;
+    (void)out_distribution;
+    return -1;  // Not implemented yet
 }

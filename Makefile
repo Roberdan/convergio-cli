@@ -168,9 +168,10 @@ FRAMEWORKS = -framework Metal \
 # GNU readline linked statically from Homebrew (libedit doesn't support prompt color markers)
 LIBS = -lcurl -lsqlite3 /opt/homebrew/opt/cjson/lib/libcjson.a $(READLINE_PREFIX)/lib/libreadline.a $(READLINE_PREFIX)/lib/libhistory.a -lncurses
 
-# Swift Package Manager (for MLX integration)
+# Swift Package Manager (for MLX integration and Apple Foundation Models)
 SWIFT_BUILD_DIR = .build/release
 SWIFT_LIB = $(SWIFT_BUILD_DIR)/libConvergioMLX.a
+SWIFT_AFM_LIB = $(SWIFT_BUILD_DIR)/libConvergioAFM.a
 SWIFT_FRAMEWORKS = -Xlinker -rpath -Xlinker @executable_path/../lib
 
 # Directories
@@ -262,7 +263,8 @@ C_SOURCES = $(SRC_DIR)/core/fabric.c \
             $(SRC_DIR)/workflow/workflow_visualization.c \
             $(SRC_DIR)/workflow/ethical_guardrails.c \
             $(SRC_DIR)/workflow/checkpoint_optimization.c \
-            $(SRC_DIR)/core/commands/workflow.c
+            $(SRC_DIR)/core/commands/workflow.c \
+            $(SRC_DIR)/voice/voice_history.c
 
 OBJC_SOURCES = $(SRC_DIR)/metal/gpu.m \
                $(SRC_DIR)/neural/mlx_embed.m \
@@ -270,7 +272,8 @@ OBJC_SOURCES = $(SRC_DIR)/metal/gpu.m \
                $(SRC_DIR)/auth/keychain.m \
                $(SRC_DIR)/core/hardware.m \
                $(SRC_DIR)/core/clipboard.m \
-               $(SRC_DIR)/providers/mlx.m
+               $(SRC_DIR)/providers/mlx.m \
+               $(SRC_DIR)/providers/apple_foundation.m
 
 METAL_SOURCES = shaders/similarity.metal
 
@@ -356,16 +359,17 @@ dirs:
 	@mkdir -p $(OBJ_DIR)/mcp
 	@mkdir -p $(OBJ_DIR)/acp
 	@mkdir -p $(OBJ_DIR)/workflow
+	@mkdir -p $(OBJ_DIR)/voice
 	@mkdir -p $(BIN_DIR)
 	@mkdir -p data
 
-# Compile Swift package (for MLX integration)
-# This builds the ConvergioMLX Swift library that provides LLM inference
+# Compile Swift packages (MLX integration + Apple Foundation Models)
+# This builds the Swift libraries that provide LLM inference
 # Strategy: Use swift build for library linking, but also run xcodebuild to compile Metal shaders
 XCODE_BUILD_DIR = .build/xcode
 XCODE_RELEASE_DIR = $(XCODE_BUILD_DIR)/Build/Products/Release
 
-swift: $(SWIFT_LIB)
+swift: $(SWIFT_LIB) $(SWIFT_AFM_LIB)
 
 $(SWIFT_LIB): Package.swift Sources/ConvergioMLX/MLXBridge.swift
 	@echo "Building Swift package (MLX integration, M3 Max optimized, $(SWIFT_BUILD_JOBS) jobs)..."
@@ -392,6 +396,21 @@ $(SWIFT_LIB): Package.swift Sources/ConvergioMLX/MLXBridge.swift
 		fi; \
 	else \
 		echo "FATAL: Swift build failed - MLX unavailable" >&2 && exit 1; \
+	fi
+
+# Apple Foundation Models Swift bridge (macOS 26+)
+# This is optional - gracefully skipped if macOS 26 SDK not available
+$(SWIFT_AFM_LIB): Package.swift Sources/ConvergioAFM/FoundationModelsBridge.swift
+	@echo "Building Swift package (Apple Foundation Models, $(SWIFT_BUILD_JOBS) jobs)..."
+	@swift build -c release --product ConvergioAFM \
+		-Xswiftc -O -Xswiftc -whole-module-optimization \
+		--jobs $(SWIFT_BUILD_JOBS) \
+		2>&1 | grep -v "^$$" || true
+	@if [ -f "$(SWIFT_AFM_LIB)" ] && [ -s "$(SWIFT_AFM_LIB)" ]; then \
+		echo "  AFM Swift library built: $(SWIFT_AFM_LIB)"; \
+	else \
+		echo "  Note: AFM not available (requires macOS 26+ SDK with Apple Intelligence)"; \
+		rm -f "$(SWIFT_AFM_LIB)" 2>/dev/null || true; \
 	fi
 
 # Build notification helper app (for proper icon display)
@@ -482,13 +501,19 @@ SWIFT_RUNTIME_LIBS = -L/usr/lib/swift \
                      -lswiftCompatibility56 -lswiftCompatibilityConcurrency \
                      -lc++
 
-$(TARGET): $(OBJECTS) $(SWIFT_LIB) $(MLX_STUBS_OBJ)
+$(TARGET): $(OBJECTS) $(SWIFT_LIB) $(SWIFT_AFM_LIB) $(MLX_STUBS_OBJ)
 	@echo "Linking $(TARGET) (M3 Max optimized, $(PARALLEL_JOBS) jobs)..."
 	@mkdir -p $(BUILD_DIR)/lto.cache
 	@if [ -s "$(SWIFT_LIB)" ]; then \
-		echo "  Including MLX Swift library (with C++ runtime)..."; \
-		$(CC) $(LDFLAGS) $(OBJECTS) $(SWIFT_LIB) -o $(TARGET) $(FRAMEWORKS) $(LIBS) \
-			$(SWIFT_RUNTIME_LIBS) $(SWIFT_FRAMEWORKS); \
+		if [ -s "$(SWIFT_AFM_LIB)" ]; then \
+			echo "  Including Swift libraries (MLX + AFM, with C++ runtime)..."; \
+			$(CC) $(LDFLAGS) $(OBJECTS) $(SWIFT_LIB) $(SWIFT_AFM_LIB) -o $(TARGET) $(FRAMEWORKS) $(LIBS) \
+				$(SWIFT_RUNTIME_LIBS) $(SWIFT_FRAMEWORKS); \
+		else \
+			echo "  Including Swift library (MLX only, with C++ runtime)..."; \
+			$(CC) $(LDFLAGS) $(OBJECTS) $(SWIFT_LIB) -o $(TARGET) $(FRAMEWORKS) $(LIBS) \
+				$(SWIFT_RUNTIME_LIBS) $(SWIFT_FRAMEWORKS); \
+		fi; \
 	else \
 		echo "  Swift library unavailable - using MLX stubs..."; \
 		$(CC) $(LDFLAGS) $(OBJECTS) $(MLX_STUBS_OBJ) -o $(TARGET) $(FRAMEWORKS) $(LIBS); \
