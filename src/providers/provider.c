@@ -711,6 +711,7 @@ extern Provider* gemini_provider_create(void);
 extern Provider* openrouter_provider_create(void);
 extern Provider* ollama_provider_create(void);
 extern Provider* mlx_provider_create(void);
+extern Provider* afm_provider_create(void);  // Apple Foundation Models (macOS 26+)
 
 ProviderError provider_registry_init(void) {
     pthread_mutex_lock(&g_registry_mutex);
@@ -759,6 +760,12 @@ ProviderError provider_registry_init(void) {
     g_providers[PROVIDER_MLX] = mlx_provider_create();
     if (g_providers[PROVIDER_MLX]) {
         LOG_DEBUG(LOG_CAT_SYSTEM, "MLX provider created (Apple Silicon)");
+    }
+
+    // Apple Foundation Models provider (macOS 26+ - on-device Apple Intelligence)
+    g_providers[PROVIDER_APPLE_FOUNDATION] = afm_provider_create();
+    if (g_providers[PROVIDER_APPLE_FOUNDATION]) {
+        LOG_DEBUG(LOG_CAT_SYSTEM, "Apple Foundation Models provider created (3B on-device)");
     }
 
     g_registry_initialized = true;

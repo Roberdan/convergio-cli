@@ -121,6 +121,29 @@ cd ConvergioApp && xcodegen && open ConvergioApp.xcodeproj
 
 ---
 
+## Website
+
+Visit our website to learn more about Convergio and compare it to other AI solutions.
+
+**Website Sections:**
+
+- **CLI Features** - Full list of Convergio CLI capabilities
+- **Meet Your AI Team** - 60+ specialized agents overview
+- **Education Edition** - 17 AI Maestri for students (Socrate, Euclide, Galileo, Leonardo, Einstein, and more)
+- **Native App** - Upcoming SwiftUI app with menu bar integration
+- **Compare** - Feature comparison vs ChatGPT, Claude, Ollama, LM Studio
+- **Technology** - Apple Silicon, MLX, Metal GPU, Apple Foundation Models
+
+**Running the website locally:**
+
+```bash
+cd website
+python3 -m http.server 8080
+# Open http://localhost:8080
+```
+
+---
+
 ## What's New in v5.4.0
 
 ### Workflow Orchestration - Multi-Agent Collaboration Engine
