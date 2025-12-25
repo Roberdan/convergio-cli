@@ -4,11 +4,13 @@
  * Swift wrapper for Apple's FoundationModels framework that exposes
  * C-compatible functions for use from Objective-C/C code.
  *
+ * Requires macOS 26+ (Tahoe) with Apple Intelligence enabled.
+ * On earlier systems, all functions return AFM_ERR_NOT_MACOS_26.
+ *
  * Copyright 2025 - Roberto D'Angelo & AI Team
  */
 
 import Foundation
-@_exported import FoundationModels
 
 // MARK: - C-Compatible Error Codes
 
@@ -29,7 +31,12 @@ public struct AFMError: RawRepresentable, Equatable {
     public static let unknown = AFMError(rawValue: -100)
 }
 
-// MARK: - Session Management
+// MARK: - Availability Check
+
+#if canImport(FoundationModels)
+@_exported import FoundationModels
+
+// MARK: - Session Management (macOS 26+)
 
 /// Session wrapper that holds instructions
 private class AFMSessionWrapper {
@@ -56,7 +63,7 @@ private var activeSessions: [Int64: AFMSessionWrapper] = [:]
 private var nextSessionId: Int64 = 1
 private let sessionLock = NSLock()
 
-// MARK: - C-Exported Functions
+// MARK: - C-Exported Functions (macOS 26+)
 
 /// Check if FoundationModels is available
 @_cdecl("swift_afm_check_availability")
@@ -260,3 +267,81 @@ public func swiftAFMGetModelInfo(
     outSizeBillions?.pointee = 3.0
     return AFMError.available.rawValue
 }
+
+#else
+// MARK: - Stub Implementations (pre-macOS 26)
+
+/// Streaming callback type (stub)
+public typealias AFMStreamCallback = @convention(c) (
+    UnsafePointer<CChar>?,
+    Bool,
+    UnsafeMutableRawPointer?
+) -> Void
+
+@_cdecl("swift_afm_check_availability")
+public func swiftAFMCheckAvailability(
+    outIsAvailable: UnsafeMutablePointer<Bool>?,
+    outIntelligenceEnabled: UnsafeMutablePointer<Bool>?,
+    outModelReady: UnsafeMutablePointer<Bool>?
+) -> Int32 {
+    outIsAvailable?.pointee = false
+    outIntelligenceEnabled?.pointee = false
+    outModelReady?.pointee = false
+    return AFMError.notMacOS26.rawValue
+}
+
+@_cdecl("swift_afm_session_create")
+public func swiftAFMSessionCreate(outSessionId: UnsafeMutablePointer<Int64>?) -> Int32 {
+    outSessionId?.pointee = 0
+    return AFMError.notMacOS26.rawValue
+}
+
+@_cdecl("swift_afm_session_destroy")
+public func swiftAFMSessionDestroy(sessionId: Int64) {
+    // No-op on pre-macOS 26
+}
+
+@_cdecl("swift_afm_session_set_instructions")
+public func swiftAFMSessionSetInstructions(
+    sessionId: Int64,
+    instructions: UnsafePointer<CChar>?
+) -> Int32 {
+    return AFMError.notMacOS26.rawValue
+}
+
+@_cdecl("swift_afm_generate")
+public func swiftAFMGenerate(
+    sessionId: Int64,
+    prompt: UnsafePointer<CChar>?,
+    outResponse: UnsafeMutablePointer<UnsafeMutablePointer<CChar>?>?
+) -> Int32 {
+    outResponse?.pointee = nil
+    return AFMError.notMacOS26.rawValue
+}
+
+@_cdecl("swift_afm_generate_stream")
+public func swiftAFMGenerateStream(
+    sessionId: Int64,
+    prompt: UnsafePointer<CChar>?,
+    callback: AFMStreamCallback?,
+    userCtx: UnsafeMutableRawPointer?
+) -> Int32 {
+    return AFMError.notMacOS26.rawValue
+}
+
+@_cdecl("swift_afm_free_string")
+public func swiftAFMFreeString(str: UnsafeMutablePointer<CChar>?) {
+    free(str)
+}
+
+@_cdecl("swift_afm_get_model_info")
+public func swiftAFMGetModelInfo(
+    outName: UnsafeMutablePointer<UnsafeMutablePointer<CChar>?>?,
+    outSizeBillions: UnsafeMutablePointer<Float>?
+) -> Int32 {
+    outName?.pointee = nil
+    outSizeBillions?.pointee = 0.0
+    return AFMError.notMacOS26.rawValue
+}
+
+#endif
