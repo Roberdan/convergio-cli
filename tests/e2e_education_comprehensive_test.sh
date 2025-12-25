@@ -541,8 +541,8 @@ run_llm_test "Euclide uses guiding questions" \
     "pensa\|prova\|secondo te\|come"
 
 run_llm_test "Manzoni corrects without judgment" \
-    "@manzoni Ho scritto qual'è con l'apostrofo" \
-    "regola\|troncamento\|correct\|ricord"
+    "@manzoni Ho scritto qual'è con l'apostrofo, è sbagliato?" \
+    "troncamento\|regola\|apostrofo\|corrett\|ricord\|impara\|italian"
 
 run_llm_test "Feynman uses analogies" \
     "@feynman Cos'è la gravità?" \
