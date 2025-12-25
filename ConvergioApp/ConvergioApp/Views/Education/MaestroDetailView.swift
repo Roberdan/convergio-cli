@@ -85,10 +85,18 @@ struct MaestroDetailView: View {
                     )
                     .frame(width: 140, height: 140)
 
-                // Icon
-                Image(systemName: maestro.icon)
-                    .font(.system(size: 60))
-                    .foregroundStyle(maestro.color)
+                // Avatar image or fallback icon
+                if let nsImage = NSImage(named: maestro.avatarName) {
+                    Image(nsImage: nsImage)
+                        .resizable()
+                        .aspectRatio(contentMode: .fill)
+                        .frame(width: 130, height: 130)
+                        .clipShape(Circle())
+                } else {
+                    Image(systemName: maestro.icon)
+                        .font(.system(size: 60))
+                        .foregroundStyle(maestro.color)
+                }
             }
             .frame(width: 200, height: 200)
             .animation(.spring(duration: 0.5), value: isAvatarHovered)
