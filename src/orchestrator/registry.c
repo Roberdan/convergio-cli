@@ -1445,7 +1445,7 @@ char* agent_registry_status(void) {
     // This ensures we don't count agents loaded before edition was set, or agents
     // that shouldn't be in this edition
     size_t edition_agent_count = 0;
-    ConvergioEdition current_edition = edition_current();
+    // Note: edition_has_agent() internally uses edition_current()
     for (size_t i = 0; i < orch->agent_count; i++) {
         if (!orch->agents[i] || !orch->agents[i]->name) {
             continue; // Skip invalid agents
