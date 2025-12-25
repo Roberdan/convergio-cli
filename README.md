@@ -6,7 +6,7 @@
 
 <p align="center">
   <strong>Your Virtual AI Executive Team</strong><br/>
-  <em>54 specialized AI agents. One command. Unlimited expertise.</em>
+  <em>60+ specialized AI agents. One command. Unlimited expertise.</em>
 </p>
 
 <p align="center">
@@ -20,7 +20,7 @@
 <p align="center">
   <img src="https://img.shields.io/badge/coverage-96%25-brightgreen" alt="Coverage 96%">
   <img src="https://img.shields.io/badge/tests-350%2B%20passing-success" alt="350+ Tests">
-  <img src="https://img.shields.io/badge/agents-54%20specialists-purple" alt="54 AI Agents">
+  <img src="https://img.shields.io/badge/agents-60%2B%20specialists-purple" alt="60+ AI Agents">
   <img src="https://img.shields.io/badge/C17-Standard-blue" alt="C17">
   <img src="https://img.shields.io/badge/Swift-5.9-orange" alt="Swift 5.9">
   <img src="https://img.shields.io/badge/Metal-GPU%20Accelerated-gray" alt="Metal GPU">
@@ -50,7 +50,7 @@ brew tap Roberdan/convergio-cli && brew install convergio
 
 ## The Vision
 
-**Imagine having an entire consulting firm at your fingertips.** Not just one AI assistant — a full team of 54 specialists who work together, debate ideas, and deliver integrated solutions.
+**Imagine having an entire consulting firm at your fingertips.** Not just one AI assistant — a full team of 60+ specialists who work together, debate ideas, and deliver integrated solutions.
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
@@ -66,7 +66,7 @@ brew tap Roberdan/convergio-cli && brew install convergio
                               │
                               ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│              WORKFLOW ENGINE (v5.4)                              │
+│              WORKFLOW ENGINE (v6.0)                              │
 │   State Machine → Task Decomposition → Checkpointing → Resume   │
 └─────────────────────────────────────────────────────────────────┘
                               │
@@ -98,16 +98,16 @@ Convergio comes in multiple editions, each tailored for specific use cases:
 
 | Edition | Target | AI Agents | Primary Provider |
 |---------|--------|-----------|------------------|
-| **Enterprise** | Businesses | 54 specialists | Anthropic/OpenAI |
-| **Developer** | Developers | 54 specialists | Anthropic/OpenAI |
-| **Business** | SMBs | 54 specialists | Anthropic/OpenAI |
+| **Master** | Power Users | 60+ specialists | Anthropic/OpenAI/AFM |
+| **Developer** | Developers | 60+ specialists | Anthropic/OpenAI/AFM |
+| **Business** | SMBs | 60+ specialists | Anthropic/OpenAI |
 | **Education** | Schools | 17 Maestri | Azure OpenAI (GDPR) |
 
 ### Build Different Editions
 
 ```bash
-# Enterprise (default)
-make EDITION=enterprise
+# Master Edition (default)
+make EDITION=master
 
 # Education Edition
 make EDITION=education
@@ -129,7 +129,7 @@ make EDITION=business
   <img src="https://img.shields.io/badge/Azure_OpenAI-Only-orange?style=for-the-badge" alt="Azure OpenAI"/>
 </p>
 
-**A safe, educational AI platform for Italian schools.** Convergio Education transforms 54 business agents into 17 beloved historical teachers ("Maestri") who inspire learning through the Socratic method.
+**A safe, educational AI platform for Italian schools.** Convergio Education transforms 60+ business agents into 17 beloved historical teachers ("Maestri") who inspire learning through the Socratic method.
 
 ### The 17 Maestri (Teachers)
 
@@ -222,15 +222,15 @@ export AZURE_OPENAI_DEPLOYMENT="gpt-4o-mini"
 
 ---
 
-## Coming Soon: Convergio Native for macOS
+## Convergio Native for macOS
 
 <p align="center">
-  <img src="https://img.shields.io/badge/🚧_IN_DEVELOPMENT-Native_macOS_App-purple?style=for-the-badge" alt="In Development"/>
+  <img src="https://img.shields.io/badge/✅_AVAILABLE-Native_macOS_App-green?style=for-the-badge" alt="Available"/>
 </p>
 
-We're building a **stunning native macOS application** with Apple's Liquid Glass design language! The CLI will remain fully supported, but soon you'll have a beautiful GUI option.
+A **stunning native macOS application** with Apple's Liquid Glass design language! The CLI remains fully supported, and now you also have a beautiful GUI option.
 
-**Features in development:**
+**Features:**
 - 🎨 Liquid Glass UI with glass-morphism effects
 - 🤖 Real-time Agent Interaction Visualizer
 - ⚙️ Full Settings UI (API keys, budgets, MCP servers)
@@ -239,14 +239,22 @@ We're building a **stunning native macOS application** with Apple's Liquid Glass
 - 🔔 Native macOS notifications
 - ⌨️ Global hotkey (Cmd+Shift+Space)
 
-**Want to contribute or follow progress?**
-→ Check out the [`feature/native-app`](https://github.com/Roberdan/convergio-cli/tree/feature/native-app) branch!
+**Installation:**
 
+The native app is included in the v6.0.0 release:
+```bash
+# Via Homebrew (recommended)
+brew tap Roberdan/convergio-cli && brew install convergio
+# ConvergioApp will be installed to /Applications
+
+# Or download directly from GitHub Releases
+```
+
+**Building from source:**
 ```bash
 git clone https://github.com/Roberdan/convergio-cli.git
-cd convergio-cli
-git checkout feature/native-app
-cd ConvergioApp && xcodegen && open ConvergioApp.xcodeproj
+cd convergio-cli/ConvergioApp
+xcodegen && open ConvergioApp.xcodeproj
 ```
 
 ---
@@ -339,13 +347,11 @@ Real-time voice interaction:
 - Azure Realtime for enterprise
 - VoiceOver accessibility
 
-See [CHANGELOG.md](CHANGELOG.md) for complete v6.0.0 details.
+See [CHANGELOG.md](CHANGELOG.md) for complete version history.
 
 ---
 
-## What's New in v5.1.0
-
-### Plan Database - Persistent Execution Plans
+## Plan Database - Persistent Execution Plans
 
 Track and manage multi-step execution plans with SQLite-backed persistent storage.
 
@@ -398,9 +404,7 @@ Generate rich Markdown documents with Mermaid diagrams, tables, and clickable li
 
 ---
 
-## What's New in v5.0.0
-
-### Anna Executive Assistant - Your AI-Powered Personal Productivity System
+## Anna Executive Assistant - Your AI-Powered Personal Productivity System
 
 Anna is your dedicated executive assistant agent with native task management, smart reminders, and proactive scheduling — all running locally with zero cloud dependencies.
 
@@ -508,7 +512,7 @@ Full support for the complete Apple Silicon family:
 
 ### Multi-Agent Orchestration
 
-**54 Specialist Agents** working in parallel, coordinated by Ali:
+**60+ Specialist Agents** working in parallel, coordinated by Ali:
 
 | Agent | Role | Specialty |
 |-------|------|-----------|
@@ -795,7 +799,7 @@ The Education edition (`convergio-edu`) provides a complete virtual classroom ex
 
 | Command | Description |
 |---------|-------------|
-| `/agents` | List all 54 agents |
+| `/agents` | List all 60+ agents |
 | `/agent <name>` | Configure individual agent |
 | `/think <query>` | Direct agent thinking mode |
 
@@ -931,7 +935,7 @@ flowchart TB
         Conv["Convergence"]
     end
 
-    subgraph WORKFLOW["Workflow Engine (v5.4)"]
+    subgraph WORKFLOW["Workflow Engine (v6.0)"]
         StateMachine["State Machine"]
         TaskDecomp["Task Decomposer"]
         GroupChat["Group Chat"]
@@ -952,14 +956,16 @@ flowchart TB
             OpenRouter["OpenRouter"]
         end
         subgraph Local["Local (FREE)"]
+            AFM["Apple Foundation Models"]
             MLX["MLX Swift"]
             Ollama["Ollama"]
         end
     end
 
     subgraph AGENTS["Agent Execution"]
-        AgentPool["54 Specialists"]
+        AgentPool["60+ Specialists"]
         GCD["GCD Parallelization"]
+        VoiceGW["Voice Gateway"]
     end
 
     subgraph TOOLS["Tool Execution"]
@@ -972,6 +978,12 @@ flowchart TB
     subgraph FABRIC["Semantic Fabric"]
         SemanticGraph["Knowledge Graph"]
         SQLite["SQLite Storage"]
+    end
+
+    subgraph EDU["Education (Scuola 2026)"]
+        Maestri["17 Maestri"]
+        SafetyFilter["Safety Filters"]
+        MasteryTracker["Mastery Tracking"]
     end
 
     subgraph SILICON["Apple Silicon"]
@@ -988,16 +1000,18 @@ flowchart TB
     ORCH --> AGENTS
     WORKFLOW --> AGENTS
     AGENTS --> TOOLS
+    AGENTS --> EDU
     TOOLS --> FABRIC
     FABRIC --> SILICON
+    AFM --> NeuralEngine
 ```
 
 ### Why Convergio vs Others?
 
 | Feature | Convergio | Claude Code | Warp | VSCode + Copilot | Codex CLI |
 |---------|-----------|-------------|------|------------------|-----------|
-| **Multi-Provider** | 6 providers | Claude only | Multi | OpenAI only | OpenAI only |
-| **Agents** | 54 specialists | Subagents | Single | Autocomplete | Single |
+| **Multi-Provider** | 7 providers + AFM | Claude only | Multi | OpenAI only | OpenAI only |
+| **Agents** | 60+ specialists | Subagents | Single | Autocomplete | Single |
 | **Workflow Engine** | DAG + State Machine | None | None | None | None |
 | **Group Chat** | Multi-agent debate | None | None | None | None |
 | **Checkpointing** | Resume any point | None | None | None | None |
@@ -1006,7 +1020,7 @@ flowchart TB
 | **Convergence** | Automatic | Manual | N/A | N/A | N/A |
 | **Per-Agent Models** | Yes | No | No | No | No |
 | **Cost Management** | Granular budget | None | Credits | Subscription | API credits |
-| **Local AI** | MLX + Ollama | No | No | No | No |
+| **Local AI** | AFM + MLX + Ollama | No | No | No | No |
 | **Task Management** | Native (Anna) | No | No | Extensions | No |
 | **MCP Support** | Native client | Server | No | No | No |
 | **Open Source** | Full | Closed | Partial | Extensions only | Closed |
@@ -1014,7 +1028,7 @@ flowchart TB
 
 **Key Differentiators:**
 
-- **vs Claude Code**: Convergio supports 6 providers (not just Claude), has 54 real specialist agents (not isolated subagents), automatic convergence, and per-agent model routing
+- **vs Claude Code**: Convergio supports 7 providers including AFM (not just Claude), has 60+ real specialist agents (not isolated subagents), automatic convergence, and per-agent model routing
 - **vs Warp**: Convergio has true multi-agent orchestration with message bus, not just AI-assisted terminal
 - **vs VSCode + Copilot**: Convergio is a full AI orchestration platform, not just code autocomplete. Native task management, semantic memory, and tool execution
 - **vs Codex CLI**: Convergio offers multi-agent collaboration, local AI support, and granular cost control
@@ -1070,8 +1084,8 @@ See [Workflow Orchestration Plan](docs/plans/WORKFLOW_MERGE_PLAN.md) for detaile
 | Source Files | 86+ C/Objective-C/Swift |
 | Lines of Code | ~86,000 LOC |
 | Workflow Engine | 12 workflow modules |
-| AI Agents | 54 specialists |
-| Providers | 6 (Cloud + Local) |
+| AI Agents | 60+ specialists |
+| Providers | 7 (Cloud + Local + AFM) |
 | Commands | 45+ REPL commands |
 | Tools | 15+ execution tools |
 | Models Supported | 300+ across providers |
@@ -1148,7 +1162,7 @@ Before every release, E2E tests are run locally using the `app-release-manager` 
 
 # Or via release manager (includes all quality gates)
 convergio
-> @app-release-manager prepare release v5.0.0
+> @app-release-manager prepare release v6.0.0
 ```
 
 This ensures all features are tested with real AI providers while keeping API keys secure.
