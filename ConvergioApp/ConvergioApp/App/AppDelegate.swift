@@ -15,9 +15,36 @@ import AVFoundation
 class AppDelegate: NSObject, NSApplicationDelegate {
 
     private var audioPlayer: AVAudioPlayer?
+    private var hotkeyManager: HotkeyManager?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         logInfo("AppDelegate: applicationDidFinishLaunching", category: "System")
+
+        // Initialize global hotkey (Cmd+Shift+Space)
+        setupGlobalHotkey()
+    }
+
+    // MARK: - Global Hotkey
+
+    private func setupGlobalHotkey() {
+        hotkeyManager = HotkeyManager.shared
+        hotkeyManager?.onHotkeyPressed = { [weak self] in
+            self?.handleGlobalHotkey()
+        }
+        logInfo("Global hotkey registered: Cmd+Shift+Space", category: "System")
+    }
+
+    private func handleGlobalHotkey() {
+        // Activate and show main window
+        NSApp.activate(ignoringOtherApps: true)
+
+        if let window = NSApp.mainWindow ?? NSApp.windows.first(where: { $0.isVisible }) {
+            window.makeKeyAndOrderFront(nil)
+        }
+
+        // Post notification for voice session quick start
+        NotificationCenter.default.post(name: .hotkeyTriggered, object: nil)
+        logInfo("Global hotkey triggered", category: "System")
     }
 
     func applicationWillTerminate(_ notification: Notification) {
