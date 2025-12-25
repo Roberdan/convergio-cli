@@ -5,7 +5,7 @@
 **Created:** 2025-12-14 18:49:29
 **Author:** Roberto + AI Team
 **Status:** IMPLEMENTATION IN PROGRESS - Full Settings & Help Complete
-**Last Updated:** 2025-12-15 11:30:00
+**Last Updated:** 2025-12-25 09:01:33
 
 ---
 
@@ -155,6 +155,27 @@ Convergio CLI is **architecturally perfect** for native app conversion:
 4. **Global hotkey** - Cmd+Shift+Space from anywhere
 5. **Profiles** - Save/load different configuration profiles
 6. **Apple Intelligence** - Integration with macOS AI features
+7. **Voice transcription in chat** - Voice conversations must also be transcribed in chat history
+8. **Apple Foundation Models** - Integrate on-device ~3B parameter model for offline AI (requires macOS 26+)
+9. **Convergio Website** - Marketing site for Convergio Native app (landing page, features, download)
+10. **ConvergioCLI Apple Foundation support** - Add Apple Foundation Models as native provider in main CLI
+
+### Research Inspirations (2025-12-25)
+
+**LocallyAI App** ([locallyai.app](https://locallyai.app)) - Key learnings for Convergio:
+- Deep Apple ecosystem integration (Siri, Shortcuts, Control Center, Lock Screen)
+- Privacy-first with full offline capability
+- MLX optimization for Apple Silicon unified memory
+- No accounts/login friction - download and use immediately
+- Multiple model support (Llama, Gemma, DeepSeek, etc.)
+
+**Apple Foundation Models Framework** (WWDC25):
+- Requirements: macOS 26+, iOS 26+, Apple Silicon (M1+)
+- ~3B parameter on-device model, completely private and free
+- Swift-native with @Generable macro for structured output
+- Tool calling built-in with Swift Tool protocol
+- 0.6ms time-to-first-token, 30 tokens/second
+- Source: [Apple Developer Documentation](https://developer.apple.com/documentation/FoundationModels)
 
 ### Files Created/Modified
 

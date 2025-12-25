@@ -74,15 +74,20 @@ struct VoiceSessionView: View {
 
                     Spacer()
 
+                    // Debug log panel
+                    debugLogView
+                        .padding(.horizontal, 20)
+                        .padding(.bottom, 10)
+
                     // Transcript overlay
                     transcriptView
                         .padding(.horizontal, 20)
-                        .padding(.bottom, 20)
+                        .padding(.bottom, 10)
 
                     // Controls
                     controlsView
                         .padding(.horizontal, 40)
-                        .padding(.bottom, 40)
+                        .padding(.bottom, 20)
                 }
             }
         }
@@ -216,21 +221,49 @@ struct VoiceSessionView: View {
         HStack(spacing: 4) {
             ForEach(0..<40, id: \.self) { index in
                 RoundedRectangle(cornerRadius: 2)
-                    .fill(currentEmotionColor)
+                    .fill(waveformBarColor(for: index))
                     .frame(width: 3)
-                    .frame(height: viewModel.state == .listening || viewModel.state == .speaking ?
-                           CGFloat.random(in: 20...60) : 4)
-                    .animation(
-                        viewModel.state == .listening || viewModel.state == .speaking ?
-                            .easeInOut(duration: 0.3).repeatForever(autoreverses: true).delay(Double(index) * 0.02) :
-                            .default,
-                        value: waveformAnimation
-                    )
+                    .frame(height: waveformBarHeight(for: index))
+                    .animation(.easeOut(duration: 0.1), value: viewModel.inputAudioLevels)
+                    .animation(.easeOut(duration: 0.1), value: viewModel.outputAudioLevels)
             }
         }
         .frame(height: 80)
-        .onChange(of: viewModel.state) { _, newState in
-            waveformAnimation.toggle()
+    }
+
+    /// Calculate bar height based on real audio levels
+    private func waveformBarHeight(for index: Int) -> CGFloat {
+        let minHeight: CGFloat = 4
+        let maxHeight: CGFloat = 70
+
+        switch viewModel.state {
+        case .listening:
+            // Use input audio levels when listening
+            let level = CGFloat(viewModel.inputAudioLevels[index])
+            return minHeight + (maxHeight - minHeight) * level
+        case .speaking:
+            // Use output audio levels when AI is speaking
+            let level = CGFloat(viewModel.outputAudioLevels[index])
+            return minHeight + (maxHeight - minHeight) * level
+        case .processing:
+            // Subtle animation while processing
+            return minHeight + 10
+        default:
+            return minHeight
+        }
+    }
+
+    /// Color varies based on state and intensity
+    private func waveformBarColor(for index: Int) -> Color {
+        switch viewModel.state {
+        case .listening:
+            return .cyan.opacity(0.8)
+        case .speaking:
+            return currentEmotionColor.opacity(0.9)
+        case .processing:
+            return .yellow.opacity(0.6)
+        default:
+            return .gray.opacity(0.4)
         }
     }
 
@@ -256,6 +289,65 @@ struct VoiceSessionView: View {
                         .stroke(currentEmotionColor.opacity(0.5), lineWidth: 1)
                 )
         )
+    }
+
+    // MARK: - Debug Log
+
+    private var debugLogView: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack {
+                Image(systemName: "ladybug.fill")
+                    .foregroundColor(.orange)
+                Text("Debug Log")
+                    .font(.caption.bold())
+                    .foregroundColor(.orange)
+                Spacer()
+                Text("\(viewModel.debugLogs.count) entries")
+                    .font(.caption2)
+                    .foregroundColor(.gray)
+            }
+
+            ScrollViewReader { proxy in
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 2) {
+                        ForEach(Array(viewModel.debugLogs.enumerated()), id: \.offset) { index, log in
+                            Text(log)
+                                .font(.system(size: 10, design: .monospaced))
+                                .foregroundColor(logColor(for: log))
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .id(index)
+                        }
+                    }
+                    .padding(8)
+                }
+                .frame(height: 120)
+                .background(Color.black.opacity(0.6))
+                .cornerRadius(8)
+                .onChange(of: viewModel.debugLogs.count) { _, _ in
+                    withAnimation {
+                        if let lastIndex = viewModel.debugLogs.indices.last {
+                            proxy.scrollTo(lastIndex, anchor: .bottom)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private func logColor(for log: String) -> Color {
+        if log.contains("ERROR") || log.contains("❌") {
+            return .red
+        } else if log.contains("🎤") {
+            return .cyan
+        } else if log.contains("🤖") {
+            return .green
+        } else if log.contains("NOT SET") {
+            return .orange
+        } else if log.contains("SET") || log.contains("successfully") || log.contains("ready") {
+            return .green
+        } else {
+            return .white.opacity(0.8)
+        }
     }
 
     // MARK: - Transcript

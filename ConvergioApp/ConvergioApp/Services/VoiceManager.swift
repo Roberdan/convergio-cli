@@ -13,6 +13,10 @@
 import Foundation
 import AVFoundation
 import Combine
+#if os(macOS)
+import AppKit
+import CoreAudio
+#endif
 
 /// Voice state enumeration
 enum VoiceState: String, Codable {
@@ -84,6 +88,10 @@ class VoiceManager: NSObject, ObservableObject {
     @Published private(set) var isMuted: Bool = false
     @Published private(set) var isConnected: Bool = false
 
+    // Real-time audio levels for waveform visualization (0.0 to 1.0)
+    @Published private(set) var inputAudioLevels: [Float] = Array(repeating: 0, count: 40)
+    @Published private(set) var outputAudioLevels: [Float] = Array(repeating: 0, count: 40)
+
     // MARK: - Properties
 
     weak var delegate: VoiceManagerDelegate?
@@ -94,6 +102,13 @@ class VoiceManager: NSObject, ObservableObject {
 
     private let audioFormat: AVAudioFormat
     private let logger = Logger.shared
+
+    // Debug callback for UI
+    var onDebugLog: ((String) -> Void)?
+
+    // Audio buffer counter for debug
+    private var audioBufferCount: Int = 0
+    private var lastAudioLogTime: Date = Date.distantPast
 
     // Audio settings for OpenAI Realtime (24kHz, 16-bit PCM, mono)
     private static let sampleRate: Double = 24000.0
@@ -175,6 +190,9 @@ class VoiceManager: NSObject, ObservableObject {
         }
 
         webSocket?.delegate = self
+        webSocket?.onDebugLog = { [weak self] message in
+            self?.onDebugLog?(message)
+        }
 
         // Configure voice and system prompt based on maestro
         let voice: OpenAIVoice = maestro.map { OpenAIVoice(rawValue: $0.voice.rawValue) ?? .sage } ?? .sage
@@ -272,23 +290,196 @@ class VoiceManager: NSObject, ObservableObject {
             throw VoiceError.audioEngineError("Input node not available")
         }
 
-        let inputFormat = inputNode.outputFormat(forBus: 0)
+        // Log audio device info
+        #if os(macOS)
+        logAudioDevices()
+        #endif
 
-        // Install tap on input node to capture audio
-        inputNode.installTap(onBus: 0, bufferSize: 4096, format: inputFormat) { [weak self] buffer, time in
-            Task { @MainActor [weak self] in
-                await self?.processAudioBuffer(buffer)
+        // Get native input format
+        let inputFormat = inputNode.outputFormat(forBus: 0)
+        onDebugLog?("🎤 Mic format: \(Int(inputFormat.sampleRate))Hz, \(inputFormat.channelCount)ch")
+
+        // Verify format is valid
+        if inputFormat.channelCount == 0 || inputFormat.sampleRate == 0 {
+            onDebugLog?("❌ Invalid audio format! No input device?")
+            throw VoiceError.audioEngineError("Invalid input format - no microphone available")
+        }
+
+        // Install tap with native format, convert manually
+        inputNode.installTap(onBus: 0, bufferSize: 4800, format: inputFormat) { [weak self] buffer, time in
+            guard let self = self else { return }
+            // Convert Float32 -> Int16 and resample 48kHz -> 24kHz
+            if let pcmData = self.convertToPCM16(buffer: buffer) {
+                Task { @MainActor in
+                    await self.sendPCMData(pcmData)
+                }
             }
         }
 
         audioEngine.prepare()
     }
 
+    /// Convert Float32 buffer to PCM16 Data at 24kHz
+    private func convertToPCM16(buffer: AVAudioPCMBuffer) -> Data? {
+        guard let floatData = buffer.floatChannelData else {
+            onDebugLog?("❌ floatChannelData is nil!")
+            return nil
+        }
+
+        let inputSampleRate = buffer.format.sampleRate
+        let outputSampleRate = 24000.0
+        let ratio = outputSampleRate / inputSampleRate
+
+        let inputFrames = Int(buffer.frameLength)
+        let outputFrames = Int(Double(inputFrames) * ratio)
+
+        // Calculate audio levels for waveform visualization (40 bars)
+        updateInputAudioLevels(floatData: floatData, frameCount: inputFrames)
+
+        // Debug: check raw input levels
+        if audioBufferCount < 5 {
+            var maxVal: Float = 0
+            var minVal: Float = 0
+            for i in 0..<min(inputFrames, 1000) {
+                let val = floatData[0][i]
+                if val > maxVal { maxVal = val }
+                if val < minVal { minVal = val }
+            }
+            onDebugLog?("🔊 Raw input: frames=\(inputFrames), levels[\(String(format: "%.6f", minVal))...\(String(format: "%.6f", maxVal))]")
+        }
+
+        var pcmData = Data(capacity: outputFrames * 2) // 2 bytes per Int16
+
+        // Simple linear interpolation resampling + float to int16 conversion
+        for i in 0..<outputFrames {
+            let srcIndex = Double(i) / ratio
+            let srcIndexInt = Int(srcIndex)
+            let frac = Float(srcIndex - Double(srcIndexInt))
+
+            // Get samples (handle boundary)
+            let sample1 = floatData[0][min(srcIndexInt, inputFrames - 1)]
+            let sample2 = floatData[0][min(srcIndexInt + 1, inputFrames - 1)]
+
+            // Interpolate
+            let interpolated = sample1 + (sample2 - sample1) * frac
+
+            // Convert to Int16 (-32768 to 32767)
+            let clamped = max(-1.0, min(1.0, interpolated))
+            let int16Value = Int16(clamped * 32767.0)
+
+            // Append as little-endian
+            withUnsafeBytes(of: int16Value.littleEndian) { pcmData.append(contentsOf: $0) }
+        }
+
+        return pcmData
+    }
+
+    private func sendPCMData(_ data: Data) async {
+        guard !isMuted, isConnected else { return }
+
+        audioBufferCount += 1
+
+        // Log with audio levels
+        if audioBufferCount == 1 || audioBufferCount == 10 || audioBufferCount % 100 == 0 {
+            let samples = data.withUnsafeBytes { ptr -> (Int16, Int16) in
+                let int16Ptr = ptr.bindMemory(to: Int16.self)
+                var maxSample: Int16 = 0
+                var minSample: Int16 = 0
+                for i in 0..<min(int16Ptr.count, 100) {
+                    if int16Ptr[i] > maxSample { maxSample = int16Ptr[i] }
+                    if int16Ptr[i] < minSample { minSample = int16Ptr[i] }
+                }
+                return (minSample, maxSample)
+            }
+            onDebugLog?("📤 #\(audioBufferCount): \(data.count)B, levels[\(samples.0)...\(samples.1)]")
+        }
+
+        await webSocket?.sendPCMData(data)
+    }
+
+    /// Calculate RMS audio levels for waveform visualization (40 bars)
+    private func updateInputAudioLevels(floatData: UnsafePointer<UnsafeMutablePointer<Float>>, frameCount: Int) {
+        let barCount = 40
+        let samplesPerBar = max(1, frameCount / barCount)
+        var newLevels: [Float] = []
+
+        for bar in 0..<barCount {
+            let startSample = bar * samplesPerBar
+            let endSample = min(startSample + samplesPerBar, frameCount)
+
+            // Calculate RMS for this segment
+            var sumSquares: Float = 0
+            for i in startSample..<endSample {
+                let sample = floatData[0][i]
+                sumSquares += sample * sample
+            }
+            let rms = sqrt(sumSquares / Float(endSample - startSample))
+
+            // Normalize to 0-1 range with some amplification for visibility
+            // Audio typically peaks at 0.3-0.5, so multiply by 2-3 for visual effect
+            let normalized = min(1.0, rms * 3.0)
+            newLevels.append(normalized)
+        }
+
+        // Update on main thread
+        Task { @MainActor in
+            // Apply smoothing (mix 30% old + 70% new for smoother animation)
+            for i in 0..<barCount {
+                self.inputAudioLevels[i] = self.inputAudioLevels[i] * 0.3 + newLevels[i] * 0.7
+            }
+        }
+    }
+
+    /// Update output audio levels when AI is speaking
+    func updateOutputAudioLevels(from buffer: AVAudioPCMBuffer) {
+        guard let floatData = buffer.floatChannelData else { return }
+        let frameCount = Int(buffer.frameLength)
+        let barCount = 40
+        let samplesPerBar = max(1, frameCount / barCount)
+        var newLevels: [Float] = []
+
+        for bar in 0..<barCount {
+            let startSample = bar * samplesPerBar
+            let endSample = min(startSample + samplesPerBar, frameCount)
+
+            var sumSquares: Float = 0
+            for i in startSample..<endSample {
+                let sample = floatData[0][i]
+                sumSquares += sample * sample
+            }
+            let rms = sqrt(sumSquares / Float(endSample - startSample))
+            let normalized = min(1.0, rms * 3.0)
+            newLevels.append(normalized)
+        }
+
+        // Apply smoothing
+        for i in 0..<barCount {
+            outputAudioLevels[i] = outputAudioLevels[i] * 0.3 + newLevels[i] * 0.7
+        }
+    }
+
+    /// Reset audio levels to zero (when not active)
+    func resetAudioLevels() {
+        inputAudioLevels = Array(repeating: 0, count: 40)
+        outputAudioLevels = Array(repeating: 0, count: 40)
+    }
+
     private func processAudioBuffer(_ buffer: AVAudioPCMBuffer) async {
         guard !isMuted, isConnected else { return }
 
+        audioBufferCount += 1
+
+        // Log every 50 buffers (about every 2 seconds at typical rates)
+        let now = Date()
+        if now.timeIntervalSince(lastAudioLogTime) >= 2.0 {
+            lastAudioLogTime = now
+            let debugMsg = "📊 Audio: \(audioBufferCount) buffers sent, format: \(buffer.format.sampleRate)Hz"
+            onDebugLog?(debugMsg)
+        }
+
         // Convert buffer to required format if needed
         guard let convertedBuffer = convertBufferToRequiredFormat(buffer) else {
+            onDebugLog?("❌ Audio conversion failed!")
             logger.error("Failed to convert audio buffer")
             return
         }
@@ -298,36 +489,59 @@ class VoiceManager: NSObject, ObservableObject {
     }
 
     private func convertBufferToRequiredFormat(_ buffer: AVAudioPCMBuffer) -> AVAudioPCMBuffer? {
+        // Log input format once
+        if audioBufferCount == 1 {
+            onDebugLog?("🔊 Input format: \(buffer.format.sampleRate)Hz, \(buffer.format.channelCount)ch, \(buffer.format.commonFormat.rawValue)")
+            onDebugLog?("🎯 Target format: \(audioFormat.sampleRate)Hz, \(audioFormat.channelCount)ch, PCM16")
+        }
+
         // Check if conversion is needed
-        guard buffer.format != audioFormat else {
+        guard buffer.format.sampleRate != audioFormat.sampleRate ||
+              buffer.format.commonFormat != audioFormat.commonFormat else {
             return buffer
         }
 
         // Create converter
         guard let converter = AVAudioConverter(from: buffer.format, to: audioFormat) else {
+            onDebugLog?("❌ Failed to create audio converter")
             logger.error("Failed to create audio converter")
             return nil
         }
 
-        // Calculate output buffer size
-        let capacity = AVAudioFrameCount(audioFormat.sampleRate) * buffer.frameLength / AVAudioFrameCount(buffer.format.sampleRate)
+        // Calculate output buffer size based on sample rate ratio
+        let ratio = audioFormat.sampleRate / buffer.format.sampleRate
+        let capacity = AVAudioFrameCount(Double(buffer.frameLength) * ratio)
 
         guard let outputBuffer = AVAudioPCMBuffer(pcmFormat: audioFormat, frameCapacity: capacity) else {
+            onDebugLog?("❌ Failed to create output buffer")
             logger.error("Failed to create output buffer")
             return nil
         }
 
         var error: NSError?
+        var hasData = true
         let inputBlock: AVAudioConverterInputBlock = { inNumPackets, outStatus in
-            outStatus.pointee = .haveData
-            return buffer
+            if hasData {
+                hasData = false
+                outStatus.pointee = .haveData
+                return buffer
+            } else {
+                outStatus.pointee = .noDataNow
+                return nil
+            }
         }
 
         let status = converter.convert(to: outputBuffer, error: &error, withInputFrom: inputBlock)
 
-        guard status != .error else {
+        if status == .error {
+            onDebugLog?("❌ Conversion error: \(error?.localizedDescription ?? "unknown")")
             logger.error("Audio conversion failed: \(error?.localizedDescription ?? "unknown error")")
             return nil
+        }
+
+        // Log conversion success once
+        if audioBufferCount == 1 {
+            onDebugLog?("✅ Audio conversion working: \(buffer.frameLength) → \(outputBuffer.frameLength) frames")
         }
 
         return outputBuffer
@@ -335,15 +549,28 @@ class VoiceManager: NSObject, ObservableObject {
 
     private func requestMicrophonePermission() async -> Bool {
         #if os(macOS)
+        let status = AVCaptureDevice.authorizationStatus(for: .audio)
+        onDebugLog?("🔐 Mic permission status: \(status.rawValue) (\(statusName(status)))")
+
         return await withCheckedContinuation { continuation in
-            switch AVCaptureDevice.authorizationStatus(for: .audio) {
+            switch status {
             case .authorized:
+                self.onDebugLog?("✅ Microphone authorized")
                 continuation.resume(returning: true)
             case .notDetermined:
-                AVCaptureDevice.requestAccess(for: .audio) { granted in
+                self.onDebugLog?("⏳ Requesting microphone permission...")
+                AVCaptureDevice.requestAccess(for: .audio) { [weak self] granted in
+                    self?.onDebugLog?(granted ? "✅ Permission granted" : "❌ Permission denied")
                     continuation.resume(returning: granted)
                 }
-            default:
+            case .denied:
+                self.onDebugLog?("❌ Microphone DENIED - open System Settings!")
+                self.openMicrophoneSettings()
+                continuation.resume(returning: false)
+            case .restricted:
+                self.onDebugLog?("⚠️ Microphone restricted by system")
+                continuation.resume(returning: false)
+            @unknown default:
                 continuation.resume(returning: false)
             }
         }
@@ -352,6 +579,69 @@ class VoiceManager: NSObject, ObservableObject {
             AVAudioSession.sharedInstance().requestRecordPermission { granted in
                 continuation.resume(returning: granted)
             }
+        }
+        #endif
+    }
+
+    #if os(macOS)
+    private func logAudioDevices() {
+        // Get default input device
+        var defaultInputID: AudioDeviceID = 0
+        var propertySize = UInt32(MemoryLayout<AudioDeviceID>.size)
+        var propertyAddress = AudioObjectPropertyAddress(
+            mSelector: kAudioHardwarePropertyDefaultInputDevice,
+            mScope: kAudioObjectPropertyScopeGlobal,
+            mElement: kAudioObjectPropertyElementMain
+        )
+
+        let status = AudioObjectGetPropertyData(
+            AudioObjectID(kAudioObjectSystemObject),
+            &propertyAddress,
+            0,
+            nil,
+            &propertySize,
+            &defaultInputID
+        )
+
+        if status == noErr {
+            // Get device name
+            var nameSize: UInt32 = 256
+            var name = [CChar](repeating: 0, count: Int(nameSize))
+            var nameAddress = AudioObjectPropertyAddress(
+                mSelector: kAudioDevicePropertyDeviceNameCFString,
+                mScope: kAudioObjectPropertyScopeGlobal,
+                mElement: kAudioObjectPropertyElementMain
+            )
+
+            var cfName: CFString?
+            var cfNameSize = UInt32(MemoryLayout<CFString?>.size)
+
+            if AudioObjectGetPropertyData(defaultInputID, &nameAddress, 0, nil, &cfNameSize, &cfName) == noErr,
+               let deviceName = cfName as String? {
+                onDebugLog?("🎙️ Default input: \(deviceName) (ID: \(defaultInputID))")
+            } else {
+                onDebugLog?("🎙️ Default input ID: \(defaultInputID)")
+            }
+        } else {
+            onDebugLog?("⚠️ Could not get default input device (status: \(status))")
+        }
+    }
+    #endif
+
+    private func statusName(_ status: AVAuthorizationStatus) -> String {
+        switch status {
+        case .notDetermined: return "notDetermined"
+        case .restricted: return "restricted"
+        case .denied: return "denied"
+        case .authorized: return "authorized"
+        @unknown default: return "unknown"
+        }
+    }
+
+    private func openMicrophoneSettings() {
+        #if os(macOS)
+        if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Microphone") {
+            NSWorkspace.shared.open(url)
         }
         #endif
     }

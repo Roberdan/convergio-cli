@@ -83,7 +83,7 @@ final class OpenAIRealtimeWebSocket: NSObject {
 
     private let model = "gpt-4o-realtime-preview-2024-12-17"
     private let openAIRealtimeURL = "wss://api.openai.com/v1/realtime"
-    private let azureAPIVersion = "2024-10-01-preview"
+    private let azureAPIVersion = "2025-04-01-preview"
 
     // Voice configuration
     private(set) var currentVoice: OpenAIVoice = .sage
@@ -95,6 +95,10 @@ final class OpenAIRealtimeWebSocket: NSObject {
     // Connection state tracking
     private var connectionContinuation: CheckedContinuation<Void, Error>?
     private var connectionError: Error?
+
+    // Debug callback for UI
+    var onDebugLog: ((String) -> Void)?
+    private var audioChunksSent: Int = 0
 
     // MARK: - Initialization
 
@@ -239,11 +243,11 @@ final class OpenAIRealtimeWebSocket: NSObject {
                 ],
                 "turn_detection": [
                     "type": "server_vad",
-                    "threshold": NSNumber(value: 0.5),
+                    "threshold": 0.5,
                     "prefix_padding_ms": 300,
-                    "silence_duration_ms": 500
+                    "silence_duration_ms": 200,
+                    "create_response": true
                 ],
-                "temperature": NSNumber(value: 0.8),
                 "max_response_output_tokens": 4096
             ]
         ]
@@ -264,17 +268,14 @@ final class OpenAIRealtimeWebSocket: NSObject {
 
     // MARK: - Audio Handling
 
-    func sendAudio(_ buffer: AVAudioPCMBuffer) async {
+    /// Send raw PCM16 data (already converted)
+    func sendPCMData(_ data: Data) async {
         guard isConnected else { return }
 
-        // Convert buffer to PCM16 data
-        guard let audioData = convertBufferToData(buffer) else {
-            logError("OpenAI Realtime: Failed to convert audio buffer")
-            return
-        }
+        audioChunksSent += 1
 
         // Encode as base64
-        let base64Audio = audioData.base64EncodedString()
+        let base64Audio = data.base64EncodedString()
 
         // Send audio append event
         let audioEvent: [String: Any] = [
@@ -286,7 +287,21 @@ final class OpenAIRealtimeWebSocket: NSObject {
             try await sendJSON(audioEvent)
         } catch {
             logError("OpenAI Realtime: Failed to send audio: \(error.localizedDescription)")
+            onDebugLog?("❌ Send failed: \(error.localizedDescription)")
         }
+    }
+
+    func sendAudio(_ buffer: AVAudioPCMBuffer) async {
+        guard isConnected else { return }
+
+        // Convert buffer to PCM16 data
+        guard let audioData = convertBufferToData(buffer) else {
+            logError("OpenAI Realtime: Failed to convert audio buffer")
+            onDebugLog?("❌ Failed to convert buffer to data")
+            return
+        }
+
+        await sendPCMData(audioData)
     }
 
     func commitAudio() async {
@@ -418,12 +433,15 @@ final class OpenAIRealtimeWebSocket: NSObject {
         switch type {
         case "session.created", "session.updated":
             logDebug("OpenAI Realtime: Session event - \(type)")
+            onDebugLog?("✅ Server: \(type)")
 
         case "input_audio_buffer.speech_started":
             logDebug("OpenAI Realtime: Speech started")
+            onDebugLog?("🎙️ Server detected speech START")
 
         case "input_audio_buffer.speech_stopped":
             logDebug("OpenAI Realtime: Speech stopped")
+            onDebugLog?("🎙️ Server detected speech STOP")
 
         case "conversation.item.input_audio_transcription.completed":
             if let transcript = json["transcript"] as? String {
@@ -460,11 +478,13 @@ final class OpenAIRealtimeWebSocket: NSObject {
             if let error = json["error"] as? [String: Any],
                let message = error["message"] as? String {
                 logError("OpenAI Realtime: Error - \(message)")
+                onDebugLog?("❌ Server error: \(message)")
                 delegate?.realtime(self, didEncounterError: OpenAIRealtimeError.serverError(message))
             }
 
         default:
             logDebug("OpenAI Realtime: Unhandled event - \(type)")
+            onDebugLog?("📨 Server: \(type)")
         }
     }
 

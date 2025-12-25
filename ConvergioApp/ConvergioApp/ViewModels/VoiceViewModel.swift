@@ -29,6 +29,9 @@ class VoiceViewModel: ObservableObject {
 
     @Published var errorMessage: String?
 
+    // Debug log for UI display
+    @Published private(set) var debugLogs: [String] = []
+
     // Emotion tracking
     @Published private(set) var emotionDistribution: [EmotionType: Double] = [:]
     @Published private(set) var emotionHistory: [EmotionHistoryEntry] = []
@@ -39,6 +42,10 @@ class VoiceViewModel: ObservableObject {
 
     // Current maestro for voice configuration
     @Published private(set) var currentMaestro: Maestro?
+
+    // Real-time audio levels for waveform visualization
+    @Published private(set) var inputAudioLevels: [Float] = Array(repeating: 0, count: 40)
+    @Published private(set) var outputAudioLevels: [Float] = Array(repeating: 0, count: 40)
 
     // MARK: - Properties
 
@@ -88,6 +95,11 @@ class VoiceViewModel: ObservableObject {
 
     private func setupVoiceManager() {
         voiceManager.delegate = self
+        voiceManager.onDebugLog = { [weak self] message in
+            Task { @MainActor [weak self] in
+                self?.addDebugLog(message)
+            }
+        }
     }
 
     private func observeVoiceManager() {
@@ -127,6 +139,21 @@ class VoiceViewModel: ObservableObject {
                 self?.isConnected = isConnected
             }
             .store(in: &cancellables)
+
+        // Observe audio levels for waveform visualization
+        voiceManager.$inputAudioLevels
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] levels in
+                self?.inputAudioLevels = levels
+            }
+            .store(in: &cancellables)
+
+        voiceManager.$outputAudioLevels
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] levels in
+                self?.outputAudioLevels = levels
+            }
+            .store(in: &cancellables)
     }
 
     // MARK: - Session Management
@@ -134,27 +161,45 @@ class VoiceViewModel: ObservableObject {
     /// Start voice session with optional maestro configuration
     func startSession(maestro: Maestro? = nil) async {
         logger.info("Starting voice session...")
+        addDebugLog("Starting voice session...")
 
         self.currentMaestro = maestro
 
+        // Log Azure configuration
+        let azureEndpoint = KeychainManager.shared.getKey(for: .azureRealtimeEndpoint)
+        let azureKey = KeychainManager.shared.getKey(for: .azureRealtimeKey)
+        let azureDeployment = KeychainManager.shared.getKey(for: .azureRealtimeDeployment)
+
+        addDebugLog("Azure Endpoint: \(azureEndpoint != nil ? "SET (\(azureEndpoint!.prefix(30))...)" : "NOT SET")")
+        addDebugLog("Azure API Key: \(azureKey != nil ? "SET (\(azureKey!.count) chars)" : "NOT SET")")
+        addDebugLog("Azure Deployment: \(azureDeployment ?? "NOT SET")")
+        addDebugLog("OpenAI Key: \(apiKey.isEmpty ? "NOT SET" : "SET (\(apiKey.count) chars)")")
+
         do {
+            addDebugLog("Connecting to realtime API...")
             // Connect to OpenAI Realtime with maestro configuration
             try await voiceManager.connect(apiKey: apiKey, maestro: maestro)
+            addDebugLog("Connected successfully!")
 
+            addDebugLog("Starting audio capture...")
             // Start listening
             try await voiceManager.startListening()
+            addDebugLog("Audio capture started!")
 
             // Initialize session metadata
             sessionStartTime = Date()
             startSessionTimer()
 
             if let maestro = maestro {
+                addDebugLog("Session ready with maestro: \(maestro.name)")
                 logger.info("Voice session started with maestro: \(maestro.name) (voice: \(maestro.voice.rawValue))")
             } else {
+                addDebugLog("Session ready (no maestro)")
                 logger.info("Voice session started successfully")
             }
 
         } catch {
+            addDebugLog("ERROR: \(error.localizedDescription)")
             logger.error("Failed to start voice session: \(error.localizedDescription)")
             errorMessage = "Failed to start voice session: \(error.localizedDescription)"
         }
@@ -207,6 +252,18 @@ class VoiceViewModel: ObservableObject {
 
     func clearError() {
         errorMessage = nil
+    }
+
+    /// Add debug log entry (visible in UI)
+    func addDebugLog(_ message: String) {
+        let timestamp = DateFormatter.localizedString(from: Date(), dateStyle: .none, timeStyle: .medium)
+        let entry = "[\(timestamp)] \(message)"
+        debugLogs.append(entry)
+        // Keep only last 50 entries
+        if debugLogs.count > 50 {
+            debugLogs.removeFirst()
+        }
+        logger.debug("Voice Debug: \(message)")
     }
 
     // MARK: - Private Methods
@@ -300,12 +357,14 @@ extension VoiceViewModel: VoiceManagerDelegate {
 
     nonisolated func voiceManager(_ manager: VoiceManager, didChangeState state: VoiceState) {
         Task { @MainActor in
+            addDebugLog("State → \(state.rawValue)")
             logger.info("Voice state changed to: \(state.rawValue)")
         }
     }
 
     nonisolated func voiceManager(_ manager: VoiceManager, didDetectEmotion emotion: EmotionType, confidence: Double) {
         Task { @MainActor in
+            addDebugLog("Emotion: \(emotion.displayName) (\(String(format: "%.0f%%", confidence * 100)))")
             logger.info("Emotion detected: \(emotion.displayName) (\(String(format: "%.2f", confidence)))")
         }
     }
@@ -313,6 +372,7 @@ extension VoiceViewModel: VoiceManagerDelegate {
     nonisolated func voiceManager(_ manager: VoiceManager, didReceiveTranscript text: String, isFinal: Bool) {
         Task { @MainActor in
             if isFinal {
+                addDebugLog("🎤 User (final): \(text)")
                 // Final transcript
                 currentTranscript = text
 
@@ -325,6 +385,7 @@ extension VoiceViewModel: VoiceManagerDelegate {
 
                 logger.info("Final transcript: \(text)")
             } else {
+                addDebugLog("🎤 User (interim): \(text)")
                 // Interim transcript
                 currentTranscript = text
                 logger.debug("Interim transcript: \(text)")
@@ -334,6 +395,7 @@ extension VoiceViewModel: VoiceManagerDelegate {
 
     nonisolated func voiceManager(_ manager: VoiceManager, didReceiveResponse text: String) {
         Task { @MainActor in
+            addDebugLog("🤖 AI: \(text)")
             currentResponse = text
 
             let entry = TranscriptEntry(
@@ -349,6 +411,7 @@ extension VoiceViewModel: VoiceManagerDelegate {
 
     nonisolated func voiceManager(_ manager: VoiceManager, didEncounterError error: Error) {
         Task { @MainActor in
+            addDebugLog("❌ Error: \(error.localizedDescription)")
             errorMessage = error.localizedDescription
             logger.error("Voice manager error: \(error.localizedDescription)")
         }

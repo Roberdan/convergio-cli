@@ -93,7 +93,7 @@ struct DyslexiaFontModifier: ViewModifier {
         ]
 
         for fontName in dyslexicFonts {
-            if let nsFont = NSFont(name: fontName, size: size) {
+            if NSFont(name: fontName, size: size) != nil {
                 return Font.custom(fontName, size: size)
             }
         }
