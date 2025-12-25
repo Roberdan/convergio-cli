@@ -1,7 +1,7 @@
 /**
  * CONVERGIO NATIVE - Maestri Grid View
  *
- * Grid layout displaying all 17 AI maestri grouped by subject.
+ * Grid layout displaying all 18 AI maestri grouped by subject.
  * Features Liquid Glass design with hover effects and smooth transitions.
  *
  * Copyright 2025 - Roberto D'Angelo & AI Team
@@ -43,7 +43,7 @@ struct MaestriGridView: View {
             Text("Scegli il tuo maestro")
                 .font(.title2.weight(.semibold))
 
-            Text("17 maestri AI esperti pronti ad accompagnarti nello studio")
+            Text("18 maestri AI esperti pronti ad accompagnarti nello studio")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
 

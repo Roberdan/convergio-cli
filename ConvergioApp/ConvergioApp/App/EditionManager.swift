@@ -14,7 +14,7 @@ import SwiftUI
 
 /// Product editions with different agent access levels
 public enum ConvergioEdition: String, CaseIterable, Codable, Identifiable {
-    case education  // 17 Maestri + 3 coordinatori = 20 agents
+    case education  // 18 Maestri + 3 coordinatori = 21 agents
     case business   // 10 agents sales/marketing/finance
     case developer  // All technical agents
     case master     // All 54+ agents
@@ -120,7 +120,10 @@ public enum ConvergioEdition: String, CaseIterable, Codable, Identifiable {
         // STEM & Health (3)
         "lovelace-informatica",    // Lovelace - Algorithms, programming
         "ippocrate-salute",        // Hippocrates - Medicine, wellness
-        "socrate-filosofia"        // Socrates - Maieutics, critical thinking
+        "socrate-filosofia",       // Socrates - Maieutics, critical thinking
+
+        // International Law (1)
+        "grozio-diritto"           // Grotius - International law, natural law
     ]
 
     /// The 3 Coordinatori (Coordinators)
@@ -130,7 +133,7 @@ public enum ConvergioEdition: String, CaseIterable, Codable, Identifiable {
         "jenny-accessibilita"      // Jenny - Accessibility champion, content adaptation
     ]
 
-    /// All 20 education agents (17 maestri + 3 coordinatori)
+    /// All 21 education agents (18 maestri + 3 coordinatori)
     public static let educationAgents: [String] = maestri + coordinatori
 
     // MARK: - Business Edition Agents (10 total)
@@ -232,7 +235,7 @@ public final class EditionManager: ObservableObject {
     public var allowedAgentCount: Int {
         switch currentEdition {
         case .education:
-            return 20
+            return 21
         case .business:
             return 10
         case .developer:

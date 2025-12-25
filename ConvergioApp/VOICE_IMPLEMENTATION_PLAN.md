@@ -1,6 +1,6 @@
 # Voice Implementation Plan - Scuola 2026
 
-Last Updated: 2025-12-25 11:20
+Last Updated: 2025-12-25 10:27
 
 ## Current Status
 
@@ -14,10 +14,12 @@ Last Updated: 2025-12-25 11:20
 - [x] Global hotkey Cmd+Shift+Space wired up in AppDelegate
 - [x] Student Profile tab in Settings
 - [x] WebSocket reconnection with exponential backoff (5 attempts, 1s-16s delays)
-- [x] Historical portrait images for 17 maestri (from Wikimedia Commons)
+- [x] Historical portrait images for 18 maestri (from Wikimedia Commons)
 - [x] MaestroCardView updated to show images
 - [x] MaestroDetailView updated to show images
 - [x] All images converted to proper PNG format
+- [x] **NEW: Added 18th maestro - Grozio (Hugo Grotius) for International Law**
+- [x] **NEW: Created documentation for adding new maestri** (`docs/HOW_TO_ADD_MAESTRO.md`)
 
 ### Blocked (Requires Mac Reboot)
 - [ ] Microphone audio capture returns all zeros
@@ -38,32 +40,24 @@ Last Updated: 2025-12-25 11:20
 ### P1: Azure OpenAI Enforcement
 - [ ] **EDU edition MUST use ONLY Azure OpenAI**
   - Never fallback to Anthropic
-  - All 17+ maestri use Azure OpenAI
+  - All 18 maestri use Azure OpenAI
   - Verify model configuration
   - Remove/disable Anthropic option for EDU
 
-### P2: New Maestro
-- [ ] Add 18th maestro: **Diritto Internazionale** (International Law)
-  - Choose historical figure (e.g., Grozio/Hugo Grotius)
-  - Add to Maestro.swift
-  - Add portrait image
-  - Configure voice and teaching style
-  - Update EditionManager.swift maestri list
-
-### P3: UI Improvements
+### P2: UI Improvements
 - [ ] **Improve Settings window UI** (current design is poor)
 - [ ] **Fix theme management** (dark/light/system) - not working correctly
-- [ ] Verify all 17 maestri images display correctly
-- [ ] Replace 3 placeholder images:
+- [ ] Verify all 18 maestri images display correctly
+- [ ] Replace placeholder images:
   - Manzoni (currently red "M" placeholder)
-  - Note: Erodoto and Humboldt now have real images
+  - Grozio (currently indigo "G" placeholder)
 
-### P4: Voice Integration
+### P3: Voice Integration
 - [ ] Add voice transcription to chat history
 - [ ] Save voice sessions to student progress
 - [ ] Test global hotkey activation from background
 
-### P5: Accessibility
+### P4: Accessibility
 - [ ] Verify OpenDyslexic font works in dyslexia mode
 - [ ] Test all accessibility settings together
 - [ ] Edit student profile inline (currently read-only)
@@ -93,8 +87,8 @@ Response audio → AVAudioPlayerNode
 ### Maestri Images
 - Location: `Assets.xcassets/Maestri/`
 - Format: PNG (200x200 minimum)
-- Current count: 17 images
-- 1 placeholder remaining (Manzoni)
+- Current count: 18 images
+- 2 placeholders remaining (Manzoni, Grozio)
 
 ### Font Configuration
 - Fonts in: `Resources/Fonts/`
@@ -102,8 +96,11 @@ Response audio → AVAudioPlayerNode
 - Font family: "OpenDyslexic"
 
 ### Edition Configuration
-- EDU edition: 17 maestri + 3 coordinatori = 20 agents
+- EDU edition: 18 maestri + 3 coordinatori = 21 agents
 - Provider: Azure OpenAI ONLY (no Anthropic fallback)
+
+### Documentation
+- `docs/HOW_TO_ADD_MAESTRO.md` - Guide for adding new maestri
 
 ---
 
@@ -112,6 +109,7 @@ Response audio → AVAudioPlayerNode
 - `35558c5` feat(ui): add historical portrait images for all 17 maestri
 - `e9980e3` fix(ui): update missing maestri images and add photos to detail view
 - `c0ab3f2` fix(assets): convert all maestri images to proper PNG format
+- `910adf2` feat: add Grozio maestro for International Law with documentation
 
 ---
 

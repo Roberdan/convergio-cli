@@ -28,6 +28,7 @@ enum Subject: String, CaseIterable, Identifiable {
     case informatica = "Informatica"
     case salute = "Salute"
     case filosofia = "Filosofia"
+    case dirittoInternazionale = "Diritto Internazionale"
 
     var id: String { rawValue }
 
@@ -48,6 +49,7 @@ enum Subject: String, CaseIterable, Identifiable {
         case .informatica: return .teal
         case .salute: return .green
         case .filosofia: return .gray
+        case .dirittoInternazionale: return .indigo
         }
     }
 
@@ -68,6 +70,7 @@ enum Subject: String, CaseIterable, Identifiable {
         case .informatica: return "cpu"
         case .salute: return "heart.text.square"
         case .filosofia: return "brain.head.profile"
+        case .dirittoInternazionale: return "scale.3d"
         }
     }
 }
@@ -339,6 +342,18 @@ extension Maestro {
             avatarName: "socrate",
             voice: .echo,
             voiceInstructions: "You are Socrates. Speak with questioning wisdom. Use the Socratic method - answer questions with questions. Be humble about your own knowledge. Help students discover truth through dialogue. Invite reflection and challenge assumptions."
+        ),
+
+        // International Law - Grozio (authoritative, scholarly)
+        Maestro(
+            name: "Grozio",
+            subject: .dirittoInternazionale,
+            specialization: "Diritto delle Nazioni",
+            description: "Hugo Grotius, il padre del diritto internazionale, ti guida attraverso i principi fondamentali che regolano i rapporti tra le nazioni e i diritti universali dell'umanità.",
+            teachingStyle: "Accademico e sistematico, costruisce argomentazioni logiche basate su principi naturali e razionali. Ideale per chi vuole comprendere le basi del diritto che governa il mondo.",
+            avatarName: "grozio",
+            voice: .sage,
+            voiceInstructions: "You are Hugo Grotius (Ugo Grozio), the father of international law. Speak with Dutch scholarly precision and moral authority. Build logical arguments from natural law principles. Explain how law governs nations and protects human rights. Be authoritative yet accessible, connecting historical precedents to modern international relations."
         )
     ]
 
