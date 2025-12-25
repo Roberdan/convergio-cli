@@ -13,13 +13,17 @@ This plan consolidates **4 feature branches** into a stable V6 release using a *
 
 ### Current State Overview
 
-| Branch | Location | Commits Ahead | Conflicts | CI Status | Priority |
-|--------|----------|---------------|-----------|-----------|----------|
+| Branch | Location | Commits Ahead | C Code Changes | CI Status | Merge Order |
+|--------|----------|---------------|----------------|-----------|-------------|
 | `main` | Root | - | - | PASSING | Base |
-| `feature/convergio-enhancements` | ConvergioCLI-features | 4 | 0 | Unknown | P1 (easiest) |
-| `feature/scuola-2026` | native-scuola-2026 | 307 | 2 | Unknown | P2 (most complete) |
-| `feature/native-app` | ConvergioNative | 283 | 2 | Unknown | P3 (subset of scuola) |
-| `feature/education-pack` | ConvergioCLI-education | 538 | ~100 | FAILING | P4 (complex) |
+| `feature/convergio-enhancements` | ConvergioCLI-features | 4 | Minimal | Unknown | **1st** (easy) |
+| `feature/education-pack` | ConvergioCLI-education | 538 | **175 files, 91K lines** | FIXED | **2nd** (core CLI) |
+| `feature/scuola-2026` | native-scuola-2026 | 307 | 1 file (swift_bridge) | Unknown | **3rd** (native app) |
+| `feature/native-app` | ConvergioNative | 283 | 1 file | Unknown | **SKIP** (subset of scuola) |
+
+**IMPORTANT**: education-pack must be merged BEFORE scuola-2026 because:
+- education-pack has the core CLI changes (edition system, education features, 175 C files)
+- scuola-2026 is the Swift native app that depends on the CLI
 
 ---
 
@@ -118,9 +122,22 @@ git push origin development
 
 ---
 
-## PHASE 2: MERGE SCUOLA-2026 (MASTER NATIVE BRANCH)
+## PHASE 2: MERGE EDUCATION-PACK (CORE CLI - DO THIS BEFORE SCUOLA!)
 **Status**: [ ] NOT STARTED
-**Risk**: MEDIUM (2 conflicts)
+**Risk**: HIGH (~100 conflicts, 175 C files, 91K+ lines)
+**Estimate**: 8-16 hours
+**Strategy**: INCREMENTAL MERGE
+
+> ⚠️ **IMPORTANT**: This phase was previously Phase 5, but MUST be done BEFORE scuola-2026
+> because education-pack contains the core CLI changes that the native app depends on.
+
+See section "PHASE 5 (LEGACY): EDUCATION-PACK DETAILS" below for full conflict resolution guide.
+
+---
+
+## PHASE 3: MERGE SCUOLA-2026 (NATIVE APP - AFTER EDUCATION-PACK!)
+**Status**: [ ] NOT STARTED
+**Risk**: LOW (education-pack already merged, only 1 C file change)
 **Estimate**: 2-3 hours
 
 ### Features to Preserve (CRITICAL - DO NOT LOSE)
@@ -251,30 +268,37 @@ git push origin archive/feature-native-app-v6
 
 ---
 
-## PHASE 4: FIX EDUCATION-PACK CI FAILURE
-**Status**: [ ] NOT STARTED
-**Risk**: BLOCKING for Phase 5
-**Estimate**: 30 minutes
+## PHASE 4: VERIFY NATIVE-APP (SKIP - SUPERSEDED)
+**Status**: [x] SKIP - native-app is superseded by scuola-2026
+**Risk**: NONE
+**Estimate**: 15 minutes (verification only)
 
-### 4.1 Current CI Failure
-**Error**: `src/orchestrator/registry.c:1448:22: warning: unused variable 'current_edition'`
+### 4.1 Verification
+- [x] Confirmed: scuola-2026 has 25 commits not in native-app (superset)
+- [x] Confirmed: native-app has only 1 unique commit (ProviderManager)
+- [x] Decision: Skip native-app, ProviderManager can be added in V7
 
-### 4.2 Fix the Warning
+### 4.2 Archive (Optional)
 ```bash
-cd /Users/roberdan/GitHub/ConvergioCLI-education
-# Edit src/orchestrator/registry.c line 1448
-# Either use the variable or mark as __attribute__((unused))
+git tag archive/feature-native-app-pre-v6 feature/native-app
 ```
-- [ ] Read registry.c:1448 to understand context
-- [ ] Apply fix: use variable or mark unused
-- [ ] Commit fix: `git commit -m "fix(build): remove unused variable warning in registry.c"`
-- [ ] Push: `git push origin feature/education-pack`
-- [ ] Verify CI passes
 
 ---
 
-## PHASE 5: MERGE EDUCATION-PACK (COMPLEX)
-**Status**: [ ] NOT STARTED
+## PHASE 4b: CI FIX (ALREADY DONE)
+**Status**: [x] COMPLETED
+**Commit**: `153695f` on feature/education-pack
+
+### Fix Applied
+**Error was**: `src/orchestrator/registry.c:1448:22: warning: unused variable 'current_edition'`
+**Fix**: Removed unused variable declaration (edition_has_agent() internally uses edition_current())
+
+---
+
+## PHASE 5 (REFERENCE): EDUCATION-PACK MERGE DETAILS
+> This is the detailed conflict resolution guide for Phase 2 (education-pack merge).
+
+**Status**: See Phase 2
 **Risk**: HIGH (~100 conflicts)
 **Estimate**: 8-16 hours
 **Strategy**: INCREMENTAL MERGE
@@ -290,6 +314,28 @@ cd /Users/roberdan/GitHub/ConvergioCLI-education
 - [ ] Workflow orchestration enhancements
 - [ ] Multi-edition system
 - [ ] All tests that pass (499+ tests)
+
+### ⚠️⚠️⚠️ CRITICAL: Azure OpenAI ONLY for Education Edition ⚠️⚠️⚠️
+**In EDUCATION edition, we MUST use ONLY Azure OpenAI, NEVER Anthropic!**
+- GDPR compliance requires Azure's EU data residency
+- Schools require Azure for institutional compliance
+- All LLM calls in EDU edition MUST go through Azure OpenAI
+
+**Verification Commands:**
+```bash
+# Should return NOTHING in education code paths:
+grep -r "anthropic\|ANTHROPIC" src/education/ src/providers/anthropic*
+
+# Should show Azure configuration:
+grep -r "azure\|AZURE" src/providers/azure* src/education/
+
+# Verify provider selection in EDU mode:
+grep -r "edition.*EDUCATION.*azure\|azure.*edition.*EDUCATION" src/
+```
+
+**Code Requirement:**
+- `src/providers/` must check `edition_current() == EDITION_EDUCATION`
+- If EDU edition, ONLY allow Azure provider, reject Anthropic/OpenAI
 
 ### 5.1 Pre-Merge Preparation
 ```bash
