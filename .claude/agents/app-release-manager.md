@@ -194,7 +194,8 @@ Phase 2: PARALLEL WAVE 2 - QUALITY & TESTS (spawn ALL at once)
 ├── Sub-agent B2: Unit Tests (make test)
 ├── Sub-agent B3: E2E Tests (./tests/e2e_test.sh) ← NOW GUARANTEED FRESH
 ├── Sub-agent B4: Fuzz Tests
-└── Sub-agent B5: Documentation Completeness
+├── Sub-agent B5: Documentation Completeness
+└── Sub-agent B6: Website Sync Check (features, agents, comparison data)
 
 Phase 2: PARALLEL WAVE 3 - HARDWARE & HYGIENE (spawn ALL at once)
 ├── Sub-agent C1: Apple Silicon Freshness (WebSearch latest specs)

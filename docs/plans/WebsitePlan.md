@@ -168,10 +168,10 @@ The Convergio website needs to showcase three distinct product offerings:
 
 | ID | Task | Status | Note |
 |----|------|--------|------|
-| W1 | Add Education section to nav | Pending | New nav item |
-| W2 | Create /education landing page | Pending | Can be single page initially |
-| W3 | Add Native App section | Pending | With screenshots |
-| W4 | Create comparison page | Pending | Feature matrix |
+| W1 | Add Education section to nav | **Done** | New nav item added |
+| W2 | Create /education landing page | **Done** | Full section with 8 maestri showcase |
+| W3 | Add Native App section | **Done** | With mac window mockup |
+| W4 | Create comparison page | **Done** | Feature matrix vs ChatGPT, Claude, Ollama, LM Studio |
 | W5 | Add Italian language support | Pending | For education section |
 | W6 | Update hero to show all editions | Pending | Product tabs or cards |
 | W7 | Add testimonials section | Pending | Schools, developers |
