@@ -4,6 +4,12 @@
  * Voice Manager for handling audio capture, playback, and WebSocket
  * communication with OpenAI Realtime Audio API.
  *
+ * ARCHITECTURE (v2 - Fixed):
+ * - AVAudioEngine runs continuously during session for BOTH input AND output
+ * - Input tap is installed/removed without stopping engine
+ * - Single reusable AVAudioPlayerNode for all playback (prevents memory leaks)
+ * - Proper format conversion: 48kHz Float32 (macOS native) → 24kHz PCM16 (OpenAI)
+ *
  * Uses OpenAI gpt-4o-realtime-preview-2024-12-17 model
  * Audio format: PCM16 @ 24kHz
  *
@@ -97,17 +103,17 @@ class VoiceManager: NSObject, ObservableObject {
 
     weak var delegate: VoiceManagerDelegate?
 
+    // Audio engine - runs continuously during session
     private let audioEngine = AVAudioEngine()
-    private var inputNode: AVAudioInputNode?
+    private var isEngineRunning: Bool = false
+    private var isInputTapInstalled: Bool = false
+
+    // Playback node - single instance, reused for all playback
+    private var playerNode: AVAudioPlayerNode?
+
+    // WebSocket connection
     private var webSocket: OpenAIRealtimeWebSocket?
 
-    // MARK: - Playback Node (Reusable - prevents memory leak)
-    // IMPORTANT: Reuse a single AVAudioPlayerNode instead of creating new ones
-    // per audio chunk. Creating new nodes causes massive memory leaks (24GB+).
-    private var playbackNode: AVAudioPlayerNode?
-    private var isPlaybackNodeAttached: Bool = false
-
-    private let audioFormat: AVAudioFormat
     private let logger = Logger.shared
 
     // Debug callback for UI
@@ -115,12 +121,14 @@ class VoiceManager: NSObject, ObservableObject {
 
     // Audio buffer counter for debug
     private var audioBufferCount: Int = 0
-    private var lastAudioLogTime: Date = Date.distantPast
+    private var playbackBufferCount: Int = 0
 
     // Audio settings for OpenAI Realtime (24kHz, 16-bit PCM, mono)
-    private static let sampleRate: Double = 24000.0
+    private static let openAISampleRate: Double = 24000.0
     private static let channels: AVAudioChannelCount = 1
-    private static let bitDepth: Int = 16
+
+    // Playback format (Float32 for AVAudioEngine)
+    private var playbackFormat: AVAudioFormat!
 
     // Current maestro configuration
     private var currentMaestro: Maestro?
@@ -128,18 +136,18 @@ class VoiceManager: NSObject, ObservableObject {
     // MARK: - Initialization
 
     override init() {
-        // Initialize audio format for OpenAI Realtime requirements
-        guard let format = AVAudioFormat(
-            commonFormat: .pcmFormatInt16,
-            sampleRate: Self.sampleRate,
-            channels: Self.channels,
-            interleaved: true
-        ) else {
-            fatalError("Failed to create audio format")
-        }
-        self.audioFormat = format
-
         super.init()
+
+        // Create playback format (24kHz Float32 mono - what AVAudioEngine uses)
+        guard let format = AVAudioFormat(
+            commonFormat: .pcmFormatFloat32,
+            sampleRate: Self.openAISampleRate,
+            channels: Self.channels,
+            interleaved: false
+        ) else {
+            fatalError("Failed to create playback format")
+        }
+        self.playbackFormat = format
 
         setupAudioSession()
     }
@@ -153,7 +161,7 @@ class VoiceManager: NSObject, ObservableObject {
         #else
         do {
             let session = AVAudioSession.sharedInstance()
-            try session.setCategory(.playAndRecord, mode: .default, options: [.defaultToSpeaker, .allowBluetooth])
+            try session.setCategory(.playAndRecord, mode: .voiceChat, options: [.defaultToSpeaker, .allowBluetooth])
             try session.setActive(true)
             logger.info("Audio session configured successfully")
         } catch {
@@ -165,7 +173,6 @@ class VoiceManager: NSObject, ObservableObject {
     // MARK: - Public Methods
 
     /// Connect to OpenAI Realtime API with optional maestro configuration
-    /// Prefers Azure OpenAI if configured, falls back to direct OpenAI
     func connect(apiKey: String, maestro: Maestro? = nil) async throws {
         guard !isConnected else {
             logger.warning("Already connected to OpenAI Realtime")
@@ -181,16 +188,16 @@ class VoiceManager: NSObject, ObservableObject {
 
         if let endpoint = azureEndpoint, !endpoint.isEmpty,
            let azKey = azureApiKey, !azKey.isEmpty {
-            // Use Azure OpenAI
             logger.info("Connecting to Azure OpenAI Realtime...")
+            onDebugLog?("🔌 Connecting to Azure OpenAI...")
             webSocket = OpenAIRealtimeWebSocket(
                 azureApiKey: azKey,
                 endpoint: endpoint,
                 deployment: azureDeployment
             )
         } else if !apiKey.isEmpty {
-            // Fall back to direct OpenAI
             logger.info("Connecting to OpenAI Realtime (direct)...")
+            onDebugLog?("🔌 Connecting to OpenAI...")
             webSocket = OpenAIRealtimeWebSocket(apiKey: apiKey)
         } else {
             throw VoiceError.webSocketError("No API key configured. Please configure Azure OpenAI or OpenAI in Settings → Providers.")
@@ -207,8 +214,12 @@ class VoiceManager: NSObject, ObservableObject {
 
         try await webSocket?.connect(voice: voice, systemPrompt: systemPrompt)
 
+        // Setup audio engine with playback node BEFORE starting
+        try setupAudioEngineForSession()
+
         isConnected = true
         logger.info("Connected to voice service successfully with voice: \(voice.rawValue)")
+        onDebugLog?("✅ Connected! Voice: \(voice.rawValue)")
     }
 
     /// Disconnect from OpenAI Realtime API
@@ -216,12 +227,16 @@ class VoiceManager: NSObject, ObservableObject {
         guard isConnected else { return }
 
         logger.info("Disconnecting from OpenAI Realtime...")
+        onDebugLog?("🔌 Disconnecting...")
 
+        // Stop input if listening
         await stopListening()
+
+        // Disconnect WebSocket
         await webSocket?.disconnect()
 
-        // Cleanup playback resources to prevent memory leaks
-        cleanupPlaybackNode()
+        // Cleanup audio engine
+        cleanupAudioEngine()
 
         isConnected = false
         currentMaestro = nil
@@ -235,12 +250,13 @@ class VoiceManager: NSObject, ObservableObject {
             throw VoiceError.notConnected
         }
 
-        guard state == .idle else {
+        guard state == .idle || state == .speaking else {
             logger.warning("Cannot start listening in current state: \(state)")
             return
         }
 
         logger.info("Starting voice listening...")
+        onDebugLog?("🎤 Starting microphone...")
 
         // Request microphone permission
         let permission = await requestMicrophonePermission()
@@ -248,24 +264,22 @@ class VoiceManager: NSObject, ObservableObject {
             throw VoiceError.permissionDenied
         }
 
-        // Setup audio engine
-        try setupAudioEngine()
-
-        // Start audio engine
-        try audioEngine.start()
+        // Install input tap (engine should already be running)
+        try installInputTap()
 
         updateState(.listening)
         logger.info("Voice listening started")
+        onDebugLog?("🎤 Listening...")
     }
 
-    /// Stop listening to user voice
+    /// Stop listening to user voice (but keep engine running for playback!)
     func stopListening() async {
         guard state == .listening || state == .processing else { return }
 
         logger.info("Stopping voice listening...")
 
-        audioEngine.stop()
-        audioEngine.reset()
+        // Remove input tap but DON'T stop engine (needed for playback)
+        removeInputTap()
 
         updateState(.idle)
         logger.info("Voice listening stopped")
@@ -279,6 +293,7 @@ class VoiceManager: NSObject, ObservableObject {
 
     /// Cancel current response (for barge-in)
     func cancelResponse() async {
+        playerNode?.stop()
         await webSocket?.cancelResponse()
     }
 
@@ -291,159 +306,220 @@ class VoiceManager: NSObject, ObservableObject {
         await webSocket?.sendText(text)
     }
 
-    // MARK: - Private Methods
+    // MARK: - Audio Engine Setup
 
-    private func setupAudioEngine() throws {
-        inputNode = audioEngine.inputNode
+    /// Setup audio engine for the entire session (input + output)
+    private func setupAudioEngineForSession() throws {
+        guard !isEngineRunning else { return }
 
-        guard let inputNode = inputNode else {
-            throw VoiceError.audioEngineError("Input node not available")
+        onDebugLog?("🔧 Setting up audio engine...")
+
+        // Create and attach player node for output
+        let player = AVAudioPlayerNode()
+        playerNode = player
+        audioEngine.attach(player)
+
+        // Connect player to output mixer with 24kHz format
+        audioEngine.connect(player, to: audioEngine.mainMixerNode, format: playbackFormat)
+
+        // Prepare and start engine
+        audioEngine.prepare()
+
+        do {
+            try audioEngine.start()
+            isEngineRunning = true
+            onDebugLog?("✅ Audio engine running")
+            logger.info("Audio engine started successfully")
+        } catch {
+            onDebugLog?("❌ Engine start failed: \(error.localizedDescription)")
+            throw VoiceError.audioEngineError("Failed to start audio engine: \(error.localizedDescription)")
         }
+    }
 
-        // Log audio device info
-        #if os(macOS)
-        logAudioDevices()
-        #endif
+    /// Install input tap for microphone capture
+    private func installInputTap() throws {
+        guard !isInputTapInstalled else { return }
 
-        // Get native input format
+        let inputNode = audioEngine.inputNode
         let inputFormat = inputNode.outputFormat(forBus: 0)
+
         onDebugLog?("🎤 Mic format: \(Int(inputFormat.sampleRate))Hz, \(inputFormat.channelCount)ch")
 
         // Verify format is valid
-        if inputFormat.channelCount == 0 || inputFormat.sampleRate == 0 {
-            onDebugLog?("❌ Invalid audio format! No input device?")
+        guard inputFormat.channelCount > 0, inputFormat.sampleRate > 0 else {
             throw VoiceError.audioEngineError("Invalid input format - no microphone available")
         }
 
-        // Install tap with native format, convert manually
-        inputNode.installTap(onBus: 0, bufferSize: 4800, format: inputFormat) { [weak self] buffer, time in
-            guard let self = self else { return }
-            // Convert Float32 -> Int16 and resample 48kHz -> 24kHz
+        // Install tap with native format
+        inputNode.installTap(onBus: 0, bufferSize: 4800, format: inputFormat) { [weak self] buffer, _ in
+            guard let self = self, !self.isMuted, self.isConnected else { return }
+
+            // Convert and send audio
             if let pcmData = self.convertToPCM16(buffer: buffer) {
                 Task { @MainActor in
-                    await self.sendPCMData(pcmData)
+                    await self.sendAudioData(pcmData)
                 }
             }
         }
 
-        audioEngine.prepare()
+        isInputTapInstalled = true
+        onDebugLog?("✅ Microphone tap installed")
     }
+
+    /// Remove input tap (but keep engine running)
+    private func removeInputTap() {
+        guard isInputTapInstalled else { return }
+
+        audioEngine.inputNode.removeTap(onBus: 0)
+        isInputTapInstalled = false
+        onDebugLog?("🎤 Microphone tap removed")
+    }
+
+    /// Cleanup audio engine completely
+    private func cleanupAudioEngine() {
+        // Remove input tap
+        if isInputTapInstalled {
+            audioEngine.inputNode.removeTap(onBus: 0)
+            isInputTapInstalled = false
+        }
+
+        // Stop player
+        playerNode?.stop()
+
+        // Stop and reset engine
+        if isEngineRunning {
+            audioEngine.stop()
+            isEngineRunning = false
+        }
+
+        // Detach player
+        if let player = playerNode {
+            audioEngine.detach(player)
+        }
+        playerNode = nil
+
+        audioEngine.reset()
+        audioBufferCount = 0
+        playbackBufferCount = 0
+
+        onDebugLog?("🔧 Audio engine cleaned up")
+    }
+
+    // MARK: - Audio Conversion
 
     /// Convert Float32 buffer to PCM16 Data at 24kHz
     private func convertToPCM16(buffer: AVAudioPCMBuffer) -> Data? {
-        guard let floatData = buffer.floatChannelData else {
-            onDebugLog?("❌ floatChannelData is nil!")
-            return nil
-        }
+        guard let floatData = buffer.floatChannelData else { return nil }
 
         let inputSampleRate = buffer.format.sampleRate
-        let outputSampleRate = 24000.0
+        let outputSampleRate = Self.openAISampleRate
         let ratio = outputSampleRate / inputSampleRate
 
         let inputFrames = Int(buffer.frameLength)
         let outputFrames = Int(Double(inputFrames) * ratio)
 
-        // Calculate audio levels for waveform visualization (40 bars)
-        updateInputAudioLevels(floatData: floatData, frameCount: inputFrames)
+        // Calculate audio levels for visualization
+        updateInputLevels(floatData: floatData, frameCount: inputFrames)
 
-        // Debug: check raw input levels
-        if audioBufferCount < 5 {
-            var maxVal: Float = 0
-            var minVal: Float = 0
-            for i in 0..<min(inputFrames, 1000) {
-                let val = floatData[0][i]
-                if val > maxVal { maxVal = val }
-                if val < minVal { minVal = val }
-            }
-            onDebugLog?("🔊 Raw input: frames=\(inputFrames), levels[\(String(format: "%.6f", minVal))...\(String(format: "%.6f", maxVal))]")
-        }
+        var pcmData = Data(capacity: outputFrames * 2)
 
-        var pcmData = Data(capacity: outputFrames * 2) // 2 bytes per Int16
-
-        // Simple linear interpolation resampling + float to int16 conversion
+        // Resample and convert Float32 → Int16
         for i in 0..<outputFrames {
             let srcIndex = Double(i) / ratio
             let srcIndexInt = Int(srcIndex)
             let frac = Float(srcIndex - Double(srcIndexInt))
 
-            // Get samples (handle boundary)
             let sample1 = floatData[0][min(srcIndexInt, inputFrames - 1)]
             let sample2 = floatData[0][min(srcIndexInt + 1, inputFrames - 1)]
 
-            // Interpolate
             let interpolated = sample1 + (sample2 - sample1) * frac
-
-            // Convert to Int16 (-32768 to 32767)
             let clamped = max(-1.0, min(1.0, interpolated))
             let int16Value = Int16(clamped * 32767.0)
 
-            // Append as little-endian
             withUnsafeBytes(of: int16Value.littleEndian) { pcmData.append(contentsOf: $0) }
         }
 
         return pcmData
     }
 
-    private func sendPCMData(_ data: Data) async {
-        guard !isMuted, isConnected else { return }
-
+    /// Send PCM16 audio data to WebSocket
+    private func sendAudioData(_ data: Data) async {
         audioBufferCount += 1
 
-        // Log with audio levels
-        if audioBufferCount == 1 || audioBufferCount == 10 || audioBufferCount % 100 == 0 {
-            let samples = data.withUnsafeBytes { ptr -> (Int16, Int16) in
-                let int16Ptr = ptr.bindMemory(to: Int16.self)
-                var maxSample: Int16 = 0
-                var minSample: Int16 = 0
-                for i in 0..<min(int16Ptr.count, 100) {
-                    if int16Ptr[i] > maxSample { maxSample = int16Ptr[i] }
-                    if int16Ptr[i] < minSample { minSample = int16Ptr[i] }
-                }
-                return (minSample, maxSample)
-            }
-            onDebugLog?("📤 #\(audioBufferCount): \(data.count)B, levels[\(samples.0)...\(samples.1)]")
+        if audioBufferCount == 1 || audioBufferCount % 100 == 0 {
+            onDebugLog?("📤 Sent \(audioBufferCount) audio buffers")
         }
 
         await webSocket?.sendPCMData(data)
     }
 
-    /// Calculate RMS audio levels for waveform visualization (40 bars)
-    private func updateInputAudioLevels(floatData: UnsafePointer<UnsafeMutablePointer<Float>>, frameCount: Int) {
-        let barCount = 40
-        let samplesPerBar = max(1, frameCount / barCount)
-        var newLevels: [Float] = []
+    // MARK: - Audio Playback
 
-        for bar in 0..<barCount {
-            let startSample = bar * samplesPerBar
-            let endSample = min(startSample + samplesPerBar, frameCount)
-
-            // Calculate RMS for this segment
-            var sumSquares: Float = 0
-            for i in startSample..<endSample {
-                let sample = floatData[0][i]
-                sumSquares += sample * sample
-            }
-            let rms = sqrt(sumSquares / Float(endSample - startSample))
-
-            // Normalize to 0-1 range with some amplification for visibility
-            // Audio typically peaks at 0.3-0.5, so multiply by 2-3 for visual effect
-            let normalized = min(1.0, rms * 3.0)
-            newLevels.append(normalized)
+    /// Play received audio data
+    private func playAudioData(_ audioData: Data) {
+        guard let player = playerNode, isEngineRunning else {
+            onDebugLog?("⚠️ Cannot play: engine not running")
+            return
         }
 
-        // Update on main thread
-        Task { @MainActor in
-            // Apply smoothing (mix 30% old + 70% new for smoother animation)
-            for i in 0..<barCount {
-                self.inputAudioLevels[i] = self.inputAudioLevels[i] * 0.3 + newLevels[i] * 0.7
-            }
+        // Convert PCM16 data to Float32 buffer
+        guard let buffer = createPlaybackBuffer(from: audioData) else {
+            onDebugLog?("⚠️ Failed to create playback buffer")
+            return
+        }
+
+        playbackBufferCount += 1
+
+        // Update output audio levels
+        if let floatData = buffer.floatChannelData {
+            updateOutputLevels(floatData: floatData, frameCount: Int(buffer.frameLength))
+        }
+
+        // Schedule buffer for playback
+        player.scheduleBuffer(buffer, completionHandler: nil)
+
+        // Start playing if not already
+        if !player.isPlaying {
+            player.play()
+            onDebugLog?("🔊 Started audio playback")
+        }
+
+        if playbackBufferCount == 1 || playbackBufferCount % 20 == 0 {
+            onDebugLog?("🔊 Playing buffer #\(playbackBufferCount)")
         }
     }
 
-    /// Update output audio levels when AI is speaking
-    func updateOutputAudioLevels(from buffer: AVAudioPCMBuffer) {
-        guard let floatData = buffer.floatChannelData else { return }
-        let frameCount = Int(buffer.frameLength)
+    /// Create playback buffer from PCM16 data
+    private func createPlaybackBuffer(from data: Data) -> AVAudioPCMBuffer? {
+        let bytesPerSample = 2  // Int16
+        let frameCount = UInt32(data.count / bytesPerSample)
+
+        guard let buffer = AVAudioPCMBuffer(pcmFormat: playbackFormat, frameCapacity: frameCount) else {
+            return nil
+        }
+
+        buffer.frameLength = frameCount
+
+        guard let floatChannelData = buffer.floatChannelData else {
+            return nil
+        }
+
+        // Convert Int16 → Float32
+        data.withUnsafeBytes { rawBuffer in
+            guard let source = rawBuffer.baseAddress?.assumingMemoryBound(to: Int16.self) else { return }
+            let destination = floatChannelData[0]
+
+            for i in 0..<Int(frameCount) {
+                destination[i] = Float(source[i]) / 32768.0
+            }
+        }
+
+        return buffer
+    }
+
+    // MARK: - Audio Level Visualization
+
+    private func updateInputLevels(floatData: UnsafePointer<UnsafeMutablePointer<Float>>, frameCount: Int) {
         let barCount = 40
         let samplesPerBar = max(1, frameCount / barCount)
         var newLevels: [Float] = []
@@ -462,123 +538,57 @@ class VoiceManager: NSObject, ObservableObject {
             newLevels.append(normalized)
         }
 
-        // Apply smoothing
+        for i in 0..<barCount {
+            inputAudioLevels[i] = inputAudioLevels[i] * 0.3 + newLevels[i] * 0.7
+        }
+    }
+
+    private func updateOutputLevels(floatData: UnsafePointer<UnsafeMutablePointer<Float>>, frameCount: Int) {
+        let barCount = 40
+        let samplesPerBar = max(1, frameCount / barCount)
+        var newLevels: [Float] = []
+
+        for bar in 0..<barCount {
+            let startSample = bar * samplesPerBar
+            let endSample = min(startSample + samplesPerBar, frameCount)
+
+            var sumSquares: Float = 0
+            for i in startSample..<endSample {
+                let sample = floatData[0][i]
+                sumSquares += sample * sample
+            }
+            let rms = sqrt(sumSquares / Float(endSample - startSample))
+            let normalized = min(1.0, rms * 3.0)
+            newLevels.append(normalized)
+        }
+
         for i in 0..<barCount {
             outputAudioLevels[i] = outputAudioLevels[i] * 0.3 + newLevels[i] * 0.7
         }
     }
 
-    /// Reset audio levels to zero (when not active)
     func resetAudioLevels() {
         inputAudioLevels = Array(repeating: 0, count: 40)
         outputAudioLevels = Array(repeating: 0, count: 40)
     }
 
-    private func processAudioBuffer(_ buffer: AVAudioPCMBuffer) async {
-        guard !isMuted, isConnected else { return }
-
-        audioBufferCount += 1
-
-        // Log every 50 buffers (about every 2 seconds at typical rates)
-        let now = Date()
-        if now.timeIntervalSince(lastAudioLogTime) >= 2.0 {
-            lastAudioLogTime = now
-            let debugMsg = "📊 Audio: \(audioBufferCount) buffers sent, format: \(buffer.format.sampleRate)Hz"
-            onDebugLog?(debugMsg)
-        }
-
-        // Convert buffer to required format if needed
-        guard let convertedBuffer = convertBufferToRequiredFormat(buffer) else {
-            onDebugLog?("❌ Audio conversion failed!")
-            logger.error("Failed to convert audio buffer")
-            return
-        }
-
-        // Send audio data to WebSocket
-        await webSocket?.sendAudio(convertedBuffer)
-    }
-
-    private func convertBufferToRequiredFormat(_ buffer: AVAudioPCMBuffer) -> AVAudioPCMBuffer? {
-        // Log input format once
-        if audioBufferCount == 1 {
-            onDebugLog?("🔊 Input format: \(buffer.format.sampleRate)Hz, \(buffer.format.channelCount)ch, \(buffer.format.commonFormat.rawValue)")
-            onDebugLog?("🎯 Target format: \(audioFormat.sampleRate)Hz, \(audioFormat.channelCount)ch, PCM16")
-        }
-
-        // Check if conversion is needed
-        guard buffer.format.sampleRate != audioFormat.sampleRate ||
-              buffer.format.commonFormat != audioFormat.commonFormat else {
-            return buffer
-        }
-
-        // Create converter
-        guard let converter = AVAudioConverter(from: buffer.format, to: audioFormat) else {
-            onDebugLog?("❌ Failed to create audio converter")
-            logger.error("Failed to create audio converter")
-            return nil
-        }
-
-        // Calculate output buffer size based on sample rate ratio
-        let ratio = audioFormat.sampleRate / buffer.format.sampleRate
-        let capacity = AVAudioFrameCount(Double(buffer.frameLength) * ratio)
-
-        guard let outputBuffer = AVAudioPCMBuffer(pcmFormat: audioFormat, frameCapacity: capacity) else {
-            onDebugLog?("❌ Failed to create output buffer")
-            logger.error("Failed to create output buffer")
-            return nil
-        }
-
-        var error: NSError?
-        var hasData = true
-        let inputBlock: AVAudioConverterInputBlock = { inNumPackets, outStatus in
-            if hasData {
-                hasData = false
-                outStatus.pointee = .haveData
-                return buffer
-            } else {
-                outStatus.pointee = .noDataNow
-                return nil
-            }
-        }
-
-        let status = converter.convert(to: outputBuffer, error: &error, withInputFrom: inputBlock)
-
-        if status == .error {
-            onDebugLog?("❌ Conversion error: \(error?.localizedDescription ?? "unknown")")
-            logger.error("Audio conversion failed: \(error?.localizedDescription ?? "unknown error")")
-            return nil
-        }
-
-        // Log conversion success once
-        if audioBufferCount == 1 {
-            onDebugLog?("✅ Audio conversion working: \(buffer.frameLength) → \(outputBuffer.frameLength) frames")
-        }
-
-        return outputBuffer
-    }
+    // MARK: - Microphone Permission
 
     private func requestMicrophonePermission() async -> Bool {
         #if os(macOS)
         let status = AVCaptureDevice.authorizationStatus(for: .audio)
-        onDebugLog?("🔐 Mic permission status: \(status.rawValue) (\(statusName(status)))")
+        onDebugLog?("🔐 Mic permission: \(statusName(status))")
 
         return await withCheckedContinuation { continuation in
             switch status {
             case .authorized:
-                self.onDebugLog?("✅ Microphone authorized")
                 continuation.resume(returning: true)
             case .notDetermined:
-                self.onDebugLog?("⏳ Requesting microphone permission...")
-                AVCaptureDevice.requestAccess(for: .audio) { [weak self] granted in
-                    self?.onDebugLog?(granted ? "✅ Permission granted" : "❌ Permission denied")
+                AVCaptureDevice.requestAccess(for: .audio) { granted in
                     continuation.resume(returning: granted)
                 }
-            case .denied:
-                self.onDebugLog?("❌ Microphone DENIED - open System Settings!")
+            case .denied, .restricted:
                 self.openMicrophoneSettings()
-                continuation.resume(returning: false)
-            case .restricted:
-                self.onDebugLog?("⚠️ Microphone restricted by system")
                 continuation.resume(returning: false)
             @unknown default:
                 continuation.resume(returning: false)
@@ -592,51 +602,6 @@ class VoiceManager: NSObject, ObservableObject {
         }
         #endif
     }
-
-    #if os(macOS)
-    private func logAudioDevices() {
-        // Get default input device
-        var defaultInputID: AudioDeviceID = 0
-        var propertySize = UInt32(MemoryLayout<AudioDeviceID>.size)
-        var propertyAddress = AudioObjectPropertyAddress(
-            mSelector: kAudioHardwarePropertyDefaultInputDevice,
-            mScope: kAudioObjectPropertyScopeGlobal,
-            mElement: kAudioObjectPropertyElementMain
-        )
-
-        let status = AudioObjectGetPropertyData(
-            AudioObjectID(kAudioObjectSystemObject),
-            &propertyAddress,
-            0,
-            nil,
-            &propertySize,
-            &defaultInputID
-        )
-
-        if status == noErr {
-            // Get device name
-            var nameSize: UInt32 = 256
-            var name = [CChar](repeating: 0, count: Int(nameSize))
-            var nameAddress = AudioObjectPropertyAddress(
-                mSelector: kAudioDevicePropertyDeviceNameCFString,
-                mScope: kAudioObjectPropertyScopeGlobal,
-                mElement: kAudioObjectPropertyElementMain
-            )
-
-            var cfName: CFString?
-            var cfNameSize = UInt32(MemoryLayout<CFString?>.size)
-
-            if AudioObjectGetPropertyData(defaultInputID, &nameAddress, 0, nil, &cfNameSize, &cfName) == noErr,
-               let deviceName = cfName as String? {
-                onDebugLog?("🎙️ Default input: \(deviceName) (ID: \(defaultInputID))")
-            } else {
-                onDebugLog?("🎙️ Default input ID: \(defaultInputID)")
-            }
-        } else {
-            onDebugLog?("⚠️ Could not get default input device (status: \(status))")
-        }
-    }
-    #endif
 
     private func statusName(_ status: AVAuthorizationStatus) -> String {
         switch status {
@@ -655,6 +620,8 @@ class VoiceManager: NSObject, ObservableObject {
         }
         #endif
     }
+
+    // MARK: - State Management
 
     private func updateState(_ newState: VoiceState) {
         state = newState
@@ -684,6 +651,7 @@ extension VoiceManager: OpenAIRealtimeDelegate {
             updateState(.idle)
             if let error = error {
                 logger.error("OpenAI Realtime disconnected with error: \(error.localizedDescription)")
+                onDebugLog?("❌ Disconnected: \(error.localizedDescription)")
             } else {
                 logger.info("OpenAI Realtime disconnected")
             }
@@ -694,6 +662,7 @@ extension VoiceManager: OpenAIRealtimeDelegate {
         Task { @MainActor in
             if isFinal {
                 updateState(.processing)
+                onDebugLog?("🎤 You: \(text)")
             }
             delegate?.voiceManager(self, didReceiveTranscript: text, isFinal: isFinal)
         }
@@ -708,144 +677,25 @@ extension VoiceManager: OpenAIRealtimeDelegate {
 
     nonisolated func realtime(_ realtime: OpenAIRealtimeWebSocket, didReceiveAudio audioData: Data) {
         Task { @MainActor in
-            // Play received audio
-            await playAudio(audioData)
+            // Play received audio immediately
+            playAudioData(audioData)
         }
     }
 
     nonisolated func realtime(_ realtime: OpenAIRealtimeWebSocket, didCompleteResponse: Void) {
         Task { @MainActor in
             updateState(.listening)
-            // Notify delegate that response is complete
             delegate?.voiceManager(self, didCompleteResponse: ())
+            onDebugLog?("✅ Response complete")
         }
     }
 
     nonisolated func realtime(_ realtime: OpenAIRealtimeWebSocket, didEncounterError error: Error) {
         Task { @MainActor in
             logger.error("OpenAI Realtime error: \(error.localizedDescription)")
+            onDebugLog?("❌ Error: \(error.localizedDescription)")
             delegate?.voiceManager(self, didEncounterError: error)
         }
-    }
-}
-
-// MARK: - Audio Playback
-
-extension VoiceManager {
-
-    /// Setup reusable playback node - call once before playing audio
-    /// This prevents memory leaks from creating new nodes for each audio chunk
-    private func setupPlaybackNodeIfNeeded() {
-        guard playbackNode == nil else { return }
-
-        // Create playback format (24kHz Float32 for output)
-        guard let playbackFormat = AVAudioFormat(
-            commonFormat: .pcmFormatFloat32,
-            sampleRate: Self.sampleRate,
-            channels: Self.channels,
-            interleaved: false
-        ) else {
-            logger.error("Failed to create playback format")
-            return
-        }
-
-        let node = AVAudioPlayerNode()
-        playbackNode = node
-
-        // Attach to engine
-        audioEngine.attach(node)
-        isPlaybackNodeAttached = true
-
-        // Connect to output mixer
-        audioEngine.connect(node, to: audioEngine.mainMixerNode, format: playbackFormat)
-
-        logger.info("Playback node created and attached (reusable)")
-    }
-
-    /// Play audio data using the reusable player node
-    /// IMPORTANT: This reuses a single AVAudioPlayerNode to prevent memory leaks.
-    /// Previous implementation created a new node for EVERY audio chunk, causing 24GB+ memory usage.
-    private func playAudio(_ audioData: Data) async {
-        // Ensure playback node is ready
-        setupPlaybackNodeIfNeeded()
-
-        guard let node = playbackNode else {
-            logger.error("Playback node not available")
-            return
-        }
-
-        // Create audio buffer from data
-        guard let buffer = createAudioBuffer(from: audioData) else {
-            logger.error("Failed to create audio buffer for playback")
-            return
-        }
-
-        // Update output audio levels for waveform visualization
-        updateOutputAudioLevels(from: buffer)
-
-        // Schedule buffer on the REUSABLE node (don't create new nodes!)
-        // Using completion handler without .interrupts to allow buffer queue
-        node.scheduleBuffer(buffer, completionHandler: nil)
-
-        // Start playing if not already
-        if !node.isPlaying {
-            node.play()
-        }
-    }
-
-    /// Stop playback and reset node
-    func stopPlayback() {
-        playbackNode?.stop()
-    }
-
-    /// Cleanup playback resources when disconnecting
-    private func cleanupPlaybackNode() {
-        if let node = playbackNode, isPlaybackNodeAttached {
-            node.stop()
-            audioEngine.disconnectNodeOutput(node)
-            audioEngine.detach(node)
-            isPlaybackNodeAttached = false
-        }
-        playbackNode = nil
-    }
-
-    private func createAudioBuffer(from data: Data) -> AVAudioPCMBuffer? {
-        // Calculate frame count from PCM16 data
-        let bytesPerSample = 2 // Int16 = 2 bytes
-        let frameCount = UInt32(data.count / bytesPerSample)
-
-        // Create output format (Float32 for playback)
-        guard let playbackFormat = AVAudioFormat(
-            commonFormat: .pcmFormatFloat32,
-            sampleRate: Self.sampleRate,
-            channels: Self.channels,
-            interleaved: false
-        ) else {
-            return nil
-        }
-
-        guard let buffer = AVAudioPCMBuffer(pcmFormat: playbackFormat, frameCapacity: frameCount) else {
-            return nil
-        }
-
-        buffer.frameLength = frameCount
-
-        // Convert Int16 PCM data to Float32
-        guard let floatChannelData = buffer.floatChannelData else {
-            return nil
-        }
-
-        data.withUnsafeBytes { rawBuffer in
-            guard let source = rawBuffer.baseAddress?.assumingMemoryBound(to: Int16.self) else { return }
-            let destination = floatChannelData[0]
-
-            // Convert Int16 (-32768 to 32767) to Float (-1.0 to 1.0)
-            for i in 0..<Int(frameCount) {
-                destination[i] = Float(source[i]) / 32768.0
-            }
-        }
-
-        return buffer
     }
 }
 
