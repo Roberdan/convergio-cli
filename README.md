@@ -627,11 +627,36 @@ Compare responses from multiple models:
 - Apple Silicon (M1/M2/M3/M4/M5)
 - Xcode Command Line Tools (for building from source)
 
-### Installation via Homebrew
+### Installation via Homebrew (Recommended)
 
 ```bash
+# Add the tap (once)
 brew tap Roberdan/convergio-cli
+
+# Install Master Edition (default)
 brew install convergio
+```
+
+### Installation from GitHub Release
+
+Download pre-built binaries for your edition:
+
+| Edition | Download | Description |
+|---------|----------|-------------|
+| **Master** | [convergio-6.0.0-arm64-apple-darwin.tar.gz](https://github.com/Roberdan/convergio-cli/releases/download/v6.0.0/convergio-6.0.0-arm64-apple-darwin.tar.gz) | Full-featured for power users |
+| **Education** | [convergio-edu-6.0.0-arm64-apple-darwin.tar.gz](https://github.com/Roberdan/convergio-cli/releases/download/v6.0.0/convergio-edu-6.0.0-arm64-apple-darwin.tar.gz) | Schools, students (Scuola 2026) |
+| **Business** | [convergio-biz-6.0.0-arm64-apple-darwin.tar.gz](https://github.com/Roberdan/convergio-cli/releases/download/v6.0.0/convergio-biz-6.0.0-arm64-apple-darwin.tar.gz) | Enterprise features |
+| **Developer** | [convergio-dev-6.0.0-arm64-apple-darwin.tar.gz](https://github.com/Roberdan/convergio-cli/releases/download/v6.0.0/convergio-dev-6.0.0-arm64-apple-darwin.tar.gz) | Debug tools, APIs |
+
+```bash
+# Example: Install Education Edition manually
+curl -LO https://github.com/Roberdan/convergio-cli/releases/download/v6.0.0/convergio-edu-6.0.0-arm64-apple-darwin.tar.gz
+tar -xzf convergio-edu-6.0.0-arm64-apple-darwin.tar.gz
+sudo mv convergio-edu /usr/local/bin/
+
+# Run
+convergio-edu setup
+convergio-edu
 ```
 
 ### Installation from Source
@@ -641,8 +666,11 @@ brew install convergio
 git clone https://github.com/Roberdan/convergio-cli.git
 cd convergio-cli
 
-# Build
-make
+# Build specific edition
+make EDITION=master      # Master Edition (default) → build/bin/convergio
+make EDITION=education   # Education Edition → build/bin/convergio-edu
+make EDITION=business    # Business Edition → build/bin/convergio-biz
+make EDITION=developer   # Developer Edition → build/bin/convergio-dev
 
 # Setup (interactive wizard)
 ./build/bin/convergio setup

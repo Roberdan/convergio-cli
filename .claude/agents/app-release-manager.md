@@ -227,11 +227,35 @@ Phase 4: FINAL DECISION
 ├── Generate unified report
 └── APPROVE or BLOCK
 
-Phase 5: CONDITIONAL (only if APPROVED)
-├── Version bump (if needed)
-├── Changelog update
-├── Create PR
-└── Tag and release
+Phase 5: RELEASE ARTIFACTS (only if APPROVED) ⚠️ CRITICAL
+├── Sub-agent R1: Build ALL editions (make EDITION=master/education/business/developer)
+├── Sub-agent R2: Build native Mac app (xcodebuild ConvergioApp)
+├── Sub-agent R3: Create release tarballs for ALL editions
+├── Sub-agent R4: Upload ALL tarballs to GitHub release
+└── Sub-agent R5: Verify all downloads work
+
+Phase 6: DOCUMENTATION UPDATES (only if APPROVED) ⚠️ CRITICAL
+├── Sub-agent D1: Update VERSION file
+├── Sub-agent D2: Update CHANGELOG.md with new version section
+├── Sub-agent D3: Update README.md version badges (ALL occurrences)
+├── Sub-agent D4: Update README.md "What's New" section
+├── Sub-agent D5: Update GitHub release notes with full changelog
+└── Sub-agent D6: Commit and push all documentation changes
+
+Phase 7: DISTRIBUTION UPDATES (only if APPROVED) ⚠️ CRITICAL
+├── Sub-agent H1: Clone homebrew-convergio-cli tap repo
+├── Sub-agent H2: Update Formula/convergio.rb version and SHA256
+├── Sub-agent H3: Push updated Homebrew formula
+├── Sub-agent H4: Verify brew upgrade works
+├── Sub-agent W1: Update website version info
+└── Sub-agent W2: Deploy website changes
+
+Phase 8: FINAL VERIFICATION (MANDATORY)
+├── Sub-agent V1: Verify GitHub release has ALL edition tarballs
+├── Sub-agent V2: Verify brew install convergio gets new version
+├── Sub-agent V3: Verify convergio --version shows new version
+├── Sub-agent V4: Verify convergio-edu --version shows new version
+└── Sub-agent V5: Generate final release report
 ```
 
 ---
@@ -911,6 +935,429 @@ EF-13 ML/AI + EF-14 Model Freshness + EF-15 Apple Silicon Freshness
 | Security audit | `sonnet` | Needs reasoning for vulnerabilities |
 | Final report | `sonnet` | Needs synthesis and judgment |
 | Complex decisions | `opus` | Critical decisions only |
+
+---
+
+## 🚀 Phase 5: RELEASE ARTIFACTS (MANDATORY)
+
+**CRITICAL: This phase builds and uploads ALL edition binaries. NEVER skip this.**
+
+### Phase 5 Sub-Agent Prompts
+
+#### R1: Build ALL Editions
+```
+BUILD ALL CONVERGIO EDITIONS:
+
+1. Build Master Edition:
+   make clean && make EDITION=master -j8
+   Verify: build/bin/convergio exists
+   Verify: ./build/bin/convergio --version shows correct version
+
+2. Build Education Edition:
+   make EDITION=education -j8
+   Verify: build/bin/convergio-edu exists
+   Verify: ./build/bin/convergio-edu --version shows correct version
+
+3. Build Business Edition:
+   make EDITION=business -j8
+   Verify: build/bin/convergio-biz exists
+   Verify: ./build/bin/convergio-biz --version shows correct version
+
+4. Build Developer Edition:
+   make EDITION=developer -j8
+   Verify: build/bin/convergio-dev exists
+   Verify: ./build/bin/convergio-dev --version shows correct version
+
+IF ANY BUILD FAILS: BLOCK RELEASE IMMEDIATELY
+
+OUTPUT FORMAT:
+{
+  "status": "PASS" | "BLOCK",
+  "editions": {
+    "master": {"built": true/false, "version": "X.Y.Z"},
+    "education": {"built": true/false, "version": "X.Y.Z"},
+    "business": {"built": true/false, "version": "X.Y.Z"},
+    "developer": {"built": true/false, "version": "X.Y.Z"}
+  }
+}
+```
+
+#### R2: Build Native Mac App
+```
+BUILD CONVERGIO NATIVE MAC APP:
+
+1. Navigate to ConvergioApp directory:
+   cd ConvergioApp
+
+2. Build with xcodebuild:
+   xcodebuild -project ConvergioApp.xcodeproj -scheme ConvergioApp -configuration Release -archivePath build/ConvergioApp.xcarchive archive
+
+3. Export for distribution:
+   xcodebuild -exportArchive -archivePath build/ConvergioApp.xcarchive -exportPath build/ConvergioApp -exportOptionsPlist ExportOptions.plist
+
+4. Verify app bundle exists:
+   ls -la build/ConvergioApp/ConvergioApp.app
+
+IF BUILD FAILS: Log warning but don't block (native app is optional)
+
+OUTPUT FORMAT:
+{
+  "status": "PASS" | "WARNING",
+  "app_built": true/false,
+  "app_path": "path/to/ConvergioApp.app"
+}
+```
+
+#### R3: Create Release Tarballs
+```
+CREATE RELEASE TARBALLS FOR ALL EDITIONS:
+
+VERSION=$(cat VERSION)
+
+1. Create dist directory:
+   mkdir -p dist
+
+2. Create tarballs (include Metal shaders):
+   tar -czvf dist/convergio-${VERSION}-arm64-apple-darwin.tar.gz -C build/bin convergio default.metallib
+   tar -czvf dist/convergio-edu-${VERSION}-arm64-apple-darwin.tar.gz -C build/bin convergio-edu default.metallib
+   tar -czvf dist/convergio-biz-${VERSION}-arm64-apple-darwin.tar.gz -C build/bin convergio-biz default.metallib
+   tar -czvf dist/convergio-dev-${VERSION}-arm64-apple-darwin.tar.gz -C build/bin convergio-dev default.metallib
+
+3. Calculate SHA256 for each:
+   shasum -a 256 dist/*.tar.gz > dist/SHA256SUMS.txt
+
+4. Verify all tarballs exist and are non-empty
+
+OUTPUT FORMAT:
+{
+  "status": "PASS" | "BLOCK",
+  "tarballs": [
+    {"name": "convergio-X.Y.Z-arm64-apple-darwin.tar.gz", "size": "N MB", "sha256": "..."},
+    {"name": "convergio-edu-X.Y.Z-arm64-apple-darwin.tar.gz", "size": "N MB", "sha256": "..."},
+    {"name": "convergio-biz-X.Y.Z-arm64-apple-darwin.tar.gz", "size": "N MB", "sha256": "..."},
+    {"name": "convergio-dev-X.Y.Z-arm64-apple-darwin.tar.gz", "size": "N MB", "sha256": "..."}
+  ]
+}
+```
+
+#### R4: Upload to GitHub Release
+```
+UPLOAD ALL TARBALLS TO GITHUB RELEASE:
+
+VERSION=$(cat VERSION)
+
+1. Check if release exists:
+   gh release view v${VERSION}
+
+2. If release doesn't exist, create it:
+   gh release create v${VERSION} --title "Convergio v${VERSION}" --draft
+
+3. Upload ALL tarballs:
+   gh release upload v${VERSION} dist/convergio-${VERSION}-arm64-apple-darwin.tar.gz --clobber
+   gh release upload v${VERSION} dist/convergio-edu-${VERSION}-arm64-apple-darwin.tar.gz --clobber
+   gh release upload v${VERSION} dist/convergio-biz-${VERSION}-arm64-apple-darwin.tar.gz --clobber
+   gh release upload v${VERSION} dist/convergio-dev-${VERSION}-arm64-apple-darwin.tar.gz --clobber
+
+4. Verify all assets uploaded:
+   gh release view v${VERSION} --json assets --jq '.assets[].name'
+
+EXPECTED: 4 tarballs (master, edu, biz, dev)
+
+OUTPUT FORMAT:
+{
+  "status": "PASS" | "BLOCK",
+  "release_url": "https://github.com/Roberdan/convergio-cli/releases/tag/vX.Y.Z",
+  "assets_uploaded": 4
+}
+```
+
+---
+
+## 📝 Phase 6: DOCUMENTATION UPDATES (MANDATORY)
+
+**CRITICAL: Documentation MUST be updated for EVERY release. No exceptions.**
+
+### Phase 6 Sub-Agent Prompts
+
+#### D1: Update VERSION File
+```
+UPDATE VERSION FILE:
+
+1. Read current VERSION:
+   cat VERSION
+
+2. Update to new version (if not already):
+   echo "X.Y.Z" > VERSION
+
+3. Verify:
+   cat VERSION
+```
+
+#### D2: Update CHANGELOG.md
+```
+UPDATE CHANGELOG WITH NEW VERSION:
+
+1. Read current CHANGELOG.md:
+   head -100 CHANGELOG.md
+
+2. Add new version section after [Unreleased]:
+   - Use Keep a Changelog format
+   - Include ALL changes from this release
+   - Categories: Added, Changed, Fixed, Removed, Security
+   - Date format: YYYY-MM-DD
+
+3. Use Edit tool to insert new section:
+   ## [X.Y.Z] - YYYY-MM-DD
+
+   ### Added
+   - Feature 1
+   - Feature 2
+
+   ### Fixed
+   - Bug fix 1
+
+4. Verify CHANGELOG follows Keep a Changelog format
+
+IF CHANGELOG NOT UPDATED: BLOCK RELEASE
+```
+
+#### D3: Update README.md Version Badges
+```
+UPDATE README VERSION BADGES:
+
+1. Search for version badges in README.md:
+   grep -n "version-" README.md
+   grep -n "badge.*version" README.md
+
+2. Replace ALL occurrences of old version with new:
+   - Version badges: version-X.Y.Z-blue
+   - Alt text: Version X.Y.Z
+   - Any other version references
+
+3. Verify ALL version references updated
+
+IF ANY VERSION MISMATCH: BLOCK RELEASE
+```
+
+#### D4: Update README "What's New" Section
+```
+UPDATE README WHAT'S NEW SECTION:
+
+1. Find "What's New" section:
+   grep -n "What's New" README.md
+
+2. Update section header to new version:
+   ## What's New in vX.Y.Z
+
+3. Update content with highlights of this release:
+   - Major new features
+   - Breaking changes (if any)
+   - Key improvements
+
+4. Keep previous version's "What's New" below (for history)
+
+WHAT'S NEW MUST INCLUDE:
+- Multi-Edition info (if applicable)
+- New features with code examples
+- Installation changes
+```
+
+#### D5: Update GitHub Release Notes
+```
+UPDATE GITHUB RELEASE NOTES:
+
+1. Generate release notes from CHANGELOG:
+   - Copy [X.Y.Z] section from CHANGELOG.md
+   - Add download table with ALL editions
+   - Add installation instructions
+
+2. Update release:
+   gh release edit vX.Y.Z --notes "$(cat release_notes.md)"
+
+3. Verify release notes display correctly:
+   gh release view vX.Y.Z
+
+RELEASE NOTES MUST INCLUDE:
+- Download table with ALL edition tarballs
+- SHA256 checksums
+- Installation instructions for each edition
+- Link to CHANGELOG for full details
+```
+
+---
+
+## 🍺 Phase 7: DISTRIBUTION UPDATES (MANDATORY)
+
+**CRITICAL: Homebrew tap is in a SEPARATE repository! Must update both.**
+
+### Phase 7 Sub-Agent Prompts
+
+#### H1-H4: Update Homebrew Tap
+```
+UPDATE HOMEBREW TAP (SEPARATE REPOSITORY!):
+
+⚠️ CRITICAL: The Homebrew tap is at:
+   https://github.com/Roberdan/homebrew-convergio-cli
+   NOT in the main convergio-cli repo!
+
+1. Clone the tap repository:
+   cd /tmp && rm -rf homebrew-convergio-cli
+   git clone https://github.com/Roberdan/homebrew-convergio-cli.git
+   cd homebrew-convergio-cli
+
+2. Calculate SHA256 of new tarball:
+   shasum -a 256 /path/to/dist/convergio-X.Y.Z-arm64-apple-darwin.tar.gz
+
+3. Update Formula/convergio.rb:
+   - version "X.Y.Z"
+   - url "https://github.com/Roberdan/convergio-cli/releases/download/vX.Y.Z/convergio-X.Y.Z-arm64-apple-darwin.tar.gz"
+   - sha256 "NEW_SHA256_HERE"
+
+4. Commit and push:
+   git add Formula/convergio.rb
+   git commit -m "Update to vX.Y.Z"
+   git push origin main
+
+5. Verify update works:
+   brew update
+   brew upgrade convergio
+   convergio --version  # Must show X.Y.Z
+
+IF HOMEBREW UPDATE FAILS: BLOCK RELEASE
+The tap repository is: https://github.com/Roberdan/homebrew-convergio-cli
+
+OUTPUT FORMAT:
+{
+  "status": "PASS" | "BLOCK",
+  "tap_repo": "Roberdan/homebrew-convergio-cli",
+  "formula_updated": true/false,
+  "brew_upgrade_works": true/false,
+  "installed_version": "X.Y.Z"
+}
+```
+
+#### W1-W2: Update Website
+```
+UPDATE CONVERGIO WEBSITE:
+
+1. Check if website directory exists:
+   ls -la website/ || ls -la docs/
+
+2. Update version in website:
+   - index.html: version number
+   - download links
+   - changelog/release notes
+
+3. Deploy website (if automated):
+   - Check for deploy script
+   - Or verify GitHub Pages auto-deploys
+
+4. Verify website shows new version
+
+IF WEBSITE EXISTS AND NOT UPDATED: WARNING (not blocking)
+```
+
+---
+
+## ✅ Phase 8: FINAL VERIFICATION (MANDATORY)
+
+**CRITICAL: This phase verifies the ENTIRE release is correct. NEVER skip.**
+
+### Phase 8 Sub-Agent Prompts
+
+#### V1: Verify GitHub Release Assets
+```
+VERIFY GITHUB RELEASE HAS ALL ASSETS:
+
+VERSION=$(cat VERSION)
+
+1. List all release assets:
+   gh release view v${VERSION} --json assets --jq '.assets[].name'
+
+2. Verify ALL 4 edition tarballs present:
+   - convergio-${VERSION}-arm64-apple-darwin.tar.gz
+   - convergio-edu-${VERSION}-arm64-apple-darwin.tar.gz
+   - convergio-biz-${VERSION}-arm64-apple-darwin.tar.gz
+   - convergio-dev-${VERSION}-arm64-apple-darwin.tar.gz
+
+3. Test download of each:
+   curl -sL "https://github.com/Roberdan/convergio-cli/releases/download/v${VERSION}/convergio-${VERSION}-arm64-apple-darwin.tar.gz" -o /tmp/test.tar.gz
+   tar -tzf /tmp/test.tar.gz  # Should list files
+
+IF ANY ASSET MISSING OR CORRUPT: BLOCK RELEASE
+
+OUTPUT FORMAT:
+{
+  "status": "PASS" | "BLOCK",
+  "assets": {
+    "master": {"present": true/false, "downloadable": true/false},
+    "education": {"present": true/false, "downloadable": true/false},
+    "business": {"present": true/false, "downloadable": true/false},
+    "developer": {"present": true/false, "downloadable": true/false}
+  }
+}
+```
+
+#### V2-V4: Verify Installed Versions
+```
+VERIFY ALL INSTALLED VERSIONS:
+
+1. Verify brew version:
+   brew info convergio | grep "convergio:"
+   Expected: convergio: X.Y.Z
+
+2. Verify CLI version:
+   convergio --version
+   Expected: Convergio X.Y.Z
+
+3. Verify Education edition (if installed):
+   ./build/bin/convergio-edu --version
+   Expected: Convergio X.Y.Z (Education Edition)
+
+4. Verify all versions match:
+   - VERSION file
+   - GitHub release tag
+   - Homebrew formula
+   - Binary --version output
+
+IF ANY VERSION MISMATCH: BLOCK RELEASE
+```
+
+#### V5: Generate Final Release Report
+```
+GENERATE FINAL RELEASE REPORT:
+
+Create comprehensive report:
+
+╔═══════════════════════════════════════════════════════════════╗
+║              CONVERGIO vX.Y.Z RELEASE REPORT                  ║
+╠═══════════════════════════════════════════════════════════════╣
+║ Release Date: YYYY-MM-DD HH:MM UTC                            ║
+║ Release Manager: app-release-manager                          ║
+╠═══════════════════════════════════════════════════════════════╣
+║ EDITIONS RELEASED:                                            ║
+║   ✅ Master:     convergio-X.Y.Z-arm64-apple-darwin.tar.gz    ║
+║   ✅ Education:  convergio-edu-X.Y.Z-arm64-apple-darwin.tar.gz║
+║   ✅ Business:   convergio-biz-X.Y.Z-arm64-apple-darwin.tar.gz║
+║   ✅ Developer:  convergio-dev-X.Y.Z-arm64-apple-darwin.tar.gz║
+╠═══════════════════════════════════════════════════════════════╣
+║ DISTRIBUTION:                                                 ║
+║   ✅ GitHub Release: https://github.com/.../releases/vX.Y.Z   ║
+║   ✅ Homebrew: brew install convergio → X.Y.Z                 ║
+╠═══════════════════════════════════════════════════════════════╣
+║ DOCUMENTATION:                                                ║
+║   ✅ CHANGELOG.md: Updated                                    ║
+║   ✅ README.md: Updated                                       ║
+║   ✅ Release Notes: Updated                                   ║
+╠═══════════════════════════════════════════════════════════════╣
+║ VERIFICATION:                                                 ║
+║   ✅ All assets downloadable                                  ║
+║   ✅ All versions match                                       ║
+║   ✅ Homebrew upgrade works                                   ║
+╠═══════════════════════════════════════════════════════════════╣
+║                    🟢 RELEASE SUCCESSFUL                      ║
+╚═══════════════════════════════════════════════════════════════╝
+```
 
 ---
 
