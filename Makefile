@@ -1205,4 +1205,35 @@ test-dev:
 	@if [ ! -x "$(BIN_DIR)/convergio-dev" ]; then $(MAKE) EDITION=developer; fi
 	@if [ -f "./tests/e2e_developer_test.sh" ]; then ./tests/e2e_developer_test.sh; fi
 
-.PHONY: all dirs metal run clean debug install uninstall hwinfo help fuzz_test unit_test anna_test plan_db_test output_service_test check-docs test version dist release convergio-acp install-acp cache-stats build-edu test-edu test-edu-llm test-edu-verbose test-edu-full build-biz test-biz build-dev test-dev
+# ============================================================================
+# NATIVE APP BUILD TARGETS
+# ============================================================================
+
+# Build static library for native app (via CMake)
+core:
+	@echo "Building ConvergioCore static library..."
+	@mkdir -p build && cd build && cmake .. -DCMAKE_BUILD_TYPE=Release && make convergio_lib -j8
+	@echo "Static library built: build/lib/libconvergio.a"
+
+# Build the native macOS app (requires Xcode project)
+app: core
+	@echo "Building Convergio Native App..."
+	@if [ -d "ConvergioApp/ConvergioApp.xcodeproj" ]; then \
+		xcodebuild -project ConvergioApp/ConvergioApp.xcodeproj \
+			-scheme ConvergioApp \
+			-configuration Release \
+			-destination 'platform=macOS' \
+			LIBRARY_SEARCH_PATHS='$$(PROJECT_DIR)/../build/lib' \
+			HEADER_SEARCH_PATHS='$$(PROJECT_DIR)/../include'; \
+	else \
+		echo "Xcode project not found. Please create ConvergioApp.xcodeproj first."; \
+	fi
+
+# Build everything for native app development
+native: core
+	@echo "Native app development environment ready."
+	@echo "Static library: build/lib/libconvergio.a"
+	@echo "Headers: include/nous/"
+	@echo "Swift package: ConvergioCore/"
+
+.PHONY: all dirs metal run clean debug install uninstall hwinfo help fuzz_test unit_test anna_test plan_db_test output_service_test check-docs test version dist release convergio-acp install-acp cache-stats build-edu test-edu test-edu-llm test-edu-verbose test-edu-full build-biz test-biz build-dev test-dev core app native

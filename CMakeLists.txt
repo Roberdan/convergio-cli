@@ -205,6 +205,56 @@ add_custom_target(metal_shaders
     DEPENDS ${CMAKE_BINARY_DIR}/similarity.metallib
 )
 
+# ============================================================================
+# STATIC LIBRARY FOR NATIVE APP
+# ============================================================================
+
+# Library sources (everything except main.c, plus native app bridge)
+set(LIB_SOURCES ${NOUS_SOURCES})
+list(REMOVE_ITEM LIB_SOURCES src/core/main.c)
+list(APPEND LIB_SOURCES src/native/swift_bridge.c)
+
+# Create static library for native macOS app
+add_library(convergio_lib STATIC
+    ${LIB_SOURCES}
+    ${NOUS_OBJC_SOURCES}
+)
+
+# Set output name to just "convergio" (produces libconvergio.a)
+set_target_properties(convergio_lib PROPERTIES
+    OUTPUT_NAME convergio
+    ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib
+)
+
+# Library needs same frameworks
+target_link_libraries(convergio_lib
+    ${METAL_FRAMEWORK}
+    ${METALKIT_FRAMEWORK}
+    ${MPS_FRAMEWORK}
+    ${ACCELERATE_FRAMEWORK}
+    ${FOUNDATION_FRAMEWORK}
+    ${SECURITY_FRAMEWORK}
+    ${APPKIT_FRAMEWORK}
+    ${CURL_LIBRARY}
+    ${SQLITE3_LIBRARY}
+)
+
+if(COREML_FRAMEWORK)
+    target_link_libraries(convergio_lib ${COREML_FRAMEWORK})
+    target_compile_definitions(convergio_lib PRIVATE CONVERGIO_HAS_COREML=1)
+endif()
+
+# Expose public headers
+target_include_directories(convergio_lib PUBLIC
+    ${CMAKE_SOURCE_DIR}/include
+)
+
+add_dependencies(convergio_lib metal_shaders)
+
+# ============================================================================
+# MAIN EXECUTABLE (CLI)
+# ============================================================================
+
 # Main executable
 add_executable(convergio
     ${NOUS_SOURCES}
@@ -256,6 +306,16 @@ install(FILES ${CMAKE_BINARY_DIR}/similarity.metallib
 
 install(DIRECTORY include/nous
     DESTINATION include/convergio
+)
+
+# Install static library for native app development
+install(TARGETS convergio_lib
+    ARCHIVE DESTINATION lib
+)
+
+# Install public headers for native app
+install(DIRECTORY include/nous
+    DESTINATION include
 )
 
 # Testing
