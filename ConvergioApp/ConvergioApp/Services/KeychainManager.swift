@@ -16,6 +16,7 @@ import Security
 public enum APIProvider: String, CaseIterable, Identifiable {
     case anthropic = "ANTHROPIC_API_KEY"
     case openai = "OPENAI_API_KEY"
+    case azureOpenAI = "AZURE_OPENAI_API_KEY"
     case gemini = "GEMINI_API_KEY"
     case openrouter = "OPENROUTER_API_KEY"
     case perplexity = "PERPLEXITY_API_KEY"
@@ -30,6 +31,7 @@ public enum APIProvider: String, CaseIterable, Identifiable {
         switch self {
         case .anthropic: return "Anthropic"
         case .openai: return "OpenAI"
+        case .azureOpenAI: return "Azure OpenAI"
         case .gemini: return "Google Gemini"
         case .openrouter: return "OpenRouter"
         case .perplexity: return "Perplexity"
@@ -44,6 +46,7 @@ public enum APIProvider: String, CaseIterable, Identifiable {
         switch self {
         case .anthropic: return "brain"
         case .openai: return "sparkles"
+        case .azureOpenAI: return "cloud"
         case .gemini: return "g.circle"
         case .openrouter: return "arrow.triangle.branch"
         case .perplexity: return "magnifyingglass"
@@ -74,6 +77,7 @@ public final class KeychainManager: ObservableObject {
     /// Published state for UI binding
     @Published public private(set) var hasAnthropicKey = false
     @Published public private(set) var hasOpenAIKey = false
+    @Published public private(set) var hasAzureOpenAIKey = false
     @Published public private(set) var hasGeminiKey = false
     @Published public private(set) var hasOpenRouterKey = false
 
@@ -88,6 +92,7 @@ public final class KeychainManager: ObservableObject {
     public func refreshKeyStatus() {
         hasAnthropicKey = getKey(for: .anthropic) != nil
         hasOpenAIKey = getKey(for: .openai) != nil
+        hasAzureOpenAIKey = getKey(for: .azureOpenAI) != nil
         hasGeminiKey = getKey(for: .gemini) != nil
         hasOpenRouterKey = getKey(for: .openrouter) != nil
     }
@@ -264,6 +269,9 @@ public final class KeychainManager: ObservableObject {
         case .openai:
             // OpenAI keys start with "sk-"
             return key.hasPrefix("sk-") && key.count > 20
+        case .azureOpenAI:
+            // Azure OpenAI keys are 32 hex characters
+            return key.count >= 32
         case .gemini:
             // Google API keys are typically 39 characters
             return key.count >= 30
@@ -312,13 +320,13 @@ extension KeychainManager {
         logInfo("Initializing KeychainManager on launch", category: "Keychain")
 
         // First, try to import from environment if Keychain is empty
-        if !hasAnthropicKey && !hasOpenAIKey && !hasGeminiKey {
+        if !hasAnthropicKey && !hasOpenAIKey && !hasAzureOpenAIKey && !hasGeminiKey {
             importFromEnvironment()
         }
 
         // Then export all keys to environment for C library
         exportToEnvironment()
 
-        logInfo("KeychainManager initialized - Anthropic: \(hasAnthropicKey), OpenAI: \(hasOpenAIKey), Gemini: \(hasGeminiKey)", category: "Keychain")
+        logInfo("KeychainManager initialized - Anthropic: \(hasAnthropicKey), OpenAI: \(hasOpenAIKey), Azure: \(hasAzureOpenAIKey), Gemini: \(hasGeminiKey)", category: "Keychain")
     }
 }

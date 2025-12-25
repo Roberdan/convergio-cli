@@ -1,591 +1,696 @@
-/**
- * CONVERGIO NATIVE - FlashcardDeckView
- *
- * Interactive flashcard review interface with swipe gestures.
- * Uses FSRS algorithm for optimal spaced repetition scheduling.
- *
- * Part of the Scuola 2026 Education Core (Tasks 1.3.2 - 1.3.4)
- *
- * Swipe Gestures:
- * - Left: Again (failed)
- * - Right: Good (recalled)
- * - Up: Easy (effortless recall)
- * - Down/Tap: Flip card
- *
- * Copyright 2025 - Roberto D'Angelo & AI Team
- */
+//
+//  FlashcardDeckView.swift
+//  ConvergioApp
+//
+//  Flashcard deck with swipe gestures and FSRS scheduling
+//  Swipe directions: Left = Again, Down = Hard, Right = Good, Up = Easy
+//
+//  Created by Roberto Daniele on 2025-12-24.
+//
 
 import SwiftUI
 
-// MARK: - FlashcardDeckView
-
 struct FlashcardDeckView: View {
-    @StateObject private var fsrs = FSRSManager.shared
-    @State private var currentCards: [Flashcard] = []
-    @State private var currentIndex: Int = 0
-    @State private var showAnswer: Bool = false
-    @State private var cardOffset: CGSize = .zero
-    @State private var cardRotation: Double = 0
-    @State private var reviewStartTime: Date = Date()
-    @State private var sessionComplete: Bool = false
+    @StateObject private var viewModel: FlashcardDeckViewModel
+    @State private var showSessionSummary = false
+    @State private var currentCardOffset: CGSize = .zero
+    @State private var currentCardRotation: Double = 0
+    @State private var isFlipped = false
 
-    let deck: FlashcardDeck?
+    private let cardWidth: CGFloat = 400
+    private let cardHeight: CGFloat = 500
+    private let swipeThreshold: CGFloat = 100
 
-    var body: some View {
-        VStack(spacing: 0) {
-            // Header
-            header
-
-            // Card stack
-            if sessionComplete {
-                sessionCompleteView
-            } else if currentCards.isEmpty {
-                emptyStateView
-            } else {
-                cardStack
-            }
-
-            // Rating buttons (when answer shown)
-            if showAnswer && !sessionComplete {
-                ratingButtons
-            }
-
-            // Progress bar
-            progressBar
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color(nsColor: .windowBackgroundColor))
-        .onAppear { loadCards() }
+    init(deck: FlashcardDeck) {
+        _viewModel = StateObject(wrappedValue: FlashcardDeckViewModel(deck: deck))
     }
 
-    // MARK: - Header
+    var body: some View {
+        ZStack {
+            // Background
+            Color.black.opacity(0.02)
+                .ignoresSafeArea()
 
-    private var header: some View {
+            VStack(spacing: 0) {
+                // Header
+                HeaderView(
+                    deckName: viewModel.deck.name,
+                    remaining: viewModel.remainingCards,
+                    total: viewModel.totalCards,
+                    onClose: {
+                        showSessionSummary = true
+                    }
+                )
+                .padding()
+
+                Spacer()
+
+                // Card Stack
+                ZStack {
+                    // Background cards (for stack effect)
+                    ForEach(0..<min(3, viewModel.remainingCards), id: \.self) { index in
+                        if index > 0 {
+                            RoundedRectangle(cornerRadius: 20)
+                                .fill(Color.secondary.opacity(0.1))
+                                .frame(width: cardWidth, height: cardHeight)
+                                .offset(y: CGFloat(index * 10))
+                                .scaleEffect(1 - CGFloat(index) * 0.05)
+                        }
+                    }
+
+                    // Current card
+                    if let currentCard = viewModel.currentCard {
+                        SwipeableCardView(
+                            flashcard: currentCard,
+                            isFlipped: $isFlipped,
+                            offset: $currentCardOffset,
+                            rotation: $currentCardRotation,
+                            onSwipe: handleSwipe
+                        )
+                        .offset(currentCardOffset)
+                        .rotationEffect(.degrees(currentCardRotation))
+                    } else {
+                        // All cards completed
+                        CompletedView(onReview: {
+                            viewModel.resetSession()
+                            isFlipped = false
+                        })
+                    }
+                }
+
+                Spacer()
+
+                // Swipe indicators
+                if viewModel.currentCard != nil {
+                    SwipeIndicatorsView()
+                        .padding(.bottom, 20)
+                }
+
+                // Progress bar
+                ProgressBarView(
+                    completed: viewModel.totalCards - viewModel.remainingCards,
+                    total: viewModel.totalCards
+                )
+                .padding()
+            }
+
+            // Swipe direction indicator
+            if currentCardOffset != .zero {
+                SwipeDirectionOverlay(offset: currentCardOffset)
+            }
+        }
+        .sheet(isPresented: $showSessionSummary) {
+            SessionSummaryView(
+                session: viewModel.currentSession,
+                onDismiss: { showSessionSummary = false },
+                onContinue: {
+                    showSessionSummary = false
+                }
+            )
+        }
+    }
+
+    private func handleSwipe(direction: SwipeDirection) {
+        guard viewModel.currentCard != nil else { return }
+
+        // Determine rating from swipe direction
+        let rating: Rating
+        switch direction {
+        case .left: rating = .again
+        case .down: rating = .hard
+        case .right: rating = .good
+        case .up: rating = .easy
+        }
+
+        // Animate card away
+        withAnimation(.spring(response: 0.5, dampingFraction: 0.7)) {
+            switch direction {
+            case .left:
+                currentCardOffset = CGSize(width: -500, height: 0)
+                currentCardRotation = -15
+            case .down:
+                currentCardOffset = CGSize(width: 0, height: 500)
+                currentCardRotation = 0
+            case .right:
+                currentCardOffset = CGSize(width: 500, height: 0)
+                currentCardRotation = 15
+            case .up:
+                currentCardOffset = CGSize(width: 0, height: -500)
+                currentCardRotation = 0
+            }
+        }
+
+        // Process rating and move to next card
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+            viewModel.rateCurrentCard(rating: rating)
+            isFlipped = false
+
+            // Reset offset and rotation
+            currentCardOffset = .zero
+            currentCardRotation = 0
+        }
+    }
+}
+
+// MARK: - Swipeable Card View
+
+private struct SwipeableCardView: View {
+    let flashcard: Flashcard
+    @Binding var isFlipped: Bool
+    @Binding var offset: CGSize
+    @Binding var rotation: Double
+
+    let onSwipe: (SwipeDirection) -> Void
+
+    @State private var dragOffset: CGSize = .zero
+    private let swipeThreshold: CGFloat = 100
+
+    var body: some View {
+        FlashcardView(flashcard: flashcard, showRatingButtons: false)
+            .gesture(
+                DragGesture()
+                    .onChanged { value in
+                        dragOffset = value.translation
+                        offset = value.translation
+                        rotation = Double(value.translation.width / 20)
+                    }
+                    .onEnded { value in
+                        let direction = determineSwipeDirection(translation: value.translation)
+                        if let direction = direction {
+                            onSwipe(direction)
+                        } else {
+                            // Snap back
+                            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                                offset = .zero
+                                rotation = 0
+                            }
+                        }
+                        dragOffset = .zero
+                    }
+            )
+            .onTapGesture {
+                withAnimation(.spring(response: 0.6, dampingFraction: 0.8)) {
+                    isFlipped.toggle()
+                }
+            }
+    }
+
+    private func determineSwipeDirection(translation: CGSize) -> SwipeDirection? {
+        let horizontal = abs(translation.width)
+        let vertical = abs(translation.height)
+
+        if horizontal > vertical {
+            // Horizontal swipe
+            if horizontal > swipeThreshold {
+                return translation.width > 0 ? .right : .left
+            }
+        } else {
+            // Vertical swipe
+            if vertical > swipeThreshold {
+                return translation.height > 0 ? .down : .up
+            }
+        }
+
+        return nil
+    }
+}
+
+enum SwipeDirection {
+    case left, right, up, down
+}
+
+// MARK: - Header View
+
+private struct HeaderView: View {
+    let deckName: String
+    let remaining: Int
+    let total: Int
+    let onClose: () -> Void
+
+    var body: some View {
         HStack {
             VStack(alignment: .leading, spacing: 4) {
-                Text(deck?.name ?? "All Cards")
-                    .font(.title2.bold())
-
-                Text("\(currentCards.count) cards remaining")
-                    .font(.caption)
+                Text(deckName)
+                    .font(.title2)
+                    .fontWeight(.bold)
+                Text("\(remaining) of \(total) cards remaining")
+                    .font(.subheadline)
                     .foregroundColor(.secondary)
             }
 
             Spacer()
 
-            // Stats
-            HStack(spacing: 16) {
-                StatBadge(label: "Today", value: "\(fsrs.todayReviews)", color: .blue)
-                StatBadge(label: "Due", value: "\(fsrs.dueCards.count)", color: .orange)
-                StatBadge(label: "Streak", value: "\(fsrs.streak)", color: .green)
+            Button(action: onClose) {
+                Image(systemName: "xmark.circle.fill")
+                    .font(.title2)
+                    .foregroundColor(.secondary)
             }
+            .buttonStyle(PlainButtonStyle())
+        }
+    }
+}
+
+// MARK: - Swipe Indicators
+
+private struct SwipeIndicatorsView: View {
+    var body: some View {
+        HStack(spacing: 40) {
+            SwipeIndicator(
+                direction: "←",
+                label: "Again",
+                color: .red,
+                icon: "xmark.circle.fill"
+            )
+
+            SwipeIndicator(
+                direction: "↓",
+                label: "Hard",
+                color: .orange,
+                icon: "minus.circle.fill"
+            )
+
+            SwipeIndicator(
+                direction: "→",
+                label: "Good",
+                color: .green,
+                icon: "checkmark.circle.fill"
+            )
+
+            SwipeIndicator(
+                direction: "↑",
+                label: "Easy",
+                color: .blue,
+                icon: "star.circle.fill"
+            )
         }
         .padding()
+        .background(Color.secondary.opacity(0.05))
+        .cornerRadius(16)
     }
+}
 
-    // MARK: - Card Stack
+private struct SwipeIndicator: View {
+    let direction: String
+    let label: String
+    let color: Color
+    let icon: String
 
-    private var cardStack: some View {
-        ZStack {
-            // Background cards
-            ForEach(Array(currentCards.dropFirst().prefix(2).enumerated()), id: \.element.id) { index, card in
-                FlashcardView(card: card, showAnswer: false)
-                    .scaleEffect(1 - CGFloat(index + 1) * 0.05)
-                    .offset(y: CGFloat(index + 1) * 10)
-                    .opacity(0.7 - Double(index) * 0.2)
-            }
-
-            // Current card
-            if let card = currentCards.first {
-                FlashcardView(card: card, showAnswer: showAnswer)
-                    .offset(cardOffset)
-                    .rotationEffect(.degrees(cardRotation))
-                    .gesture(dragGesture)
-                    .gesture(tapGesture)
-                    .overlay(swipeIndicator)
-                    .animation(.spring(response: 0.3), value: cardOffset)
-            }
+    var body: some View {
+        VStack(spacing: 4) {
+            Image(systemName: icon)
+                .font(.title3)
+                .foregroundColor(color)
+            Text(direction)
+                .font(.title)
+                .foregroundColor(color)
+            Text(label)
+                .font(.caption)
+                .foregroundColor(.secondary)
         }
-        .padding(.horizontal, 40)
-        .padding(.vertical, 20)
+        .frame(width: 70)
+    }
+}
+
+// MARK: - Swipe Direction Overlay
+
+private struct SwipeDirectionOverlay: View {
+    let offset: CGSize
+
+    private var activeRating: Rating? {
+        let horizontal = abs(offset.width)
+        let vertical = abs(offset.height)
+
+        if horizontal > vertical && horizontal > 50 {
+            return offset.width > 0 ? .good : .again
+        } else if vertical > 50 {
+            return offset.height > 0 ? .hard : .easy
+        }
+        return nil
     }
 
-    // MARK: - Gestures
+    var body: some View {
+        if let rating = activeRating {
+            VStack {
+                Image(systemName: rating.icon)
+                    .font(.system(size: 60))
+                    .foregroundColor(rating.color)
+                Text(rating.rawValue)
+                    .font(.title)
+                    .fontWeight(.bold)
+                    .foregroundColor(rating.color)
+            }
+            .padding(30)
+            .background(rating.color.opacity(0.2))
+            .cornerRadius(20)
+            .shadow(color: rating.color.opacity(0.3), radius: 10)
+        }
+    }
+}
 
-    private var dragGesture: some Gesture {
-        DragGesture()
-            .onChanged { value in
-                cardOffset = value.translation
-                cardRotation = Double(value.translation.width) / 20
-            }
-            .onEnded { value in
-                handleSwipe(translation: value.translation, velocity: value.predictedEndTranslation)
-            }
+// MARK: - Progress Bar
+
+private struct ProgressBarView: View {
+    let completed: Int
+    let total: Int
+
+    private var progress: Double {
+        guard total > 0 else { return 0 }
+        return Double(completed) / Double(total)
     }
 
-    private var tapGesture: some Gesture {
-        TapGesture()
-            .onEnded {
-                withAnimation(.spring(response: 0.4)) {
-                    showAnswer.toggle()
-                    if showAnswer {
-                        reviewStartTime = Date()
-                    }
+    var body: some View {
+        VStack(spacing: 8) {
+            GeometryReader { geometry in
+                ZStack(alignment: .leading) {
+                    RoundedRectangle(cornerRadius: 4)
+                        .fill(Color.secondary.opacity(0.2))
+
+                    RoundedRectangle(cornerRadius: 4)
+                        .fill(
+                            LinearGradient(
+                                colors: [Color.blue, Color.purple],
+                                startPoint: .leading,
+                                endPoint: .trailing
+                            )
+                        )
+                        .frame(width: geometry.size.width * progress)
                 }
             }
-    }
+            .frame(height: 8)
 
-    private func handleSwipe(translation: CGSize, velocity: CGSize) {
-        let threshold: CGFloat = 100
-        let verticalThreshold: CGFloat = 80
-
-        // Determine swipe direction
-        if abs(translation.width) > threshold || abs(velocity.width) > 500 {
-            // Horizontal swipe
-            if translation.width > 0 {
-                // Right = Good
-                rateCard(.good)
-            } else {
-                // Left = Again
-                rateCard(.again)
-            }
-        } else if translation.height < -verticalThreshold || velocity.height < -300 {
-            // Swipe up = Easy
-            rateCard(.easy)
-        } else if translation.height > verticalThreshold {
-            // Swipe down = Show answer
-            withAnimation(.spring(response: 0.4)) {
-                showAnswer = true
-            }
-            cardOffset = .zero
-            cardRotation = 0
-        } else {
-            // Reset
-            withAnimation(.spring(response: 0.3)) {
-                cardOffset = .zero
-                cardRotation = 0
-            }
+            Text("\(completed) / \(total)")
+                .font(.caption)
+                .foregroundColor(.secondary)
         }
     }
+}
 
-    // MARK: - Swipe Indicator
+// MARK: - Completed View
 
-    @ViewBuilder
-    private var swipeIndicator: some View {
-        ZStack {
-            if cardOffset.width > 50 {
-                Text("GOOD")
-                    .font(.title.bold())
-                    .foregroundColor(.green)
-                    .padding()
-                    .background(Color.green.opacity(0.2))
-                    .cornerRadius(10)
-                    .offset(x: -80)
-            }
+private struct CompletedView: View {
+    let onReview: () -> Void
 
-            if cardOffset.width < -50 {
-                Text("AGAIN")
-                    .font(.title.bold())
-                    .foregroundColor(.red)
-                    .padding()
-                    .background(Color.red.opacity(0.2))
-                    .cornerRadius(10)
-                    .offset(x: 80)
-            }
-
-            if cardOffset.height < -50 {
-                Text("EASY")
-                    .font(.title.bold())
-                    .foregroundColor(.blue)
-                    .padding()
-                    .background(Color.blue.opacity(0.2))
-                    .cornerRadius(10)
-                    .offset(y: 80)
-            }
-        }
-        .opacity(min(1, max(abs(cardOffset.width), abs(cardOffset.height)) / 100))
-    }
-
-    // MARK: - Rating Buttons
-
-    private var ratingButtons: some View {
-        HStack(spacing: 16) {
-            ForEach(FSRSRating.allCases, id: \.rawValue) { rating in
-                RatingButton(rating: rating) {
-                    rateCard(rating)
-                }
-            }
-        }
-        .padding()
-        .transition(.move(edge: .bottom).combined(with: .opacity))
-    }
-
-    private func rateCard(_ rating: FSRSRating) {
-        guard let card = currentCards.first else { return }
-
-        let duration = Date().timeIntervalSince(reviewStartTime) * 1000 // ms
-        let _ = fsrs.reviewCard(card, rating: rating, duration: duration)
-
-        // Animate card out
-        withAnimation(.easeOut(duration: 0.3)) {
-            switch rating {
-            case .again:
-                cardOffset = CGSize(width: -500, height: 0)
-            case .hard:
-                cardOffset = CGSize(width: -300, height: 100)
-            case .good:
-                cardOffset = CGSize(width: 500, height: 0)
-            case .easy:
-                cardOffset = CGSize(width: 0, height: -500)
-            }
-        }
-
-        // Load next card
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-            currentCards.removeFirst()
-            cardOffset = .zero
-            cardRotation = 0
-            showAnswer = false
-
-            if currentCards.isEmpty {
-                sessionComplete = true
-            }
-        }
-    }
-
-    // MARK: - Progress Bar
-
-    private var progressBar: some View {
-        GeometryReader { geometry in
-            let total = currentCards.count + fsrs.todayReviews
-            let progress = total > 0 ? CGFloat(fsrs.todayReviews) / CGFloat(total) : 0
-
-            ZStack(alignment: .leading) {
-                Rectangle()
-                    .fill(Color.gray.opacity(0.2))
-
-                Rectangle()
-                    .fill(Color.green)
-                    .frame(width: geometry.size.width * progress)
-            }
-        }
-        .frame(height: 4)
-    }
-
-    // MARK: - Empty State
-
-    private var emptyStateView: some View {
-        VStack(spacing: 20) {
+    var body: some View {
+        VStack(spacing: 30) {
             Image(systemName: "checkmark.circle.fill")
                 .font(.system(size: 80))
                 .foregroundColor(.green)
 
-            Text("No cards due!")
-                .font(.title2.bold())
-
-            Text("Great job! Come back later for more reviews.")
-                .foregroundColor(.secondary)
-                .multilineTextAlignment(.center)
-        }
-        .padding()
-    }
-
-    // MARK: - Session Complete
-
-    private var sessionCompleteView: some View {
-        VStack(spacing: 24) {
-            Image(systemName: "party.popper.fill")
-                .font(.system(size: 80))
-                .foregroundColor(.yellow)
-
-            Text("Session Complete!")
-                .font(.title.bold())
-
-            VStack(spacing: 8) {
-                Text("Cards reviewed: \(fsrs.todayReviews)")
-                Text("Keep up the great work!")
-            }
-            .foregroundColor(.secondary)
-
-            Button("Start New Session") {
-                loadCards()
-                sessionComplete = false
-            }
-            .buttonStyle(.borderedProminent)
-        }
-        .padding()
-    }
-
-    // MARK: - Data Loading
-
-    private func loadCards() {
-        currentCards = fsrs.getDueCards(for: deck)
-        currentIndex = 0
-        showAnswer = false
-        sessionComplete = false
-    }
-}
-
-// MARK: - FlashcardView
-
-struct FlashcardView: View {
-    let card: Flashcard
-    let showAnswer: Bool
-
-    @State private var flipped = false
-
-    var body: some View {
-        ZStack {
-            // Front
-            CardFace(
-                content: card.front,
-                subtitle: "Question",
-                color: .blue
-            )
-            .opacity(showAnswer ? 0 : 1)
-            .rotation3DEffect(.degrees(showAnswer ? 180 : 0), axis: (x: 0, y: 1, z: 0))
-
-            // Back
-            CardFace(
-                content: card.back,
-                subtitle: "Answer",
-                color: .green
-            )
-            .opacity(showAnswer ? 1 : 0)
-            .rotation3DEffect(.degrees(showAnswer ? 0 : -180), axis: (x: 0, y: 1, z: 0))
-        }
-        .frame(maxWidth: 500, maxHeight: 400)
-        .animation(.spring(response: 0.4), value: showAnswer)
-    }
-}
-
-// MARK: - CardFace
-
-struct CardFace: View {
-    let content: String
-    let subtitle: String
-    let color: Color
-
-    var body: some View {
-        VStack(spacing: 16) {
-            Text(subtitle.uppercased())
-                .font(.caption.bold())
-                .foregroundColor(color)
-                .padding(.horizontal, 12)
-                .padding(.vertical, 4)
-                .background(color.opacity(0.1))
-                .cornerRadius(4)
-
-            Spacer()
-
-            Text(content)
-                .font(.title2)
-                .multilineTextAlignment(.center)
-                .padding()
-
-            Spacer()
-
-            Text("Tap to flip")
-                .font(.caption)
-                .foregroundColor(.secondary)
-        }
-        .padding(24)
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(
-            RoundedRectangle(cornerRadius: 20)
-                .fill(Color(nsColor: .controlBackgroundColor))
-                .shadow(color: color.opacity(0.2), radius: 10, y: 5)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 20)
-                .stroke(color.opacity(0.3), lineWidth: 2)
-        )
-    }
-}
-
-// MARK: - Rating Button
-
-struct RatingButton: View {
-    let rating: FSRSRating
-    let action: () -> Void
-
-    var body: some View {
-        Button(action: action) {
-            VStack(spacing: 4) {
-                Text(rating.emoji)
-                    .font(.title2)
-
-                Text(rating.displayName)
-                    .font(.caption.bold())
-            }
-            .frame(width: 70, height: 60)
-            .background(ratingColor.opacity(0.1))
-            .cornerRadius(12)
-            .overlay(
-                RoundedRectangle(cornerRadius: 12)
-                    .stroke(ratingColor, lineWidth: 2)
-            )
-        }
-        .buttonStyle(.plain)
-        .keyboardShortcut(keyboardKey, modifiers: [])
-    }
-
-    private var ratingColor: Color {
-        switch rating {
-        case .again: return .red
-        case .hard: return .orange
-        case .good: return .green
-        case .easy: return .blue
-        }
-    }
-
-    private var keyboardKey: KeyEquivalent {
-        switch rating {
-        case .again: return "1"
-        case .hard: return "2"
-        case .good: return "3"
-        case .easy: return "4"
-        }
-    }
-}
-
-// MARK: - Stat Badge
-
-struct StatBadge: View {
-    let label: String
-    let value: String
-    let color: Color
-
-    var body: some View {
-        VStack(spacing: 2) {
-            Text(value)
-                .font(.headline.bold())
-                .foregroundColor(color)
-
-            Text(label)
-                .font(.caption2)
-                .foregroundColor(.secondary)
-        }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 6)
-        .background(color.opacity(0.1))
-        .cornerRadius(8)
-    }
-}
-
-// MARK: - Deck List View
-
-struct FlashcardDecksListView: View {
-    @StateObject private var fsrs = FSRSManager.shared
-    @State private var showingCreateDeck = false
-    @State private var selectedDeck: FlashcardDeck?
-
-    var body: some View {
-        NavigationSplitView {
-            List(selection: $selectedDeck) {
-                Section("Your Decks") {
-                    ForEach(fsrs.decks) { deck in
-                        NavigationLink(value: deck) {
-                            DeckRow(deck: deck)
-                        }
-                    }
-                }
-
-                Section {
-                    Button {
-                        showingCreateDeck = true
-                    } label: {
-                        Label("Create New Deck", systemImage: "plus.circle.fill")
-                    }
-                }
-            }
-            .navigationTitle("Flashcards")
-            .toolbar {
-                ToolbarItem {
-                    Button {
-                        selectedDeck = nil
-                    } label: {
-                        Label("Study All", systemImage: "rectangle.stack.fill")
-                    }
-                }
-            }
-        } detail: {
-            FlashcardDeckView(deck: selectedDeck)
-        }
-        .sheet(isPresented: $showingCreateDeck) {
-            CreateDeckSheet { name, subject, maestroId in
-                let _ = fsrs.createDeck(name: name, subject: subject, maestroId: maestroId)
-            }
-        }
-    }
-}
-
-// MARK: - Deck Row
-
-struct DeckRow: View {
-    let deck: FlashcardDeck
-
-    var body: some View {
-        HStack {
-            VStack(alignment: .leading, spacing: 4) {
-                Text(deck.name)
-                    .font(.headline)
-
-                Text(deck.subject)
-                    .font(.caption)
+            VStack(spacing: 10) {
+                Text("Session Complete!")
+                    .font(.title)
+                    .fontWeight(.bold)
+                Text("Great job! All cards reviewed.")
+                    .font(.subheadline)
                     .foregroundColor(.secondary)
             }
 
-            Spacer()
-
-            Image(systemName: "chevron.right")
-                .foregroundColor(.secondary)
+            Button(action: onReview) {
+                Text("Review Again")
+                    .font(.headline)
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 30)
+                    .padding(.vertical, 12)
+                    .background(
+                        LinearGradient(
+                            colors: [Color.blue, Color.purple],
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        )
+                    )
+                    .cornerRadius(12)
+            }
+            .buttonStyle(PlainButtonStyle())
         }
-        .padding(.vertical, 4)
+        .frame(width: 400, height: 500)
     }
 }
 
-// MARK: - Create Deck Sheet
+// MARK: - Session Summary
 
-struct CreateDeckSheet: View {
-    @Environment(\.dismiss) private var dismiss
-    @State private var name = ""
-    @State private var subject = ""
-    @State private var maestroId: String?
-
-    let onCreate: (String, String, String?) -> Void
+private struct SessionSummaryView: View {
+    let session: ReviewSession
+    let onDismiss: () -> Void
+    let onContinue: () -> Void
 
     var body: some View {
-        NavigationStack {
-            Form {
-                TextField("Deck Name", text: $name)
-                TextField("Subject", text: $subject)
-            }
-            .frame(width: 400, height: 200)
-            .navigationTitle("Create Deck")
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }
+        VStack(spacing: 30) {
+            // Header
+            HStack {
+                Text("Session Summary")
+                    .font(.title)
+                    .fontWeight(.bold)
+                Spacer()
+                Button(action: onDismiss) {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.title2)
+                        .foregroundColor(.secondary)
                 }
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Create") {
-                        onCreate(name, subject, maestroId)
-                        dismiss()
-                    }
-                    .disabled(name.isEmpty || subject.isEmpty)
+                .buttonStyle(PlainButtonStyle())
+            }
+
+            Divider()
+
+            // Statistics
+            VStack(spacing: 20) {
+                StatRow(
+                    icon: "clock",
+                    label: "Duration",
+                    value: formatDuration(session.duration)
+                )
+                StatRow(
+                    icon: "rectangle.stack",
+                    label: "Cards Reviewed",
+                    value: "\(session.cardsReviewed)"
+                )
+                StatRow(
+                    icon: "gauge.medium",
+                    label: "Success Rate",
+                    value: String(format: "%.0f%%", session.successRate * 100)
+                )
+                StatRow(
+                    icon: "timer",
+                    label: "Avg. Time/Card",
+                    value: String(format: "%.1fs", session.averageTimePerCard)
+                )
+            }
+
+            // Rating breakdown
+            VStack(alignment: .leading, spacing: 12) {
+                Text("Rating Breakdown")
+                    .font(.headline)
+                    .padding(.bottom, 8)
+
+                RatingBar(rating: .again, count: session.againCount, total: session.cardsReviewed)
+                RatingBar(rating: .hard, count: session.hardCount, total: session.cardsReviewed)
+                RatingBar(rating: .good, count: session.goodCount, total: session.cardsReviewed)
+                RatingBar(rating: .easy, count: session.easyCount, total: session.cardsReviewed)
+            }
+            .padding()
+            .background(Color.secondary.opacity(0.05))
+            .cornerRadius(12)
+
+            Spacer()
+
+            // Actions
+            HStack(spacing: 16) {
+                Button(action: onDismiss) {
+                    Text("Close")
+                        .font(.headline)
+                        .foregroundColor(.primary)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 12)
+                        .background(Color.secondary.opacity(0.2))
+                        .cornerRadius(12)
+                }
+
+                Button(action: onContinue) {
+                    Text("Continue")
+                        .font(.headline)
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 12)
+                        .background(
+                            LinearGradient(
+                                colors: [Color.blue, Color.purple],
+                                startPoint: .leading,
+                                endPoint: .trailing
+                            )
+                        )
+                        .cornerRadius(12)
                 }
             }
+            .buttonStyle(PlainButtonStyle())
+        }
+        .padding(30)
+        .frame(width: 500, height: 600)
+    }
+
+    private func formatDuration(_ duration: TimeInterval) -> String {
+        let minutes = Int(duration) / 60
+        let seconds = Int(duration) % 60
+        return String(format: "%d:%02d", minutes, seconds)
+    }
+}
+
+private struct StatRow: View {
+    let icon: String
+    let label: String
+    let value: String
+
+    var body: some View {
+        HStack {
+            Image(systemName: icon)
+                .foregroundColor(.blue)
+                .frame(width: 30)
+            Text(label)
+                .foregroundColor(.secondary)
+            Spacer()
+            Text(value)
+                .fontWeight(.semibold)
         }
     }
 }
 
-// MARK: - Previews
+private struct RatingBar: View {
+    let rating: Rating
+    let count: Int
+    let total: Int
 
-#if DEBUG
-struct FlashcardDeckView_Previews: PreviewProvider {
-    static var previews: some View {
-        FlashcardDeckView(deck: nil)
-            .frame(width: 800, height: 600)
+    private var percentage: Double {
+        guard total > 0 else { return 0 }
+        return Double(count) / Double(total)
+    }
+
+    var body: some View {
+        HStack {
+            HStack(spacing: 8) {
+                Image(systemName: rating.icon)
+                    .foregroundColor(rating.color)
+                Text(rating.rawValue)
+                    .frame(width: 60, alignment: .leading)
+            }
+            .frame(width: 120)
+
+            GeometryReader { geometry in
+                ZStack(alignment: .leading) {
+                    RoundedRectangle(cornerRadius: 4)
+                        .fill(Color.secondary.opacity(0.2))
+
+                    RoundedRectangle(cornerRadius: 4)
+                        .fill(rating.color)
+                        .frame(width: geometry.size.width * percentage)
+                }
+            }
+            .frame(height: 8)
+
+            Text("\(count)")
+                .font(.caption)
+                .foregroundColor(.secondary)
+                .frame(width: 40, alignment: .trailing)
+        }
     }
 }
-#endif
+
+// MARK: - View Model
+
+class FlashcardDeckViewModel: ObservableObject {
+    @Published var deck: FlashcardDeck
+    @Published var currentSession: ReviewSession
+    @Published private(set) var currentCard: Flashcard?
+    @Published private(set) var remainingCards: Int = 0
+
+    private let fsrsManager = FSRSManager()
+    private var dueCards: [Flashcard] = []
+    private var currentIndex = 0
+
+    var totalCards: Int {
+        dueCards.count
+    }
+
+    init(deck: FlashcardDeck) {
+        self.deck = deck
+        self.currentSession = ReviewSession(deckId: deck.id)
+        loadDueCards()
+    }
+
+    private func loadDueCards() {
+        dueCards = fsrsManager.getDueCards(deck: deck)
+        if dueCards.isEmpty {
+            dueCards = fsrsManager.getNewCards(deck: deck, limit: 20)
+        }
+        remainingCards = dueCards.count
+        currentCard = dueCards.first
+    }
+
+    func rateCurrentCard(rating: Rating) {
+        guard let card = currentCard else { return }
+
+        // Process with FSRS
+        let info = fsrsManager.review(card: card, rating: rating)
+
+        // Update deck
+        if let index = deck.cards.firstIndex(where: { $0.id == card.id }) {
+            deck.cards[index] = info.card
+        }
+
+        // Update session stats
+        currentSession.cardsReviewed += 1
+        switch rating {
+        case .again: currentSession.againCount += 1
+        case .hard: currentSession.hardCount += 1
+        case .good: currentSession.goodCount += 1
+        case .easy: currentSession.easyCount += 1
+        }
+
+        // Move to next card
+        currentIndex += 1
+        if currentIndex < dueCards.count {
+            currentCard = dueCards[currentIndex]
+            remainingCards = dueCards.count - currentIndex
+        } else {
+            currentCard = nil
+            remainingCards = 0
+            currentSession.endTime = Date()
+        }
+    }
+
+    func resetSession() {
+        currentIndex = 0
+        loadDueCards()
+        currentSession = ReviewSession(deckId: deck.id)
+    }
+}
+
+// MARK: - Preview
+
+#Preview("Active Deck") {
+    FlashcardDeckView(
+        deck: FlashcardDeck(
+            name: "Italian Vocabulary",
+            subject: "Italian",
+            maestro: "Mrs. Rossi",
+            cards: [
+                Flashcard(
+                    front: "Come stai?",
+                    back: "How are you?",
+                    subject: "Italian",
+                    maestro: "Mrs. Rossi"
+                ),
+                Flashcard(
+                    front: "Buongiorno",
+                    back: "Good morning",
+                    subject: "Italian",
+                    maestro: "Mrs. Rossi"
+                ),
+                Flashcard(
+                    front: "Grazie",
+                    back: "Thank you",
+                    subject: "Italian",
+                    maestro: "Mrs. Rossi"
+                )
+            ]
+        )
+    )
+    .frame(width: 800, height: 900)
+}
