@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.0.1] - 2025-12-25
+
+### Fixed
+
+- **Critical Build Fix** - Resolved duplicate symbol linker error
+  - Removed redundant `mastery_get_level()` wrapper from `mastery_gate.c`
+  - Removed redundant `mastery_is_mastered()` wrapper from `mastery_gate.c`
+  - Both functions remain in their canonical locations (`mastery.c` and `education_db.c`)
+  - v6.0.0 was released with a build regression that prevented compilation
+
 ## [6.0.0] - 2025-12-25
 
 ### Added
