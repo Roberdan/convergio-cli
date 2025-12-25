@@ -1,8 +1,9 @@
 # Convergio Website Enhancement Plan
 
 **Created**: 2025-12-25
-**Status**: In Progress
+**Status**: Core Implementation Complete
 **Branch**: `feature/convergio-enhancements`
+**Last Commit**: `08f7f66`
 
 ---
 
@@ -172,6 +173,7 @@ The Convergio website needs to showcase three distinct product offerings:
 | W2 | Create /education landing page | **Done** | Full section with 8 maestri showcase |
 | W3 | Add Native App section | **Done** | With mac window mockup |
 | W4 | Create comparison page | **Done** | Feature matrix vs ChatGPT, Claude, Ollama, LM Studio |
+| W4b | Add accessibility highlight section | **Done** | WCAG 2.1 AA, Dyslexia, ADHD, Screen Reader, Jenny agent |
 | W5 | Add Italian language support | Pending | For education section |
 | W6 | Update hero to show all editions | Pending | Product tabs or cards |
 | W7 | Add testimonials section | Pending | Schools, developers |
