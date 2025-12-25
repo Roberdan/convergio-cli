@@ -729,7 +729,7 @@ $(eval $(call define_standard_test,workflow_integration_test,tests/test_workflow
 
 # Simple tests (without Swift, custom objects)
 $(eval $(call define_simple_test,compaction_test,tests/test_compaction.c,$(OBJ_DIR)/context/compaction.o))
-$(eval $(call define_simple_test,plan_db_test,tests/test_plan_db.c,$(OBJ_DIR)/orchestrator/plan_db.o $(OBJ_DIR)/core/safe_path.o,-lsqlite3 -lpthread))
+$(eval $(call define_simple_test,plan_db_test,tests/test_plan_db.c,$(OBJ_DIR)/orchestrator/plan_db.o $(OBJ_DIR)/core/safe_path.o $(OBJ_DIR)/core/logging.o,-lsqlite3 -lpthread))
 $(eval $(call define_simple_test,output_service_test,tests/test_output_service.c,$(OBJ_DIR)/tools/output_service.o $(OBJ_DIR)/ui/hyperlink.o $(OBJ_DIR)/core/safe_path.o))
 $(eval $(call define_simple_test,conversational_config_test,tests/test_conversational_config.c,$(OBJ_DIR)/core/conversational_config.o,/opt/homebrew/opt/cjson/lib/libcjson.a))
 
