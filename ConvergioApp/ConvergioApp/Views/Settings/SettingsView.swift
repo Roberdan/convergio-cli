@@ -51,8 +51,13 @@ struct MainSettingsView: View {
                 .tabItem {
                     Label("MCP Services", systemImage: "server.rack")
                 }
+
+            StudentProfileSettingsTab()
+                .tabItem {
+                    Label("Student", systemImage: "person.crop.circle")
+                }
         }
-        .frame(width: 700, height: 500)
+        .frame(width: 700, height: 550)
     }
 }
 
@@ -1250,6 +1255,138 @@ private struct MCPServerEditorSheet: View {
             argsText = server.args.joined(separator: "\n")
         }
     }
+}
+
+// MARK: - Student Profile Settings Tab
+
+struct StudentProfileSettingsTab: View {
+    @StateObject private var profileManager = StudentProfileManager.shared
+
+    var body: some View {
+        Form {
+            if let profile = profileManager.currentProfile {
+                Section("Student Information") {
+                    HStack {
+                        Text("Name:")
+                        Spacer()
+                        Text(profile.firstName)
+                            .foregroundStyle(.secondary)
+                    }
+
+                    HStack {
+                        Text("Age:")
+                        Spacer()
+                        Text("\(profile.age) years")
+                            .foregroundStyle(.secondary)
+                    }
+
+                    HStack {
+                        Text("School Year:")
+                        Spacer()
+                        Text(profile.schoolYear.displayName)
+                            .foregroundStyle(.secondary)
+                    }
+
+                    HStack {
+                        Text("Curriculum:")
+                        Spacer()
+                        HStack(spacing: 6) {
+                            Image(systemName: profile.curriculum.icon)
+                                .foregroundStyle(curriculumColor(profile.curriculum))
+                            Text(profile.curriculum.displayName)
+                        }
+                        .foregroundStyle(.secondary)
+                    }
+                }
+
+                Section("Accessibility Preferences") {
+                    HStack {
+                        Text("Font Size:")
+                        Spacer()
+                        Text(profile.accessibilitySettings.fontSize.displayName)
+                            .foregroundStyle(.secondary)
+                    }
+
+                    HStack {
+                        Image(systemName: profile.accessibilitySettings.dyslexiaFont ? "checkmark.circle.fill" : "circle")
+                            .foregroundStyle(profile.accessibilitySettings.dyslexiaFont ? .green : .secondary)
+                        Text("Dyslexia-Friendly Font")
+                    }
+
+                    HStack {
+                        Image(systemName: profile.accessibilitySettings.highContrast ? "checkmark.circle.fill" : "circle")
+                            .foregroundStyle(profile.accessibilitySettings.highContrast ? .green : .secondary)
+                        Text("High Contrast Mode")
+                    }
+
+                    HStack {
+                        Image(systemName: profile.accessibilitySettings.voiceEnabled ? "checkmark.circle.fill" : "circle")
+                            .foregroundStyle(profile.accessibilitySettings.voiceEnabled ? .green : .secondary)
+                        Text("Voice Interaction")
+                    }
+
+                    HStack {
+                        Image(systemName: profile.accessibilitySettings.simplifiedLanguage ? "checkmark.circle.fill" : "circle")
+                            .foregroundStyle(profile.accessibilitySettings.simplifiedLanguage ? .green : .secondary)
+                        Text("Simplified Language")
+                    }
+                }
+
+                Section {
+                    Button("Edit Profile") {
+                        // TODO: Open profile editor sheet
+                    }
+                    .buttonStyle(.borderedProminent)
+
+                    Button("Reset Profile", role: .destructive) {
+                        profileManager.deleteProfile()
+                    }
+                    .buttonStyle(.bordered)
+                }
+            } else {
+                VStack(spacing: 20) {
+                    Image(systemName: "person.crop.circle.badge.questionmark")
+                        .font(.system(size: 48))
+                        .foregroundStyle(.secondary)
+
+                    Text("No Student Profile")
+                        .font(.headline)
+
+                    Text("Complete the onboarding flow to create your student profile.")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+
+                    Button("Start Onboarding") {
+                        // Post notification to show onboarding
+                        NotificationCenter.default.post(name: .showOnboarding, object: nil)
+                    }
+                    .buttonStyle(.borderedProminent)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+        }
+        .padding()
+    }
+
+    private func curriculumColor(_ curriculum: Curriculum) -> Color {
+        switch curriculum.color {
+        case "purple": return .purple
+        case "blue": return .blue
+        case "green": return .green
+        case "orange": return .orange
+        case "red": return .red
+        case "indigo": return .indigo
+        case "brown": return .brown
+        case "cyan": return .cyan
+        case "pink": return .pink
+        default: return .secondary
+        }
+    }
+}
+
+extension Notification.Name {
+    static let showOnboarding = Notification.Name("com.convergio.showOnboarding")
 }
 
 // MARK: - SettingsView Wrapper (for Scene)
