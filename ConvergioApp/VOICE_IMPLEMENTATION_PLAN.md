@@ -20,6 +20,7 @@ Last Updated: 2025-12-25 10:27
 - [x] All images converted to proper PNG format
 - [x] **NEW: Added 18th maestro - Grozio (Hugo Grotius) for International Law**
 - [x] **NEW: Created documentation for adding new maestri** (`docs/HOW_TO_ADD_MAESTRO.md`)
+- [x] **NEW: Enforced Azure OpenAI for EDU edition** (GDPR compliance)
 
 ### Blocked (Requires Mac Reboot)
 - [ ] Microphone audio capture returns all zeros
@@ -37,12 +38,12 @@ Last Updated: 2025-12-25 10:27
 3. [ ] Verify AI responses come through
 4. [ ] Test emotion detection from voice
 
-### P1: Azure OpenAI Enforcement
-- [ ] **EDU edition MUST use ONLY Azure OpenAI**
-  - Never fallback to Anthropic
-  - All 18 maestri use Azure OpenAI
-  - Verify model configuration
-  - Remove/disable Anthropic option for EDU
+### P1: Azure OpenAI Enforcement ✅ COMPLETED
+- [x] **EDU edition MUST use ONLY Azure OpenAI**
+  - [x] Fallback chain excludes non-GDPR providers for EDU
+  - [x] All 18 maestri use Azure OpenAI
+  - [x] Anthropic hidden in Settings/Onboarding for EDU
+  - [x] Default provider changed to OpenAI (Azure)
 
 ### P2: UI Improvements
 - [ ] **Improve Settings window UI** (current design is poor)
@@ -109,7 +110,8 @@ Response audio → AVAudioPlayerNode
 - `35558c5` feat(ui): add historical portrait images for all 17 maestri
 - `e9980e3` fix(ui): update missing maestri images and add photos to detail view
 - `c0ab3f2` fix(assets): convert all maestri images to proper PNG format
-- `910adf2` feat: add Grozio maestro for International Law with documentation
+- `a2f2c02` feat: add Grozio maestro for International Law with documentation
+- `8685951` feat(edu): enforce Azure OpenAI only for EDU edition (GDPR compliance)
 
 ---
 
