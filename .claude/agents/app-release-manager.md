@@ -201,15 +201,19 @@ Phase 2: PARALLEL WAVE 1 - BUILD & SECURITY (spawn ALL at once)
 ├── Sub-agent A3: Static Analysis (clang-tidy)
 └── Sub-agent A4: Memory Safety Check
 
-Phase 2: PARALLEL WAVE 2 - QUALITY & TESTS (spawn ALL at once)
+Phase 2: PARALLEL WAVE 2 - QUALITY & TESTS (spawn ALL at once) ⚠️ CRITICAL
 ├── Sub-agent B1: Code Quality (TODO/FIXME, debug prints)
 ├── Sub-agent B2: Unit Tests (make test - includes fuzz, unit, anna, compaction, plan_db, output_service)
 ├── Sub-agent B3: E2E Tests (./tests/e2e_test.sh) ← NOW GUARANTEED FRESH
 ├── Sub-agent B4: Education Unit Tests (make education_test - school scenarios) ⚠️ BLOCKING
 ├── Sub-agent B5: Education E2E Tests (./tests/e2e_education_test.sh) ⚠️ BLOCKING
 ├── Sub-agent B6: Education LLM Tests (./tests/education_llm_test.sh) ⚠️ BLOCKING - natural language quality
+├── Sub-agent B7: Security Tests (make security_test) ⚠️ BLOCKING
 ├── Sub-agent B8: Fuzz Tests
-└── Sub-agent B9: Documentation Completeness
+├── Sub-agent B9: Documentation Completeness
+├── Sub-agent B10: Workflow Tests (make workflow_test) ⚠️ BLOCKING
+├── Sub-agent B11: AFM Tests (make apple_foundation_test) ⚠️ BLOCKING
+└── Sub-agent B12: Native Mac App Tests (xcodebuild test -project ConvergioApp/ConvergioApp.xcodeproj -scheme ConvergioApp) ⚠️ BLOCKING
 
 Phase 2: PARALLEL WAVE 3 - HARDWARE & HYGIENE (spawn ALL at once)
 ├── Sub-agent C1: Apple Silicon Freshness (WebSearch latest specs)
@@ -739,19 +743,62 @@ FORMAT: JSON {"status": "PASS|FAIL", "todos": N, "debug_prints": [...], "comment
 
 #### Wave 2B: Test Execution Sub-Agent
 ```
-FAST TEST RUN - Convergio CLI:
-1. Run: cd /Users/roberdan/GitHub/ConvergioCLI && make test 2>&1 | tee /tmp/test.log
-2. Check for failures: grep -i "FAIL\|ERROR\|failed" /tmp/test.log
-3. Run Education Unit Tests: make education_test 2>&1 | tee /tmp/education.log
-4. Check Education results (MUST show "Passed: 9, Failed: 0")
-5. Run E2E: ./tests/e2e_test.sh 2>&1 | tee /tmp/e2e.log
-6. Check E2E results: grep "FAILED" /tmp/e2e.log
-7. Run Education E2E: ./tests/e2e_education_test.sh 2>&1 | tee /tmp/edu_e2e.log ⚠️ BLOCKING
-8. Check Education E2E results (MUST be >= 95% pass rate, ~54 tests)
-9. Run Education LLM: ./tests/education_llm_test.sh 2>&1 | tee /tmp/edu_llm.log ⚠️ BLOCKING
-10. Check Education LLM results (ALL ~21 tests must pass - safety, pedagogy, accessibility)
-11. Return: PASS/FAIL with test counts
-FORMAT: JSON {"status": "PASS|FAIL", "unit_passed": N, "unit_failed": N, "education_unit": 9, "education_e2e": N, "education_llm": N, "e2e_passed": N, "e2e_failed": N}
+COMPREHENSIVE TEST RUN - ALL TESTS MUST PASS:
+
+CLI TESTS (BLOCKING):
+1. Run: make test 2>&1 | tee /tmp/test.log
+2. Run: make security_test 2>&1 | tee /tmp/security.log
+3. Run: make workflow_test 2>&1 | tee /tmp/workflow.log
+4. Run: make apple_foundation_test 2>&1 | tee /tmp/afm.log
+5. Run: make education_test 2>&1 | tee /tmp/education.log
+6. Run: ./tests/e2e_test.sh 2>&1 | tee /tmp/e2e.log
+7. Run: ./tests/e2e_education_test.sh 2>&1 | tee /tmp/edu_e2e.log ⚠️ BLOCKING
+8. Run: ./tests/education_llm_test.sh 2>&1 | tee /tmp/edu_llm.log ⚠️ BLOCKING
+
+NATIVE MAC APP TESTS (BLOCKING):
+9. Run: xcodebuild test \
+     -project ConvergioApp/ConvergioApp.xcodeproj \
+     -scheme ConvergioApp \
+     -destination 'platform=macOS' \
+     2>&1 | tee /tmp/native_app.log
+10. Check for test failures: grep -i "TEST.*FAIL" /tmp/native_app.log
+
+EDITION-SPECIFIC TESTS (BLOCKING):
+11. Build all editions and verify version:
+    make EDITION=master && ./build/bin/convergio --version
+    make EDITION=education && ./build/bin/convergio-edu --version
+    make EDITION=business && ./build/bin/convergio-biz --version
+    make EDITION=developer && ./build/bin/convergio-dev --version
+
+12. Verify each edition has correct features enabled
+
+RESULTS VALIDATION:
+- ALL tests must pass (0 failures)
+- ALL editions must build successfully
+- ALL editions must show correct version
+
+IF ANY TEST FAILS: BLOCK RELEASE IMMEDIATELY
+
+FORMAT: JSON {
+  "status": "PASS|BLOCK",
+  "cli_tests": {
+    "unit": {"passed": N, "failed": N},
+    "security": {"passed": N, "failed": N},
+    "workflow": {"passed": N, "failed": N},
+    "afm": {"passed": N, "failed": N},
+    "education": {"passed": N, "failed": N},
+    "e2e": {"passed": N, "failed": N},
+    "education_e2e": {"passed": N, "failed": N},
+    "education_llm": {"passed": N, "failed": N}
+  },
+  "native_app_tests": {"passed": N, "failed": N},
+  "editions": {
+    "master": {"builds": true/false, "version": "X.Y.Z"},
+    "education": {"builds": true/false, "version": "X.Y.Z"},
+    "business": {"builds": true/false, "version": "X.Y.Z"},
+    "developer": {"builds": true/false, "version": "X.Y.Z"}
+  }
+}
 ```
 
 #### Wave 3A: AI Model Freshness Sub-Agent (WebSearch Required)
