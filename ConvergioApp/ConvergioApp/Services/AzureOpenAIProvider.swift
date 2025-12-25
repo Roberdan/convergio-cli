@@ -193,7 +193,16 @@ final class AzureOpenAIProvider: ObservableObject {
 
     // MARK: - Fallback Chain
 
-    private let fallbackOrder: [AIProviderType] = [.azureOpenAI, .openAI, .local]
+    /// Fallback order depends on edition:
+    /// - EDU: Only Azure OpenAI and Local (GDPR compliant)
+    /// - Other: Full fallback chain
+    private var fallbackOrder: [AIProviderType] {
+        if EditionManager.shared.currentEdition == .education {
+            // EDU edition: ONLY GDPR-compliant providers
+            return [.azureOpenAI, .local]
+        }
+        return [.azureOpenAI, .openAI, .local]
+    }
     private var failedProviders: Set<AIProviderType> = []
 
     // MARK: - Budget
@@ -227,26 +236,49 @@ final class AzureOpenAIProvider: ObservableObject {
 
     // MARK: - Configuration
 
+    /// Check if a provider is allowed for the current edition
+    var isProviderAllowedForEdition: Bool {
+        let edition = EditionManager.shared.currentEdition
+        if edition == .education {
+            // EDU only allows GDPR-compliant providers
+            return currentProvider.isGDPRCompliant
+        }
+        return true
+    }
+
     func configure() async {
-        // Try Azure first
+        let isEDU = EditionManager.shared.currentEdition == .education
+
+        // Try Azure first (required for EDU)
         if let config = AzureOpenAIConfig.fromEnvironment, config.isValid {
             azureConfig = config
             currentProvider = .azureOpenAI
             isConfigured = true
+            logInfo("Configured with Azure OpenAI (GDPR compliant)", category: "AI")
             return
         }
 
-        // Try OpenAI
+        // For EDU edition, if Azure is not configured, only allow local
+        if isEDU {
+            currentProvider = .local
+            isConfigured = true
+            logWarning("EDU edition: Azure OpenAI not configured, using local fallback only", category: "AI")
+            return
+        }
+
+        // Non-EDU: Try OpenAI
         if let key = ProcessInfo.processInfo.environment["OPENAI_API_KEY"], !key.isEmpty {
             openAIKey = key
             currentProvider = .openAI
             isConfigured = true
+            logInfo("Configured with OpenAI", category: "AI")
             return
         }
 
         // Fallback to local
         currentProvider = .local
         isConfigured = true
+        logInfo("Using local AI fallback", category: "AI")
     }
 
     func validateAPIKey() async -> Bool {

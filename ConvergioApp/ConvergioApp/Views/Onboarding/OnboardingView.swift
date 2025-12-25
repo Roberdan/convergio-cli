@@ -17,7 +17,7 @@ struct OnboardingView: View {
     @EnvironmentObject var keychainManager: KeychainManager
     @State private var currentStep = 0
     @State private var apiKey = ""
-    @State private var selectedProvider: APIProvider = .anthropic
+    @State private var selectedProvider: APIProvider = .openai  // OpenAI works with Azure for EDU
 
     private let totalSteps = 5
 
@@ -250,7 +250,15 @@ private struct ProviderSetupStep: View {
     @Binding var apiKey: String
     @State private var showApiKey = false
 
-    private let providers: [APIProvider] = [.anthropic, .openai, .gemini]
+    /// Filter providers based on edition
+    /// EDU edition only allows GDPR-compliant providers (no Anthropic)
+    private var providers: [APIProvider] {
+        let isEDU = EditionManager.shared.currentEdition == .education
+        if isEDU {
+            return [.openai, .gemini] // No Anthropic for EDU
+        }
+        return [.anthropic, .openai, .gemini]
+    }
 
     var body: some View {
         VStack(spacing: 24) {

@@ -123,12 +123,23 @@ struct GeneralSettingsTab: View {
 
 struct ProvidersSettingsTab: View {
     @ObservedObject var keychainManager = KeychainManager.shared
-    @State private var selectedProvider: APIProvider = .anthropic
+    @State private var selectedProvider: APIProvider = .openai
+
+    /// Filter providers based on edition
+    /// EDU edition only allows GDPR-compliant providers (Azure OpenAI via OpenAI key, no Anthropic)
+    private var allowedProviders: [APIProvider] {
+        let isEDU = EditionManager.shared.currentEdition == .education
+        if isEDU {
+            // EDU: Only OpenAI (Azure) and Gemini (Google EU), no Anthropic
+            return APIProvider.allCases.filter { $0 != .anthropic }
+        }
+        return APIProvider.allCases
+    }
 
     var body: some View {
         HSplitView {
-            // Provider list
-            List(APIProvider.allCases, selection: $selectedProvider) { provider in
+            // Provider list - filtered by edition
+            List(allowedProviders, selection: $selectedProvider) { provider in
                 HStack(spacing: 12) {
                     Image(systemName: provider.icon)
                         .frame(width: 24)
