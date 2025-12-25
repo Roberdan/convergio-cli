@@ -54,6 +54,8 @@ Last Updated: 2025-12-25
   - Cicerone, Smith, Lovelace, Ippocrate, Socrate
   - Note: 3 placeholders (Erodoto, Humboldt, Manzoni) need manual replacement
 - [ ] Verify all maestri images display correctly (all 17)
+- [ ] Add new maestro for International Law (Diritto Internazionale)
+- [ ] Ensure EDU edition uses ONLY Azure OpenAI, never Anthropic fallback
 - [ ] Improve Settings window UI (current design is poor)
 - [ ] Fix theme management (dark/light/system) - not working correctly
 
