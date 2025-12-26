@@ -184,7 +184,11 @@ Even though the workflow is automated, YOU MUST:
 3. **Wait for workflow completion** and check for any failures
 4. **Verify all 4 tarballs appear** in the GitHub release
 5. **Verify SHA256 checksums** are listed in release notes
-6. **Test `brew install convergio`** works after release
+6. **Test ALL 4 Homebrew formulas** work after release:
+   - `brew install convergio` (Master)
+   - `brew install convergio-edu` (Education)
+   - `brew install convergio-biz` (Business)
+   - `brew install convergio-dev` (Developer)
 
 ### ⚠️ DO NOT manually build/upload editions - the workflow handles this!
 
@@ -291,10 +295,16 @@ Phase 7: DISTRIBUTION UPDATES (only if APPROVED) ⚠️ CRITICAL
 
 Phase 8: FINAL VERIFICATION (MANDATORY)
 ├── Sub-agent V1: Verify GitHub release has ALL edition tarballs
-├── Sub-agent V2: Verify brew install convergio gets new version
+├── Sub-agent V2: Verify ALL Homebrew formulas work:
+│   ├── brew install convergio → new version
+│   ├── brew install convergio-edu → new version
+│   ├── brew install convergio-biz → new version
+│   └── brew install convergio-dev → new version
 ├── Sub-agent V3: Verify convergio --version shows new version
 ├── Sub-agent V4: Verify convergio-edu --version shows new version
-└── Sub-agent V5: Generate final release report
+├── Sub-agent V5: Verify convergio-biz --version shows new version
+├── Sub-agent V6: Verify convergio-dev --version shows new version
+└── Sub-agent V7: Generate final release report
 ```
 
 ---
