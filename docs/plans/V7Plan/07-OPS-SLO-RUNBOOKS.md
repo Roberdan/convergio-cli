@@ -61,6 +61,32 @@ OpenTelemetry spans:
 
 ---
 
+## 4.1) Code Quality & Security Gates
+
+### Pre-commit hooks (mandatory)
+All commits must pass:
+- **Formatting:** `rustfmt` (Rust), `prettier` (TS/Svelte)
+- **Linting:** `clippy` (Rust), `eslint` (TS)
+- **Secrets detection:** `gitleaks` or `detect-secrets`
+- **Type checking:** `cargo check`, `tsc --noEmit`
+
+### CI/CD pipeline gates
+- **SAST (Static Application Security Testing):**
+  - `cargo audit` for Rust dependencies
+  - `npm audit` / `snyk` for Node dependencies
+  - CodeQL or Semgrep for code scanning
+- **Test coverage threshold:** **90% minimum** for merged PRs
+  - Block merge if coverage drops below threshold
+  - Enforce per-crate and per-package coverage
+- **Build verification:** all targets must compile (macOS, Linux, WASM)
+
+### Security scanning cadence
+- Dependency audit: daily in CI
+- Full SAST scan: on every PR
+- Container image scan: on every deploy
+
+---
+
 ## 5) Backups & DR
 
 - PostgreSQL: daily snapshots + PITR; test restore monthly
