@@ -3210,3 +3210,691 @@ Reference: https://microsoft.github.io/code-with-engineering-playbook/
 ```
 
 **REMEMBER: Every single item above is BLOCKING. There are no warnings. There are no minor issues. Fix everything or ship nothing.**
+
+---
+
+## 🚀 V7 HYBRID ARCHITECTURE RELEASE REQUIREMENTS
+
+**CRITICAL: V7 introduces a hybrid C/Rust/SvelteKit architecture. ALL existing checks STILL APPLY, plus these NEW checks.**
+
+### V7 Architecture Overview
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    V7 Architecture                          │
+├─────────────────────────────────────────────────────────────┤
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────┐  │
+│  │   C Core    │  │ Rust API    │  │   SvelteKit Web    │  │
+│  │   Library   │←→│   Gateway   │←→│        UI          │  │
+│  │  (libconv)  │  │   (axum)    │  │    (frontend)      │  │
+│  └─────────────┘  └─────────────┘  └─────────────────────┘  │
+│         ↓                ↓                   ↓              │
+│    make test      cargo test           npm run test         │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### V7 Parallel Execution Strategy
+
+```
+Phase V7-0: VERSION CONSISTENCY (MANDATORY FIRST)
+├── All VERSION files match (VERSION, Cargo.toml, package.json)
+├── CHANGELOG.md updated for all components
+└── Git tag format: v7.X.Y
+
+Phase V7-1: PARALLEL BUILD WAVE (ALL at once)
+├── Sub-agent V7-C1: C Core Build (make EDITION=master)
+├── Sub-agent V7-R1: Rust Gateway Build (cargo build --release)
+└── Sub-agent V7-S1: SvelteKit Build (npm run build)
+
+Phase V7-2: PARALLEL TEST WAVE (ALL at once)
+├── Sub-agent V7-C2: C Unit Tests (make test)
+├── Sub-agent V7-C3: C E2E Tests (./tests/e2e_test.sh)
+├── Sub-agent V7-R2: Rust Unit Tests (cargo test)
+├── Sub-agent V7-R3: Rust Integration Tests (cargo test --test integration)
+├── Sub-agent V7-R4: FFI Boundary Tests (make ffi_test)
+├── Sub-agent V7-S2: SvelteKit Unit Tests (npm run test)
+├── Sub-agent V7-S3: SvelteKit E2E Tests (npm run test:e2e)
+└── Sub-agent V7-S4: SvelteKit Accessibility (npm run test:a11y)
+
+Phase V7-3: V7-SPECIFIC VERIFICATIONS (spawn ALL at once)
+├── Sub-agent V7-BYOK: BYOK Feature Verification
+├── Sub-agent V7-LOCAL: Local LLM Verification
+├── Sub-agent V7-PROTO: Protocol Abstraction Verification
+├── Sub-agent V7-OBS: Observability Verification
+└── Sub-agent V7-SEC: V7 Security Audit
+
+Phase V7-4: INTEGRATION VERIFICATION
+├── C Core ↔ Rust Gateway integration works
+├── Rust Gateway ↔ SvelteKit integration works
+└── Full stack E2E test passes
+```
+
+---
+
+### 🔧 Phase V7-1: RUST API GATEWAY VERIFICATION (BLOCKING)
+
+**All Rust checks must pass before release.**
+
+```
+RUST API GATEWAY VERIFICATION:
+
+STEP 1: Build Verification
+$ cd rust-gateway
+$ cargo build --release 2>&1 | tee rust-build.log
+
+EXPECTED: Build succeeds with ZERO warnings
+IF warnings present: BLOCK RELEASE
+
+STEP 2: Rust Linting
+$ cargo clippy --all-targets -- -D warnings 2>&1 | tee clippy.log
+
+EXPECTED: Zero clippy warnings
+IF warnings present: BLOCK RELEASE
+
+STEP 3: Unit Tests
+$ cargo test 2>&1 | tee rust-test.log
+
+EXPECTED: All tests pass
+IF any test fails: BLOCK RELEASE
+
+STEP 4: Integration Tests
+$ cargo test --test integration 2>&1 | tee rust-integration.log
+
+EXPECTED: All integration tests pass
+IF any test fails: BLOCK RELEASE
+
+STEP 5: Memory Safety (Optional but Recommended)
+$ cargo +nightly miri test 2>&1 | tee miri.log
+
+EXPECTED: No undefined behavior detected
+IF UB detected: BLOCK RELEASE
+
+STEP 6: Dependency Audit
+$ cargo audit 2>&1 | tee cargo-audit.log
+
+EXPECTED: No known vulnerabilities
+IF vulnerabilities found: BLOCK RELEASE (unless patched)
+
+OUTPUT FORMAT:
+{
+  "status": "PASS" | "BLOCK",
+  "build": "SUCCESS" | "FAILED",
+  "warnings": N,
+  "clippy": "CLEAN" | "WARNINGS",
+  "unit_tests": "X/Y passed",
+  "integration_tests": "X/Y passed",
+  "miri": "CLEAN" | "UB_DETECTED" | "SKIPPED",
+  "audit": "CLEAN" | "VULNERABILITIES"
+}
+```
+
+---
+
+### 🎨 Phase V7-2: SVELTEKIT WEB UI VERIFICATION (BLOCKING)
+
+**All frontend checks must pass before release.**
+
+```
+SVELTEKIT WEB UI VERIFICATION:
+
+STEP 1: Dependency Installation
+$ cd web-ui
+$ npm ci 2>&1 | tee npm-install.log
+
+EXPECTED: Clean install, no audit warnings
+IF audit warnings: Document and assess severity
+
+STEP 2: Build Verification
+$ npm run build 2>&1 | tee svelte-build.log
+
+EXPECTED: Build succeeds with zero errors
+IF errors: BLOCK RELEASE
+
+STEP 3: Type Checking
+$ npm run check 2>&1 | tee svelte-check.log
+
+EXPECTED: Zero type errors
+IF type errors: BLOCK RELEASE
+
+STEP 4: Linting
+$ npm run lint 2>&1 | tee eslint.log
+
+EXPECTED: Zero linting errors
+IF errors: BLOCK RELEASE (warnings OK but document)
+
+STEP 5: Unit Tests
+$ npm run test:unit 2>&1 | tee vitest.log
+
+EXPECTED: All tests pass
+IF any test fails: BLOCK RELEASE
+
+STEP 6: E2E Tests
+$ npm run test:e2e 2>&1 | tee playwright.log
+
+EXPECTED: All E2E tests pass
+IF any test fails: BLOCK RELEASE
+
+STEP 7: Accessibility Audit
+$ npm run test:a11y 2>&1 | tee a11y.log
+
+EXPECTED: Zero critical a11y violations
+IF critical violations: BLOCK RELEASE
+
+STEP 8: Lighthouse Performance
+$ npx lighthouse http://localhost:4173 --output=json --output-path=lighthouse.json
+
+EXPECTED:
+- Performance > 90
+- Accessibility > 90
+- Best Practices > 90
+- SEO > 90
+
+IF any score < 90: BLOCK RELEASE (or document exception)
+
+STEP 9: Bundle Size Check
+$ npm run build && du -sh build/
+
+EXPECTED: Bundle size < 500KB (gzipped)
+IF > 500KB: BLOCK RELEASE (investigate bloat)
+
+OUTPUT FORMAT:
+{
+  "status": "PASS" | "BLOCK",
+  "build": "SUCCESS" | "FAILED",
+  "type_check": "CLEAN" | "ERRORS",
+  "lint": "CLEAN" | "ERRORS",
+  "unit_tests": "X/Y passed",
+  "e2e_tests": "X/Y passed",
+  "a11y": "CLEAN" | "VIOLATIONS",
+  "lighthouse": {
+    "performance": N,
+    "accessibility": N,
+    "best_practices": N,
+    "seo": N
+  },
+  "bundle_size_kb": N
+}
+```
+
+---
+
+### 🔗 Phase V7-3: FFI BOUNDARY VERIFICATION (BLOCKING)
+
+**C ↔ Rust interface must be rock solid.**
+
+```
+FFI BOUNDARY VERIFICATION:
+
+STEP 1: FFI Header Check
+$ grep -l "extern \"C\"" rust-gateway/src/**/*.rs
+
+EXPECTED: All FFI functions properly declared
+Verify: #[no_mangle] on all exported functions
+
+STEP 2: ABI Compatibility
+$ cbindgen rust-gateway -o include/convergio_ffi.h
+
+EXPECTED: Header generates without errors
+Compare with expected function signatures
+
+STEP 3: FFI Unit Tests
+$ make ffi_test 2>&1 | tee ffi-test.log
+
+EXPECTED: All FFI tests pass
+IF any test fails: BLOCK RELEASE
+
+STEP 4: Memory Boundary Check
+Verify all memory allocated in Rust is freed in Rust
+Verify all memory allocated in C is freed in C
+NO cross-boundary ownership transfers without explicit API
+
+STEP 5: Error Propagation Check
+Verify C errors become Rust Result::Err
+Verify Rust panics are caught at boundary
+Verify error codes are properly documented
+
+STEP 6: Thread Safety Check
+Verify no shared mutable state across FFI boundary
+Verify all cross-thread data uses proper synchronization
+
+OUTPUT FORMAT:
+{
+  "status": "PASS" | "BLOCK",
+  "header_generation": "SUCCESS" | "FAILED",
+  "ffi_tests": "X/Y passed",
+  "memory_safety": "VERIFIED" | "ISSUES_FOUND",
+  "error_propagation": "VERIFIED" | "ISSUES_FOUND",
+  "thread_safety": "VERIFIED" | "ISSUES_FOUND"
+}
+```
+
+---
+
+### 🔑 Phase V7-4: BYOK FEATURE VERIFICATION (BLOCKING)
+
+**BYOK is Priority #1 for V7. Must work perfectly.**
+
+```
+BYOK FEATURE VERIFICATION:
+
+STEP 1: BYOK Wizard Flow
+Test complete wizard flow:
+1. Start BYOK setup
+2. Add OpenAI key
+3. Add Anthropic key
+4. Add Google key
+5. Add Azure key (optional)
+6. Verify all keys work
+
+STEP 2: Key Encryption Verification
+$ # Verify keys are NOT stored in plaintext
+$ grep -r "sk-ant\|sk-proj\|AIza" ~/.convergio/ || echo "PASS: No plaintext keys"
+
+EXPECTED: No plaintext keys found
+IF plaintext keys found: BLOCK RELEASE
+
+STEP 3: Key Rotation Test
+1. Add a key
+2. Use it for queries
+3. Rotate to new key
+4. Verify old key no longer used
+5. Verify new key works
+
+STEP 4: Per-Provider Testing
+For each provider (OpenAI, Anthropic, Google, Azure):
+1. Set only that provider's key
+2. Run test query
+3. Verify correct provider used
+4. Verify other providers gracefully disabled
+
+STEP 5: Multi-Key Fallback
+1. Set primary and fallback keys
+2. Simulate primary failure
+3. Verify fallback activates
+4. Verify user notified
+
+STEP 6: Cost Tracking Integration
+1. Run several queries
+2. Verify cost tracked per provider
+3. Verify cost displayed in dashboard
+4. Verify cost export works
+
+OUTPUT FORMAT:
+{
+  "status": "PASS" | "BLOCK",
+  "wizard_flow": "COMPLETE" | "FAILED_AT_STEP_N",
+  "key_encryption": "VERIFIED" | "PLAINTEXT_FOUND",
+  "key_rotation": "WORKS" | "FAILED",
+  "providers_tested": ["openai", "anthropic", "google", "azure"],
+  "provider_results": {
+    "openai": "PASS" | "FAIL",
+    "anthropic": "PASS" | "FAIL",
+    "google": "PASS" | "FAIL",
+    "azure": "PASS" | "FAIL | SKIPPED"
+  },
+  "fallback": "WORKS" | "FAILED",
+  "cost_tracking": "WORKS" | "FAILED"
+}
+```
+
+---
+
+### 🖥️ Phase V7-5: LOCAL LLM VERIFICATION (BLOCKING if enabled)
+
+**Local LLM support must work on supported platforms.**
+
+```
+LOCAL LLM VERIFICATION:
+
+STEP 1: Ollama Integration
+$ ollama list  # Verify ollama installed
+$ make local_llm_test_ollama 2>&1 | tee ollama-test.log
+
+EXPECTED: Ollama queries work
+IF fails: BLOCK RELEASE (if local_llm feature enabled)
+
+STEP 2: MLX Integration (Apple Silicon only)
+$ # Only run on Apple Silicon
+$ uname -m | grep -q arm64 && make local_llm_test_mlx
+
+EXPECTED: MLX queries work on Apple Silicon
+IF fails on Apple Silicon: BLOCK RELEASE
+
+STEP 3: Model Download/Cache
+1. Remove cached model
+2. Trigger model download
+3. Verify download completes
+4. Verify model cached correctly
+5. Verify subsequent queries use cache
+
+STEP 4: Cloud Fallback
+1. Configure local LLM as primary
+2. Configure cloud as fallback
+3. Disconnect local (or use unsupported query)
+4. Verify cloud fallback activates
+5. Verify user notified
+
+STEP 5: Privacy Mode
+1. Enable privacy mode (local only)
+2. Run queries
+3. Verify NO cloud API calls made
+4. Monitor network traffic if possible
+
+OUTPUT FORMAT:
+{
+  "status": "PASS" | "BLOCK" | "SKIPPED",
+  "ollama": "PASS" | "FAIL" | "NOT_INSTALLED",
+  "mlx": "PASS" | "FAIL" | "NOT_APPLE_SILICON",
+  "model_caching": "WORKS" | "FAILED",
+  "cloud_fallback": "WORKS" | "FAILED",
+  "privacy_mode": "VERIFIED" | "CLOUD_CALLS_DETECTED"
+}
+```
+
+---
+
+### 📡 Phase V7-6: PROTOCOL VERIFICATION (BLOCKING)
+
+**Protocol abstraction layer must work for all supported protocols.**
+
+```
+PROTOCOL VERIFICATION:
+
+STEP 1: MCP Protocol Test
+$ make protocol_test_mcp 2>&1 | tee mcp-test.log
+
+EXPECTED: MCP protocol works (already supported)
+IF fails: BLOCK RELEASE
+
+STEP 2: A2A Protocol Test (if enabled)
+$ make protocol_test_a2a 2>&1 | tee a2a-test.log
+
+EXPECTED: A2A protocol works (if feature flag enabled)
+IF fails and enabled: BLOCK RELEASE
+
+STEP 3: Protocol Abstraction Layer
+1. Test that protocol interface is properly abstracted
+2. Verify adding new protocol adapter is straightforward
+3. Verify protocol selection works based on configuration
+
+STEP 4: Multi-Protocol Routing
+1. Configure multiple protocols
+2. Test that queries route to correct protocol
+3. Test fallback when primary protocol fails
+
+OUTPUT FORMAT:
+{
+  "status": "PASS" | "BLOCK",
+  "mcp": "PASS" | "FAIL",
+  "a2a": "PASS" | "FAIL" | "DISABLED",
+  "abstraction_layer": "VERIFIED" | "ISSUES_FOUND",
+  "routing": "WORKS" | "FAILED"
+}
+```
+
+---
+
+### 📊 Phase V7-7: OBSERVABILITY VERIFICATION (BLOCKING)
+
+**V7 must have observability from day one.**
+
+```
+OBSERVABILITY VERIFICATION:
+
+STEP 1: OpenTelemetry Integration
+$ make observability_test 2>&1 | tee otel-test.log
+
+Verify:
+- Traces exported correctly
+- Metrics exported correctly
+- Logs exported correctly
+
+STEP 2: Key Metrics Check
+Verify these metrics are instrumented:
+- Query latency (P50, P95, P99)
+- Query count per provider
+- Error rate per provider
+- LLM cost per query
+- BYOK vs reserved usage ratio
+
+STEP 3: Structured Logging
+$ grep -r "log::" rust-gateway/src/ | head -20
+
+Verify:
+- All logs use structured format
+- Log levels appropriate
+- No sensitive data in logs (keys, tokens)
+
+STEP 4: Health Endpoints
+$ curl http://localhost:3000/health
+$ curl http://localhost:3000/ready
+$ curl http://localhost:3000/metrics
+
+EXPECTED: All endpoints respond correctly
+IF any fails: BLOCK RELEASE
+
+OUTPUT FORMAT:
+{
+  "status": "PASS" | "BLOCK",
+  "traces": "EXPORTED" | "FAILED",
+  "metrics": "EXPORTED" | "FAILED",
+  "logs": "STRUCTURED" | "ISSUES",
+  "key_metrics": ["latency", "count", "errors", "cost", "byok_ratio"],
+  "health_endpoints": "ALL_OK" | "FAILED"
+}
+```
+
+---
+
+### 🔒 Phase V7-8: V7 SECURITY AUDIT (BLOCKING)
+
+**Additional security checks for V7 architecture.**
+
+```
+V7 SECURITY AUDIT:
+
+STEP 1: Rust Security
+$ cargo audit 2>&1 | tee cargo-audit.log
+$ cargo deny check 2>&1 | tee cargo-deny.log
+
+EXPECTED: No known vulnerabilities
+IF vulnerabilities: BLOCK RELEASE
+
+STEP 2: npm Security
+$ cd web-ui && npm audit 2>&1 | tee npm-audit.log
+
+EXPECTED: No high/critical vulnerabilities
+IF high/critical: BLOCK RELEASE
+
+STEP 3: API Security
+Verify:
+- All endpoints require authentication (except public)
+- Rate limiting implemented
+- CORS properly configured
+- No SQL injection in database queries
+- No XSS in web UI
+
+STEP 4: Secrets Handling
+$ rg -i "sk-ant|sk-proj|AIza|api.key|password|secret|token" --type rust --type svelte
+
+EXPECTED: No hardcoded secrets
+IF secrets found: BLOCK RELEASE
+
+STEP 5: Input Validation
+Verify:
+- All user inputs validated
+- All API inputs validated
+- File uploads (if any) properly sanitized
+
+STEP 6: HTTPS Enforcement
+Verify:
+- Production uses HTTPS only
+- HSTS headers present
+- Secure cookie flags set
+
+OUTPUT FORMAT:
+{
+  "status": "PASS" | "BLOCK",
+  "cargo_audit": "CLEAN" | "VULNERABILITIES",
+  "npm_audit": "CLEAN" | "HIGH_CRITICAL",
+  "api_security": "VERIFIED" | "ISSUES",
+  "secrets": "CLEAN" | "FOUND",
+  "input_validation": "VERIFIED" | "ISSUES",
+  "https": "ENFORCED" | "ISSUES"
+}
+```
+
+---
+
+### 📦 Phase V7-9: V7 RELEASE ARTIFACTS (BLOCKING)
+
+**V7 has more components to package.**
+
+```
+V7 RELEASE ARTIFACTS:
+
+STEP 1: Build All Components
+$ make v7-build-all
+
+Components:
+- C Core Library (all editions)
+- Rust API Gateway
+- SvelteKit Web UI (static build)
+- Combined distribution package
+
+STEP 2: Create Release Tarballs
+For each edition (master, education, business, developer):
+$ make v7-package EDITION={edition}
+
+Creates:
+- convergio-v7-{version}-{edition}-{arch}.tar.gz
+- SHA256 checksums
+
+STEP 3: Docker Images (if applicable)
+$ docker build -t convergio:v{version} .
+$ docker push convergio:v{version}
+
+STEP 4: Verify All Artifacts
+- All tarballs present
+- All SHA256 checksums match
+- Docker image runs correctly
+
+OUTPUT FORMAT:
+{
+  "status": "PASS" | "BLOCK",
+  "c_core": "BUILT" | "FAILED",
+  "rust_gateway": "BUILT" | "FAILED",
+  "web_ui": "BUILT" | "FAILED",
+  "editions": ["master", "education", "business", "developer"],
+  "tarballs": N,
+  "docker": "PUSHED" | "FAILED" | "SKIPPED"
+}
+```
+
+---
+
+### ✅ V7 Final Verification Checklist
+
+```
+═══════════════════════════════════════════════════════════════
+                    V7 RELEASE CHECKLIST
+═══════════════════════════════════════════════════════════════
+
+COMPONENT BUILDS
+───────────────────────────────────────────────────────────────
+C Core Library:           {BUILD STATUS} → PASS/BLOCK
+Rust API Gateway:         {BUILD STATUS} → PASS/BLOCK
+SvelteKit Web UI:         {BUILD STATUS} → PASS/BLOCK
+All Editions Built:       {4/4 required} → PASS/BLOCK
+
+COMPONENT TESTS
+───────────────────────────────────────────────────────────────
+C Unit Tests:             {100% required} → PASS/BLOCK
+C E2E Tests:              {100% required} → PASS/BLOCK
+Rust Unit Tests:          {100% required} → PASS/BLOCK
+Rust Integration Tests:   {100% required} → PASS/BLOCK
+FFI Boundary Tests:       {100% required} → PASS/BLOCK
+SvelteKit Unit Tests:     {100% required} → PASS/BLOCK
+SvelteKit E2E Tests:      {100% required} → PASS/BLOCK
+
+V7 FEATURES
+───────────────────────────────────────────────────────────────
+BYOK Wizard:              {WORKS} → PASS/BLOCK
+Key Encryption:           {VERIFIED} → PASS/BLOCK
+All Providers Work:       {4/4} → PASS/BLOCK
+Cost Tracking:            {WORKS} → PASS/BLOCK
+Local LLM (if enabled):   {WORKS} → PASS/BLOCK
+Protocol Abstraction:     {WORKS} → PASS/BLOCK
+Observability:            {WORKS} → PASS/BLOCK
+
+SECURITY
+───────────────────────────────────────────────────────────────
+Cargo Audit:              {CLEAN} → PASS/BLOCK
+npm Audit:                {CLEAN} → PASS/BLOCK
+No Hardcoded Secrets:     {VERIFIED} → PASS/BLOCK
+API Security:             {VERIFIED} → PASS/BLOCK
+HTTPS Enforced:           {VERIFIED} → PASS/BLOCK
+
+QUALITY
+───────────────────────────────────────────────────────────────
+Zero Rust Warnings:       {0 required} → PASS/BLOCK
+Zero Clippy Warnings:     {0 required} → PASS/BLOCK
+Zero TypeScript Errors:   {0 required} → PASS/BLOCK
+Zero ESLint Errors:       {0 required} → PASS/BLOCK
+Lighthouse Score >90:     {ALL} → PASS/BLOCK
+Bundle Size <500KB:       {VERIFIED} → PASS/BLOCK
+
+VERSION CONSISTENCY
+───────────────────────────────────────────────────────────────
+VERSION file:             {X.Y.Z} → PASS/BLOCK
+Cargo.toml version:       {X.Y.Z} → PASS/BLOCK
+package.json version:     {X.Y.Z} → PASS/BLOCK
+CHANGELOG updated:        {VERIFIED} → PASS/BLOCK
+
+═══════════════════════════════════════════════════════════════
+                    V7 FINAL VERDICT
+═══════════════════════════════════════════════════════════════
+
+🔴 BLOCKED - {N} violations. NO RELEASE until all fixed.
+                OR
+🟢 APPROVED - Zero violations. V7 Release authorized.
+
+═══════════════════════════════════════════════════════════════
+```
+
+---
+
+### V7 Build Commands Reference
+
+```bash
+# Full V7 build (all components)
+make v7-build-all
+
+# Component builds
+make v7-core              # C Core Library
+make v7-gateway           # Rust API Gateway (cargo build)
+make v7-ui                # SvelteKit Web UI (npm run build)
+
+# Testing
+make v7-test-all          # All tests
+make v7-test-core         # C tests
+make v7-test-gateway      # Rust tests (cargo test)
+make v7-test-ui           # SvelteKit tests (npm run test)
+make v7-test-ffi          # FFI boundary tests
+make v7-test-e2e          # Full E2E tests
+make v7-test-byok         # BYOK feature tests
+make v7-test-local-llm    # Local LLM tests
+
+# Release
+make v7-release VERSION=7.0.0    # Create release artifacts
+make v7-package EDITION=master   # Package specific edition
+
+# Verification
+make v7-verify            # Run all verification checks
+make v7-security-audit    # Security audit only
+make v7-lint              # All linting (C, Rust, TS)
+```
+
+---
+
+**V7 RELEASE MANAGEMENT IS EVEN MORE CRITICAL. The hybrid architecture means more components, more tests, more verification. No shortcuts. No exceptions.**

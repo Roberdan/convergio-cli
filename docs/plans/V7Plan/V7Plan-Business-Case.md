@@ -1,5 +1,42 @@
 # Convergio V7: Brutally Honest Business Case
 
+---
+
+## ⚠️ STRATEGIC UPDATE: December 26, 2025
+
+**This document has been reviewed against current market conditions. Key changes:**
+
+### BYOK Elevated to Priority #1
+
+Based on December 2025 market analysis:
+- LLM costs continue to dominate (80-95% of total costs)
+- Price war has reduced LLM costs by ~80% (good news)
+- BYOK eliminates our LLM cost risk entirely
+- Revenue from BYOK subscriptions is nearly pure margin
+
+**New Priority Order:**
+1. **BYOK (Default)** - Users bring their own API keys
+2. **Local Models** - MLX/Ollama for free tier (zero cost)
+3. **Managed** - Only for users who specifically want it
+
+### LLM Pricing Good News
+
+Current pricing (December 2025) is MUCH cheaper than original projections:
+- GPT-4o-mini: $0.60/1M input (was ~$1.00)
+- Haiku 3.5: $0.80/1M input (new budget option)
+- DeepSeek V3: $0.27/1M input (extremely cheap)
+
+This reduces our worst-case scenarios significantly.
+
+### Competitive Pressure
+
+Microsoft Agent Framework launching Q1 2026. We must:
+- Launch beta by Q2 2026 (April-June)
+- Focus on Education niche (Microsoft won't prioritize)
+- Leverage open source advantage
+
+---
+
 ## Executive Summary
 
 **Reality Check:** Convergio è un prodotto interessante ma non ancora un business sostenibile. Questo documento analizza cosa serve REALMENTE per renderlo tale.
@@ -765,21 +802,52 @@ Net: $17,000/mese profit
 4. ❌ Aspettare che "diventi virale"
 5. ❌ Ignorare i costi LLM
 
-**Raccomandazione Finale:**
+**Raccomandazione Finale (UPDATED December 2025):**
 
-**Se hai $120K e puoi lavorare full-time:** Prova Model 1 (Freemium con usage limits) o Model 2 (BYOK).
+### 🎯 PRIMARY: BYOK as Default
 
-**Se NON hai funding:** Pivot a Model 4 (Enterprise) o Model 5 (Consulting).
+**Model 2 (BYOK) is now the PRIMARY recommendation:**
 
-**Se Education è la priorità:** Model 3 (Grant-Funded), ma devi ottenere grants.
+| Tier | Price | LLM Cost to Us | Margin |
+|------|-------|----------------|--------|
+| Free (BYOK) | $0 | $0 | N/A |
+| Free (Local) | $0 | $0 (MLX/Ollama) | N/A |
+| Pro (BYOK) | $4.99/mo | $0 | ~95% |
+| Pro (Managed) | $9.99/mo | $1-5/user | ~50-80% |
+| Enterprise | Custom | Negotiated | ~80% |
 
-**Brutal Truth:** Convergio può funzionare, ma serve:
-- Funding ($50K-200K)
-- Pricing corretto (usage-based, non flat)
-- Team (non solo tu)
-- 12-18 mesi di pazienza
+**Why BYOK wins:**
+1. ✅ Zero LLM cost risk for us
+2. ✅ Revenue is nearly pure margin
+3. ✅ Users control their own costs
+4. ✅ Privacy (their key, their data)
+5. ✅ Scales infinitely without cost increase
 
-**Senza questi, non è sostenibile.**
+**BYOK Math:**
+```
+10,000 users (BYOK):
+- LLM cost to us: $0
+- Infrastructure: $1,500/mese
+- 1,000 Pro BYOK × $4.99 = $4,990/mese
+- 100 Enterprise × $500 = $50,000/mese (if you get them)
+- Net: $3,490-53,490/mese profit
+```
+
+### Secondary Options:
+
+**Se vuoi anche Managed tier:** Add usage-based pricing ($0.01/query extra)
+
+**Se Education è priorità:** Combine BYOK + Grants for Education
+
+**Se Enterprise focus:** BYOK + Enterprise sales ($500-5,000/mo)
+
+**Brutal Truth (Updated):** Convergio può funzionare con BYOK perché:
+- Funding ridotto ($50K vs $200K)
+- Costi LLM = $0 per noi
+- Revenue = quasi puro margine
+- Timeline: 8-12 mesi per break-even (ridotto)
+
+**Senza BYOK, i rischi rimangono alti.**
 
 ---
 

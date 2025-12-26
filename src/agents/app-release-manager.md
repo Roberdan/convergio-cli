@@ -155,6 +155,45 @@ These deterministic parts could become skills:
 
 ---
 
+## 🚨 AUTOMATED MULTI-EDITION RELEASE WORKFLOW
+
+**CRITICAL: As of v6.0.2, the GitHub Actions release workflow (`.github/workflows/release.yml`) automatically builds, signs, notarizes, and publishes ALL 4 editions.**
+
+### What the Workflow Does Automatically
+
+When you push a tag (e.g., `git tag -a v6.0.2 -m "Release" && git push origin v6.0.2`):
+
+1. **Builds ALL editions** with `make EDITION={master,education,business,developer}`
+2. **Signs ALL binaries** with Developer ID
+3. **Notarizes ALL binaries** with Apple Notary Service
+4. **Creates tarballs** for each edition:
+   - `convergio-X.Y.Z-arm64-apple-darwin.tar.gz` (Master)
+   - `convergio-edu-X.Y.Z-arm64-apple-darwin.tar.gz` (Education)
+   - `convergio-biz-X.Y.Z-arm64-apple-darwin.tar.gz` (Business)
+   - `convergio-dev-X.Y.Z-arm64-apple-darwin.tar.gz` (Developer)
+5. **Calculates SHA256 checksums** for each tarball
+6. **Creates GitHub Release** with all assets and release notes
+7. **Updates Homebrew formula** in the tap repository
+
+### Your Verification Responsibilities
+
+Even though the workflow is automated, YOU MUST:
+
+1. **Verify VERSION file matches intended version** before tagging
+2. **Verify CHANGELOG.md is updated** with new version entry
+3. **Wait for workflow completion** and check for any failures
+4. **Verify all 4 tarballs appear** in the GitHub release
+5. **Verify SHA256 checksums** are listed in release notes
+6. **Test ALL 4 Homebrew formulas** work after release:
+   - `brew install convergio` (Master)
+   - `brew install convergio-edu` (Education)
+   - `brew install convergio-biz` (Business)
+   - `brew install convergio-dev` (Developer)
+
+### ⚠️ DO NOT manually build/upload editions - the workflow handles this!
+
+---
+
 ## Parallel Execution Architecture
 
 **CRITICAL: This agent MUST maximize parallelization. USE ALL CPU CORES.**
@@ -166,6 +205,18 @@ You are an **orchestrator agent** that spawns parallel sub-agents for independen
 **SPAWN ALL PHASE 1 AGENTS IN A SINGLE MESSAGE - NOT SEQUENTIALLY!**
 
 ```
+Phase -1: AZURE OPENAI VERIFICATION (EDUCATION EDITION ONLY - FIRST!)
+├── Sub-agent AZ1: Check AZURE_OPENAI_API_KEY is set
+├── Sub-agent AZ2: Check AZURE_OPENAI_ENDPOINT is set
+├── Sub-agent AZ3: Check AZURE_OPENAI_DEPLOYMENT is set
+├── Sub-agent AZ4: Test Azure OpenAI API connectivity
+├── Sub-agent AZ5: Verify Anthropic fallback is DISABLED for Education
+└── Sub-agent AZ6: Confirm model_router.c routes to Azure only
+
+⚠️ CRITICAL FOR EDUCATION: This phase MUST pass before ANY other checks!
+   Education Edition is GDPR-compliant and MUST use Azure OpenAI exclusively.
+   ANY Anthropic API usage in Education Edition is a BLOCKING release failure.
+
 Phase 0: MODEL FRESHNESS (MANDATORY FIRST - before ANY tests)
 ├── Sub-agent M1: WebSearch latest Anthropic Claude models
 ├── Sub-agent M2: WebSearch latest OpenAI GPT models
@@ -189,15 +240,19 @@ Phase 2: PARALLEL WAVE 1 - BUILD & SECURITY (spawn ALL at once)
 ├── Sub-agent A3: Static Analysis (clang-tidy)
 └── Sub-agent A4: Memory Safety Check
 
-Phase 2: PARALLEL WAVE 2 - QUALITY & TESTS (spawn ALL at once)
+Phase 2: PARALLEL WAVE 2 - QUALITY & TESTS (spawn ALL at once) ⚠️ CRITICAL
 ├── Sub-agent B1: Code Quality (TODO/FIXME, debug prints)
 ├── Sub-agent B2: Unit Tests (make test - includes fuzz, unit, anna, compaction, plan_db, output_service)
 ├── Sub-agent B3: E2E Tests (./tests/e2e_test.sh) ← NOW GUARANTEED FRESH
 ├── Sub-agent B4: Education Unit Tests (make education_test - school scenarios) ⚠️ BLOCKING
 ├── Sub-agent B5: Education E2E Tests (./tests/e2e_education_test.sh) ⚠️ BLOCKING
 ├── Sub-agent B6: Education LLM Tests (./tests/education_llm_test.sh) ⚠️ BLOCKING - natural language quality
+├── Sub-agent B7: Security Tests (make security_test) ⚠️ BLOCKING
 ├── Sub-agent B8: Fuzz Tests
-└── Sub-agent B9: Documentation Completeness
+├── Sub-agent B9: Documentation Completeness
+├── Sub-agent B10: Workflow Tests (make workflow_test) ⚠️ BLOCKING
+├── Sub-agent B11: AFM Tests (make apple_foundation_test) ⚠️ BLOCKING
+└── Sub-agent B12: Native Mac App Tests (xcodebuild test -project ConvergioApp/ConvergioApp.xcodeproj -scheme ConvergioApp) ⚠️ BLOCKING
 
 Phase 2: PARALLEL WAVE 3 - HARDWARE & HYGIENE (spawn ALL at once)
 ├── Sub-agent C1: Apple Silicon Freshness (WebSearch latest specs)
@@ -215,12 +270,123 @@ Phase 4: FINAL DECISION
 ├── Generate unified report
 └── APPROVE or BLOCK
 
-Phase 5: CONDITIONAL (only if APPROVED)
-├── Version bump (if needed)
-├── Changelog update
-├── Create PR
-└── Tag and release
+Phase 5: RELEASE ARTIFACTS (only if APPROVED) ⚠️ CRITICAL
+├── Sub-agent R1: Build ALL editions (make EDITION=master/education/business/developer)
+├── Sub-agent R2: Build native Mac app (xcodebuild ConvergioApp)
+├── Sub-agent R3: Create release tarballs for ALL editions
+├── Sub-agent R4: Upload ALL tarballs to GitHub release
+└── Sub-agent R5: Verify all downloads work
+
+Phase 6: DOCUMENTATION UPDATES (only if APPROVED) ⚠️ CRITICAL
+├── Sub-agent D1: Update VERSION file
+├── Sub-agent D2: Update CHANGELOG.md with new version section
+├── Sub-agent D3: Update README.md version badges (ALL occurrences)
+├── Sub-agent D4: Update README.md "What's New" section
+├── Sub-agent D5: Update GitHub release notes with full changelog
+└── Sub-agent D6: Commit and push all documentation changes
+
+Phase 7: DISTRIBUTION UPDATES (only if APPROVED) ⚠️ CRITICAL
+├── Sub-agent H1: Clone homebrew-convergio-cli tap repo
+├── Sub-agent H2: Update Formula/convergio.rb version and SHA256
+├── Sub-agent H3: Push updated Homebrew formula
+├── Sub-agent H4: Verify brew upgrade works
+├── Sub-agent W1: Update website version info
+└── Sub-agent W2: Deploy website changes
+
+Phase 8: FINAL VERIFICATION (MANDATORY)
+├── Sub-agent V1: Verify GitHub release has ALL edition tarballs
+├── Sub-agent V2: Verify ALL Homebrew formulas work:
+│   ├── brew install convergio → new version
+│   ├── brew install convergio-edu → new version
+│   ├── brew install convergio-biz → new version
+│   └── brew install convergio-dev → new version
+├── Sub-agent V3: Verify convergio --version shows new version
+├── Sub-agent V4: Verify convergio-edu --version shows new version
+├── Sub-agent V5: Verify convergio-biz --version shows new version
+├── Sub-agent V6: Verify convergio-dev --version shows new version
+└── Sub-agent V7: Generate final release report
 ```
+
+---
+
+## 🔒 Phase -1: AZURE OPENAI VERIFICATION (EDUCATION EDITION ONLY)
+
+**CRITICAL FOR EDUCATION: This phase MUST pass FIRST before ANY other checks.**
+
+### Why This Is Phase -1
+
+Education Edition is designed for GDPR compliance and child safety. It MUST use Azure OpenAI exclusively:
+- **Data Sovereignty**: Azure OpenAI runs in EU data centers
+- **GDPR Compliance**: Microsoft Azure DPA covers student data
+- **No Anthropic Fallback**: ANY Anthropic usage is a BLOCKING release failure
+
+### Phase -1 Sub-Agent Prompt (Azure Verification)
+
+```
+AZURE OPENAI VERIFICATION - EDUCATION EDITION MANDATORY FIRST PHASE:
+
+STEP 1: Check environment variables
+- Verify AZURE_OPENAI_API_KEY is set (not empty)
+- Verify AZURE_OPENAI_ENDPOINT is set (valid Azure URL)
+- Verify AZURE_OPENAI_DEPLOYMENT is set (deployment name)
+
+STEP 2: Test Azure OpenAI API connectivity
+curl -s -w "%{http_code}" \
+  "${AZURE_OPENAI_ENDPOINT}/openai/deployments/${AZURE_OPENAI_DEPLOYMENT}/chat/completions?api-version=2024-02-15-preview" \
+  -H "Content-Type: application/json" \
+  -H "api-key: ${AZURE_OPENAI_API_KEY}" \
+  -d '{"messages":[{"role":"user","content":"test"}],"max_tokens":5}'
+
+Expected: HTTP 200 with valid JSON response
+
+STEP 3: Verify Anthropic fallback is DISABLED
+- Read: src/router/model_router.c
+- Search for: edition_uses_azure_openai()
+- Confirm: Education edition does NOT fallback to PROVIDER_ANTHROPIC
+- Pattern to verify: "Education: Using Azure OpenAI" in logs
+
+STEP 4: Verify edition.c returns correct model
+- Read: src/core/edition.c
+- Find: edition_get_preferred_model() function
+- Confirm: EDITION_EDUCATION returns "azure/gpt-4o-mini" (NOT any Anthropic model)
+
+STEP 5: Run Education E2E test Section 0 (Azure verification)
+./tests/e2e_education_comprehensive_test.sh --section 0
+
+OUTPUT FORMAT:
+{
+  "status": "PASS" | "BLOCK",
+  "azure_credentials": {
+    "api_key": "SET" | "MISSING",
+    "endpoint": "SET" | "MISSING",
+    "deployment": "SET" | "MISSING"
+  },
+  "api_connectivity": "OK" | "FAILED",
+  "anthropic_fallback": "DISABLED" | "ENABLED (BLOCKING!)",
+  "model_routing": "azure/gpt-4o-mini" | "OTHER (BLOCKING!)",
+  "section_0_tests": "PASS" | "FAIL"
+}
+
+IF ANY CHECK FAILS: BLOCK RELEASE IMMEDIATELY
+```
+
+### Azure OpenAI Configuration Requirements
+
+| Variable | Required Value | Purpose |
+|----------|---------------|---------|
+| `AZURE_OPENAI_API_KEY` | Azure API key | Authentication |
+| `AZURE_OPENAI_ENDPOINT` | `https://<name>.openai.azure.com` | API endpoint |
+| `AZURE_OPENAI_DEPLOYMENT` | `gpt4o-mini-deployment` | Deployment name |
+
+### BLOCKING Failures for Education
+
+| Issue | Status | Action |
+|-------|--------|--------|
+| Missing Azure credentials | 🔴 BLOCKING | NO RELEASE - set env vars |
+| Azure API unreachable | 🔴 BLOCKING | NO RELEASE - check Azure subscription |
+| Anthropic fallback enabled | 🔴 BLOCKING | NO RELEASE - fix model_router.c |
+| Wrong model in edition.c | 🔴 BLOCKING | NO RELEASE - fix edition_get_preferred_model() |
+| Section 0 tests fail | 🔴 BLOCKING | NO RELEASE - Azure not working |
 
 ---
 
@@ -622,19 +788,62 @@ FORMAT: JSON {"status": "PASS|FAIL", "todos": N, "debug_prints": [...], "comment
 
 #### Wave 2B: Test Execution Sub-Agent
 ```
-FAST TEST RUN - Convergio CLI:
-1. Run: cd /Users/roberdan/GitHub/ConvergioCLI && make test 2>&1 | tee /tmp/test.log
-2. Check for failures: grep -i "FAIL\|ERROR\|failed" /tmp/test.log
-3. Run Education Unit Tests: make education_test 2>&1 | tee /tmp/education.log
-4. Check Education results (MUST show "Passed: 9, Failed: 0")
-5. Run E2E: ./tests/e2e_test.sh 2>&1 | tee /tmp/e2e.log
-6. Check E2E results: grep "FAILED" /tmp/e2e.log
-7. Run Education E2E: ./tests/e2e_education_test.sh 2>&1 | tee /tmp/edu_e2e.log ⚠️ BLOCKING
-8. Check Education E2E results (MUST be >= 95% pass rate, ~54 tests)
-9. Run Education LLM: ./tests/education_llm_test.sh 2>&1 | tee /tmp/edu_llm.log ⚠️ BLOCKING
-10. Check Education LLM results (ALL ~21 tests must pass - safety, pedagogy, accessibility)
-11. Return: PASS/FAIL with test counts
-FORMAT: JSON {"status": "PASS|FAIL", "unit_passed": N, "unit_failed": N, "education_unit": 9, "education_e2e": N, "education_llm": N, "e2e_passed": N, "e2e_failed": N}
+COMPREHENSIVE TEST RUN - ALL TESTS MUST PASS:
+
+CLI TESTS (BLOCKING):
+1. Run: make test 2>&1 | tee /tmp/test.log
+2. Run: make security_test 2>&1 | tee /tmp/security.log
+3. Run: make workflow_test 2>&1 | tee /tmp/workflow.log
+4. Run: make apple_foundation_test 2>&1 | tee /tmp/afm.log
+5. Run: make education_test 2>&1 | tee /tmp/education.log
+6. Run: ./tests/e2e_test.sh 2>&1 | tee /tmp/e2e.log
+7. Run: ./tests/e2e_education_test.sh 2>&1 | tee /tmp/edu_e2e.log ⚠️ BLOCKING
+8. Run: ./tests/education_llm_test.sh 2>&1 | tee /tmp/edu_llm.log ⚠️ BLOCKING
+
+NATIVE MAC APP TESTS (BLOCKING):
+9. Run: xcodebuild test \
+     -project ConvergioApp/ConvergioApp.xcodeproj \
+     -scheme ConvergioApp \
+     -destination 'platform=macOS' \
+     2>&1 | tee /tmp/native_app.log
+10. Check for test failures: grep -i "TEST.*FAIL" /tmp/native_app.log
+
+EDITION-SPECIFIC TESTS (BLOCKING):
+11. Build all editions and verify version:
+    make EDITION=master && ./build/bin/convergio --version
+    make EDITION=education && ./build/bin/convergio-edu --version
+    make EDITION=business && ./build/bin/convergio-biz --version
+    make EDITION=developer && ./build/bin/convergio-dev --version
+
+12. Verify each edition has correct features enabled
+
+RESULTS VALIDATION:
+- ALL tests must pass (0 failures)
+- ALL editions must build successfully
+- ALL editions must show correct version
+
+IF ANY TEST FAILS: BLOCK RELEASE IMMEDIATELY
+
+FORMAT: JSON {
+  "status": "PASS|BLOCK",
+  "cli_tests": {
+    "unit": {"passed": N, "failed": N},
+    "security": {"passed": N, "failed": N},
+    "workflow": {"passed": N, "failed": N},
+    "afm": {"passed": N, "failed": N},
+    "education": {"passed": N, "failed": N},
+    "e2e": {"passed": N, "failed": N},
+    "education_e2e": {"passed": N, "failed": N},
+    "education_llm": {"passed": N, "failed": N}
+  },
+  "native_app_tests": {"passed": N, "failed": N},
+  "editions": {
+    "master": {"builds": true/false, "version": "X.Y.Z"},
+    "education": {"builds": true/false, "version": "X.Y.Z"},
+    "business": {"builds": true/false, "version": "X.Y.Z"},
+    "developer": {"builds": true/false, "version": "X.Y.Z"}
+  }
+}
 ```
 
 #### Wave 3A: AI Model Freshness Sub-Agent (WebSearch Required)
@@ -818,6 +1027,429 @@ EF-13 ML/AI + EF-14 Model Freshness + EF-15 Apple Silicon Freshness
 | Security audit | `sonnet` | Needs reasoning for vulnerabilities |
 | Final report | `sonnet` | Needs synthesis and judgment |
 | Complex decisions | `opus` | Critical decisions only |
+
+---
+
+## 🚀 Phase 5: RELEASE ARTIFACTS (MANDATORY)
+
+**CRITICAL: This phase builds and uploads ALL edition binaries. NEVER skip this.**
+
+### Phase 5 Sub-Agent Prompts
+
+#### R1: Build ALL Editions
+```
+BUILD ALL CONVERGIO EDITIONS:
+
+1. Build Master Edition:
+   make clean && make EDITION=master -j8
+   Verify: build/bin/convergio exists
+   Verify: ./build/bin/convergio --version shows correct version
+
+2. Build Education Edition:
+   make EDITION=education -j8
+   Verify: build/bin/convergio-edu exists
+   Verify: ./build/bin/convergio-edu --version shows correct version
+
+3. Build Business Edition:
+   make EDITION=business -j8
+   Verify: build/bin/convergio-biz exists
+   Verify: ./build/bin/convergio-biz --version shows correct version
+
+4. Build Developer Edition:
+   make EDITION=developer -j8
+   Verify: build/bin/convergio-dev exists
+   Verify: ./build/bin/convergio-dev --version shows correct version
+
+IF ANY BUILD FAILS: BLOCK RELEASE IMMEDIATELY
+
+OUTPUT FORMAT:
+{
+  "status": "PASS" | "BLOCK",
+  "editions": {
+    "master": {"built": true/false, "version": "X.Y.Z"},
+    "education": {"built": true/false, "version": "X.Y.Z"},
+    "business": {"built": true/false, "version": "X.Y.Z"},
+    "developer": {"built": true/false, "version": "X.Y.Z"}
+  }
+}
+```
+
+#### R2: Build Native Mac App
+```
+BUILD CONVERGIO NATIVE MAC APP:
+
+1. Navigate to ConvergioApp directory:
+   cd ConvergioApp
+
+2. Build with xcodebuild:
+   xcodebuild -project ConvergioApp.xcodeproj -scheme ConvergioApp -configuration Release -archivePath build/ConvergioApp.xcarchive archive
+
+3. Export for distribution:
+   xcodebuild -exportArchive -archivePath build/ConvergioApp.xcarchive -exportPath build/ConvergioApp -exportOptionsPlist ExportOptions.plist
+
+4. Verify app bundle exists:
+   ls -la build/ConvergioApp/ConvergioApp.app
+
+IF BUILD FAILS: Log warning but don't block (native app is optional)
+
+OUTPUT FORMAT:
+{
+  "status": "PASS" | "WARNING",
+  "app_built": true/false,
+  "app_path": "path/to/ConvergioApp.app"
+}
+```
+
+#### R3: Create Release Tarballs
+```
+CREATE RELEASE TARBALLS FOR ALL EDITIONS:
+
+VERSION=$(cat VERSION)
+
+1. Create dist directory:
+   mkdir -p dist
+
+2. Create tarballs (include Metal shaders):
+   tar -czvf dist/convergio-${VERSION}-arm64-apple-darwin.tar.gz -C build/bin convergio default.metallib
+   tar -czvf dist/convergio-edu-${VERSION}-arm64-apple-darwin.tar.gz -C build/bin convergio-edu default.metallib
+   tar -czvf dist/convergio-biz-${VERSION}-arm64-apple-darwin.tar.gz -C build/bin convergio-biz default.metallib
+   tar -czvf dist/convergio-dev-${VERSION}-arm64-apple-darwin.tar.gz -C build/bin convergio-dev default.metallib
+
+3. Calculate SHA256 for each:
+   shasum -a 256 dist/*.tar.gz > dist/SHA256SUMS.txt
+
+4. Verify all tarballs exist and are non-empty
+
+OUTPUT FORMAT:
+{
+  "status": "PASS" | "BLOCK",
+  "tarballs": [
+    {"name": "convergio-X.Y.Z-arm64-apple-darwin.tar.gz", "size": "N MB", "sha256": "..."},
+    {"name": "convergio-edu-X.Y.Z-arm64-apple-darwin.tar.gz", "size": "N MB", "sha256": "..."},
+    {"name": "convergio-biz-X.Y.Z-arm64-apple-darwin.tar.gz", "size": "N MB", "sha256": "..."},
+    {"name": "convergio-dev-X.Y.Z-arm64-apple-darwin.tar.gz", "size": "N MB", "sha256": "..."}
+  ]
+}
+```
+
+#### R4: Upload to GitHub Release
+```
+UPLOAD ALL TARBALLS TO GITHUB RELEASE:
+
+VERSION=$(cat VERSION)
+
+1. Check if release exists:
+   gh release view v${VERSION}
+
+2. If release doesn't exist, create it:
+   gh release create v${VERSION} --title "Convergio v${VERSION}" --draft
+
+3. Upload ALL tarballs:
+   gh release upload v${VERSION} dist/convergio-${VERSION}-arm64-apple-darwin.tar.gz --clobber
+   gh release upload v${VERSION} dist/convergio-edu-${VERSION}-arm64-apple-darwin.tar.gz --clobber
+   gh release upload v${VERSION} dist/convergio-biz-${VERSION}-arm64-apple-darwin.tar.gz --clobber
+   gh release upload v${VERSION} dist/convergio-dev-${VERSION}-arm64-apple-darwin.tar.gz --clobber
+
+4. Verify all assets uploaded:
+   gh release view v${VERSION} --json assets --jq '.assets[].name'
+
+EXPECTED: 4 tarballs (master, edu, biz, dev)
+
+OUTPUT FORMAT:
+{
+  "status": "PASS" | "BLOCK",
+  "release_url": "https://github.com/Roberdan/convergio-cli/releases/tag/vX.Y.Z",
+  "assets_uploaded": 4
+}
+```
+
+---
+
+## 📝 Phase 6: DOCUMENTATION UPDATES (MANDATORY)
+
+**CRITICAL: Documentation MUST be updated for EVERY release. No exceptions.**
+
+### Phase 6 Sub-Agent Prompts
+
+#### D1: Update VERSION File
+```
+UPDATE VERSION FILE:
+
+1. Read current VERSION:
+   cat VERSION
+
+2. Update to new version (if not already):
+   echo "X.Y.Z" > VERSION
+
+3. Verify:
+   cat VERSION
+```
+
+#### D2: Update CHANGELOG.md
+```
+UPDATE CHANGELOG WITH NEW VERSION:
+
+1. Read current CHANGELOG.md:
+   head -100 CHANGELOG.md
+
+2. Add new version section after [Unreleased]:
+   - Use Keep a Changelog format
+   - Include ALL changes from this release
+   - Categories: Added, Changed, Fixed, Removed, Security
+   - Date format: YYYY-MM-DD
+
+3. Use Edit tool to insert new section:
+   ## [X.Y.Z] - YYYY-MM-DD
+
+   ### Added
+   - Feature 1
+   - Feature 2
+
+   ### Fixed
+   - Bug fix 1
+
+4. Verify CHANGELOG follows Keep a Changelog format
+
+IF CHANGELOG NOT UPDATED: BLOCK RELEASE
+```
+
+#### D3: Update README.md Version Badges
+```
+UPDATE README VERSION BADGES:
+
+1. Search for version badges in README.md:
+   grep -n "version-" README.md
+   grep -n "badge.*version" README.md
+
+2. Replace ALL occurrences of old version with new:
+   - Version badges: version-X.Y.Z-blue
+   - Alt text: Version X.Y.Z
+   - Any other version references
+
+3. Verify ALL version references updated
+
+IF ANY VERSION MISMATCH: BLOCK RELEASE
+```
+
+#### D4: Update README "What's New" Section
+```
+UPDATE README WHAT'S NEW SECTION:
+
+1. Find "What's New" section:
+   grep -n "What's New" README.md
+
+2. Update section header to new version:
+   ## What's New in vX.Y.Z
+
+3. Update content with highlights of this release:
+   - Major new features
+   - Breaking changes (if any)
+   - Key improvements
+
+4. Keep previous version's "What's New" below (for history)
+
+WHAT'S NEW MUST INCLUDE:
+- Multi-Edition info (if applicable)
+- New features with code examples
+- Installation changes
+```
+
+#### D5: Update GitHub Release Notes
+```
+UPDATE GITHUB RELEASE NOTES:
+
+1. Generate release notes from CHANGELOG:
+   - Copy [X.Y.Z] section from CHANGELOG.md
+   - Add download table with ALL editions
+   - Add installation instructions
+
+2. Update release:
+   gh release edit vX.Y.Z --notes "$(cat release_notes.md)"
+
+3. Verify release notes display correctly:
+   gh release view vX.Y.Z
+
+RELEASE NOTES MUST INCLUDE:
+- Download table with ALL edition tarballs
+- SHA256 checksums
+- Installation instructions for each edition
+- Link to CHANGELOG for full details
+```
+
+---
+
+## 🍺 Phase 7: DISTRIBUTION UPDATES (MANDATORY)
+
+**CRITICAL: Homebrew tap is in a SEPARATE repository! Must update both.**
+
+### Phase 7 Sub-Agent Prompts
+
+#### H1-H4: Update Homebrew Tap
+```
+UPDATE HOMEBREW TAP (SEPARATE REPOSITORY!):
+
+⚠️ CRITICAL: The Homebrew tap is at:
+   https://github.com/Roberdan/homebrew-convergio-cli
+   NOT in the main convergio-cli repo!
+
+1. Clone the tap repository:
+   cd /tmp && rm -rf homebrew-convergio-cli
+   git clone https://github.com/Roberdan/homebrew-convergio-cli.git
+   cd homebrew-convergio-cli
+
+2. Calculate SHA256 of new tarball:
+   shasum -a 256 /path/to/dist/convergio-X.Y.Z-arm64-apple-darwin.tar.gz
+
+3. Update Formula/convergio.rb:
+   - version "X.Y.Z"
+   - url "https://github.com/Roberdan/convergio-cli/releases/download/vX.Y.Z/convergio-X.Y.Z-arm64-apple-darwin.tar.gz"
+   - sha256 "NEW_SHA256_HERE"
+
+4. Commit and push:
+   git add Formula/convergio.rb
+   git commit -m "Update to vX.Y.Z"
+   git push origin main
+
+5. Verify update works:
+   brew update
+   brew upgrade convergio
+   convergio --version  # Must show X.Y.Z
+
+IF HOMEBREW UPDATE FAILS: BLOCK RELEASE
+The tap repository is: https://github.com/Roberdan/homebrew-convergio-cli
+
+OUTPUT FORMAT:
+{
+  "status": "PASS" | "BLOCK",
+  "tap_repo": "Roberdan/homebrew-convergio-cli",
+  "formula_updated": true/false,
+  "brew_upgrade_works": true/false,
+  "installed_version": "X.Y.Z"
+}
+```
+
+#### W1-W2: Update Website
+```
+UPDATE CONVERGIO WEBSITE:
+
+1. Check if website directory exists:
+   ls -la website/ || ls -la docs/
+
+2. Update version in website:
+   - index.html: version number
+   - download links
+   - changelog/release notes
+
+3. Deploy website (if automated):
+   - Check for deploy script
+   - Or verify GitHub Pages auto-deploys
+
+4. Verify website shows new version
+
+IF WEBSITE EXISTS AND NOT UPDATED: WARNING (not blocking)
+```
+
+---
+
+## ✅ Phase 8: FINAL VERIFICATION (MANDATORY)
+
+**CRITICAL: This phase verifies the ENTIRE release is correct. NEVER skip.**
+
+### Phase 8 Sub-Agent Prompts
+
+#### V1: Verify GitHub Release Assets
+```
+VERIFY GITHUB RELEASE HAS ALL ASSETS:
+
+VERSION=$(cat VERSION)
+
+1. List all release assets:
+   gh release view v${VERSION} --json assets --jq '.assets[].name'
+
+2. Verify ALL 4 edition tarballs present:
+   - convergio-${VERSION}-arm64-apple-darwin.tar.gz
+   - convergio-edu-${VERSION}-arm64-apple-darwin.tar.gz
+   - convergio-biz-${VERSION}-arm64-apple-darwin.tar.gz
+   - convergio-dev-${VERSION}-arm64-apple-darwin.tar.gz
+
+3. Test download of each:
+   curl -sL "https://github.com/Roberdan/convergio-cli/releases/download/v${VERSION}/convergio-${VERSION}-arm64-apple-darwin.tar.gz" -o /tmp/test.tar.gz
+   tar -tzf /tmp/test.tar.gz  # Should list files
+
+IF ANY ASSET MISSING OR CORRUPT: BLOCK RELEASE
+
+OUTPUT FORMAT:
+{
+  "status": "PASS" | "BLOCK",
+  "assets": {
+    "master": {"present": true/false, "downloadable": true/false},
+    "education": {"present": true/false, "downloadable": true/false},
+    "business": {"present": true/false, "downloadable": true/false},
+    "developer": {"present": true/false, "downloadable": true/false}
+  }
+}
+```
+
+#### V2-V4: Verify Installed Versions
+```
+VERIFY ALL INSTALLED VERSIONS:
+
+1. Verify brew version:
+   brew info convergio | grep "convergio:"
+   Expected: convergio: X.Y.Z
+
+2. Verify CLI version:
+   convergio --version
+   Expected: Convergio X.Y.Z
+
+3. Verify Education edition (if installed):
+   ./build/bin/convergio-edu --version
+   Expected: Convergio X.Y.Z (Education Edition)
+
+4. Verify all versions match:
+   - VERSION file
+   - GitHub release tag
+   - Homebrew formula
+   - Binary --version output
+
+IF ANY VERSION MISMATCH: BLOCK RELEASE
+```
+
+#### V5: Generate Final Release Report
+```
+GENERATE FINAL RELEASE REPORT:
+
+Create comprehensive report:
+
+╔═══════════════════════════════════════════════════════════════╗
+║              CONVERGIO vX.Y.Z RELEASE REPORT                  ║
+╠═══════════════════════════════════════════════════════════════╣
+║ Release Date: YYYY-MM-DD HH:MM UTC                            ║
+║ Release Manager: app-release-manager                          ║
+╠═══════════════════════════════════════════════════════════════╣
+║ EDITIONS RELEASED:                                            ║
+║   ✅ Master:     convergio-X.Y.Z-arm64-apple-darwin.tar.gz    ║
+║   ✅ Education:  convergio-edu-X.Y.Z-arm64-apple-darwin.tar.gz║
+║   ✅ Business:   convergio-biz-X.Y.Z-arm64-apple-darwin.tar.gz║
+║   ✅ Developer:  convergio-dev-X.Y.Z-arm64-apple-darwin.tar.gz║
+╠═══════════════════════════════════════════════════════════════╣
+║ DISTRIBUTION:                                                 ║
+║   ✅ GitHub Release: https://github.com/.../releases/vX.Y.Z   ║
+║   ✅ Homebrew: brew install convergio → X.Y.Z                 ║
+╠═══════════════════════════════════════════════════════════════╣
+║ DOCUMENTATION:                                                ║
+║   ✅ CHANGELOG.md: Updated                                    ║
+║   ✅ README.md: Updated                                       ║
+║   ✅ Release Notes: Updated                                   ║
+╠═══════════════════════════════════════════════════════════════╣
+║ VERIFICATION:                                                 ║
+║   ✅ All assets downloadable                                  ║
+║   ✅ All versions match                                       ║
+║   ✅ Homebrew upgrade works                                   ║
+╠═══════════════════════════════════════════════════════════════╣
+║                    🟢 RELEASE SUCCESSFUL                      ║
+╚═══════════════════════════════════════════════════════════════╝
+```
 
 ---
 
@@ -2099,15 +2731,6 @@ After creating GitHub Release:
 - [ ] EDUCATION UNIT TESTS PASS: `make education_test` (school scenarios: Mario, Sofia, Luca, Giulia) ⚠️ BLOCKING
 - [ ] EDUCATION E2E TESTS PASS: `./tests/e2e_education_test.sh` (~54 tests, >= 95%) ⚠️ BLOCKING
 - [ ] EDUCATION LLM TESTS PASS: `./tests/education_llm_test.sh` (~21 tests - safety, pedagogy, accessibility) ⚠️ BLOCKING
-- [ ] EDUCATION SAFETY TESTS PASS: `make education_safety_test` (25/25 SAF01-SAF10) ⚠️ BLOCKING
-- [ ] AZURE OPENAI PROVIDER VERIFIED: Education edition uses Azure OpenAI (check logs) ⚠️ BLOCKING
-- [ ] EDITION ISOLATION VERIFIED: Education edition shows only 20 agents (17+3), no business/dev agents ⚠️ BLOCKING
-- [ ] MAIEUTIC METHOD VERIFIED: All 17 maestri prompts include maieutic/guide/anti-cheating language ⚠️ BLOCKING
-- [ ] PERSON-FIRST LANGUAGE AUDIT: All prompts use person-first language (users with disabilities, not disabled users) ⚠️ BLOCKING
-- [ ] OFFENSIVE TERMS AUDIT: No offensive terms found in agent definitions (per SAFETY_GUIDELINES) ⚠️ BLOCKING
-- [ ] FSRS INTEGRATION VERIFIED: flashcards.c uses fsrs_get_due_cards() and fsrs_record_review() ⚠️ BLOCKING
-- [ ] MASTERY 80% THRESHOLD VERIFIED: mastery_gate.c enforces 80% threshold (not 85%) ⚠️ BLOCKING
-- [ ] ACCESSIBILITY TESTS PASS: `make education_test` includes accessibility tests (39/39) ⚠️ BLOCKING
 - [ ] E2E TESTS PASS: `./tests/e2e_test.sh` (real API tests) ⚠️ BLOCKING
 - [ ] Debug build works: `make debug`
 - [ ] Static analysis clean: check clang-tidy output
@@ -2587,3 +3210,691 @@ Reference: https://microsoft.github.io/code-with-engineering-playbook/
 ```
 
 **REMEMBER: Every single item above is BLOCKING. There are no warnings. There are no minor issues. Fix everything or ship nothing.**
+
+---
+
+## 🚀 V7 HYBRID ARCHITECTURE RELEASE REQUIREMENTS
+
+**CRITICAL: V7 introduces a hybrid C/Rust/SvelteKit architecture. ALL existing checks STILL APPLY, plus these NEW checks.**
+
+### V7 Architecture Overview
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    V7 Architecture                          │
+├─────────────────────────────────────────────────────────────┤
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────┐  │
+│  │   C Core    │  │ Rust API    │  │   SvelteKit Web    │  │
+│  │   Library   │←→│   Gateway   │←→│        UI          │  │
+│  │  (libconv)  │  │   (axum)    │  │    (frontend)      │  │
+│  └─────────────┘  └─────────────┘  └─────────────────────┘  │
+│         ↓                ↓                   ↓              │
+│    make test      cargo test           npm run test         │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### V7 Parallel Execution Strategy
+
+```
+Phase V7-0: VERSION CONSISTENCY (MANDATORY FIRST)
+├── All VERSION files match (VERSION, Cargo.toml, package.json)
+├── CHANGELOG.md updated for all components
+└── Git tag format: v7.X.Y
+
+Phase V7-1: PARALLEL BUILD WAVE (ALL at once)
+├── Sub-agent V7-C1: C Core Build (make EDITION=master)
+├── Sub-agent V7-R1: Rust Gateway Build (cargo build --release)
+└── Sub-agent V7-S1: SvelteKit Build (npm run build)
+
+Phase V7-2: PARALLEL TEST WAVE (ALL at once)
+├── Sub-agent V7-C2: C Unit Tests (make test)
+├── Sub-agent V7-C3: C E2E Tests (./tests/e2e_test.sh)
+├── Sub-agent V7-R2: Rust Unit Tests (cargo test)
+├── Sub-agent V7-R3: Rust Integration Tests (cargo test --test integration)
+├── Sub-agent V7-R4: FFI Boundary Tests (make ffi_test)
+├── Sub-agent V7-S2: SvelteKit Unit Tests (npm run test)
+├── Sub-agent V7-S3: SvelteKit E2E Tests (npm run test:e2e)
+└── Sub-agent V7-S4: SvelteKit Accessibility (npm run test:a11y)
+
+Phase V7-3: V7-SPECIFIC VERIFICATIONS (spawn ALL at once)
+├── Sub-agent V7-BYOK: BYOK Feature Verification
+├── Sub-agent V7-LOCAL: Local LLM Verification
+├── Sub-agent V7-PROTO: Protocol Abstraction Verification
+├── Sub-agent V7-OBS: Observability Verification
+└── Sub-agent V7-SEC: V7 Security Audit
+
+Phase V7-4: INTEGRATION VERIFICATION
+├── C Core ↔ Rust Gateway integration works
+├── Rust Gateway ↔ SvelteKit integration works
+└── Full stack E2E test passes
+```
+
+---
+
+### 🔧 Phase V7-1: RUST API GATEWAY VERIFICATION (BLOCKING)
+
+**All Rust checks must pass before release.**
+
+```
+RUST API GATEWAY VERIFICATION:
+
+STEP 1: Build Verification
+$ cd rust-gateway
+$ cargo build --release 2>&1 | tee rust-build.log
+
+EXPECTED: Build succeeds with ZERO warnings
+IF warnings present: BLOCK RELEASE
+
+STEP 2: Rust Linting
+$ cargo clippy --all-targets -- -D warnings 2>&1 | tee clippy.log
+
+EXPECTED: Zero clippy warnings
+IF warnings present: BLOCK RELEASE
+
+STEP 3: Unit Tests
+$ cargo test 2>&1 | tee rust-test.log
+
+EXPECTED: All tests pass
+IF any test fails: BLOCK RELEASE
+
+STEP 4: Integration Tests
+$ cargo test --test integration 2>&1 | tee rust-integration.log
+
+EXPECTED: All integration tests pass
+IF any test fails: BLOCK RELEASE
+
+STEP 5: Memory Safety (Optional but Recommended)
+$ cargo +nightly miri test 2>&1 | tee miri.log
+
+EXPECTED: No undefined behavior detected
+IF UB detected: BLOCK RELEASE
+
+STEP 6: Dependency Audit
+$ cargo audit 2>&1 | tee cargo-audit.log
+
+EXPECTED: No known vulnerabilities
+IF vulnerabilities found: BLOCK RELEASE (unless patched)
+
+OUTPUT FORMAT:
+{
+  "status": "PASS" | "BLOCK",
+  "build": "SUCCESS" | "FAILED",
+  "warnings": N,
+  "clippy": "CLEAN" | "WARNINGS",
+  "unit_tests": "X/Y passed",
+  "integration_tests": "X/Y passed",
+  "miri": "CLEAN" | "UB_DETECTED" | "SKIPPED",
+  "audit": "CLEAN" | "VULNERABILITIES"
+}
+```
+
+---
+
+### 🎨 Phase V7-2: SVELTEKIT WEB UI VERIFICATION (BLOCKING)
+
+**All frontend checks must pass before release.**
+
+```
+SVELTEKIT WEB UI VERIFICATION:
+
+STEP 1: Dependency Installation
+$ cd web-ui
+$ npm ci 2>&1 | tee npm-install.log
+
+EXPECTED: Clean install, no audit warnings
+IF audit warnings: Document and assess severity
+
+STEP 2: Build Verification
+$ npm run build 2>&1 | tee svelte-build.log
+
+EXPECTED: Build succeeds with zero errors
+IF errors: BLOCK RELEASE
+
+STEP 3: Type Checking
+$ npm run check 2>&1 | tee svelte-check.log
+
+EXPECTED: Zero type errors
+IF type errors: BLOCK RELEASE
+
+STEP 4: Linting
+$ npm run lint 2>&1 | tee eslint.log
+
+EXPECTED: Zero linting errors
+IF errors: BLOCK RELEASE (warnings OK but document)
+
+STEP 5: Unit Tests
+$ npm run test:unit 2>&1 | tee vitest.log
+
+EXPECTED: All tests pass
+IF any test fails: BLOCK RELEASE
+
+STEP 6: E2E Tests
+$ npm run test:e2e 2>&1 | tee playwright.log
+
+EXPECTED: All E2E tests pass
+IF any test fails: BLOCK RELEASE
+
+STEP 7: Accessibility Audit
+$ npm run test:a11y 2>&1 | tee a11y.log
+
+EXPECTED: Zero critical a11y violations
+IF critical violations: BLOCK RELEASE
+
+STEP 8: Lighthouse Performance
+$ npx lighthouse http://localhost:4173 --output=json --output-path=lighthouse.json
+
+EXPECTED:
+- Performance > 90
+- Accessibility > 90
+- Best Practices > 90
+- SEO > 90
+
+IF any score < 90: BLOCK RELEASE (or document exception)
+
+STEP 9: Bundle Size Check
+$ npm run build && du -sh build/
+
+EXPECTED: Bundle size < 500KB (gzipped)
+IF > 500KB: BLOCK RELEASE (investigate bloat)
+
+OUTPUT FORMAT:
+{
+  "status": "PASS" | "BLOCK",
+  "build": "SUCCESS" | "FAILED",
+  "type_check": "CLEAN" | "ERRORS",
+  "lint": "CLEAN" | "ERRORS",
+  "unit_tests": "X/Y passed",
+  "e2e_tests": "X/Y passed",
+  "a11y": "CLEAN" | "VIOLATIONS",
+  "lighthouse": {
+    "performance": N,
+    "accessibility": N,
+    "best_practices": N,
+    "seo": N
+  },
+  "bundle_size_kb": N
+}
+```
+
+---
+
+### 🔗 Phase V7-3: FFI BOUNDARY VERIFICATION (BLOCKING)
+
+**C ↔ Rust interface must be rock solid.**
+
+```
+FFI BOUNDARY VERIFICATION:
+
+STEP 1: FFI Header Check
+$ grep -l "extern \"C\"" rust-gateway/src/**/*.rs
+
+EXPECTED: All FFI functions properly declared
+Verify: #[no_mangle] on all exported functions
+
+STEP 2: ABI Compatibility
+$ cbindgen rust-gateway -o include/convergio_ffi.h
+
+EXPECTED: Header generates without errors
+Compare with expected function signatures
+
+STEP 3: FFI Unit Tests
+$ make ffi_test 2>&1 | tee ffi-test.log
+
+EXPECTED: All FFI tests pass
+IF any test fails: BLOCK RELEASE
+
+STEP 4: Memory Boundary Check
+Verify all memory allocated in Rust is freed in Rust
+Verify all memory allocated in C is freed in C
+NO cross-boundary ownership transfers without explicit API
+
+STEP 5: Error Propagation Check
+Verify C errors become Rust Result::Err
+Verify Rust panics are caught at boundary
+Verify error codes are properly documented
+
+STEP 6: Thread Safety Check
+Verify no shared mutable state across FFI boundary
+Verify all cross-thread data uses proper synchronization
+
+OUTPUT FORMAT:
+{
+  "status": "PASS" | "BLOCK",
+  "header_generation": "SUCCESS" | "FAILED",
+  "ffi_tests": "X/Y passed",
+  "memory_safety": "VERIFIED" | "ISSUES_FOUND",
+  "error_propagation": "VERIFIED" | "ISSUES_FOUND",
+  "thread_safety": "VERIFIED" | "ISSUES_FOUND"
+}
+```
+
+---
+
+### 🔑 Phase V7-4: BYOK FEATURE VERIFICATION (BLOCKING)
+
+**BYOK is Priority #1 for V7. Must work perfectly.**
+
+```
+BYOK FEATURE VERIFICATION:
+
+STEP 1: BYOK Wizard Flow
+Test complete wizard flow:
+1. Start BYOK setup
+2. Add OpenAI key
+3. Add Anthropic key
+4. Add Google key
+5. Add Azure key (optional)
+6. Verify all keys work
+
+STEP 2: Key Encryption Verification
+$ # Verify keys are NOT stored in plaintext
+$ grep -r "sk-ant\|sk-proj\|AIza" ~/.convergio/ || echo "PASS: No plaintext keys"
+
+EXPECTED: No plaintext keys found
+IF plaintext keys found: BLOCK RELEASE
+
+STEP 3: Key Rotation Test
+1. Add a key
+2. Use it for queries
+3. Rotate to new key
+4. Verify old key no longer used
+5. Verify new key works
+
+STEP 4: Per-Provider Testing
+For each provider (OpenAI, Anthropic, Google, Azure):
+1. Set only that provider's key
+2. Run test query
+3. Verify correct provider used
+4. Verify other providers gracefully disabled
+
+STEP 5: Multi-Key Fallback
+1. Set primary and fallback keys
+2. Simulate primary failure
+3. Verify fallback activates
+4. Verify user notified
+
+STEP 6: Cost Tracking Integration
+1. Run several queries
+2. Verify cost tracked per provider
+3. Verify cost displayed in dashboard
+4. Verify cost export works
+
+OUTPUT FORMAT:
+{
+  "status": "PASS" | "BLOCK",
+  "wizard_flow": "COMPLETE" | "FAILED_AT_STEP_N",
+  "key_encryption": "VERIFIED" | "PLAINTEXT_FOUND",
+  "key_rotation": "WORKS" | "FAILED",
+  "providers_tested": ["openai", "anthropic", "google", "azure"],
+  "provider_results": {
+    "openai": "PASS" | "FAIL",
+    "anthropic": "PASS" | "FAIL",
+    "google": "PASS" | "FAIL",
+    "azure": "PASS" | "FAIL | SKIPPED"
+  },
+  "fallback": "WORKS" | "FAILED",
+  "cost_tracking": "WORKS" | "FAILED"
+}
+```
+
+---
+
+### 🖥️ Phase V7-5: LOCAL LLM VERIFICATION (BLOCKING if enabled)
+
+**Local LLM support must work on supported platforms.**
+
+```
+LOCAL LLM VERIFICATION:
+
+STEP 1: Ollama Integration
+$ ollama list  # Verify ollama installed
+$ make local_llm_test_ollama 2>&1 | tee ollama-test.log
+
+EXPECTED: Ollama queries work
+IF fails: BLOCK RELEASE (if local_llm feature enabled)
+
+STEP 2: MLX Integration (Apple Silicon only)
+$ # Only run on Apple Silicon
+$ uname -m | grep -q arm64 && make local_llm_test_mlx
+
+EXPECTED: MLX queries work on Apple Silicon
+IF fails on Apple Silicon: BLOCK RELEASE
+
+STEP 3: Model Download/Cache
+1. Remove cached model
+2. Trigger model download
+3. Verify download completes
+4. Verify model cached correctly
+5. Verify subsequent queries use cache
+
+STEP 4: Cloud Fallback
+1. Configure local LLM as primary
+2. Configure cloud as fallback
+3. Disconnect local (or use unsupported query)
+4. Verify cloud fallback activates
+5. Verify user notified
+
+STEP 5: Privacy Mode
+1. Enable privacy mode (local only)
+2. Run queries
+3. Verify NO cloud API calls made
+4. Monitor network traffic if possible
+
+OUTPUT FORMAT:
+{
+  "status": "PASS" | "BLOCK" | "SKIPPED",
+  "ollama": "PASS" | "FAIL" | "NOT_INSTALLED",
+  "mlx": "PASS" | "FAIL" | "NOT_APPLE_SILICON",
+  "model_caching": "WORKS" | "FAILED",
+  "cloud_fallback": "WORKS" | "FAILED",
+  "privacy_mode": "VERIFIED" | "CLOUD_CALLS_DETECTED"
+}
+```
+
+---
+
+### 📡 Phase V7-6: PROTOCOL VERIFICATION (BLOCKING)
+
+**Protocol abstraction layer must work for all supported protocols.**
+
+```
+PROTOCOL VERIFICATION:
+
+STEP 1: MCP Protocol Test
+$ make protocol_test_mcp 2>&1 | tee mcp-test.log
+
+EXPECTED: MCP protocol works (already supported)
+IF fails: BLOCK RELEASE
+
+STEP 2: A2A Protocol Test (if enabled)
+$ make protocol_test_a2a 2>&1 | tee a2a-test.log
+
+EXPECTED: A2A protocol works (if feature flag enabled)
+IF fails and enabled: BLOCK RELEASE
+
+STEP 3: Protocol Abstraction Layer
+1. Test that protocol interface is properly abstracted
+2. Verify adding new protocol adapter is straightforward
+3. Verify protocol selection works based on configuration
+
+STEP 4: Multi-Protocol Routing
+1. Configure multiple protocols
+2. Test that queries route to correct protocol
+3. Test fallback when primary protocol fails
+
+OUTPUT FORMAT:
+{
+  "status": "PASS" | "BLOCK",
+  "mcp": "PASS" | "FAIL",
+  "a2a": "PASS" | "FAIL" | "DISABLED",
+  "abstraction_layer": "VERIFIED" | "ISSUES_FOUND",
+  "routing": "WORKS" | "FAILED"
+}
+```
+
+---
+
+### 📊 Phase V7-7: OBSERVABILITY VERIFICATION (BLOCKING)
+
+**V7 must have observability from day one.**
+
+```
+OBSERVABILITY VERIFICATION:
+
+STEP 1: OpenTelemetry Integration
+$ make observability_test 2>&1 | tee otel-test.log
+
+Verify:
+- Traces exported correctly
+- Metrics exported correctly
+- Logs exported correctly
+
+STEP 2: Key Metrics Check
+Verify these metrics are instrumented:
+- Query latency (P50, P95, P99)
+- Query count per provider
+- Error rate per provider
+- LLM cost per query
+- BYOK vs reserved usage ratio
+
+STEP 3: Structured Logging
+$ grep -r "log::" rust-gateway/src/ | head -20
+
+Verify:
+- All logs use structured format
+- Log levels appropriate
+- No sensitive data in logs (keys, tokens)
+
+STEP 4: Health Endpoints
+$ curl http://localhost:3000/health
+$ curl http://localhost:3000/ready
+$ curl http://localhost:3000/metrics
+
+EXPECTED: All endpoints respond correctly
+IF any fails: BLOCK RELEASE
+
+OUTPUT FORMAT:
+{
+  "status": "PASS" | "BLOCK",
+  "traces": "EXPORTED" | "FAILED",
+  "metrics": "EXPORTED" | "FAILED",
+  "logs": "STRUCTURED" | "ISSUES",
+  "key_metrics": ["latency", "count", "errors", "cost", "byok_ratio"],
+  "health_endpoints": "ALL_OK" | "FAILED"
+}
+```
+
+---
+
+### 🔒 Phase V7-8: V7 SECURITY AUDIT (BLOCKING)
+
+**Additional security checks for V7 architecture.**
+
+```
+V7 SECURITY AUDIT:
+
+STEP 1: Rust Security
+$ cargo audit 2>&1 | tee cargo-audit.log
+$ cargo deny check 2>&1 | tee cargo-deny.log
+
+EXPECTED: No known vulnerabilities
+IF vulnerabilities: BLOCK RELEASE
+
+STEP 2: npm Security
+$ cd web-ui && npm audit 2>&1 | tee npm-audit.log
+
+EXPECTED: No high/critical vulnerabilities
+IF high/critical: BLOCK RELEASE
+
+STEP 3: API Security
+Verify:
+- All endpoints require authentication (except public)
+- Rate limiting implemented
+- CORS properly configured
+- No SQL injection in database queries
+- No XSS in web UI
+
+STEP 4: Secrets Handling
+$ rg -i "sk-ant|sk-proj|AIza|api.key|password|secret|token" --type rust --type svelte
+
+EXPECTED: No hardcoded secrets
+IF secrets found: BLOCK RELEASE
+
+STEP 5: Input Validation
+Verify:
+- All user inputs validated
+- All API inputs validated
+- File uploads (if any) properly sanitized
+
+STEP 6: HTTPS Enforcement
+Verify:
+- Production uses HTTPS only
+- HSTS headers present
+- Secure cookie flags set
+
+OUTPUT FORMAT:
+{
+  "status": "PASS" | "BLOCK",
+  "cargo_audit": "CLEAN" | "VULNERABILITIES",
+  "npm_audit": "CLEAN" | "HIGH_CRITICAL",
+  "api_security": "VERIFIED" | "ISSUES",
+  "secrets": "CLEAN" | "FOUND",
+  "input_validation": "VERIFIED" | "ISSUES",
+  "https": "ENFORCED" | "ISSUES"
+}
+```
+
+---
+
+### 📦 Phase V7-9: V7 RELEASE ARTIFACTS (BLOCKING)
+
+**V7 has more components to package.**
+
+```
+V7 RELEASE ARTIFACTS:
+
+STEP 1: Build All Components
+$ make v7-build-all
+
+Components:
+- C Core Library (all editions)
+- Rust API Gateway
+- SvelteKit Web UI (static build)
+- Combined distribution package
+
+STEP 2: Create Release Tarballs
+For each edition (master, education, business, developer):
+$ make v7-package EDITION={edition}
+
+Creates:
+- convergio-v7-{version}-{edition}-{arch}.tar.gz
+- SHA256 checksums
+
+STEP 3: Docker Images (if applicable)
+$ docker build -t convergio:v{version} .
+$ docker push convergio:v{version}
+
+STEP 4: Verify All Artifacts
+- All tarballs present
+- All SHA256 checksums match
+- Docker image runs correctly
+
+OUTPUT FORMAT:
+{
+  "status": "PASS" | "BLOCK",
+  "c_core": "BUILT" | "FAILED",
+  "rust_gateway": "BUILT" | "FAILED",
+  "web_ui": "BUILT" | "FAILED",
+  "editions": ["master", "education", "business", "developer"],
+  "tarballs": N,
+  "docker": "PUSHED" | "FAILED" | "SKIPPED"
+}
+```
+
+---
+
+### ✅ V7 Final Verification Checklist
+
+```
+═══════════════════════════════════════════════════════════════
+                    V7 RELEASE CHECKLIST
+═══════════════════════════════════════════════════════════════
+
+COMPONENT BUILDS
+───────────────────────────────────────────────────────────────
+C Core Library:           {BUILD STATUS} → PASS/BLOCK
+Rust API Gateway:         {BUILD STATUS} → PASS/BLOCK
+SvelteKit Web UI:         {BUILD STATUS} → PASS/BLOCK
+All Editions Built:       {4/4 required} → PASS/BLOCK
+
+COMPONENT TESTS
+───────────────────────────────────────────────────────────────
+C Unit Tests:             {100% required} → PASS/BLOCK
+C E2E Tests:              {100% required} → PASS/BLOCK
+Rust Unit Tests:          {100% required} → PASS/BLOCK
+Rust Integration Tests:   {100% required} → PASS/BLOCK
+FFI Boundary Tests:       {100% required} → PASS/BLOCK
+SvelteKit Unit Tests:     {100% required} → PASS/BLOCK
+SvelteKit E2E Tests:      {100% required} → PASS/BLOCK
+
+V7 FEATURES
+───────────────────────────────────────────────────────────────
+BYOK Wizard:              {WORKS} → PASS/BLOCK
+Key Encryption:           {VERIFIED} → PASS/BLOCK
+All Providers Work:       {4/4} → PASS/BLOCK
+Cost Tracking:            {WORKS} → PASS/BLOCK
+Local LLM (if enabled):   {WORKS} → PASS/BLOCK
+Protocol Abstraction:     {WORKS} → PASS/BLOCK
+Observability:            {WORKS} → PASS/BLOCK
+
+SECURITY
+───────────────────────────────────────────────────────────────
+Cargo Audit:              {CLEAN} → PASS/BLOCK
+npm Audit:                {CLEAN} → PASS/BLOCK
+No Hardcoded Secrets:     {VERIFIED} → PASS/BLOCK
+API Security:             {VERIFIED} → PASS/BLOCK
+HTTPS Enforced:           {VERIFIED} → PASS/BLOCK
+
+QUALITY
+───────────────────────────────────────────────────────────────
+Zero Rust Warnings:       {0 required} → PASS/BLOCK
+Zero Clippy Warnings:     {0 required} → PASS/BLOCK
+Zero TypeScript Errors:   {0 required} → PASS/BLOCK
+Zero ESLint Errors:       {0 required} → PASS/BLOCK
+Lighthouse Score >90:     {ALL} → PASS/BLOCK
+Bundle Size <500KB:       {VERIFIED} → PASS/BLOCK
+
+VERSION CONSISTENCY
+───────────────────────────────────────────────────────────────
+VERSION file:             {X.Y.Z} → PASS/BLOCK
+Cargo.toml version:       {X.Y.Z} → PASS/BLOCK
+package.json version:     {X.Y.Z} → PASS/BLOCK
+CHANGELOG updated:        {VERIFIED} → PASS/BLOCK
+
+═══════════════════════════════════════════════════════════════
+                    V7 FINAL VERDICT
+═══════════════════════════════════════════════════════════════
+
+🔴 BLOCKED - {N} violations. NO RELEASE until all fixed.
+                OR
+🟢 APPROVED - Zero violations. V7 Release authorized.
+
+═══════════════════════════════════════════════════════════════
+```
+
+---
+
+### V7 Build Commands Reference
+
+```bash
+# Full V7 build (all components)
+make v7-build-all
+
+# Component builds
+make v7-core              # C Core Library
+make v7-gateway           # Rust API Gateway (cargo build)
+make v7-ui                # SvelteKit Web UI (npm run build)
+
+# Testing
+make v7-test-all          # All tests
+make v7-test-core         # C tests
+make v7-test-gateway      # Rust tests (cargo test)
+make v7-test-ui           # SvelteKit tests (npm run test)
+make v7-test-ffi          # FFI boundary tests
+make v7-test-e2e          # Full E2E tests
+make v7-test-byok         # BYOK feature tests
+make v7-test-local-llm    # Local LLM tests
+
+# Release
+make v7-release VERSION=7.0.0    # Create release artifacts
+make v7-package EDITION=master   # Package specific edition
+
+# Verification
+make v7-verify            # Run all verification checks
+make v7-security-audit    # Security audit only
+make v7-lint              # All linting (C, Rust, TS)
+```
+
+---
+
+**V7 RELEASE MANAGEMENT IS EVEN MORE CRITICAL. The hybrid architecture means more components, more tests, more verification. No shortcuts. No exceptions.**

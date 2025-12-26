@@ -1,8 +1,32 @@
 # Convergio V7: Master Index & Documentation Hub
 
-**Last Updated:** December 26, 2025  
-**Version:** 1.0  
+**Last Updated:** December 26, 2025
+**Version:** 1.1 (Strategic Review Update)
 **Purpose:** Central hub for all V7 planning documents
+
+---
+
+## ⚠️ CRITICAL NOTICE: December 2025 Strategic Review
+
+**All V7 plans have been reviewed against current market conditions.** See [V7Plan-CRITICAL-REVIEW.md](./V7Plan-CRITICAL-REVIEW.md) Part 11 for complete analysis.
+
+### Key Changes from Strategic Review:
+
+| Item | Original | Updated | Reason |
+|------|----------|---------|--------|
+| **Timeline** | 4-7 months | 8-12 months | Realistic estimate for ~108K LOC |
+| **BYOK** | Optional | Priority #1 (Default) | LLM costs are 80-95% of total |
+| **Pricing** | Flat $9.99 | BYOK + Usage-based | Sustainability |
+| **MVP Agents** | 17 agents | 5 core agents | Faster time-to-market |
+| **Protocols** | MCP only | MCP + A2A | Emerging standards |
+| **Competitors** | Generic | Microsoft Q1 2026 | Specific threat |
+
+### New Required Elements:
+- Observability stack (OpenTelemetry)
+- Feature flags system
+- Real-time cost tracking
+- Agent versioning
+- app-release-manager V7 updates
 
 ---
 
@@ -38,8 +62,31 @@ This master index provides a complete overview of all V7 planning documents, the
 
 **Related Documents:**
 - → [Critical Review](./V7Plan-CRITICAL-REVIEW.md) - Detailed analysis
+- → [Strategic Recommendations](./V7Plan-STRATEGIC-RECOMMENDATIONS.md) - Action items
 - → [Master Index](./V7Plan-MASTER-INDEX.md) - Complete documentation hub
 - → All other documents (this harmonizes them all)
+
+---
+
+### [V7Plan-STRATEGIC-RECOMMENDATIONS.md](./V7Plan-STRATEGIC-RECOMMENDATIONS.md) ⭐ NEW
+**Purpose:** Consolidated strategic recommendations and action items from December 2025 review
+**Audience:** Leadership, product team, development team
+**Key Content:**
+- Immediate action items (BYOK Priority #1)
+- Architecture requirements (Protocol abstraction, FFI design)
+- Business model updates (BYOK-first pricing)
+- Technical requirements (Local LLM, Feature flags)
+- Missing elements to add (Cost tracking, Admin dashboard)
+- Release management updates for V7 (app-release-manager)
+- Risk mitigation updates
+- Success metrics and timeline
+
+**⭐ ACTIONABLE** - This document consolidates all recommendations into executable tasks.
+
+**Related Documents:**
+- → [Critical Review](./V7Plan-CRITICAL-REVIEW.md) - Source of recommendations
+- → [Business Case](./V7Plan-Business-Case.md) - Financial context
+- → [10-Year Strategy](./V7Plan-10Year-Strategy.md) - Strategic context
 
 ---
 
@@ -393,36 +440,43 @@ V7Plan-CRITICAL-REVIEW.md (Single Source of Truth)
 
 ---
 
-## 🎯 Key Decisions (Final)
+## 🎯 Key Decisions (Final - Updated December 2025)
 
 ### Architecture
 - **Core C as library** (not standalone process)
-- **Rust API Gateway** (HTTP/WebSocket)
+- **Rust API Gateway** (HTTP/WebSocket, axum)
 - **SvelteKit web UI** (primary interface)
 - **PostgreSQL/Redis** (state management)
+- **OpenTelemetry** (observability) ⬅️ NEW
 
-### Pricing
-- **Free:** 30 questions/month, 3 agents
-- **Pro:** $6.99/month + 100 questions + $0.01/extra
-- **Team:** $19.99/month + 500 questions + $0.01/extra
+### Pricing (BYOK as Default)
+- **Free (BYOK):** $0, user's API key
+- **Free (Local):** 30 queries/month, MLX/Ollama only
+- **Pro (BYOK):** $4.99/month, user's API key
+- **Pro (Managed):** $9.99/month + 100 queries + $0.01/extra
 - **Enterprise:** Custom pricing
 
 ### Costs (Standardized)
 - **Free tier:** GPT-4o-mini = $0.001/question
 - **Paid tier:** GPT-4o = $0.01/question
 - **Infrastructure:** $500-3,000/month (scales with users)
+- **BYOK:** $0 LLM cost to us ⬅️ KEY INSIGHT
 
-### Timeline
-- **Months 1-3:** Core refactoring + plugin system
-- **Months 4-6:** API Gateway + Web UI MVP
-- **Months 7-9:** Voice + SaaS infrastructure
-- **Months 10-12:** Marketplace + Launch
+### Timeline (Revised - Realistic)
+- **Q1 2026:** Foundation (FFI, API Gateway, BYOK, 5 agents)
+- **Q2 2026:** Beta Launch (Web UI, Ollama, Feature flags)
+- **Q3-Q4 2026:** Scale (Marketplace, Enterprise, Mobile)
 
 ### Revenue Model
-- **Usage-based SaaS** (primary)
-- **Plugin marketplace** (secondary, Year 2+)
+- **BYOK SaaS** (primary - near-100% margin) ⬅️ PRIORITY
+- **Usage-based managed** (secondary)
+- **Plugin marketplace** (Year 2+)
 - **Enterprise licensing** (high-value, Year 2+)
-- **Grants/sponsorships** (Education, Year 1+)
+
+### Protocols
+- **MCP** (Anthropic) ✅ Supported
+- **A2A** (Google) ⚠️ Add Q2 2026
+- **ACP/ANP** ⚠️ Monitor
 
 ---
 
