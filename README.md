@@ -679,8 +679,11 @@ Compare responses from multiple models:
 # Add the tap (once)
 brew tap Roberdan/convergio-cli
 
-# Install Master Edition (default)
-brew install convergio
+# Install your preferred edition:
+brew install convergio          # Master Edition (60+ agents, full-featured)
+brew install convergio-edu      # Education Edition (17 Maestri teachers)
+brew install convergio-biz      # Business Edition (10 business agents)
+brew install convergio-dev      # Developer Edition (11 DevOps agents)
 ```
 
 ### Installation from GitHub Release
@@ -748,9 +751,9 @@ Convergio is available in multiple editions, each focused on specific use cases:
 | Edition | Agents | Target Audience | Installation |
 |---------|--------|-----------------|--------------|
 | **Master** | 60+ | Developers, power users | `brew install convergio` |
-| **Education** | 18 | Students, teachers | `brew install convergio-edu` |
-| **Business** | 10 | SMBs, sales teams | `--edition business` |
-| **Developer** | 10 | DevOps, tech leads | `--edition developer` |
+| **Education** | 17 | Students, teachers, schools | `brew install convergio-edu` |
+| **Business** | 10 | SMBs, sales teams | `brew install convergio-biz` |
+| **Developer** | 11 | DevOps, tech leads | `brew install convergio-dev` |
 
 ### Switching Editions at Runtime
 

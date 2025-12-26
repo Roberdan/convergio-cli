@@ -267,31 +267,55 @@ jobs:
             See [CHANGELOG.md](https://github.com/Roberdan/convergio-cli/blob/main/CHANGELOG.md) for details.
           generate_release_notes: true
 
-      # --- Update Homebrew Formula ---
-      - name: Update Homebrew Formula
+      # --- Update Homebrew Formulas (All Editions) ---
+      - name: Update Homebrew Formulas
         env:
           TAP_GITHUB_TOKEN: ${{ secrets.TAP_GITHUB_TOKEN }}
         run: |
           VERSION=${{ steps.version.outputs.VERSION }}
-          SHA256=${{ steps.sha256.outputs.SHA256_MASTER }}
+          SHA256_MASTER=${{ steps.sha256.outputs.SHA256_MASTER }}
+          SHA256_EDU=${{ steps.sha256.outputs.SHA256_EDU }}
+          SHA256_BIZ=${{ steps.sha256.outputs.SHA256_BIZ }}
+          SHA256_DEV=${{ steps.sha256.outputs.SHA256_DEV }}
 
-          # Update formula in local copy first
+          # Update Master formula
           sed -i '' "s/version \".*\"/version \"${VERSION}\"/" Formula/convergio.rb
-          sed -i '' "s/sha256 \".*\"/sha256 \"${SHA256}\"/" Formula/convergio.rb
+          sed -i '' "s/sha256 \".*\"/sha256 \"${SHA256_MASTER}\"/" Formula/convergio.rb
           sed -i '' "s|/v[0-9]*\.[0-9]*\.[0-9]*/|/v${VERSION}/|g" Formula/convergio.rb
           sed -i '' "s/convergio-[0-9]*\.[0-9]*\.[0-9]*/convergio-${VERSION}/g" Formula/convergio.rb
 
-          # Update Homebrew tap repository (the only one used by brew)
+          # Update Education formula
+          sed -i '' "s/version \".*\"/version \"${VERSION}\"/" Formula/convergio-edu.rb
+          sed -i '' "s/sha256 \".*\"/sha256 \"${SHA256_EDU}\"/" Formula/convergio-edu.rb
+          sed -i '' "s|/v[0-9]*\.[0-9]*\.[0-9]*/|/v${VERSION}/|g" Formula/convergio-edu.rb
+          sed -i '' "s/convergio-edu-[0-9]*\.[0-9]*\.[0-9]*/convergio-edu-${VERSION}/g" Formula/convergio-edu.rb
+
+          # Update Business formula
+          sed -i '' "s/version \".*\"/version \"${VERSION}\"/" Formula/convergio-biz.rb
+          sed -i '' "s/sha256 \".*\"/sha256 \"${SHA256_BIZ}\"/" Formula/convergio-biz.rb
+          sed -i '' "s|/v[0-9]*\.[0-9]*\.[0-9]*/|/v${VERSION}/|g" Formula/convergio-biz.rb
+          sed -i '' "s/convergio-biz-[0-9]*\.[0-9]*\.[0-9]*/convergio-biz-${VERSION}/g" Formula/convergio-biz.rb
+
+          # Update Developer formula
+          sed -i '' "s/version \".*\"/version \"${VERSION}\"/" Formula/convergio-dev.rb
+          sed -i '' "s/sha256 \".*\"/sha256 \"${SHA256_DEV}\"/" Formula/convergio-dev.rb
+          sed -i '' "s|/v[0-9]*\.[0-9]*\.[0-9]*/|/v${VERSION}/|g" Formula/convergio-dev.rb
+          sed -i '' "s/convergio-dev-[0-9]*\.[0-9]*\.[0-9]*/convergio-dev-${VERSION}/g" Formula/convergio-dev.rb
+
+          # Update Homebrew tap repository with ALL formulas
           cd /tmp
           git clone https://x-access-token:${TAP_GITHUB_TOKEN}@github.com/Roberdan/homebrew-convergio-cli.git tap-repo
           cp $GITHUB_WORKSPACE/Formula/convergio.rb tap-repo/Formula/
+          cp $GITHUB_WORKSPACE/Formula/convergio-edu.rb tap-repo/Formula/
+          cp $GITHUB_WORKSPACE/Formula/convergio-biz.rb tap-repo/Formula/
+          cp $GITHUB_WORKSPACE/Formula/convergio-dev.rb tap-repo/Formula/
           cd tap-repo
           git config user.name "GitHub Actions"
           git config user.email "actions@github.com"
-          git add Formula/convergio.rb
-          git diff --staged --quiet || git commit -m "chore: Update formula to v${VERSION}"
+          git add Formula/
+          git diff --staged --quiet || git commit -m "chore: Update all formulas to v${VERSION}"
           git push origin main
-          echo "✅ Homebrew tap updated to v${VERSION}"
+          echo "✅ Homebrew tap updated to v${VERSION} (all 4 editions)"
 
       # --- Cleanup ---
       - name: Cleanup keychain
