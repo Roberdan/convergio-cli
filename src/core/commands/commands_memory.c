@@ -239,6 +239,170 @@ int cmd_graph(int argc, char** argv) {
 }
 
 // ============================================================================
+// MEMORY RESET COMMAND
+// ============================================================================
+
+/**
+ * /reset - Reset all Convergio memory (knowledge graph, notes, cache, databases)
+ *
+ * Clears:
+ * - Knowledge graph (semantic nodes and relations)
+ * - Notes directory
+ * - Cache directory
+ * - Plans database
+ * - Voice history database
+ * - Education database
+ * - Generated outputs
+ * - Session history
+ */
+int cmd_reset(int argc, char** argv) {
+    (void)argc;
+    (void)argv;
+
+    printf("\n\033[1;33m⚠️  CONVERGIO MEMORY RESET\033[0m\n\n");
+    printf("This will permanently delete:\n");
+    printf("  • All memories and knowledge graph data\n");
+    printf("  • All notes and documents\n");
+    printf("  • All cached data\n");
+    printf("  • All execution plans\n");
+    printf("  • All session history\n");
+    printf("  • All voice conversation history\n");
+    printf("  • All education data (if applicable)\n");
+    printf("\n\033[31mThis action cannot be undone!\033[0m\n\n");
+    printf("Are you sure you want to reset? Type 'RESET' to confirm: ");
+    fflush(stdout);
+
+    char confirm[32] = {0};
+    if (!fgets(confirm, sizeof(confirm), stdin)) {
+        printf("\nReset cancelled.\n");
+        return 0;
+    }
+
+    // Remove newline
+    confirm[strcspn(confirm, "\n")] = 0;
+
+    if (strcmp(confirm, "RESET") != 0) {
+        printf("\nReset cancelled. You must type 'RESET' exactly.\n");
+        return 0;
+    }
+
+    printf("\n\033[36mResetting Convergio...\033[0m\n\n");
+
+    // Get paths from config
+    extern const char* convergio_config_get(const char* key);
+    const char* db_path = convergio_config_get("db_path");
+    const char* notes_dir = convergio_config_get("notes_dir");
+    const char* knowledge_dir = convergio_config_get("knowledge_dir");
+    const char* cache_dir = convergio_config_get("cache_dir");
+    const char* config_dir = convergio_config_get("config_dir");
+
+    int errors = 0;
+    char cmd[1024];
+
+    // 1. Clear semantic database
+    if (db_path && db_path[0]) {
+        printf("  Clearing main database...\n");
+        if (remove(db_path) == 0) {
+            printf("    \033[32m✓\033[0m Removed %s\n", db_path);
+        } else if (errno != ENOENT) {
+            printf("    \033[33m!\033[0m Could not remove %s: %s\n", db_path, strerror(errno));
+            errors++;
+        }
+    }
+
+    // 2. Clear notes directory
+    if (notes_dir && notes_dir[0]) {
+        printf("  Clearing notes...\n");
+        snprintf(cmd, sizeof(cmd), "rm -rf \"%s\"/* 2>/dev/null", notes_dir);
+        if (system(cmd) == 0) {
+            printf("    \033[32m✓\033[0m Cleared notes directory\n");
+        }
+    }
+
+    // 3. Clear knowledge directory
+    if (knowledge_dir && knowledge_dir[0]) {
+        printf("  Clearing knowledge base...\n");
+        snprintf(cmd, sizeof(cmd), "rm -rf \"%s\"/* 2>/dev/null", knowledge_dir);
+        if (system(cmd) == 0) {
+            printf("    \033[32m✓\033[0m Cleared knowledge directory\n");
+        }
+    }
+
+    // 4. Clear cache directory
+    if (cache_dir && cache_dir[0]) {
+        printf("  Clearing cache...\n");
+        snprintf(cmd, sizeof(cmd), "rm -rf \"%s\"/* 2>/dev/null", cache_dir);
+        if (system(cmd) == 0) {
+            printf("    \033[32m✓\033[0m Cleared cache directory\n");
+        }
+    }
+
+    // 5. Clear plans database
+    if (config_dir && config_dir[0]) {
+        char plans_db[512];
+        snprintf(plans_db, sizeof(plans_db), "%s/plans.db", config_dir);
+        printf("  Clearing execution plans...\n");
+        if (remove(plans_db) == 0) {
+            printf("    \033[32m✓\033[0m Removed plans database\n");
+        } else if (errno != ENOENT) {
+            printf("    \033[33m!\033[0m Could not remove plans.db: %s\n", strerror(errno));
+        }
+
+        // 6. Clear voice history
+        char voice_db[512];
+        snprintf(voice_db, sizeof(voice_db), "%s/voice_history.db", config_dir);
+        printf("  Clearing voice history...\n");
+        if (remove(voice_db) == 0) {
+            printf("    \033[32m✓\033[0m Removed voice history database\n");
+        } else if (errno != ENOENT) {
+            // Silently ignore - might not exist in all editions
+        }
+
+        // 7. Clear education database
+        char edu_db[512];
+        snprintf(edu_db, sizeof(edu_db), "%s/education.db", config_dir);
+        printf("  Clearing education data...\n");
+        if (remove(edu_db) == 0) {
+            printf("    \033[32m✓\033[0m Removed education database\n");
+        } else if (errno != ENOENT) {
+            // Silently ignore - might not exist in non-edu editions
+        }
+
+        // 8. Clear outputs directory
+        char outputs_dir[512];
+        snprintf(outputs_dir, sizeof(outputs_dir), "%s/outputs", config_dir);
+        printf("  Clearing generated outputs...\n");
+        snprintf(cmd, sizeof(cmd), "rm -rf \"%s\"/* 2>/dev/null", outputs_dir);
+        system(cmd);
+        printf("    \033[32m✓\033[0m Cleared outputs directory\n");
+
+        // 9. Clear session history
+        char sessions_dir[512];
+        snprintf(sessions_dir, sizeof(sessions_dir), "%s/sessions", config_dir);
+        printf("  Clearing session history...\n");
+        snprintf(cmd, sizeof(cmd), "rm -rf \"%s\"/* 2>/dev/null", sessions_dir);
+        system(cmd);
+        printf("    \033[32m✓\033[0m Cleared session history\n");
+    }
+
+    // Reset in-memory semantic graph
+    extern void nous_reset_fabric(void);
+    printf("  Resetting in-memory graph...\n");
+    nous_reset_fabric();
+    printf("    \033[32m✓\033[0m In-memory graph cleared\n");
+
+    printf("\n");
+    if (errors == 0) {
+        printf("\033[32m✓ Convergio memory has been reset.\033[0m\n");
+        printf("\n\033[90mNote: Restart Convergio for changes to take full effect.\033[0m\n");
+    } else {
+        printf("\033[33m⚠ Reset completed with %d warning(s).\033[0m\n", errors);
+    }
+
+    return 0;
+}
+
+// ============================================================================
 // GIT/TEST WORKFLOW COMMANDS (Issue #15)
 // ============================================================================
 

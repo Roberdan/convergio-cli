@@ -524,6 +524,7 @@ bool convergio_setup_complete(void) {
 // ============================================================================
 
 // Style definitions - must match commands.c
+// Token limits increased in v6.2.0 to prevent response truncation
 typedef struct {
     const char* name;
     int max_tokens;
@@ -532,10 +533,10 @@ typedef struct {
 } StyleDef;
 
 static const StyleDef STYLE_DEFS[] = {
-    {"flash", 1024, 0.3, false},
-    {"concise", 2048, 0.5, true},
-    {"balanced", 4096, 0.7, true},
-    {"detailed", 8192, 0.9, true},
+    {"flash", 4096, 0.3, false},      // Quick responses
+    {"concise", 8192, 0.5, true},     // Concise but complete
+    {"balanced", 16384, 0.7, true},   // Default: detailed responses
+    {"detailed", 32768, 0.9, true},   // Maximum detail (Opus 4.5 supports 128k output)
 };
 #define STYLE_DEF_COUNT 4
 
@@ -550,8 +551,8 @@ StyleSettings convergio_get_style_settings(void) {
         }
     }
 
-    // Default to balanced
-    return (StyleSettings){.max_tokens = 4096, .temperature = 0.7, .markdown = true};
+    // Default to balanced (16384 tokens to prevent truncation)
+    return (StyleSettings){.max_tokens = 16384, .temperature = 0.7, .markdown = true};
 }
 
 const char* convergio_get_style_name(void) {

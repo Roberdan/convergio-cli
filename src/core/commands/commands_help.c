@@ -273,6 +273,19 @@ static const CommandHelp DETAILED_HELP[] = {
      "quit\n"
      "exit"},
     // Semantic memory commands
+    {"reset", "reset", "Reset all Convergio memory",
+     "Permanently deletes ALL stored data including:\n"
+     "  - Knowledge graph (all memories, nodes, and relations)\n"
+     "  - Notes and documents\n"
+     "  - Cache data\n"
+     "  - Execution plans\n"
+     "  - Session history\n"
+     "  - Voice conversation history\n"
+     "  - Education data (in Education edition)\n"
+     "  - Generated outputs\n\n"
+     "REQUIRES CONFIRMATION: You must type 'RESET' (all caps) to proceed.\n"
+     "This action cannot be undone. Restart Convergio for full effect.",
+     "reset    # Prompts for confirmation before deleting all data"},
     {"remember", "remember <text>", "Store a memory in the knowledge graph",
      "Creates a persistent memory node that survives across sessions.\n"
      "Memories are stored with high importance (0.9) and can be:\n"
