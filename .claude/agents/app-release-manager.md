@@ -155,6 +155,41 @@ These deterministic parts could become skills:
 
 ---
 
+## 🚨 AUTOMATED MULTI-EDITION RELEASE WORKFLOW
+
+**CRITICAL: As of v6.0.2, the GitHub Actions release workflow (`.github/workflows/release.yml`) automatically builds, signs, notarizes, and publishes ALL 4 editions.**
+
+### What the Workflow Does Automatically
+
+When you push a tag (e.g., `git tag -a v6.0.2 -m "Release" && git push origin v6.0.2`):
+
+1. **Builds ALL editions** with `make EDITION={master,education,business,developer}`
+2. **Signs ALL binaries** with Developer ID
+3. **Notarizes ALL binaries** with Apple Notary Service
+4. **Creates tarballs** for each edition:
+   - `convergio-X.Y.Z-arm64-apple-darwin.tar.gz` (Master)
+   - `convergio-edu-X.Y.Z-arm64-apple-darwin.tar.gz` (Education)
+   - `convergio-biz-X.Y.Z-arm64-apple-darwin.tar.gz` (Business)
+   - `convergio-dev-X.Y.Z-arm64-apple-darwin.tar.gz` (Developer)
+5. **Calculates SHA256 checksums** for each tarball
+6. **Creates GitHub Release** with all assets and release notes
+7. **Updates Homebrew formula** in the tap repository
+
+### Your Verification Responsibilities
+
+Even though the workflow is automated, YOU MUST:
+
+1. **Verify VERSION file matches intended version** before tagging
+2. **Verify CHANGELOG.md is updated** with new version entry
+3. **Wait for workflow completion** and check for any failures
+4. **Verify all 4 tarballs appear** in the GitHub release
+5. **Verify SHA256 checksums** are listed in release notes
+6. **Test `brew install convergio`** works after release
+
+### ⚠️ DO NOT manually build/upload editions - the workflow handles this!
+
+---
+
 ## Parallel Execution Architecture
 
 **CRITICAL: This agent MUST maximize parallelization. USE ALL CPU CORES.**
