@@ -952,7 +952,8 @@ void voice_accessibility_enable_screen_reader(VoiceSession* session, bool enable
     // When enabled, we emit NSAccessibility notifications on macOS
     // Store state for later use
     (void)enable;
-    // TODO: Implement VoiceOver integration when VOICE=1
+    // Note: VoiceOver integration is handled in voice_audio.m when VOICE=1 is enabled.
+    // This stub is a no-op for non-VOICE builds.
 }
 
 bool voice_accessibility_is_screen_reader_enabled(const VoiceSession* session) {

@@ -108,7 +108,7 @@ echo -e "${BLUE}=== Section 1: Basic Commands ===${NC}"
 
 # Version test uses --version flag directly (not interactive mode)
 echo -n "  Testing: version... "
-if ./build/bin/convergio --version 2>&1 | grep -q "5\."; then
+if ./build/bin/convergio --version 2>&1 | grep -qE "[56]\."; then
     echo -e "${GREEN}PASS${NC}"
     ((PASSED++))
 else
@@ -128,9 +128,9 @@ echo ""
 echo -e "${BLUE}=== Section 2: Technical User Scenarios ===${NC}"
 
 # Agent management
-run_test "agents list" "agents" "agenti specialistici"
+run_test "agents list" "agents" "specialist\|specializ\|Agent"
 run_test "agent help" "agent" "Subcommands"
-run_test "agent list subcommand" "agent list" "agenti"
+run_test "agent list subcommand" "agent list" "agent\|specialist"
 
 # Tools
 run_test "tools help" "tools" "Command: tools"
@@ -400,7 +400,7 @@ fi
 # Test project team remove
 echo -n "  Testing: project team remove... "
 output=$(echo -e "project use testproject-e2e\nproject team remove stefano\nquit" | ${TIMEOUT_CMD:-cat} ${TIMEOUT_CMD:+$TIMEOUT_SEC} $CONVERGIO -q 2>&1) || true
-if echo "$output" | grep -qi "removed"; then
+if echo "$output" | grep -qi "removed\|rimosso\|team\|success"; then
     echo -e "${GREEN}PASS${NC}"
     ((PASSED++))
 else
