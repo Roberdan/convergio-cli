@@ -8,25 +8,132 @@
 #include "nous/workflow.h"
 #include "nous/commands.h"
 #include "nous/nous.h"
+#include "nous/orchestrator.h"
 #include "nous/workflow_visualization.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
 // ============================================================================
-// STUB FUNCTIONS (to be implemented in workflow persistence layer)
+// WORKFLOW REGISTRY - Simple in-memory workflow storage
 // ============================================================================
 
-// Load workflow by name (stub - persistence not yet implemented)
-static Workflow* workflow_load_by_name(const char* name) {
-    (void)name;
-    return NULL; // Not yet implemented
+#define MAX_REGISTERED_WORKFLOWS 64
+
+typedef struct {
+    Workflow* workflows[MAX_REGISTERED_WORKFLOWS];
+    size_t count;
+    bool initialized;
+} WorkflowRegistry;
+
+static WorkflowRegistry g_workflow_registry = {0};
+
+// Initialize registry with built-in workflow templates
+// Note: This is called lazily when workflows are accessed, ensuring agents are loaded
+static void workflow_registry_init(void) {
+    if (g_workflow_registry.initialized) {
+        return;
+    }
+    g_workflow_registry.initialized = true;
+    g_workflow_registry.count = 0;
+
+    // Register built-in workflow templates
+    extern Workflow* pattern_create_review_refine_loop(SemanticID, SemanticID, SemanticID, int);
+
+    // Try to find agents, spawning them if needed (lazy initialization)
+    ManagedAgent* rex = agent_find_by_name("rex");
+    if (!rex) rex = agent_spawn(AGENT_ROLE_ANALYST, "rex", NULL);
+
+    ManagedAgent* paolo = agent_find_by_name("paolo");
+    if (!paolo) paolo = agent_spawn(AGENT_ROLE_ANALYST, "paolo", NULL);
+
+    ManagedAgent* baccio = agent_find_by_name("baccio");
+    if (!baccio) baccio = agent_spawn(AGENT_ROLE_ANALYST, "baccio", NULL);
+
+    // Create a simple code-review workflow template
+    if (rex && paolo) {
+        Workflow* code_review = pattern_create_review_refine_loop(
+            rex->id, paolo->id, rex->id, 3);
+        if (code_review) {
+            if (code_review->name) free(code_review->name);
+            code_review->name = strdup("code-review");
+            if (code_review->description) free(code_review->description);
+            code_review->description = strdup("Code review workflow: Rex reviews, Paolo checks best practices");
+            code_review->workflow_id = 1;
+            if (g_workflow_registry.count < MAX_REGISTERED_WORKFLOWS) {
+                g_workflow_registry.workflows[g_workflow_registry.count++] = code_review;
+            }
+        }
+    }
+
+    // Create architecture-review workflow
+    if (baccio && rex) {
+        Workflow* arch_review = pattern_create_review_refine_loop(
+            baccio->id, rex->id, baccio->id, 2);
+        if (arch_review) {
+            if (arch_review->name) free(arch_review->name);
+            arch_review->name = strdup("architecture-review");
+            if (arch_review->description) free(arch_review->description);
+            arch_review->description = strdup("Architecture review: Baccio designs, Rex reviews for quality");
+            arch_review->workflow_id = 2;
+            if (g_workflow_registry.count < MAX_REGISTERED_WORKFLOWS) {
+                g_workflow_registry.workflows[g_workflow_registry.count++] = arch_review;
+            }
+        }
+    }
 }
 
-// Load workflow by ID (stub - persistence not yet implemented)
+// Register a workflow in the registry
+int workflow_register(Workflow* wf) {
+    if (!wf) return -1;
+    workflow_registry_init();
+    if (g_workflow_registry.count >= MAX_REGISTERED_WORKFLOWS) {
+        return -1; // Registry full
+    }
+    // Assign ID if not set
+    if (wf->workflow_id == 0) {
+        wf->workflow_id = (uint64_t)(g_workflow_registry.count + 1);
+    }
+    g_workflow_registry.workflows[g_workflow_registry.count++] = wf;
+    return 0;
+}
+
+// Load workflow by name from registry
+static Workflow* workflow_load_by_name(const char* name) {
+    if (!name) return NULL;
+    workflow_registry_init();
+    for (size_t i = 0; i < g_workflow_registry.count; i++) {
+        Workflow* wf = g_workflow_registry.workflows[i];
+        if (wf && wf->name && strcmp(wf->name, name) == 0) {
+            return wf;
+        }
+    }
+    return NULL;
+}
+
+// Load workflow by ID from registry
 static Workflow* workflow_load_by_id(uint64_t id) {
-    (void)id;
-    return NULL; // Not yet implemented
+    if (id == 0) return NULL;
+    workflow_registry_init();
+    for (size_t i = 0; i < g_workflow_registry.count; i++) {
+        Workflow* wf = g_workflow_registry.workflows[i];
+        if (wf && wf->workflow_id == id) {
+            return wf;
+        }
+    }
+    return NULL;
+}
+
+// Get all registered workflows
+size_t workflow_get_all(Workflow** out, size_t max) {
+    workflow_registry_init();
+    size_t count = 0;
+    for (size_t i = 0; i < g_workflow_registry.count && count < max; i++) {
+        if (g_workflow_registry.workflows[i]) {
+            out[count++] = g_workflow_registry.workflows[i];
+        }
+    }
+    return count;
 }
 
 // Export workflow as Mermaid diagram - now implemented in workflow_visualization.c
@@ -39,13 +146,29 @@ static int cmd_workflow_list(int argc, char** argv) {
     (void)argc;
     (void)argv;
 
-    printf("Available workflows:\n");
-    printf("  (Workflow persistence layer not yet implemented)\n");
-    printf("  Use workflow templates from src/workflow/templates/\n");
-    printf("\n");
-    printf("Templates available:\n");
-    printf("  - code-review.json\n");
-    printf("  - product-launch.json\n");
+    workflow_registry_init();
+
+    printf("Available workflows:\n\n");
+
+    if (g_workflow_registry.count == 0) {
+        printf("  (No workflows registered)\n");
+        printf("  Built-in workflows will be available when agents are loaded.\n");
+    } else {
+        for (size_t i = 0; i < g_workflow_registry.count; i++) {
+            Workflow* wf = g_workflow_registry.workflows[i];
+            if (wf) {
+                printf("  [%llu] %s\n", (unsigned long long)wf->workflow_id,
+                       wf->name ? wf->name : "unnamed");
+                if (wf->description) {
+                    printf("      %s\n", wf->description);
+                }
+                printf("\n");
+            }
+        }
+    }
+
+    printf("Use /workflow execute <name> to run a workflow\n");
+    printf("Use /workflow show <name> to view workflow details\n");
 
     return 0;
 }
@@ -118,7 +241,7 @@ static int cmd_workflow_show(int argc, char** argv) {
         }
     }
 
-    workflow_destroy(wf);
+    // Note: Don't destroy workflow from registry, it's shared
     return 0;
 }
 
@@ -141,15 +264,20 @@ static int cmd_workflow_execute(int argc, char** argv) {
 
     if (!wf) {
         printf("Workflow '%s' not found.\n", name);
-        printf("(Persistence layer not yet fully implemented)\n");
-        printf("Use workflow_create() to create workflows programmatically.\n");
+        printf("Use /workflow list to see available workflows.\n");
         return 1;
+    }
+
+    printf("Executing workflow: %s\n", wf->name ? wf->name : name);
+    if (wf->description) {
+        printf("  %s\n\n", wf->description);
     }
 
     char* output = NULL;
     int result = workflow_execute(wf, input, &output);
 
     if (result == 0) {
+        printf("\n--- Workflow Output ---\n");
         if (output) {
             printf("%s\n", output);
             free(output);
@@ -158,7 +286,7 @@ static int cmd_workflow_execute(int argc, char** argv) {
             printf("Workflow completed successfully.\n");
         }
     } else {
-        printf("Workflow execution failed");
+        printf("\nWorkflow execution failed");
         if (wf->error_message) {
             printf(": %s\n", wf->error_message);
         } else {
@@ -166,7 +294,11 @@ static int cmd_workflow_execute(int argc, char** argv) {
         }
     }
 
-    workflow_destroy(wf);
+    // Note: Don't destroy workflow from registry, it's shared
+    // Reset workflow status for next execution
+    wf->status = WORKFLOW_STATUS_PENDING;
+    wf->current_node_id = 0;
+
     return result;
 }
 

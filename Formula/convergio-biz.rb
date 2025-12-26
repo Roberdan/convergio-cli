@@ -1,13 +1,13 @@
 class ConvergioBiz < Formula
   desc "Convergio Business Edition - AI agents for sales, marketing & strategy"
   homepage "https://github.com/Roberdan/convergio-cli"
-  version "6.1.0"
+  version "6.2.0"
   license "MIT"
 
   on_macos do
     on_arm do
-      url "https://github.com/Roberdan/convergio-cli/releases/download/v6.1.0/convergio-biz-6.1.0-arm64-apple-darwin.tar.gz"
-      sha256 "422280c854038b00e760bb3bcd00245de799a78bba1ebcc36c0dbc1171e9fe6b"
+      url "https://github.com/Roberdan/convergio-cli/releases/download/v6.2.0/convergio-biz-6.2.0-arm64-apple-darwin.tar.gz"
+      sha256 "841948547c57b0a3165822950032ef525311686552847661c2adba35cbf4d9fc"
     end
   end
 

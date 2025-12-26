@@ -37,6 +37,7 @@ static const ReplCommand COMMANDS[] = {
     // Session recall
     {"recall", "View/load past sessions", cmd_recall},
     // Semantic memory commands
+    {"reset", "Reset all Convergio memory (graph, notes, cache, etc.)", cmd_reset},
     {"remember", "Store a memory", cmd_remember},
     {"search", "Search memories semantically", cmd_search},
     {"memories", "List recent/important memories", cmd_memories},

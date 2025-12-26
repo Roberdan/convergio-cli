@@ -111,6 +111,7 @@ int cmd_project(int argc, char** argv);
 int cmd_setup(int argc, char** argv);
 
 // Memory commands (commands_memory.c)
+int cmd_reset(int argc, char** argv);
 int cmd_remember(int argc, char** argv);
 int cmd_search(int argc, char** argv);
 int cmd_memories(int argc, char** argv);

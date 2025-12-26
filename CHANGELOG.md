@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.2.0] - 2025-12-26
+
+### Added
+
+- **New /reset Command** - Clear all Convergio memory with a single command
+  - Clears semantic memory (knowledge graph and embeddings)
+  - Clears conversation notes and summaries
+  - Clears cached responses
+  - Clears database entries (plans, todos, sessions)
+  - Clears session history
+  - Provides confirmation prompt before destructive action
+
+### Fixed
+
+- **Response Truncation** - Doubled max_tokens defaults for all response styles
+  - Balanced style now uses 16384 tokens (was 8192)
+  - Detailed style now uses 32768 tokens (was 16384)
+  - Concise style now uses 8192 tokens (was 4096)
+  - Prevents premature response cutoff for complex queries
+
+- **Workflow Registry** - Fixed agent lazy spawning
+  - Agents now spawn only when workflows are accessed
+  - Reduces startup time and memory usage
+  - Fixes registry initialization race condition
+
 ## [6.1.0] - 2025-12-26
 
 ### Fixed

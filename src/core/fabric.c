@@ -665,3 +665,41 @@ size_t nous_get_node_count(void) {
         return 0;
     return atomic_load(&g_fabric->total_nodes);
 }
+
+// ============================================================================
+// FABRIC RESET (clears all in-memory nodes)
+// ============================================================================
+
+void nous_reset_fabric(void) {
+    if (!nous_is_ready() || !g_fabric)
+        return;
+
+    // Clear all shards
+    for (size_t i = 0; i < NOUS_FABRIC_SHARDS; i++) {
+        FabricShard* shard = &g_fabric->shards[i];
+
+        os_unfair_lock_lock(&shard->lock);
+
+        // Free all nodes in this shard
+        for (size_t j = 0; j < shard->count; j++) {
+            NousSemanticNode* node = shard->nodes[j];
+            if (node) {
+                free(node->essence);
+                free(node->relations);
+                free(node->relation_strengths);
+                free(node);
+            }
+        }
+
+        // Reset shard count but keep capacity
+        shard->count = 0;
+        memset(shard->nodes, 0, shard->capacity * sizeof(NousSemanticNode*));
+
+        os_unfair_lock_unlock(&shard->lock);
+    }
+
+    // Reset global counters
+    atomic_store(&g_fabric->total_nodes, 0);
+    atomic_store(&g_fabric->total_relations, 0);
+    atomic_store(&g_fabric->queries_processed, 0);
+}
