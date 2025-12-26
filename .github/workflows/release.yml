@@ -42,12 +42,40 @@ jobs:
           swift --version
           echo "MLX Swift will be compiled with full Apple Silicon support"
 
-      - name: Build release binary
-        run: make clean && make
-
-      - name: Verify binary
+      # --- Build All Editions ---
+      - name: Build Master Edition
         run: |
-          ./build/bin/convergio --version | grep "${{ steps.version.outputs.VERSION }}"
+          make clean && make EDITION=master
+          mkdir -p dist/master
+          cp build/bin/convergio dist/master/
+          if [ -d build/bin/ConvergioNotify.app ]; then
+            cp -r build/bin/ConvergioNotify.app dist/master/
+          fi
+
+      - name: Build Education Edition
+        run: |
+          make clean && make EDITION=education
+          mkdir -p dist/education
+          cp build/bin/convergio-edu dist/education/
+
+      - name: Build Business Edition
+        run: |
+          make clean && make EDITION=business
+          mkdir -p dist/business
+          cp build/bin/convergio-biz dist/business/
+
+      - name: Build Developer Edition
+        run: |
+          make clean && make EDITION=developer
+          mkdir -p dist/developer
+          cp build/bin/convergio-dev dist/developer/
+
+      - name: Verify binaries
+        run: |
+          ./dist/master/convergio --version | grep "${{ steps.version.outputs.VERSION }}"
+          ./dist/education/convergio-edu --version | grep "${{ steps.version.outputs.VERSION }}"
+          ./dist/business/convergio-biz --version | grep "${{ steps.version.outputs.VERSION }}"
+          ./dist/developer/convergio-dev --version | grep "${{ steps.version.outputs.VERSION }}"
 
       # --- Code Signing ---
       - name: Install Apple certificate
@@ -74,105 +102,166 @@ jobs:
           # Allow codesign to access keychain
           security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
 
-      - name: Sign binary and notification helper
+      - name: Sign all binaries
         run: |
-          # Sign main binary
-          codesign --force --options runtime --sign "$DEVELOPER_ID" \
-            --timestamp ./build/bin/convergio
-          codesign --verify --verbose ./build/bin/convergio
-
-          # Sign notification helper app (if built)
-          if [ -d ./build/bin/ConvergioNotify.app ]; then
-            codesign --force --options runtime --deep --sign "$DEVELOPER_ID" \
-              --timestamp ./build/bin/ConvergioNotify.app
-            codesign --verify --verbose ./build/bin/ConvergioNotify.app
-            echo "✓ ConvergioNotify.app signed"
+          # Sign Master edition
+          codesign --force --options runtime --sign "$DEVELOPER_ID" --timestamp ./dist/master/convergio
+          codesign --verify --verbose ./dist/master/convergio
+          if [ -d ./dist/master/ConvergioNotify.app ]; then
+            codesign --force --options runtime --deep --sign "$DEVELOPER_ID" --timestamp ./dist/master/ConvergioNotify.app
+            codesign --verify --verbose ./dist/master/ConvergioNotify.app
           fi
+
+          # Sign Education edition
+          codesign --force --options runtime --sign "$DEVELOPER_ID" --timestamp ./dist/education/convergio-edu
+          codesign --verify --verbose ./dist/education/convergio-edu
+
+          # Sign Business edition
+          codesign --force --options runtime --sign "$DEVELOPER_ID" --timestamp ./dist/business/convergio-biz
+          codesign --verify --verbose ./dist/business/convergio-biz
+
+          # Sign Developer edition
+          codesign --force --options runtime --sign "$DEVELOPER_ID" --timestamp ./dist/developer/convergio-dev
+          codesign --verify --verbose ./dist/developer/convergio-dev
+
+          echo "✓ All editions signed"
 
       # --- Notarization ---
       - name: Create ZIP for notarization
         run: |
-          cd build/bin
-          # Include both convergio and ConvergioNotify.app
-          if [ -d ConvergioNotify.app ]; then
-            zip -r convergio.zip convergio ConvergioNotify.app
-          else
-            zip convergio.zip convergio
-          fi
-          cd ../..
+          # Create combined ZIP with all binaries for notarization
+          cd dist
+          zip -r all-editions.zip master/ education/ business/ developer/
+          cd ..
 
-      - name: Notarize binary
+      - name: Notarize binaries
         env:
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         run: |
-          xcrun notarytool submit build/bin/convergio.zip \
+          xcrun notarytool submit dist/all-editions.zip \
             --apple-id "$APPLE_ID" \
             --password "$APPLE_APP_PASSWORD" \
             --team-id "$APPLE_TEAM_ID" \
             --wait
 
-          # Staple notarization to the helper app
-          if [ -d build/bin/ConvergioNotify.app ]; then
-            xcrun stapler staple build/bin/ConvergioNotify.app || echo "Stapling helper app failed (non-fatal)"
+          # Staple notarization to the helper app if present
+          if [ -d dist/master/ConvergioNotify.app ]; then
+            xcrun stapler staple dist/master/ConvergioNotify.app || echo "Stapling helper app failed (non-fatal)"
           fi
 
       # --- Create Release Artifacts ---
-      - name: Create tarball
+      - name: Create tarballs
         run: |
-          mkdir -p dist
-          cd build/bin
-          # Include ConvergioNotify.app if available
+          VERSION=${{ steps.version.outputs.VERSION }}
+
+          # Master edition (includes ConvergioNotify.app if available)
+          cd dist/master
           if [ -d ConvergioNotify.app ]; then
-            tar -czvf ../../dist/convergio-${{ steps.version.outputs.VERSION }}-arm64-apple-darwin.tar.gz convergio ConvergioNotify.app
+            tar -czvf ../convergio-${VERSION}-arm64-apple-darwin.tar.gz convergio ConvergioNotify.app
           else
-            tar -czvf ../../dist/convergio-${{ steps.version.outputs.VERSION }}-arm64-apple-darwin.tar.gz convergio
+            tar -czvf ../convergio-${VERSION}-arm64-apple-darwin.tar.gz convergio
           fi
           cd ../..
 
-      - name: Calculate SHA256
+          # Education edition
+          cd dist/education
+          tar -czvf ../convergio-edu-${VERSION}-arm64-apple-darwin.tar.gz convergio-edu
+          cd ../..
+
+          # Business edition
+          cd dist/business
+          tar -czvf ../convergio-biz-${VERSION}-arm64-apple-darwin.tar.gz convergio-biz
+          cd ../..
+
+          # Developer edition
+          cd dist/developer
+          tar -czvf ../convergio-dev-${VERSION}-arm64-apple-darwin.tar.gz convergio-dev
+          cd ../..
+
+          echo "✓ All tarballs created"
+          ls -la dist/*.tar.gz
+
+      - name: Calculate SHA256 checksums
         id: sha256
         run: |
-          SHA=$(shasum -a 256 dist/convergio-*.tar.gz | awk '{print $1}')
-          echo "SHA256=$SHA" >> $GITHUB_OUTPUT
-          echo "SHA256: $SHA"
+          VERSION=${{ steps.version.outputs.VERSION }}
+
+          SHA_MASTER=$(shasum -a 256 dist/convergio-${VERSION}-arm64-apple-darwin.tar.gz | awk '{print $1}')
+          SHA_EDU=$(shasum -a 256 dist/convergio-edu-${VERSION}-arm64-apple-darwin.tar.gz | awk '{print $1}')
+          SHA_BIZ=$(shasum -a 256 dist/convergio-biz-${VERSION}-arm64-apple-darwin.tar.gz | awk '{print $1}')
+          SHA_DEV=$(shasum -a 256 dist/convergio-dev-${VERSION}-arm64-apple-darwin.tar.gz | awk '{print $1}')
+
+          echo "SHA256_MASTER=$SHA_MASTER" >> $GITHUB_OUTPUT
+          echo "SHA256_EDU=$SHA_EDU" >> $GITHUB_OUTPUT
+          echo "SHA256_BIZ=$SHA_BIZ" >> $GITHUB_OUTPUT
+          echo "SHA256_DEV=$SHA_DEV" >> $GITHUB_OUTPUT
+
+          echo "SHA256 Checksums:"
+          echo "  Master:     $SHA_MASTER"
+          echo "  Education:  $SHA_EDU"
+          echo "  Business:   $SHA_BIZ"
+          echo "  Developer:  $SHA_DEV"
 
       # --- Create GitHub Release ---
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v1
         with:
-          files: dist/*.tar.gz
+          files: |
+            dist/convergio-${{ steps.version.outputs.VERSION }}-arm64-apple-darwin.tar.gz
+            dist/convergio-edu-${{ steps.version.outputs.VERSION }}-arm64-apple-darwin.tar.gz
+            dist/convergio-biz-${{ steps.version.outputs.VERSION }}-arm64-apple-darwin.tar.gz
+            dist/convergio-dev-${{ steps.version.outputs.VERSION }}-arm64-apple-darwin.tar.gz
           body: |
             ## Convergio v${{ steps.version.outputs.VERSION }}
 
             Multi-agent AI orchestration CLI for Apple Silicon.
 
+            ### Available Editions
+
+            | Edition | Binary | Target Users | Download |
+            |---------|--------|--------------|----------|
+            | **Master** | `convergio` | Power users, full features | [Download](https://github.com/Roberdan/convergio-cli/releases/download/v${{ steps.version.outputs.VERSION }}/convergio-${{ steps.version.outputs.VERSION }}-arm64-apple-darwin.tar.gz) |
+            | **Education** | `convergio-edu` | Schools, students (Scuola 2026) | [Download](https://github.com/Roberdan/convergio-cli/releases/download/v${{ steps.version.outputs.VERSION }}/convergio-edu-${{ steps.version.outputs.VERSION }}-arm64-apple-darwin.tar.gz) |
+            | **Business** | `convergio-biz` | Enterprise, teams | [Download](https://github.com/Roberdan/convergio-cli/releases/download/v${{ steps.version.outputs.VERSION }}/convergio-biz-${{ steps.version.outputs.VERSION }}-arm64-apple-darwin.tar.gz) |
+            | **Developer** | `convergio-dev` | Debug tools, APIs | [Download](https://github.com/Roberdan/convergio-cli/releases/download/v${{ steps.version.outputs.VERSION }}/convergio-dev-${{ steps.version.outputs.VERSION }}-arm64-apple-darwin.tar.gz) |
+
             ### Installation
 
+            **Via Homebrew (Master Edition):**
             ```bash
             brew tap Roberdan/convergio-cli
             brew install convergio
             ```
 
-            Or download the binary directly and run:
+            **Manual Installation (any edition):**
             ```bash
-            tar -xzf convergio-${{ steps.version.outputs.VERSION }}-arm64-apple-darwin.tar.gz
-            # Install notification helper for proper icon display
-            cp -r ConvergioNotify.app /Applications/ 2>/dev/null || true
-            ./convergio setup
+            # Download your preferred edition
+            curl -LO https://github.com/Roberdan/convergio-cli/releases/download/v${{ steps.version.outputs.VERSION }}/convergio-edu-${{ steps.version.outputs.VERSION }}-arm64-apple-darwin.tar.gz
+
+            # Extract
+            tar -xzf convergio-edu-${{ steps.version.outputs.VERSION }}-arm64-apple-darwin.tar.gz
+
+            # Install
+            sudo mv convergio-edu /usr/local/bin/
+
+            # Setup
+            convergio-edu setup
             ```
 
             ### Binary Info
             - **Architecture:** arm64 (Apple Silicon)
             - **Signed:** Yes (Developer ID)
             - **Notarized:** Yes (Apple Notary Service)
-            - **SHA256:** `${{ steps.sha256.outputs.SHA256 }}`
 
-            ### First Run
-            ```bash
-            convergio setup
-            ```
+            ### SHA256 Checksums
+            | Edition | SHA256 |
+            |---------|--------|
+            | Master | `${{ steps.sha256.outputs.SHA256_MASTER }}` |
+            | Education | `${{ steps.sha256.outputs.SHA256_EDU }}` |
+            | Business | `${{ steps.sha256.outputs.SHA256_BIZ }}` |
+            | Developer | `${{ steps.sha256.outputs.SHA256_DEV }}` |
 
             ### What's New
             See [CHANGELOG.md](https://github.com/Roberdan/convergio-cli/blob/main/CHANGELOG.md) for details.
@@ -184,7 +273,7 @@ jobs:
           TAP_GITHUB_TOKEN: ${{ secrets.TAP_GITHUB_TOKEN }}
         run: |
           VERSION=${{ steps.version.outputs.VERSION }}
-          SHA256=${{ steps.sha256.outputs.SHA256 }}
+          SHA256=${{ steps.sha256.outputs.SHA256_MASTER }}
 
           # Update formula in local copy first
           sed -i '' "s/version \".*\"/version \"${VERSION}\"/" Formula/convergio.rb
