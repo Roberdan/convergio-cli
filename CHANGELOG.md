@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.0.2] - 2025-12-26
+
+### Added
+
+- **Multi-Edition Release** - All 4 editions now available as pre-built binaries
+  - Master: Full-featured for power users (`convergio`)
+  - Education: Schools and students (`convergio-edu`)
+  - Business: Enterprise features (`convergio-biz`)
+  - Developer: Debug tools and APIs (`convergio-dev`)
+
+### Changed
+
+- **Release Workflow** - Updated to build, sign, and notarize all 4 editions
+  - Each edition is code-signed with Developer ID
+  - All binaries are notarized by Apple
+  - SHA256 checksums provided for each edition
+
 ## [6.0.1] - 2025-12-25
 
 ### Fixed
