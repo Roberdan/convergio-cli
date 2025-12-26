@@ -72,36 +72,54 @@ Local/offline is a key differentiator but has no dedicated spec.
 
 ## Non‑Negotiable Principles
 
+- **Platform-first**: Convergio is a multi-agent orchestration platform, not a single-vertical product.
 - **BYOK-first**: users can bring their own keys; managed keys are optional and strictly budgeted.
 - **Azure-first** (target platform): deploy and cost-model on Microsoft Azure.
-- **Contract-first**: API, metering, plugin permissions, data retention are specs, not “ideas”.
+- **Contract-first**: API, metering, plugin permissions, data retention are specs, not "ideas".
 - **Security by design**: plugins are untrusted by default; enforce least privilege.
 - **Performance matters**: define latency budgets and enforce them.
-- **Education + accessibility** are strategic differentiators, not “nice-to-have”.
+- **Vertical plugins**: Education is V1, but the architecture supports any vertical.
+- **Multi-agent orchestration**: Agent graphs, composition, and A2A protocols are core differentiators.
 
 ---
 
 ## Canonical Reading Order (Approval Flow)
 
-1) `01-SSOT-DECISIONS.md`
-2) `02-AZURE-REFERENCE-ARCHITECTURE.md`
-3) `03-PRICING-METERING-BYOK.md`
-4) `04-API-CONTRACT.md`
-5) `05-DATA-MODEL-RETENTION.md`
-6) `06-PLUGIN-SYSTEM-SECURITY.md`
-7) `07-OPS-SLO-RUNBOOKS.md`
-8) `08-FINANCIAL-MODEL-AZURE.md`
-9) `09-MARKETS-GTM.md`
-10) `10-COMPETITION-STRATEGY.md`
-11) `13-MICROSOFT-AGENT-FRAMEWORK-EVAL.md`
-12) `14-VOICE-PLAN.md`
-13) `15-MIGRATION-PLAN.md`
-14) `11-DELIVERY-PLAN-AI-AGENTS.md`
+### Part A: Core Platform (Read First)
+1) `01-SSOT-DECISIONS.md` — Strategic decisions
+2) `16-CORE-PLATFORM-ARCHITECTURE.md` — Platform as product
+3) `17-PLUGIN-SDK-VERTICAL.md` — How to build verticals
+4) `18-MULTI-AGENT-ORCHESTRATION.md` — Multi-agent system
+5) `19-VERTICAL-STRATEGY.md` — Vertical roadmap
 
-## “Definition of Approved”
+### Part B: Infrastructure & Operations
+6) `02-AZURE-REFERENCE-ARCHITECTURE.md`
+7) `03-PRICING-METERING-BYOK.md`
+8) `04-API-CONTRACT.md`
+9) `05-DATA-MODEL-RETENTION.md`
+10) `06-PLUGIN-SYSTEM-SECURITY.md`
+11) `07-OPS-SLO-RUNBOOKS.md`
+
+### Part C: Business & Strategy
+12) `08-FINANCIAL-MODEL-AZURE.md`
+13) `09-MARKETS-GTM.md`
+14) `10-COMPETITION-STRATEGY.md`
+
+### Part D: Specialized Topics
+15) `13-MICROSOFT-AGENT-FRAMEWORK-EVAL.md`
+16) `14-VOICE-PLAN.md`
+17) `15-MIGRATION-PLAN.md`
+
+### Part E: Execution
+18) `11-DELIVERY-PLAN-AI-AGENTS.md`
+
+## "Definition of Approved"
 
 This plan is considered approved only when these conditions are true:
 - The **decision log** is signed off (what we build, what we do *not* build).
+- The **core platform architecture** is accepted (platform vs vertical separation).
+- The **multi-agent orchestration model** is accepted (graphs, protocols, state).
+- The **vertical strategy** is accepted (Education V1, roadmap for others).
 - The **metering spec** is accepted (billable units + rounding + idempotency).
 - The **API contract** is accepted (HTTP + WS schemas, versioning).
 - The **plugin permission model** is accepted (untrusted vs trusted, enforcement).
@@ -112,10 +130,14 @@ This plan is considered approved only when these conditions are true:
 ## Operating Rules (For AI Agent Execution)
 
 - Every task must reference one of the canonical docs as source-of-truth.
-- If a task requires a missing spec, the task becomes **“blocked: needs contract”**.
+- If a task requires a missing spec, the task becomes **"blocked: needs contract"**.
 - Any change to pricing, metering, or permissions must update:
   - `01-SSOT-DECISIONS.md`
   - `03-PRICING-METERING-BYOK.md`
-  - `06-OPS-SLO-RUNBOOKS.md` (cost guardrails)
+  - `07-OPS-SLO-RUNBOOKS.md` (cost guardrails)
+- Any change to platform architecture must update:
+  - `16-CORE-PLATFORM-ARCHITECTURE.md`
+  - `18-MULTI-AGENT-ORCHESTRATION.md`
+- Any new vertical must follow `19-VERTICAL-STRATEGY.md` process.
 
 

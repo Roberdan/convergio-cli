@@ -6,14 +6,29 @@
 
 ---
 
-## A. Strategic Positioning (Brutal)
+## A. Strategic Positioning
 
-- **Reality:** Microsoft’s agent stack on Azure will compress the “generic agent framework” market fast.
-- **Winning strategy:** do not compete head-on on “enterprise orchestration platform”. Win on:
-  - **Education + accessibility** (product + trust + distribution),
-  - **local/offline performance** (MLX/Ollama),
-  - **open source kernel** + multi-provider neutrality,
-  - and a **BYOK-first** cost model that scales without margin collapse.
+### A.1 What Convergio IS
+Convergio is a **multi-agent orchestration platform** with vertical plugins:
+- **Core platform** (open source): orchestration, provider abstraction, plugin system
+- **Vertical plugins** (commercial): domain-specific agents, tools, compliance
+- **Managed service** (commercial): hosted Convergio with SLAs
+
+### A.2 What Convergio is NOT
+- NOT an "education product" (education is V1 vertical, not the platform)
+- NOT a "Microsoft competitor" (different positioning)
+- NOT a single-use-case tool
+
+### A.3 Competitive Reality
+Microsoft's agent stack on Azure will compress the "generic agent framework" market fast.
+
+**Winning strategy:** do not compete head-on on "enterprise orchestration platform". Win on:
+- **Multi-agent orchestration** as first-class citizen (graphs, A2A, composition)
+- **Vertical plugin system** (anyone can build domain-specific solutions)
+- **Local/offline performance** (MLX/Ollama — Microsoft can't match this)
+- **Open source core** + multi-provider neutrality (no lock-in)
+- **BYOK-first** cost model that scales without margin collapse
+- **Education as beachhead** (underserved, high trust requirements)
 
 ---
 
@@ -95,6 +110,47 @@
 - Design an abstraction layer to add:
   - A2A (priority),
   - ACP/ANP (monitor until real adoption).
+
+---
+
+## F.1 Multi-Agent Orchestration (Core Differentiator)
+
+Multi-agent is **not optional** — it's the platform's core value proposition.
+
+### Required capabilities (V7.0)
+- **Agent graphs**: DAG-based execution
+- **Execution patterns**: Sequential, parallel, supervisor-worker
+- **State management**: Checkpointing, resume, shared context
+- **Resource limits**: Per-agent budgets (tokens, time, tool calls)
+
+### Required capabilities (V7.1+)
+- **Dynamic routing**: Route to appropriate agent based on intent
+- **A2A protocol**: Cross-system agent communication
+- **Adaptive planning**: Re-plan on failure
+
+**Full spec:** `18-MULTI-AGENT-ORCHESTRATION.md`
+
+---
+
+## F.2 Vertical Strategy (Platform Model)
+
+Convergio Core enables verticals, but **does not dictate them**.
+
+### Vertical roadmap
+| Priority | Vertical | Timeline | Status |
+|----------|----------|----------|--------|
+| **V1** | Education | 2026 | Primary focus |
+| **V2** | Business/SMB | 2026-2027 | Parallel development |
+| **V3** | Healthcare | 2027+ | Research phase |
+| **V4** | Legal | 2028+ | Exploratory |
+
+### Investment allocation (Year 1)
+- Core Platform: 40%
+- Education Vertical: 35%
+- Business Vertical: 20%
+- Research (V3+): 5%
+
+**Full spec:** `19-VERTICAL-STRATEGY.md`
 
 ---
 

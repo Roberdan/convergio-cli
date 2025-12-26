@@ -1,12 +1,30 @@
-# Convergio V7 — Markets & Go-To-Market (Education + Schools + Business)
+# Convergio V7 — Markets & Go-To-Market (Verticals)
 
-**Status:** Draft for approval  
-**Date:** 2025-12-26  
-**Purpose:** Define the three target markets, their offers, and execution tactics (short/medium/long term).
+**Status:** Draft for approval
+**Date:** 2025-12-26
+**Purpose:** Define go-to-market for vertical plugins built on Convergio Core.
 
 ---
 
-## 1) Market A — Education Consumer (Parents + Students)
+## Context: Platform vs. Verticals
+
+This document covers **vertical-specific GTM**. For the core platform strategy, see:
+- `16-CORE-PLATFORM-ARCHITECTURE.md` — What the platform is
+- `19-VERTICAL-STRATEGY.md` — Full vertical roadmap
+
+**Key principle:** Markets here are served by **vertical plugins**, not by the core platform directly. The core is infrastructure; verticals are products.
+
+```
+Convergio Core (open source, free)
+        │
+        ├── Education Vertical (commercial) ← This doc
+        ├── Business Vertical (commercial)  ← This doc
+        └── [Future verticals]
+```
+
+---
+
+## 1) Vertical A — Education (V1 Priority)
 
 ### Product promise
 - Fast, accessible learning support with strong privacy controls.
@@ -32,7 +50,7 @@
 
 ---
 
-## 2) Market B — Schools (Public/Private)
+## 2) Vertical A.2 — Schools (Education B2B2C)
 
 ### Product promise
 - Admin-controlled AI learning assistant that is compliant and auditable.
@@ -60,7 +78,7 @@
 
 ---
 
-## 3) Market C — Business Teams (SMB)
+## 3) Vertical B — Business/SMB (V2 Priority)
 
 ### Product promise
 - Orchestration + integrations + auditability, not “just chat”.
@@ -84,19 +102,30 @@
 
 ---
 
-## 4) KPI Set (Per Market)
+## 4) KPI Set (Per Vertical)
 
+### Core Platform KPIs
+- GitHub stars, forks, contributors
+- Plugin ecosystem size
+- Developer adoption (CLI downloads, API calls)
+
+### Vertical-specific KPIs
 - Education consumer: activation, retention, paid conversion, support load
 - Schools: pilot-to-contract conversion, procurement cycle time, renewal
 - Business: org activation, expansion, churn
 
 ---
 
-## 5) Brutal Scope Control
+## 5) Execution Priority
 
-If you try to maximize all three markets at once, you will lose.
+**Platform-first, vertical-second.**
 
-**Recommendation:**
-- Phase 1: Education consumer + a small number of school pilots
-- Phase 2: Business templates once the platform contracts are stable
+| Phase | Focus | Why |
+|-------|-------|-----|
+| **Phase 0** | Core platform stable | Can't build verticals on unstable foundation |
+| **Phase 1** | Education vertical (consumer + schools) | Beachhead, underserved, trust moat |
+| **Phase 2** | Business vertical | Revenue diversification, proves platform generality |
+| **Phase 3** | Community/partner verticals | Ecosystem expansion |
+
+**Do not** try to maximize all verticals at once. The platform must prove itself first.
 
