@@ -192,7 +192,15 @@ C_SOURCES = $(SRC_DIR)/core/fabric.c \
             $(SRC_DIR)/core/config_orchestrator.c \
             $(SRC_DIR)/core/repl.c \
             $(SRC_DIR)/core/edition.c \
-            $(SRC_DIR)/core/commands/commands.c \
+            $(SRC_DIR)/core/commands/command_dispatch.c \
+            $(SRC_DIR)/core/commands/commands_help.c \
+            $(SRC_DIR)/core/commands/commands_core.c \
+            $(SRC_DIR)/core/commands/commands_agent.c \
+            $(SRC_DIR)/core/commands/commands_system.c \
+            $(SRC_DIR)/core/commands/commands_project.c \
+            $(SRC_DIR)/core/commands/commands_memory.c \
+            $(SRC_DIR)/core/commands/commands_todo.c \
+            $(SRC_DIR)/core/commands/commands_plan.c \
             $(SRC_DIR)/core/commands/setup_wizard.c \
             $(SRC_DIR)/core/ansi_md.c \
             $(SRC_DIR)/core/stream_md.c \
