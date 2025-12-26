@@ -105,8 +105,10 @@ OBJCFLAGS = $(CFLAGS) -fobjc-arc
 # Release/Debug flags
 ifeq ($(DEBUG),1)
     # Debug mode: extra warnings and sanitizers
-    # Note: -Wno-sign-conversion, -Wno-shorten-64-to-32, -Wno-double-promotion suppress
-    # pedantic warnings in education/telemetry/voice modules that are safe (integer promotions)
+    # Note: We suppress ONLY specific warning types (-Wno-sign-conversion, -Wno-shorten-64-to-32,
+    # -Wno-double-promotion) that generate safe integer promotion warnings in education/telemetry/
+    # voice modules. We intentionally do NOT use -Wno-conversion as that would disable ALL
+    # conversion warnings including valuable checks like implicit float-to-int or long-to-short.
     CFLAGS += -g -O0 -DDEBUG \
               -fsanitize=address,undefined \
               -Wformat=2 \

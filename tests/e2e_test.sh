@@ -400,7 +400,7 @@ fi
 # Test project team remove
 echo -n "  Testing: project team remove... "
 output=$(echo -e "project use testproject-e2e\nproject team remove stefano\nquit" | ${TIMEOUT_CMD:-cat} ${TIMEOUT_CMD:+$TIMEOUT_SEC} $CONVERGIO -q 2>&1) || true
-if echo "$output" | grep -qi "removed\|rimosso\|team\|success"; then
+if echo "$output" | grep -qi "team.*removed\|removed.*team\|team.*rimosso\|rimosso.*team\|successfully removed"; then
     echo -e "${GREEN}PASS${NC}"
     ((PASSED++))
 else
