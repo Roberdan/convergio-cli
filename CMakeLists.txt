@@ -80,7 +80,15 @@ set(NOUS_SOURCES
     src/core/main.c
     src/core/signals.c
     src/core/repl.c
-    src/core/commands/commands.c
+    src/core/commands/command_dispatch.c
+    src/core/commands/commands_help.c
+    src/core/commands/commands_core.c
+    src/core/commands/commands_agent.c
+    src/core/commands/commands_system.c
+    src/core/commands/commands_project.c
+    src/core/commands/commands_memory.c
+    src/core/commands/commands_todo.c
+    src/core/commands/commands_plan.c
     src/core/commands/setup_wizard.c
     src/core/ansi_md.c
     src/core/stream_md.c

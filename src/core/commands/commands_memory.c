@@ -169,9 +169,15 @@ int cmd_forget(int argc, char** argv) {
     errno = 0;
     SemanticID id = strtoull(num_str, &endptr, 16);
 
-    // Check for parsing errors: no digits parsed, or trailing garbage
-    if (endptr == num_str || *endptr != '\0' || errno == ERANGE) {
+    // Check for parsing errors: no digits parsed, trailing garbage, or range errors
+    if (endptr == num_str) {
         printf("\033[31mError: Invalid memory ID format. Use hex format like 0x1234.\033[0m\n");
+        return -1;
+    } else if (*endptr != '\0') {
+        printf("\033[31mError: Invalid memory ID format (unexpected characters). Use hex format like 0x1234.\033[0m\n");
+        return -1;
+    } else if (errno == ERANGE) {
+        printf("\033[31mError: Memory ID is out of range (too large for this system).\033[0m\n");
         return -1;
     }
 

@@ -6,6 +6,22 @@
 
 #include "commands_internal.h"
 
+// Helper function to concatenate command arguments into a buffer
+static size_t concat_args(char** argv, int argc, int start_idx, char* buffer, size_t buffer_size) {
+    size_t len = 0;
+    for (int i = start_idx; i < argc && len < buffer_size - 2; i++) {
+        if (i > start_idx)
+            buffer[len++] = ' ';
+        size_t arg_len = strlen(argv[i]);
+        if (len + arg_len < buffer_size - 1) {
+            memcpy(buffer + len, argv[i], arg_len);
+            len += arg_len;
+        }
+    }
+    buffer[len] = '\0';
+    return len;
+}
+
 // PROJECT COMMAND
 // ============================================================================
 
@@ -316,16 +332,7 @@ int cmd_project(int argc, char** argv) {
 
         // Concatenate remaining args
         char focus[512] = {0};
-        size_t len = 0;
-        for (int i = 2; i < argc && len < sizeof(focus) - 2; i++) {
-            if (i > 2)
-                focus[len++] = ' ';
-            size_t arg_len = strlen(argv[i]);
-            if (len + arg_len < sizeof(focus) - 1) {
-                memcpy(focus + len, argv[i], arg_len);
-                len += arg_len;
-            }
-        }
+        concat_args(argv, argc, 2, focus, sizeof(focus));
 
         project_update_context(proj, NULL, focus);
         printf("\033[32m✓ Focus updated: %s\033[0m\n", focus);
@@ -347,16 +354,7 @@ int cmd_project(int argc, char** argv) {
 
         // Concatenate remaining args
         char decision[512] = {0};
-        size_t len = 0;
-        for (int i = 2; i < argc && len < sizeof(decision) - 2; i++) {
-            if (i > 2)
-                decision[len++] = ' ';
-            size_t arg_len = strlen(argv[i]);
-            if (len + arg_len < sizeof(decision) - 1) {
-                memcpy(decision + len, argv[i], arg_len);
-                len += arg_len;
-            }
-        }
+        concat_args(argv, argc, 2, decision, sizeof(decision));
 
         project_add_decision(proj, decision);
         printf("\033[32m✓ Decision recorded: %s\033[0m\n", decision);
