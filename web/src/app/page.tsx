@@ -9,14 +9,16 @@ import {
   Trophy,
   Settings,
   Menu,
-  X,
+  PanelLeftClose,
+  PanelLeftOpen,
   TrendingUp,
   Target,
   Flame,
+  Network,
 } from 'lucide-react';
 import Image from 'next/image';
 import { MaestriGrid } from '@/components/maestros/maestri-grid';
-import { FlashcardsView, HomeworkHelpView, QuizView } from '@/components/education';
+import { FlashcardsView, HomeworkHelpView, QuizView, MindmapsView } from '@/components/education';
 import { SettingsView } from '@/components/settings';
 import { ProgressView } from '@/components/progress';
 import { Button } from '@/components/ui/button';
@@ -24,7 +26,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useProgressStore, useSettingsStore } from '@/lib/stores/app-store';
 import { cn } from '@/lib/utils';
 
-type View = 'maestri' | 'quiz' | 'flashcards' | 'homework' | 'progress' | 'settings';
+type View = 'maestri' | 'quiz' | 'flashcards' | 'mindmaps' | 'homework' | 'progress' | 'settings';
 
 export default function Home() {
   const [currentView, setCurrentView] = useState<View>('maestri');
@@ -37,6 +39,7 @@ export default function Home() {
     { id: 'maestri' as const, label: 'Maestri', icon: GraduationCap },
     { id: 'quiz' as const, label: 'Quiz', icon: Brain },
     { id: 'flashcards' as const, label: 'Flashcards', icon: BookOpen },
+    { id: 'mindmaps' as const, label: 'Mappe Mentali', icon: Network },
     { id: 'homework' as const, label: 'Compiti', icon: Target },
     { id: 'progress' as const, label: 'Progressi', icon: Trophy },
     { id: 'settings' as const, label: 'Impostazioni', icon: Settings },
@@ -77,8 +80,9 @@ export default function Home() {
             size="icon-sm"
             onClick={() => setSidebarOpen(!sidebarOpen)}
             className="text-slate-500"
+            aria-label={sidebarOpen ? 'Chiudi menu' : 'Apri menu'}
           >
-            {sidebarOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
+            {sidebarOpen ? <PanelLeftClose className="h-4 w-4" /> : <PanelLeftOpen className="h-4 w-4" />}
           </Button>
         </div>
 
@@ -170,6 +174,8 @@ export default function Home() {
           {currentView === 'quiz' && <QuizView />}
 
           {currentView === 'flashcards' && <FlashcardsView />}
+
+          {currentView === 'mindmaps' && <MindmapsView />}
 
           {currentView === 'homework' && <HomeworkHelpView />}
 
