@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef } from 'react';
 import { Search, Filter } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MaestroCard } from './maestro-card';
@@ -17,6 +17,7 @@ export function MaestriGrid() {
   const [selectedSubject, setSelectedSubject] = useState<Subject | 'all'>('all');
   const [selectedMaestro, setSelectedMaestro] = useState<Maestro | null>(null);
   const [sessionMode, setSessionMode] = useState<SessionMode>(null);
+  const sessionKeyRef = useRef(0); // Key to force remount on session restart
 
   const subjects = getAllSubjects();
 
@@ -36,6 +37,7 @@ export function MaestriGrid() {
 
   // Click on maestro goes directly to voice
   const handleSelect = (maestro: Maestro) => {
+    sessionKeyRef.current += 1; // Force fresh component mount
     setSelectedMaestro(maestro);
     setSessionMode('voice');
   };
@@ -146,24 +148,30 @@ export function MaestriGrid() {
       )}
 
       {/* Voice session */}
-      {sessionMode === 'voice' && selectedMaestro && (
-        <VoiceSession
-          maestro={selectedMaestro}
-          onClose={handleCloseSession}
-          onSwitchToChat={() => setSessionMode('chat')}
-        />
-      )}
+      <AnimatePresence mode="wait">
+        {sessionMode === 'voice' && selectedMaestro && (
+          <VoiceSession
+            key={`voice-${selectedMaestro.id}-${sessionKeyRef.current}`}
+            maestro={selectedMaestro}
+            onClose={handleCloseSession}
+            onSwitchToChat={() => setSessionMode('chat')}
+          />
+        )}
+      </AnimatePresence>
 
       {/* Chat session */}
-      {sessionMode === 'chat' && selectedMaestro && (
-        <ChatSession
-          maestro={selectedMaestro}
-          onClose={handleCloseSession}
-          onSwitchToVoice={() => {
-            setSessionMode('voice');
-          }}
-        />
-      )}
+      <AnimatePresence mode="wait">
+        {sessionMode === 'chat' && selectedMaestro && (
+          <ChatSession
+            key={`chat-${selectedMaestro.id}`}
+            maestro={selectedMaestro}
+            onClose={handleCloseSession}
+            onSwitchToVoice={() => {
+              setSessionMode('voice');
+            }}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }

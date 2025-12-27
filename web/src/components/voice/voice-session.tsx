@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import Image from 'next/image';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Mic, MicOff, PhoneOff, VolumeX, Send, MessageSquare } from 'lucide-react';
+import { Mic, MicOff, PhoneOff, VolumeX, Send, MessageSquare, Camera, Brain, BookOpen, Search, Network } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Waveform, CircularWaveform } from './waveform';
@@ -138,16 +138,36 @@ export function VoiceSession({ maestro, onClose, onSwitchToChat }: VoiceSessionP
 
   // State indicator
   const stateText = configError
-    ? 'Configuration Error'
+    ? 'Errore di configurazione'
     : connectionState === 'connecting'
-    ? 'Connecting...'
+    ? 'Connessione in corso...'
     : isListening
-    ? 'Listening...'
+    ? 'Ti sto ascoltando...'
     : isSpeaking
-    ? `${maestro.name} is speaking...`
+    ? `${maestro.name} sta parlando...`
     : isConnected
-    ? 'Ready - speak now'
-    : 'Disconnected';
+    ? 'Pronto - parla ora'
+    : 'Disconnesso';
+
+  // Manual tool trigger function
+  const triggerManualTool = useCallback((toolName: string) => {
+    if (toolName === 'capture_homework') {
+      setWebcamRequest({ purpose: 'homework', instructions: 'Mostra il tuo compito o libro', callId: `manual-${Date.now()}` });
+      setShowWebcam(true);
+    }
+    // For other tools, we send a text request to the AI
+    else {
+      const toolPrompts: Record<string, string> = {
+        mindmap: 'Crea una mappa mentale sull\'argomento che stiamo discutendo',
+        quiz: 'Crea un quiz per verificare la mia comprensione',
+        flashcard: 'Crea delle flashcard sugli argomenti trattati',
+        search: 'Cerca informazioni utili sull\'argomento',
+      };
+      if (toolPrompts[toolName]) {
+        sendText(toolPrompts[toolName]);
+      }
+    }
+  }, [sendText]);
 
   // Show configuration error
   if (configError) {
@@ -346,6 +366,62 @@ AZURE_OPENAI_REALTIME_DEPLOYMENT=gpt-4o-realtime-preview`}
             </div>
           )}
 
+          {/* Tool buttons */}
+          <div className="px-6 py-3 border-t border-slate-700/30 bg-slate-800/20">
+            <div className="flex items-center justify-center gap-2 flex-wrap">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => triggerManualTool('capture_homework')}
+                className="rounded-full bg-slate-700/50 text-slate-300 hover:bg-slate-600/50 hover:text-white"
+                title="Mostra compiti via webcam"
+              >
+                <Camera className="h-4 w-4 mr-2" />
+                <span className="text-xs">Webcam</span>
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => triggerManualTool('mindmap')}
+                className="rounded-full bg-slate-700/50 text-slate-300 hover:bg-slate-600/50 hover:text-white"
+                title="Crea mappa mentale"
+              >
+                <Network className="h-4 w-4 mr-2" />
+                <span className="text-xs">Mappa</span>
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => triggerManualTool('quiz')}
+                className="rounded-full bg-slate-700/50 text-slate-300 hover:bg-slate-600/50 hover:text-white"
+                title="Crea quiz"
+              >
+                <Brain className="h-4 w-4 mr-2" />
+                <span className="text-xs">Quiz</span>
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => triggerManualTool('flashcard')}
+                className="rounded-full bg-slate-700/50 text-slate-300 hover:bg-slate-600/50 hover:text-white"
+                title="Crea flashcard"
+              >
+                <BookOpen className="h-4 w-4 mr-2" />
+                <span className="text-xs">Flashcard</span>
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => triggerManualTool('search')}
+                className="rounded-full bg-slate-700/50 text-slate-300 hover:bg-slate-600/50 hover:text-white"
+                title="Cerca sul web"
+              >
+                <Search className="h-4 w-4 mr-2" />
+                <span className="text-xs">Cerca</span>
+              </Button>
+            </div>
+          </div>
+
           {/* Controls */}
           <div className="p-6 border-t border-slate-700/50 bg-slate-800/30">
             <div className="flex items-center justify-center gap-4">
@@ -354,6 +430,8 @@ AZURE_OPENAI_REALTIME_DEPLOYMENT=gpt-4o-realtime-preview`}
                 variant="ghost"
                 size="icon-lg"
                 onClick={toggleMute}
+                title={isMuted ? 'Riattiva microfono' : 'Silenzia microfono'}
+                aria-label={isMuted ? 'Riattiva microfono' : 'Silenzia microfono'}
                 className={cn(
                   'rounded-full transition-colors',
                   isMuted
@@ -370,6 +448,8 @@ AZURE_OPENAI_REALTIME_DEPLOYMENT=gpt-4o-realtime-preview`}
                   variant="ghost"
                   size="icon-lg"
                   onClick={cancelResponse}
+                  title="Interrompi risposta"
+                  aria-label="Interrompi risposta"
                   className="rounded-full bg-amber-500/20 text-amber-400 hover:bg-amber-500/30"
                 >
                   <VolumeX className="h-6 w-6" />
@@ -381,6 +461,8 @@ AZURE_OPENAI_REALTIME_DEPLOYMENT=gpt-4o-realtime-preview`}
                 variant="ghost"
                 size="icon-lg"
                 onClick={() => setShowTextInput(!showTextInput)}
+                title="Scrivi un messaggio"
+                aria-label="Scrivi un messaggio"
                 className="rounded-full bg-slate-700 text-white hover:bg-slate-600"
               >
                 <Send className="h-5 w-5" />
@@ -392,6 +474,8 @@ AZURE_OPENAI_REALTIME_DEPLOYMENT=gpt-4o-realtime-preview`}
                   variant="ghost"
                   size="icon-lg"
                   onClick={handleSwitchToChat}
+                  title="Passa alla chat testuale"
+                  aria-label="Passa alla chat testuale"
                   className="rounded-full bg-green-600/20 text-green-400 hover:bg-green-600/30"
                 >
                   <MessageSquare className="h-5 w-5" />
@@ -403,6 +487,8 @@ AZURE_OPENAI_REALTIME_DEPLOYMENT=gpt-4o-realtime-preview`}
                 variant="destructive"
                 size="icon-lg"
                 onClick={handleClose}
+                title="Termina sessione"
+                aria-label="Termina sessione"
                 className="rounded-full"
               >
                 <PhoneOff className="h-6 w-6" />
@@ -424,11 +510,11 @@ AZURE_OPENAI_REALTIME_DEPLOYMENT=gpt-4o-realtime-preview`}
                       value={textInput}
                       onChange={(e) => setTextInput(e.target.value)}
                       onKeyDown={(e) => e.key === 'Enter' && handleTextSubmit()}
-                      placeholder="Type a message..."
+                      placeholder="Scrivi un messaggio..."
                       className="flex-1 px-4 py-2 rounded-xl bg-slate-700 border border-slate-600 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
                     />
                     <Button onClick={handleTextSubmit} disabled={!textInput.trim()}>
-                      Send
+                      Invia
                     </Button>
                   </div>
                 </motion.div>

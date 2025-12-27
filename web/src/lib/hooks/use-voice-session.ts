@@ -406,6 +406,8 @@ Durante le lezioni, USA ATTIVAMENTE questi strumenti per rendere l'apprendimento
         const fullInstructions = languageInstruction + maestro.systemPrompt + voicePersonality + toolInstructions;
 
         // Send session configuration - Azure GA format (2025-08-28)
+        // Optimized for fluid, natural conversations with low latency
+        // Recommended Azure model: gpt-realtime-mini or gpt-4o-mini-realtime-preview
         const sessionConfig = {
           type: 'session.update',
           session: {
@@ -413,6 +415,8 @@ Durante le lezioni, USA ATTIVAMENTE questi strumenti per rendere l'apprendimento
             instructions: fullInstructions,
             output_modalities: ['audio'],
             tools: maestroTools,
+            temperature: 0.7, // Slightly lower for more consistent responses
+            max_response_output_tokens: 'inf',
             audio: {
               input: {
                 transcription: {
@@ -423,10 +427,16 @@ Durante le lezioni, USA ATTIVAMENTE questi strumenti per rendere l'apprendimento
                   rate: 24000
                 },
                 turn_detection: {
-                  type: 'server_vad',
-                  threshold: 0.5,
-                  prefix_padding_ms: 300,
-                  silence_duration_ms: 200,
+                  // semantic_vad: detects when user has finished speaking based on semantics
+                  // More natural, less likely to interrupt mid-sentence
+                  type: 'semantic_vad',
+                  // Lower threshold = more sensitive to speech start (0.0-1.0)
+                  threshold: 0.4,
+                  // Audio before detected speech (helps capture beginning of words)
+                  prefix_padding_ms: 200,
+                  // Shorter silence = faster response (but may cut off slow speakers)
+                  silence_duration_ms: 150,
+                  // Auto-generate response when speech ends
                   create_response: true
                 }
               },

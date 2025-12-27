@@ -22,9 +22,11 @@ export function MaestroCard({
       onClick={() => onSelect(maestro)}
       className={cn(
         'relative w-full p-6 rounded-2xl text-center transition-all duration-300',
-        'bg-slate-800/50 hover:bg-slate-800/80 border border-slate-700/50',
-        'hover:border-opacity-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-900',
-        isSelected && 'ring-2 ring-offset-2 ring-offset-slate-900'
+        'bg-white dark:bg-slate-800/50 hover:bg-slate-50 dark:hover:bg-slate-800/80',
+        'border border-slate-200 dark:border-slate-700/50 shadow-sm hover:shadow-md',
+        'hover:border-opacity-100 focus:outline-none focus:ring-2 focus:ring-offset-2',
+        'focus:ring-offset-white dark:focus:ring-offset-slate-900',
+        isSelected && 'ring-2 ring-offset-2 ring-offset-white dark:ring-offset-slate-900'
       )}
       style={{
         borderColor: isSelected ? maestro.color : undefined,
@@ -46,7 +48,7 @@ export function MaestroCard({
             padding: '3px',
           }}
         >
-          <div className="w-full h-full rounded-full bg-slate-900" />
+          <div className="w-full h-full rounded-full bg-white dark:bg-slate-900" />
         </div>
 
         {/* Avatar image */}
@@ -76,7 +78,7 @@ export function MaestroCard({
       </div>
 
       {/* Name */}
-      <h3 className="text-lg font-semibold text-white mb-2">
+      <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-2">
         {maestro.name}
       </h3>
 
@@ -96,7 +98,7 @@ export function MaestroCard({
       </div>
 
       {/* Specialty */}
-      <p className="text-sm text-slate-400">
+      <p className="text-sm text-slate-500 dark:text-slate-400">
         {maestro.specialty}
       </p>
     </motion.button>

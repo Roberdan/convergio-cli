@@ -182,33 +182,47 @@ All maestri have access to these 9 tools, which they use proactively during less
 
 ---
 
-## Pending Tasks
+## Completed Tasks (Dec 27)
 
-### High Priority
+### 1. Fix Voice Session UX Issues ✅
+**Status**: COMPLETED
+- Added tooltips (title + aria-label) on all voice session buttons
+- Italian text for all status messages ("sta parlando...", "Ti sto ascoltando...")
+- Fixed reopen bug with unique session keys and AnimatePresence
+- Improved conversation fluidity with semantic_vad settings
 
-#### 1. Fix Voice Session UX Issues
-**Status**: Pending
-**Priority**: HIGH
-**Description**: Multiple UX problems in the voice session interface.
-- **Bottoni senza label**: Nessun tooltip che spiega cosa fanno i bottoni
-- **Bug riapertura voce**: Non si può riaprire la sessione dopo averla chiusa
-- **Stato incoerente**: A volte comportamenti strani nell'interfaccia
-- **Testo "Feynman is speaking"**: Dovrebbe essere in italiano
-
-#### 2. Add Visible Tool Buttons in Voice Session
-**Status**: Pending
-**Priority**: HIGH
-**Description**: Tools should be accessible manually, not just when AI calls them.
-- Aggiungere toolbar con bottoni visibili per:
+### 2. Add Visible Tool Buttons in Voice Session ✅
+**Status**: COMPLETED
+- Added toolbar with visible buttons:
   - 📷 Webcam (mostra compiti)
-  - 🗺️ Mappa mentale
+  - 🗺️ Mappa (mappa mentale)
   - 📝 Quiz
   - 🎴 Flashcard
-  - 🔍 Ricerca web
-- I tool devono essere usabili anche senza che l'AI li chiami
-- Tooltip su ogni bottone
+  - 🔍 Cerca (ricerca web)
+- Tools usable manually without AI invocation
+- Tooltips on every button
 
-#### 3. Make Webapp Fully Autonomous from CLI
+### 3. Fix Theme/Color Management ✅
+**Status**: COMPLETED
+- Added `.dark` class support in CSS (for next-themes)
+- Implemented accent color system with CSS custom properties
+- AccentColorApplier component to apply colors dynamically
+- Fixed maestro cards for light/dark mode compatibility
+
+### 4. Voice Fluidity Optimizations ✅
+**Status**: COMPLETED
+- Switched to `semantic_vad` for more natural conversations
+- Optimized VAD settings: threshold 0.4, silence 150ms, prefix 200ms
+- Added temperature 0.7 for consistent responses
+- Documentation for recommended Azure models (gpt-realtime-mini)
+
+---
+
+## Pending Tasks
+
+### Medium Priority
+
+#### 1. Make Webapp Fully Autonomous from CLI
 **Status**: Pending
 **Priority**: MEDIUM
 **Description**: The webapp should function completely independently without requiring the CLI tool.
@@ -216,7 +230,7 @@ All maestri have access to these 9 tools, which they use proactively during less
 - Self-contained configuration
 - Independent deployment capability
 
-#### 4. Backend for Persistent Gamification
+#### 2. Backend for Persistent Gamification
 **Status**: Pending
 **Priority**: MEDIUM
 **Description**: Implement persistent storage for gamification features.
