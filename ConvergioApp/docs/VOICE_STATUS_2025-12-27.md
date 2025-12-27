@@ -1,12 +1,65 @@
 # Voice Implementation Status - 27 December 2025
 
-## Current Status: PARTIALLY WORKING
+## Current Status: NOT WORKING
 
-Voice functionality has been significantly improved but still has issues requiring further investigation.
+Voice functionality does not work. Multiple attempts have been made to fix it.
 
 ---
 
-## What Was Done Today
+## Update 19:48 - Azure GA Format Migration (FAILED)
+
+### What Was Tried
+Compared the working web implementation (ConvergioWeb) with the native Mac app and found differences in Azure OpenAI Realtime API format.
+
+#### Changes Made to `OpenAIRealtimeWebSocket.swift`:
+
+1. **URL Format Change** (Preview → GA):
+   - Old: `/openai/realtime?api-version=2025-04-01-preview&deployment=<deploy>`
+   - New: `/openai/v1/realtime?model=<deployment>&api-key=<key>`
+
+2. **Session Config Change** (Flat → Nested):
+   - Old format:
+     ```json
+     {
+       "input_audio_format": "pcm16",
+       "output_audio_format": "pcm16",
+       "input_audio_transcription": { "model": "whisper-1" },
+       "turn_detection": { "type": "server_vad", ... }
+     }
+     ```
+   - New GA format:
+     ```json
+     {
+       "audio": {
+         "input": {
+           "transcription": { "model": "whisper-1" },
+           "format": { "type": "audio/pcm", "rate": 24000 },
+           "turn_detection": { ... }
+         },
+         "output": {
+           "voice": "sage",
+           "format": { "type": "audio/pcm", "rate": 24000 }
+         }
+       }
+     }
+     ```
+
+3. **Event Names** (Added GA alongside Beta):
+   - Added: `response.output_audio.delta`, `response.output_audio.done`
+   - Added: `response.output_audio_transcript.delta`, `response.output_audio_transcript.done`
+
+### Result: STILL NOT WORKING
+The app compiles and launches but voice still doesn't function.
+
+### Possible Issues to Investigate:
+- Azure GA API may have different authentication requirements
+- WebSocket connection may fail silently
+- Audio capture/playback pipeline may have other issues
+- Need to check actual WebSocket traffic with logging
+
+---
+
+## Earlier Today
 
 ### 1. Feedback Loop Prevention
 - Added `isSpeakingAtomic` flag to prevent microphone from capturing AI's own audio output

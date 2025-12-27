@@ -500,3 +500,4 @@ struct MessageBubble: View {
 
 **Ultimo Aggiornamento**: 2025-01-XX
 
+
