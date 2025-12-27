@@ -183,11 +183,12 @@ static const char* quick_pattern_route(const char* input) {
     // FIX: Delegation requests must go to Ali, not directly to named agents
     // When user says "delega a rex e baccio", it should NOT route to rex
     // but let Ali handle the orchestration and delegation
+    // IMPORTANT: Return "ali" explicitly, NOT NULL (NULL would fall through to LLM router)
     if (strstr(lower, "delega") || strstr(lower, "delegate") ||
         strstr(lower, "coordina") || strstr(lower, "orchestra") ||
         strstr(lower, "chiedi a") || strstr(lower, "ask ") ||
         strstr(lower, "fai analizzare") || strstr(lower, "fai fare")) {
-        return NULL; // Let Ali handle delegation
+        return "ali"; // Ali handles delegation - must be explicit, not NULL
     }
 
     // Explicit agent mentions

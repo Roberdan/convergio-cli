@@ -10,6 +10,7 @@
 #include "nous/projects.h"
 #include "nous/provider.h"
 #include "nous/telemetry.h"
+#include "nous/workflow_monitor.h"
 #include <dispatch/dispatch.h>
 #include <stdatomic.h>
 #include <stdio.h>
@@ -219,19 +220,32 @@ char* execute_delegations(DelegationList* delegations, const char* user_input,
     struct timespec start_time, end_time;
     clock_gettime(CLOCK_MONOTONIC, &start_time);
 
-    PROGRESS("\n🚀 **Delegating to %zu specialist agents...**\n", delegations->count);
-
-    // Show agents being delegated to
-    for (size_t i = 0; i < delegations->count; i++) {
-        PROGRESS("  • %s", delegations->requests[i]->agent_name);
+    // Create workflow monitor for ASCII visualization (only for 2+ agents)
+    __block WorkflowMonitor* monitor = NULL;
+    if (delegations->count >= 2) {
+        monitor = workflow_monitor_create("delegation", true);
+        if (monitor) {
+            workflow_monitor_start(monitor);
+            // Pre-add all agents to monitor
+            for (size_t i = 0; i < delegations->count; i++) {
+                workflow_monitor_add_agent(monitor,
+                                           delegations->requests[i]->agent_name,
+                                           delegations->requests[i]->reason);
+            }
+            workflow_monitor_render(monitor);
+        }
     }
-    PROGRESS("\n");
+
+    PROGRESS("\n🚀 **Delegating to %zu specialist agents...**\n", delegations->count);
 
     Orchestrator* orch = orchestrator_get();
     if (!orch) {
         PROGRESS("❌ Orchestrator not initialized!\n");
         return NULL;
     }
+
+    // Initialize provider registry (required for delegation)
+    provider_registry_init();
 
     // Prepare parallel execution
     AgentTask* tasks = calloc(delegations->count, sizeof(AgentTask));
@@ -298,6 +312,11 @@ char* execute_delegations(DelegationList* delegations, const char* user_input,
             agent_set_working(tasks[task_idx].agent, WORK_STATE_THINKING,
                               tasks[task_idx].context ? tasks[task_idx].context : "Analyzing request");
 
+            // Update monitor status to thinking
+            if (monitor) {
+                workflow_monitor_set_status_by_name(monitor, agent_name, AGENT_STATUS_THINKING);
+            }
+
             size_t prompt_size = strlen(tasks[task_idx].agent->system_prompt) +
                                  (tasks[task_idx].context ? strlen(tasks[task_idx].context) : 0) + 256;
             char* prompt_with_context = malloc(prompt_size);
@@ -327,12 +346,24 @@ char* execute_delegations(DelegationList* delegations, const char* user_input,
                     int count = atomic_fetch_add(&completed_count, 1) + 1;
                     LOG_INFO(LOG_CAT_AGENT, "Agent '%s' completed (%d/%zu)", agent_name,
                              count, total_agents);
+                    // Update monitor status to completed
+                    if (monitor) {
+                        workflow_monitor_set_status_by_name(monitor, agent_name, AGENT_STATUS_COMPLETED);
+                    }
                 } else {
                     atomic_fetch_add(&failed_count, 1);
                     LOG_ERROR(LOG_CAT_AGENT, "Agent '%s' failed", agent_name);
+                    // Update monitor status to failed
+                    if (monitor) {
+                        workflow_monitor_set_status_by_name(monitor, agent_name, AGENT_STATUS_FAILED);
+                    }
                 }
             } else {
                 atomic_fetch_add(&failed_count, 1);
+                // Update monitor status to failed
+                if (monitor) {
+                    workflow_monitor_set_status_by_name(monitor, agent_name, AGENT_STATUS_FAILED);
+                }
             }
 
             // Set agent back to idle
@@ -343,20 +374,36 @@ char* execute_delegations(DelegationList* delegations, const char* user_input,
     if (agents_scheduled == 0) {
         PROGRESS("❌ No agents could be scheduled!\n");
         free(tasks);
+        if (monitor) {
+            workflow_monitor_free(monitor);
+        }
         return NULL;
     }
 
     PROGRESS("\n⏳ Waiting for %zu agents to complete...\n", agents_scheduled);
 
-    // Poll for completion with progress updates
+    // Poll for completion with progress updates and monitor rendering
     long timeout_ms = 500; // Check every 500ms
     int last_completed = 0;
     while (dispatch_group_wait(group, dispatch_time(DISPATCH_TIME_NOW, timeout_ms * NSEC_PER_MSEC)) != 0) {
         int current = completed_count + failed_count;
-        if (current > last_completed) {
-            PROGRESS("  📊 Progress: %d/%zu agents done\n", current, agents_scheduled);
-            last_completed = current;
+        if (current > last_completed || monitor) {
+            // Render monitor on every poll for smooth updates
+            if (monitor) {
+                workflow_monitor_render(monitor);
+            }
+            if (current > last_completed) {
+                PROGRESS("  📊 Progress: %d/%zu agents done\n", current, agents_scheduled);
+                last_completed = current;
+            }
         }
+    }
+
+    // Final render and summary
+    if (monitor) {
+        workflow_monitor_stop(monitor);
+        workflow_monitor_render(monitor);
+        workflow_monitor_render_summary(monitor);
     }
 
     PROGRESS("✅ All agents completed! (%d succeeded, %d failed)\n", completed_count, failed_count);
@@ -376,6 +423,9 @@ char* execute_delegations(DelegationList* delegations, const char* user_input,
             free(tasks[i].response);
         }
         free(tasks);
+        if (monitor) {
+            workflow_monitor_free(monitor);
+        }
         return NULL;
     }
 
@@ -435,6 +485,11 @@ char* execute_delegations(DelegationList* delegations, const char* user_input,
         free(tasks[i].response);
     }
     free(tasks);
+
+    // Free workflow monitor
+    if (monitor) {
+        workflow_monitor_free(monitor);
+    }
 
     #undef PROGRESS
     return synthesized;

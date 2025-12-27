@@ -1061,9 +1061,12 @@ static size_t stream_write_callback(void* contents, size_t size, size_t nmemb, v
     return total;
 }
 
-// Streaming chat - calls callback for each chunk as it arrives
-char* nous_claude_chat_stream(const char* system_prompt, const char* user_message,
-                              StreamCallback callback, void* user_data) {
+// Streaming chat with multi-turn conversation support
+// history_json: optional JSON array of previous messages, e.g. [{"role":"user","content":"..."},...]
+// If NULL, falls back to single-message mode
+char* nous_claude_chat_stream_multiturn(const char* system_prompt, const char* history_json,
+                                        const char* user_message, StreamCallback callback,
+                                        void* user_data) {
     if (!g_initialized || !user_message)
         return NULL;
 
@@ -1085,11 +1088,42 @@ char* nous_claude_chat_stream(const char* system_prompt, const char* user_messag
         return NULL;
     }
 
-    size_t json_size = strlen(escaped_system) + strlen(escaped_user) + 512;
+    // Build messages array: history + current user message
+    size_t messages_size = (history_json ? strlen(history_json) : 0) + strlen(escaped_user) + 256;
+    char* messages_array = malloc(messages_size);
+    if (!messages_array) {
+        free(escaped_system);
+        free(escaped_user);
+        curl_easy_cleanup(curl);
+        return NULL;
+    }
+
+    if (history_json && strlen(history_json) > 2) {
+        // history_json is like: [{"role":"user","content":"..."},{"role":"assistant","content":"..."}]
+        // We need to append the current user message
+        // Remove trailing ']' from history, add comma, add new message, close ']'
+        size_t hist_len = strlen(history_json);
+        if (history_json[hist_len - 1] == ']') {
+            snprintf(messages_array, messages_size,
+                     "%.*s,{\"role\":\"user\",\"content\":\"%s\"}]",
+                     (int)(hist_len - 1), history_json, escaped_user);
+        } else {
+            // Malformed, fall back to single message
+            snprintf(messages_array, messages_size,
+                     "[{\"role\":\"user\",\"content\":\"%s\"}]", escaped_user);
+        }
+    } else {
+        // No history, single user message
+        snprintf(messages_array, messages_size,
+                 "[{\"role\":\"user\",\"content\":\"%s\"}]", escaped_user);
+    }
+
+    size_t json_size = strlen(escaped_system) + strlen(messages_array) + 256;
     char* json_body = malloc(json_size);
     if (!json_body) {
         free(escaped_system);
         free(escaped_user);
+        free(messages_array);
         curl_easy_cleanup(curl);
         return NULL;
     }
@@ -1100,12 +1134,13 @@ char* nous_claude_chat_stream(const char* system_prompt, const char* user_messag
              "\"max_tokens\": 4096,"
              "\"stream\": true,"
              "\"system\": \"%s\","
-             "\"messages\": [{\"role\": \"user\", \"content\": \"%s\"}]"
+             "\"messages\": %s"
              "}",
-             CLAUDE_MODEL, escaped_system, escaped_user);
+             CLAUDE_MODEL, escaped_system, messages_array);
 
     free(escaped_system);
     free(escaped_user);
+    free(messages_array);
 
     // Setup streaming context
     StreamContext ctx = {.callback = callback,
@@ -1153,6 +1188,13 @@ char* nous_claude_chat_stream(const char* system_prompt, const char* user_messag
 
     // Return accumulated text
     return ctx.accumulated;
+}
+
+// Streaming chat - calls callback for each chunk as it arrives (legacy single-message)
+char* nous_claude_chat_stream(const char* system_prompt, const char* user_message,
+                              StreamCallback callback, void* user_data) {
+    // Use multiturn with no history for backward compatibility
+    return nous_claude_chat_stream_multiturn(system_prompt, NULL, user_message, callback, user_data);
 }
 
 // ============================================================================
