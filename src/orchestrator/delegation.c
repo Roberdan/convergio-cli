@@ -11,6 +11,7 @@
 #include "nous/provider.h"
 #include "nous/telemetry.h"
 #include <dispatch/dispatch.h>
+#include <stdatomic.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -194,7 +195,8 @@ void free_delegation_list(DelegationList* list) {
 
 // Execute delegated tasks in parallel and return synthesized response
 char* execute_delegations(DelegationList* delegations, const char* user_input,
-                          const char* ali_response, ManagedAgent* ali) {
+                          const char* ali_response, ManagedAgent* ali,
+                          DelegationProgressCallback callback, void* user_data) {
     if (!delegations || delegations->count == 0 || !user_input || !ali) {
         LOG_ERROR(
             LOG_CAT_AGENT,
@@ -205,38 +207,46 @@ char* execute_delegations(DelegationList* delegations, const char* user_input,
         return NULL;
     }
 
+    // Helper macro for progress updates
+    #define PROGRESS(fmt, ...) do { \
+        char _progress_buf[512]; \
+        snprintf(_progress_buf, sizeof(_progress_buf), fmt, ##__VA_ARGS__); \
+        if (callback) callback(_progress_buf, user_data); \
+        LOG_INFO(LOG_CAT_AGENT, "%s", _progress_buf); \
+    } while(0)
+
     // Measure latency for telemetry
     struct timespec start_time, end_time;
     clock_gettime(CLOCK_MONOTONIC, &start_time);
 
-    LOG_INFO(LOG_CAT_AGENT, "Starting delegation to %zu agents", delegations->count);
-    fprintf(stderr, "\n[DELEGATION DEBUG] Starting delegation to %zu agents\n", delegations->count);
+    PROGRESS("\n🚀 **Delegating to %zu specialist agents...**\n", delegations->count);
 
-    // DEBUG: Show total agents in registry
-    Orchestrator* orch = orchestrator_get();
-    if (orch) {
-        LOG_INFO(LOG_CAT_AGENT, "[DELEGATION] Registry has %zu agents loaded", orch->agent_count);
-        fprintf(stderr, "[DELEGATION DEBUG] Registry has %zu agents loaded\n", orch->agent_count);
-    } else {
-        LOG_ERROR(LOG_CAT_AGENT, "[DELEGATION] Orchestrator not initialized!");
-        fprintf(stderr, "[DELEGATION DEBUG] ERROR: Orchestrator not initialized!\n");
-    }
-
-    // DEBUG: List all delegation requests
+    // Show agents being delegated to
     for (size_t i = 0; i < delegations->count; i++) {
-        LOG_INFO(LOG_CAT_AGENT, "[DELEGATION DEBUG] Request %zu: agent='%s'",
-                 i, delegations->requests[i]->agent_name ? delegations->requests[i]->agent_name : "(null)");
+        PROGRESS("  • %s", delegations->requests[i]->agent_name);
+    }
+    PROGRESS("\n");
+
+    Orchestrator* orch = orchestrator_get();
+    if (!orch) {
+        PROGRESS("❌ Orchestrator not initialized!\n");
+        return NULL;
     }
 
     // Prepare parallel execution
     AgentTask* tasks = calloc(delegations->count, sizeof(AgentTask));
     if (!tasks) {
-        LOG_ERROR(LOG_CAT_AGENT, "Failed to allocate tasks array for %zu delegations", delegations->count);
+        PROGRESS("❌ Failed to allocate tasks\n");
         return NULL;
     }
 
     dispatch_group_t group = dispatch_group_create();
     dispatch_queue_t queue = dispatch_get_global_queue(QOS_CLASS_USER_INITIATED, 0);
+
+    // Thread-safe counter for completed agents (using C11 atomics)
+    __block _Atomic int completed_count = 0;
+    __block _Atomic int failed_count = 0;
+    const size_t total_agents = delegations->count;
 
     size_t agents_scheduled = 0;
 
@@ -244,40 +254,24 @@ char* execute_delegations(DelegationList* delegations, const char* user_input,
     for (size_t i = 0; i < delegations->count; i++) {
         DelegationRequest* req = delegations->requests[i];
 
-        // Check if agent is in current project team - warn but allow delegation
-        // Ali can delegate to anyone, project team is just a recommendation
-        if (!project_has_agent(req->agent_name)) {
-            ConvergioProject* proj = project_current();
-            LOG_INFO(LOG_CAT_AGENT, "Agent '%s' not in project team '%s', but allowing delegation",
-                     req->agent_name, proj ? proj->name : "none");
-            // Don't skip - Ali can delegate to any agent
-        }
-
         // Find or spawn the requested agent
-        fprintf(stderr, "[DELEGATION DEBUG] Looking for agent '%s'...\n", req->agent_name);
         ManagedAgent* specialist = agent_find_by_name(req->agent_name);
         if (!specialist) {
-            LOG_INFO(LOG_CAT_AGENT, "Agent '%s' not found, spawning new instance", req->agent_name);
-            fprintf(stderr, "[DELEGATION DEBUG] Agent '%s' not found in registry, spawning...\n", req->agent_name);
+            PROGRESS("  ⏳ Spawning agent %s...\n", req->agent_name);
             specialist = agent_spawn(AGENT_ROLE_ANALYST, req->agent_name, NULL);
-        } else {
-            fprintf(stderr, "[DELEGATION DEBUG] Found agent '%s' -> '%s'\n", req->agent_name, specialist->name);
         }
 
         if (!specialist) {
-            LOG_ERROR(LOG_CAT_AGENT, "Failed to find or spawn agent '%s'", req->agent_name);
-            fprintf(stderr, "[DELEGATION DEBUG] ERROR: Failed to spawn agent '%s'\n", req->agent_name);
+            PROGRESS("  ❌ Agent %s not found\n", req->agent_name);
             continue;
         }
 
         if (!specialist->system_prompt) {
-            LOG_ERROR(LOG_CAT_AGENT, "Agent '%s' has no system prompt", req->agent_name);
-            fprintf(stderr, "[DELEGATION DEBUG] ERROR: Agent '%s' has no system prompt\n", req->agent_name);
+            PROGRESS("  ❌ Agent %s has no system prompt\n", req->agent_name);
             continue;
         }
 
-        LOG_INFO(LOG_CAT_AGENT, "Delegating to agent '%s'", specialist->name);
-        fprintf(stderr, "[DELEGATION DEBUG] Scheduling agent '%s' for parallel execution\n", specialist->name);
+        PROGRESS("  💭 %s is thinking...\n", specialist->name);
         agents_scheduled++;
 
         // Agent is valid, set up task
@@ -294,9 +288,9 @@ char* execute_delegations(DelegationList* delegations, const char* user_input,
             message_send(delegate_msg);
         }
 
-        // FIX: Capture loop index by value to avoid async closure bug
-        // Without this, all blocks would reference the same (final) value of i
+        // Capture values for block
         const size_t task_idx = i;
+        const char* agent_name = specialist->name;
 
         // Execute in parallel
         dispatch_group_async(group, queue, ^{
@@ -320,8 +314,7 @@ char* execute_delegations(DelegationList* delegations, const char* user_input,
                         provider->chat(provider, DELEGATION_MODEL, prompt_with_context,
                                        tasks[task_idx].user_input, &usage);
                 } else {
-                    LOG_ERROR(LOG_CAT_AGENT, "Provider not available for agent '%s'",
-                              tasks[task_idx].agent->name);
+                    LOG_ERROR(LOG_CAT_AGENT, "Provider not available for agent '%s'", agent_name);
                 }
                 free(prompt_with_context);
 
@@ -331,11 +324,15 @@ char* execute_delegations(DelegationList* delegations, const char* user_input,
                         strlen(tasks[task_idx].agent->system_prompt) / 4 + strlen(tasks[task_idx].user_input) / 4,
                         strlen(tasks[task_idx].response) / 4);
                     tasks[task_idx].completed = true;
-                    LOG_INFO(LOG_CAT_AGENT, "Agent '%s' completed response", tasks[task_idx].agent->name);
+                    int count = atomic_fetch_add(&completed_count, 1) + 1;
+                    LOG_INFO(LOG_CAT_AGENT, "Agent '%s' completed (%d/%zu)", agent_name,
+                             count, total_agents);
                 } else {
-                    LOG_ERROR(LOG_CAT_AGENT, "Agent '%s' returned empty response",
-                              tasks[task_idx].agent->name);
+                    atomic_fetch_add(&failed_count, 1);
+                    LOG_ERROR(LOG_CAT_AGENT, "Agent '%s' failed", agent_name);
                 }
+            } else {
+                atomic_fetch_add(&failed_count, 1);
             }
 
             // Set agent back to idle
@@ -343,23 +340,26 @@ char* execute_delegations(DelegationList* delegations, const char* user_input,
         });
     }
 
-    // Summary of scheduled agents
-    LOG_INFO(LOG_CAT_AGENT, "[DELEGATION] Scheduled %zu/%zu agents for parallel execution",
-             agents_scheduled, delegations->count);
-    fprintf(stderr, "[DELEGATION DEBUG] Scheduled %zu/%zu agents for parallel execution\n",
-            agents_scheduled, delegations->count);
-
     if (agents_scheduled == 0) {
-        LOG_ERROR(LOG_CAT_AGENT, "[DELEGATION] No agents were scheduled! Check agent names and registry.");
-        fprintf(stderr, "[DELEGATION DEBUG] ERROR: No agents were scheduled! Returning NULL.\n");
+        PROGRESS("❌ No agents could be scheduled!\n");
         free(tasks);
         return NULL;
     }
 
-    fprintf(stderr, "[DELEGATION DEBUG] Waiting for agents to complete...\n");
+    PROGRESS("\n⏳ Waiting for %zu agents to complete...\n", agents_scheduled);
 
-    // Wait for all agents to complete
-    dispatch_group_wait(group, DISPATCH_TIME_FOREVER);
+    // Poll for completion with progress updates
+    long timeout_ms = 500; // Check every 500ms
+    int last_completed = 0;
+    while (dispatch_group_wait(group, dispatch_time(DISPATCH_TIME_NOW, timeout_ms * NSEC_PER_MSEC)) != 0) {
+        int current = completed_count + failed_count;
+        if (current > last_completed) {
+            PROGRESS("  📊 Progress: %d/%zu agents done\n", current, agents_scheduled);
+            last_completed = current;
+        }
+    }
+
+    PROGRESS("✅ All agents completed! (%d succeeded, %d failed)\n", completed_count, failed_count);
 
     // Build convergence prompt with all responses
     size_t convergence_size = (ali_response ? strlen(ali_response) : 0) + 4096;
@@ -402,18 +402,18 @@ char* execute_delegations(DelegationList* delegations, const char* user_input,
         user_input);
 
     // Ali synthesizes all responses using Provider interface
+    PROGRESS("\n🔄 Ali is synthesizing responses...\n");
+
     char* synthesized = NULL;
     Provider* synth_provider = provider_get(PROVIDER_ANTHROPIC);
     if (synth_provider && synth_provider->chat) {
         TokenUsage synth_usage = {0};
         synthesized = synth_provider->chat(synth_provider, DELEGATION_MODEL, ali->system_prompt,
                                            convergence_prompt, &synth_usage);
+    } else {
+        PROGRESS("❌ Provider not available for synthesis\n");
     }
     free(convergence_prompt);
-
-    if (synthesized) {
-        cost_record_agent_usage(ali, 1000, strlen(synthesized) / 4);
-    }
 
     // Calculate latency and record telemetry
     clock_gettime(CLOCK_MONOTONIC, &end_time);
@@ -421,13 +421,13 @@ char* execute_delegations(DelegationList* delegations, const char* user_input,
                         ((end_time.tv_nsec - start_time.tv_nsec) / 1000000.0);
 
     if (synthesized) {
-        // Record successful delegation as API call (orchestrator internal operation)
+        cost_record_agent_usage(ali, 1000, strlen(synthesized) / 4);
         telemetry_record_api_call("orchestrator", "delegation", delegations->count,
                                   strlen(synthesized) / 4, latency_ms);
-        LOG_DEBUG(LOG_CAT_AGENT, "Delegation completed in %.2f ms", latency_ms);
+        PROGRESS("✅ Synthesis complete (%.1fs total)\n\n", latency_ms / 1000.0);
     } else {
         telemetry_record_error("orchestrator_delegation_failed");
-        LOG_ERROR(LOG_CAT_AGENT, "Delegation failed - synthesis returned NULL");
+        PROGRESS("❌ Synthesis failed\n");
     }
 
     // Cleanup
@@ -436,5 +436,6 @@ char* execute_delegations(DelegationList* delegations, const char* user_input,
     }
     free(tasks);
 
+    #undef PROGRESS
     return synthesized;
 }

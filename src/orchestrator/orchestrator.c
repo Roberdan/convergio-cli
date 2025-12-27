@@ -1196,8 +1196,10 @@ char* orchestrator_process(const char* user_input) {
                 delegations->requests[i]->reason ? delegations->requests[i]->reason : "(null)");
         }
         // Execute all delegations in parallel and get synthesized result
+        // No callback for non-streaming mode - progress goes to logs only
         char* synthesized =
-            execute_delegations(delegations, user_input, final_response, g_orchestrator->ali);
+            execute_delegations(delegations, user_input, final_response, g_orchestrator->ali,
+                                NULL, NULL);
         free_delegation_list(delegations);
         free(final_response);
 
@@ -1370,14 +1372,11 @@ char* orchestrator_process_stream(const char* user_input, OrchestratorStreamCall
                      delegations->count);
             fprintf(stderr, "[STREAM DEBUG] Found %zu delegation(s)!\n", delegations->count);
 
-            // Notify user that delegation is happening
-            if (callback) {
-                callback("\n\n---\n*Executing agent delegations...*\n", user_data);
-            }
-
-            // Execute all delegations in parallel and get synthesized result
+            // Execute all delegations in parallel with progress updates
+            // Pass the same callback for real-time progress
             char* synthesized =
-                execute_delegations(delegations, user_input, response, g_orchestrator->ali);
+                execute_delegations(delegations, user_input, response, g_orchestrator->ali,
+                                    callback, user_data);
             free_delegation_list(delegations);
 
             if (synthesized) {

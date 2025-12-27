@@ -180,6 +180,16 @@ static const char* quick_pattern_route(const char* input) {
     }
     lower[len] = '\0';
 
+    // FIX: Delegation requests must go to Ali, not directly to named agents
+    // When user says "delega a rex e baccio", it should NOT route to rex
+    // but let Ali handle the orchestration and delegation
+    if (strstr(lower, "delega") || strstr(lower, "delegate") ||
+        strstr(lower, "coordina") || strstr(lower, "orchestra") ||
+        strstr(lower, "chiedi a") || strstr(lower, "ask ") ||
+        strstr(lower, "fai analizzare") || strstr(lower, "fai fare")) {
+        return NULL; // Let Ali handle delegation
+    }
+
     // Explicit agent mentions
     if (strstr(lower, "dario") || strstr(lower, "debug"))
         return "dario-debugger";

@@ -36,8 +36,14 @@ DelegationList* parse_all_delegations(const char* response);
 // Free delegation list
 void free_delegation_list(DelegationList* list);
 
+// Progress callback type for delegation updates
+typedef void (*DelegationProgressCallback)(const char* message, void* user_data);
+
 // Execute delegated tasks in parallel and return synthesized response
+// callback: optional callback for progress updates (can be NULL)
+// user_data: passed to callback
 char* execute_delegations(DelegationList* delegations, const char* user_input,
-                          const char* ali_response, ManagedAgent* ali);
+                          const char* ali_response, ManagedAgent* ali,
+                          DelegationProgressCallback callback, void* user_data);
 
 #endif // CONVERGIO_DELEGATION_H
