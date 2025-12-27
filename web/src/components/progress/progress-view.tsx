@@ -19,7 +19,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useProgressStore } from '@/lib/stores/app-store';
 import { cn } from '@/lib/utils';
-import { subjectNames, subjectColors, subjectIcons } from '@/data/maestri';
+import { subjectNames, subjectColors, subjectIcons } from '@/data';
 import type { Subject } from '@/types';
 
 type ProgressTab = 'overview' | 'achievements' | 'mastery' | 'history';
@@ -41,7 +41,7 @@ const ACHIEVEMENTS = [
 
 export function ProgressView() {
   const [activeTab, setActiveTab] = useState<ProgressTab>('overview');
-  const { xp, level, streak, totalStudyMinutes, subjectMastery, achievements } = useProgressStore();
+  const { xp, level, streak, totalStudyMinutes, masteries, achievements } = useProgressStore();
 
   const tabs: Array<{ id: ProgressTab; label: string; icon: React.ReactNode }> = [
     { id: 'overview', label: 'Panoramica', icon: <TrendingUp className="w-4 h-4" /> },
@@ -54,8 +54,18 @@ export function ProgressView() {
   const currentLevelXP = xp % xpToNextLevel;
   const levelProgress = (currentLevelXP / xpToNextLevel) * 100;
 
-  const unlockedAchievements = achievements || [];
-  const achievementProgress = (unlockedAchievements.length / ACHIEVEMENTS.length) * 100;
+  // Convert achievements array to IDs for the tab
+  const unlockedAchievementIds = (achievements || []).map(a => a.id);
+  const achievementProgress = (unlockedAchievementIds.length / ACHIEVEMENTS.length) * 100;
+
+  // Convert masteries array to Record for easier lookup
+  const masteriesRecord = useMemo(() => {
+    const record: Record<string, typeof masteries[0]> = {};
+    (masteries || []).forEach(m => {
+      record[m.subject] = m;
+    });
+    return record;
+  }, [masteries]);
 
   return (
     <div className="space-y-6">
@@ -95,7 +105,7 @@ export function ProgressView() {
         <StatCard
           icon={<Trophy className="w-6 h-6 text-purple-500" />}
           label="Traguardi"
-          value={`${unlockedAchievements.length}/${ACHIEVEMENTS.length}`}
+          value={`${unlockedAchievementIds.length}/${ACHIEVEMENTS.length}`}
           subtext={`${achievementProgress.toFixed(0)}%`}
           color="purple"
         />
@@ -133,19 +143,19 @@ export function ProgressView() {
             level={level}
             levelProgress={levelProgress}
             streak={streak}
-            subjectMastery={subjectMastery}
+            masteries={masteriesRecord}
           />
         )}
 
         {activeTab === 'achievements' && (
           <AchievementsTab
-            unlocked={unlockedAchievements}
+            unlocked={unlockedAchievementIds}
             allAchievements={ACHIEVEMENTS}
           />
         )}
 
         {activeTab === 'mastery' && (
-          <MasteryTab subjectMastery={subjectMastery} />
+          <MasteryTab masteries={masteriesRecord} />
         )}
 
         {activeTab === 'history' && <HistoryTab />}
@@ -193,11 +203,11 @@ interface OverviewTabProps {
   xp: number;
   level: number;
   levelProgress: number;
-  streak: { current: number; longest: number; lastStudyDate: string | null };
-  subjectMastery: Record<string, any>;
+  streak: { current: number; longest: number; lastStudyDate?: Date };
+  masteries: Record<string, { tier?: string; progress?: number; percentage?: number; topicsCompleted?: number }>;
 }
 
-function OverviewTab({ xp, level, levelProgress, streak, subjectMastery }: OverviewTabProps) {
+function OverviewTab({ xp, level, levelProgress, streak, masteries }: OverviewTabProps) {
   // Simulated weekly activity data
   const weeklyData = [
     { day: 'Lun', minutes: 45 },
@@ -313,7 +323,7 @@ function OverviewTab({ xp, level, levelProgress, streak, subjectMastery }: Overv
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
-          {Object.entries(subjectMastery || {}).slice(0, 4).map(([subject, data]: [string, any]) => (
+          {Object.entries(masteries || {}).slice(0, 4).map(([subject, data]: [string, any]) => (
             <div key={subject} className="flex items-center gap-3">
               <span className="text-2xl">{subjectIcons[subject as Subject]}</span>
               <div className="flex-1">
@@ -398,10 +408,10 @@ function AchievementsTab({ unlocked, allAchievements }: AchievementsTabProps) {
 
 // Mastery Tab
 interface MasteryTabProps {
-  subjectMastery: Record<string, any>;
+  masteries: Record<string, { tier?: string; progress?: number; percentage?: number; topicsCompleted?: number }>;
 }
 
-function MasteryTab({ subjectMastery }: MasteryTabProps) {
+function MasteryTab({ masteries }: MasteryTabProps) {
   const tiers = ['beginner', 'intermediate', 'advanced', 'expert', 'master'];
   const tierLabels: Record<string, string> = {
     beginner: 'Principiante',
@@ -411,13 +421,14 @@ function MasteryTab({ subjectMastery }: MasteryTabProps) {
     master: 'Maestro',
   };
 
-  const subjects: Subject[] = ['math', 'science', 'history', 'geography', 'italian', 'english', 'art', 'music'];
+  const subjects: Subject[] = ['mathematics', 'physics', 'chemistry', 'biology', 'history', 'geography', 'italian', 'english', 'art', 'music'];
 
   return (
     <div className="space-y-6">
       {subjects.map(subject => {
-        const data = subjectMastery?.[subject] || { tier: 'beginner', progress: 0, sessionsCompleted: 0 };
-        const tierIndex = tiers.indexOf(data.tier);
+        const data = masteries?.[subject] || { tier: 'beginner', progress: 0, topicsCompleted: 0 };
+        const tier = data.tier || 'beginner';
+        const tierIndex = tiers.indexOf(tier);
 
         return (
           <Card key={subject}>
@@ -442,15 +453,15 @@ function MasteryTab({ subjectMastery }: MasteryTabProps) {
                         color: subjectColors[subject],
                       }}
                     >
-                      {tierLabels[data.tier]}
+                      {tierLabels[tier]}
                     </span>
                   </div>
 
                   {/* Tier Progress */}
                   <div className="flex gap-1 mb-2">
-                    {tiers.map((tier, i) => (
+                    {tiers.map((t, i) => (
                       <div
-                        key={tier}
+                        key={t}
                         className={cn(
                           'flex-1 h-2 rounded-full',
                           i <= tierIndex
@@ -465,8 +476,8 @@ function MasteryTab({ subjectMastery }: MasteryTabProps) {
                   </div>
 
                   <div className="flex items-center justify-between text-sm text-slate-500">
-                    <span>{data.sessionsCompleted || 0} sessioni completate</span>
-                    <span>{data.progress || 0}% al prossimo livello</span>
+                    <span>{data.topicsCompleted || 0} argomenti completati</span>
+                    <span>{data.progress || data.percentage || 0}% al prossimo livello</span>
                   </div>
                 </div>
 

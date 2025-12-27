@@ -7,7 +7,7 @@ import Image from 'next/image';
 import { MaestroCard } from './maestro-card';
 import { VoiceSession } from '@/components/voice/voice-session';
 import { ChatSession } from '@/components/chat/chat-session';
-import { maestri, subjectNames, subjectIcons, subjectColors, getAllSubjects } from '@/data/maestri';
+import { maestri, subjectNames, subjectIcons, subjectColors, getAllSubjects } from '@/data';
 import { cn } from '@/lib/utils';
 import type { Maestro, Subject } from '@/types';
 

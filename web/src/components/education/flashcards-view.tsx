@@ -18,7 +18,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { FlashcardStudy } from './flashcard';
 import { cn } from '@/lib/utils';
-import { subjectNames, subjectIcons, subjectColors } from '@/data/maestri';
+import { subjectNames, subjectIcons, subjectColors } from '@/data';
 import type { FlashcardDeck, Flashcard, Subject, Rating, CardState } from '@/types';
 
 // FSRS-5 Parameters (optimized defaults)

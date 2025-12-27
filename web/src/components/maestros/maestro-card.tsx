@@ -3,7 +3,7 @@
 import Image from 'next/image';
 import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
-import { subjectNames, subjectIcons } from '@/data/maestri';
+import { subjectNames, subjectIcons } from '@/data';
 import type { Maestro } from '@/types';
 
 interface MaestroCardProps {

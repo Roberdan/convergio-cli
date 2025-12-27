@@ -3,7 +3,7 @@
 import { motion } from 'framer-motion';
 import { Star, TrendingUp, TrendingDown, Minus } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { subjectNames, subjectColors } from '@/data/maestri';
+import { subjectNames, subjectColors } from '@/data';
 import { cn } from '@/lib/utils';
 import type { SubjectMastery, MasteryTier } from '@/types';
 
