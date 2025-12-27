@@ -175,6 +175,7 @@ set(NOUS_SOURCES
     src/workflow/workflow_observability.c
     src/workflow/workflow_types.c
     src/workflow/workflow_visualization.c
+    src/workflow/workflow_monitor.c
     # Voice History
     src/voice/voice_history.c
     # Education Edition
