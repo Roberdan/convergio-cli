@@ -91,6 +91,39 @@ static RouterState g_router = {
 static bool g_local_mlx_mode = false;
 static char g_local_mlx_model[128] = "mlx/deepseek-r1-1.5b"; // Default local model
 
+// ============================================================================
+// PROVIDER OVERRIDE (for Ollama and other providers)
+// ============================================================================
+
+static bool g_provider_override = false;
+static ProviderType g_forced_provider = PROVIDER_ANTHROPIC;
+static char g_forced_model[128] = {0};
+
+void router_set_provider_override(ProviderType provider, const char* model) {
+    g_provider_override = true;
+    g_forced_provider = provider;
+    if (model && model[0]) {
+        strncpy(g_forced_model, model, sizeof(g_forced_model) - 1);
+        g_forced_model[sizeof(g_forced_model) - 1] = '\0';
+    } else {
+        g_forced_model[0] = '\0';
+    }
+    LOG_INFO(LOG_CAT_SYSTEM, "Provider override: %d with model: %s",
+             (int)provider, g_forced_model[0] ? g_forced_model : "(default)");
+}
+
+bool router_has_provider_override(void) {
+    return g_provider_override;
+}
+
+ProviderType router_get_forced_provider(void) {
+    return g_forced_provider;
+}
+
+const char* router_get_forced_model(void) {
+    return g_forced_model[0] ? g_forced_model : NULL;
+}
+
 void router_set_local_mode(bool enabled, const char* model_id) {
     g_local_mlx_mode = enabled;
     if (model_id && model_id[0]) {
