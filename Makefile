@@ -281,6 +281,7 @@ C_SOURCES = $(SRC_DIR)/core/fabric.c \
             $(SRC_DIR)/workflow/error_handling.c \
             $(SRC_DIR)/workflow/workflow_observability.c \
             $(SRC_DIR)/workflow/workflow_visualization.c \
+            $(SRC_DIR)/workflow/workflow_monitor.c \
             $(SRC_DIR)/workflow/ethical_guardrails.c \
             $(SRC_DIR)/workflow/checkpoint_optimization.c \
             $(SRC_DIR)/core/commands/workflow.c \
@@ -470,11 +471,13 @@ $(SWIFT_LIB): Package.swift Sources/ConvergioMLX/MLXBridge.swift
 			-jobs $(SWIFT_BUILD_JOBS) \
 			>/dev/null 2>&1 || true; \
 		if [ -f "$(XCODE_RELEASE_DIR)/mlx-swift_Cmlx.bundle/Contents/Resources/default.metallib" ]; then \
-			cp "$(XCODE_RELEASE_DIR)/mlx-swift_Cmlx.bundle/Contents/Resources/default.metallib" "$(BIN_DIR)/"; \
-			echo "Metal library compiled and copied to $(BIN_DIR)/default.metallib"; \
+			cp "$(XCODE_RELEASE_DIR)/mlx-swift_Cmlx.bundle/Contents/Resources/default.metallib" "$(BIN_DIR)/default.metallib"; \
+			cp "$(XCODE_RELEASE_DIR)/mlx-swift_Cmlx.bundle/Contents/Resources/default.metallib" "$(BIN_DIR)/mlx.metallib"; \
+			echo "Metal library compiled and copied to $(BIN_DIR)/{default,mlx}.metallib"; \
 		elif [ -f "resources/default.metallib" ]; then \
-			cp "resources/default.metallib" "$(BIN_DIR)/"; \
-			echo "Metal library (pre-compiled) copied to $(BIN_DIR)/default.metallib"; \
+			cp "resources/default.metallib" "$(BIN_DIR)/default.metallib"; \
+			cp "resources/default.metallib" "$(BIN_DIR)/mlx.metallib"; \
+			echo "Metal library (pre-compiled) copied to $(BIN_DIR)/{default,mlx}.metallib"; \
 		else \
 			echo "FATAL: Metal shaders not available - build cannot continue" >&2 && exit 1; \
 		fi; \
@@ -681,11 +684,11 @@ version:
 dist: all
 	@mkdir -p dist
 	@cd $(BIN_DIR) && \
-	if [ -d ConvergioNotify.app ]; then \
-		tar -czvf ../../dist/convergio-$(VERSION)-darwin-arm64.tar.gz convergio ConvergioNotify.app; \
-	else \
-		tar -czvf ../../dist/convergio-$(VERSION)-darwin-arm64.tar.gz convergio; \
-	fi
+	DIST_FILES="convergio"; \
+	if [ -f mlx.metallib ]; then DIST_FILES="$$DIST_FILES mlx.metallib"; fi; \
+	if [ -f default.metallib ]; then DIST_FILES="$$DIST_FILES default.metallib"; fi; \
+	if [ -d ConvergioNotify.app ]; then DIST_FILES="$$DIST_FILES ConvergioNotify.app"; fi; \
+	tar -czvf ../../dist/convergio-$(VERSION)-darwin-arm64.tar.gz $$DIST_FILES
 	@echo "Created dist/convergio-$(VERSION)-darwin-arm64.tar.gz"
 
 release: dist
@@ -763,10 +766,15 @@ $(eval $(call define_standard_test,pre_release_e2e_test,tests/test_workflow_e2e_
 $(eval $(call define_standard_test,workflow_error_test,tests/test_workflow_error_handling.c))
 $(eval $(call define_standard_test,workflow_migration_test,tests/test_workflow_migration.c))
 $(eval $(call define_standard_test,workflow_integration_test,tests/test_workflow_integration.c))
+$(eval $(call define_standard_test,workflow_monitor_test,tests/test_workflow_monitor.c))
 
 # Voice and Apple Foundation tests
 $(eval $(call define_standard_test,voice_history_test,tests/test_voice_history.c))
 $(eval $(call define_standard_test,apple_foundation_test,tests/test_apple_foundation.c))
+
+# Edition and delegation tests
+$(eval $(call define_standard_test,edition_test,tests/test_edition_separation.c))
+$(eval $(call define_standard_test,delegation_test,tests/test_delegation.c))
 
 # Simple tests (without Swift, custom objects)
 $(eval $(call define_simple_test,compaction_test,tests/test_compaction.c,$(OBJ_DIR)/context/compaction.o))
@@ -921,7 +929,7 @@ security_audit_workflow:
 	@echo "╚══════════════════════════════════════════════════════════════╝"
 
 # Run all tests
-test: fuzz_test unit_test anna_test compaction_test plan_db_test output_service_test tools_test websearch_test workflow_test education_test telemetry_test security_test voice_history_test apple_foundation_test education_safety_test check-docs
+test: fuzz_test unit_test anna_test compaction_test plan_db_test output_service_test tools_test websearch_test workflow_test education_test telemetry_test security_test voice_history_test apple_foundation_test education_safety_test edition_test delegation_test check-docs
 	@echo "All tests completed!"
 
 # Parallel test execution helper (for independent test suites)
