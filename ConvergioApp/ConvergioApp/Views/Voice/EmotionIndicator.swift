@@ -21,22 +21,19 @@ struct EmotionIndicator: View {
     // MARK: - Body
 
     var body: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: DesignSystem.Spacing.sm) {
             // Emotion color indicator
             Circle()
                 .fill(emotionColor)
                 .frame(width: 12, height: 12)
-                .shadow(color: emotionColor.opacity(0.6), radius: 4)
+                .shadow(color: emotionColor.opacity(0.6), radius: DesignSystem.Shadow.small.radius)
                 .scaleEffect(animationScale)
-                .animation(
-                    .easeInOut(duration: 1.0).repeatForever(autoreverses: true),
-                    value: animationScale
-                )
+                .animation(DesignSystem.Animation.gentle.repeatForever(autoreverses: true), value: animationScale)
 
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
                 // Emotion name
                 Text(emotion.displayName)
-                    .font(.caption)
+                    .font(DesignSystem.Typography.caption)
                     .fontWeight(.semibold)
                     .foregroundColor(.white)
 
@@ -44,28 +41,28 @@ struct EmotionIndicator: View {
                 GeometryReader { geometry in
                     ZStack(alignment: .leading) {
                         // Background
-                        RoundedRectangle(cornerRadius: 2)
-                            .fill(Color.white.opacity(0.2))
+                        RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.small)
+                            .fill(DesignSystem.Colors.overlayLight)
                             .frame(height: 3)
 
                         // Confidence level
-                        RoundedRectangle(cornerRadius: 2)
+                        RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.small)
                             .fill(emotionColor)
                             .frame(width: geometry.size.width * confidence, height: 3)
-                            .animation(.easeInOut(duration: 0.3), value: confidence)
+                            .animation(DesignSystem.Animation.quick, value: confidence)
                     }
                 }
                 .frame(height: 3)
             }
             .frame(width: 80)
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
+        .padding(.horizontal, DesignSystem.Spacing.md)
+        .padding(.vertical, DesignSystem.Spacing.sm)
         .background(
-            RoundedRectangle(cornerRadius: 8)
-                .fill(Color.black.opacity(0.3))
+            RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.medium)
+                .fill(DesignSystem.Colors.overlay)
                 .overlay(
-                    RoundedRectangle(cornerRadius: 8)
+                    RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.medium)
                         .stroke(emotionColor.opacity(0.5), lineWidth: 1)
                 )
         )
@@ -74,10 +71,10 @@ struct EmotionIndicator: View {
         }
         .onChange(of: emotion) { _, _ in
             // Pulse animation on emotion change
-            withAnimation(.easeInOut(duration: 0.2)) {
+            withAnimation(DesignSystem.Animation.quick) {
                 animationOpacity = 0.5
             }
-            withAnimation(.easeInOut(duration: 0.2).delay(0.2)) {
+            withAnimation(DesignSystem.Animation.quick.delay(0.2)) {
                 animationOpacity = 1.0
             }
         }
@@ -111,21 +108,21 @@ struct EmotionGridView: View {
     // MARK: - Body
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
             Text("Emotion Analysis")
-                .font(.headline)
+                .font(DesignSystem.Typography.headline)
                 .foregroundColor(.white)
 
-            LazyVGrid(columns: columns, spacing: 12) {
+            LazyVGrid(columns: columns, spacing: DesignSystem.Spacing.md) {
                 ForEach(EmotionType.allCases, id: \.self) { emotion in
                     emotionCell(emotion: emotion)
                 }
             }
         }
-        .padding()
+        .padding(DesignSystem.Spacing.md)
         .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(Color.black.opacity(0.3))
+            RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.large)
+                .fill(DesignSystem.Colors.overlay)
         )
     }
 
@@ -152,26 +149,26 @@ struct EmotionGridView: View {
                         )
                 )
                 .scaleEffect(isActive ? 1.1 : 1.0)
-                .animation(.spring(response: 0.3, dampingFraction: 0.6), value: isActive)
+                .animation(DesignSystem.Animation.smooth, value: isActive)
 
             // Emotion name
             Text(emotion.displayName)
-                .font(.caption2)
-                .foregroundColor(isActive ? .white : .gray)
+                .font(DesignSystem.Typography.caption2)
+                .foregroundColor(isActive ? .white : DesignSystem.Colors.textSecondary)
                 .lineLimit(1)
                 .minimumScaleFactor(0.8)
 
             // Confidence level
             Text(String(format: "%.0f%%", confidence * 100))
-                .font(.caption2)
+                .font(DesignSystem.Typography.caption2)
                 .fontWeight(isActive ? .bold : .regular)
-                .foregroundColor(isActive ? emotionColor(emotion) : .gray)
+                .foregroundColor(isActive ? emotionColor(emotion) : DesignSystem.Colors.textSecondary)
         }
-        .padding(.vertical, 8)
+        .padding(.vertical, DesignSystem.Spacing.sm)
         .frame(maxWidth: .infinity)
         .background(
-            RoundedRectangle(cornerRadius: 8)
-                .fill(isActive ? Color.white.opacity(0.1) : Color.clear)
+            RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.medium)
+                .fill(isActive ? DesignSystem.Colors.overlayLight : Color.clear)
         )
     }
 
@@ -203,24 +200,24 @@ struct EmotionTimelineView: View {
     // MARK: - Body
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
             Text("Emotion Timeline")
-                .font(.headline)
+                .font(DesignSystem.Typography.headline)
                 .foregroundColor(.white)
 
             if emotionHistory.isEmpty {
                 Text("No emotion data yet")
-                    .font(.caption)
-                    .foregroundColor(.gray)
+                    .font(DesignSystem.Typography.caption)
+                    .foregroundColor(DesignSystem.Colors.textSecondary)
                     .frame(maxWidth: .infinity, alignment: .center)
-                    .padding(.vertical, 20)
+                    .padding(.vertical, DesignSystem.Spacing.lg)
             } else {
                 ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 4) {
+                    HStack(spacing: DesignSystem.Spacing.xs) {
                         ForEach(emotionHistory.suffix(maxPoints)) { point in
-                            VStack(spacing: 4) {
+                            VStack(spacing: DesignSystem.Spacing.xs) {
                                 // Emotion bar
-                                RoundedRectangle(cornerRadius: 2)
+                                RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.small)
                                     .fill(emotionColor(point.emotion))
                                     .frame(width: 12)
                                     .frame(height: max(20, point.confidence * 60))
@@ -229,20 +226,20 @@ struct EmotionTimelineView: View {
                                 if emotionHistory.count <= 10 {
                                     Text(formatTime(point.timestamp))
                                         .font(.system(size: 8))
-                                        .foregroundColor(.gray)
+                                        .foregroundColor(DesignSystem.Colors.textSecondary)
                                 }
                             }
                         }
                     }
-                    .padding(.vertical, 8)
+                    .padding(.vertical, DesignSystem.Spacing.sm)
                 }
                 .frame(height: 100)
             }
         }
-        .padding()
+        .padding(DesignSystem.Spacing.md)
         .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(Color.black.opacity(0.3))
+            RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.large)
+                .fill(DesignSystem.Colors.overlay)
         )
     }
 

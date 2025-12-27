@@ -15,11 +15,19 @@ import ConvergioCore
 struct OnboardingView: View {
     @Binding var isComplete: Bool
     @EnvironmentObject var keychainManager: KeychainManager
+    @Environment(\.dismiss) private var dismiss
     @State private var currentStep = 0
     @State private var apiKey = ""
     @State private var selectedProvider: APIProvider = .openai  // OpenAI works with Azure for EDU
+    @State private var selectedOllamaModel = "llama3.3"
+    @State private var ollamaHost = "http://localhost:11434"
+    @State private var isOllamaConnected = false
+    @State private var isCheckingOllama = false
 
-    private let totalSteps = 5
+    /// Dynamic total steps based on provider
+    private var totalSteps: Int {
+        selectedProvider == .ollama ? 6 : 5  // Extra step for Ollama config
+    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -41,11 +49,28 @@ struct OnboardingView: View {
                 )
                     .tag(2)
 
-                BudgetSetupStep()
-                    .tag(3)
+                // Ollama configuration step (only shown for local models)
+                if selectedProvider == .ollama {
+                    OllamaSetupStep(
+                        ollamaHost: $ollamaHost,
+                        selectedModel: $selectedOllamaModel,
+                        isConnected: $isOllamaConnected,
+                        isChecking: $isCheckingOllama
+                    )
+                        .tag(3)
 
-                ReadyStep()
-                    .tag(4)
+                    BudgetSetupStep()
+                        .tag(4)
+
+                    ReadyStep()
+                        .tag(5)
+                } else {
+                    BudgetSetupStep()
+                        .tag(3)
+
+                    ReadyStep()
+                        .tag(4)
+                }
             }
             .tabViewStyle(.automatic)
             .animation(.easeInOut, value: currentStep)
@@ -71,7 +96,7 @@ struct OnboardingView: View {
                         }
                     }
                     .buttonStyle(.borderedProminent)
-                    .disabled(currentStep == 2 && apiKey.isEmpty)
+                    .disabled(currentStep == 2 && apiKey.isEmpty && selectedProvider.requiresAPIKey)
                 } else {
                     Button("Get Started") {
                         completeOnboarding()
@@ -95,14 +120,25 @@ struct OnboardingView: View {
     }
 
     private func completeOnboarding() {
-        // Save API key to Keychain
-        if !apiKey.isEmpty {
+        // Save API key to Keychain (for cloud providers)
+        if !apiKey.isEmpty && selectedProvider.requiresAPIKey {
             keychainManager.saveKey(apiKey, for: selectedProvider)
         }
 
+        // Save Ollama configuration (for local models)
+        if selectedProvider == .ollama {
+            UserDefaults.standard.set(ollamaHost, forKey: "ollamaHost")
+            UserDefaults.standard.set(selectedOllamaModel, forKey: "ollamaModel")
+        }
+
+        // Mark onboarding as complete
         UserDefaults.standard.set(true, forKey: "onboardingComplete")
         UserDefaults.standard.set(selectedProvider.rawValue, forKey: "selectedProvider")
-        isComplete = false // This dismisses the sheet
+        UserDefaults.standard.synchronize()
+
+        // Dismiss the sheet
+        isComplete = false
+        dismiss()
     }
 }
 
@@ -255,9 +291,14 @@ private struct ProviderSetupStep: View {
     private var providers: [APIProvider] {
         let isEDU = EditionManager.shared.currentEdition == .education
         if isEDU {
-            return [.openai, .gemini] // No Anthropic for EDU
+            return [.openai, .gemini, .ollama] // No Anthropic for EDU
         }
-        return [.anthropic, .openai, .gemini]
+        return [.anthropic, .openai, .gemini, .ollama]
+    }
+
+    /// Whether the selected provider requires an API key
+    private var requiresAPIKey: Bool {
+        selectedProvider.requiresAPIKey
     }
 
     var body: some View {
@@ -288,33 +329,52 @@ private struct ProviderSetupStep: View {
             Divider()
                 .padding(.horizontal, 40)
 
-            // API Key input
-            VStack(alignment: .leading, spacing: 8) {
-                Text("API Key")
-                    .font(.subheadline.weight(.medium))
+            // API Key input (only for providers that require it)
+            if requiresAPIKey {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("API Key")
+                        .font(.subheadline.weight(.medium))
 
-                HStack {
-                    if showApiKey {
-                        TextField("Enter your API key", text: $apiKey)
-                            .textFieldStyle(.roundedBorder)
-                    } else {
-                        SecureField("Enter your API key", text: $apiKey)
-                            .textFieldStyle(.roundedBorder)
+                    HStack {
+                        if showApiKey {
+                            TextField("Enter your API key", text: $apiKey)
+                                .textFieldStyle(.roundedBorder)
+                        } else {
+                            SecureField("Enter your API key", text: $apiKey)
+                                .textFieldStyle(.roundedBorder)
+                        }
+
+                        Button {
+                            showApiKey.toggle()
+                        } label: {
+                            Image(systemName: showApiKey ? "eye.slash" : "eye")
+                        }
+                        .buttonStyle(.plain)
                     }
 
-                    Button {
-                        showApiKey.toggle()
-                    } label: {
-                        Image(systemName: showApiKey ? "eye.slash" : "eye")
-                    }
-                    .buttonStyle(.plain)
+                    Text("Your API key is stored securely in the macOS Keychain.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                 }
+                .frame(maxWidth: 400)
+            } else {
+                // Local models info
+                VStack(spacing: 12) {
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(.largeTitle)
+                        .foregroundStyle(.green)
 
-                Text("Your API key is stored securely in the macOS Keychain.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                    Text("No API key required")
+                        .font(.headline)
+
+                    Text("Local models run on your Mac using Ollama. Make sure Ollama is installed and running.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                        .frame(maxWidth: 350)
+                }
+                .padding(.top, 8)
             }
-            .frame(maxWidth: 400)
         }
         .padding(40)
     }
@@ -328,6 +388,7 @@ private struct ProviderSetupStep: View {
         case .openrouter: return "Multi-provider"
         case .perplexity: return "Search AI"
         case .grok: return "Grok models"
+        case .ollama: return "Ollama / LM Studio"
         case .azureRealtimeKey, .azureRealtimeEndpoint, .azureRealtimeDeployment: return "Azure Voice"
         }
     }
@@ -429,6 +490,152 @@ private struct BudgetSetupStep: View {
                 .foregroundStyle(.tertiary)
         }
         .padding(40)
+    }
+}
+
+// MARK: - Ollama Setup Step
+
+private struct OllamaSetupStep: View {
+    @Binding var ollamaHost: String
+    @Binding var selectedModel: String
+    @Binding var isConnected: Bool
+    @Binding var isChecking: Bool
+
+    @State private var availableModels: [String] = []
+    @State private var errorMessage: String?
+
+    private let defaultModels = ["llama3.3", "llama3.2", "mistral", "codellama", "phi3", "gemma2"]
+
+    var body: some View {
+        VStack(spacing: 24) {
+            Text("Configure Local Models")
+                .font(.title.weight(.bold))
+
+            Text("Convergio can use Ollama to run AI models locally on your Mac, with complete privacy.")
+                .font(.body)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+                .frame(maxWidth: 450)
+
+            // Connection status
+            VStack(spacing: 16) {
+                // Host configuration
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Ollama Host")
+                        .font(.subheadline.weight(.medium))
+
+                    HStack {
+                        TextField("http://localhost:11434", text: $ollamaHost)
+                            .textFieldStyle(.roundedBorder)
+                            .frame(width: 280)
+
+                        Button {
+                            Task { await checkOllamaConnection() }
+                        } label: {
+                            if isChecking {
+                                ProgressView()
+                                    .scaleEffect(0.7)
+                                    .frame(width: 80)
+                            } else {
+                                Text("Verify")
+                                    .frame(width: 80)
+                            }
+                        }
+                        .buttonStyle(.bordered)
+                        .disabled(isChecking)
+                    }
+                }
+
+                // Connection status indicator
+                if isConnected {
+                    Label("Ollama is running", systemImage: "checkmark.circle.fill")
+                        .foregroundStyle(.green)
+                        .font(.headline)
+                } else if let error = errorMessage {
+                    VStack(spacing: 8) {
+                        Label("Connection failed", systemImage: "xmark.circle.fill")
+                            .foregroundStyle(.red)
+                            .font(.headline)
+
+                        Text(error)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+
+                        Link("Download Ollama", destination: URL(string: "https://ollama.ai")!)
+                            .font(.caption)
+                    }
+                }
+
+                Divider()
+                    .padding(.horizontal, 40)
+
+                // Model selection
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Select Model")
+                        .font(.subheadline.weight(.medium))
+
+                    Picker("Model", selection: $selectedModel) {
+                        ForEach(availableModels.isEmpty ? defaultModels : availableModels, id: \.self) { model in
+                            Text(model).tag(model)
+                        }
+                    }
+                    .pickerStyle(.menu)
+                    .frame(width: 280)
+
+                    if availableModels.isEmpty && isConnected {
+                        Text("No models found. Run 'ollama pull llama3.3' in Terminal.")
+                            .font(.caption)
+                            .foregroundStyle(.orange)
+                    } else if !availableModels.isEmpty {
+                        Text("\(availableModels.count) models available")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+            .padding(.vertical, 16)
+        }
+        .padding(40)
+        .onAppear {
+            Task { await checkOllamaConnection() }
+        }
+    }
+
+    private func checkOllamaConnection() async {
+        isChecking = true
+        errorMessage = nil
+
+        do {
+            guard let url = URL(string: "\(ollamaHost)/api/tags") else {
+                throw URLError(.badURL)
+            }
+
+            let (data, response) = try await URLSession.shared.data(from: url)
+
+            guard let httpResponse = response as? HTTPURLResponse,
+                  httpResponse.statusCode == 200 else {
+                throw URLError(.badServerResponse)
+            }
+
+            // Parse models from response
+            if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+               let models = json["models"] as? [[String: Any]] {
+                availableModels = models.compactMap { $0["name"] as? String }
+                    .map { $0.components(separatedBy: ":").first ?? $0 }
+
+                if !availableModels.isEmpty && !availableModels.contains(selectedModel) {
+                    selectedModel = availableModels[0]
+                }
+            }
+
+            isConnected = true
+        } catch {
+            isConnected = false
+            errorMessage = "Make sure Ollama is installed and running."
+            availableModels = []
+        }
+
+        isChecking = false
     }
 }
 

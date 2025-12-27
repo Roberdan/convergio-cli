@@ -57,8 +57,14 @@ extern void nous_destroy_agent(NousAgent* agent);
 static bool g_use_local_mlx = false;
 static char g_mlx_model[64] = {0}; // Selected MLX model
 
-// External router function for local mode
+// Provider override (for Ollama etc.)
+static bool g_use_provider_override = false;
+static ProviderType g_override_provider = PROVIDER_OLLAMA;
+static char g_override_model[64] = {0};
+
+// External router functions
 extern void router_set_local_mode(bool enabled, const char* model_id);
+extern void router_set_provider_override(ProviderType provider, const char* model);
 
 // ============================================================================
 // DEBUG LOGGING IMPLEMENTATION
@@ -340,6 +346,31 @@ int main(int argc, char** argv) {
                    i + 1 < argc) {
             strncpy(g_mlx_model, argv[++i], sizeof(g_mlx_model) - 1);
             g_mlx_model[sizeof(g_mlx_model) - 1] = '\0';
+        } else if ((strcmp(argv[i], "--provider") == 0 || strcmp(argv[i], "-p") == 0) &&
+                   i + 1 < argc) {
+            const char* prov = argv[++i];
+            g_use_provider_override = true;
+            if (strcasecmp(prov, "ollama") == 0) {
+                g_override_provider = PROVIDER_OLLAMA;
+            } else if (strcasecmp(prov, "anthropic") == 0) {
+                g_override_provider = PROVIDER_ANTHROPIC;
+            } else if (strcasecmp(prov, "openai") == 0) {
+                g_override_provider = PROVIDER_OPENAI;
+            } else if (strcasecmp(prov, "gemini") == 0) {
+                g_override_provider = PROVIDER_GEMINI;
+            } else if (strcasecmp(prov, "mlx") == 0) {
+                g_override_provider = PROVIDER_MLX;
+            } else {
+                fprintf(stderr, "Unknown provider: %s\n", prov);
+                fprintf(stderr, "Valid providers: ollama, anthropic, openai, gemini, mlx\n");
+                return 1;
+            }
+        } else if ((strcmp(argv[i], "--ollama-model") == 0) && i + 1 < argc) {
+            // Shortcut for --provider ollama --model <model>
+            g_use_provider_override = true;
+            g_override_provider = PROVIDER_OLLAMA;
+            strncpy(g_override_model, argv[++i], sizeof(g_override_model) - 1);
+            g_override_model[sizeof(g_override_model) - 1] = '\0';
         } else if ((strcmp(argv[i], "--edition") == 0 || strcmp(argv[i], "-e") == 0) &&
                    i + 1 < argc) {
             const char* ed = argv[++i];
@@ -365,6 +396,8 @@ int main(int argc, char** argv) {
                    "rex-code-reviewer)\n");
             printf("  -w, --workspace <path>  Set workspace directory (default: current dir)\n");
             printf("  -e, --edition <name>    Set edition (master, business, developer)\n");
+            printf("  -p, --provider <name>   Force provider (ollama, anthropic, openai, gemini, mlx)\n");
+            printf("  --ollama-model <model>  Use Ollama with specific model (e.g., qwen2.5:0.5b)\n");
             printf("  -l, --local             Use MLX local models (Apple Silicon only)\n");
             printf(
                 "  -m, --model <model>     Specify model (e.g., llama-3.2-3b, deepseek-r1-7b)\n");
@@ -661,6 +694,21 @@ int main(int argc, char** argv) {
     if (output_service_init(NULL) != OUTPUT_OK) {
         fprintf(stderr, "  \033[33m⚠ Output service initialization failed (non-critical)\033[0m\n");
         // Non-critical: agents will output to terminal only
+    }
+
+    // Set provider override if requested (e.g., --provider ollama)
+    if (g_use_provider_override) {
+        const char* model = g_override_model[0] ? g_override_model : NULL;
+        router_set_provider_override(g_override_provider, model);
+
+        const char* provider_names[] = {"Anthropic", "OpenAI", "Gemini", "OpenRouter",
+                                        "Ollama", "MLX", "Apple Foundation"};
+        printf("\n  \033[36m🔧 Provider Override: %s\033[0m\n",
+               provider_names[g_override_provider]);
+        if (model) {
+            printf("  Model: %s\n", model);
+        }
+        printf("\n");
     }
 
     // Set local MLX mode if requested

@@ -19,6 +19,7 @@
 import Foundation
 import AVFoundation
 import Combine
+import os  // For OSAllocatedUnfairLock
 #if os(macOS)
 import AppKit
 import CoreAudio
@@ -123,6 +124,11 @@ class VoiceManager: NSObject, ObservableObject {
     private var audioBufferCount: Int = 0
     private var playbackBufferCount: Int = 0
 
+    // Thread-safe flags for audio callback (nonisolated access from audio thread)
+    private let isConnectedAtomic = OSAllocatedUnfairLock(initialState: false)
+    private let isMutedAtomic = OSAllocatedUnfairLock(initialState: false)
+    private let isSpeakingAtomic = OSAllocatedUnfairLock(initialState: false)  // Prevent feedback loop
+
     // Audio settings for OpenAI Realtime (24kHz, 16-bit PCM, mono)
     private static let openAISampleRate: Double = 24000.0
     private static let channels: AVAudioChannelCount = 1
@@ -218,6 +224,7 @@ class VoiceManager: NSObject, ObservableObject {
         try setupAudioEngineForSession()
 
         isConnected = true
+        isConnectedAtomic.withLock { $0 = true }  // Thread-safe flag for audio callback
         logger.info("Connected to voice service successfully with voice: \(voice.rawValue)")
         onDebugLog?("✅ Connected! Voice: \(voice.rawValue)")
     }
@@ -239,6 +246,7 @@ class VoiceManager: NSObject, ObservableObject {
         cleanupAudioEngine()
 
         isConnected = false
+        isConnectedAtomic.withLock { $0 = false }  // Thread-safe flag for audio callback
         currentMaestro = nil
         updateState(.idle)
         logger.info("Disconnected from OpenAI Realtime")
@@ -288,6 +296,8 @@ class VoiceManager: NSObject, ObservableObject {
     /// Toggle mute/unmute
     func toggleMute() {
         isMuted.toggle()
+        let newValue = isMuted  // Capture for Sendable closure
+        isMutedAtomic.withLock { $0 = newValue }  // Thread-safe flag for audio callback
         logger.info("Voice \(isMuted ? "muted" : "unmuted")")
     }
 
@@ -310,60 +320,139 @@ class VoiceManager: NSObject, ObservableObject {
 
     /// Setup audio engine for the entire session (input + output)
     private func setupAudioEngineForSession() throws {
-        guard !isEngineRunning else { return }
+        guard !isEngineRunning else {
+            print("🔧 [ENGINE] Already running, skipping setup")
+            return
+        }
 
+        print("🔧 [ENGINE] Setting up audio engine...")
         onDebugLog?("🔧 Setting up audio engine...")
+
+        // CRITICAL: On macOS, access inputNode FIRST before any other configuration
+        // This ensures the input hardware is properly initialized
+        let inputNode = audioEngine.inputNode
+        let hwFormat = inputNode.inputFormat(forBus: 0)
+        print("🔧 [ENGINE] Hardware input format: \(Int(hwFormat.sampleRate))Hz, \(hwFormat.channelCount)ch")
 
         // Create and attach player node for output
         let player = AVAudioPlayerNode()
         playerNode = player
         audioEngine.attach(player)
+        print("🔧 [ENGINE] Player attached")
 
-        // Connect player to output mixer with 24kHz format
+        // Connect player to main mixer with playback format (mono 24kHz)
+        // AVAudioEngine will automatically upmix mono to stereo for output
         audioEngine.connect(player, to: audioEngine.mainMixerNode, format: playbackFormat)
+        print("🔧 [ENGINE] Player connected to mixer with playbackFormat: \(Int(playbackFormat.sampleRate))Hz, \(playbackFormat.channelCount)ch")
+
+        // CRITICAL: Install input tap BEFORE starting engine (like MicrophoneTestView)
+        // This ensures proper hardware initialization on macOS
+        print("🎙️ [TAP] Installing tap with nil format BEFORE engine start...")
+        onDebugLog?("🎤 Installing microphone tap...")
+
+        var tapCount = 0
+
+        inputNode.installTap(onBus: 0, bufferSize: 1024, format: nil) { [weak self] buffer, _ in
+            guard let self = self else { return }
+
+            // Thread-safe check (atomic flags - safe from any thread)
+            let connected = self.isConnectedAtomic.withLock { $0 }
+            let muted = self.isMutedAtomic.withLock { $0 }
+            let speaking = self.isSpeakingAtomic.withLock { $0 }  // Don't capture when AI is speaking
+
+            tapCount += 1
+
+            // Console logging (less frequent)
+            if tapCount <= 3 || tapCount % 1000 == 0 {
+                print("🎙️ [TAP] #\(tapCount): conn=\(connected), muted=\(muted), speaking=\(speaking)")
+            }
+
+            // Skip if not connected, muted, or AI is speaking (feedback prevention)
+            guard connected, !muted, !speaking else { return }
+
+            // Get float data for conversion
+            guard let floatData = buffer.floatChannelData else { return }
+
+            // Convert Float32 -> PCM16 and resample to 24kHz
+            let inputSampleRate = buffer.format.sampleRate
+            let ratio = 24000.0 / inputSampleRate
+            let inputFrames = Int(buffer.frameLength)
+            let outputFrames = Int(Double(inputFrames) * ratio)
+
+            var pcmData = Data(capacity: outputFrames * 2)
+            for i in 0..<outputFrames {
+                let srcIdx = Double(i) / ratio
+                let srcInt = Int(srcIdx)
+                let frac = Float(srcIdx - Double(srcInt))
+                let s1 = floatData[0][min(srcInt, inputFrames - 1)]
+                let s2 = floatData[0][min(srcInt + 1, inputFrames - 1)]
+                let interp = s1 + (s2 - s1) * frac
+                let clamped = max(-1.0, min(1.0, interp))
+                let pcm16 = Int16(clamped * 32767.0)
+                withUnsafeBytes(of: pcm16.littleEndian) { pcmData.append(contentsOf: $0) }
+            }
+
+            // Calculate RMS for audio level display
+            var sum: Float = 0
+            for i in 0..<inputFrames {
+                let sample = floatData[0][i]
+                sum += sample * sample
+            }
+            let rms = sqrt(sum / Float(inputFrames))
+
+            // Send to WebSocket - use detached task to avoid blocking audio thread
+            Task.detached { [weak self] in
+                guard let self = self else { return }
+
+                // Send audio immediately (don't wait)
+                do {
+                    try await self.webSocket?.sendPCMData(pcmData)
+                } catch {
+                    print("❌ Audio send error: \(error)")
+                }
+
+                // Update UI less frequently (every 50 buffers)
+                await MainActor.run {
+                    self.audioBufferCount += 1
+                    if self.audioBufferCount == 1 || self.audioBufferCount % 50 == 0 {
+                        self.onDebugLog?("📤 Sent \(self.audioBufferCount) buffers (rms=\(String(format: "%.4f", rms)))")
+                    }
+                    // Update audio level visualization (throttled)
+                    if self.audioBufferCount % 5 == 0 {
+                        let normalizedLevel = min(1.0, rms * 5.0)
+                        self.inputAudioLevels = self.inputAudioLevels.dropFirst().map { $0 } + [normalizedLevel]
+                    }
+                }
+            }
+        }
+        isInputTapInstalled = true
+        print("🎙️ [TAP] ✅ Tap installed successfully")
 
         // Prepare and start engine
         audioEngine.prepare()
+        print("🔧 [ENGINE] Engine prepared")
 
         do {
             try audioEngine.start()
             isEngineRunning = true
+            print("🔧 [ENGINE] ✅ Engine started successfully!")
             onDebugLog?("✅ Audio engine running")
             logger.info("Audio engine started successfully")
         } catch {
+            print("🔧 [ENGINE] ❌ Start failed: \(error)")
             onDebugLog?("❌ Engine start failed: \(error.localizedDescription)")
             throw VoiceError.audioEngineError("Failed to start audio engine: \(error.localizedDescription)")
         }
     }
 
-    /// Install input tap for microphone capture
+    /// Install input tap for microphone capture (no-op if already installed during setup)
     private func installInputTap() throws {
-        guard !isInputTapInstalled else { return }
-
-        let inputNode = audioEngine.inputNode
-        let inputFormat = inputNode.outputFormat(forBus: 0)
-
-        onDebugLog?("🎤 Mic format: \(Int(inputFormat.sampleRate))Hz, \(inputFormat.channelCount)ch")
-
-        // Verify format is valid
-        guard inputFormat.channelCount > 0, inputFormat.sampleRate > 0 else {
-            throw VoiceError.audioEngineError("Invalid input format - no microphone available")
+        guard !isInputTapInstalled else {
+            print("🎙️ [TAP] Already installed during setup, skipping")
+            return
         }
-
-        // Install tap with native format
-        inputNode.installTap(onBus: 0, bufferSize: 4800, format: inputFormat) { [weak self] buffer, _ in
-            guard let self = self, !self.isMuted, self.isConnected else { return }
-
-            // Convert and send audio
-            if let pcmData = self.convertToPCM16(buffer: buffer) {
-                Task { @MainActor in
-                    await self.sendAudioData(pcmData)
-                }
-            }
-        }
-
-        isInputTapInstalled = true
-        onDebugLog?("✅ Microphone tap installed")
+        // Tap is now installed during setupAudioEngineForSession
+        print("🎙️ [TAP] Warning: tap should have been installed during setup")
     }
 
     /// Remove input tap (but keep engine running)
@@ -409,7 +498,23 @@ class VoiceManager: NSObject, ObservableObject {
 
     /// Convert Float32 buffer to PCM16 Data at 24kHz
     private func convertToPCM16(buffer: AVAudioPCMBuffer) -> Data? {
-        guard let floatData = buffer.floatChannelData else { return nil }
+        // Try Float32 first (most common on macOS)
+        if let floatData = buffer.floatChannelData {
+            return convertFloat32ToPCM16(buffer: buffer, floatData: floatData)
+        }
+        
+        // Fallback to Int16 if available
+        if let int16Data = buffer.int16ChannelData {
+            return convertInt16ToPCM16(buffer: buffer, int16Data: int16Data)
+        }
+        
+        // No valid channel data
+        logger.warning("Buffer has no valid channel data - format: \(buffer.format.commonFormat.rawValue)")
+        return nil
+    }
+    
+    /// Convert Float32 buffer to PCM16
+    private func convertFloat32ToPCM16(buffer: AVAudioPCMBuffer, floatData: UnsafePointer<UnsafeMutablePointer<Float>>) -> Data? {
 
         let inputSampleRate = buffer.format.sampleRate
         let outputSampleRate = Self.openAISampleRate
@@ -441,6 +546,33 @@ class VoiceManager: NSObject, ObservableObject {
 
         return pcmData
     }
+    
+    /// Convert Int16 buffer to PCM16 (passthrough with resampling if needed)
+    private func convertInt16ToPCM16(buffer: AVAudioPCMBuffer, int16Data: UnsafePointer<UnsafeMutablePointer<Int16>>) -> Data? {
+        let inputSampleRate = buffer.format.sampleRate
+        let outputSampleRate = Self.openAISampleRate
+        let ratio = outputSampleRate / inputSampleRate
+
+        let inputFrames = Int(buffer.frameLength)
+        let outputFrames = Int(Double(inputFrames) * ratio)
+
+        var pcmData = Data(capacity: outputFrames * 2)
+
+        // Resample and convert Int16 → Int16 (passthrough)
+        for i in 0..<outputFrames {
+            let srcIndex = Double(i) / ratio
+            let srcIndexInt = Int(srcIndex)
+            let frac = Float(srcIndex - Double(srcIndexInt))
+
+            let sample1 = Int32(int16Data[0][min(srcIndexInt, inputFrames - 1)])
+            let sample2 = Int32(int16Data[0][min(srcIndexInt + 1, inputFrames - 1)])
+            
+            let interpolated = Int16(sample1 + Int32(Float(sample2 - sample1) * frac))
+            withUnsafeBytes(of: interpolated.littleEndian) { pcmData.append(contentsOf: $0) }
+        }
+
+        return pcmData
+    }
 
     /// Send PCM16 audio data to WebSocket
     private func sendAudioData(_ data: Data) async {
@@ -450,32 +582,45 @@ class VoiceManager: NSObject, ObservableObject {
             onDebugLog?("📤 Sent \(audioBufferCount) audio buffers")
         }
 
-        await webSocket?.sendPCMData(data)
+        do {
+            try await webSocket?.sendPCMData(data)
+        } catch {
+            logger.error("Failed to send audio: \(error.localizedDescription)")
+        }
     }
 
     // MARK: - Audio Playback
 
     /// Play received audio data
     private func playAudioData(_ audioData: Data) {
-        guard let player = playerNode, isEngineRunning else {
-            onDebugLog?("⚠️ Cannot play: engine not running")
+        // Double-check engine is running and player exists
+        guard let player = playerNode, isEngineRunning, audioEngine.isRunning else {
+            if playbackBufferCount == 0 {
+                onDebugLog?("⚠️ Cannot play: engine not running")
+            }
             return
         }
 
         // Convert PCM16 data to Float32 buffer
         guard let buffer = createPlaybackBuffer(from: audioData) else {
-            onDebugLog?("⚠️ Failed to create playback buffer")
+            if playbackBufferCount == 0 {
+                onDebugLog?("⚠️ Failed to create playback buffer")
+            }
             return
         }
 
         playbackBufferCount += 1
 
-        // Update output audio levels
-        if let floatData = buffer.floatChannelData {
+        // Update output audio levels (throttled to reduce CPU)
+        if playbackBufferCount % 3 == 0, let floatData = buffer.floatChannelData {
             updateOutputLevels(floatData: floatData, frameCount: Int(buffer.frameLength))
         }
 
-        // Schedule buffer for playback
+        // Schedule buffer for playback (verify engine is still running)
+        guard audioEngine.isRunning else {
+            print("⚠️ Engine stopped mid-playback, skipping buffer")
+            return
+        }
         player.scheduleBuffer(buffer, completionHandler: nil)
 
         // Start playing if not already
@@ -484,7 +629,7 @@ class VoiceManager: NSObject, ObservableObject {
             onDebugLog?("🔊 Started audio playback")
         }
 
-        if playbackBufferCount == 1 || playbackBufferCount % 20 == 0 {
+        if playbackBufferCount == 1 || playbackBufferCount % 40 == 0 {
             onDebugLog?("🔊 Playing buffer #\(playbackBufferCount)")
         }
     }
@@ -577,20 +722,33 @@ class VoiceManager: NSObject, ObservableObject {
     private func requestMicrophonePermission() async -> Bool {
         #if os(macOS)
         let status = AVCaptureDevice.authorizationStatus(for: .audio)
-        onDebugLog?("🔐 Mic permission: \(statusName(status))")
+        let statusStr = statusName(status)
+        onDebugLog?("🔐 Mic permission check: \(statusStr)")
+        logger.info("Microphone permission status: \(statusStr)")
 
         return await withCheckedContinuation { continuation in
             switch status {
             case .authorized:
+                onDebugLog?("✅ Microphone permission already granted")
+                logger.info("Microphone permission already granted")
                 continuation.resume(returning: true)
             case .notDetermined:
+                onDebugLog?("🔐 Requesting microphone permission...")
+                logger.info("Requesting microphone permission...")
                 AVCaptureDevice.requestAccess(for: .audio) { granted in
+                    let result = granted ? "granted" : "denied"
+                    self.onDebugLog?("🔐 Permission request result: \(result)")
+                    self.logger.info("Microphone permission request result: \(result)")
                     continuation.resume(returning: granted)
                 }
             case .denied, .restricted:
+                onDebugLog?("❌ Microphone permission denied/restricted. Opening settings...")
+                logger.warning("Microphone permission denied/restricted - opening settings")
                 self.openMicrophoneSettings()
                 continuation.resume(returning: false)
             @unknown default:
+                onDebugLog?("❌ Unknown microphone permission status")
+                logger.warning("Unknown microphone permission status")
                 continuation.resume(returning: false)
             }
         }
@@ -625,6 +783,12 @@ class VoiceManager: NSObject, ObservableObject {
 
     private func updateState(_ newState: VoiceState) {
         state = newState
+        // CRITICAL: Update atomic flag to prevent feedback loop
+        let isSpeaking = newState == .speaking
+        isSpeakingAtomic.withLock { $0 = isSpeaking }
+        if isSpeaking {
+            onDebugLog?("🔇 Muting mic during AI speech (feedback prevention)")
+        }
         delegate?.voiceManager(self, didChangeState: newState)
     }
 
@@ -646,6 +810,7 @@ extension VoiceManager: OpenAIRealtimeDelegate {
     }
 
     nonisolated func realtimeDidDisconnect(_ realtime: OpenAIRealtimeWebSocket, error: Error?) {
+        isConnectedAtomic.withLock { $0 = false }  // Thread-safe flag immediately
         Task { @MainActor in
             isConnected = false
             updateState(.idle)

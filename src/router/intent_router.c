@@ -168,8 +168,26 @@ static const char* check_switch_intent(const char* input) {
     return NULL; // Switch intent but couldn't identify agent
 }
 
+// Check if input is a delegation request (separate from routing)
+// Returns true if this is a delegation request that needs marker enforcement
+static bool is_delegation_request(const char* input) {
+    char lower[256];
+    size_t len = strlen(input);
+    if (len >= sizeof(lower))
+        len = sizeof(lower) - 1;
+    for (size_t i = 0; i < len; i++) {
+        lower[i] = (char)tolower((unsigned char)input[i]);
+    }
+    lower[len] = '\0';
+
+    return (strstr(lower, "delega") || strstr(lower, "delegate") ||
+            strstr(lower, "coordina") || strstr(lower, "orchestra") ||
+            strstr(lower, "chiedi a") || strstr(lower, "ask ") ||
+            strstr(lower, "fai analizzare") || strstr(lower, "fai fare"));
+}
+
 // Quick pattern check before calling LLM (optimization)
-static const char* quick_pattern_route(const char* input) {
+static const char* quick_pattern_route(const char* input, bool* is_delegation) {
     // Convert to lowercase for matching
     char lower[256];
     size_t len = strlen(input);
@@ -183,11 +201,13 @@ static const char* quick_pattern_route(const char* input) {
     // FIX: Delegation requests must go to Ali, not directly to named agents
     // When user says "delega a rex e baccio", it should NOT route to rex
     // but let Ali handle the orchestration and delegation
+    // IMPORTANT: Return "ali" explicitly, NOT NULL (NULL would fall through to LLM router)
     if (strstr(lower, "delega") || strstr(lower, "delegate") ||
         strstr(lower, "coordina") || strstr(lower, "orchestra") ||
         strstr(lower, "chiedi a") || strstr(lower, "ask ") ||
         strstr(lower, "fai analizzare") || strstr(lower, "fai fare")) {
-        return NULL; // Let Ali handle delegation
+        if (is_delegation) *is_delegation = true;
+        return "ali"; // Ali handles delegation - must be explicit, not NULL
     }
 
     // Explicit agent mentions
@@ -314,11 +334,17 @@ RouterResult intent_router_route(const char* user_input) {
     }
 
     // 2. Try quick pattern matching (no LLM needed)
-    const char* quick = quick_pattern_route(user_input);
+    bool is_delegation = false;
+    const char* quick = quick_pattern_route(user_input, &is_delegation);
     if (quick) {
-        LOG_DEBUG(LOG_CAT_AGENT, "Router pattern match: %s", quick);
+        LOG_DEBUG(LOG_CAT_AGENT, "Router pattern match: %s (delegation=%d)", quick, is_delegation);
         strncpy(result.agent, quick, sizeof(result.agent) - 1);
         result.confidence = 0.85f;
+        if (is_delegation) {
+            result.type = INTENT_DELEGATE;
+            strncpy(result.intent, "delegation_request", sizeof(result.intent) - 1);
+            LOG_INFO(LOG_CAT_AGENT, "Router: INTENT_DELEGATE set for delegation request");
+        }
         cache_add(user_input, quick, 0.85f);
         return result;
     }

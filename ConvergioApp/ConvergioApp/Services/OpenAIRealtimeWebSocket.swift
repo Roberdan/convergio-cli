@@ -91,7 +91,7 @@ final class OpenAIRealtimeWebSocket: NSObject {
 
     private let model = "gpt-4o-realtime-preview-2024-12-17"
     private let openAIRealtimeURL = "wss://api.openai.com/v1/realtime"
-    private let azureAPIVersion = "2025-04-01-preview"
+    // Azure GA format (no api-version needed, uses /openai/v1/realtime path)
 
     // Voice configuration
     private(set) var currentVoice: OpenAIVoice = .sage
@@ -142,11 +142,18 @@ final class OpenAIRealtimeWebSocket: NSObject {
         // Validate API key
         guard !apiKey.isEmpty else {
             logError("OpenAI Realtime: API key is empty")
+            onDebugLog?("❌ API key is EMPTY!")
             throw OpenAIRealtimeError.serverError("API key is not configured. Please add your API key in Settings → Providers.")
         }
 
         self.currentVoice = voice
         self.systemPrompt = systemPrompt
+
+        // Log API key info (masked for security)
+        let keyPrefix = String(apiKey.prefix(10))
+        let keySuffix = String(apiKey.suffix(4))
+        logInfo("OpenAI Realtime: API Key = \(keyPrefix)...\(keySuffix) (\(apiKey.count) chars)")
+        onDebugLog?("🔑 Key: \(keyPrefix)...\(keySuffix) (\(apiKey.count) chars)")
 
         // Build URL and request based on provider type
         let request: URLRequest
@@ -154,44 +161,60 @@ final class OpenAIRealtimeWebSocket: NSObject {
         case .openAI:
             // Validate OpenAI key format
             guard apiKey.hasPrefix("sk-") else {
-                logError("OpenAI Realtime: Invalid API key format")
+                logError("OpenAI Realtime: Invalid API key format - key doesn't start with 'sk-'")
+                onDebugLog?("❌ Invalid key format: doesn't start with 'sk-'")
                 throw OpenAIRealtimeError.serverError("Invalid OpenAI API key format. Key should start with 'sk-'")
             }
 
-            logInfo("OpenAI Realtime: Connecting to OpenAI...")
-            logInfo("OpenAI Realtime: Using voice: \(voice.rawValue)")
+            onDebugLog?("🔌 Provider: OpenAI Direct")
 
             guard var urlComponents = URLComponents(string: openAIRealtimeURL) else {
+                onDebugLog?("❌ Failed to create URL components")
                 throw OpenAIRealtimeError.invalidURL
             }
             urlComponents.queryItems = [URLQueryItem(name: "model", value: model)]
 
             guard let url = urlComponents.url else {
+                onDebugLog?("❌ Failed to create URL")
                 throw OpenAIRealtimeError.invalidURL
             }
 
+            logInfo("OpenAI Realtime: Connecting to \(url.absoluteString)")
+            logInfo("OpenAI Realtime: Model = \(model), Voice = \(voice.rawValue)")
+            onDebugLog?("🌐 URL: \(url.absoluteString)")
+            onDebugLog?("🤖 Model: \(model)")
+            onDebugLog?("🗣️ Voice: \(voice.rawValue)")
+
             var req = URLRequest(url: url)
             req.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
-            req.setValue("realtime=v1", forHTTPHeaderField: "OpenAI-Beta")
+            onDebugLog?("📋 Authorization header set")
             request = req
 
         case .azure(let endpoint, let deployment):
             logInfo("OpenAI Realtime: Connecting to Azure OpenAI...")
             logInfo("OpenAI Realtime: Endpoint: \(endpoint), Deployment: \(deployment)")
             logInfo("OpenAI Realtime: Using voice: \(voice.rawValue)")
+            onDebugLog?("🔌 Provider: Azure OpenAI (GA format)")
+            onDebugLog?("📍 Endpoint: \(endpoint)")
+            onDebugLog?("🚀 Deployment: \(deployment)")
 
-            // Azure URL format: wss://endpoint/openai/realtime?api-version=X&deployment=Y
+            // Azure GA URL format: wss://endpoint/openai/v1/realtime?model=<deployment>&api-key=<key>
             let cleanEndpoint = endpoint.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
             let wsEndpoint = cleanEndpoint.replacingOccurrences(of: "https://", with: "wss://")
-            let urlString = "\(wsEndpoint)/openai/realtime?api-version=\(azureAPIVersion)&deployment=\(deployment)"
+            let urlString = "\(wsEndpoint)/openai/v1/realtime?model=\(deployment)&api-key=\(apiKey)"
 
             guard let url = URL(string: urlString) else {
                 logError("OpenAI Realtime: Invalid Azure URL: \(urlString)")
+                onDebugLog?("❌ Invalid Azure URL")
                 throw OpenAIRealtimeError.invalidURL
             }
 
+            logInfo("OpenAI Realtime: URL = \(wsEndpoint)/openai/v1/realtime?model=\(deployment)&api-key=***")
+            onDebugLog?("🌐 URL: \(wsEndpoint)/openai/v1/realtime?model=\(deployment)")
+            onDebugLog?("🗣️ Voice: \(voice.rawValue)")
+
+            // Azure GA uses api-key as query parameter, no headers needed
             var req = URLRequest(url: url)
-            req.setValue(apiKey, forHTTPHeaderField: "api-key")
             request = req
         }
 
@@ -199,12 +222,16 @@ final class OpenAIRealtimeWebSocket: NSObject {
         connectionError = nil
 
         // Create URL session and WebSocket task
+        onDebugLog?("⚙️ Creating URLSession...")
         let config = URLSessionConfiguration.default
         config.timeoutIntervalForRequest = 30
         config.timeoutIntervalForResource = 60
         urlSession = URLSession(configuration: config, delegate: self, delegateQueue: nil)
+
+        onDebugLog?("🔗 Creating WebSocket task...")
         webSocketTask = urlSession?.webSocketTask(with: request)
 
+        onDebugLog?("▶️ Starting WebSocket connection...")
         webSocketTask?.resume()
 
         // Wait for connection with proper async handling
@@ -324,30 +351,45 @@ final class OpenAIRealtimeWebSocket: NSObject {
     // MARK: - Session Configuration
 
     private func configureSession() async throws {
+        // Azure GA format (2025-08-28) with nested audio.input/output structure
         let sessionConfig: [String: Any] = [
             "type": "session.update",
             "session": [
-                "modalities": ["text", "audio"],
+                "type": "realtime",
                 "instructions": systemPrompt.isEmpty ? getDefaultInstructions() : systemPrompt,
-                "voice": currentVoice.rawValue,
-                "input_audio_format": "pcm16",
-                "output_audio_format": "pcm16",
-                "input_audio_transcription": [
-                    "model": "whisper-1"
-                ],
-                "turn_detection": [
-                    "type": "server_vad",
-                    "threshold": 0.5,
-                    "prefix_padding_ms": 300,
-                    "silence_duration_ms": 200,
-                    "create_response": true
-                ],
-                "max_response_output_tokens": 4096
+                "output_modalities": ["audio"],
+                "audio": [
+                    "input": [
+                        "transcription": [
+                            "model": "whisper-1"
+                        ],
+                        "format": [
+                            "type": "audio/pcm",
+                            "rate": 24000
+                        ],
+                        "turn_detection": [
+                            "type": "server_vad",
+                            "threshold": 0.5,
+                            "prefix_padding_ms": 300,
+                            "silence_duration_ms": 200,
+                            "create_response": true
+                        ]
+                    ],
+                    "output": [
+                        "voice": currentVoice.rawValue,
+                        "format": [
+                            "type": "audio/pcm",
+                            "rate": 24000
+                        ]
+                    ]
+                ]
             ]
         ]
 
+        onDebugLog?("📤 Sending session config (GA format)...")
         try await sendJSON(sessionConfig)
         logInfo("OpenAI Realtime: Session configured with voice: \(currentVoice.rawValue)")
+        onDebugLog?("✅ Session configured with voice: \(currentVoice.rawValue)")
     }
 
     private func getDefaultInstructions() -> String {
@@ -356,20 +398,36 @@ final class OpenAIRealtimeWebSocket: NSObject {
         Speak naturally and conversationally. Be encouraging and patient.
         When explaining concepts, use simple language and relatable examples.
         If a student seems confused, try a different approach or break down the concept further.
-        Always respond in the same language the student uses.
+
+        CRITICAL LANGUAGE RULES:
+        - ALWAYS respond in ITALIAN (Italiano). This is mandatory.
+        - Even if the audio is unclear or garbled, respond in Italian.
+        - Never use Greek, Chinese, or other languages.
+        - If you can't understand the user, say in Italian: "Scusa, non ho capito bene. Puoi ripetere?"
         """
     }
 
     // MARK: - Audio Handling
 
     /// Send raw PCM16 data (already converted)
-    func sendPCMData(_ data: Data) async {
-        guard isConnected else { return }
+    func sendPCMData(_ data: Data) async throws {
+        guard isConnected else {
+            throw OpenAIRealtimeError.notConnected
+        }
+        
+        guard !data.isEmpty else {
+            logWarning("Cannot send empty audio data")
+            return
+        }
 
         audioChunksSent += 1
 
         // Encode as base64
         let base64Audio = data.base64EncodedString()
+        guard !base64Audio.isEmpty else {
+            logError("Failed to encode audio to base64")
+            throw OpenAIRealtimeError.encodingError
+        }
 
         // Send audio append event
         let audioEvent: [String: Any] = [
@@ -377,11 +435,11 @@ final class OpenAIRealtimeWebSocket: NSObject {
             "audio": base64Audio
         ]
 
-        do {
-            try await sendJSON(audioEvent)
-        } catch {
-            logError("OpenAI Realtime: Failed to send audio: \(error.localizedDescription)")
-            onDebugLog?("❌ Send failed: \(error.localizedDescription)")
+        try await sendJSON(audioEvent)
+        
+        // Log only every 50 chunks to reduce noise
+        if audioChunksSent % 50 == 0 {
+            onDebugLog?("📤 Sent \(audioChunksSent) audio chunks")
         }
     }
 
@@ -395,7 +453,11 @@ final class OpenAIRealtimeWebSocket: NSObject {
             return
         }
 
-        await sendPCMData(audioData)
+        do {
+            try await sendPCMData(audioData)
+        } catch {
+            logError("OpenAI Realtime: Failed to send audio: \(error.localizedDescription)")
+        }
     }
 
     func commitAudio() async {
@@ -549,25 +611,28 @@ final class OpenAIRealtimeWebSocket: NSObject {
                 delegate?.realtime(self, didReceiveTranscript: transcript, isFinal: true)
             }
 
-        case "response.audio_transcript.delta":
+        // GA format events (response.output_audio.*) and beta format (response.audio.*)
+        case "response.output_audio_transcript.delta", "response.audio_transcript.delta":
             if let delta = json["delta"] as? String {
                 delegate?.realtime(self, didReceiveResponse: delta)
             }
 
-        case "response.audio_transcript.done":
+        case "response.output_audio_transcript.done", "response.audio_transcript.done":
             if let transcript = json["transcript"] as? String {
                 logDebug("OpenAI Realtime: Response transcript done: \(transcript)")
+                onDebugLog?("📝 Transcript: \(transcript)")
             }
 
-        case "response.audio.delta":
+        case "response.output_audio.delta", "response.audio.delta":
             if let audioBase64 = json["delta"] as? String,
                let audioData = Data(base64Encoded: audioBase64) {
                 await audioBuffer.append(audioData)
                 delegate?.realtime(self, didReceiveAudio: audioData)
             }
 
-        case "response.audio.done":
+        case "response.output_audio.done", "response.audio.done":
             logDebug("OpenAI Realtime: Audio response complete")
+            onDebugLog?("🔊 Audio response complete")
             await audioBuffer.clear()
 
         case "response.done":
@@ -619,6 +684,7 @@ extension OpenAIRealtimeWebSocket: URLSessionWebSocketDelegate {
 
     func urlSession(_ session: URLSession, webSocketTask: URLSessionWebSocketTask, didOpenWithProtocol protocol: String?) {
         logInfo("OpenAI Realtime: WebSocket opened successfully")
+        onDebugLog?("🟢 WebSocket OPENED! Protocol: \(`protocol` ?? "none")")
 
         // Resume the continuation on successful connection
         if let continuation = connectionContinuation {
@@ -627,11 +693,19 @@ extension OpenAIRealtimeWebSocket: URLSessionWebSocketDelegate {
         }
     }
 
+    /// Capture HTTP response before WebSocket upgrade
+    func urlSession(_ session: URLSession, task: URLSessionTask, didReceive challenge: URLAuthenticationChallenge, completionHandler: @escaping (URLSession.AuthChallengeDisposition, URLCredential?) -> Void) {
+        logInfo("OpenAI Realtime: Received authentication challenge: \(challenge.protectionSpace.authenticationMethod)")
+        onDebugLog?("🔐 Auth challenge: \(challenge.protectionSpace.authenticationMethod)")
+        completionHandler(.performDefaultHandling, nil)
+    }
+
     func urlSession(_ session: URLSession, webSocketTask: URLSessionWebSocketTask, didCloseWith closeCode: URLSessionWebSocketTask.CloseCode, reason: Data?) {
         let wasConnected = isConnected
         isConnected = false
         let reasonString = reason.flatMap { String(data: $0, encoding: .utf8) } ?? "Unknown"
         logInfo("OpenAI Realtime: WebSocket closed - Code: \(closeCode.rawValue) - Reason: \(reasonString)")
+        onDebugLog?("🔴 WebSocket closed: code=\(closeCode.rawValue), reason=\(reasonString)")
 
         // If we have a pending continuation, it means connection failed during initial connect
         if let continuation = connectionContinuation {
@@ -676,7 +750,22 @@ extension OpenAIRealtimeWebSocket: URLSessionWebSocketDelegate {
 
     func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
         if let error = error {
+            let nsError = error as NSError
             logError("OpenAI Realtime: Task completed with error: \(error.localizedDescription)")
+            logError("OpenAI Realtime: Error domain: \(nsError.domain), code: \(nsError.code)")
+            onDebugLog?("❌ Task error: \(error.localizedDescription)")
+            onDebugLog?("❌ Domain: \(nsError.domain), Code: \(nsError.code)")
+
+            // Log HTTP response details if available
+            if let httpResponse = task.response as? HTTPURLResponse {
+                logError("OpenAI Realtime: HTTP Status: \(httpResponse.statusCode)")
+                onDebugLog?("❌ HTTP Status: \(httpResponse.statusCode)")
+                for (key, value) in httpResponse.allHeaderFields {
+                    logDebug("OpenAI Realtime: Header - \(key): \(value)")
+                }
+            } else {
+                onDebugLog?("⚠️ No HTTP response available")
+            }
 
             // Resume continuation with error if still pending
             if let continuation = connectionContinuation {

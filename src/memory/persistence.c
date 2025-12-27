@@ -1234,6 +1234,119 @@ char* persistence_load_conversation_context(const char* session_id, size_t max_m
     return context;
 }
 
+// Load conversation history as structured messages (for multi-turn API calls)
+// Returns JSON array string like: [{"role":"user","content":"..."},{"role":"assistant","content":"..."}]
+char* persistence_load_conversation_messages_json(const char* session_id, size_t max_messages) {
+    if (!g_db || !session_id)
+        return NULL;
+
+    CONVERGIO_MUTEX_LOCK(&g_db_mutex);
+
+    const char* sql = "SELECT sender_name, content FROM ("
+                      "  SELECT sender_name, content, created_at FROM messages "
+                      "  WHERE session_id = ? ORDER BY created_at DESC LIMIT ?"
+                      ") ORDER BY created_at ASC";
+
+    sqlite3_stmt* stmt;
+    int rc = sqlite3_prepare_v2(g_db, sql, -1, &stmt, NULL);
+    if (rc != SQLITE_OK) {
+        CONVERGIO_MUTEX_UNLOCK(&g_db_mutex);
+        return NULL;
+    }
+
+    sqlite3_bind_text(stmt, 1, session_id, -1, SQLITE_TRANSIENT);
+    sqlite3_bind_int(stmt, 2, (int)max_messages);
+
+    // Build JSON array of messages
+    size_t capacity = 32768;
+    char* json = malloc(capacity);
+    if (!json) {
+        sqlite3_finalize(stmt);
+        CONVERGIO_MUTEX_UNLOCK(&g_db_mutex);
+        return NULL;
+    }
+    json[0] = '[';
+    json[1] = '\0';
+    size_t len = 1;
+    int first = 1;
+
+    while (sqlite3_step(stmt) == SQLITE_ROW) {
+        const char* role = (const char*)sqlite3_column_text(stmt, 0);
+        const char* content = (const char*)sqlite3_column_text(stmt, 1);
+
+        if (!role || !content)
+            continue;
+
+        // Normalize role: anything not "user" becomes "assistant"
+        const char* api_role = (strcmp(role, "user") == 0) ? "user" : "assistant";
+
+        // Escape content for JSON
+        size_t content_len = strlen(content);
+        char* escaped = malloc(content_len * 2 + 1);
+        if (!escaped) continue;
+
+        size_t esc_idx = 0;
+        for (size_t i = 0; i < content_len; i++) {
+            char c = content[i];
+            if (c == '\\' || c == '"') {
+                escaped[esc_idx++] = '\\';
+            } else if (c == '\n') {
+                escaped[esc_idx++] = '\\';
+                escaped[esc_idx++] = 'n';
+                continue;
+            } else if (c == '\r') {
+                escaped[esc_idx++] = '\\';
+                escaped[esc_idx++] = 'r';
+                continue;
+            } else if (c == '\t') {
+                escaped[esc_idx++] = '\\';
+                escaped[esc_idx++] = 't';
+                continue;
+            }
+            escaped[esc_idx++] = c;
+        }
+        escaped[esc_idx] = '\0';
+
+        // Append message to JSON array
+        size_t needed = strlen(escaped) + 64;
+        if (len + needed >= capacity) {
+            capacity = (capacity + needed) * 2;
+            char* new_json = realloc(json, capacity);
+            if (!new_json) {
+                free(escaped);
+                break;
+            }
+            json = new_json;
+        }
+
+        int written = snprintf(json + len, capacity - len,
+                               "%s{\"role\":\"%s\",\"content\":\"%s\"}",
+                               first ? "" : ",", api_role, escaped);
+        if (written > 0) {
+            len += (size_t)written;
+        }
+        free(escaped);
+        first = 0;
+    }
+
+    sqlite3_finalize(stmt);
+    CONVERGIO_MUTEX_UNLOCK(&g_db_mutex);
+
+    // Close array
+    if (len + 1 < capacity) {
+        json[len] = ']';
+        json[len + 1] = '\0';
+    }
+
+    // Return NULL if empty
+    if (len <= 1) {
+        free(json);
+        return NULL;
+    }
+
+    return json;
+}
+
 // Load recent conversations across all sessions for long-term memory
 char* persistence_load_recent_context(size_t max_messages) {
     if (!g_db)

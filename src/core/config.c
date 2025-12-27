@@ -34,8 +34,22 @@ extern int convergio_keychain_store(const char* service, const char* account, co
 extern char* convergio_keychain_read(const char* service, const char* account);
 extern int convergio_keychain_delete(const char* service, const char* account);
 
-#define KEYCHAIN_SERVICE "com.fightthestroke.convergio"
-#define KEYCHAIN_ACCOUNT "anthropic_api_key"
+// FIX: Dynamic keychain service per edition to avoid conflicts
+static const char* get_keychain_service(void) {
+    ConvergioEdition edition = edition_current();
+    switch (edition) {
+    case EDITION_EDUCATION:
+        return "com.fightthestroke.convergio-edu";
+    case EDITION_BUSINESS:
+        return "com.fightthestroke.convergio-biz";
+    case EDITION_DEVELOPER:
+        return "com.fightthestroke.convergio-dev";
+    default:
+        return "com.fightthestroke.convergio";
+    }
+}
+#define KEYCHAIN_SERVICE get_keychain_service()
+#define KEYCHAIN_ACCOUNT "api_key"
 
 // ============================================================================
 // PATH HELPERS
@@ -195,7 +209,27 @@ static void set_defaults(void) {
 static int setup_paths(void) {
     const char* home = get_home_dir();
 
-    snprintf(g_config.config_dir, sizeof(g_config.config_dir), "%s/.convergio", home);
+    // FIX: Separate config directories per edition to avoid conflicts
+    // Master uses ~/.convergio/, others use ~/.convergio-{edition}/
+    ConvergioEdition edition = edition_current();
+    const char* edition_suffix = "";
+    switch (edition) {
+    case EDITION_EDUCATION:
+        edition_suffix = "-edu";
+        break;
+    case EDITION_BUSINESS:
+        edition_suffix = "-biz";
+        break;
+    case EDITION_DEVELOPER:
+        edition_suffix = "-dev";
+        break;
+    default:
+        edition_suffix = "";
+        break;
+    }
+
+    snprintf(g_config.config_dir, sizeof(g_config.config_dir), "%s/.convergio%s", home,
+             edition_suffix);
     snprintf(g_config.config_file, sizeof(g_config.config_file), "%s/config.toml",
              g_config.config_dir);
     snprintf(g_config.db_path, sizeof(g_config.db_path), "%s/convergio.db", g_config.config_dir);

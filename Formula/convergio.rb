@@ -16,6 +16,13 @@ class Convergio < Formula
 
   def install
     bin.install "convergio"
+    # Install Metal libraries for MLX local models
+    if File.exist?("mlx.metallib")
+      bin.install "mlx.metallib"
+    end
+    if File.exist?("default.metallib")
+      bin.install "default.metallib"
+    end
     # Install notification helper app if included in release
     if File.directory?("ConvergioNotify.app")
       prefix.install "ConvergioNotify.app"

@@ -10,6 +10,7 @@
 #include "nous/projects.h"
 #include "nous/provider.h"
 #include "nous/telemetry.h"
+#include "nous/workflow_monitor.h"
 #include <dispatch/dispatch.h>
 #include <stdatomic.h>
 #include <stdio.h>
@@ -17,8 +18,14 @@
 #include <string.h>
 #include <time.h>
 
-// Model used for agent delegation (matches previous claude.c default)
-#define DELEGATION_MODEL "claude-sonnet-4-20250514"
+// Default model for agent delegation (can be overridden by --provider)
+#define DELEGATION_MODEL_DEFAULT "claude-sonnet-4-20250514"
+#define DELEGATION_MODEL_OLLAMA "qwen2.5:0.5b"  // Default Ollama model
+
+// External router functions for provider override
+extern bool router_has_provider_override(void);
+extern ProviderType router_get_forced_provider(void);
+extern const char* router_get_forced_model(void);
 
 // External functions from orchestrator
 extern int persistence_save_conversation(const char* session_id, const char* role,
@@ -38,6 +45,38 @@ typedef struct {
     char* response;
     bool completed;
 } AgentTask;
+
+// Helper: Get provider and model for delegation (respects --provider override)
+static void get_delegation_provider(Provider** out_provider, const char** out_model) {
+    if (router_has_provider_override()) {
+        ProviderType forced = router_get_forced_provider();
+        const char* forced_model = router_get_forced_model();
+
+        *out_provider = provider_get(forced);
+        if (forced_model) {
+            *out_model = forced_model;
+        } else {
+            // Use default model for the forced provider
+            switch (forced) {
+                case PROVIDER_OLLAMA:
+                    *out_model = DELEGATION_MODEL_OLLAMA;
+                    break;
+                case PROVIDER_ANTHROPIC:
+                    *out_model = DELEGATION_MODEL_DEFAULT;
+                    break;
+                default:
+                    *out_model = DELEGATION_MODEL_DEFAULT;
+                    break;
+            }
+        }
+        LOG_INFO(LOG_CAT_AGENT, "Delegation using overridden provider %d, model %s",
+                 (int)forced, *out_model);
+    } else {
+        // Default: Anthropic with Claude Sonnet
+        *out_provider = provider_get(PROVIDER_ANTHROPIC);
+        *out_model = DELEGATION_MODEL_DEFAULT;
+    }
+}
 
 // ============================================================================
 // DELEGATION PARSING
@@ -219,19 +258,32 @@ char* execute_delegations(DelegationList* delegations, const char* user_input,
     struct timespec start_time, end_time;
     clock_gettime(CLOCK_MONOTONIC, &start_time);
 
-    PROGRESS("\n🚀 **Delegating to %zu specialist agents...**\n", delegations->count);
-
-    // Show agents being delegated to
-    for (size_t i = 0; i < delegations->count; i++) {
-        PROGRESS("  • %s", delegations->requests[i]->agent_name);
+    // Create workflow monitor for ASCII visualization (only for 2+ agents)
+    __block WorkflowMonitor* monitor = NULL;
+    if (delegations->count >= 2) {
+        monitor = workflow_monitor_create("delegation", true);
+        if (monitor) {
+            workflow_monitor_start(monitor);
+            // Pre-add all agents to monitor
+            for (size_t i = 0; i < delegations->count; i++) {
+                workflow_monitor_add_agent(monitor,
+                                           delegations->requests[i]->agent_name,
+                                           delegations->requests[i]->reason);
+            }
+            workflow_monitor_render(monitor);
+        }
     }
-    PROGRESS("\n");
+
+    PROGRESS("\n🚀 **Delegating to %zu specialist agents...**\n", delegations->count);
 
     Orchestrator* orch = orchestrator_get();
     if (!orch) {
         PROGRESS("❌ Orchestrator not initialized!\n");
         return NULL;
     }
+
+    // Initialize provider registry (required for delegation)
+    provider_registry_init();
 
     // Prepare parallel execution
     AgentTask* tasks = calloc(delegations->count, sizeof(AgentTask));
@@ -247,6 +299,15 @@ char* execute_delegations(DelegationList* delegations, const char* user_input,
     __block _Atomic int completed_count = 0;
     __block _Atomic int failed_count = 0;
     const size_t total_agents = delegations->count;
+
+    // Limit concurrent Ollama requests to prevent memory explosion
+    // Ollama can only process one request at a time efficiently
+    __block dispatch_semaphore_t ollama_semaphore = NULL;
+    if (router_has_provider_override() && router_get_forced_provider() == PROVIDER_OLLAMA) {
+        // Limit to 2 concurrent requests for Ollama (some batching is ok)
+        ollama_semaphore = dispatch_semaphore_create(2);
+        PROGRESS("  ℹ️  Ollama detected: limiting to 2 concurrent agents\n");
+    }
 
     size_t agents_scheduled = 0;
 
@@ -292,11 +353,21 @@ char* execute_delegations(DelegationList* delegations, const char* user_input,
         const size_t task_idx = i;
         const char* agent_name = specialist->name;
 
-        // Execute in parallel
+        // Execute in parallel (with optional concurrency limit for Ollama)
         dispatch_group_async(group, queue, ^{
+            // Wait for semaphore if Ollama (limits concurrent requests)
+            if (ollama_semaphore) {
+                dispatch_semaphore_wait(ollama_semaphore, DISPATCH_TIME_FOREVER);
+            }
+
             // Set agent as working
             agent_set_working(tasks[task_idx].agent, WORK_STATE_THINKING,
                               tasks[task_idx].context ? tasks[task_idx].context : "Analyzing request");
+
+            // Update monitor status to thinking
+            if (monitor) {
+                workflow_monitor_set_status_by_name(monitor, agent_name, AGENT_STATUS_THINKING);
+            }
 
             size_t prompt_size = strlen(tasks[task_idx].agent->system_prompt) +
                                  (tasks[task_idx].context ? strlen(tasks[task_idx].context) : 0) + 256;
@@ -306,12 +377,15 @@ char* execute_delegations(DelegationList* delegations, const char* user_input,
                          tasks[task_idx].agent->system_prompt,
                          tasks[task_idx].context ? tasks[task_idx].context : "Please analyze and respond.");
 
-                // Use Provider interface for agent chat
-                Provider* provider = provider_get(PROVIDER_ANTHROPIC);
+                // Use Provider interface for agent chat (respects --provider override)
+                Provider* provider = NULL;
+                const char* model = NULL;
+                get_delegation_provider(&provider, &model);
+
                 if (provider && provider->chat) {
                     TokenUsage usage = {0};
                     tasks[task_idx].response =
-                        provider->chat(provider, DELEGATION_MODEL, prompt_with_context,
+                        provider->chat(provider, model, prompt_with_context,
                                        tasks[task_idx].user_input, &usage);
                 } else {
                     LOG_ERROR(LOG_CAT_AGENT, "Provider not available for agent '%s'", agent_name);
@@ -327,36 +401,73 @@ char* execute_delegations(DelegationList* delegations, const char* user_input,
                     int count = atomic_fetch_add(&completed_count, 1) + 1;
                     LOG_INFO(LOG_CAT_AGENT, "Agent '%s' completed (%d/%zu)", agent_name,
                              count, total_agents);
+                    // Update monitor status to completed
+                    if (monitor) {
+                        workflow_monitor_set_status_by_name(monitor, agent_name, AGENT_STATUS_COMPLETED);
+                    }
                 } else {
                     atomic_fetch_add(&failed_count, 1);
                     LOG_ERROR(LOG_CAT_AGENT, "Agent '%s' failed", agent_name);
+                    // Update monitor status to failed
+                    if (monitor) {
+                        workflow_monitor_set_status_by_name(monitor, agent_name, AGENT_STATUS_FAILED);
+                    }
                 }
             } else {
                 atomic_fetch_add(&failed_count, 1);
+                // Update monitor status to failed
+                if (monitor) {
+                    workflow_monitor_set_status_by_name(monitor, agent_name, AGENT_STATUS_FAILED);
+                }
             }
 
             // Set agent back to idle
             agent_set_idle(tasks[task_idx].agent);
+
+            // Signal semaphore to allow next agent (if using Ollama)
+            if (ollama_semaphore) {
+                dispatch_semaphore_signal(ollama_semaphore);
+            }
         });
     }
 
     if (agents_scheduled == 0) {
         PROGRESS("❌ No agents could be scheduled!\n");
         free(tasks);
+        if (monitor) {
+            workflow_monitor_free(monitor);
+        }
         return NULL;
     }
 
     PROGRESS("\n⏳ Waiting for %zu agents to complete...\n", agents_scheduled);
 
-    // Poll for completion with progress updates
+    // Poll for completion with progress updates and monitor rendering
     long timeout_ms = 500; // Check every 500ms
     int last_completed = 0;
+    int last_rendered = -1;  // Track last rendered state to avoid excessive rendering
     while (dispatch_group_wait(group, dispatch_time(DISPATCH_TIME_NOW, timeout_ms * NSEC_PER_MSEC)) != 0) {
         int current = completed_count + failed_count;
+        // Only render when there's actual progress, not on every poll
         if (current > last_completed) {
+            if (monitor) {
+                workflow_monitor_render(monitor);
+            }
             PROGRESS("  📊 Progress: %d/%zu agents done\n", current, agents_scheduled);
             last_completed = current;
+            last_rendered = current;
+        } else if (monitor && last_rendered < 0) {
+            // Initial render once when first entering the wait loop
+            workflow_monitor_render(monitor);
+            last_rendered = 0;
         }
+    }
+
+    // Final render and summary
+    if (monitor) {
+        workflow_monitor_stop(monitor);
+        workflow_monitor_render(monitor);
+        workflow_monitor_render_summary(monitor);
     }
 
     PROGRESS("✅ All agents completed! (%d succeeded, %d failed)\n", completed_count, failed_count);
@@ -376,6 +487,9 @@ char* execute_delegations(DelegationList* delegations, const char* user_input,
             free(tasks[i].response);
         }
         free(tasks);
+        if (monitor) {
+            workflow_monitor_free(monitor);
+        }
         return NULL;
     }
 
@@ -401,14 +515,17 @@ char* execute_delegations(DelegationList* delegations, const char* user_input,
         "and provide actionable conclusions.",
         user_input);
 
-    // Ali synthesizes all responses using Provider interface
+    // Ali synthesizes all responses using Provider interface (respects --provider override)
     PROGRESS("\n🔄 Ali is synthesizing responses...\n");
 
     char* synthesized = NULL;
-    Provider* synth_provider = provider_get(PROVIDER_ANTHROPIC);
+    Provider* synth_provider = NULL;
+    const char* synth_model = NULL;
+    get_delegation_provider(&synth_provider, &synth_model);
+
     if (synth_provider && synth_provider->chat) {
         TokenUsage synth_usage = {0};
-        synthesized = synth_provider->chat(synth_provider, DELEGATION_MODEL, ali->system_prompt,
+        synthesized = synth_provider->chat(synth_provider, synth_model, ali->system_prompt,
                                            convergence_prompt, &synth_usage);
     } else {
         PROGRESS("❌ Provider not available for synthesis\n");
@@ -435,6 +552,11 @@ char* execute_delegations(DelegationList* delegations, const char* user_input,
         free(tasks[i].response);
     }
     free(tasks);
+
+    // Free workflow monitor
+    if (monitor) {
+        workflow_monitor_free(monitor);
+    }
 
     #undef PROGRESS
     return synthesized;

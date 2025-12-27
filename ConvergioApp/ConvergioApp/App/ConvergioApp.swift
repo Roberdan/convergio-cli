@@ -9,6 +9,7 @@
 
 import SwiftUI
 import ConvergioCore
+import AVFoundation
 
 @main
 struct ConvergioApp: App {
@@ -33,12 +34,13 @@ struct ConvergioApp: App {
         }
     }
 
-    /// Check if any API key is configured
+    /// Check if any API key is configured or local models are selected
     private var hasAnyApiKey: Bool {
         keychainManager.hasAnthropicKey ||
         keychainManager.hasOpenAIKey ||
         keychainManager.hasGeminiKey ||
-        keychainManager.hasOpenRouterKey
+        keychainManager.hasOpenRouterKey ||
+        UserDefaults.standard.string(forKey: "selectedProvider") == APIProvider.ollama.rawValue
     }
 
     /// Show onboarding if no API keys are configured
@@ -134,6 +136,13 @@ struct ConvergioApp: App {
                     openWindow(id: "agent-editor")
                 }
                 .keyboardShortcut("4", modifiers: [.command, .option])
+
+                Divider()
+
+                Button("Microphone Test") {
+                    openWindow(id: "microphone-test")
+                }
+                .keyboardShortcut("m", modifiers: [.command, .option])
             }
 
             // Help menu
@@ -213,6 +222,12 @@ struct ConvergioApp: App {
             HelpSystemView()
         }
         .defaultSize(width: 900, height: 600)
+
+        // Microphone Test (Debug)
+        Window("Microphone Test", id: "microphone-test") {
+            MicrophoneTestView()
+        }
+        .defaultSize(width: 550, height: 600)
     }
 }
 
@@ -371,4 +386,180 @@ private func setupCrashHandler() {
     signal(SIGABRT) { _ in logCritical("SIGABRT received", category: "Crash") }
     signal(SIGSEGV) { _ in logCritical("SIGSEGV received", category: "Crash") }
     signal(SIGBUS) { _ in logCritical("SIGBUS received", category: "Crash") }
+}
+
+// MARK: - Microphone Test View
+
+/// Simple microphone test - minimal code to verify audio capture
+struct MicrophoneTestView: View {
+    @StateObject private var tester = MicrophoneTester()
+
+    var body: some View {
+        VStack(spacing: 20) {
+            Text("Microphone Test")
+                .font(.largeTitle)
+                .fontWeight(.bold)
+
+            HStack {
+                Circle()
+                    .fill(tester.isCapturing ? Color.green : Color.red)
+                    .frame(width: 20, height: 20)
+                Text(tester.isCapturing ? "Capturing" : "Stopped")
+                    .font(.headline)
+            }
+
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Audio Level: \(String(format: "%.4f", tester.audioLevel))")
+                    .font(.system(.body, design: .monospaced))
+
+                GeometryReader { geo in
+                    ZStack(alignment: .leading) {
+                        RoundedRectangle(cornerRadius: 4)
+                            .fill(Color.gray.opacity(0.3))
+                        RoundedRectangle(cornerRadius: 4)
+                            .fill(tester.audioLevel > 0.001 ? Color.green : Color.orange)
+                            .frame(width: geo.size.width * CGFloat(min(1.0, tester.audioLevel * 10)))
+                            .animation(.linear(duration: 0.05), value: tester.audioLevel)
+                    }
+                }
+                .frame(height: 30)
+            }
+            .padding()
+            .background(Color.black.opacity(0.1))
+            .cornerRadius(8)
+
+            Text("Buffers received: \(tester.bufferCount)")
+                .font(.system(.body, design: .monospaced))
+
+            ScrollView {
+                Text(tester.log)
+                    .font(.system(.caption, design: .monospaced))
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .frame(height: 200)
+            .padding()
+            .background(Color.black)
+            .foregroundColor(.green)
+            .cornerRadius(8)
+
+            HStack(spacing: 20) {
+                Button(tester.isCapturing ? "Stop" : "Start") {
+                    if tester.isCapturing {
+                        tester.stop()
+                    } else {
+                        tester.start()
+                    }
+                }
+                .buttonStyle(.borderedProminent)
+
+                Button("Clear Log") {
+                    tester.clearLog()
+                }
+                .buttonStyle(.bordered)
+            }
+        }
+        .padding(30)
+        .frame(minWidth: 500, minHeight: 500)
+    }
+}
+
+@MainActor
+class MicrophoneTester: ObservableObject {
+    @Published var isCapturing = false
+    @Published var audioLevel: Float = 0.0
+    @Published var bufferCount: Int = 0
+    @Published var log: String = ""
+
+    private var audioEngine: AVAudioEngine?
+
+    func start() {
+        addLog("Starting microphone test...")
+
+        let status = AVCaptureDevice.authorizationStatus(for: .audio)
+        addLog("Permission status: \(status.rawValue) (3=authorized)")
+
+        if status != .authorized {
+            addLog("ERROR: Microphone not authorized!")
+            if status == .notDetermined {
+                AVCaptureDevice.requestAccess(for: .audio) { granted in
+                    Task { @MainActor in
+                        self.addLog(granted ? "Permission granted" : "Permission denied")
+                    }
+                }
+            }
+            return
+        }
+
+        do {
+            let engine = AVAudioEngine()
+            self.audioEngine = engine
+
+            let inputNode = engine.inputNode
+            addLog("Got inputNode")
+
+            let hwFormat = inputNode.inputFormat(forBus: 0)
+            addLog("HW input: \(Int(hwFormat.sampleRate))Hz, \(hwFormat.channelCount)ch")
+
+            let outFormat = inputNode.outputFormat(forBus: 0)
+            addLog("Output: \(Int(outFormat.sampleRate))Hz, \(outFormat.channelCount)ch")
+
+            addLog("Installing tap (format: nil)...")
+
+            inputNode.installTap(onBus: 0, bufferSize: 1024, format: nil) { [weak self] buffer, _ in
+                guard let channelData = buffer.floatChannelData else { return }
+                let frameLength = Int(buffer.frameLength)
+                var sum: Float = 0
+                for i in 0..<frameLength {
+                    let sample = channelData[0][i]
+                    sum += sample * sample
+                }
+                let rms = sqrt(sum / Float(frameLength))
+
+                Task { @MainActor [weak self] in
+                    self?.audioLevel = rms
+                    self?.bufferCount += 1
+                    if self?.bufferCount == 1 {
+                        self?.addLog("First buffer! \(Int(buffer.format.sampleRate))Hz")
+                    }
+                }
+            }
+
+            addLog("Tap installed, preparing...")
+            engine.prepare()
+
+            addLog("Starting engine...")
+            try engine.start()
+
+            isCapturing = true
+            addLog("SUCCESS! Speak into microphone...")
+
+        } catch {
+            addLog("ERROR: \(error.localizedDescription)")
+            addLog("Code: \((error as NSError).code)")
+        }
+    }
+
+    func stop() {
+        addLog("Stopping...")
+        if let engine = audioEngine {
+            engine.inputNode.removeTap(onBus: 0)
+            engine.stop()
+        }
+        audioEngine = nil
+        isCapturing = false
+        audioLevel = 0
+        bufferCount = 0
+        addLog("Stopped")
+    }
+
+    func clearLog() {
+        log = ""
+        bufferCount = 0
+    }
+
+    private func addLog(_ message: String) {
+        let timestamp = DateFormatter.localizedString(from: Date(), dateStyle: .none, timeStyle: .medium)
+        log += "[\(timestamp)] \(message)\n"
+        print("[MIC TEST] \(message)")
+    }
 }
