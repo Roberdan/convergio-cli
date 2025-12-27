@@ -7,8 +7,7 @@ class ConvergioEdu < Formula
   on_macos do
     on_arm do
       url "https://github.com/Roberdan/convergio-cli/releases/download/v6.4.0/convergio-edu-6.4.0-arm64-apple-darwin.tar.gz"
-      # sha256 will be updated after release tarball is created
-      sha256 "PLACEHOLDER_UPDATE_AFTER_RELEASE"
+      sha256 "8c13e2a3d572836fba7f784a7c622f46dc83e506f4420b252379747cf1f66aac"
     end
   end
 
