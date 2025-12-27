@@ -14,6 +14,7 @@ import {
   Moon,
   Sun,
   Laptop,
+  Globe,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -347,6 +348,7 @@ interface AppearanceSettingsProps {
   appearance: {
     theme: 'light' | 'dark' | 'system';
     accentColor: string;
+    language: 'it' | 'en' | 'es' | 'fr' | 'de';
   };
   onUpdate: (updates: Partial<AppearanceSettingsProps['appearance']>) => void;
 }
@@ -456,6 +458,43 @@ function AppearanceSettings({ appearance, onUpdate }: AppearanceSettingsProps) {
                 )}
                 title={color.label}
               />
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Globe className="w-5 h-5 text-blue-500" />
+            Lingua
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm text-slate-500 mb-4">
+            Seleziona la lingua in cui i maestri ti parleranno
+          </p>
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+            {[
+              { value: 'it' as const, label: 'Italiano', flag: '🇮🇹' },
+              { value: 'en' as const, label: 'English', flag: '🇬🇧' },
+              { value: 'es' as const, label: 'Español', flag: '🇪🇸' },
+              { value: 'fr' as const, label: 'Français', flag: '🇫🇷' },
+              { value: 'de' as const, label: 'Deutsch', flag: '🇩🇪' },
+            ].map(lang => (
+              <button
+                key={lang.value}
+                onClick={() => onUpdate({ language: lang.value })}
+                className={cn(
+                  'flex items-center gap-2 p-3 rounded-xl border-2 transition-all',
+                  (appearance.language || 'it') === lang.value
+                    ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
+                    : 'border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600'
+                )}
+              >
+                <span className="text-xl">{lang.flag}</span>
+                <span className="text-sm font-medium">{lang.label}</span>
+              </button>
             ))}
           </div>
         </CardContent>

@@ -39,6 +39,7 @@ export interface Maestro {
   subject: Subject;
   specialty: string;
   voice: MaestroVoice;
+  voiceInstructions: string;  // How to speak/personality for voice
   teachingStyle: string;
   avatar: string;
   color: string;

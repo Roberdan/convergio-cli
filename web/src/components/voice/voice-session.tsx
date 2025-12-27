@@ -3,12 +3,13 @@
 import { useState, useEffect, useCallback } from 'react';
 import Image from 'next/image';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Mic, MicOff, PhoneOff, Volume2, VolumeX, Send } from 'lucide-react';
+import { Mic, MicOff, PhoneOff, VolumeX, Send, MessageSquare } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Waveform, CircularWaveform } from './waveform';
 import { useVoiceSession } from '@/lib/hooks/use-voice-session';
 import { ToolResultDisplay } from '@/components/tools';
+import { WebcamCapture } from '@/components/tools/webcam-capture';
 import { cn } from '@/lib/utils';
 import type { Maestro } from '@/types';
 
@@ -27,13 +28,16 @@ interface ConnectionError {
 interface VoiceSessionProps {
   maestro: Maestro;
   onClose: () => void;
+  onSwitchToChat?: () => void;
 }
 
-export function VoiceSession({ maestro, onClose }: VoiceSessionProps) {
+export function VoiceSession({ maestro, onClose, onSwitchToChat }: VoiceSessionProps) {
   const [connectionInfo, setConnectionInfo] = useState<ConnectionInfo | null>(null);
   const [configError, setConfigError] = useState<ConnectionError | null>(null);
   const [textInput, setTextInput] = useState('');
   const [showTextInput, setShowTextInput] = useState(false);
+  const [showWebcam, setShowWebcam] = useState(false);
+  const [webcamRequest, setWebcamRequest] = useState<{ purpose: string; instructions?: string; callId: string } | null>(null);
 
   const {
     isConnected,
@@ -52,10 +56,34 @@ export function VoiceSession({ maestro, onClose }: VoiceSessionProps) {
     cancelResponse,
     clearTranscript,
     clearToolCalls,
+    sendWebcamResult,
   } = useVoiceSession({
     onError: (error) => console.error('Voice error:', error),
     onTranscript: (role, text) => console.log(`${role}: ${text}`),
+    onWebcamRequest: (request) => {
+      console.log('Webcam requested:', request);
+      setWebcamRequest(request);
+      setShowWebcam(true);
+    },
   });
+
+  // Handle webcam capture completion
+  const handleWebcamCapture = useCallback((imageData: string) => {
+    if (webcamRequest) {
+      sendWebcamResult(webcamRequest.callId, imageData);
+      setShowWebcam(false);
+      setWebcamRequest(null);
+    }
+  }, [webcamRequest, sendWebcamResult]);
+
+  // Handle webcam close/cancel
+  const handleWebcamClose = useCallback(() => {
+    if (webcamRequest) {
+      sendWebcamResult(webcamRequest.callId, null);
+    }
+    setShowWebcam(false);
+    setWebcamRequest(null);
+  }, [webcamRequest, sendWebcamResult]);
 
   // Fetch connection info and connect
   useEffect(() => {
@@ -93,6 +121,12 @@ export function VoiceSession({ maestro, onClose }: VoiceSessionProps) {
     disconnect();
     onClose();
   }, [disconnect, onClose]);
+
+  // Handle switch to chat
+  const handleSwitchToChat = useCallback(() => {
+    disconnect();
+    onSwitchToChat?.();
+  }, [disconnect, onSwitchToChat]);
 
   // Handle text submit
   const handleTextSubmit = useCallback(() => {
@@ -352,6 +386,18 @@ AZURE_OPENAI_REALTIME_DEPLOYMENT=gpt-4o-realtime-preview`}
                 <Send className="h-5 w-5" />
               </Button>
 
+              {/* Switch to chat */}
+              {onSwitchToChat && (
+                <Button
+                  variant="ghost"
+                  size="icon-lg"
+                  onClick={handleSwitchToChat}
+                  className="rounded-full bg-green-600/20 text-green-400 hover:bg-green-600/30"
+                >
+                  <MessageSquare className="h-5 w-5" />
+                </Button>
+              )}
+
               {/* End call */}
               <Button
                 variant="destructive"
@@ -391,6 +437,18 @@ AZURE_OPENAI_REALTIME_DEPLOYMENT=gpt-4o-realtime-preview`}
           </div>
         </Card>
       </motion.div>
+
+      {/* Webcam capture overlay */}
+      <AnimatePresence>
+        {showWebcam && webcamRequest && (
+          <WebcamCapture
+            purpose={webcamRequest.purpose}
+            instructions={webcamRequest.instructions}
+            onCapture={handleWebcamCapture}
+            onClose={handleWebcamClose}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }

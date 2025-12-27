@@ -6,7 +6,7 @@ import './globals.css';
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
-  title: 'Convergio Education - Learn with AI Maestros',
+  title: 'Convergio-Edu - Learn with AI Maestros',
   description: 'Educational platform with AI-powered voice tutors for personalized learning',
   keywords: ['education', 'AI', 'tutoring', 'voice', 'learning', 'maestros'],
 };

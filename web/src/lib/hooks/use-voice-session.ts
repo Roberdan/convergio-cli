@@ -13,6 +13,7 @@ interface UseVoiceSessionOptions {
   onTranscript?: (role: 'user' | 'assistant', text: string) => void;
   onError?: (error: Error) => void;
   onStateChange?: (state: 'idle' | 'connecting' | 'connected' | 'error') => void;
+  onWebcamRequest?: (request: { purpose: string; instructions?: string; callId: string }) => void;
 }
 
 interface ConnectionInfo {
@@ -291,14 +292,125 @@ export function useVoiceSession(options: UseVoiceSessionOptions = {}) {
               required: ['title', 'nodes'],
             },
           },
+          {
+            type: 'function',
+            name: 'web_search',
+            description: 'Search the web for educational information. Results are filtered for student safety. Use for researching topics, finding facts, current events, or educational resources.',
+            parameters: {
+              type: 'object',
+              properties: {
+                query: { type: 'string', description: 'Search query - educational topics only' },
+                subject: { type: 'string', description: 'School subject context for better results' },
+                maxResults: { type: 'number', description: 'Max results (1-5)', minimum: 1, maximum: 5 },
+              },
+              required: ['query'],
+            },
+          },
+          {
+            type: 'function',
+            name: 'capture_homework',
+            description: 'Request to see the student homework via camera. The student will be prompted to show their work. Use this to help with math problems, check written work, or analyze diagrams.',
+            parameters: {
+              type: 'object',
+              properties: {
+                purpose: { type: 'string', description: 'What you want to see (e.g., "math problem", "essay draft", "diagram")' },
+                instructions: { type: 'string', description: 'Instructions for the student on what to show' },
+              },
+              required: ['purpose'],
+            },
+          },
         ];
+
+        // Add proactive tool usage instructions to the maestro's system prompt
+        const toolInstructions = `
+
+## STRUMENTI DIDATTICI DISPONIBILI
+
+Durante le lezioni, USA ATTIVAMENTE questi strumenti per rendere l'apprendimento più efficace:
+
+1. **create_mindmap** - Crea mappe mentali per visualizzare concetti e relazioni. Usala quando:
+   - Introduci un nuovo argomento complesso
+   - Vuoi mostrare connessioni tra concetti
+   - Lo studente sembra confuso sulla struttura dell'argomento
+
+2. **create_flashcard** - Crea flashcard per lo studio con ripetizione spaziata. Usale quando:
+   - Hai spiegato definizioni o termini importanti
+   - Vuoi aiutare lo studente a memorizzare formule o date
+   - Alla fine di una lezione per consolidare
+
+3. **create_quiz** - Crea quiz interattivi. Usali quando:
+   - Vuoi verificare la comprensione
+   - Lo studente chiede di essere interrogato
+   - Prima di passare a un nuovo argomento
+
+4. **web_search** - Cerca informazioni sul web (filtrate per sicurezza). Usala quando:
+   - Lo studente chiede informazioni attuali
+   - Serve verificare un fatto
+   - Vuoi mostrare esempi reali
+
+5. **capture_homework** - Chiedi di vedere i compiti via webcam. Usala quando:
+   - Lo studente ha problemi con un esercizio
+   - Vuoi verificare il lavoro svolto
+   - Serve vedere un diagramma o disegno
+
+6. **show_formula** - Mostra formule matematiche in LaTeX. Usala quando:
+   - Spieghi equazioni o formule
+   - Fai dimostrazioni matematiche
+
+7. **create_chart** - Crea grafici per visualizzare dati. Usali quando:
+   - Mostri statistiche o trend
+   - Spieghi funzioni matematiche
+   - Confronti quantità
+
+8. **create_diagram** - Crea diagrammi (flowchart, sequenze, etc). Usali quando:
+   - Spieghi processi o algoritmi
+   - Mostri cicli o flussi
+   - Illustri relazioni causa-effetto
+
+9. **run_code** - Esegui codice Python/JavaScript. Usalo quando:
+   - Dimostri algoritmi
+   - Calcoli valori
+   - Mostri esempi di programmazione
+
+**IMPORTANTE**: Non aspettare che lo studente chieda - USA PROATTIVAMENTE questi strumenti durante la lezione per renderla più coinvolgente e visiva!
+`;
+
+        // Get language setting from localStorage
+        const settings = typeof window !== 'undefined'
+          ? JSON.parse(localStorage.getItem('convergio-settings') || '{}')?.state?.appearance
+          : null;
+        const language = settings?.language || 'it';
+
+        // Language names for instruction
+        const languageNames: Record<string, string> = {
+          it: 'Italian (Italiano)',
+          en: 'English',
+          es: 'Spanish (Español)',
+          fr: 'French (Français)',
+          de: 'German (Deutsch)',
+        };
+
+        // Build language instruction - CRITICAL for ensuring maestro speaks correct language
+        const languageInstruction = `
+
+## CRITICAL LANGUAGE REQUIREMENT
+**YOU MUST ALWAYS SPEAK IN ${languageNames[language].toUpperCase()}.**
+- Every single response must be in ${languageNames[language]}
+- Never switch to another language unless explicitly asked
+- This is non-negotiable - the student has selected ${languageNames[language]} as their language
+- Translate any content or examples to ${languageNames[language]}
+`;
+
+        // Build full instructions with voice personality and language
+        const voicePersonality = maestro.voiceInstructions ? `\n\n## Voice Personality\n${maestro.voiceInstructions}\n` : '';
+        const fullInstructions = languageInstruction + maestro.systemPrompt + voicePersonality + toolInstructions;
 
         // Send session configuration - Azure GA format (2025-08-28)
         const sessionConfig = {
           type: 'session.update',
           session: {
             type: 'realtime',
-            instructions: maestro.systemPrompt,
+            instructions: fullInstructions,
             output_modalities: ['audio'],
             tools: maestroTools,
             audio: {
@@ -329,7 +441,7 @@ export function useVoiceSession(options: UseVoiceSessionOptions = {}) {
           },
         };
 
-        console.log('[Voice] Sending session config:', JSON.stringify(sessionConfig, null, 2));
+        console.log('[Voice] Sending session config with voice:', maestro.voice);
         ws.send(JSON.stringify(sessionConfig));
 
         setConnected(true);
@@ -339,6 +451,35 @@ export function useVoiceSession(options: UseVoiceSessionOptions = {}) {
 
         // Start capturing audio
         startAudioCapture();
+
+        // Trigger initial greeting from maestro (after brief delay for setup)
+        setTimeout(() => {
+          if (ws.readyState === WebSocket.OPEN) {
+            // Get student name from settings if available
+            const studentName = typeof window !== 'undefined'
+              ? JSON.parse(localStorage.getItem('convergio-settings') || '{}')?.state?.studentProfile?.name
+              : null;
+
+            // Create engaging, varied greeting prompt
+            const greetingPrompts = [
+              `Greet the student${studentName ? ` by name (${studentName})` : ''} warmly and introduce yourself. Be engaging and enthusiastic. Then ask what they'd like to learn today.`,
+              `Welcome the student${studentName ? ` (${studentName})` : ''} with your characteristic personality. Share something interesting about your subject to spark curiosity.`,
+              `Start the lesson by introducing yourself in your unique style${studentName ? ` and addressing ${studentName} personally` : ''}. Make them excited to learn!`,
+            ];
+            const greetingPrompt = greetingPrompts[Math.floor(Math.random() * greetingPrompts.length)];
+
+            ws.send(JSON.stringify({
+              type: 'conversation.item.create',
+              item: {
+                type: 'message',
+                role: 'user',
+                content: [{ type: 'input_text', text: greetingPrompt }],
+              },
+            }));
+            ws.send(JSON.stringify({ type: 'response.create' }));
+            console.log('[Voice] Triggered initial greeting');
+          }
+        }, 500);
       };
 
       ws.onmessage = (event) => {
@@ -458,11 +599,26 @@ export function useVoiceSession(options: UseVoiceSessionOptions = {}) {
               type: event.name as import('@/types').ToolType,
               name: event.name,
               arguments: args,
-              status: 'completed' as const,
+              status: 'pending' as const,
             };
             addToolCall(toolCall);
 
-            // Send tool result back to the AI so it can continue
+            // Special handling for webcam capture - defer to UI
+            if (event.name === 'capture_homework') {
+              console.log('[Voice] Webcam capture requested:', args);
+              options.onWebcamRequest?.({
+                purpose: args.purpose || 'homework',
+                instructions: args.instructions,
+                callId: event.call_id,
+              });
+              // Update tool status to pending (waiting for webcam)
+              updateToolCall(toolCall.id, { status: 'pending' });
+              // Don't send response yet - wait for webcam capture
+              return;
+            }
+
+            // For other tools, send immediate success response
+            updateToolCall(toolCall.id, { status: 'completed' });
             if (wsRef.current?.readyState === WebSocket.OPEN) {
               wsRef.current.send(JSON.stringify({
                 type: 'conversation.item.create',
@@ -657,6 +813,64 @@ export function useVoiceSession(options: UseVoiceSessionOptions = {}) {
     }
   }, [setSpeaking]);
 
+  // Send webcam capture result back to the AI with actual image
+  const sendWebcamResult = useCallback((callId: string, imageData: string | null) => {
+    if (wsRef.current?.readyState === WebSocket.OPEN) {
+      if (imageData) {
+        // First, send function call output
+        wsRef.current.send(JSON.stringify({
+          type: 'conversation.item.create',
+          item: {
+            type: 'function_call_output',
+            call_id: callId,
+            output: JSON.stringify({
+              success: true,
+              image_captured: true,
+            }),
+          },
+        }));
+
+        // Extract base64 data from data URL (remove "data:image/jpeg;base64," prefix)
+        const base64Image = imageData.replace(/^data:image\/\w+;base64,/, '');
+
+        // Send the actual image as a user message with image content
+        // OpenAI Realtime API supports images via input_image type
+        wsRef.current.send(JSON.stringify({
+          type: 'conversation.item.create',
+          item: {
+            type: 'message',
+            role: 'user',
+            content: [
+              {
+                type: 'input_image',
+                image: base64Image,
+              },
+              {
+                type: 'input_text',
+                text: 'Ecco la foto del mio compito/libro. Per favore analizzala e aiutami a capire o risolvere quello che vedi.',
+              },
+            ],
+          },
+        }));
+      } else {
+        // User cancelled the webcam capture
+        wsRef.current.send(JSON.stringify({
+          type: 'conversation.item.create',
+          item: {
+            type: 'function_call_output',
+            call_id: callId,
+            output: JSON.stringify({
+              success: false,
+              error: 'Lo studente ha annullato la cattura.',
+            }),
+          },
+        }));
+      }
+      // Trigger response to continue
+      wsRef.current.send(JSON.stringify({ type: 'response.create' }));
+    }
+  }, []);
+
   return {
     // State
     isConnected,
@@ -677,6 +891,7 @@ export function useVoiceSession(options: UseVoiceSessionOptions = {}) {
     cancelResponse,
     clearTranscript,
     clearToolCalls,
+    sendWebcamResult,
   };
 }
 

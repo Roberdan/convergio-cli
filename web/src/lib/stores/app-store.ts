@@ -24,6 +24,7 @@ import type {
 interface AppearanceSettings {
   theme: 'light' | 'dark' | 'system';
   accentColor: string;
+  language: 'it' | 'en' | 'es' | 'fr' | 'de';
 }
 
 interface ExtendedStudentProfile {
@@ -84,6 +85,7 @@ export const useSettingsStore = create<SettingsState>()(
       appearance: {
         theme: 'system',
         accentColor: 'blue',
+        language: 'it',
       },
       setTheme: (theme) => set({ theme }),
       setProvider: (provider) => set({ provider }),

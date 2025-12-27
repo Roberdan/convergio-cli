@@ -10,13 +10,13 @@ import {
   Settings,
   Menu,
   X,
-  Sparkles,
   TrendingUp,
   Target,
   Flame,
 } from 'lucide-react';
+import Image from 'next/image';
 import { MaestriGrid } from '@/components/maestros/maestri-grid';
-import { FlashcardsView, HomeworkHelpView } from '@/components/education';
+import { FlashcardsView, HomeworkHelpView, QuizView } from '@/components/education';
 import { SettingsView } from '@/components/settings';
 import { ProgressView } from '@/components/progress';
 import { Button } from '@/components/ui/button';
@@ -57,12 +57,18 @@ export default function Home() {
             className="flex items-center gap-3"
             animate={{ opacity: sidebarOpen ? 1 : 0 }}
           >
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center">
-              <Sparkles className="h-5 w-5 text-white" />
+            <div className="w-10 h-10 rounded-xl overflow-hidden flex-shrink-0">
+              <Image
+                src="/icon.png"
+                alt="Convergio"
+                width={40}
+                height={40}
+                className="w-full h-full object-cover"
+              />
             </div>
             {sidebarOpen && (
               <span className="font-bold text-lg text-slate-900 dark:text-white">
-                Convergio
+                Convergio-Edu
               </span>
             )}
           </motion.div>
@@ -161,17 +167,7 @@ export default function Home() {
         >
           {currentView === 'maestri' && <MaestriGrid />}
 
-          {currentView === 'quiz' && (
-            <div className="text-center py-20">
-              <Brain className="h-16 w-16 mx-auto text-slate-400 mb-4" />
-              <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-2">
-                Quiz in arrivo
-              </h2>
-              <p className="text-slate-600 dark:text-slate-400">
-                Questa sezione sarà presto disponibile
-              </p>
-            </div>
-          )}
+          {currentView === 'quiz' && <QuizView />}
 
           {currentView === 'flashcards' && <FlashcardsView />}
 

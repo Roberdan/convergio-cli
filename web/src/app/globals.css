@@ -266,20 +266,29 @@ body {
   border-width: 0;
 }
 
-/* Skip to content link */
+/* Skip to content link - only visible on focus for keyboard users */
 .skip-link {
   position: absolute;
-  top: -40px;
-  left: 0;
+  top: -100px;
+  left: 16px;
   background: hsl(var(--primary));
   color: hsl(var(--primary-foreground));
-  padding: 8px 16px;
-  z-index: 100;
-  transition: top 0.3s;
+  padding: 12px 24px;
+  z-index: 9999;
+  border-radius: 8px;
+  font-weight: 600;
+  text-decoration: none;
+  opacity: 0;
+  pointer-events: none;
+  transition: top 0.2s, opacity 0.2s;
 }
 
 .skip-link:focus {
-  top: 0;
+  top: 16px;
+  opacity: 1;
+  pointer-events: auto;
+  outline: 2px solid white;
+  outline-offset: 2px;
 }
 
 /* Print styles for mindmaps and educational content */
