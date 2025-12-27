@@ -47,6 +47,15 @@
 #define ICON_THINKING  "◐"
 #define ICON_COMPLETED "●"
 #define ICON_FAILED    "✗"
+#define ICON_SKIPPED   "⊘"
+#define ICON_WAITING   "◷"
+
+// Workflow icons
+#define ICON_DECISION  "◇"
+#define ICON_GROUP     "▣"
+#define ICON_PHASE     "▶"
+#define ICON_ARROW     "→"
+#define ICON_PIPELINE  "⟶"
 
 // Progress bar
 #define PROGRESS_FILLED "█"
@@ -66,6 +75,10 @@ const char* workflow_monitor_status_icon(AgentStatus status) {
         return ICON_COMPLETED;
     case AGENT_STATUS_FAILED:
         return ICON_FAILED;
+    case AGENT_STATUS_SKIPPED:
+        return ICON_SKIPPED;
+    case AGENT_STATUS_WAITING:
+        return ICON_WAITING;
     default:
         return "?";
     }
@@ -81,6 +94,25 @@ const char* workflow_monitor_status_name(AgentStatus status) {
         return "completed";
     case AGENT_STATUS_FAILED:
         return "failed";
+    case AGENT_STATUS_SKIPPED:
+        return "skipped";
+    case AGENT_STATUS_WAITING:
+        return "waiting";
+    default:
+        return "unknown";
+    }
+}
+
+const char* workflow_monitor_type_name(WorkflowType type) {
+    switch (type) {
+    case WORKFLOW_PARALLEL:
+        return "parallel";
+    case WORKFLOW_SEQUENTIAL:
+        return "sequential";
+    case WORKFLOW_PIPELINE:
+        return "pipeline";
+    case WORKFLOW_CONDITIONAL:
+        return "conditional";
     default:
         return "unknown";
     }
@@ -96,6 +128,10 @@ static const char* status_color(AgentStatus status) {
         return ANSI_GREEN;
     case AGENT_STATUS_FAILED:
         return ANSI_RED;
+    case AGENT_STATUS_SKIPPED:
+        return ANSI_BLUE;
+    case AGENT_STATUS_WAITING:
+        return ANSI_MAGENTA;
     default:
         return ANSI_RESET;
     }
@@ -119,9 +155,30 @@ WorkflowMonitor* workflow_monitor_create(const char* workflow_name, bool use_ans
     }
 
     monitor->workflow_name = workflow_name ? strdup(workflow_name) : strdup("workflow");
+    monitor->type = WORKFLOW_PARALLEL;  // Default to parallel
     monitor->use_ansi = use_ansi;
     monitor->is_active = false;
+    monitor->use_nodes = false;
+    monitor->current_phase = -1;
 
+    return monitor;
+}
+
+WorkflowMonitor* workflow_monitor_create_typed(const char* workflow_name, WorkflowType type,
+                                                bool use_ansi) {
+    WorkflowMonitor* monitor = workflow_monitor_create(workflow_name, use_ansi);
+    if (monitor) {
+        monitor->type = type;
+        monitor->use_nodes = true;
+
+        // Allocate node array
+        monitor->node_capacity = 16;
+        monitor->nodes = calloc(monitor->node_capacity, sizeof(WorkflowNode));
+        if (!monitor->nodes) {
+            workflow_monitor_free(monitor);
+            return NULL;
+        }
+    }
     return monitor;
 }
 
@@ -130,11 +187,31 @@ void workflow_monitor_free(WorkflowMonitor* monitor) {
         return;
     }
 
+    // Free agents
     for (size_t i = 0; i < monitor->agent_count; i++) {
         free(monitor->agents[i].name);
         free(monitor->agents[i].task);
     }
     free(monitor->agents);
+
+    // Free nodes
+    if (monitor->nodes) {
+        for (size_t i = 0; i < monitor->node_count; i++) {
+            free(monitor->nodes[i].label);
+            free(monitor->nodes[i].condition);
+            free(monitor->nodes[i].children);
+        }
+        free(monitor->nodes);
+    }
+
+    // Free phase names
+    if (monitor->phase_names) {
+        for (size_t i = 0; i < monitor->phase_count; i++) {
+            free(monitor->phase_names[i]);
+        }
+        free(monitor->phase_names);
+    }
+
     free((void*)monitor->workflow_name);
     free(monitor);
 }
@@ -392,6 +469,7 @@ void workflow_monitor_render_summary(WorkflowMonitor* monitor) {
     // Calculate totals
     size_t completed = 0;
     size_t failed = 0;
+    size_t skipped = 0;
     double total_time = 0;
 
     for (size_t i = 0; i < monitor->agent_count; i++) {
@@ -400,6 +478,8 @@ void workflow_monitor_render_summary(WorkflowMonitor* monitor) {
             total_time += monitor->agents[i].duration_ms;
         } else if (monitor->agents[i].status == AGENT_STATUS_FAILED) {
             failed++;
+        } else if (monitor->agents[i].status == AGENT_STATUS_SKIPPED) {
+            skipped++;
         }
     }
 
@@ -408,8 +488,14 @@ void workflow_monitor_render_summary(WorkflowMonitor* monitor) {
             ANSI_DIM, ANSI_RESET);
     fprintf(out, "%s%s WORKFLOW COMPLETE %s\n", ANSI_BOLD, ANSI_CYAN, ANSI_RESET);
     fprintf(out, "\n");
-    fprintf(out, "  %sAgents:%s     %zu completed, %zu failed\n",
+    fprintf(out, "  %sType:%s       %s\n",
+            ANSI_BOLD, ANSI_RESET, workflow_monitor_type_name(monitor->type));
+    fprintf(out, "  %sAgents:%s     %zu completed, %zu failed",
             ANSI_BOLD, ANSI_RESET, completed, failed);
+    if (skipped > 0) {
+        fprintf(out, ", %zu skipped", skipped);
+    }
+    fprintf(out, "\n");
     fprintf(out, "  %sTotal time:%s %.1fs\n", ANSI_BOLD, ANSI_RESET, total_time / 1000.0);
     fprintf(out, "\n");
 
@@ -429,4 +515,398 @@ void workflow_monitor_render_summary(WorkflowMonitor* monitor) {
     fprintf(out, "\n");
 
     fflush(out);
+}
+
+// ============================================================================
+// EXTENDED API - PHASE MANAGEMENT
+// ============================================================================
+
+int workflow_monitor_add_phase(WorkflowMonitor* monitor, const char* phase_name) {
+    if (!monitor || !phase_name) {
+        return -1;
+    }
+
+    // Allocate or expand phase_names array
+    if (!monitor->phase_names) {
+        monitor->phase_names = calloc(8, sizeof(char*));
+        if (!monitor->phase_names) {
+            return -1;
+        }
+    }
+
+    int idx = (int)monitor->phase_count;
+    monitor->phase_names[idx] = strdup(phase_name);
+    monitor->phase_count++;
+
+    // Also add as a NODE_PHASE node if using nodes
+    if (monitor->use_nodes) {
+        workflow_monitor_add_node(monitor, NODE_PHASE, phase_name, -1);
+    }
+
+    return idx;
+}
+
+void workflow_monitor_set_current_phase(WorkflowMonitor* monitor, int phase_idx) {
+    if (!monitor || phase_idx < 0 || (size_t)phase_idx >= monitor->phase_count) {
+        return;
+    }
+    monitor->current_phase = phase_idx;
+}
+
+// ============================================================================
+// EXTENDED API - NODE MANAGEMENT
+// ============================================================================
+
+int workflow_monitor_add_node(WorkflowMonitor* monitor, NodeType type, const char* label,
+                               int parent_idx) {
+    if (!monitor || !label) {
+        return -1;
+    }
+
+    // Enable node mode
+    monitor->use_nodes = true;
+
+    // Allocate if needed
+    if (!monitor->nodes) {
+        monitor->node_capacity = 16;
+        monitor->nodes = calloc(monitor->node_capacity, sizeof(WorkflowNode));
+        if (!monitor->nodes) {
+            return -1;
+        }
+    }
+
+    // Expand if needed
+    if (monitor->node_count >= monitor->node_capacity) {
+        size_t new_capacity = monitor->node_capacity * 2;
+        WorkflowNode* new_nodes = realloc(monitor->nodes, new_capacity * sizeof(WorkflowNode));
+        if (!new_nodes) {
+            return -1;
+        }
+        monitor->nodes = new_nodes;
+        monitor->node_capacity = new_capacity;
+    }
+
+    int idx = (int)monitor->node_count;
+    WorkflowNode* node = &monitor->nodes[idx];
+
+    node->type = type;
+    node->label = strdup(label);
+    node->status = AGENT_STATUS_PENDING;
+    node->parent_idx = parent_idx;
+    node->depth = (parent_idx >= 0) ? monitor->nodes[parent_idx].depth + 1 : 0;
+    node->child_capacity = 8;
+    node->children = calloc(node->child_capacity, sizeof(int));
+
+    // Add to parent's children list
+    if (parent_idx >= 0 && (size_t)parent_idx < monitor->node_count) {
+        WorkflowNode* parent = &monitor->nodes[parent_idx];
+        if (parent->child_count >= parent->child_capacity) {
+            parent->child_capacity *= 2;
+            parent->children = realloc(parent->children, parent->child_capacity * sizeof(int));
+        }
+        parent->children[parent->child_count++] = idx;
+    }
+
+    monitor->node_count++;
+    return idx;
+}
+
+int workflow_monitor_add_agent_to_phase(WorkflowMonitor* monitor, int phase_idx,
+                                         const char* name, const char* task) {
+    if (!monitor || !name || phase_idx < 0) {
+        return -1;
+    }
+
+    // Add agent normally
+    int agent_idx = workflow_monitor_add_agent(monitor, name, task);
+    if (agent_idx >= 0) {
+        // Set parent to phase
+        monitor->agents[agent_idx].parent_idx = phase_idx;
+        monitor->agents[agent_idx].depth = 1;
+
+        // Also add as node
+        if (monitor->use_nodes) {
+            workflow_monitor_add_node(monitor, NODE_AGENT, name, phase_idx);
+        }
+    }
+    return agent_idx;
+}
+
+void workflow_monitor_set_condition(WorkflowMonitor* monitor, int node_idx, const char* condition) {
+    if (!monitor || node_idx < 0 || (size_t)node_idx >= monitor->node_count || !condition) {
+        return;
+    }
+
+    WorkflowNode* node = &monitor->nodes[node_idx];
+    free(node->condition);
+    node->condition = strdup(condition);
+}
+
+void workflow_monitor_set_node_status(WorkflowMonitor* monitor, int node_idx, AgentStatus status) {
+    if (!monitor || node_idx < 0 || (size_t)node_idx >= monitor->node_count) {
+        return;
+    }
+
+    WorkflowNode* node = &monitor->nodes[node_idx];
+    AgentStatus old_status = node->status;
+    node->status = status;
+
+    // Record timing
+    if (status == AGENT_STATUS_THINKING && old_status == AGENT_STATUS_PENDING) {
+        clock_gettime(CLOCK_MONOTONIC, &node->start);
+    } else if ((status == AGENT_STATUS_COMPLETED || status == AGENT_STATUS_FAILED) &&
+               old_status == AGENT_STATUS_THINKING) {
+        clock_gettime(CLOCK_MONOTONIC, &node->end);
+        node->duration_ms = ((node->end.tv_sec - node->start.tv_sec) * 1000.0) +
+                           ((node->end.tv_nsec - node->start.tv_nsec) / 1000000.0);
+    }
+}
+
+// ============================================================================
+// EXTENDED RENDERING - COMPLEX WORKFLOWS
+// ============================================================================
+
+static const char* node_type_icon(NodeType type) {
+    switch (type) {
+    case NODE_AGENT:
+        return ICON_PENDING;
+    case NODE_DECISION:
+        return ICON_DECISION;
+    case NODE_GROUP:
+        return ICON_GROUP;
+    case NODE_PHASE:
+        return ICON_PHASE;
+    default:
+        return "?";
+    }
+}
+
+static void render_node_recursive(WorkflowMonitor* monitor, int node_idx, FILE* out, int depth,
+                                   bool is_last) {
+    if (node_idx < 0 || (size_t)node_idx >= monitor->node_count) {
+        return;
+    }
+
+    WorkflowNode* node = &monitor->nodes[node_idx];
+
+    // Indent based on depth
+    for (int i = 0; i < depth; i++) {
+        fprintf(out, "   ");
+    }
+
+    // Tree branch
+    if (depth > 0) {
+        if (is_last) {
+            fprintf(out, "%s%s%s ", ANSI_DIM, BOX_BL, BOX_H);
+        } else {
+            fprintf(out, "%s%s%s ", ANSI_DIM, BOX_LT, BOX_H);
+        }
+    }
+
+    // Node icon based on type and status
+    const char* icon;
+    if (node->type == NODE_AGENT) {
+        icon = workflow_monitor_status_icon(node->status);
+    } else {
+        icon = node_type_icon(node->type);
+    }
+
+    fprintf(out, "%s%s%s ", status_color(node->status), icon, ANSI_RESET);
+
+    // Label
+    fprintf(out, "%s%s%s", ANSI_BOLD, node->label, ANSI_RESET);
+
+    // Status for agents
+    if (node->type == NODE_AGENT) {
+        fprintf(out, " %s[%s]%s", status_color(node->status),
+                workflow_monitor_status_name(node->status), ANSI_RESET);
+        if (node->duration_ms > 0) {
+            fprintf(out, " %.1fs", node->duration_ms / 1000.0);
+        }
+    }
+
+    // Condition for decision nodes
+    if (node->type == NODE_DECISION && node->condition) {
+        fprintf(out, " %s(%s)%s", ANSI_DIM, node->condition, ANSI_RESET);
+    }
+
+    fprintf(out, "\n");
+
+    // Render children
+    for (size_t i = 0; i < node->child_count; i++) {
+        render_node_recursive(monitor, node->children[i], out, depth + 1,
+                              i == node->child_count - 1);
+    }
+}
+
+static void render_sequential_workflow(WorkflowMonitor* monitor, FILE* out) {
+    fprintf(out, "  %s%s Sequential Workflow %s\n\n", ANSI_BOLD, ANSI_CYAN, ANSI_RESET);
+
+    for (size_t i = 0; i < monitor->agent_count; i++) {
+        MonitoredAgent* agent = &monitor->agents[i];
+
+        // Step number
+        fprintf(out, "  %s%zu.%s ", ANSI_DIM, i + 1, ANSI_RESET);
+
+        // Status icon
+        fprintf(out, "%s%s%s ", status_color(agent->status),
+                workflow_monitor_status_icon(agent->status), ANSI_RESET);
+
+        // Agent name
+        fprintf(out, "%s%-20s%s", ANSI_BOLD, agent->name, ANSI_RESET);
+
+        // Status
+        fprintf(out, " %s[%s]%s", status_color(agent->status),
+                workflow_monitor_status_name(agent->status), ANSI_RESET);
+
+        if (agent->duration_ms > 0) {
+            fprintf(out, " %.1fs", agent->duration_ms / 1000.0);
+        }
+        fprintf(out, "\n");
+
+        // Task description
+        if (agent->task && agent->task[0]) {
+            fprintf(out, "       %s%s%s\n", ANSI_DIM, agent->task, ANSI_RESET);
+        }
+
+        // Arrow to next step (except last)
+        if (i < monitor->agent_count - 1) {
+            fprintf(out, "       %s%s%s\n", ANSI_DIM, ICON_ARROW, ANSI_RESET);
+        }
+    }
+    fprintf(out, "\n");
+}
+
+static void render_pipeline_workflow(WorkflowMonitor* monitor, FILE* out) {
+    fprintf(out, "  %s%s Pipeline Workflow %s\n\n", ANSI_BOLD, ANSI_CYAN, ANSI_RESET);
+
+    // Horizontal layout for pipeline
+    fprintf(out, "  ");
+    for (size_t i = 0; i < monitor->agent_count; i++) {
+        MonitoredAgent* agent = &monitor->agents[i];
+
+        fprintf(out, "%s%s%s",
+                status_color(agent->status),
+                workflow_monitor_status_icon(agent->status),
+                ANSI_RESET);
+
+        // Truncate name for horizontal display
+        char short_name[15];
+        strncpy(short_name, agent->name, 14);
+        short_name[14] = '\0';
+        fprintf(out, "%s", short_name);
+
+        if (i < monitor->agent_count - 1) {
+            fprintf(out, " %s%s%s ", ANSI_CYAN, ICON_PIPELINE, ANSI_RESET);
+        }
+    }
+    fprintf(out, "\n\n");
+
+    // Detailed view below
+    for (size_t i = 0; i < monitor->agent_count; i++) {
+        MonitoredAgent* agent = &monitor->agents[i];
+        fprintf(out, "  %s%s%s %s: %s%s%s\n",
+                status_color(agent->status),
+                workflow_monitor_status_icon(agent->status),
+                ANSI_RESET,
+                agent->name,
+                ANSI_DIM,
+                agent->task ? agent->task : "",
+                ANSI_RESET);
+    }
+    fprintf(out, "\n");
+}
+
+void workflow_monitor_render_complex(WorkflowMonitor* monitor) {
+    if (!monitor) {
+        return;
+    }
+
+    FILE* out = stderr;
+
+    render_header(monitor, out);
+    render_progress_bar(monitor, out);
+
+    // Render based on workflow type
+    switch (monitor->type) {
+    case WORKFLOW_SEQUENTIAL:
+        render_sequential_workflow(monitor, out);
+        break;
+
+    case WORKFLOW_PIPELINE:
+        render_pipeline_workflow(monitor, out);
+        break;
+
+    case WORKFLOW_CONDITIONAL:
+        // Use node tree for conditional workflows
+        if (monitor->use_nodes) {
+            // Find root nodes (parent_idx == -1)
+            for (size_t i = 0; i < monitor->node_count; i++) {
+                if (monitor->nodes[i].parent_idx == -1) {
+                    render_node_recursive(monitor, (int)i, out, 0, true);
+                }
+            }
+        } else {
+            render_agent_tree(monitor, out);
+        }
+        break;
+
+    case WORKFLOW_PARALLEL:
+    default:
+        render_agent_tree(monitor, out);
+        break;
+    }
+
+    // Extended legend for complex workflows
+    fprintf(out, "  %sLegend:%s %s%s pending%s  %s%s thinking%s  %s%s completed%s  "
+                 "%s%s failed%s  %s%s skipped%s  %s%s waiting%s\n\n",
+            ANSI_DIM, ANSI_RESET,
+            ANSI_DIM, ICON_PENDING, ANSI_RESET,
+            ANSI_YELLOW, ICON_THINKING, ANSI_RESET,
+            ANSI_GREEN, ICON_COMPLETED, ANSI_RESET,
+            ANSI_RED, ICON_FAILED, ANSI_RESET,
+            ANSI_BLUE, ICON_SKIPPED, ANSI_RESET,
+            ANSI_MAGENTA, ICON_WAITING, ANSI_RESET);
+
+    fflush(out);
+}
+
+// ============================================================================
+// CONVENIENCE FUNCTIONS
+// ============================================================================
+
+WorkflowMonitor* workflow_monitor_create_sequential(const char* workflow_name,
+                                                     const char** agent_names,
+                                                     const char** tasks,
+                                                     size_t count,
+                                                     bool use_ansi) {
+    WorkflowMonitor* monitor = workflow_monitor_create_typed(workflow_name, WORKFLOW_SEQUENTIAL,
+                                                              use_ansi);
+    if (!monitor) {
+        return NULL;
+    }
+
+    for (size_t i = 0; i < count; i++) {
+        workflow_monitor_add_agent(monitor, agent_names[i], tasks ? tasks[i] : NULL);
+    }
+
+    return monitor;
+}
+
+WorkflowMonitor* workflow_monitor_create_pipeline(const char* workflow_name,
+                                                   const char** agent_names,
+                                                   const char** tasks,
+                                                   size_t count,
+                                                   bool use_ansi) {
+    WorkflowMonitor* monitor = workflow_monitor_create_typed(workflow_name, WORKFLOW_PIPELINE,
+                                                              use_ansi);
+    if (!monitor) {
+        return NULL;
+    }
+
+    for (size_t i = 0; i < count; i++) {
+        workflow_monitor_add_agent(monitor, agent_names[i], tasks ? tasks[i] : NULL);
+    }
+
+    return monitor;
 }

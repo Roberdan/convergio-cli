@@ -94,11 +94,156 @@ void test_monitor_status_helpers(void) {
     TEST("Thinking icon", strcmp(workflow_monitor_status_icon(AGENT_STATUS_THINKING), "◐") == 0);
     TEST("Completed icon", strcmp(workflow_monitor_status_icon(AGENT_STATUS_COMPLETED), "●") == 0);
     TEST("Failed icon", strcmp(workflow_monitor_status_icon(AGENT_STATUS_FAILED), "✗") == 0);
+    TEST("Skipped icon", strcmp(workflow_monitor_status_icon(AGENT_STATUS_SKIPPED), "⊘") == 0);
+    TEST("Waiting icon", strcmp(workflow_monitor_status_icon(AGENT_STATUS_WAITING), "◷") == 0);
 
     TEST("Pending name", strcmp(workflow_monitor_status_name(AGENT_STATUS_PENDING), "pending") == 0);
     TEST("Thinking name", strcmp(workflow_monitor_status_name(AGENT_STATUS_THINKING), "thinking") == 0);
     TEST("Completed name", strcmp(workflow_monitor_status_name(AGENT_STATUS_COMPLETED), "completed") == 0);
     TEST("Failed name", strcmp(workflow_monitor_status_name(AGENT_STATUS_FAILED), "failed") == 0);
+    TEST("Skipped name", strcmp(workflow_monitor_status_name(AGENT_STATUS_SKIPPED), "skipped") == 0);
+    TEST("Waiting name", strcmp(workflow_monitor_status_name(AGENT_STATUS_WAITING), "waiting") == 0);
+
+    TEST("Parallel type name", strcmp(workflow_monitor_type_name(WORKFLOW_PARALLEL), "parallel") == 0);
+    TEST("Sequential type name", strcmp(workflow_monitor_type_name(WORKFLOW_SEQUENTIAL), "sequential") == 0);
+    TEST("Pipeline type name", strcmp(workflow_monitor_type_name(WORKFLOW_PIPELINE), "pipeline") == 0);
+    TEST("Conditional type name", strcmp(workflow_monitor_type_name(WORKFLOW_CONDITIONAL), "conditional") == 0);
+}
+
+// ============================================================================
+// COMPLEX WORKFLOW TESTS
+// ============================================================================
+
+void test_sequential_workflow(void) {
+    TEST_SECTION("Sequential Workflow");
+
+    const char* agents[] = {"agent-1", "agent-2", "agent-3"};
+    const char* tasks[] = {"Task A", "Task B", "Task C"};
+
+    WorkflowMonitor* monitor = workflow_monitor_create_sequential("seq-test", agents, tasks, 3, false);
+    TEST("Create sequential workflow succeeds", monitor != NULL);
+    TEST("Workflow type is sequential", monitor && monitor->type == WORKFLOW_SEQUENTIAL);
+    TEST("Agent count is 3", monitor && monitor->agent_count == 3);
+
+    // Simulate sequential execution
+    if (monitor) {
+        workflow_monitor_start(monitor);
+
+        workflow_monitor_set_status(monitor, 0, AGENT_STATUS_THINKING);
+        TEST("First agent is thinking", monitor->agents[0].status == AGENT_STATUS_THINKING);
+
+        workflow_monitor_set_status(monitor, 0, AGENT_STATUS_COMPLETED);
+        workflow_monitor_set_status(monitor, 1, AGENT_STATUS_THINKING);
+        TEST("First done, second thinking",
+             monitor->agents[0].status == AGENT_STATUS_COMPLETED &&
+             monitor->agents[1].status == AGENT_STATUS_THINKING);
+
+        workflow_monitor_set_status(monitor, 1, AGENT_STATUS_COMPLETED);
+        workflow_monitor_set_status(monitor, 2, AGENT_STATUS_THINKING);
+        workflow_monitor_set_status(monitor, 2, AGENT_STATUS_COMPLETED);
+        TEST("All completed",
+             monitor->agents[0].status == AGENT_STATUS_COMPLETED &&
+             monitor->agents[1].status == AGENT_STATUS_COMPLETED &&
+             monitor->agents[2].status == AGENT_STATUS_COMPLETED);
+
+        workflow_monitor_stop(monitor);
+    }
+
+    workflow_monitor_free(monitor);
+}
+
+void test_pipeline_workflow(void) {
+    TEST_SECTION("Pipeline Workflow");
+
+    const char* agents[] = {"input-parser", "processor", "output-formatter"};
+    const char* tasks[] = {"Parse input data", "Process data", "Format output"};
+
+    WorkflowMonitor* monitor = workflow_monitor_create_pipeline("pipe-test", agents, tasks, 3, false);
+    TEST("Create pipeline workflow succeeds", monitor != NULL);
+    TEST("Workflow type is pipeline", monitor && monitor->type == WORKFLOW_PIPELINE);
+
+    if (monitor) {
+        workflow_monitor_start(monitor);
+
+        // Render pipeline (visual test)
+        printf("\n--- Pipeline render: ---\n");
+        workflow_monitor_render_complex(monitor);
+
+        workflow_monitor_stop(monitor);
+    }
+
+    workflow_monitor_free(monitor);
+    TEST("Pipeline render completes without crash", true);
+}
+
+void test_conditional_workflow(void) {
+    TEST_SECTION("Conditional Workflow");
+
+    WorkflowMonitor* monitor = workflow_monitor_create_typed("cond-test", WORKFLOW_CONDITIONAL, false);
+    TEST("Create conditional workflow succeeds", monitor != NULL);
+    TEST("Workflow type is conditional", monitor && monitor->type == WORKFLOW_CONDITIONAL);
+
+    if (monitor) {
+        // Create decision tree structure
+        int decision = workflow_monitor_add_node(monitor, NODE_DECISION, "Check severity", -1);
+        TEST("Add decision node succeeds", decision >= 0);
+
+        workflow_monitor_set_condition(monitor, decision, "severity >= HIGH");
+        TEST("Set condition succeeds", monitor->nodes[decision].condition != NULL);
+
+        // Add branches
+        int high_branch = workflow_monitor_add_node(monitor, NODE_AGENT, "luca-security-expert", decision);
+        int low_branch = workflow_monitor_add_node(monitor, NODE_AGENT, "rex-code-reviewer", decision);
+        TEST("Add high severity branch", high_branch >= 0);
+        TEST("Add low severity branch", low_branch >= 0);
+
+        // Simulate execution - high severity path
+        workflow_monitor_set_node_status(monitor, decision, AGENT_STATUS_COMPLETED);
+        workflow_monitor_set_node_status(monitor, high_branch, AGENT_STATUS_THINKING);
+        workflow_monitor_set_node_status(monitor, low_branch, AGENT_STATUS_SKIPPED);
+
+        TEST("Decision completed", monitor->nodes[decision].status == AGENT_STATUS_COMPLETED);
+        TEST("High branch thinking", monitor->nodes[high_branch].status == AGENT_STATUS_THINKING);
+        TEST("Low branch skipped", monitor->nodes[low_branch].status == AGENT_STATUS_SKIPPED);
+
+        // Render conditional (visual test)
+        printf("\n--- Conditional render: ---\n");
+        workflow_monitor_render_complex(monitor);
+    }
+
+    workflow_monitor_free(monitor);
+    TEST("Conditional render completes without crash", true);
+}
+
+void test_phased_workflow(void) {
+    TEST_SECTION("Phased Workflow");
+
+    WorkflowMonitor* monitor = workflow_monitor_create_typed("phased-test", WORKFLOW_PARALLEL, false);
+    TEST("Create phased workflow succeeds", monitor != NULL);
+
+    if (monitor) {
+        // Add phases
+        int phase1 = workflow_monitor_add_phase(monitor, "Analysis Phase");
+        int phase2 = workflow_monitor_add_phase(monitor, "Implementation Phase");
+        TEST("Add phase 1 succeeds", phase1 >= 0);
+        TEST("Add phase 2 succeeds", phase2 >= 0);
+        TEST("Phase count is 2", monitor->phase_count == 2);
+
+        // Add agents to phases
+        int a1 = workflow_monitor_add_agent_to_phase(monitor, phase1, "rex", "Code review");
+        int a2 = workflow_monitor_add_agent_to_phase(monitor, phase1, "baccio", "Architecture review");
+        int a3 = workflow_monitor_add_agent_to_phase(monitor, phase2, "paolo", "Implement fixes");
+        TEST("Add agent to phase 1", a1 >= 0);
+        TEST("Add agent 2 to phase 1", a2 >= 0);
+        TEST("Add agent to phase 2", a3 >= 0);
+
+        // Set current phase
+        workflow_monitor_set_current_phase(monitor, 0);
+        TEST("Set current phase", monitor->current_phase == 0);
+    }
+
+    workflow_monitor_free(monitor);
+    TEST("Phased workflow cleanup succeeds", true);
 }
 
 // ============================================================================
@@ -207,6 +352,12 @@ int main(int argc, char* argv[]) {
     test_monitor_status_updates();
     test_monitor_status_helpers();
     test_render_output();
+
+    // Run complex workflow tests
+    test_sequential_workflow();
+    test_pipeline_workflow();
+    test_conditional_workflow();
+    test_phased_workflow();
 
     // Summary
     printf("\n═══════════════════════════════════════════\n");
