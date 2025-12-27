@@ -1,13 +1,14 @@
 class ConvergioBiz < Formula
   desc "Convergio Business Edition - AI agents for sales, marketing & strategy"
   homepage "https://github.com/Roberdan/convergio-cli"
-  version "6.2.0"
+  version "6.4.0"
   license "MIT"
 
   on_macos do
     on_arm do
-      url "https://github.com/Roberdan/convergio-cli/releases/download/v6.2.0/convergio-biz-6.2.0-arm64-apple-darwin.tar.gz"
-      sha256 "841948547c57b0a3165822950032ef525311686552847661c2adba35cbf4d9fc"
+      url "https://github.com/Roberdan/convergio-cli/releases/download/v6.4.0/convergio-biz-6.4.0-arm64-apple-darwin.tar.gz"
+      # sha256 will be updated after release tarball is created
+      sha256 "PLACEHOLDER_UPDATE_AFTER_RELEASE"
     end
   end
 

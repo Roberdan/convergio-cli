@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.4.0] - 2025-12-27
+
+### Added
+
+- **Conversational Setup Wizard** - AI-guided configuration in all editions
+  - Natural language setup instead of forms
+  - User Profile setup through conversation
+  - Project configuration via dialogue
+  - Preferences gathering conversationally
+  - Automatic JSON extraction and saving
+  - Fallback to form mode if LLM unavailable
+
 ## [6.3.0] - 2025-12-27
 
 ### Added
@@ -25,14 +37,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Start/stop Ollama server from within Convergio
   - Pull new models with recommended suggestions
   - Test connection and verify configuration
-
-- **Conversational Setup Wizard** - AI-guided configuration in all editions
-  - Natural language setup instead of forms
-  - User Profile setup through conversation
-  - Project configuration via dialogue
-  - Preferences gathering conversationally
-  - Automatic JSON extraction and saving
-  - Fallback to form mode if LLM unavailable
 
 - **Extended Workflow Monitor** - Support for complex multi-stage workflows
   - Sequential workflows: step-by-step execution with dependencies
