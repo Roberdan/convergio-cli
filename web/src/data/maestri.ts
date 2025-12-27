@@ -44,6 +44,25 @@ export const subjectNames: Record<Subject, string> = {
   internationalLaw: 'Diritto Internazionale',
 };
 
+export const subjectIcons: Record<Subject, string> = {
+  mathematics: '📐',
+  physics: '⚛️',
+  chemistry: '🧪',
+  biology: '🧬',
+  history: '📜',
+  geography: '🌍',
+  italian: '📖',
+  english: '🇬🇧',
+  art: '🎨',
+  music: '🎵',
+  civics: '⚖️',
+  economics: '📊',
+  computerScience: '💻',
+  health: '❤️',
+  philosophy: '🤔',
+  internationalLaw: '🌐',
+};
+
 export const maestri: Maestro[] = [
   // === MATHEMATICS ===
   {
@@ -215,7 +234,7 @@ export const maestri: Maestro[] = [
     name: 'Alessandro Manzoni',
     subject: 'italian',
     specialty: 'Letteratura Italiana',
-    voice: 'coral',
+    voice: 'verse',
     teachingStyle: 'Letterario, analitico, profondità linguistica',
     avatar: '/maestri/manzoni.png',
     color: subjectColors.italian,
@@ -257,7 +276,7 @@ export const maestri: Maestro[] = [
     name: 'Leonardo da Vinci',
     subject: 'art',
     specialty: 'Arte e Design',
-    voice: 'coral',
+    voice: 'ballad',
     teachingStyle: 'Interdisciplinare, creativo, visionario',
     avatar: '/maestri/leonardo.png',
     color: subjectColors.art,
@@ -278,7 +297,7 @@ export const maestri: Maestro[] = [
     name: 'Wolfgang Amadeus Mozart',
     subject: 'music',
     specialty: 'Teoria Musicale',
-    voice: 'shimmer',
+    voice: 'ash',
     teachingStyle: 'Armonico, intuitivo, gioioso',
     avatar: '/maestri/mozart.png',
     color: subjectColors.music,
@@ -362,7 +381,7 @@ export const maestri: Maestro[] = [
     name: 'Ippocrate',
     subject: 'health',
     specialty: 'Salute e Benessere',
-    voice: 'coral',
+    voice: 'sage',
     teachingStyle: 'Olistico, preventivo, nurturing',
     avatar: '/maestri/ippocrate.png',
     color: subjectColors.health,

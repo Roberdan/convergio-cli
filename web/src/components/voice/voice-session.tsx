@@ -1,14 +1,23 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import Image from 'next/image';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Mic, MicOff, PhoneOff, Volume2, VolumeX, Send } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Waveform, CircularWaveform } from './waveform';
 import { useVoiceSession } from '@/lib/hooks/use-voice-session';
+import { ToolResultDisplay } from '@/components/tools';
 import { cn } from '@/lib/utils';
 import type { Maestro } from '@/types';
+
+interface ConnectionInfo {
+  provider: 'azure' | 'openai';
+  wsUrl?: string;
+  apiKey?: string;
+  token?: string;
+}
 
 interface VoiceSessionProps {
   maestro: Maestro;
@@ -16,7 +25,7 @@ interface VoiceSessionProps {
 }
 
 export function VoiceSession({ maestro, onClose }: VoiceSessionProps) {
-  const [ephemeralToken, setEphemeralToken] = useState<string | null>(null);
+  const [connectionInfo, setConnectionInfo] = useState<ConnectionInfo | null>(null);
   const [textInput, setTextInput] = useState('');
   const [showTextInput, setShowTextInput] = useState(false);
 
@@ -26,6 +35,7 @@ export function VoiceSession({ maestro, onClose }: VoiceSessionProps) {
     isSpeaking,
     isMuted,
     transcript,
+    toolCalls,
     inputLevel,
     outputLevel,
     connectionState,
@@ -35,33 +45,37 @@ export function VoiceSession({ maestro, onClose }: VoiceSessionProps) {
     sendText,
     cancelResponse,
     clearTranscript,
+    clearToolCalls,
   } = useVoiceSession({
     onError: (error) => console.error('Voice error:', error),
     onTranscript: (role, text) => console.log(`${role}: ${text}`),
   });
 
-  // Fetch ephemeral token and connect
+  // Fetch connection info and connect
   useEffect(() => {
     async function init() {
       try {
         const response = await fetch('/api/realtime/token');
         const data = await response.json();
-        if (data.token) {
-          setEphemeralToken(data.token);
+        if (data.error) {
+          console.error('API error:', data.error);
+          return;
         }
+        // Store full connection info (works for both Azure and OpenAI)
+        setConnectionInfo(data as ConnectionInfo);
       } catch (error) {
-        console.error('Failed to get token:', error);
+        console.error('Failed to get connection info:', error);
       }
     }
     init();
   }, []);
 
-  // Connect when token is available
+  // Connect when connection info is available
   useEffect(() => {
-    if (ephemeralToken && !isConnected && connectionState === 'idle') {
-      connect(maestro, ephemeralToken);
+    if (connectionInfo && !isConnected && connectionState === 'idle') {
+      connect(maestro, connectionInfo);
     }
-  }, [ephemeralToken, isConnected, connectionState, maestro, connect]);
+  }, [connectionInfo, isConnected, connectionState, maestro, connect]);
 
   // Handle close
   const handleClose = useCallback(() => {
@@ -102,10 +116,16 @@ export function VoiceSession({ maestro, onClose }: VoiceSessionProps) {
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-4">
                 <div
-                  className="w-12 h-12 rounded-full flex items-center justify-center text-xl font-bold"
+                  className="w-12 h-12 rounded-full overflow-hidden ring-2 ring-white/20"
                   style={{ backgroundColor: maestro.color }}
                 >
-                  {maestro.name[0]}
+                  <Image
+                    src={maestro.avatar}
+                    alt={maestro.name}
+                    width={48}
+                    height={48}
+                    className="w-full h-full object-cover"
+                  />
                 </div>
                 <div>
                   <h2 className="text-xl font-semibold">{maestro.name}</h2>
@@ -131,6 +151,7 @@ export function VoiceSession({ maestro, onClose }: VoiceSessionProps) {
               isActive={isListening || isSpeaking}
               color={maestro.color}
               size={160}
+              image={maestro.avatar}
             />
 
             {/* State indicator */}
@@ -189,6 +210,35 @@ export function VoiceSession({ maestro, onClose }: VoiceSessionProps) {
               </AnimatePresence>
             </div>
           </div>
+
+          {/* Tool calls visualization */}
+          {toolCalls.length > 0 && (
+            <div className="px-6 pb-4">
+              <div className="space-y-3 p-4 bg-slate-800/30 rounded-xl border border-slate-700/50">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-sm font-medium text-slate-400">Strumenti utilizzati</h4>
+                  <button
+                    onClick={clearToolCalls}
+                    className="text-xs text-slate-500 hover:text-slate-300"
+                  >
+                    Cancella
+                  </button>
+                </div>
+                <AnimatePresence>
+                  {toolCalls.map((toolCall) => (
+                    <motion.div
+                      key={toolCall.id}
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -10 }}
+                    >
+                      <ToolResultDisplay toolCall={toolCall} />
+                    </motion.div>
+                  ))}
+                </AnimatePresence>
+              </div>
+            </div>
+          )}
 
           {/* Controls */}
           <div className="p-6 border-t border-slate-700/50 bg-slate-800/30">

@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
+import Image from 'next/image';
 import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
 
@@ -60,6 +61,7 @@ interface CircularWaveformProps {
   isActive: boolean;
   color?: string;
   size?: number;
+  image?: string;
   className?: string;
 }
 
@@ -68,8 +70,11 @@ export function CircularWaveform({
   isActive,
   color = '#3B82F6',
   size = 120,
+  image,
   className,
 }: CircularWaveformProps) {
+  const innerSize = Math.round(size * 0.7);
+
   return (
     <div
       className={cn('relative flex items-center justify-center', className)}
@@ -111,12 +116,12 @@ export function CircularWaveform({
         }}
       />
 
-      {/* Inner circle (avatar placeholder) */}
+      {/* Inner circle with avatar */}
       <motion.div
-        className="absolute rounded-full flex items-center justify-center text-white font-bold text-2xl"
+        className="absolute rounded-full overflow-hidden flex items-center justify-center"
         style={{
-          width: size * 0.7,
-          height: size * 0.7,
+          width: innerSize,
+          height: innerSize,
           backgroundColor: color,
         }}
         animate={{
@@ -127,7 +132,17 @@ export function CircularWaveform({
           stiffness: 400,
           damping: 25,
         }}
-      />
+      >
+        {image ? (
+          <Image
+            src={image}
+            alt="Avatar"
+            width={innerSize}
+            height={innerSize}
+            className="w-full h-full object-cover"
+          />
+        ) : null}
+      </motion.div>
     </div>
   );
 }

@@ -16,6 +16,9 @@ import {
   Flame,
 } from 'lucide-react';
 import { MaestriGrid } from '@/components/maestros/maestri-grid';
+import { FlashcardsView, HomeworkHelpView } from '@/components/education';
+import { SettingsView } from '@/components/settings';
+import { ProgressView } from '@/components/progress';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useProgressStore, useSettingsStore } from '@/lib/stores/app-store';
@@ -170,105 +173,13 @@ export default function Home() {
             </div>
           )}
 
-          {currentView === 'flashcards' && (
-            <div className="text-center py-20">
-              <BookOpen className="h-16 w-16 mx-auto text-slate-400 mb-4" />
-              <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-2">
-                Flashcards in arrivo
-              </h2>
-              <p className="text-slate-600 dark:text-slate-400">
-                Sistema di ripetizione spaziata FSRS-5
-              </p>
-            </div>
-          )}
+          {currentView === 'flashcards' && <FlashcardsView />}
 
-          {currentView === 'homework' && (
-            <div className="text-center py-20">
-              <Target className="h-16 w-16 mx-auto text-slate-400 mb-4" />
-              <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-2">
-                Assistente Compiti in arrivo
-              </h2>
-              <p className="text-slate-600 dark:text-slate-400">
-                Metodo maieutico per guidarti senza darti le risposte
-              </p>
-            </div>
-          )}
+          {currentView === 'homework' && <HomeworkHelpView />}
 
-          {currentView === 'progress' && (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium text-slate-600">
-                    Livello
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-3xl font-bold">{level}</p>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium text-slate-600">
-                    XP Totali
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-3xl font-bold">{xp.toLocaleString()}</p>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium text-slate-600">
-                    Streak Attuale
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-3xl font-bold">{streak.current} giorni</p>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium text-slate-600">
-                    Minuti di Studio
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-3xl font-bold">{totalStudyMinutes}</p>
-                </CardContent>
-              </Card>
-            </div>
-          )}
+          {currentView === 'progress' && <ProgressView />}
 
-          {currentView === 'settings' && (
-            <div className="max-w-2xl">
-              <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-6">
-                Impostazioni
-              </h2>
-              <Card>
-                <CardContent className="p-6 space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-                      Nome Studente
-                    </label>
-                    <input
-                      type="text"
-                      value={studentProfile.name}
-                      onChange={(e) =>
-                        useSettingsStore.getState().updateStudentProfile({
-                          name: e.target.value,
-                        })
-                      }
-                      placeholder="Il tuo nome"
-                      className="w-full px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700"
-                    />
-                  </div>
-                  <p className="text-sm text-slate-500">
-                    Altre impostazioni saranno aggiunte presto.
-                  </p>
-                </CardContent>
-              </Card>
-            </div>
-          )}
+          {currentView === 'settings' && <SettingsView />}
         </motion.div>
       </main>
     </div>

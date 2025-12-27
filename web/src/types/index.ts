@@ -301,6 +301,115 @@ export interface Settings {
   studentProfile: StudentProfile;
 }
 
+// === TOOL TYPES ===
+
+export type ToolType =
+  | 'run_code'
+  | 'create_chart'
+  | 'create_diagram'
+  | 'create_visualization'
+  | 'show_formula'
+  | 'create_quiz'
+  | 'create_flashcard'
+  | 'create_mindmap';
+
+export interface ToolCall {
+  id: string;
+  type: ToolType;
+  name: string;
+  arguments: Record<string, unknown>;
+  status: 'pending' | 'running' | 'completed' | 'error';
+  result?: ToolResult;
+}
+
+export interface ToolResult {
+  success: boolean;
+  output?: string;
+  error?: string;
+  data?: unknown;
+  renderComponent?: string; // Component name to render
+}
+
+export interface CodeExecutionRequest {
+  language: 'python' | 'javascript';
+  code: string;
+  timeout?: number;
+}
+
+export interface ChartRequest {
+  type: 'line' | 'bar' | 'pie' | 'scatter' | 'area';
+  title: string;
+  data: {
+    labels: string[];
+    datasets: Array<{
+      label: string;
+      data: number[];
+      color?: string;
+    }>;
+  };
+}
+
+export interface DiagramRequest {
+  type: 'flowchart' | 'sequence' | 'class' | 'state' | 'er' | 'mindmap';
+  code: string; // Mermaid syntax
+  title?: string;
+}
+
+export interface FormulaRequest {
+  latex: string;
+  description?: string;
+}
+
+export interface VisualizationRequest {
+  type: 'physics' | 'math' | 'chemistry' | 'biology';
+  name: string;
+  params: Record<string, number | string>;
+}
+
+export interface QuizRequest {
+  title: string;
+  subject: Subject;
+  questions: Array<{
+    text: string;
+    type: QuestionType;
+    options?: string[];
+    correctAnswer: string | number;
+    hints: string[];
+    explanation: string;
+    difficulty: 1 | 2 | 3 | 4 | 5;
+    topic: string;
+  }>;
+  masteryThreshold?: number;
+  xpReward?: number;
+}
+
+export interface FlashcardDeckRequest {
+  name: string;
+  subject: Subject;
+  cards: Array<{
+    front: string;
+    back: string;
+  }>;
+}
+
+export interface MindmapRequest {
+  title: string;
+  nodes: Array<{
+    id: string;
+    label: string;
+    children?: Array<{
+      id: string;
+      label: string;
+      children?: Array<{
+        id: string;
+        label: string;
+      }>;
+    }>;
+    icon?: string;
+    color?: string;
+  }>;
+}
+
 // === CHAT TYPES ===
 
 export type ChatRole = 'system' | 'user' | 'assistant';
