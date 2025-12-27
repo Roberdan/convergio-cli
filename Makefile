@@ -91,6 +91,8 @@ CFLAGS = $(ARCH_FLAGS) \
          -Wall -Wextra -Wpedantic \
          -Wno-unused-parameter \
          -Wno-overlength-strings \
+         -Wno-format-nonliteral \
+         -Wno-gnu-zero-variadic-macro-arguments \
          -ffast-math \
          -fvectorize \
          -mllvm -enable-machine-outliner=never \

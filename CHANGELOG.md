@@ -7,6 +7,50 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.3.0] - 2025-12-27
+
+### Added
+
+- **Provider Override Support** - New `--provider` CLI flag to force specific AI provider
+  - Override default model routing for any command
+  - Supports: anthropic, openai, gemini, openrouter, ollama, mlx
+  - Example: `convergio --provider openai "analyze this code"`
+
+- **Ollama Model Selection** - New `--ollama-model` CLI flag for local model control
+  - Specify which Ollama model to use when running locally
+  - Example: `convergio --provider ollama --ollama-model llama3.2 "explain this"`
+
+- **Extended Workflow Monitor** - Support for complex multi-stage workflows
+  - Sequential workflows: step-by-step execution with dependencies
+  - Pipeline workflows: streaming data through processing stages
+  - Conditional workflows: branching based on runtime conditions
+  - Phased workflows: grouped stages with phase-level monitoring
+
+### Fixed
+
+- **Critical: Delegation Infinite Loop** - Fixed race condition in agent delegation
+  - Prevented infinite loops when delegating tasks between agents
+  - Fixed Ollama memory explosion caused by runaway delegation chains
+  - Added maximum delegation depth protection (default: 5 levels)
+
+- **OpenAI Realtime WebSocket** - Improved voice session handling
+  - Better connection state management
+  - Proper cleanup on session termination
+  - Fixed memory leaks in WebSocket callbacks
+
+### Changed
+
+- **Compiler Warning Suppression** - Added flags for safe warning types
+  - `-Wno-format-nonliteral` for intentional dynamic format strings
+  - `-Wno-gnu-zero-variadic-macro-arguments` for standard variadic macro patterns
+  - Removed unused `is_delegation_request` function to clean codebase
+
+### Documentation
+
+- Updated workflow orchestration documentation with new workflow types
+- Added examples for provider override usage
+- Documented Ollama integration patterns
+
 ## [6.2.0] - 2025-12-26
 
 ### Added

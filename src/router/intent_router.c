@@ -168,24 +168,6 @@ static const char* check_switch_intent(const char* input) {
     return NULL; // Switch intent but couldn't identify agent
 }
 
-// Check if input is a delegation request (separate from routing)
-// Returns true if this is a delegation request that needs marker enforcement
-static bool is_delegation_request(const char* input) {
-    char lower[256];
-    size_t len = strlen(input);
-    if (len >= sizeof(lower))
-        len = sizeof(lower) - 1;
-    for (size_t i = 0; i < len; i++) {
-        lower[i] = (char)tolower((unsigned char)input[i]);
-    }
-    lower[len] = '\0';
-
-    return (strstr(lower, "delega") || strstr(lower, "delegate") ||
-            strstr(lower, "coordina") || strstr(lower, "orchestra") ||
-            strstr(lower, "chiedi a") || strstr(lower, "ask ") ||
-            strstr(lower, "fai analizzare") || strstr(lower, "fai fare"));
-}
-
 // Quick pattern check before calling LLM (optimization)
 static const char* quick_pattern_route(const char* input, bool* is_delegation) {
     // Convert to lowercase for matching
