@@ -26,6 +26,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Pull new models with recommended suggestions
   - Test connection and verify configuration
 
+- **Conversational Setup Wizard** - AI-guided configuration in all editions
+  - Natural language setup instead of forms
+  - User Profile setup through conversation
+  - Project configuration via dialogue
+  - Preferences gathering conversationally
+  - Automatic JSON extraction and saving
+  - Fallback to form mode if LLM unavailable
+
 - **Extended Workflow Monitor** - Support for complex multi-stage workflows
   - Sequential workflows: step-by-step execution with dependencies
   - Pipeline workflows: streaming data through processing stages
