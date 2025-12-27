@@ -509,6 +509,190 @@ static void menu_view_config(void) {
 }
 
 // ============================================================================
+// OLLAMA SETUP MENU
+// ============================================================================
+
+static bool check_ollama_running(void) {
+    // Try to connect to Ollama API
+    FILE* fp = popen("curl -s http://localhost:11434/api/tags 2>/dev/null", "r");
+    if (!fp) return false;
+
+    char buffer[128];
+    bool success = fgets(buffer, sizeof(buffer), fp) != NULL;
+    int status = pclose(fp);
+
+    return success && WIFEXITED(status) && WEXITSTATUS(status) == 0;
+}
+
+static bool check_ollama_installed(void) {
+    FILE* fp = popen("which ollama 2>/dev/null", "r");
+    if (!fp) return false;
+
+    char buffer[256];
+    bool found = fgets(buffer, sizeof(buffer), fp) != NULL;
+    pclose(fp);
+    return found;
+}
+
+static void start_ollama_server(void) {
+    printf("\n  Starting Ollama server...\n");
+    system("ollama serve > /dev/null 2>&1 &");
+    sleep(2);
+
+    if (check_ollama_running()) {
+        print_success("Ollama server started successfully");
+    } else {
+        print_error("Failed to start Ollama server");
+        printf("  Try running 'ollama serve' manually in a terminal.\n");
+    }
+}
+
+static void list_ollama_models(void) {
+    printf("\n  \033[1;37mInstalled models:\033[0m\n\n");
+    FILE* fp = popen("ollama list 2>/dev/null", "r");
+    if (!fp) {
+        print_error("Could not list models");
+        return;
+    }
+
+    char line[512];
+    int count = 0;
+    while (fgets(line, sizeof(line), fp)) {
+        if (count == 0) {
+            // Skip header line
+            printf("  %s", line);
+        } else {
+            printf("  %s", line);
+        }
+        count++;
+    }
+    pclose(fp);
+
+    if (count <= 1) {
+        print_info("No models installed yet. Use option 3 to pull a model.");
+    }
+}
+
+static void pull_ollama_model(void) {
+    char model_name[256];
+    printf("\n  \033[1;37mRecommended models:\033[0m\n");
+    printf("    - qwen2.5:0.5b     (494 MB)  - Fastest, good for testing\n");
+    printf("    - qwen2.5:3b       (1.9 GB)  - Good balance\n");
+    printf("    - llama3.2:3b      (2.0 GB)  - Meta's latest small model\n");
+    printf("    - codellama:7b     (3.8 GB)  - Code-focused\n");
+    printf("    - mixtral:8x7b     (26 GB)   - Most capable\n");
+    printf("\n  Enter model name (or 0 to cancel): ");
+    fflush(stdout);
+
+    if (!fgets(model_name, sizeof(model_name), stdin)) return;
+    model_name[strcspn(model_name, "\n")] = 0;
+
+    if (strlen(model_name) == 0 || strcmp(model_name, "0") == 0) return;
+
+    printf("\n  Pulling model: %s\n", model_name);
+    printf("  This may take a while depending on model size...\n\n");
+
+    char cmd[512];
+    snprintf(cmd, sizeof(cmd), "ollama pull %s", model_name);
+    int result = system(cmd);
+
+    if (result == 0) {
+        print_success("Model pulled successfully!");
+    } else {
+        print_error("Failed to pull model");
+    }
+}
+
+static void menu_ollama_setup(void) {
+    while (true) {
+        clear_screen();
+        print_header("OLLAMA SETUP - Local LLM Inference");
+
+        bool installed = check_ollama_installed();
+        bool running = check_ollama_running();
+
+        printf("\n  \033[1;37mStatus:\033[0m\n");
+        if (installed) {
+            print_success("Ollama is installed");
+        } else {
+            print_error("Ollama is NOT installed");
+        }
+
+        if (running) {
+            print_success("Ollama server is running (localhost:11434)");
+        } else {
+            print_warning("Ollama server is NOT running");
+        }
+
+        if (installed && running) {
+            list_ollama_models();
+        }
+
+        printf("\n  \033[1;37mActions:\033[0m\n\n");
+        if (!installed) {
+            printf("    1) Install Ollama    - Opens ollama.ai in browser\n");
+        } else {
+            if (!running) {
+                printf("    1) Start Server      - Launch Ollama background service\n");
+            } else {
+                printf("    1) Stop Server       - Stop Ollama service\n");
+            }
+            printf("    2) List Models       - Show installed models\n");
+            printf("    3) Pull Model        - Download a new model\n");
+            printf("    4) Test Connection   - Verify Ollama is working\n");
+        }
+        printf("    0) Back\n");
+
+        print_footer();
+
+        int choice = get_choice(0, 4);
+
+        if (choice == 0) return;
+
+        if (!installed) {
+            if (choice == 1) {
+                printf("\n  Opening https://ollama.ai in your browser...\n");
+                system("open https://ollama.ai");
+                wait_for_enter();
+            }
+        } else {
+            switch (choice) {
+            case 1:
+                if (running) {
+                    printf("\n  Stopping Ollama server...\n");
+                    system("pkill -f 'ollama serve' 2>/dev/null");
+                    print_success("Ollama server stopped");
+                } else {
+                    start_ollama_server();
+                }
+                wait_for_enter();
+                break;
+            case 2:
+                list_ollama_models();
+                wait_for_enter();
+                break;
+            case 3:
+                pull_ollama_model();
+                wait_for_enter();
+                break;
+            case 4:
+                if (check_ollama_running()) {
+                    print_success("Ollama is responding correctly");
+                    printf("\n  You can use Convergio with:\n");
+                    printf("    convergio --provider ollama --ollama-model <model>\n");
+                    printf("\n  Or set as default in ~/.convergio/config.json\n");
+                } else {
+                    print_error("Ollama is not responding");
+                    printf("  Try starting the server first.\n");
+                }
+                wait_for_enter();
+                break;
+            }
+        }
+    }
+}
+
+// ============================================================================
 // LOCAL MODELS MENU (MLX)
 // ============================================================================
 
@@ -706,29 +890,33 @@ int cmd_setup(int argc, char** argv) {
 
         printf("  What would you like to configure?\n\n");
         printf("    1) API Keys         - Configure provider credentials\n");
-        printf("    2) Local Models     - Download/manage MLX models (Apple Silicon)\n");
-        printf("    3) Quick Setup      - Choose optimization profile (cost/performance)\n");
-        printf("    4) View Config      - Show current configuration\n");
-        printf("    5) Exit\n");
+        printf("    2) Ollama Setup     - Local LLM (recommended for privacy/offline)\n");
+        printf("    3) MLX Models       - Apple Silicon native inference\n");
+        printf("    4) Quick Setup      - Choose optimization profile (cost/performance)\n");
+        printf("    5) View Config      - Show current configuration\n");
+        printf("    6) Exit\n");
 
         print_footer();
 
-        int choice = get_choice(1, 5);
+        int choice = get_choice(1, 6);
 
         switch (choice) {
         case 1:
             menu_api_keys();
             break;
         case 2:
-            menu_local_models();
+            menu_ollama_setup();
             break;
         case 3:
-            menu_quick_setup();
+            menu_local_models();
             break;
         case 4:
-            menu_view_config();
+            menu_quick_setup();
             break;
         case 5:
+            menu_view_config();
+            break;
+        case 6:
             return 0;
         default:
             break;

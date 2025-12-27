@@ -1228,6 +1228,25 @@ test-dev:
 	@if [ -f "./tests/e2e_developer_test.sh" ]; then ./tests/e2e_developer_test.sh; fi
 
 # ============================================================================
+# OLLAMA LOCAL LLM TESTING
+# ============================================================================
+
+# Ensure Ollama is running and has required model
+ensure-ollama:
+	@./scripts/ensure_ollama.sh
+
+# Run delegation tests with local Ollama
+test-ollama: ensure-ollama $(TARGET)
+	@echo "Running tests with local Ollama..."
+	@CONVERGIO_PROVIDER=ollama OLLAMA_MODEL=qwen2.5:0.5b $(MAKE) delegation_test workflow_test
+	@echo "Ollama tests complete!"
+
+# Interactive test with Ollama
+test-ollama-interactive: ensure-ollama $(TARGET)
+	@echo "Starting interactive session with Ollama..."
+	@$(BIN_DIR)/convergio --provider ollama --ollama-model qwen2.5:0.5b
+
+# ============================================================================
 # NATIVE APP BUILD TARGETS
 # ============================================================================
 
@@ -1258,4 +1277,4 @@ native: core
 	@echo "Headers: include/nous/"
 	@echo "Swift package: ConvergioCore/"
 
-.PHONY: all dirs metal run clean debug install uninstall hwinfo help fuzz_test unit_test anna_test plan_db_test output_service_test check-docs test version dist release convergio-acp install-acp cache-stats build-edu test-edu test-edu-llm test-edu-verbose test-edu-full build-biz test-biz build-dev test-dev core app native
+.PHONY: all dirs metal run clean debug install uninstall hwinfo help fuzz_test unit_test anna_test plan_db_test output_service_test check-docs test version dist release convergio-acp install-acp cache-stats build-edu test-edu test-edu-llm test-edu-verbose test-edu-full build-biz test-biz build-dev test-dev ensure-ollama test-ollama test-ollama-interactive core app native

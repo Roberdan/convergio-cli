@@ -20,6 +20,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Specify which Ollama model to use when running locally
   - Example: `convergio --provider ollama --ollama-model llama3.2 "explain this"`
 
+- **Ollama Setup Wizard** - Dedicated menu in `convergio setup` for local LLM
+  - Auto-detect Ollama installation and running status
+  - Start/stop Ollama server from within Convergio
+  - Pull new models with recommended suggestions
+  - Test connection and verify configuration
+
 - **Extended Workflow Monitor** - Support for complex multi-stage workflows
   - Sequential workflows: step-by-step execution with dependencies
   - Pipeline workflows: streaming data through processing stages

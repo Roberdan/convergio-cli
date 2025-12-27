@@ -11,7 +11,7 @@
 
 <p align="center">
   <a href="https://github.com/Roberdan/convergio-cli/actions/workflows/ci.yml"><img src="https://github.com/Roberdan/convergio-cli/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
-  <a href="https://github.com/Roberdan/convergio-cli/releases/latest"><img src="https://img.shields.io/badge/version-6.1.0-blue" alt="Version 6.1.0"></a>
+  <a href="https://github.com/Roberdan/convergio-cli/releases/latest"><img src="https://img.shields.io/badge/version-6.3.0-blue" alt="Version 6.3.0"></a>
   <a href="https://github.com/Roberdan/convergio-cli/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-green.svg" alt="License"></a>
   <a href="https://github.com/Roberdan/convergio-cli"><img src="https://img.shields.io/badge/platform-macOS%20(Apple%20Silicon)-black" alt="Platform"></a>
   <a href="https://github.com/Roberdan/convergio-cli/stargazers"><img src="https://img.shields.io/github/stars/Roberdan/convergio-cli?style=social" alt="Stars"></a>
@@ -503,6 +503,34 @@ convergio --local --model llama-3.2-3b
 - **Free**: Zero API costs forever
 - **Fast**: No network latency
 - **Optimized**: Metal GPU + Neural Engine acceleration
+
+### Ollama Integration - Simple Local LLM
+
+For an easier local AI experience, use Ollama. No complex setup required.
+
+```bash
+# Install Ollama
+brew install ollama
+
+# Pull a model
+ollama pull qwen2.5:3b
+
+# Run Convergio with Ollama
+convergio --provider ollama --ollama-model qwen2.5:3b
+
+# Or configure via setup wizard
+convergio setup  # Select "Ollama Setup"
+```
+
+**Recommended Ollama Models:**
+
+| Model | Size | Description |
+|-------|------|-------------|
+| `qwen2.5:0.5b` | 494 MB | Ultra-fast, good for testing |
+| `qwen2.5:3b` | 1.9 GB | Excellent balance of speed/quality |
+| `llama3.2:3b` | 2.0 GB | Meta's latest small model |
+| `codellama:7b` | 3.8 GB | Code-focused assistant |
+| `mixtral:8x7b` | 26 GB | Most capable MoE model |
 
 ### MCP Integration - Extensible Tool Ecosystem
 
