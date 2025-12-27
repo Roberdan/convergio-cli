@@ -1261,9 +1261,15 @@ char* orchestrator_process(const char* user_input) {
     return final_response;
 }
 
-// External streaming function from claude.c
+// External streaming functions from claude.c
 extern char* nous_claude_chat_stream(const char* system_prompt, const char* user_message,
                                      void (*callback)(const char*, void*), void* user_data);
+extern char* nous_claude_chat_stream_multiturn(const char* system_prompt, const char* history_json,
+                                               const char* user_message,
+                                               void (*callback)(const char*, void*), void* user_data);
+
+// External from persistence.c - get conversation history as JSON for multi-turn
+extern char* persistence_load_conversation_messages_json(const char* session_id, size_t max_messages);
 
 // Streaming variant - uses callback for live output, no tool support
 char* orchestrator_process_stream(const char* user_input, OrchestratorStreamCallback callback,
@@ -1292,14 +1298,32 @@ char* orchestrator_process_stream(const char* user_input, OrchestratorStreamCall
         message_send(user_msg);
     }
 
-    // Build conversation with context
-    char* conversation = build_context_prompt(user_input);
-    if (!conversation) {
-        const char* err2 = "Error: Memory allocation failed";
-        if (callback)
-            callback(err2, user_data);
-        return strdup(err2);
+    // FIX: Load conversation history as proper multi-turn messages
+    char* history_json = NULL;
+    CONVERGIO_MUTEX_LOCK(&g_session_mutex);
+    if (g_current_session_id) {
+        // Load last 10 exchanges (20 messages: 10 user + 10 assistant) for context
+        // Note: The current user message is NOT included since we just saved it
+        history_json = persistence_load_conversation_messages_json(g_current_session_id, 20);
     }
+    CONVERGIO_MUTEX_UNLOCK(&g_session_mutex);
+
+    // Build context (memories, project info) - NOT conversation history
+    char* context = build_context_prompt(user_input);
+
+    // Build enhanced system prompt with context
+    char* enhanced_system = NULL;
+    if (context && strlen(context) > 0) {
+        size_t sys_len = strlen(g_orchestrator->ali->system_prompt) + strlen(context) + 64;
+        enhanced_system = malloc(sys_len);
+        if (enhanced_system) {
+            snprintf(enhanced_system, sys_len, "%s\n\n## Context\n%s",
+                     g_orchestrator->ali->system_prompt, context);
+        }
+    }
+    free(context);
+
+    const char* base_prompt = enhanced_system ? enhanced_system : g_orchestrator->ali->system_prompt;
 
     // Apply style settings to system prompt
     StyleSettings style = convergio_get_style_settings();
@@ -1312,21 +1336,23 @@ char* orchestrator_process_stream(const char* user_input, OrchestratorStreamCall
             "`code`, no ```blocks```\n2. NO bullet points or lists - write in flowing "
             "paragraphs\n3. NO emojis\n4. Be BRIEF and DIRECT - 2-3 sentences maximum\n5. Plain "
             "text only, like a quick chat message\nVIOLATING THESE RULES IS NOT ALLOWED.";
-        size_t prompt_len = strlen(g_orchestrator->ali->system_prompt) + strlen(no_md) + 1;
+        size_t prompt_len = strlen(base_prompt) + strlen(no_md) + 1;
         effective_prompt = malloc(prompt_len);
         if (effective_prompt) {
-            snprintf(effective_prompt, prompt_len, "%s%s", g_orchestrator->ali->system_prompt,
-                     no_md);
+            snprintf(effective_prompt, prompt_len, "%s%s", base_prompt, no_md);
         }
     }
 
-    // Call Claude with streaming - no tools in streaming mode
-    char* response = nous_claude_chat_stream(
-        effective_prompt ? effective_prompt : g_orchestrator->ali->system_prompt, conversation,
+    // Call Claude with multi-turn streaming - proper conversation format
+    char* response = nous_claude_chat_stream_multiturn(
+        effective_prompt ? effective_prompt : base_prompt,
+        history_json,
+        user_input,
         callback, user_data);
-    free(effective_prompt);
 
-    free(conversation);
+    free(effective_prompt);
+    free(enhanced_system);
+    free(history_json);
 
     // Track costs (estimate based on input/output length)
     if (response) {
@@ -1335,6 +1361,55 @@ char* orchestrator_process_stream(const char* user_input, OrchestratorStreamCall
         size_t output_tokens = strlen(response) / 4;
         cost_record_usage(input_tokens, output_tokens);
         cost_record_agent_usage(g_orchestrator->ali, input_tokens, output_tokens);
+
+        // FIX: Check for delegation requests in streamed response
+        fprintf(stderr, "\n[STREAM DEBUG] Checking response for [DELEGATE:] markers...\n");
+        DelegationList* delegations = parse_all_delegations(response);
+        if (delegations && delegations->count > 0) {
+            LOG_INFO(LOG_CAT_AGENT, "[STREAM] Found %zu delegation request(s) in Ali's response",
+                     delegations->count);
+            fprintf(stderr, "[STREAM DEBUG] Found %zu delegation(s)!\n", delegations->count);
+
+            // Notify user that delegation is happening
+            if (callback) {
+                callback("\n\n---\n*Executing agent delegations...*\n", user_data);
+            }
+
+            // Execute all delegations in parallel and get synthesized result
+            char* synthesized =
+                execute_delegations(delegations, user_input, response, g_orchestrator->ali);
+            free_delegation_list(delegations);
+
+            if (synthesized) {
+                // Save synthesized response instead of original
+                save_conversation("assistant", synthesized, "Ali");
+
+                // Show synthesized response
+                if (callback) {
+                    callback("\n**Synthesized Response:**\n", user_data);
+                    callback(synthesized, user_data);
+                }
+
+                // Create response message
+                Message* response_msg =
+                    message_create(MSG_TYPE_AGENT_RESPONSE, g_orchestrator->ali->id, 0, synthesized);
+                if (response_msg) {
+                    message_send(response_msg);
+                }
+
+                free(response);
+                return synthesized;
+            } else {
+                // Delegation failed - notify user
+                if (callback) {
+                    callback("\n*Delegation failed - agents could not respond.*\n", user_data);
+                }
+                LOG_ERROR(LOG_CAT_AGENT, "[STREAM] Delegation failed - execute_delegations returned NULL");
+                fprintf(stderr, "[STREAM DEBUG] Delegation execution failed!\n");
+            }
+        } else {
+            fprintf(stderr, "[STREAM DEBUG] No [DELEGATE:] markers found in response.\n");
+        }
 
         // Save response to persistence and project history
         save_conversation("assistant", response, "Ali");

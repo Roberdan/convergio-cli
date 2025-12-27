@@ -75,14 +75,53 @@ DelegationList* parse_all_delegations(const char* response) {
         }
 
         size_t name_len = (size_t)(end - pos);
+
+        // Validate name length (from v7-plans)
+        if (name_len == 0 || name_len > 256) {
+            LOG_WARN(LOG_CAT_AGENT, "Invalid agent name length: %zu", name_len);
+            free(req);
+            pos = end + 1;
+            continue;
+        }
+
         req->agent_name = malloc(name_len + 1);
-        if (req->agent_name) {
-            strncpy(req->agent_name, pos, name_len);
-            req->agent_name[name_len] = '\0';
-            // Trim trailing spaces
-            char* trim = req->agent_name + strlen(req->agent_name) - 1;
-            while (trim > req->agent_name && *trim == ' ')
-                *trim-- = '\0';
+        if (!req->agent_name) {
+            LOG_ERROR(LOG_CAT_AGENT, "Failed to allocate agent name");
+            free(req);
+            pos = end + 1;
+            continue;
+        }
+
+        strncpy(req->agent_name, pos, name_len);
+        req->agent_name[name_len] = '\0';
+
+        // FIX: Trim BOTH leading and trailing spaces from agent name
+        char* start = req->agent_name;
+        while (*start == ' ') start++;  // Skip leading spaces
+
+        char* trim = start + strlen(start) - 1;
+        while (trim >= start && *trim == ' ')
+            *trim-- = '\0';
+
+        // If we trimmed leading spaces, shift the string
+        if (start != req->agent_name) {
+            memmove(req->agent_name, start, strlen(start) + 1);
+        }
+
+        // Validate not empty after trimming (from v7-plans)
+        if (strlen(req->agent_name) == 0) {
+            LOG_WARN(LOG_CAT_AGENT, "Empty agent name after trimming");
+            free(req->agent_name);
+            free(req);
+            pos = end + 1;
+            continue;
+        }
+
+        // Convert to lowercase for case-insensitive matching
+        for (char* p = req->agent_name; *p; p++) {
+            if (*p >= 'A' && *p <= 'Z') {
+                *p = *p + ('a' - 'A');
+            }
         }
 
         // Extract reason (until next [DELEGATE: or newline)
@@ -117,6 +156,11 @@ DelegationList* parse_all_delegations(const char* response) {
             list->requests = realloc(list->requests, list->capacity * sizeof(DelegationRequest*));
         }
         list->requests[list->count++] = req;
+
+        // DEBUG: Log parsed delegation
+        LOG_INFO(LOG_CAT_AGENT, "Parsed delegation #%zu: agent='%s', reason='%.50s...'",
+                 list->count, req->agent_name ? req->agent_name : "(null)",
+                 req->reason ? req->reason : "(none)");
 
         pos = reason_end;
     }
@@ -166,11 +210,35 @@ char* execute_delegations(DelegationList* delegations, const char* user_input,
     clock_gettime(CLOCK_MONOTONIC, &start_time);
 
     LOG_INFO(LOG_CAT_AGENT, "Starting delegation to %zu agents", delegations->count);
+    fprintf(stderr, "\n[DELEGATION DEBUG] Starting delegation to %zu agents\n", delegations->count);
+
+    // DEBUG: Show total agents in registry
+    Orchestrator* orch = orchestrator_get();
+    if (orch) {
+        LOG_INFO(LOG_CAT_AGENT, "[DELEGATION] Registry has %zu agents loaded", orch->agent_count);
+        fprintf(stderr, "[DELEGATION DEBUG] Registry has %zu agents loaded\n", orch->agent_count);
+    } else {
+        LOG_ERROR(LOG_CAT_AGENT, "[DELEGATION] Orchestrator not initialized!");
+        fprintf(stderr, "[DELEGATION DEBUG] ERROR: Orchestrator not initialized!\n");
+    }
+
+    // DEBUG: List all delegation requests
+    for (size_t i = 0; i < delegations->count; i++) {
+        LOG_INFO(LOG_CAT_AGENT, "[DELEGATION DEBUG] Request %zu: agent='%s'",
+                 i, delegations->requests[i]->agent_name ? delegations->requests[i]->agent_name : "(null)");
+    }
 
     // Prepare parallel execution
     AgentTask* tasks = calloc(delegations->count, sizeof(AgentTask));
+    if (!tasks) {
+        LOG_ERROR(LOG_CAT_AGENT, "Failed to allocate tasks array for %zu delegations", delegations->count);
+        return NULL;
+    }
+
     dispatch_group_t group = dispatch_group_create();
     dispatch_queue_t queue = dispatch_get_global_queue(QOS_CLASS_USER_INITIATED, 0);
+
+    size_t agents_scheduled = 0;
 
     // Spawn all agent tasks in parallel
     for (size_t i = 0; i < delegations->count; i++) {
@@ -186,23 +254,31 @@ char* execute_delegations(DelegationList* delegations, const char* user_input,
         }
 
         // Find or spawn the requested agent
+        fprintf(stderr, "[DELEGATION DEBUG] Looking for agent '%s'...\n", req->agent_name);
         ManagedAgent* specialist = agent_find_by_name(req->agent_name);
         if (!specialist) {
             LOG_INFO(LOG_CAT_AGENT, "Agent '%s' not found, spawning new instance", req->agent_name);
+            fprintf(stderr, "[DELEGATION DEBUG] Agent '%s' not found in registry, spawning...\n", req->agent_name);
             specialist = agent_spawn(AGENT_ROLE_ANALYST, req->agent_name, NULL);
+        } else {
+            fprintf(stderr, "[DELEGATION DEBUG] Found agent '%s' -> '%s'\n", req->agent_name, specialist->name);
         }
 
         if (!specialist) {
             LOG_ERROR(LOG_CAT_AGENT, "Failed to find or spawn agent '%s'", req->agent_name);
+            fprintf(stderr, "[DELEGATION DEBUG] ERROR: Failed to spawn agent '%s'\n", req->agent_name);
             continue;
         }
 
         if (!specialist->system_prompt) {
             LOG_ERROR(LOG_CAT_AGENT, "Agent '%s' has no system prompt", req->agent_name);
+            fprintf(stderr, "[DELEGATION DEBUG] ERROR: Agent '%s' has no system prompt\n", req->agent_name);
             continue;
         }
 
         LOG_INFO(LOG_CAT_AGENT, "Delegating to agent '%s'", specialist->name);
+        fprintf(stderr, "[DELEGATION DEBUG] Scheduling agent '%s' for parallel execution\n", specialist->name);
+        agents_scheduled++;
 
         // Agent is valid, set up task
         tasks[i].agent = specialist;
@@ -218,50 +294,69 @@ char* execute_delegations(DelegationList* delegations, const char* user_input,
             message_send(delegate_msg);
         }
 
+        // FIX: Capture loop index by value to avoid async closure bug
+        // Without this, all blocks would reference the same (final) value of i
+        const size_t task_idx = i;
+
         // Execute in parallel
         dispatch_group_async(group, queue, ^{
             // Set agent as working
-            agent_set_working(tasks[i].agent, WORK_STATE_THINKING,
-                              tasks[i].context ? tasks[i].context : "Analyzing request");
+            agent_set_working(tasks[task_idx].agent, WORK_STATE_THINKING,
+                              tasks[task_idx].context ? tasks[task_idx].context : "Analyzing request");
 
-            size_t prompt_size = strlen(tasks[i].agent->system_prompt) +
-                                 (tasks[i].context ? strlen(tasks[i].context) : 0) + 256;
+            size_t prompt_size = strlen(tasks[task_idx].agent->system_prompt) +
+                                 (tasks[task_idx].context ? strlen(tasks[task_idx].context) : 0) + 256;
             char* prompt_with_context = malloc(prompt_size);
             if (prompt_with_context) {
                 snprintf(prompt_with_context, prompt_size, "%s\n\nContext from Ali: %s",
-                         tasks[i].agent->system_prompt,
-                         tasks[i].context ? tasks[i].context : "Please analyze and respond.");
+                         tasks[task_idx].agent->system_prompt,
+                         tasks[task_idx].context ? tasks[task_idx].context : "Please analyze and respond.");
 
                 // Use Provider interface for agent chat
                 Provider* provider = provider_get(PROVIDER_ANTHROPIC);
                 if (provider && provider->chat) {
                     TokenUsage usage = {0};
-                    tasks[i].response =
+                    tasks[task_idx].response =
                         provider->chat(provider, DELEGATION_MODEL, prompt_with_context,
-                                       tasks[i].user_input, &usage);
+                                       tasks[task_idx].user_input, &usage);
                 } else {
                     LOG_ERROR(LOG_CAT_AGENT, "Provider not available for agent '%s'",
-                              tasks[i].agent->name);
+                              tasks[task_idx].agent->name);
                 }
                 free(prompt_with_context);
 
-                if (tasks[i].response) {
+                if (tasks[task_idx].response) {
                     cost_record_agent_usage(
-                        tasks[i].agent,
-                        strlen(tasks[i].agent->system_prompt) / 4 + strlen(tasks[i].user_input) / 4,
-                        strlen(tasks[i].response) / 4);
-                    tasks[i].completed = true;
-                    LOG_INFO(LOG_CAT_AGENT, "Agent '%s' completed response", tasks[i].agent->name);
+                        tasks[task_idx].agent,
+                        strlen(tasks[task_idx].agent->system_prompt) / 4 + strlen(tasks[task_idx].user_input) / 4,
+                        strlen(tasks[task_idx].response) / 4);
+                    tasks[task_idx].completed = true;
+                    LOG_INFO(LOG_CAT_AGENT, "Agent '%s' completed response", tasks[task_idx].agent->name);
                 } else {
                     LOG_ERROR(LOG_CAT_AGENT, "Agent '%s' returned empty response",
-                              tasks[i].agent->name);
+                              tasks[task_idx].agent->name);
                 }
             }
 
             // Set agent back to idle
-            agent_set_idle(tasks[i].agent);
+            agent_set_idle(tasks[task_idx].agent);
         });
     }
+
+    // Summary of scheduled agents
+    LOG_INFO(LOG_CAT_AGENT, "[DELEGATION] Scheduled %zu/%zu agents for parallel execution",
+             agents_scheduled, delegations->count);
+    fprintf(stderr, "[DELEGATION DEBUG] Scheduled %zu/%zu agents for parallel execution\n",
+            agents_scheduled, delegations->count);
+
+    if (agents_scheduled == 0) {
+        LOG_ERROR(LOG_CAT_AGENT, "[DELEGATION] No agents were scheduled! Check agent names and registry.");
+        fprintf(stderr, "[DELEGATION DEBUG] ERROR: No agents were scheduled! Returning NULL.\n");
+        free(tasks);
+        return NULL;
+    }
+
+    fprintf(stderr, "[DELEGATION DEBUG] Waiting for agents to complete...\n");
 
     // Wait for all agents to complete
     dispatch_group_wait(group, DISPATCH_TIME_FOREVER);

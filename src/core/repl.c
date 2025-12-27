@@ -686,6 +686,16 @@ int repl_direct_agent_communication(const char* agent_name, const char* message)
     // Print separator
     repl_print_separator();
 
+    // FIX: If talking to Ali, use the orchestrator's main processing path
+    // which has delegation support. orchestrator_agent_chat does NOT handle
+    // [DELEGATE:] markers, so Ali's delegations would be ignored.
+    if (strcasecmp(agent_name, "ali") == 0 ||
+        strcasecmp(agent_name, "ali-chief-of-staff") == 0) {
+        // Route to repl_process_natural_input which uses orchestrator_process_stream
+        // This path handles delegation parsing and parallel agent execution
+        return repl_process_natural_input((char*)message);
+    }
+
     // Start spinner
     repl_spinner_start();
 

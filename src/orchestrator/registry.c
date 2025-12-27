@@ -603,6 +603,8 @@ ManagedAgent* agent_find_by_name(const char* name) {
     // If not found in hash, try prefix match (e.g., "baccio" matches "Baccio-tech-architect")
     // This is still O(n) but only used as fallback for short names
     if (!found) {
+        LOG_INFO(LOG_CAT_AGENT, "[AGENT LOOKUP] Hash miss for '%s', trying prefix match across %zu agents",
+                  name, orch->agent_count);
         size_t name_len = strlen(name);
         for (size_t i = 0; i < orch->agent_count; i++) {
             const char* agent_name = orch->agents[i]->name;
@@ -611,10 +613,15 @@ ManagedAgent* agent_find_by_name(const char* name) {
                 // Make sure it's at a word boundary (next char is '-', '_', or end)
                 char next_char = agent_name[name_len];
                 if (next_char == '\0' || next_char == '-' || next_char == '_') {
+                    LOG_INFO(LOG_CAT_AGENT, "[AGENT LOOKUP] Prefix match: '%s' -> '%s'",
+                              name, agent_name);
                     found = orch->agents[i];
                     break;
                 }
             }
+        }
+        if (!found) {
+            LOG_WARN(LOG_CAT_AGENT, "[AGENT LOOKUP] No prefix match found for '%s'", name);
         }
     }
 
