@@ -92,15 +92,15 @@ struct ConversationView: View {
                 // Text input - single line by default, expands as needed
                 TextField("Ask the team...", text: $inputText, axis: .vertical)
                     .textFieldStyle(.plain)
-                    .font(.body)
+                    .font(DesignSystem.Typography.body)
                     .lineLimit(1...4)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 8)
-                    .background(Color(nsColor: .textBackgroundColor))
-                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                    .padding(.horizontal, DesignSystem.Spacing.md)
+                    .padding(.vertical, DesignSystem.Spacing.sm + 2)
+                    .background(DesignSystem.Colors.surface)
+                    .clipShape(RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.medium))
                     .overlay(
-                        RoundedRectangle(cornerRadius: 8)
-                            .stroke(Color.secondary.opacity(0.2), lineWidth: 1)
+                        RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.medium)
+                            .stroke(isInputFocused ? DesignSystem.Colors.primary.opacity(0.5) : DesignSystem.Colors.textSecondary.opacity(0.2), lineWidth: isInputFocused ? 2 : 1)
                     )
                     .focused($isInputFocused)
                     .disabled(conversationVM.isProcessing)
@@ -112,6 +112,7 @@ struct ConversationView: View {
                             sendMessage()
                         }
                     }
+                    .animation(DesignSystem.Animation.quick, value: isInputFocused)
 
                 // Send/Stop button
                 Button {
@@ -122,16 +123,18 @@ struct ConversationView: View {
                     }
                 } label: {
                     Image(systemName: conversationVM.isProcessing ? "stop.circle.fill" : "arrow.up.circle.fill")
-                        .font(.system(size: 24))
-                        .foregroundStyle(conversationVM.isProcessing ? .red : (inputText.isEmpty ? .secondary : .accentColor))
+                        .font(.system(size: 26, weight: .medium))
+                        .foregroundStyle(conversationVM.isProcessing ? DesignSystem.Colors.error : (inputText.isEmpty ? DesignSystem.Colors.textSecondary : DesignSystem.Colors.primary))
                         .contentTransition(.symbolEffect(.replace))
+                        .symbolEffect(.bounce, value: inputText.isEmpty == false && !conversationVM.isProcessing)
                 }
                 .buttonStyle(.plain)
                 .disabled(inputText.isEmpty && !conversationVM.isProcessing)
                 .keyboardShortcut(.return, modifiers: [.command])
+                .help(conversationVM.isProcessing ? "Stop (Cmd+.)" : "Send (Cmd+Return)")
             }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
+            .padding(.horizontal, DesignSystem.Spacing.md)
+            .padding(.vertical, DesignSystem.Spacing.sm)
             .background(.ultraThinMaterial)
 
             // Status bar
@@ -244,48 +247,83 @@ struct EmptyConversationView: View {
             // Animated logo
             ZStack {
                 Circle()
-                    .fill(Color.purple.opacity(0.1))
+                    .fill(
+                        LinearGradient(
+                            colors: [DesignSystem.Colors.primary.opacity(0.2), DesignSystem.Colors.info.opacity(0.1)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
                     .frame(width: 120, height: 120)
                     .scaleEffect(animateLogo ? 1.05 : 0.95)
+                    .shadow(
+                        color: DesignSystem.Colors.primary.opacity(0.3),
+                        radius: 20,
+                        x: 0,
+                        y: 10
+                    )
 
                 Image(systemName: "brain.head.profile")
-                    .font(.system(size: 50))
-                    .foregroundStyle(.purple.gradient)
+                    .font(.system(size: 50, weight: .medium))
+                    .foregroundStyle(
+                        LinearGradient(
+                            colors: [DesignSystem.Colors.primary, DesignSystem.Colors.info],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
             }
-            .animation(
-                .easeInOut(duration: 2).repeatForever(autoreverses: true),
-                value: animateLogo
-            )
+            .animation(DesignSystem.Animation.gentle.repeatForever(autoreverses: true), value: animateLogo)
             .onAppear { animateLogo = true }
 
             Text("Welcome to Convergio")
-                .font(.title2.weight(.semibold))
+                .font(DesignSystem.Typography.title.bold())
+                .foregroundStyle(
+                    LinearGradient(
+                        colors: [DesignSystem.Colors.primary, DesignSystem.Colors.info],
+                        startPoint: .leading,
+                        endPoint: .trailing
+                    )
+                )
 
             Text("Your AI Executive Team is ready to help")
-                .font(.body)
-                .foregroundStyle(.secondary)
+                .font(DesignSystem.Typography.body)
+                .foregroundStyle(DesignSystem.Colors.textSecondary)
+                .multilineTextAlignment(.center)
 
             // Quick suggestions
-            VStack(alignment: .leading, spacing: 12) {
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
                 Text("Try asking:")
-                    .font(.caption)
-                    .foregroundStyle(.tertiary)
+                    .font(DesignSystem.Typography.caption)
+                    .foregroundStyle(DesignSystem.Colors.textTertiary)
+                    .padding(.horizontal, DesignSystem.Spacing.xs)
 
                 ForEach([
                     "Help me plan a project",
                     "Analyze this problem for me",
                     "Write a compelling email"
                 ], id: \.self) { suggestion in
-                    HStack {
-                        Image(systemName: "lightbulb")
-                            .foregroundStyle(.yellow)
-                        Text(suggestion)
-                            .font(.callout)
+                    Button {
+                        // Auto-fill suggestion
+                    } label: {
+                        HStack(spacing: DesignSystem.Spacing.sm) {
+                            Image(systemName: "lightbulb.fill")
+                                .foregroundStyle(DesignSystem.Colors.warning)
+                                .font(DesignSystem.Typography.caption)
+                            Text(suggestion)
+                                .font(DesignSystem.Typography.callout)
+                                .foregroundStyle(DesignSystem.Colors.textPrimary)
+                        }
+                        .padding(.horizontal, DesignSystem.Spacing.md)
+                        .padding(.vertical, DesignSystem.Spacing.sm + 2)
+                        .background(DesignSystem.Colors.textSecondary.opacity(0.1))
+                        .clipShape(RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.medium))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.medium)
+                                .stroke(DesignSystem.Colors.textSecondary.opacity(0.2), lineWidth: 1)
+                        )
                     }
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 8)
-                    .background(Color.secondary.opacity(0.1))
-                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                    .buttonStyle(.plain)
                 }
             }
 
@@ -321,13 +359,13 @@ struct MessageBubble: View {
                 HStack {
                     if !message.isFromUser {
                         Text(senderName)
-                            .font(.caption)
+                            .font(DesignSystem.Typography.caption)
                             .fontWeight(.semibold)
                     }
 
                     Text(message.formattedTime)
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
+                        .font(DesignSystem.Typography.caption2)
+                        .foregroundStyle(DesignSystem.Colors.textSecondary)
 
                     // Copy button (appears on hover)
                     if isHovering && !message.isFromUser {
@@ -352,10 +390,16 @@ struct MessageBubble: View {
                 // Message content
                 Text(message.content)
                     .textSelection(.enabled)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 8)
+                    .padding(.horizontal, DesignSystem.Spacing.md)
+                    .padding(.vertical, DesignSystem.Spacing.sm)
                     .background(bubbleBackground)
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                    .clipShape(RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.large))
+                    .shadow(
+                        color: DesignSystem.Shadow.medium.color,
+                        radius: DesignSystem.Shadow.medium.radius,
+                        x: DesignSystem.Shadow.medium.x,
+                        y: DesignSystem.Shadow.medium.y
+                    )
             }
 
             // User avatar on right
@@ -429,17 +473,21 @@ struct MessageBubble: View {
     @ViewBuilder
     private var bubbleBackground: some View {
         if message.isFromUser {
-            Color.accentColor.opacity(0.15)
+            LinearGradient(
+                colors: [DesignSystem.Colors.primary.opacity(0.2), DesignSystem.Colors.primary.opacity(0.15)],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
         } else if message.type == .convergence {
             LinearGradient(
-                colors: [.purple.opacity(0.1), .blue.opacity(0.1)],
+                colors: [DesignSystem.Colors.primary.opacity(0.15), DesignSystem.Colors.info.opacity(0.15)],
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             )
         } else if message.type == .error {
-            Color.red.opacity(0.1)
+            DesignSystem.Colors.error.opacity(0.15)
         } else {
-            Color.secondary.opacity(0.1)
+            DesignSystem.Colors.textSecondary.opacity(0.15)
         }
     }
 }
@@ -462,24 +510,24 @@ struct StreamingIndicator: View {
                 .background(.blue)
                 .clipShape(Circle())
 
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
                 HStack {
                     Text("Thinking")
-                        .font(.caption)
+                        .font(DesignSystem.Typography.caption)
                         .fontWeight(.semibold)
 
                     Text(String(repeating: ".", count: dotCount + 1))
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .font(DesignSystem.Typography.caption)
+                        .foregroundStyle(DesignSystem.Colors.textSecondary)
                 }
 
                 if !text.isEmpty {
                     Text(text)
                         .textSelection(.enabled)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 8)
-                        .background(Color.secondary.opacity(0.1))
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                        .padding(.horizontal, DesignSystem.Spacing.md)
+                        .padding(.vertical, DesignSystem.Spacing.sm)
+                        .background(DesignSystem.Colors.textSecondary.opacity(0.1))
+                        .clipShape(RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.large))
                 } else {
                     TypingIndicator()
                 }
@@ -498,10 +546,10 @@ struct TypingIndicator: View {
     @State private var animating = false
 
     var body: some View {
-        HStack(spacing: 4) {
+        HStack(spacing: DesignSystem.Spacing.xs) {
             ForEach(0..<3, id: \.self) { index in
                 Circle()
-                    .fill(Color.secondary)
+                    .fill(DesignSystem.Colors.textSecondary)
                     .frame(width: 8, height: 8)
                     .scaleEffect(animating ? 1.0 : 0.5)
                     .animation(
@@ -512,10 +560,10 @@ struct TypingIndicator: View {
                     )
             }
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
-        .background(Color.secondary.opacity(0.1))
-        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .padding(.horizontal, DesignSystem.Spacing.md)
+        .padding(.vertical, DesignSystem.Spacing.sm)
+        .background(DesignSystem.Colors.textSecondary.opacity(0.1))
+        .clipShape(RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.large))
         .onAppear {
             animating = true
         }
@@ -529,54 +577,54 @@ struct StatusBarView: View {
     @EnvironmentObject var conversationVM: ConversationViewModel
 
     var body: some View {
-        HStack(spacing: 16) {
+        HStack(spacing: DesignSystem.Spacing.md) {
             // Model indicator
-            HStack(spacing: 4) {
+            HStack(spacing: DesignSystem.Spacing.xs) {
                 Image(systemName: "cpu")
-                    .font(.caption2)
+                    .font(DesignSystem.Typography.caption2)
                 Text(orchestratorVM.currentModel)
-                    .font(.caption2)
+                    .font(DesignSystem.Typography.caption2)
             }
-            .foregroundStyle(.secondary)
+            .foregroundStyle(DesignSystem.Colors.textSecondary)
 
             Divider()
                 .frame(height: 12)
 
             // Token count
-            HStack(spacing: 4) {
+            HStack(spacing: DesignSystem.Spacing.xs) {
                 Image(systemName: "number")
-                    .font(.caption2)
+                    .font(DesignSystem.Typography.caption2)
                 Text("\(orchestratorVM.costInfo.sessionUsage.totalTokens) tokens")
-                    .font(.caption2)
+                    .font(DesignSystem.Typography.caption2)
             }
-            .foregroundStyle(.secondary)
+            .foregroundStyle(DesignSystem.Colors.textSecondary)
 
             Divider()
                 .frame(height: 12)
 
             // Cost indicator
-            HStack(spacing: 4) {
+            HStack(spacing: DesignSystem.Spacing.xs) {
                 Image(systemName: "dollarsign.circle")
-                    .font(.caption2)
+                    .font(DesignSystem.Typography.caption2)
                 Text(String(format: "$%.2f / $%.0f", orchestratorVM.costInfo.sessionCost, orchestratorVM.costInfo.budgetLimit))
-                    .font(.caption2)
+                    .font(DesignSystem.Typography.caption2)
             }
-            .foregroundStyle(orchestratorVM.costInfo.isOverBudget ? .red : .secondary)
+            .foregroundStyle(orchestratorVM.costInfo.isOverBudget ? DesignSystem.Colors.error : DesignSystem.Colors.textSecondary)
 
             Spacer()
 
             // Message count
-            HStack(spacing: 4) {
+            HStack(spacing: DesignSystem.Spacing.xs) {
                 Image(systemName: "bubble.left.and.bubble.right")
-                    .font(.caption2)
+                    .font(DesignSystem.Typography.caption2)
                 Text("\(conversationVM.messages.count) messages")
-                    .font(.caption2)
+                    .font(DesignSystem.Typography.caption2)
             }
-            .foregroundStyle(.secondary)
+            .foregroundStyle(DesignSystem.Colors.textSecondary)
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 4)
-        .background(Color(nsColor: .windowBackgroundColor))
+        .padding(.horizontal, DesignSystem.Spacing.md)
+        .padding(.vertical, DesignSystem.Spacing.xs)
+        .background(DesignSystem.Colors.background)
     }
 }
 

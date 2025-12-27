@@ -18,46 +18,72 @@ struct SidebarView: View {
     @State private var expandedSections: Set<AgentRole> = Set(AgentRole.allCases)
 
     var body: some View {
-        List(selection: $selectedAgent) {
-            // Active agents section
-            if !orchestratorVM.activeAgents.isEmpty {
-                Section("Active") {
-                    ForEach(orchestratorVM.activeAgents) { agent in
-                        AgentRowView(agent: agent)
-                            .tag(agent)
-                    }
-                }
-            }
-
-            // All agents by role
-            ForEach(AgentRole.allCases, id: \.self) { role in
-                let agentsForRole = filteredAgents.filter { $0.role == role }
-                if !agentsForRole.isEmpty {
-                    Section(isExpanded: Binding(
-                        get: { expandedSections.contains(role) },
-                        set: { isExpanded in
-                            if isExpanded {
-                                expandedSections.insert(role)
-                            } else {
-                                expandedSections.remove(role)
-                            }
-                        }
-                    )) {
-                        ForEach(agentsForRole) { agent in
+        VStack(spacing: 0) {
+            List(selection: $selectedAgent) {
+                // Active agents section
+                if !orchestratorVM.activeAgents.isEmpty {
+                    Section("Active") {
+                        ForEach(orchestratorVM.activeAgents) { agent in
                             AgentRowView(agent: agent)
                                 .tag(agent)
                         }
-                    } header: {
-                        HStack {
-                            Image(systemName: role.iconName)
-                            Text(role.displayName)
+                    }
+                }
+
+                // All agents by role
+                ForEach(AgentRole.allCases, id: \.self) { role in
+                    let agentsForRole = filteredAgents.filter { $0.role == role }
+                    if !agentsForRole.isEmpty {
+                        Section(isExpanded: Binding(
+                            get: { expandedSections.contains(role) },
+                            set: { isExpanded in
+                                if isExpanded {
+                                    expandedSections.insert(role)
+                                } else {
+                                    expandedSections.remove(role)
+                                }
+                            }
+                        )) {
+                            ForEach(agentsForRole) { agent in
+                                AgentRowView(agent: agent)
+                                    .tag(agent)
+                            }
+                        } header: {
+                            HStack {
+                                Image(systemName: role.iconName)
+                                Text(role.displayName)
+                            }
                         }
                     }
                 }
             }
+            .listStyle(.sidebar)
+            .searchable(text: $searchText, prompt: "Search agents")
+
+            // Bottom settings button
+            Divider()
+
+            HStack {
+                SettingsLink {
+                    HStack(spacing: 8) {
+                        Image(systemName: "gearshape.fill")
+                            .font(.body)
+                        Text("Settings")
+                            .font(.subheadline)
+                    }
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 10)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .help("Open Settings (⌘,)")
+            }
+            .padding(.horizontal, 8)
+            .padding(.vertical, 8)
+            .background(.ultraThinMaterial)
         }
-        .listStyle(.sidebar)
-        .searchable(text: $searchText, prompt: "Search agents")
         .navigationTitle("Agents")
         .toolbar {
             ToolbarItem {

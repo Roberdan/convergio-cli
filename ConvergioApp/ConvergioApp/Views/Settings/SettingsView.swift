@@ -127,54 +127,119 @@ struct GeneralSettingsTab: View {
     @AppStorage("showInMenuBar") private var showInMenuBar = true
     @AppStorage("notificationsEnabled") private var notificationsEnabled = true
     @AppStorage("soundEffectsEnabled") private var soundEffectsEnabled = true
+    @AppStorage("notifyTaskCompletion") private var notifyTaskCompletion = true
+    @AppStorage("notifyBudgetWarnings") private var notifyBudgetWarnings = true
+    @AppStorage("notifyAgentCollaboration") private var notifyAgentCollaboration = false
 
     var body: some View {
-        Form {
-            Section("Startup") {
-                Toggle("Launch at Login", isOn: $launchAtLogin)
-                Toggle("Show in Menu Bar", isOn: $showInMenuBar)
-            }
+        ScrollView {
+            VStack(spacing: 24) {
+                // Startup Section
+                SettingsSection(title: "Startup", icon: "power") {
+                    SettingsRow {
+                        Toggle("Launch at Login", isOn: $launchAtLogin)
+                    }
+                    SettingsRow {
+                        Toggle("Show in Menu Bar", isOn: $showInMenuBar)
+                    }
+                }
 
-            Section("Notifications") {
-                Toggle("Enable Notifications", isOn: $notificationsEnabled)
-                Toggle("Sound Effects", isOn: $soundEffectsEnabled)
+                // Notifications Section
+                SettingsSection(title: "Notifications", icon: "bell.fill") {
+                    SettingsRow {
+                        Toggle("Enable Notifications", isOn: $notificationsEnabled)
+                    }
+                    SettingsRow {
+                        Toggle("Sound Effects", isOn: $soundEffectsEnabled)
+                    }
+                    .disabled(!notificationsEnabled)
 
-                if notificationsEnabled {
-                    HStack {
-                        Text("Notify on:")
-                        Spacer()
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text("• Task completion")
-                            Text("• Budget warnings")
-                            Text("• Agent collaboration")
+                    if notificationsEnabled {
+                        Divider().padding(.vertical, 4)
+
+                        SettingsRow {
+                            Toggle("Task Completion", isOn: $notifyTaskCompletion)
                         }
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                        SettingsRow {
+                            Toggle("Budget Warnings", isOn: $notifyBudgetWarnings)
+                        }
+                        SettingsRow {
+                            Toggle("Agent Collaboration", isOn: $notifyAgentCollaboration)
+                        }
                     }
-                }
-            }
-
-            Section("Privacy") {
-                HStack {
-                    Text("Conversation History")
-                    Spacer()
-                    Button("Clear History") {
-                        // TODO: Implement history clearing
-                    }
-                    .buttonStyle(.bordered)
                 }
 
-                HStack {
-                    Text("Cached Data")
-                    Spacer()
-                    Button("Clear Cache") {
-                        // TODO: Implement cache clearing
+                // Privacy Section
+                SettingsSection(title: "Privacy & Data", icon: "lock.shield.fill") {
+                    SettingsRow {
+                        HStack {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Conversation History")
+                                Text("Clear all past conversations")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                            Spacer()
+                            Button("Clear History") {
+                                // TODO: Implement
+                            }
+                            .controlSize(.regular)
+                        }
                     }
-                    .buttonStyle(.bordered)
+
+                    SettingsRow {
+                        HStack {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Cached Data")
+                                Text("Clear temporary files and cache")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                            Spacer()
+                            Button("Clear Cache") {
+                                // TODO: Implement
+                            }
+                            .controlSize(.regular)
+                        }
+                    }
                 }
+
+                Spacer()
             }
+            .padding(24)
         }
-        .padding()
+    }
+}
+
+// MARK: - Settings UI Components
+
+private struct SettingsSection<Content: View>: View {
+    let title: String
+    let icon: String
+    @ViewBuilder let content: Content
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Label(title, systemImage: icon)
+                .font(.headline)
+                .foregroundStyle(.primary)
+
+            VStack(spacing: 0) {
+                content
+            }
+            .background(Color(nsColor: .controlBackgroundColor))
+            .clipShape(RoundedRectangle(cornerRadius: 8))
+        }
+    }
+}
+
+private struct SettingsRow<Content: View>: View {
+    @ViewBuilder let content: Content
+
+    var body: some View {
+        content
+            .padding(.horizontal, 12)
+            .padding(.vertical, 10)
     }
 }
 
@@ -182,60 +247,199 @@ struct GeneralSettingsTab: View {
 
 struct ProvidersSettingsTab: View {
     @ObservedObject var keychainManager = KeychainManager.shared
-    @State private var selectedProvider: APIProvider = .openai
+    @State private var selectedProvider: APIProvider?
+    @State private var apiKeyInput = ""
+    @State private var showApiKey = false
+    @State private var showSaveConfirmation = false
 
     /// Filter providers based on edition
-    /// EDU edition only allows GDPR-compliant providers (Azure OpenAI via OpenAI key, no Anthropic)
     private var allowedProviders: [APIProvider] {
         let isEDU = EditionManager.shared.currentEdition == .education
         if isEDU {
-            // EDU: Only OpenAI (Azure) and Gemini (Google EU), no Anthropic
-            return APIProvider.allCases.filter { $0 != .anthropic }
+            return APIProvider.allCases.filter { $0 != .anthropic && !$0.isAzureVoice }
         }
-        return APIProvider.allCases
+        return APIProvider.allCases.filter { !$0.isAzureVoice }
     }
 
     var body: some View {
-        HSplitView {
-            // Provider list - filtered by edition
-            List(allowedProviders, selection: $selectedProvider) { provider in
-                HStack(spacing: 12) {
-                    Image(systemName: provider.icon)
-                        .frame(width: 24)
-                        .foregroundStyle(keychainManager.getKey(for: provider) != nil ? .green : .secondary)
-                    VStack(alignment: .leading) {
-                        Text(provider.displayName)
-                            .font(.headline)
-                        if keychainManager.getKey(for: provider) != nil {
-                            Text("Configured")
-                                .font(.caption)
-                                .foregroundStyle(.green)
-                        } else {
-                            Text("Not configured")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
+        ScrollView {
+            VStack(spacing: 24) {
+                // Provider Overview Section
+                SettingsSection(title: "AI Providers", icon: "brain.head.profile") {
+                    ForEach(allowedProviders) { provider in
+                        SettingsRow {
+                            HStack(spacing: 12) {
+                                Image(systemName: provider.icon)
+                                    .font(.title3)
+                                    .foregroundStyle(keychainManager.getKey(for: provider) != nil ? .green : .secondary)
+                                    .frame(width: 28)
+
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(provider.displayName)
+                                        .font(.body.weight(.medium))
+                                    if keychainManager.getKey(for: provider) != nil {
+                                        Text("Configured")
+                                            .font(.caption)
+                                            .foregroundStyle(.green)
+                                    } else if !provider.requiresAPIKey {
+                                        Text("No key required")
+                                            .font(.caption)
+                                            .foregroundStyle(.blue)
+                                    } else {
+                                        Text("Not configured")
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
+                                    }
+                                }
+
+                                Spacer()
+
+                                if selectedProvider == provider {
+                                    Image(systemName: "chevron.down")
+                                        .foregroundStyle(.secondary)
+                                } else {
+                                    Image(systemName: "chevron.right")
+                                        .foregroundStyle(.tertiary)
+                                }
+                            }
+                            .contentShape(Rectangle())
+                            .onTapGesture {
+                                withAnimation(.easeInOut(duration: 0.2)) {
+                                    if selectedProvider == provider {
+                                        selectedProvider = nil
+                                    } else {
+                                        selectedProvider = provider
+                                        apiKeyInput = ""
+                                        showApiKey = false
+                                        showSaveConfirmation = false
+                                    }
+                                }
+                            }
+                        }
+
+                        // Expanded configuration panel
+                        if selectedProvider == provider {
+                            ProviderConfigPanel(
+                                provider: provider,
+                                keychainManager: keychainManager,
+                                apiKeyInput: $apiKeyInput,
+                                showApiKey: $showApiKey,
+                                showSaveConfirmation: $showSaveConfirmation
+                            )
+                            .padding(.horizontal, 12)
+                            .padding(.bottom, 12)
+                        }
+
+                        if provider != allowedProviders.last {
+                            Divider().padding(.horizontal, 12)
                         }
                     }
                 }
-                .padding(.vertical, 4)
-            }
-            .frame(minWidth: 150, maxWidth: 200)
 
-            // Provider detail
-            ProviderDetailView(provider: selectedProvider)
+                // Azure Voice Services (collapsed by default)
+                let azureVoiceProviders = APIProvider.allCases.filter { $0.isAzureVoice }
+                if !azureVoiceProviders.isEmpty {
+                    SettingsSection(title: "Azure Voice Services", icon: "waveform") {
+                        ForEach(azureVoiceProviders) { provider in
+                            SettingsRow {
+                                HStack(spacing: 12) {
+                                    Image(systemName: provider.icon)
+                                        .font(.title3)
+                                        .foregroundStyle(keychainManager.getKey(for: provider) != nil ? .green : .secondary)
+                                        .frame(width: 28)
+
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text(provider.displayName)
+                                            .font(.body.weight(.medium))
+                                        if keychainManager.getKey(for: provider) != nil {
+                                            Text("Configured")
+                                                .font(.caption)
+                                                .foregroundStyle(.green)
+                                        } else {
+                                            Text("Not configured")
+                                                .font(.caption)
+                                                .foregroundStyle(.secondary)
+                                        }
+                                    }
+
+                                    Spacer()
+
+                                    if selectedProvider == provider {
+                                        Image(systemName: "chevron.down")
+                                            .foregroundStyle(.secondary)
+                                    } else {
+                                        Image(systemName: "chevron.right")
+                                            .foregroundStyle(.tertiary)
+                                    }
+                                }
+                                .contentShape(Rectangle())
+                                .onTapGesture {
+                                    withAnimation(.easeInOut(duration: 0.2)) {
+                                        if selectedProvider == provider {
+                                            selectedProvider = nil
+                                        } else {
+                                            selectedProvider = provider
+                                            apiKeyInput = ""
+                                            showApiKey = false
+                                            showSaveConfirmation = false
+                                        }
+                                    }
+                                }
+                            }
+
+                            if selectedProvider == provider {
+                                ProviderConfigPanel(
+                                    provider: provider,
+                                    keychainManager: keychainManager,
+                                    apiKeyInput: $apiKeyInput,
+                                    showApiKey: $showApiKey,
+                                    showSaveConfirmation: $showSaveConfirmation
+                                )
+                                .padding(.horizontal, 12)
+                                .padding(.bottom, 12)
+                            }
+
+                            if provider != azureVoiceProviders.last {
+                                Divider().padding(.horizontal, 12)
+                            }
+                        }
+                    }
+                }
+
+                // Info Section
+                SettingsSection(title: "Information", icon: "info.circle") {
+                    SettingsRow {
+                        HStack {
+                            Text("API keys are stored securely in macOS Keychain")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                            Spacer()
+                        }
+                    }
+                }
+
+                Spacer()
+            }
+            .padding(24)
         }
-        .padding()
     }
 }
 
-private struct ProviderDetailView: View {
+// MARK: - Provider Configuration Panel
+
+private struct ProviderConfigPanel: View {
     let provider: APIProvider
-    @ObservedObject var keychainManager = KeychainManager.shared
-    @State private var apiKeyInput = ""
-    @State private var showApiKey = false
+    @ObservedObject var keychainManager: KeychainManager
+    @Binding var apiKeyInput: String
+    @Binding var showApiKey: Bool
+    @Binding var showSaveConfirmation: Bool
+
+    // Azure-specific fields
+    @State private var azureEndpoint: String = ""
+    @State private var azureDeployment: String = ""
+
     @State private var isTestingConnection = false
     @State private var connectionStatus: ConnectionStatus = .unknown
-    @State private var showSaveConfirmation = false
 
     enum ConnectionStatus {
         case unknown, testing, success, failure
@@ -249,115 +453,286 @@ private struct ProviderDetailView: View {
         keychainManager.getMaskedKey(for: provider) ?? ""
     }
 
+    /// Check if this is the Azure OpenAI provider (which needs endpoint + key + deployment)
+    private var isAzureOpenAI: Bool {
+        provider == .azureOpenAI
+    }
+
+    /// Check if Azure is fully configured (all 3 fields)
+    private var isAzureFullyConfigured: Bool {
+        keychainManager.getKey(for: .azureOpenAI) != nil &&
+        keychainManager.getKey(for: .azureRealtimeEndpoint) != nil &&
+        keychainManager.getKey(for: .azureRealtimeDeployment) != nil
+    }
+
     var body: some View {
-        Form {
-            Section("API Configuration") {
-                if hasExistingKey {
-                    // Show existing key (masked)
-                    HStack {
-                        Text("Current Key:")
-                            .foregroundStyle(.secondary)
-                        Text(maskedKey)
-                            .font(.body.monospaced())
-                        Spacer()
-                        Button("Remove") {
-                            keychainManager.deleteKey(for: provider)
-                            apiKeyInput = ""
-                            connectionStatus = .unknown
-                        }
-                        .foregroundStyle(.red)
+        VStack(alignment: .leading, spacing: 16) {
+            // Azure OpenAI requires special handling with 3 fields
+            if isAzureOpenAI {
+                azureOpenAIConfiguration
+            } else {
+                standardProviderConfiguration
+            }
+
+            // Available models
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Available Models")
+                    .font(.caption.weight(.medium))
+                    .foregroundStyle(.secondary)
+
+                FlowLayout(spacing: 6) {
+                    ForEach(modelsForProvider, id: \.self) { model in
+                        Text(model)
+                            .font(.caption.monospaced())
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background(Color.secondary.opacity(0.1))
+                            .clipShape(RoundedRectangle(cornerRadius: 4))
                     }
-
-                    Divider()
-
-                    Text("Enter new key to replace:")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
                 }
+            }
+        }
+        .padding(12)
+        .background(Color(nsColor: .windowBackgroundColor).opacity(0.5))
+        .clipShape(RoundedRectangle(cornerRadius: 8))
+        .onAppear {
+            // Load existing Azure values
+            if isAzureOpenAI {
+                azureEndpoint = keychainManager.getKey(for: .azureRealtimeEndpoint) ?? ""
+                azureDeployment = keychainManager.getKey(for: .azureRealtimeDeployment) ?? ""
+            }
+        }
+    }
 
-                HStack {
+    // MARK: - Azure OpenAI Configuration (3 fields)
+
+    @ViewBuilder
+    private var azureOpenAIConfiguration: some View {
+        // Status indicator
+        if isAzureFullyConfigured {
+            HStack {
+                Label("Azure OpenAI Configured", systemImage: "checkmark.circle.fill")
+                    .font(.caption.weight(.medium))
+                    .foregroundStyle(.green)
+                Spacer()
+                Button("Clear All") {
+                    keychainManager.deleteKey(for: .azureOpenAI)
+                    keychainManager.deleteKey(for: .azureRealtimeEndpoint)
+                    keychainManager.deleteKey(for: .azureRealtimeDeployment)
+                    keychainManager.deleteKey(for: .azureRealtimeKey)
+                    azureEndpoint = ""
+                    azureDeployment = ""
+                    apiKeyInput = ""
+                    connectionStatus = .unknown
+                }
+                .font(.caption)
+                .foregroundStyle(.red)
+                .buttonStyle(.plain)
+            }
+            .padding(10)
+            .background(Color.green.opacity(0.1))
+            .clipShape(RoundedRectangle(cornerRadius: 6))
+        }
+
+        // Endpoint field
+        VStack(alignment: .leading, spacing: 4) {
+            Text("Endpoint")
+                .font(.caption.weight(.medium))
+                .foregroundStyle(.secondary)
+            TextField("https://your-resource.openai.azure.com", text: $azureEndpoint)
+                .textFieldStyle(.roundedBorder)
+                .font(.body.monospaced())
+            Text("Your Azure OpenAI resource endpoint")
+                .font(.caption2)
+                .foregroundStyle(.tertiary)
+        }
+
+        // API Key field
+        VStack(alignment: .leading, spacing: 4) {
+            Text("API Key")
+                .font(.caption.weight(.medium))
+                .foregroundStyle(.secondary)
+            HStack(spacing: 8) {
+                if showApiKey {
+                    TextField("API Key", text: $apiKeyInput)
+                        .textFieldStyle(.roundedBorder)
+                        .font(.body.monospaced())
+                } else {
+                    SecureField("API Key", text: $apiKeyInput)
+                        .textFieldStyle(.roundedBorder)
+                }
+                Button {
+                    showApiKey.toggle()
+                } label: {
+                    Image(systemName: showApiKey ? "eye.slash" : "eye")
+                }
+                .buttonStyle(.borderless)
+            }
+        }
+
+        // Deployment Name field
+        VStack(alignment: .leading, spacing: 4) {
+            Text("Deployment Name")
+                .font(.caption.weight(.medium))
+                .foregroundStyle(.secondary)
+            TextField("gpt-4o or gpt-4o-realtime", text: $azureDeployment)
+                .textFieldStyle(.roundedBorder)
+                .font(.body.monospaced())
+            Text("The name of your deployed model")
+                .font(.caption2)
+                .foregroundStyle(.tertiary)
+        }
+
+        // Save button
+        HStack(spacing: 12) {
+            Button("Save Azure Configuration") {
+                saveAzureConfiguration()
+            }
+            .buttonStyle(.borderedProminent)
+            .controlSize(.small)
+            .disabled(azureEndpoint.isEmpty || apiKeyInput.isEmpty || azureDeployment.isEmpty)
+
+            if showSaveConfirmation {
+                Label("Saved!", systemImage: "checkmark.circle.fill")
+                    .font(.caption)
+                    .foregroundStyle(.green)
+            }
+
+            Spacer()
+
+            if isAzureFullyConfigured {
+                Button {
+                    testConnection()
+                } label: {
+                    HStack(spacing: 4) {
+                        if isTestingConnection {
+                            ProgressView()
+                                .scaleEffect(0.6)
+                        }
+                        Text("Test")
+                    }
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+                .disabled(isTestingConnection)
+
+                connectionStatusView
+            }
+        }
+    }
+
+    // MARK: - Standard Provider Configuration (single API key)
+
+    @ViewBuilder
+    private var standardProviderConfiguration: some View {
+        // Current key status
+        if hasExistingKey {
+            HStack {
+                Label("Current Key", systemImage: "key.fill")
+                    .font(.caption.weight(.medium))
+                    .foregroundStyle(.secondary)
+                Spacer()
+                Text(maskedKey)
+                    .font(.caption.monospaced())
+                    .foregroundStyle(.secondary)
+                Button("Remove") {
+                    keychainManager.deleteKey(for: provider)
+                    apiKeyInput = ""
+                    connectionStatus = .unknown
+                }
+                .font(.caption)
+                .foregroundStyle(.red)
+                .buttonStyle(.plain)
+            }
+            .padding(10)
+            .background(Color.green.opacity(0.1))
+            .clipShape(RoundedRectangle(cornerRadius: 6))
+        }
+
+        // API Key input (if required)
+        if provider.requiresAPIKey {
+            VStack(alignment: .leading, spacing: 8) {
+                Text(hasExistingKey ? "Replace API Key" : "Enter API Key")
+                    .font(.caption.weight(.medium))
+                    .foregroundStyle(.secondary)
+
+                HStack(spacing: 8) {
                     if showApiKey {
                         TextField("API Key", text: $apiKeyInput)
                             .textFieldStyle(.roundedBorder)
+                            .font(.body.monospaced())
                     } else {
                         SecureField("API Key", text: $apiKeyInput)
                             .textFieldStyle(.roundedBorder)
                     }
+
                     Button {
                         showApiKey.toggle()
                     } label: {
                         Image(systemName: showApiKey ? "eye.slash" : "eye")
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(.borderless)
                 }
 
-                HStack {
-                    Button("Save Key") {
-                        saveKey()
-                    }
-                    .disabled(apiKeyInput.isEmpty)
-                    .buttonStyle(.borderedProminent)
+                // Validation warning
+                if !apiKeyInput.isEmpty && !keychainManager.isValidKeyFormat(apiKeyInput, for: provider) {
+                    Label("Key format may be invalid for \(provider.displayName)", systemImage: "exclamationmark.triangle")
+                        .font(.caption)
+                        .foregroundStyle(.orange)
+                }
+            }
 
-                    if showSaveConfirmation {
-                        Label("Saved!", systemImage: "checkmark.circle.fill")
-                            .foregroundStyle(.green)
-                            .transition(.opacity)
-                    }
+            // Action buttons
+            HStack(spacing: 12) {
+                Button("Save Key") {
+                    saveKey()
+                }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.small)
+                .disabled(apiKeyInput.isEmpty)
 
-                    Spacer()
+                if showSaveConfirmation {
+                    Label("Saved!", systemImage: "checkmark.circle.fill")
+                        .font(.caption)
+                        .foregroundStyle(.green)
+                }
 
-                    Button("Test Connection") {
+                Spacer()
+
+                if hasExistingKey {
+                    Button {
                         testConnection()
+                    } label: {
+                        HStack(spacing: 4) {
+                            if isTestingConnection {
+                                ProgressView()
+                                    .scaleEffect(0.6)
+                            }
+                            Text("Test")
+                        }
                     }
-                    .disabled(!hasExistingKey || isTestingConnection)
-
-                    if isTestingConnection {
-                        ProgressView()
-                            .scaleEffect(0.7)
-                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+                    .disabled(isTestingConnection)
 
                     connectionStatusView
                 }
             }
-
-            Section("Provider Info") {
-                HStack {
-                    Text("Environment Variable")
-                    Spacer()
-                    Text(provider.envVariable)
-                        .font(.body.monospaced())
-                        .foregroundStyle(.secondary)
-                }
-
-                if !keychainManager.isValidKeyFormat(apiKeyInput, for: provider) && !apiKeyInput.isEmpty {
-                    Label("Key format may be invalid", systemImage: "exclamationmark.triangle")
-                        .foregroundStyle(.orange)
-                        .font(.caption)
-                }
+        } else {
+            // For providers like Ollama that don't need API key
+            HStack {
+                Label("No API key required", systemImage: "checkmark.circle")
+                    .font(.caption)
+                    .foregroundStyle(.blue)
+                Spacer()
             }
-
-            Section("Models") {
-                ForEach(modelsForProvider, id: \.self) { model in
-                    HStack {
-                        Text(model)
-                            .font(.body.monospaced())
-                        Spacer()
-                    }
-                }
-            }
-        }
-        .padding()
-        .onChange(of: provider) { _, _ in
-            apiKeyInput = ""
-            connectionStatus = .unknown
-            showSaveConfirmation = false
         }
     }
 
     private var modelsForProvider: [String] {
         switch provider {
         case .anthropic:
-            return ["claude-sonnet-4-20250514", "claude-3-5-sonnet-20241022", "claude-3-opus-20240229"]
+            return ["claude-sonnet-4-20250514", "claude-3-5-sonnet", "claude-3-opus"]
         case .openai:
             return ["gpt-4o", "gpt-4o-mini", "gpt-4-turbo"]
         case .azureOpenAI:
@@ -365,11 +740,13 @@ private struct ProviderDetailView: View {
         case .gemini:
             return ["gemini-2.0-flash", "gemini-1.5-pro", "gemini-1.5-flash"]
         case .openrouter:
-            return ["anthropic/claude-3.5-sonnet", "openai/gpt-4o", "google/gemini-pro"]
+            return ["claude-3.5-sonnet", "gpt-4o", "gemini-pro"]
         case .perplexity:
-            return ["llama-3.1-sonar-large-128k-online", "llama-3.1-sonar-small-128k-online"]
+            return ["sonar-large", "sonar-small"]
         case .grok:
             return ["grok-2", "grok-2-mini"]
+        case .ollama:
+            return ["llama3.3", "mistral", "codellama", "phi3"]
         case .azureRealtimeKey, .azureRealtimeEndpoint, .azureRealtimeDeployment:
             return ["gpt-4o-realtime"]
         }
@@ -382,12 +759,15 @@ private struct ProviderDetailView: View {
             EmptyView()
         case .testing:
             Text("Testing...")
+                .font(.caption)
                 .foregroundStyle(.secondary)
         case .success:
-            Label("Connected", systemImage: "checkmark.circle.fill")
+            Label("OK", systemImage: "checkmark.circle.fill")
+                .font(.caption)
                 .foregroundStyle(.green)
         case .failure:
             Label("Failed", systemImage: "xmark.circle.fill")
+                .font(.caption)
                 .foregroundStyle(.red)
         }
     }
@@ -400,12 +780,37 @@ private struct ProviderDetailView: View {
             showSaveConfirmation = true
             logInfo("Saved \(provider.displayName) API key", category: "Settings")
 
-            // Hide confirmation after 2 seconds
             DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
                 withAnimation {
                     showSaveConfirmation = false
                 }
             }
+        }
+    }
+
+    private func saveAzureConfiguration() {
+        guard !azureEndpoint.isEmpty, !apiKeyInput.isEmpty, !azureDeployment.isEmpty else { return }
+
+        // Save all 3 Azure fields
+        let endpointSaved = keychainManager.saveKey(azureEndpoint, for: .azureRealtimeEndpoint)
+        let keySaved = keychainManager.saveKey(apiKeyInput, for: .azureOpenAI)
+        let deploymentSaved = keychainManager.saveKey(azureDeployment, for: .azureRealtimeDeployment)
+
+        // Also save to azureRealtimeKey for voice functionality
+        _ = keychainManager.saveKey(apiKeyInput, for: .azureRealtimeKey)
+
+        if endpointSaved && keySaved && deploymentSaved {
+            apiKeyInput = ""
+            showSaveConfirmation = true
+            logInfo("Saved Azure OpenAI configuration (endpoint, key, deployment)", category: "Settings")
+
+            DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+                withAnimation {
+                    showSaveConfirmation = false
+                }
+            }
+        } else {
+            logError("Failed to save Azure OpenAI configuration", category: "Settings")
         }
     }
 
@@ -415,8 +820,6 @@ private struct ProviderDetailView: View {
         isTestingConnection = true
         connectionStatus = .testing
 
-        // TODO: Implement actual API test
-        // For now, just validate the key exists and has valid format
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
             isTestingConnection = false
             if let key = keychainManager.getKey(for: provider),
@@ -425,6 +828,53 @@ private struct ProviderDetailView: View {
             } else {
                 connectionStatus = .failure
             }
+        }
+    }
+}
+
+// MARK: - Flow Layout for Tags
+
+private struct FlowLayout: Layout {
+    var spacing: CGFloat = 8
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        let result = FlowResult(in: proposal.width ?? 0, spacing: spacing, subviews: subviews)
+        return result.size
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        let result = FlowResult(in: bounds.width, spacing: spacing, subviews: subviews)
+        for (index, subview) in subviews.enumerated() {
+            subview.place(at: CGPoint(x: bounds.minX + result.positions[index].x,
+                                      y: bounds.minY + result.positions[index].y),
+                         proposal: .unspecified)
+        }
+    }
+
+    struct FlowResult {
+        var size: CGSize = .zero
+        var positions: [CGPoint] = []
+
+        init(in maxWidth: CGFloat, spacing: CGFloat, subviews: Subviews) {
+            var x: CGFloat = 0
+            var y: CGFloat = 0
+            var rowHeight: CGFloat = 0
+
+            for subview in subviews {
+                let size = subview.sizeThatFits(.unspecified)
+
+                if x + size.width > maxWidth && x > 0 {
+                    x = 0
+                    y += rowHeight + spacing
+                    rowHeight = 0
+                }
+
+                positions.append(CGPoint(x: x, y: y))
+                rowHeight = max(rowHeight, size.height)
+                x += size.width + spacing
+            }
+
+            self.size = CGSize(width: maxWidth, height: y + rowHeight)
         }
     }
 }
@@ -575,53 +1025,117 @@ struct AppearanceSettingsTab: View {
     @AppStorage("showAgentAvatars") private var showAgentAvatars = true
     @AppStorage("animationsEnabled") private var animationsEnabled = true
 
-    private let accentColors = ["purple", "blue", "green", "orange", "pink", "teal"]
+    private let accentColors: [(name: String, color: Color)] = [
+        ("purple", .purple),
+        ("blue", .blue),
+        ("green", .green),
+        ("orange", .orange),
+        ("pink", .pink),
+        ("teal", .teal)
+    ]
 
     var body: some View {
-        Form {
-            Section("Theme") {
-                Picker("Appearance", selection: $appearanceMode) {
-                    Text("System").tag("system")
-                    Text("Light").tag("light")
-                    Text("Dark").tag("dark")
-                }
-                .pickerStyle(.segmented)
-            }
-
-            Section("Accent Color") {
-                HStack(spacing: 12) {
-                    ForEach(accentColors, id: \.self) { color in
-                        Circle()
-                            .fill(Color(color))
-                            .frame(width: 32, height: 32)
-                            .overlay(
-                                Circle()
-                                    .stroke(Color.primary, lineWidth: accentColor == color ? 3 : 0)
-                                    .padding(2)
-                            )
-                            .onTapGesture {
-                                accentColor = color
+        ScrollView {
+            VStack(spacing: 24) {
+                // Theme Section
+                SettingsSection(title: "Theme", icon: "moon.fill") {
+                    SettingsRow {
+                        HStack {
+                            Text("Appearance")
+                                .font(.body)
+                            Spacer()
+                            Picker("", selection: $appearanceMode) {
+                                Label("System", systemImage: "gear").tag("system")
+                                Label("Light", systemImage: "sun.max").tag("light")
+                                Label("Dark", systemImage: "moon").tag("dark")
                             }
+                            .pickerStyle(.segmented)
+                            .frame(width: 240)
+                        }
                     }
                 }
-            }
 
-            Section("Layout") {
-                Toggle("Compact Mode", isOn: $compactMode)
-                Toggle("Show Agent Avatars", isOn: $showAgentAvatars)
-            }
+                // Accent Color Section
+                SettingsSection(title: "Accent Color", icon: "paintpalette.fill") {
+                    SettingsRow {
+                        VStack(alignment: .leading, spacing: 12) {
+                            Text("Choose your accent color")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
 
-            Section("Effects") {
-                Toggle("Enable Animations", isOn: $animationsEnabled)
+                            HStack(spacing: 16) {
+                                ForEach(accentColors, id: \.name) { item in
+                                    VStack(spacing: 6) {
+                                        Circle()
+                                            .fill(item.color.gradient)
+                                            .frame(width: 36, height: 36)
+                                            .overlay(
+                                                Circle()
+                                                    .stroke(Color.primary, lineWidth: accentColor == item.name ? 3 : 0)
+                                                    .padding(2)
+                                            )
+                                            .shadow(color: item.color.opacity(0.3), radius: accentColor == item.name ? 4 : 0)
+                                            .onTapGesture {
+                                                withAnimation(.easeInOut(duration: 0.2)) {
+                                                    accentColor = item.name
+                                                }
+                                            }
 
-                if animationsEnabled {
-                    Text("Animations include typing indicators, streaming effects, and transitions.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                                        Text(item.name.capitalized)
+                                            .font(.caption2)
+                                            .foregroundStyle(accentColor == item.name ? .primary : .secondary)
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
+
+                // Layout Section
+                SettingsSection(title: "Layout", icon: "rectangle.3.group") {
+                    SettingsRow {
+                        Toggle(isOn: $compactMode) {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Compact Mode")
+                                Text("Reduces spacing and padding throughout the app")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                    }
+
+                    Divider().padding(.horizontal, 12)
+
+                    SettingsRow {
+                        Toggle(isOn: $showAgentAvatars) {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Show Agent Avatars")
+                                Text("Display agent profile images in conversations")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                    }
+                }
+
+                // Effects Section
+                SettingsSection(title: "Effects", icon: "sparkles") {
+                    SettingsRow {
+                        Toggle(isOn: $animationsEnabled) {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Enable Animations")
+                                Text("Typing indicators, streaming effects, and transitions")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                    }
+                }
+
+                Spacer()
             }
+            .padding(24)
         }
-        .padding()
     }
 }
 

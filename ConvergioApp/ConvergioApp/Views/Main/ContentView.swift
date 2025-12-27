@@ -100,17 +100,17 @@ struct ContentView: View {
                                 selectedMaestro = nil
                             }
                         } label: {
-                            HStack(spacing: 6) {
+                            HStack(spacing: DesignSystem.Spacing.xs + 2) {
                                 Image(systemName: "chevron.left")
-                                    .font(.body.weight(.medium))
+                                    .font(DesignSystem.Typography.body.weight(.medium))
                                 Text("Tutti i Maestri")
-                                    .font(.body)
+                                    .font(DesignSystem.Typography.body)
                             }
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(DesignSystem.Colors.textSecondary)
                         }
                         .buttonStyle(.plain)
-                        .padding(.horizontal, 20)
-                        .padding(.vertical, 12)
+                        .padding(.horizontal, DesignSystem.Spacing.lg)
+                        .padding(.vertical, DesignSystem.Spacing.md)
 
                         Spacer()
                     }
@@ -193,52 +193,81 @@ struct EducationSidebarView: View {
     @Binding var selectedMaestro: Maestro?
 
     var body: some View {
-        List(selection: $selectedSection) {
-            Section("Scuola 2026") {
-                ForEach(EducationSection.allCases) { section in
-                    Button {
-                        selectedSection = section
-                        // Clear maestro selection when clicking Maestri to go back to grid
-                        if section == .maestri {
-                            selectedMaestro = nil
+        VStack(spacing: 0) {
+            List(selection: $selectedSection) {
+                Section("Scuola 2026") {
+                    ForEach(EducationSection.allCases) { section in
+                        Button {
+                            selectedSection = section
+                            // Clear maestro selection when clicking Maestri to go back to grid
+                            if section == .maestri {
+                                selectedMaestro = nil
+                            }
+                        } label: {
+                            Label(section.rawValue, systemImage: section.icon)
                         }
-                    } label: {
-                        Label(section.rawValue, systemImage: section.icon)
+                        .buttonStyle(.plain)
+                        .tag(section)
+                        .listRowBackground(
+                            selectedSection == section
+                                ? Color.accentColor.opacity(0.15)
+                                : Color.clear
+                        )
                     }
-                    .buttonStyle(.plain)
-                    .tag(section)
-                    .listRowBackground(
-                        selectedSection == section
-                            ? Color.accentColor.opacity(0.15)
-                            : Color.clear
-                    )
                 }
-            }
 
             Section("Maestri Recenti") {
                 ForEach(Maestro.previewMaestri.prefix(5)) { maestro in
                     Button {
-                        selectedMaestro = maestro
-                        selectedSection = .maestri
-                    } label: {
-                        HStack(spacing: 10) {
-                            ZStack {
-                                Circle()
-                                    .fill(maestro.color.opacity(0.2))
-                                    .frame(width: 28, height: 28)
-                                Image(systemName: maestro.icon)
-                                    .font(.system(size: 12))
-                                    .foregroundStyle(maestro.color)
-                            }
-                            Text(maestro.name)
-                                .font(.subheadline)
+                        withAnimation(.spring(response: 0.3)) {
+                            selectedMaestro = maestro
+                            selectedSection = .maestri
                         }
+                    } label: {
+                            HStack(spacing: DesignSystem.Spacing.md) {
+                                ZStack {
+                                    Circle()
+                                        .fill(maestro.color.opacity(0.2))
+                                        .frame(width: 32, height: 32)
+                                    Image(systemName: maestro.icon)
+                                        .font(.system(size: 14, weight: .medium))
+                                        .foregroundStyle(maestro.color)
+                                }
+                                Text(maestro.name)
+                                    .font(DesignSystem.Typography.subheadline)
+                                    .foregroundStyle(DesignSystem.Colors.textPrimary)
+                            }
                     }
                     .buttonStyle(.plain)
                 }
             }
+            }
+            .listStyle(.sidebar)
+
+            // Bottom settings button
+            Divider()
+
+            HStack {
+                SettingsLink {
+                    HStack(spacing: DesignSystem.Spacing.sm) {
+                        Image(systemName: "gearshape.fill")
+                            .font(DesignSystem.Typography.body)
+                        Text("Settings")
+                            .font(DesignSystem.Typography.subheadline)
+                    }
+                    .foregroundStyle(DesignSystem.Colors.textSecondary)
+                    .padding(.horizontal, DesignSystem.Spacing.md)
+                    .padding(.vertical, DesignSystem.Spacing.sm + 2)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .help("Open Settings (⌘,)")
+            }
+            .padding(.horizontal, DesignSystem.Spacing.sm)
+            .padding(.vertical, DesignSystem.Spacing.sm)
+            .background(.ultraThinMaterial)
         }
-        .listStyle(.sidebar)
         .navigationTitle("Education")
     }
 }
@@ -271,25 +300,25 @@ struct CostBadge: View {
     let cost: CostInfo
 
     var body: some View {
-        HStack(spacing: 4) {
+        HStack(spacing: DesignSystem.Spacing.xs) {
             Image(systemName: "dollarsign.circle")
             Text(String(format: "$%.2f", cost.sessionCost))
                 .monospacedDigit()
 
             if cost.budgetLimit > 0 {
                 Text("/")
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(DesignSystem.Colors.textSecondary)
                 Text(String(format: "$%.0f", cost.budgetLimit))
                     .monospacedDigit()
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(DesignSystem.Colors.textSecondary)
             }
         }
-        .font(.caption)
-        .padding(.horizontal, 8)
-        .padding(.vertical, 4)
+        .font(DesignSystem.Typography.caption)
+        .padding(.horizontal, DesignSystem.Spacing.sm)
+        .padding(.vertical, DesignSystem.Spacing.xs)
         .background(.ultraThinMaterial)
         .clipShape(Capsule())
-        .foregroundStyle(cost.isOverBudget ? .red : .primary)
+        .foregroundStyle(cost.isOverBudget ? DesignSystem.Colors.error : DesignSystem.Colors.textPrimary)
     }
 }
 

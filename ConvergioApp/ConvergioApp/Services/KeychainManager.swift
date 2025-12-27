@@ -21,6 +21,7 @@ public enum APIProvider: String, CaseIterable, Identifiable {
     case openrouter = "OPENROUTER_API_KEY"
     case perplexity = "PERPLEXITY_API_KEY"
     case grok = "GROK_API_KEY"
+    case ollama = "OLLAMA_HOST"
     case azureRealtimeKey = "AZURE_OPENAI_REALTIME_API_KEY"
     case azureRealtimeEndpoint = "AZURE_OPENAI_REALTIME_ENDPOINT"
     case azureRealtimeDeployment = "AZURE_OPENAI_REALTIME_DEPLOYMENT"
@@ -36,6 +37,7 @@ public enum APIProvider: String, CaseIterable, Identifiable {
         case .openrouter: return "OpenRouter"
         case .perplexity: return "Perplexity"
         case .grok: return "Grok"
+        case .ollama: return "Local Models"
         case .azureRealtimeKey: return "Azure Realtime API Key"
         case .azureRealtimeEndpoint: return "Azure Realtime Endpoint"
         case .azureRealtimeDeployment: return "Azure Realtime Deployment"
@@ -51,11 +53,20 @@ public enum APIProvider: String, CaseIterable, Identifiable {
         case .openrouter: return "arrow.triangle.branch"
         case .perplexity: return "magnifyingglass"
         case .grok: return "bolt"
+        case .ollama: return "desktopcomputer"
         case .azureRealtimeKey, .azureRealtimeEndpoint, .azureRealtimeDeployment: return "cloud"
         }
     }
 
     public var envVariable: String { rawValue }
+
+    /// Whether this provider requires an API key
+    public var requiresAPIKey: Bool {
+        switch self {
+        case .ollama: return false
+        default: return true
+        }
+    }
 
     /// Whether this provider is for Azure voice services
     public var isAzureVoice: Bool {
@@ -284,6 +295,9 @@ public final class KeychainManager: ObservableObject {
         case .grok:
             // Grok keys format
             return key.count > 20
+        case .ollama:
+            // Ollama host URL (optional, default is localhost)
+            return key.isEmpty || key.hasPrefix("http")
         case .azureRealtimeKey:
             // Azure API keys are typically 32 characters
             return key.count >= 32
@@ -324,9 +338,36 @@ extension KeychainManager {
             importFromEnvironment()
         }
 
+        // Always try to import Azure Realtime keys (voice functionality)
+        // These may be missing even if other keys exist
+        importAzureRealtimeFromEnvironment()
+
         // Then export all keys to environment for C library
         exportToEnvironment()
 
         logInfo("KeychainManager initialized - Anthropic: \(hasAnthropicKey), OpenAI: \(hasOpenAIKey), Azure: \(hasAzureOpenAIKey), Gemini: \(hasGeminiKey)", category: "Keychain")
+    }
+
+    /// Import Azure Realtime credentials if not already in keychain
+    private func importAzureRealtimeFromEnvironment() {
+        let azureProviders: [(APIProvider, [String])] = [
+            (.azureRealtimeEndpoint, ["AZURE_OPENAI_REALTIME_ENDPOINT", "AZURE_OPENAI_ENDPOINT"]),
+            (.azureRealtimeKey, ["AZURE_OPENAI_REALTIME_API_KEY", "AZURE_OPENAI_API_KEY"]),
+            (.azureRealtimeDeployment, ["AZURE_OPENAI_REALTIME_DEPLOYMENT"])
+        ]
+
+        for (provider, envVars) in azureProviders {
+            if getKey(for: provider) == nil {
+                for envVar in envVars {
+                    if let value = ProcessInfo.processInfo.environment[envVar],
+                       !value.isEmpty {
+                        if saveKey(value, for: provider) {
+                            logInfo("Imported \(provider.displayName) from \(envVar)", category: "Keychain")
+                        }
+                        break
+                    }
+                }
+            }
+        }
     }
 }
