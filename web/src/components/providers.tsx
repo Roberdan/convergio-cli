@@ -1,5 +1,6 @@
 'use client';
 
+import { ThemeProvider } from 'next-themes';
 import { AccessibilityProvider } from '@/components/accessibility';
 
 interface ProvidersProps {
@@ -8,8 +9,15 @@ interface ProvidersProps {
 
 export function Providers({ children }: ProvidersProps) {
   return (
-    <AccessibilityProvider>
-      {children}
-    </AccessibilityProvider>
+    <ThemeProvider
+      attribute="class"
+      defaultTheme="system"
+      enableSystem
+      disableTransitionOnChange
+    >
+      <AccessibilityProvider>
+        {children}
+      </AccessibilityProvider>
+    </ThemeProvider>
   );
 }

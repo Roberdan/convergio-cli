@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { motion } from 'framer-motion';
+import { useTheme } from 'next-themes';
 import {
   User,
   Accessibility,
@@ -351,6 +352,14 @@ interface AppearanceSettingsProps {
 }
 
 function AppearanceSettings({ appearance, onUpdate }: AppearanceSettingsProps) {
+  const { theme: currentTheme, setTheme, resolvedTheme } = useTheme();
+  const [mounted, setMounted] = useState(false);
+
+  // Avoid hydration mismatch
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   const themes: Array<{ value: 'light' | 'dark' | 'system'; label: string; icon: React.ReactNode }> = [
     { value: 'light', label: 'Chiaro', icon: <Sun className="w-5 h-5" /> },
     { value: 'dark', label: 'Scuro', icon: <Moon className="w-5 h-5" /> },
@@ -365,6 +374,37 @@ function AppearanceSettings({ appearance, onUpdate }: AppearanceSettingsProps) {
     { value: 'pink', label: 'Rosa', class: 'bg-pink-500' },
   ];
 
+  const handleThemeChange = (newTheme: 'light' | 'dark' | 'system') => {
+    setTheme(newTheme);
+    onUpdate({ theme: newTheme });
+  };
+
+  // Show loading state during hydration
+  if (!mounted) {
+    return (
+      <div className="space-y-6">
+        <Card>
+          <CardHeader>
+            <CardTitle>Tema</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-3 gap-4">
+              {themes.map(theme => (
+                <div
+                  key={theme.value}
+                  className="flex flex-col items-center gap-2 p-4 rounded-xl border-2 border-slate-200 dark:border-slate-700"
+                >
+                  {theme.icon}
+                  <span className="text-sm font-medium">{theme.label}</span>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       <Card>
@@ -376,10 +416,10 @@ function AppearanceSettings({ appearance, onUpdate }: AppearanceSettingsProps) {
             {themes.map(theme => (
               <button
                 key={theme.value}
-                onClick={() => onUpdate({ theme: theme.value })}
+                onClick={() => handleThemeChange(theme.value)}
                 className={cn(
                   'flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all',
-                  appearance.theme === theme.value
+                  currentTheme === theme.value
                     ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
                     : 'border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600'
                 )}
@@ -389,6 +429,11 @@ function AppearanceSettings({ appearance, onUpdate }: AppearanceSettingsProps) {
               </button>
             ))}
           </div>
+          {currentTheme === 'system' && (
+            <p className="text-sm text-slate-500 mt-3">
+              Tema corrente: {resolvedTheme === 'dark' ? 'Scuro' : 'Chiaro'} (basato sulle preferenze di sistema)
+            </p>
+          )}
         </CardContent>
       </Card>
 
