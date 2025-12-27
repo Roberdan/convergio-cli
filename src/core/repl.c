@@ -1031,6 +1031,34 @@ int repl_parse_and_execute(char* line) {
         return res;
     }
 
+    // Handle INTENT_DELEGATE: enhance input with format enforcement
+    if (route.type == INTENT_DELEGATE) {
+        LOG_INFO(LOG_CAT_AGENT, "Router: delegation intent detected, enforcing [DELEGATE:] format");
+
+        // Build enhanced input with mandatory format instructions
+        const char* format_suffix =
+            "\n\n---\n"
+            "**MANDATORY FORMAT FOR THIS REQUEST:**\n"
+            "You MUST respond using [DELEGATE: agent_name] markers, one per line.\n"
+            "Example:\n"
+            "[DELEGATE: rex-code-reviewer] analyze code quality\n"
+            "[DELEGATE: baccio-tech-architect] review architecture\n\n"
+            "DO NOT write prose about what you will do. ONLY output the delegation markers.\n"
+            "The markers will be automatically parsed and agents will be executed in parallel.\n"
+            "---";
+
+        size_t enhanced_len = strlen(original_input) + strlen(format_suffix) + 1;
+        char* enhanced_input = malloc(enhanced_len);
+        if (enhanced_input) {
+            snprintf(enhanced_input, enhanced_len, "%s%s", original_input, format_suffix);
+            int result = repl_process_natural_input(enhanced_input);
+            free(enhanced_input);
+            free(original_input);
+            return result;
+        }
+        // Fallback if malloc fails
+    }
+
     // Otherwise, go to Ali via orchestrator (Ali can still delegate if needed)
     int result = repl_process_natural_input(original_input);
     free(original_input);
