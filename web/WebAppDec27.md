@@ -186,15 +186,39 @@ All maestri have access to these 9 tools, which they use proactively during less
 
 ### High Priority
 
-#### 1. Make Webapp Fully Autonomous from CLI
+#### 1. Fix Voice Session UX Issues
 **Status**: Pending
+**Priority**: HIGH
+**Description**: Multiple UX problems in the voice session interface.
+- **Bottoni senza label**: Nessun tooltip che spiega cosa fanno i bottoni
+- **Bug riapertura voce**: Non si può riaprire la sessione dopo averla chiusa
+- **Stato incoerente**: A volte comportamenti strani nell'interfaccia
+- **Testo "Feynman is speaking"**: Dovrebbe essere in italiano
+
+#### 2. Add Visible Tool Buttons in Voice Session
+**Status**: Pending
+**Priority**: HIGH
+**Description**: Tools should be accessible manually, not just when AI calls them.
+- Aggiungere toolbar con bottoni visibili per:
+  - 📷 Webcam (mostra compiti)
+  - 🗺️ Mappa mentale
+  - 📝 Quiz
+  - 🎴 Flashcard
+  - 🔍 Ricerca web
+- I tool devono essere usabili anche senza che l'AI li chiami
+- Tooltip su ogni bottone
+
+#### 3. Make Webapp Fully Autonomous from CLI
+**Status**: Pending
+**Priority**: MEDIUM
 **Description**: The webapp should function completely independently without requiring the CLI tool.
 - Remove any remaining CLI dependencies
 - Self-contained configuration
 - Independent deployment capability
 
-#### 2. Backend for Persistent Gamification
+#### 4. Backend for Persistent Gamification
 **Status**: Pending
+**Priority**: MEDIUM
 **Description**: Implement persistent storage for gamification features.
 - Database design (PostgreSQL recommended)
 - API endpoints for:
