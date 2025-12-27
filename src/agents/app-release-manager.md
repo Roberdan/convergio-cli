@@ -2096,6 +2096,8 @@ After creating GitHub Release:
 - [ ] CHANGELOG.md updated with all changes
 - [ ] **ZERO WARNINGS** (BLOCKING): `make clean && make DEBUG=1 2>&1 | grep -c "warning:"` MUST be 0
 - [ ] ALL TESTS PASS: `make test` (fuzz + unit + anna + education tests)
+- [ ] DELEGATION TESTS PASS: `make delegation_test` (22+ tests - parsing, multi-agent, memory) ⚠️ BLOCKING
+- [ ] WORKFLOW MONITOR TESTS PASS: `make workflow_test` (49+ tests - sequential, pipeline, conditional, phased) ⚠️ BLOCKING
 - [ ] EDUCATION UNIT TESTS PASS: `make education_test` (school scenarios: Mario, Sofia, Luca, Giulia) ⚠️ BLOCKING
 - [ ] EDUCATION E2E TESTS PASS: `./tests/e2e_education_test.sh` (~54 tests, >= 95%) ⚠️ BLOCKING
 - [ ] EDUCATION LLM TESTS PASS: `./tests/education_llm_test.sh` (~21 tests - safety, pedagogy, accessibility) ⚠️ BLOCKING

@@ -91,6 +91,8 @@ CFLAGS = $(ARCH_FLAGS) \
          -Wall -Wextra -Wpedantic \
          -Wno-unused-parameter \
          -Wno-overlength-strings \
+         -Wno-format-nonliteral \
+         -Wno-gnu-zero-variadic-macro-arguments \
          -ffast-math \
          -fvectorize \
          -mllvm -enable-machine-outliner=never \
@@ -1226,6 +1228,25 @@ test-dev:
 	@if [ -f "./tests/e2e_developer_test.sh" ]; then ./tests/e2e_developer_test.sh; fi
 
 # ============================================================================
+# OLLAMA LOCAL LLM TESTING
+# ============================================================================
+
+# Ensure Ollama is running and has required model
+ensure-ollama:
+	@./scripts/ensure_ollama.sh
+
+# Run delegation tests with local Ollama
+test-ollama: ensure-ollama $(TARGET)
+	@echo "Running tests with local Ollama..."
+	@CONVERGIO_PROVIDER=ollama OLLAMA_MODEL=qwen2.5:0.5b $(MAKE) delegation_test workflow_test
+	@echo "Ollama tests complete!"
+
+# Interactive test with Ollama
+test-ollama-interactive: ensure-ollama $(TARGET)
+	@echo "Starting interactive session with Ollama..."
+	@$(BIN_DIR)/convergio --provider ollama --ollama-model qwen2.5:0.5b
+
+# ============================================================================
 # NATIVE APP BUILD TARGETS
 # ============================================================================
 
@@ -1256,4 +1277,27 @@ native: core
 	@echo "Headers: include/nous/"
 	@echo "Swift package: ConvergioCore/"
 
-.PHONY: all dirs metal run clean debug install uninstall hwinfo help fuzz_test unit_test anna_test plan_db_test output_service_test check-docs test version dist release convergio-acp install-acp cache-stats build-edu test-edu test-edu-llm test-edu-verbose test-edu-full build-biz test-biz build-dev test-dev core app native
+# Web app sync - copies maestri definitions and assets to ConvergioWeb
+# Usage: make sync-web
+WEB_DIR = ../ConvergioWeb/web
+sync-web:
+	@echo "Syncing CLI to webapp..."
+	@if [ ! -d "$(WEB_DIR)" ]; then \
+		echo "Error: ConvergioWeb not found at $(WEB_DIR)"; \
+		echo "Expected: ../ConvergioWeb/web (relative to ConvergioCLI)"; \
+		exit 1; \
+	fi
+	@echo "  Syncing maestri avatars..."
+	@mkdir -p $(WEB_DIR)/public/maestri
+	@for img in ConvergioApp/ConvergioApp/Assets.xcassets/Maestri/*/*.png; do \
+		name=$$(basename $$(dirname $$img) .imageset); \
+		cp "$$img" "$(WEB_DIR)/public/maestri/$$name.png" 2>/dev/null || true; \
+	done
+	@echo "  Syncing app icon..."
+	@cp ConvergioApp/ConvergioApp/Assets.xcassets/AppIcon.appiconset/icon_256x256.png $(WEB_DIR)/public/icon.png 2>/dev/null || true
+	@echo "  Syncing logo..."
+	@cp docs/logo/CovergioLogo.jpeg $(WEB_DIR)/public/logo.jpeg 2>/dev/null || true
+	@echo "Sync complete!"
+	@echo "Note: maestri-full.ts must be manually updated if system prompts change"
+
+.PHONY: all dirs metal run clean debug install uninstall hwinfo help fuzz_test unit_test anna_test plan_db_test output_service_test check-docs test version dist release convergio-acp install-acp cache-stats build-edu test-edu test-edu-llm test-edu-verbose test-edu-full build-biz test-biz build-dev test-dev ensure-ollama test-ollama test-ollama-interactive core app native sync-web
