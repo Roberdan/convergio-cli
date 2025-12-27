@@ -1,0 +1,274 @@
+'use client';
+
+import { useState, useEffect, useCallback } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Mic, MicOff, PhoneOff, Volume2, VolumeX, Send } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { Waveform, CircularWaveform } from './waveform';
+import { useVoiceSession } from '@/lib/hooks/use-voice-session';
+import { cn } from '@/lib/utils';
+import type { Maestro } from '@/types';
+
+interface VoiceSessionProps {
+  maestro: Maestro;
+  onClose: () => void;
+}
+
+export function VoiceSession({ maestro, onClose }: VoiceSessionProps) {
+  const [ephemeralToken, setEphemeralToken] = useState<string | null>(null);
+  const [textInput, setTextInput] = useState('');
+  const [showTextInput, setShowTextInput] = useState(false);
+
+  const {
+    isConnected,
+    isListening,
+    isSpeaking,
+    isMuted,
+    transcript,
+    inputLevel,
+    outputLevel,
+    connectionState,
+    connect,
+    disconnect,
+    toggleMute,
+    sendText,
+    cancelResponse,
+    clearTranscript,
+  } = useVoiceSession({
+    onError: (error) => console.error('Voice error:', error),
+    onTranscript: (role, text) => console.log(`${role}: ${text}`),
+  });
+
+  // Fetch ephemeral token and connect
+  useEffect(() => {
+    async function init() {
+      try {
+        const response = await fetch('/api/realtime/token');
+        const data = await response.json();
+        if (data.token) {
+          setEphemeralToken(data.token);
+        }
+      } catch (error) {
+        console.error('Failed to get token:', error);
+      }
+    }
+    init();
+  }, []);
+
+  // Connect when token is available
+  useEffect(() => {
+    if (ephemeralToken && !isConnected && connectionState === 'idle') {
+      connect(maestro, ephemeralToken);
+    }
+  }, [ephemeralToken, isConnected, connectionState, maestro, connect]);
+
+  // Handle close
+  const handleClose = useCallback(() => {
+    disconnect();
+    onClose();
+  }, [disconnect, onClose]);
+
+  // Handle text submit
+  const handleTextSubmit = useCallback(() => {
+    if (textInput.trim()) {
+      sendText(textInput);
+      setTextInput('');
+    }
+  }, [textInput, sendText]);
+
+  // State indicator
+  const stateText = connectionState === 'connecting'
+    ? 'Connecting...'
+    : isListening
+    ? 'Listening...'
+    : isSpeaking
+    ? `${maestro.name} is speaking...`
+    : isConnected
+    ? 'Ready - speak now'
+    : 'Disconnected';
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        exit={{ opacity: 0, scale: 0.95 }}
+        className="w-full max-w-2xl mx-4"
+      >
+        <Card className="bg-gradient-to-b from-slate-900 to-slate-950 border-slate-700 text-white overflow-hidden">
+          {/* Header */}
+          <div className="p-6 border-b border-slate-700/50">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <div
+                  className="w-12 h-12 rounded-full flex items-center justify-center text-xl font-bold"
+                  style={{ backgroundColor: maestro.color }}
+                >
+                  {maestro.name[0]}
+                </div>
+                <div>
+                  <h2 className="text-xl font-semibold">{maestro.name}</h2>
+                  <p className="text-sm text-slate-400">{maestro.specialty}</p>
+                </div>
+              </div>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={handleClose}
+                className="text-slate-400 hover:text-white hover:bg-slate-700"
+              >
+                <PhoneOff className="h-5 w-5" />
+              </Button>
+            </div>
+          </div>
+
+          {/* Main visualization */}
+          <div className="p-8 flex flex-col items-center gap-6">
+            {/* Avatar with waveform */}
+            <CircularWaveform
+              level={isSpeaking ? outputLevel : inputLevel}
+              isActive={isListening || isSpeaking}
+              color={maestro.color}
+              size={160}
+            />
+
+            {/* State indicator */}
+            <motion.div
+              key={stateText}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="text-center"
+            >
+              <p className="text-lg font-medium text-slate-200">{stateText}</p>
+              {connectionState === 'connecting' && (
+                <div className="mt-2 flex items-center justify-center gap-1">
+                  <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
+                  <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse delay-100" />
+                  <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse delay-200" />
+                </div>
+              )}
+            </motion.div>
+
+            {/* Waveform visualization */}
+            <div className="w-full">
+              <Waveform
+                level={isListening ? inputLevel : isSpeaking ? outputLevel : 0}
+                isActive={isListening || isSpeaking}
+                color={maestro.color}
+                barCount={32}
+              />
+            </div>
+          </div>
+
+          {/* Transcript */}
+          <div className="px-6 pb-4">
+            <div className="max-h-48 overflow-y-auto space-y-3 p-4 bg-slate-800/50 rounded-xl">
+              <AnimatePresence>
+                {transcript.length === 0 ? (
+                  <p className="text-center text-slate-500 text-sm italic">
+                    {maestro.greeting}
+                  </p>
+                ) : (
+                  transcript.map((entry, index) => (
+                    <motion.div
+                      key={index}
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className={cn(
+                        'p-3 rounded-lg max-w-[85%]',
+                        entry.role === 'user'
+                          ? 'bg-blue-600/30 ml-auto text-right'
+                          : 'bg-slate-700/50 mr-auto'
+                      )}
+                    >
+                      <p className="text-sm text-slate-200">{entry.content}</p>
+                    </motion.div>
+                  ))
+                )}
+              </AnimatePresence>
+            </div>
+          </div>
+
+          {/* Controls */}
+          <div className="p-6 border-t border-slate-700/50 bg-slate-800/30">
+            <div className="flex items-center justify-center gap-4">
+              {/* Mute button */}
+              <Button
+                variant="ghost"
+                size="icon-lg"
+                onClick={toggleMute}
+                className={cn(
+                  'rounded-full transition-colors',
+                  isMuted
+                    ? 'bg-red-500/20 text-red-400 hover:bg-red-500/30'
+                    : 'bg-slate-700 text-white hover:bg-slate-600'
+                )}
+              >
+                {isMuted ? <MicOff className="h-6 w-6" /> : <Mic className="h-6 w-6" />}
+              </Button>
+
+              {/* Cancel response (during speaking) */}
+              {isSpeaking && (
+                <Button
+                  variant="ghost"
+                  size="icon-lg"
+                  onClick={cancelResponse}
+                  className="rounded-full bg-amber-500/20 text-amber-400 hover:bg-amber-500/30"
+                >
+                  <VolumeX className="h-6 w-6" />
+                </Button>
+              )}
+
+              {/* Toggle text input */}
+              <Button
+                variant="ghost"
+                size="icon-lg"
+                onClick={() => setShowTextInput(!showTextInput)}
+                className="rounded-full bg-slate-700 text-white hover:bg-slate-600"
+              >
+                <Send className="h-5 w-5" />
+              </Button>
+
+              {/* End call */}
+              <Button
+                variant="destructive"
+                size="icon-lg"
+                onClick={handleClose}
+                className="rounded-full"
+              >
+                <PhoneOff className="h-6 w-6" />
+              </Button>
+            </div>
+
+            {/* Text input (fallback) */}
+            <AnimatePresence>
+              {showTextInput && (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: 'auto', opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  className="mt-4 overflow-hidden"
+                >
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={textInput}
+                      onChange={(e) => setTextInput(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && handleTextSubmit()}
+                      placeholder="Type a message..."
+                      className="flex-1 px-4 py-2 rounded-xl bg-slate-700 border border-slate-600 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                    <Button onClick={handleTextSubmit} disabled={!textInput.trim()}>
+                      Send
+                    </Button>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+        </Card>
+      </motion.div>
+    </div>
+  );
+}
