@@ -10,14 +10,18 @@
  * Copyright 2025 - Roberto D'Angelo & AI Team
  */
 
+#include "nous/conversational_config.h"
 #include "nous/mlx.h"
 #include "nous/nous.h"
+#include "nous/orchestrator.h"
 #include "nous/provider.h"
+#include <cjson/cJSON.h>
 #include <ctype.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/stat.h>
 #include <termios.h>
 #include <unistd.h>
 
@@ -863,6 +867,150 @@ static void menu_local_models(void) {
 }
 
 // ============================================================================
+// CONVERSATIONAL SETUP (AI-GUIDED)
+// ============================================================================
+
+static bool save_user_profile_from_json(const char* json) {
+    cJSON* root = cJSON_Parse(json);
+    if (!root) return false;
+
+    // Get home directory
+    const char* home = getenv("HOME");
+    if (!home) {
+        cJSON_Delete(root);
+        return false;
+    }
+
+    // Create config dir if needed
+    char config_dir[512];
+    snprintf(config_dir, sizeof(config_dir), "%s/.convergio", home);
+    mkdir(config_dir, 0755);
+
+    // Save profile
+    char profile_path[512];
+    snprintf(profile_path, sizeof(profile_path), "%s/.convergio/user_profile.json", home);
+
+    char* formatted = cJSON_Print(root);
+    if (!formatted) {
+        cJSON_Delete(root);
+        return false;
+    }
+
+    FILE* f = fopen(profile_path, "w");
+    if (!f) {
+        free(formatted);
+        cJSON_Delete(root);
+        return false;
+    }
+
+    fprintf(f, "%s\n", formatted);
+    fclose(f);
+    free(formatted);
+    cJSON_Delete(root);
+    return true;
+}
+
+static void menu_conversational_setup(void) {
+    clear_screen();
+    print_header("CONVERSATIONAL SETUP");
+
+    printf("\n  Welcome to AI-guided setup!\n");
+    printf("  Instead of filling forms, just have a conversation.\n\n");
+
+    // Check if LLM is available
+    if (!llm_is_available()) {
+        print_error("LLM not available. Please configure an API key first.");
+        printf("\n  Go to 'API Keys' menu to add a provider, or\n");
+        printf("  use 'Ollama Setup' for local inference.\n");
+        print_footer();
+        wait_for_enter();
+        return;
+    }
+
+    printf("  \033[1;32mLLM Available\033[0m - Ready for conversational setup!\n\n");
+    printf("  What would you like to configure?\n\n");
+    printf("    1) User Profile     - Tell me about yourself\n");
+    printf("    2) Project Setup    - Describe your project\n");
+    printf("    3) Preferences      - Customize your experience\n");
+    printf("    0) Go back\n");
+
+    print_footer();
+
+    int choice = get_choice(0, 3);
+    if (choice <= 0) return;
+
+    ConversationalConfig config;
+    const char* title = "";
+
+    switch (choice) {
+        case 1:
+            config = conversational_config_preset_onboarding();
+            title = "USER PROFILE SETUP";
+            break;
+        case 2:
+            config = conversational_config_preset_project();
+            title = "PROJECT SETUP";
+            break;
+        case 3:
+            config = conversational_config_preset_preferences();
+            title = "PREFERENCES SETUP";
+            break;
+        default:
+            return;
+    }
+
+    clear_screen();
+    print_header(title);
+    printf("\n  Type 'exit' or 'esci' at any time to cancel.\n");
+    print_footer();
+
+    ConversationalResult result = conversational_config_run(&config);
+
+    if (result.error) {
+        if (strstr(result.error, "cancel") == NULL) {
+            print_error(result.error);
+        } else {
+            print_info("Setup cancelled.");
+        }
+        conversational_result_free(&result);
+        wait_for_enter();
+        return;
+    }
+
+    if (result.json) {
+        printf("\n");
+        print_header("CONFIGURATION COMPLETE");
+        printf("\n");
+
+        // Show extracted data
+        cJSON* root = cJSON_Parse(result.json);
+        if (root) {
+            char* pretty = cJSON_Print(root);
+            if (pretty) {
+                printf("  Extracted configuration:\n");
+                printf("  \033[2m%s\033[0m\n", pretty);
+                free(pretty);
+            }
+            cJSON_Delete(root);
+        }
+
+        // Save based on type
+        if (choice == 1) {
+            if (save_user_profile_from_json(result.json)) {
+                print_success("User profile saved to ~/.convergio/user_profile.json");
+            } else {
+                print_error("Failed to save profile");
+            }
+        }
+
+        print_footer();
+    }
+
+    conversational_result_free(&result);
+    wait_for_enter();
+}
+
+// ============================================================================
 // MAIN WIZARD
 // ============================================================================
 
@@ -889,34 +1037,38 @@ int cmd_setup(int argc, char** argv) {
                g_provider_count);
 
         printf("  What would you like to configure?\n\n");
-        printf("    1) API Keys         - Configure provider credentials\n");
-        printf("    2) Ollama Setup     - Local LLM (recommended for privacy/offline)\n");
-        printf("    3) MLX Models       - Apple Silicon native inference\n");
-        printf("    4) Quick Setup      - Choose optimization profile (cost/performance)\n");
-        printf("    5) View Config      - Show current configuration\n");
-        printf("    6) Exit\n");
+        printf("    1) \033[1;35mConversational\033[0m  - AI-guided setup (talk naturally!)\n");
+        printf("    2) API Keys         - Configure provider credentials\n");
+        printf("    3) Ollama Setup     - Local LLM (recommended for privacy/offline)\n");
+        printf("    4) MLX Models       - Apple Silicon native inference\n");
+        printf("    5) Quick Setup      - Choose optimization profile (cost/performance)\n");
+        printf("    6) View Config      - Show current configuration\n");
+        printf("    7) Exit\n");
 
         print_footer();
 
-        int choice = get_choice(1, 6);
+        int choice = get_choice(1, 7);
 
         switch (choice) {
         case 1:
-            menu_api_keys();
+            menu_conversational_setup();
             break;
         case 2:
-            menu_ollama_setup();
+            menu_api_keys();
             break;
         case 3:
-            menu_local_models();
+            menu_ollama_setup();
             break;
         case 4:
-            menu_quick_setup();
+            menu_local_models();
             break;
         case 5:
-            menu_view_config();
+            menu_quick_setup();
             break;
         case 6:
+            menu_view_config();
+            break;
+        case 7:
             return 0;
         default:
             break;
