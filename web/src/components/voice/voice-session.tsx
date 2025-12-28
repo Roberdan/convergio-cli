@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import Image from 'next/image';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Mic, MicOff, PhoneOff, VolumeX, Send, MessageSquare, Camera, Brain, BookOpen, Search, Network, AlertCircle } from 'lucide-react';
@@ -11,6 +11,8 @@ import { useVoiceSession } from '@/lib/hooks/use-voice-session';
 import { usePermissions } from '@/lib/hooks/use-permissions';
 import { ToolResultDisplay } from '@/components/tools';
 import { WebcamCapture } from '@/components/tools/webcam-capture';
+import { SessionGradeDisplay } from './session-grade';
+import { useProgressStore } from '@/lib/stores/app-store';
 import { cn } from '@/lib/utils';
 import type { Maestro } from '@/types';
 
@@ -40,6 +42,14 @@ export function VoiceSession({ maestro, onClose, onSwitchToChat }: VoiceSessionP
   const [showWebcam, setShowWebcam] = useState(false);
   const [webcamRequest, setWebcamRequest] = useState<{ purpose: string; instructions?: string; callId: string } | null>(null);
   const [permissionError, setPermissionError] = useState<string | null>(null);
+  const [showGrade, setShowGrade] = useState(false);
+
+  // Track session start time
+  const sessionStartTime = useRef<Date>(new Date());
+  const questionCount = useRef<number>(0);
+
+  // Progress store for session tracking
+  const { currentSession, endSession, startSession } = useProgressStore();
 
   // Check permissions before starting
   const { permissions, requestMicrophone, isLoading: permissionsLoading } = usePermissions();
@@ -64,13 +74,27 @@ export function VoiceSession({ maestro, onClose, onSwitchToChat }: VoiceSessionP
     sendWebcamResult,
   } = useVoiceSession({
     onError: (error) => console.error('Voice error:', error),
-    onTranscript: (role, text) => console.log(`${role}: ${text}`),
+    onTranscript: (role, text) => {
+      console.log(`${role}: ${text}`);
+      // Count user questions
+      if (role === 'user' && text.includes('?')) {
+        questionCount.current++;
+      }
+    },
     onWebcamRequest: (request) => {
       console.log('Webcam requested:', request);
       setWebcamRequest(request);
       setShowWebcam(true);
     },
   });
+
+  // Start session when connected
+  useEffect(() => {
+    if (isConnected && !currentSession) {
+      sessionStartTime.current = new Date();
+      startSession(maestro.id, maestro.specialty);
+    }
+  }, [isConnected, currentSession, maestro.id, maestro.specialty, startSession]);
 
   // Handle webcam capture completion
   const handleWebcamCapture = useCallback((imageData: string) => {
@@ -146,11 +170,29 @@ export function VoiceSession({ maestro, onClose, onSwitchToChat }: VoiceSessionP
     startConnection();
   }, [connectionInfo, isConnected, connectionState, maestro, connect, permissions.microphone, permissionsLoading]);
 
-  // Handle close
+  // Handle close - show grade first
   const handleClose = useCallback(() => {
     disconnect();
+    // Show grade if session was active
+    if (currentSession || transcript.length > 0) {
+      setShowGrade(true);
+    } else {
+      onClose();
+    }
+  }, [disconnect, onClose, currentSession, transcript.length]);
+
+  // Handle grade close
+  const handleGradeClose = useCallback(() => {
+    endSession();
+    setShowGrade(false);
     onClose();
-  }, [disconnect, onClose]);
+  }, [endSession, onClose]);
+
+  // Calculate session metrics for grade
+  const sessionDuration = Math.round(
+    (Date.now() - sessionStartTime.current.getTime()) / 60000
+  );
+  const xpEarned = currentSession?.xpEarned || Math.max(5, transcript.length * 2);
 
   // Handle switch to chat
   const handleSwitchToChat = useCallback(() => {
@@ -625,6 +667,19 @@ AZURE_OPENAI_REALTIME_DEPLOYMENT=gpt-4o-realtime-preview`}
             instructions={webcamRequest.instructions}
             onCapture={handleWebcamCapture}
             onClose={handleWebcamClose}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* Session grade display */}
+      <AnimatePresence>
+        {showGrade && (
+          <SessionGradeDisplay
+            maestro={maestro}
+            sessionDuration={sessionDuration}
+            questionsAsked={questionCount.current}
+            xpEarned={xpEarned}
+            onClose={handleGradeClose}
           />
         )}
       </AnimatePresence>

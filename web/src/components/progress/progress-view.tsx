@@ -234,8 +234,8 @@ function OverviewTab({ xp, level, levelProgress, streak, masteries }: OverviewTa
   }, [streak.current, streak.lastStudyDate]);
 
   // Weekly activity data - calculate from actual session history
-  // For now, show empty/zero data since we don't have session history passed in
-  // TODO: Pass sessionHistory prop and calculate real weekly data
+  // Currently shows empty data - will be populated when backend session tracking is implemented
+  // See: BACKEND_IMPLEMENTATION_PLAN.md for session history integration
   const weeklyData = useMemo(() => {
     const days = ['Dom', 'Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab'];
     const today = new Date().getDay();

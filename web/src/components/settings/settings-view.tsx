@@ -24,9 +24,54 @@ import {
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { AccessibilitySettings } from '@/components/accessibility/accessibility-settings';
-import { useSettingsStore } from '@/lib/stores/app-store';
+import { useSettingsStore, type TeachingStyle } from '@/lib/stores/app-store';
 import { useAccessibilityStore } from '@/lib/accessibility/accessibility-store';
 import { cn } from '@/lib/utils';
+
+// Teaching style options with descriptions
+const TEACHING_STYLES: Array<{
+  value: TeachingStyle;
+  label: string;
+  emoji: string;
+  description: string;
+  color: string;
+}> = [
+  {
+    value: 'super_encouraging',
+    label: 'Super Incoraggiante',
+    emoji: '🌟',
+    description: 'Sempre positivo, celebra ogni piccolo progresso',
+    color: 'from-green-400 to-emerald-500',
+  },
+  {
+    value: 'encouraging',
+    label: 'Incoraggiante',
+    emoji: '😊',
+    description: 'Supportivo e paziente, focus sul positivo',
+    color: 'from-teal-400 to-cyan-500',
+  },
+  {
+    value: 'balanced',
+    label: 'Bilanciato',
+    emoji: '⚖️',
+    description: 'Mix equilibrato di lodi e correzioni costruttive',
+    color: 'from-blue-400 to-indigo-500',
+  },
+  {
+    value: 'strict',
+    label: 'Rigoroso',
+    emoji: '📐',
+    description: 'Esigente ma giusto, aspettative alte',
+    color: 'from-orange-400 to-amber-500',
+  },
+  {
+    value: 'brutal',
+    label: 'Brutale',
+    emoji: '🔥',
+    description: 'Diretto e senza filtri, sfida costante',
+    color: 'from-red-500 to-rose-600',
+  },
+];
 
 type SettingsTab = 'profile' | 'accessibility' | 'appearance' | 'ai' | 'notifications' | 'privacy';
 
@@ -146,6 +191,7 @@ interface ProfileSettingsProps {
     name: string;
     gradeLevel: string;
     learningGoals: string[];
+    teachingStyle: TeachingStyle;
   };
   onUpdate: (updates: Partial<ProfileSettingsProps['profile']>) => void;
 }
@@ -178,93 +224,167 @@ function ProfileSettings({ profile, onUpdate }: ProfileSettingsProps) {
     }
   };
 
+  const currentStyle = TEACHING_STYLES.find(s => s.value === (profile.teachingStyle || 'balanced'));
+
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+    <div className="space-y-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <User className="w-5 h-5 text-blue-500" />
+              Informazioni Personali
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                Nome
+              </label>
+              <input
+                type="text"
+                value={profile.name || ''}
+                onChange={(e) => onUpdate({ name: e.target.value })}
+                placeholder="Come ti chiami?"
+                className="w-full px-4 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                Livello di istruzione
+              </label>
+              <select
+                value={profile.gradeLevel || ''}
+                onChange={(e) => onUpdate({ gradeLevel: e.target.value })}
+                className="w-full px-4 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                {gradeLevels.map(level => (
+                  <option key={level.value} value={level.value}>
+                    {level.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <GraduationCap className="w-5 h-5 text-green-500" />
+              Obiettivi di Apprendimento
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-slate-500 mb-4">
+              Seleziona gli obiettivi che vuoi raggiungere
+            </p>
+            <div className="space-y-2">
+              {learningGoalOptions.map(goal => (
+                <label
+                  key={goal}
+                  className={cn(
+                    'flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-colors',
+                    (profile.learningGoals || []).includes(goal)
+                      ? 'bg-blue-50 dark:bg-blue-900/20 border-2 border-blue-500'
+                      : 'bg-slate-50 dark:bg-slate-800/50 border-2 border-transparent hover:bg-slate-100 dark:hover:bg-slate-800'
+                  )}
+                >
+                  <input
+                    type="checkbox"
+                    checked={(profile.learningGoals || []).includes(goal)}
+                    onChange={() => toggleGoal(goal)}
+                    className="sr-only"
+                  />
+                  <div
+                    className={cn(
+                      'w-5 h-5 rounded border-2 flex items-center justify-center',
+                      (profile.learningGoals || []).includes(goal)
+                        ? 'bg-blue-500 border-blue-500 text-white'
+                        : 'border-slate-300 dark:border-slate-600'
+                    )}
+                  >
+                    {(profile.learningGoals || []).includes(goal) && (
+                      <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                      </svg>
+                    )}
+                  </div>
+                  <span className="text-sm font-medium">{goal}</span>
+                </label>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Teaching Style Card */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <User className="w-5 h-5 text-blue-500" />
-            Informazioni Personali
+            <span className="text-2xl">{currentStyle?.emoji || '⚖️'}</span>
+            Stile dei Maestri
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-              Nome
-            </label>
-            <input
-              type="text"
-              value={profile.name || ''}
-              onChange={(e) => onUpdate({ name: e.target.value })}
-              placeholder="Come ti chiami?"
-              className="w-full px-4 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-              Livello di istruzione
-            </label>
-            <select
-              value={profile.gradeLevel || ''}
-              onChange={(e) => onUpdate({ gradeLevel: e.target.value })}
-              className="w-full px-4 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              {gradeLevels.map(level => (
-                <option key={level.value} value={level.value}>
-                  {level.label}
-                </option>
-              ))}
-            </select>
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <GraduationCap className="w-5 h-5 text-green-500" />
-            Obiettivi di Apprendimento
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-sm text-slate-500 mb-4">
-            Seleziona gli obiettivi che vuoi raggiungere
+          <p className="text-sm text-slate-500">
+            Scegli come vuoi che i maestri ti parlino e ti correggano
           </p>
-          <div className="space-y-2">
-            {learningGoalOptions.map(goal => (
-              <label
-                key={goal}
+
+          {/* Current style display */}
+          <div className={cn(
+            'p-4 rounded-xl bg-gradient-to-r text-white',
+            currentStyle?.color || 'from-blue-400 to-indigo-500'
+          )}>
+            <div className="flex items-center gap-3">
+              <span className="text-3xl">{currentStyle?.emoji}</span>
+              <div>
+                <h4 className="font-bold text-lg">{currentStyle?.label}</h4>
+                <p className="text-sm opacity-90">{currentStyle?.description}</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Style selector */}
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
+            {TEACHING_STYLES.map(style => (
+              <button
+                key={style.value}
+                onClick={() => onUpdate({ teachingStyle: style.value })}
                 className={cn(
-                  'flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-colors',
-                  (profile.learningGoals || []).includes(goal)
-                    ? 'bg-blue-50 dark:bg-blue-900/20 border-2 border-blue-500'
-                    : 'bg-slate-50 dark:bg-slate-800/50 border-2 border-transparent hover:bg-slate-100 dark:hover:bg-slate-800'
+                  'p-3 rounded-xl border-2 transition-all text-center',
+                  (profile.teachingStyle || 'balanced') === style.value
+                    ? 'border-slate-900 dark:border-white bg-slate-100 dark:bg-slate-800 scale-105'
+                    : 'border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600'
                 )}
               >
-                <input
-                  type="checkbox"
-                  checked={(profile.learningGoals || []).includes(goal)}
-                  onChange={() => toggleGoal(goal)}
-                  className="sr-only"
-                />
-                <div
-                  className={cn(
-                    'w-5 h-5 rounded border-2 flex items-center justify-center',
-                    (profile.learningGoals || []).includes(goal)
-                      ? 'bg-blue-500 border-blue-500 text-white'
-                      : 'border-slate-300 dark:border-slate-600'
-                  )}
-                >
-                  {(profile.learningGoals || []).includes(goal) && (
-                    <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                    </svg>
-                  )}
-                </div>
-                <span className="text-sm font-medium">{goal}</span>
-              </label>
+                <span className="text-2xl block mb-1">{style.emoji}</span>
+                <span className="text-xs font-medium">{style.label}</span>
+              </button>
             ))}
+          </div>
+
+          {/* Style impact preview */}
+          <div className="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-xl">
+            <h5 className="text-sm font-medium mb-2">Esempio di feedback:</h5>
+            <p className="text-sm text-slate-600 dark:text-slate-400 italic">
+              {profile.teachingStyle === 'super_encouraging' && (
+                '"Fantastico! Stai andando benissimo! Ogni errore e un passo verso il successo!"'
+              )}
+              {profile.teachingStyle === 'encouraging' && (
+                '"Ottimo lavoro! Hai quasi ragione, prova a pensare un attimo..."'
+              )}
+              {(profile.teachingStyle === 'balanced' || !profile.teachingStyle) && (
+                '"Buon tentativo. C\'e un errore qui - ripassa il concetto e riprova."'
+              )}
+              {profile.teachingStyle === 'strict' && (
+                '"Sbagliato. Hai saltato un passaggio fondamentale. Torna indietro e rifai."'
+              )}
+              {profile.teachingStyle === 'brutal' && (
+                '"No. Completamente sbagliato. Devi studiare di piu, non ci siamo proprio."'
+              )}
+            </p>
           </div>
         </CardContent>
       </Card>
@@ -710,30 +830,48 @@ interface CostForecast {
   forecastPeriodEnd: string;
 }
 
-function AIProviderSettings() {
-  const { provider: _provider } = useSettingsStore();
-  const [providerStatus, setProviderStatus] = useState<{
-    available: boolean;
-    provider: string | null;
+interface EnvVarStatus {
+  name: string;
+  configured: boolean;
+  displayValue?: string;
+}
+
+interface DetailedProviderStatus {
+  activeProvider: 'azure' | 'ollama' | null;
+  azure: {
+    configured: boolean;
     model: string | null;
-  } | null>(null);
+    realtimeConfigured: boolean;
+    realtimeModel: string | null;
+    envVars: EnvVarStatus[];
+  };
+  ollama: {
+    configured: boolean;
+    url: string;
+    model: string;
+    envVars: EnvVarStatus[];
+  };
+}
+
+function AIProviderSettings() {
+  const [providerStatus, setProviderStatus] = useState<DetailedProviderStatus | null>(null);
   const [costs, setCosts] = useState<CostSummary | null>(null);
   const [forecast, setForecast] = useState<CostForecast | null>(null);
   const [loadingCosts, setLoadingCosts] = useState(false);
   const [costsConfigured, setCostsConfigured] = useState(true);
+  const [showEnvDetails, setShowEnvDetails] = useState(false);
 
   // Check provider status on mount
   useEffect(() => {
-    fetch('/api/chat')
+    fetch('/api/provider/status')
       .then(res => res.json())
       .then(data => setProviderStatus(data))
-      .catch(() => setProviderStatus({ available: false, provider: null, model: null }));
+      .catch(() => setProviderStatus(null));
   }, []);
 
   // Fetch costs if Azure is the provider
   useEffect(() => {
-    if (providerStatus?.provider === 'azure') {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (providerStatus?.activeProvider === 'azure') {
       setLoadingCosts(true);
       Promise.all([
         fetch('/api/azure/costs?days=30').then(res => res.json()),
@@ -750,7 +888,7 @@ function AIProviderSettings() {
         .catch(() => setCostsConfigured(false))
         .finally(() => setLoadingCosts(false));
     }
-  }, [providerStatus?.provider]);
+  }, [providerStatus?.activeProvider]);
 
   const formatCurrency = (amount: number, currency = 'USD') => {
     return new Intl.NumberFormat('it-IT', {
@@ -773,74 +911,189 @@ function AIProviderSettings() {
           {providerStatus === null ? (
             <div className="animate-pulse h-20 bg-slate-100 dark:bg-slate-800 rounded-lg" />
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div
-                className={cn(
-                  'p-4 rounded-xl border-2',
-                  providerStatus.provider === 'azure'
-                    ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
-                    : 'border-slate-200 dark:border-slate-700'
-                )}
-              >
-                <div className="flex items-center gap-3 mb-2">
-                  <Cloud className="w-6 h-6 text-blue-500" />
-                  <div>
-                    <h4 className="font-medium">Azure OpenAI</h4>
-                    <p className="text-xs text-slate-500">Cloud - Chat + Voice</p>
+            <>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Azure Card */}
+                <div
+                  className={cn(
+                    'p-4 rounded-xl border-2 transition-all',
+                    providerStatus.activeProvider === 'azure'
+                      ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
+                      : providerStatus.azure.configured
+                        ? 'border-slate-300 dark:border-slate-600'
+                        : 'border-slate-200 dark:border-slate-700 opacity-60'
+                  )}
+                >
+                  <div className="flex items-center gap-3 mb-2">
+                    <Cloud className="w-6 h-6 text-blue-500" />
+                    <div className="flex-1">
+                      <h4 className="font-medium">Azure OpenAI</h4>
+                      <p className="text-xs text-slate-500">Cloud - Chat + Voice</p>
+                    </div>
+                    {providerStatus.azure.configured ? (
+                      <span className="px-2 py-0.5 text-xs rounded-full bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-400">
+                        Configurato
+                      </span>
+                    ) : (
+                      <span className="px-2 py-0.5 text-xs rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500">
+                        Non configurato
+                      </span>
+                    )}
+                  </div>
+                  {providerStatus.activeProvider === 'azure' && (
+                    <div className="mt-2 flex items-center gap-2">
+                      <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+                      <span className="text-sm text-green-600 dark:text-green-400">
+                        Attivo: {providerStatus.azure.model}
+                      </span>
+                    </div>
+                  )}
+                  {providerStatus.azure.realtimeConfigured && (
+                    <div className="mt-1 text-xs text-blue-600 dark:text-blue-400">
+                      Voice: {providerStatus.azure.realtimeModel}
+                    </div>
+                  )}
+                </div>
+
+                {/* Ollama Card */}
+                <div
+                  className={cn(
+                    'p-4 rounded-xl border-2 transition-all',
+                    providerStatus.activeProvider === 'ollama'
+                      ? 'border-green-500 bg-green-50 dark:bg-green-900/20'
+                      : providerStatus.ollama.configured
+                        ? 'border-slate-300 dark:border-slate-600'
+                        : 'border-slate-200 dark:border-slate-700 opacity-60'
+                  )}
+                >
+                  <div className="flex items-center gap-3 mb-2">
+                    <Server className="w-6 h-6 text-green-500" />
+                    <div className="flex-1">
+                      <h4 className="font-medium">Ollama</h4>
+                      <p className="text-xs text-slate-500">Locale - Solo Chat</p>
+                    </div>
+                    {providerStatus.ollama.configured ? (
+                      <span className="px-2 py-0.5 text-xs rounded-full bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-400">
+                        In esecuzione
+                      </span>
+                    ) : (
+                      <span className="px-2 py-0.5 text-xs rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500">
+                        Non attivo
+                      </span>
+                    )}
+                  </div>
+                  {providerStatus.activeProvider === 'ollama' && (
+                    <div className="mt-2 flex items-center gap-2">
+                      <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+                      <span className="text-sm text-green-600 dark:text-green-400">
+                        Attivo: {providerStatus.ollama.model}
+                      </span>
+                    </div>
+                  )}
+                  <div className="mt-1 text-xs text-slate-500">
+                    URL: {providerStatus.ollama.url}
                   </div>
                 </div>
-                {providerStatus.provider === 'azure' && (
-                  <div className="mt-2 flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full bg-green-500" />
-                    <span className="text-sm text-green-600 dark:text-green-400">
-                      Attivo: {providerStatus.model}
-                    </span>
-                  </div>
-                )}
               </div>
 
-              <div
-                className={cn(
-                  'p-4 rounded-xl border-2',
-                  providerStatus.provider === 'ollama'
-                    ? 'border-green-500 bg-green-50 dark:bg-green-900/20'
-                    : 'border-slate-200 dark:border-slate-700'
-                )}
+              {/* No provider warning */}
+              {!providerStatus.activeProvider && (
+                <div className="p-4 bg-amber-50 dark:bg-amber-900/20 rounded-xl border border-amber-200 dark:border-amber-800">
+                  <h4 className="font-medium text-amber-700 dark:text-amber-300">
+                    Nessun provider configurato
+                  </h4>
+                  <p className="text-sm text-amber-600 dark:text-amber-400 mt-1">
+                    Configura Azure OpenAI nel file .env oppure avvia Ollama localmente.
+                  </p>
+                </div>
+              )}
+
+              {/* Environment Variables Toggle */}
+              <button
+                onClick={() => setShowEnvDetails(!showEnvDetails)}
+                className="flex items-center gap-2 text-sm text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 transition-colors"
               >
-                <div className="flex items-center gap-3 mb-2">
-                  <Server className="w-6 h-6 text-green-500" />
-                  <div>
-                    <h4 className="font-medium">Ollama</h4>
-                    <p className="text-xs text-slate-500">Locale - Solo Chat</p>
+                <span>{showEnvDetails ? '▼' : '▶'}</span>
+                <span>Mostra configurazione .env</span>
+              </button>
+
+              {/* Environment Variables Details */}
+              {showEnvDetails && (
+                <div className="space-y-4 pt-2">
+                  {/* Azure env vars */}
+                  <div className="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-xl">
+                    <h5 className="font-medium text-sm mb-3 flex items-center gap-2">
+                      <Cloud className="w-4 h-4 text-blue-500" />
+                      Azure OpenAI (Chat + Voice)
+                    </h5>
+                    <div className="space-y-2">
+                      {providerStatus.azure.envVars.map((envVar) => (
+                        <div key={envVar.name} className="flex items-center justify-between text-xs">
+                          <code className="font-mono text-slate-600 dark:text-slate-400">
+                            {envVar.name}
+                          </code>
+                          <div className="flex items-center gap-2">
+                            {envVar.configured ? (
+                              <>
+                                <span className="text-green-600 dark:text-green-400">
+                                  {envVar.displayValue || '****'}
+                                </span>
+                                <span className="w-2 h-2 rounded-full bg-green-500" />
+                              </>
+                            ) : (
+                              <>
+                                <span className="text-slate-400">Non configurato</span>
+                                <span className="w-2 h-2 rounded-full bg-slate-300 dark:bg-slate-600" />
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Ollama env vars */}
+                  <div className="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-xl">
+                    <h5 className="font-medium text-sm mb-3 flex items-center gap-2">
+                      <Server className="w-4 h-4 text-green-500" />
+                      Ollama (Solo Chat locale)
+                    </h5>
+                    <div className="space-y-2">
+                      {providerStatus.ollama.envVars.map((envVar) => (
+                        <div key={envVar.name} className="flex items-center justify-between text-xs">
+                          <code className="font-mono text-slate-600 dark:text-slate-400">
+                            {envVar.name}
+                          </code>
+                          <div className="flex items-center gap-2">
+                            <span className={envVar.configured ? 'text-green-600 dark:text-green-400' : 'text-slate-400'}>
+                              {envVar.displayValue || 'Default'}
+                            </span>
+                            <span className={cn(
+                              'w-2 h-2 rounded-full',
+                              envVar.configured ? 'bg-green-500' : 'bg-slate-300 dark:bg-slate-600'
+                            )} />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="mt-3 p-2 bg-slate-100 dark:bg-slate-700 rounded text-xs">
+                      <p className="text-slate-600 dark:text-slate-400">
+                        Per usare Ollama, avvialo con:
+                      </p>
+                      <code className="block mt-1 text-green-600 dark:text-green-400 font-mono">
+                        ollama serve && ollama pull llama3.2
+                      </code>
+                    </div>
                   </div>
                 </div>
-                {providerStatus.provider === 'ollama' && (
-                  <div className="mt-2 flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full bg-green-500" />
-                    <span className="text-sm text-green-600 dark:text-green-400">
-                      Attivo: {providerStatus.model}
-                    </span>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-
-          {!providerStatus?.available && providerStatus !== null && (
-            <div className="p-4 bg-amber-50 dark:bg-amber-900/20 rounded-xl">
-              <h4 className="font-medium text-amber-700 dark:text-amber-300">
-                Nessun provider configurato
-              </h4>
-              <p className="text-sm text-amber-600 dark:text-amber-400 mt-1">
-                Configura Azure OpenAI o avvia Ollama per utilizzare i maestri.
-              </p>
-            </div>
+              )}
+            </>
           )}
         </CardContent>
       </Card>
 
       {/* Azure Costs - Only show if Azure is active */}
-      {providerStatus?.provider === 'azure' && (
+      {providerStatus?.activeProvider === 'azure' && (
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -855,78 +1108,44 @@ function AIProviderSettings() {
                   Cost Management non configurato
                 </h4>
                 <p className="text-sm text-amber-600 dark:text-amber-400 mb-3">
-                  Per visualizzare i costi Azure, devi creare un Service Principal con ruolo &quot;Cost Management Reader&quot;
-                  sulla tua subscription e configurare le seguenti 4 variabili nel file .env:
+                  Per visualizzare i costi Azure, configura un Service Principal con ruolo &quot;Cost Management Reader&quot;:
                 </p>
                 <div className="bg-slate-900 dark:bg-slate-950 p-3 rounded-lg mb-3">
                   <code className="text-xs text-green-400 font-mono block leading-relaxed">
-                    AZURE_TENANT_ID=xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx<br />
-                    AZURE_CLIENT_ID=xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx<br />
-                    AZURE_CLIENT_SECRET=your-secret-here<br />
-                    AZURE_SUBSCRIPTION_ID=xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+                    AZURE_TENANT_ID=...<br />
+                    AZURE_CLIENT_ID=...<br />
+                    AZURE_CLIENT_SECRET=...<br />
+                    AZURE_SUBSCRIPTION_ID=...
                   </code>
                 </div>
-                <p className="text-xs text-slate-500">
-                  Guida: Azure Portal → App registrations → New registration → Add role &quot;Cost Management Reader&quot;
-                </p>
               </div>
             ) : loadingCosts ? (
               <div className="animate-pulse space-y-4">
                 <div className="h-24 bg-slate-100 dark:bg-slate-800 rounded-lg" />
-                <div className="h-32 bg-slate-100 dark:bg-slate-800 rounded-lg" />
               </div>
             ) : costs ? (
-              <>
-                {/* Summary Cards */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="p-4 bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/30 dark:to-blue-800/30 rounded-xl">
-                    <div className="flex items-center gap-2 mb-2">
-                      <DollarSign className="w-5 h-5 text-blue-600" />
-                      <span className="text-sm text-blue-600 dark:text-blue-400">Ultimi 30 giorni</span>
-                    </div>
-                    <p className="text-2xl font-bold text-blue-700 dark:text-blue-300">
-                      {formatCurrency(costs.totalCost, costs.currency)}
-                    </p>
-                    <p className="text-xs text-blue-500 mt-1">
-                      {costs.periodStart} - {costs.periodEnd}
-                    </p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="p-4 bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/30 dark:to-blue-800/30 rounded-xl">
+                  <div className="flex items-center gap-2 mb-2">
+                    <DollarSign className="w-5 h-5 text-blue-600" />
+                    <span className="text-sm text-blue-600 dark:text-blue-400">Ultimi 30 giorni</span>
                   </div>
-
-                  {forecast && (
-                    <div className="p-4 bg-gradient-to-br from-green-50 to-green-100 dark:from-green-900/30 dark:to-green-800/30 rounded-xl">
-                      <div className="flex items-center gap-2 mb-2">
-                        <TrendingUp className="w-5 h-5 text-green-600" />
-                        <span className="text-sm text-green-600 dark:text-green-400">Stima fine mese</span>
-                      </div>
-                      <p className="text-2xl font-bold text-green-700 dark:text-green-300">
-                        {formatCurrency(forecast.estimatedTotal, forecast.currency)}
-                      </p>
-                      <p className="text-xs text-green-500 mt-1">
-                        Entro {forecast.forecastPeriodEnd}
-                      </p>
-                    </div>
-                  )}
+                  <p className="text-2xl font-bold text-blue-700 dark:text-blue-300">
+                    {formatCurrency(costs.totalCost, costs.currency)}
+                  </p>
                 </div>
-
-                {/* Cost breakdown by service */}
-                {costs.costsByService && costs.costsByService.length > 0 && (
-                  <div className="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-xl">
-                    <h4 className="font-medium mb-3">Dettaglio per servizio</h4>
-                    <div className="space-y-2">
-                      {costs.costsByService.slice(0, 5).map((service, i) => (
-                        <div key={i} className="flex justify-between items-center">
-                          <span className="text-sm text-slate-600 dark:text-slate-400 truncate max-w-[200px]">
-                            {service.serviceName}
-                          </span>
-                          <span className="text-sm font-medium">
-                            {formatCurrency(service.cost, costs.currency)}
-                          </span>
-                        </div>
-                      ))}
+                {forecast && (
+                  <div className="p-4 bg-gradient-to-br from-green-50 to-green-100 dark:from-green-900/30 dark:to-green-800/30 rounded-xl">
+                    <div className="flex items-center gap-2 mb-2">
+                      <TrendingUp className="w-5 h-5 text-green-600" />
+                      <span className="text-sm text-green-600 dark:text-green-400">Stima fine mese</span>
                     </div>
+                    <p className="text-2xl font-bold text-green-700 dark:text-green-300">
+                      {formatCurrency(forecast.estimatedTotal, forecast.currency)}
+                    </p>
                   </div>
                 )}
-              </>
+              </div>
             ) : null}
           </CardContent>
         </Card>
@@ -938,7 +1157,7 @@ function AIProviderSettings() {
           <CardTitle>Funzionalita Voce</CardTitle>
         </CardHeader>
         <CardContent>
-          {providerStatus?.provider === 'azure' ? (
+          {providerStatus?.azure.realtimeConfigured ? (
             <div className="p-4 bg-green-50 dark:bg-green-900/20 rounded-xl">
               <div className="flex items-center gap-2 mb-2">
                 <span className="w-3 h-3 rounded-full bg-green-500" />
@@ -947,7 +1166,7 @@ function AIProviderSettings() {
                 </span>
               </div>
               <p className="text-sm text-green-600 dark:text-green-400">
-                Azure OpenAI Realtime supporta conversazioni vocali in tempo reale con i maestri.
+                Azure OpenAI Realtime: {providerStatus.azure.realtimeModel}
               </p>
             </div>
           ) : (
@@ -958,9 +1177,11 @@ function AIProviderSettings() {
                   Voce non disponibile
                 </span>
               </div>
-              <p className="text-sm text-amber-600 dark:text-amber-400">
+              <p className="text-sm text-amber-600 dark:text-amber-400 mb-2">
                 Le conversazioni vocali richiedono Azure OpenAI Realtime.
-                Con Ollama puoi usare solo la chat testuale.
+              </p>
+              <p className="text-xs text-slate-500">
+                Configura: AZURE_OPENAI_REALTIME_ENDPOINT, AZURE_OPENAI_REALTIME_API_KEY, AZURE_OPENAI_REALTIME_DEPLOYMENT
               </p>
             </div>
           )}

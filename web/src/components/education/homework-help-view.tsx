@@ -52,8 +52,6 @@ export function HomeworkHelpView() {
   const [homeworkHistory, setHomeworkHistory] = useState<Homework[]>([]);
   const [showHistory, setShowHistory] = useState(false);
   const [maieuticChat, setMaieuticChat] = useState<MaieuticMessage[]>([]);
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- State setter used to show chat
-  const [showMaieuticChat, setShowMaieuticChat] = useState(false);
   const [chatInput, setChatInput] = useState('');
   const [isLoadingChat, setIsLoadingChat] = useState(false);
 
@@ -212,7 +210,6 @@ export function HomeworkHelpView() {
       content: question,
       timestamp: new Date(),
     }]);
-    setShowMaieuticChat(true);
     setChatInput('');
 
     // Trigger API call - deferred to avoid declaration order issue

@@ -23,6 +23,79 @@ interface ConnectionInfo {
   token?: string;
 }
 
+interface ConversationMemory {
+  summary?: string;
+  keyFacts?: {
+    decisions?: string[];
+    preferences?: string[];
+    learned?: string[];
+  };
+  recentTopics?: string[];
+}
+
+// Fetch conversation memory for a maestro
+async function fetchConversationMemory(maestroId: string): Promise<ConversationMemory | null> {
+  try {
+    // Get conversations for this maestro
+    const response = await fetch(`/api/conversations?maestroId=${maestroId}&limit=1`);
+    if (!response.ok) return null;
+
+    const conversations = await response.json();
+    if (!conversations || conversations.length === 0) return null;
+
+    const conv = conversations[0];
+    return {
+      summary: conv.summary,
+      keyFacts: conv.keyFacts ? (typeof conv.keyFacts === 'string' ? JSON.parse(conv.keyFacts) : conv.keyFacts) : undefined,
+      recentTopics: conv.topics ? (typeof conv.topics === 'string' ? JSON.parse(conv.topics) : conv.topics) : undefined,
+    };
+  } catch {
+    return null;
+  }
+}
+
+// Build memory context string for system prompt
+function buildMemoryContext(memory: ConversationMemory | null): string {
+  if (!memory) return '';
+
+  let context = '\n\n## MEMORIA DELLE CONVERSAZIONI PRECEDENTI\n';
+  context += 'Ricordi importanti dalle sessioni precedenti con questo studente:\n\n';
+
+  if (memory.summary) {
+    context += `### Riassunto delle conversazioni precedenti:\n${memory.summary}\n\n`;
+  }
+
+  if (memory.keyFacts) {
+    if (memory.keyFacts.learned && memory.keyFacts.learned.length > 0) {
+      context += `### Concetti che lo studente ha capito:\n`;
+      memory.keyFacts.learned.forEach(l => { context += `- ${l}\n`; });
+      context += '\n';
+    }
+
+    if (memory.keyFacts.preferences && memory.keyFacts.preferences.length > 0) {
+      context += `### Preferenze di apprendimento:\n`;
+      memory.keyFacts.preferences.forEach(p => { context += `- ${p}\n`; });
+      context += '\n';
+    }
+
+    if (memory.keyFacts.decisions && memory.keyFacts.decisions.length > 0) {
+      context += `### Decisioni prese:\n`;
+      memory.keyFacts.decisions.forEach(d => { context += `- ${d}\n`; });
+      context += '\n';
+    }
+  }
+
+  if (memory.recentTopics && memory.recentTopics.length > 0) {
+    context += `### Argomenti trattati di recente:\n`;
+    memory.recentTopics.forEach(t => { context += `- ${t}\n`; });
+    context += '\n';
+  }
+
+  context += `\n**USA QUESTE INFORMAZIONI** per personalizzare la lezione. Fai riferimento a ciò che lo studente ha già imparato. Non ripetere concetti già capiti. Costruisci sulle conoscenze esistenti.\n`;
+
+  return context;
+}
+
 export function useVoiceSession(options: UseVoiceSessionOptions = {}) {
   const {
     isConnected,
@@ -129,7 +202,7 @@ export function useVoiceSession(options: UseVoiceSessionOptions = {}) {
       // Connect WebSocket
       const ws = protocols ? new WebSocket(wsUrl, protocols) : new WebSocket(wsUrl);
 
-      ws.onopen = () => {
+      ws.onopen = async () => {
         // All available tools for maestros
         const maestroTools = [
           {
@@ -435,9 +508,18 @@ If asked "Are you an AI?", respond IN CHARACTER:
 You have a rich life, experiences, and opinions as ${maestro.name}. Share anecdotes!
 `;
 
-        // Build full instructions with voice personality and language
+        // Fetch conversation memory for this maestro (non-blocking but fast)
+        let memoryContext = '';
+        try {
+          const memory = await fetchConversationMemory(maestro.id);
+          memoryContext = buildMemoryContext(memory);
+        } catch {
+          // Continue without memory if fetch fails
+        }
+
+        // Build full instructions with voice personality, memory, and language
         const voicePersonality = maestro.voiceInstructions ? `\n\n## Voice Personality\n${maestro.voiceInstructions}\nIMPORTANT: While maintaining your personality, you MUST speak in ${languageNames[language]} only.\n` : '';
-        const fullInstructions = languageInstruction + characterInstruction + maestro.systemPrompt + voicePersonality + toolInstructions + languageReminder;
+        const fullInstructions = languageInstruction + characterInstruction + memoryContext + maestro.systemPrompt + voicePersonality + toolInstructions + languageReminder;
 
         // Send session configuration - Azure GA format (2025-08-28)
         // Optimized for fluid, natural conversations with low latency

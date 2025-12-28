@@ -5,3 +5,7 @@ export { FlashcardsView } from './flashcards-view';
 export { MindmapsView } from './mindmaps-view';
 export { HomeworkHelp } from './homework-help';
 export { HomeworkHelpView } from './homework-help-view';
+export { LibrettoView } from './libretto-view';
+export { CalendarView } from './calendar-view';
+export { HTMLPreview } from './html-preview';
+export { HTMLSnippetsView } from './html-snippets-view';

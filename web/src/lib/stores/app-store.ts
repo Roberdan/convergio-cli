@@ -25,6 +25,9 @@ interface AppearanceSettings {
   language: 'it' | 'en' | 'es' | 'fr' | 'de';
 }
 
+// Teaching style from super encouraging to brutal
+export type TeachingStyle = 'super_encouraging' | 'encouraging' | 'balanced' | 'strict' | 'brutal';
+
 interface ExtendedStudentProfile {
   name: string;
   age: number;
@@ -32,6 +35,7 @@ interface ExtendedStudentProfile {
   schoolLevel: 'elementare' | 'media' | 'superiore';
   gradeLevel: string;
   learningGoals: string[];
+  teachingStyle: TeachingStyle;
   fontSize: 'small' | 'medium' | 'large' | 'extra-large';
   highContrast: boolean;
   dyslexiaFont: boolean;
@@ -79,6 +83,7 @@ export const useSettingsStore = create<SettingsState>()(
         schoolLevel: 'superiore',
         gradeLevel: '',
         learningGoals: [],
+        teachingStyle: 'balanced',
         fontSize: 'medium',
         highContrast: false,
         dyslexiaFont: false,
@@ -216,6 +221,14 @@ export const useSettingsStore = create<SettingsState>()(
 
 // === PROGRESS STORE (Gamification) ===
 
+// Session grade given by maestro (1-10 scale)
+export interface SessionGrade {
+  score: number; // 1-10
+  feedback: string;
+  strengths: string[];
+  areasToImprove: string[];
+}
+
 interface StudySession {
   id: string;
   maestroId: string;
@@ -225,6 +238,7 @@ interface StudySession {
   durationMinutes?: number;
   questionsAsked: number;
   xpEarned: number;
+  grade?: SessionGrade; // Grade given by maestro at end of session
 }
 
 interface ProgressState {
@@ -251,7 +265,8 @@ interface ProgressState {
   incrementQuestions: () => void;
   // Session actions
   startSession: (maestroId: string, subject: string) => void;
-  endSession: () => void;
+  endSession: (grade?: SessionGrade) => void;
+  gradeCurrentSession: (grade: SessionGrade) => void;
   // Sync actions
   syncToServer: () => Promise<void>;
   loadFromServer: () => Promise<void>;
@@ -403,7 +418,7 @@ export const useProgressStore = create<ProgressState>()(
           };
         }),
 
-      endSession: () =>
+      endSession: (grade) =>
         set((state) => {
           if (!state.currentSession) return state;
 
@@ -414,6 +429,7 @@ export const useProgressStore = create<ProgressState>()(
             ...state.currentSession,
             endedAt: new Date(),
             durationMinutes,
+            grade: grade || state.currentSession.grade,
           };
 
           // Calculate week sessions
@@ -427,6 +443,15 @@ export const useProgressStore = create<ProgressState>()(
             sessionHistory: [endedSession, ...state.sessionHistory].slice(0, 100),
             totalStudyMinutes: state.totalStudyMinutes + durationMinutes,
             sessionsThisWeek: recentSessions.length,
+            pendingSync: true,
+          };
+        }),
+
+      gradeCurrentSession: (grade) =>
+        set((state) => {
+          if (!state.currentSession) return state;
+          return {
+            currentSession: { ...state.currentSession, grade },
             pendingSync: true,
           };
         }),
@@ -877,6 +902,256 @@ export const useLearningsStore = create<LearningsState>()(
       },
     }),
     { name: 'convergio-learnings' }
+  )
+);
+
+// === HTML SNIPPETS STORE ===
+
+export interface HTMLSnippet {
+  id: string;
+  title: string;
+  description?: string;
+  code: string; // Full HTML content (single file with embedded CSS/JS)
+  subject?: string;
+  maestroId?: string;
+  createdAt: Date;
+  updatedAt: Date;
+  tags: string[];
+}
+
+interface HTMLSnippetsState {
+  snippets: HTMLSnippet[];
+  // Actions
+  addSnippet: (snippet: Omit<HTMLSnippet, 'id' | 'createdAt' | 'updatedAt'>) => string;
+  updateSnippet: (id: string, updates: Partial<HTMLSnippet>) => void;
+  deleteSnippet: (id: string) => void;
+  getSnippetsBySubject: (subject: string) => HTMLSnippet[];
+  getSnippetsByMaestro: (maestroId: string) => HTMLSnippet[];
+}
+
+export const useHTMLSnippetsStore = create<HTMLSnippetsState>()(
+  persist(
+    (set, get) => ({
+      snippets: [],
+
+      addSnippet: (snippet) => {
+        const id = crypto.randomUUID();
+        const now = new Date();
+        set((state) => ({
+          snippets: [
+            {
+              ...snippet,
+              id,
+              createdAt: now,
+              updatedAt: now,
+            },
+            ...state.snippets,
+          ],
+        }));
+        return id;
+      },
+
+      updateSnippet: (id, updates) =>
+        set((state) => ({
+          snippets: state.snippets.map((s) =>
+            s.id === id ? { ...s, ...updates, updatedAt: new Date() } : s
+          ),
+        })),
+
+      deleteSnippet: (id) =>
+        set((state) => ({
+          snippets: state.snippets.filter((s) => s.id !== id),
+        })),
+
+      getSnippetsBySubject: (subject) => {
+        return get().snippets.filter(
+          (s) => s.subject?.toLowerCase() === subject.toLowerCase()
+        );
+      },
+
+      getSnippetsByMaestro: (maestroId) => {
+        return get().snippets.filter((s) => s.maestroId === maestroId);
+      },
+    }),
+    { name: 'convergio-html-snippets' }
+  )
+);
+
+// === SCHOOL CALENDAR STORE ===
+
+export interface SchoolEvent {
+  id: string;
+  title: string;
+  subject: string; // maps to maestro subject
+  type: 'test' | 'homework' | 'project' | 'lesson' | 'exam';
+  date: Date;
+  description?: string;
+  priority: 'low' | 'medium' | 'high';
+  completed: boolean;
+  maestroSuggested?: string; // recommended maestro id
+}
+
+interface CalendarState {
+  events: SchoolEvent[];
+  // Actions
+  addEvent: (event: Omit<SchoolEvent, 'id' | 'completed'>) => void;
+  updateEvent: (id: string, updates: Partial<SchoolEvent>) => void;
+  deleteEvent: (id: string) => void;
+  toggleCompleted: (id: string) => void;
+  getUpcomingEvents: (days: number) => SchoolEvent[];
+  getEventsBySubject: (subject: string) => SchoolEvent[];
+  getSuggestedMaestri: () => Array<{ maestroId: string; reason: string; priority: 'high' | 'medium' | 'low' }>;
+}
+
+// Subject to Maestro ID mapping
+const SUBJECT_TO_MAESTRO: Record<string, string> = {
+  mathematics: 'euclide-matematica',
+  math: 'euclide-matematica',
+  matematica: 'euclide-matematica',
+  history: 'clio-storia',
+  storia: 'clio-storia',
+  italian: 'dante-italiano',
+  italiano: 'dante-italiano',
+  literature: 'dante-italiano',
+  letteratura: 'dante-italiano',
+  english: 'shakespeare-english',
+  inglese: 'shakespeare-english',
+  science: 'curie-scienze',
+  scienze: 'curie-scienze',
+  physics: 'einstein-fisica',
+  fisica: 'einstein-fisica',
+  chemistry: 'curie-scienze',
+  chimica: 'curie-scienze',
+  biology: 'darwin-biologia',
+  biologia: 'darwin-biologia',
+  art: 'leonardo-arte',
+  arte: 'leonardo-arte',
+  philosophy: 'socrate-filosofia',
+  filosofia: 'socrate-filosofia',
+  geography: 'colombo-geografia',
+  geografia: 'colombo-geografia',
+  music: 'mozart-musica',
+  musica: 'mozart-musica',
+  latin: 'cicerone-latino',
+  latino: 'cicerone-latino',
+  greek: 'aristotele-greco',
+  greco: 'aristotele-greco',
+};
+
+export const useCalendarStore = create<CalendarState>()(
+  persist(
+    (set, get) => ({
+      events: [],
+
+      addEvent: (event) =>
+        set((state) => {
+          const subjectLower = event.subject.toLowerCase();
+          const maestroId = SUBJECT_TO_MAESTRO[subjectLower];
+          return {
+            events: [
+              ...state.events,
+              {
+                ...event,
+                id: crypto.randomUUID(),
+                completed: false,
+                maestroSuggested: maestroId,
+              },
+            ],
+          };
+        }),
+
+      updateEvent: (id, updates) =>
+        set((state) => ({
+          events: state.events.map((e) =>
+            e.id === id ? { ...e, ...updates } : e
+          ),
+        })),
+
+      deleteEvent: (id) =>
+        set((state) => ({
+          events: state.events.filter((e) => e.id !== id),
+        })),
+
+      toggleCompleted: (id) =>
+        set((state) => ({
+          events: state.events.map((e) =>
+            e.id === id ? { ...e, completed: !e.completed } : e
+          ),
+        })),
+
+      getUpcomingEvents: (days) => {
+        const now = new Date();
+        const future = new Date(now.getTime() + days * 24 * 60 * 60 * 1000);
+        return get()
+          .events.filter(
+            (e) => !e.completed && new Date(e.date) >= now && new Date(e.date) <= future
+          )
+          .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+      },
+
+      getEventsBySubject: (subject) => {
+        return get().events.filter(
+          (e) => e.subject.toLowerCase() === subject.toLowerCase()
+        );
+      },
+
+      getSuggestedMaestri: () => {
+        const upcoming = get().getUpcomingEvents(7);
+        const suggestions: Map<string, { count: number; nearestDays: number; types: Set<string> }> = new Map();
+
+        const now = new Date();
+        upcoming.forEach((event) => {
+          const maestroId = event.maestroSuggested;
+          if (!maestroId) return;
+
+          const daysUntil = Math.ceil(
+            (new Date(event.date).getTime() - now.getTime()) / (24 * 60 * 60 * 1000)
+          );
+
+          if (suggestions.has(maestroId)) {
+            const existing = suggestions.get(maestroId)!;
+            existing.count++;
+            existing.nearestDays = Math.min(existing.nearestDays, daysUntil);
+            existing.types.add(event.type);
+          } else {
+            suggestions.set(maestroId, {
+              count: 1,
+              nearestDays: daysUntil,
+              types: new Set([event.type]),
+            });
+          }
+        });
+
+        return Array.from(suggestions.entries())
+          .map(([maestroId, data]) => {
+            let priority: 'high' | 'medium' | 'low' = 'low';
+            let reason = '';
+
+            if (data.nearestDays <= 1) {
+              priority = 'high';
+              reason = data.types.has('exam') || data.types.has('test')
+                ? 'Test tomorrow - review now!'
+                : 'Event tomorrow';
+            } else if (data.nearestDays <= 3) {
+              priority = 'high';
+              reason = `${data.count} event${data.count > 1 ? 's' : ''} in ${data.nearestDays} days`;
+            } else if (data.nearestDays <= 5) {
+              priority = 'medium';
+              reason = `Prepare for upcoming ${Array.from(data.types).join('/')}`;
+            } else {
+              priority = 'low';
+              reason = `${data.count} event${data.count > 1 ? 's' : ''} this week`;
+            }
+
+            return { maestroId, reason, priority };
+          })
+          .sort((a, b) => {
+            const priorityOrder = { high: 0, medium: 1, low: 2 };
+            return priorityOrder[a.priority] - priorityOrder[b.priority];
+          });
+      },
+    }),
+    { name: 'convergio-calendar' }
   )
 );
 

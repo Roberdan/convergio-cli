@@ -14,17 +14,18 @@ import {
   Target,
   Flame,
   Network,
+  Calendar,
 } from 'lucide-react';
 import Image from 'next/image';
 import { MaestriGrid } from '@/components/maestros/maestri-grid';
-import { FlashcardsView, HomeworkHelpView, QuizView, MindmapsView } from '@/components/education';
+import { FlashcardsView, HomeworkHelpView, QuizView, MindmapsView, LibrettoView, CalendarView, HTMLSnippetsView } from '@/components/education';
 import { SettingsView } from '@/components/settings';
-import { ProgressView } from '@/components/progress';
+import { ProgressView, HomeProgressWidget } from '@/components/progress';
 import { Button } from '@/components/ui/button';
 import { useProgressStore, useSettingsStore } from '@/lib/stores/app-store';
 import { cn } from '@/lib/utils';
 
-type View = 'maestri' | 'quiz' | 'flashcards' | 'mindmaps' | 'homework' | 'progress' | 'settings';
+type View = 'maestri' | 'quiz' | 'flashcards' | 'mindmaps' | 'homework' | 'libretto' | 'calendar' | 'demos' | 'progress' | 'settings';
 
 export default function Home() {
   const [currentView, setCurrentView] = useState<View>('maestri');
@@ -39,6 +40,9 @@ export default function Home() {
     { id: 'flashcards' as const, label: 'Flashcards', icon: BookOpen },
     { id: 'mindmaps' as const, label: 'Mappe Mentali', icon: Network },
     { id: 'homework' as const, label: 'Compiti', icon: Target },
+    { id: 'libretto' as const, label: 'Libretto', icon: BookOpen },
+    { id: 'calendar' as const, label: 'Calendario', icon: Calendar },
+    { id: 'demos' as const, label: 'Demo', icon: Brain },
     { id: 'progress' as const, label: 'Progressi', icon: Trophy },
     { id: 'settings' as const, label: 'Impostazioni', icon: Settings },
   ];
@@ -167,7 +171,12 @@ export default function Home() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.3 }}
         >
-          {currentView === 'maestri' && <MaestriGrid />}
+          {currentView === 'maestri' && (
+            <>
+              <HomeProgressWidget />
+              <MaestriGrid />
+            </>
+          )}
 
           {currentView === 'quiz' && <QuizView />}
 
@@ -176,6 +185,12 @@ export default function Home() {
           {currentView === 'mindmaps' && <MindmapsView />}
 
           {currentView === 'homework' && <HomeworkHelpView />}
+
+          {currentView === 'libretto' && <LibrettoView />}
+
+          {currentView === 'calendar' && <CalendarView />}
+
+          {currentView === 'demos' && <HTMLSnippetsView />}
 
           {currentView === 'progress' && <ProgressView />}
 
