@@ -11,7 +11,7 @@
 
 <p align="center">
   <a href="https://github.com/Roberdan/convergio-cli/actions/workflows/ci.yml"><img src="https://github.com/Roberdan/convergio-cli/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
-  <a href="https://github.com/Roberdan/convergio-cli/releases/latest"><img src="https://img.shields.io/badge/version-6.4.0-blue" alt="Version 6.4.0"></a>
+  <a href="https://github.com/Roberdan/convergio-cli/releases/latest"><img src="https://img.shields.io/badge/version-6.4.1-blue" alt="Version 6.4.1"></a>
   <a href="https://github.com/Roberdan/convergio-cli/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-green.svg" alt="License"></a>
   <a href="https://github.com/Roberdan/convergio-cli"><img src="https://img.shields.io/badge/platform-macOS%20(Apple%20Silicon)-black" alt="Platform"></a>
   <a href="https://github.com/Roberdan/convergio-cli/stargazers"><img src="https://img.shields.io/github/stars/Roberdan/convergio-cli?style=social" alt="Stars"></a>
@@ -324,11 +324,19 @@ python3 -m http.server 8080
 
 ---
 
-## What's New in v6.0.0
+## What's New in v6.4.1
 
-### Multi-Edition Release
+### Metal Library Coexistence Fix
 
-Convergio v6.0.0 introduces **four specialized editions**:
+Convergio v6.4.1 fixes multi-edition Homebrew installation:
+
+- **Metal libraries** now install to `lib/convergio/` instead of `bin/`
+- All 4 editions can be installed simultaneously without conflicts
+- Binaries auto-detect Metal library paths at runtime
+
+### Previous: Multi-Edition Release (v6.0.0)
+
+Convergio introduced **four specialized editions**:
 
 | Edition | Binary | Target Users |
 |---------|--------|--------------|
@@ -720,15 +728,15 @@ Download pre-built binaries for your edition:
 
 | Edition | Download | Description |
 |---------|----------|-------------|
-| **Master** | [convergio-6.1.0-arm64-apple-darwin.tar.gz](https://github.com/Roberdan/convergio-cli/releases/download/v6.1.0/convergio-6.1.0-arm64-apple-darwin.tar.gz) | Full-featured for power users |
-| **Education** | [convergio-edu-6.1.0-arm64-apple-darwin.tar.gz](https://github.com/Roberdan/convergio-cli/releases/download/v6.1.0/convergio-edu-6.1.0-arm64-apple-darwin.tar.gz) | Schools, students (Scuola 2026) |
-| **Business** | [convergio-biz-6.1.0-arm64-apple-darwin.tar.gz](https://github.com/Roberdan/convergio-cli/releases/download/v6.1.0/convergio-biz-6.1.0-arm64-apple-darwin.tar.gz) | Enterprise features |
-| **Developer** | [convergio-dev-6.1.0-arm64-apple-darwin.tar.gz](https://github.com/Roberdan/convergio-cli/releases/download/v6.1.0/convergio-dev-6.1.0-arm64-apple-darwin.tar.gz) | Debug tools, APIs |
+| **Master** | [convergio-6.4.1-arm64-apple-darwin.tar.gz](https://github.com/Roberdan/convergio-cli/releases/download/v6.4.1/convergio-6.4.1-arm64-apple-darwin.tar.gz) | Full-featured for power users |
+| **Education** | [convergio-edu-6.4.1-arm64-apple-darwin.tar.gz](https://github.com/Roberdan/convergio-cli/releases/download/v6.4.1/convergio-edu-6.4.1-arm64-apple-darwin.tar.gz) | Schools, students (Scuola 2026) |
+| **Business** | [convergio-biz-6.4.1-arm64-apple-darwin.tar.gz](https://github.com/Roberdan/convergio-cli/releases/download/v6.4.1/convergio-biz-6.4.1-arm64-apple-darwin.tar.gz) | Enterprise features |
+| **Developer** | [convergio-dev-6.4.1-arm64-apple-darwin.tar.gz](https://github.com/Roberdan/convergio-cli/releases/download/v6.4.1/convergio-dev-6.4.1-arm64-apple-darwin.tar.gz) | Debug tools, APIs |
 
 ```bash
 # Example: Install Education Edition manually
-curl -LO https://github.com/Roberdan/convergio-cli/releases/download/v6.1.0/convergio-edu-6.1.0-arm64-apple-darwin.tar.gz
-tar -xzf convergio-edu-6.1.0-arm64-apple-darwin.tar.gz
+curl -LO https://github.com/Roberdan/convergio-cli/releases/download/v6.4.1/convergio-edu-6.4.1-arm64-apple-darwin.tar.gz
+tar -xzf convergio-edu-6.4.1-arm64-apple-darwin.tar.gz
 sudo mv convergio-edu /usr/local/bin/
 
 # Run
@@ -1271,7 +1279,7 @@ MIT License - see [LICENSE](LICENSE) for details.
 ---
 
 <p align="center">
-  <strong>Convergio CLI v6.1.0</strong><br/>
+  <strong>Convergio CLI v6.4.1</strong><br/>
   <em>Multi-Model AI Orchestration for Apple Silicon</em>
 </p>
 
