@@ -58,23 +58,29 @@ const initMermaidAccessible = (dyslexiaFont: boolean, highContrast: boolean) => 
 
 // Convert nodes to Mermaid mindmap syntax
 function nodesToMermaidSyntax(nodes: MindmapNode[], title: string): string {
+  // Escape special characters in labels
+  const escapeLabel = (label: string) => {
+    return label.replace(/[()[\]{}]/g, '');
+  };
+
   const buildNode = (node: MindmapNode, depth: number = 1): string => {
-    const indent = '  '.repeat(depth);
-    const icon = node.icon ? `${node.icon} ` : '';
-    let line = `${indent}${icon}${node.label}`;
+    // Mermaid mindmap uses 2-space indentation for each level
+    const indent = '    '.repeat(depth);
+    const escapedLabel = escapeLabel(node.label);
 
     if (node.children && node.children.length > 0) {
       const childLines = node.children.map((child) => buildNode(child, depth + 1));
-      return `${line}\n${childLines.join('\n')}`;
+      return `${indent}${escapedLabel}\n${childLines.join('\n')}`;
     }
 
-    return line;
+    return `${indent}${escapedLabel}`;
   };
 
   const rootContent = nodes.map((node) => buildNode(node)).join('\n');
 
+  // Use proper Mermaid mindmap syntax
   return `mindmap
-  root((${title}))
+  root((${escapeLabel(title)}))
 ${rootContent}`;
 }
 

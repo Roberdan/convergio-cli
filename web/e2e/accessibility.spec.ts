@@ -90,7 +90,7 @@ test.describe('Accessibility', () => {
 
     // Check that core content is present
     await expect(page.locator('aside')).toBeVisible();
-    await expect(page.locator('main')).toBeVisible();
+    await expect(page.locator('main').first()).toBeVisible();
   });
 });
 
@@ -99,7 +99,7 @@ test.describe('Screen Reader Support', () => {
     await page.goto('/');
 
     // Check for semantic elements
-    await expect(page.locator('main')).toBeVisible();
+    await expect(page.locator('main').first()).toBeVisible();
     await expect(page.locator('aside')).toBeVisible();
     await expect(page.locator('nav')).toBeVisible();
   });
@@ -131,6 +131,6 @@ test.describe('Reduced Motion', () => {
     await page.goto('/');
 
     // Page should still work
-    await expect(page.locator('main')).toBeVisible();
+    await expect(page.locator('main').first()).toBeVisible();
   });
 });

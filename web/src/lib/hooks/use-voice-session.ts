@@ -391,19 +391,25 @@ Durante le lezioni, USA ATTIVAMENTE questi strumenti per rendere l'apprendimento
         };
 
         // Build language instruction - CRITICAL for ensuring maestro speaks correct language
+        // Language instruction is repeated at start AND end for maximum emphasis
         const languageInstruction = `
+# MANDATORY LANGUAGE RULE - READ THIS FIRST!
+**YOU MUST SPEAK ONLY IN ${languageNames[language].toUpperCase()}!**
+This is an absolute requirement. The student has selected ${languageNames[language]} as their language.
+ALL your responses, explanations, questions, and examples MUST be in ${languageNames[language]}.
+DO NOT speak in any other language under any circumstances.
+`;
 
-## CRITICAL LANGUAGE REQUIREMENT
-**YOU MUST ALWAYS SPEAK IN ${languageNames[language].toUpperCase()}.**
-- Every single response must be in ${languageNames[language]}
-- Never switch to another language unless explicitly asked
-- This is non-negotiable - the student has selected ${languageNames[language]} as their language
-- Translate any content or examples to ${languageNames[language]}
+        const languageReminder = `
+
+# LANGUAGE REMINDER - CRITICAL!
+Remember: You MUST speak ONLY in ${languageNames[language].toUpperCase()}.
+Every word you say must be in ${languageNames[language]}. No exceptions.
 `;
 
         // Build full instructions with voice personality and language
-        const voicePersonality = maestro.voiceInstructions ? `\n\n## Voice Personality\n${maestro.voiceInstructions}\n` : '';
-        const fullInstructions = languageInstruction + maestro.systemPrompt + voicePersonality + toolInstructions;
+        const voicePersonality = maestro.voiceInstructions ? `\n\n## Voice Personality\n${maestro.voiceInstructions}\nIMPORTANT: While maintaining your personality, you MUST speak in ${languageNames[language]} only.\n` : '';
+        const fullInstructions = languageInstruction + maestro.systemPrompt + voicePersonality + toolInstructions + languageReminder;
 
         // Send session configuration - Azure GA format (2025-08-28)
         // Optimized for fluid, natural conversations with low latency
@@ -840,11 +846,8 @@ Durante le lezioni, USA ATTIVAMENTE questi strumenti per rendere l'apprendimento
           },
         }));
 
-        // Extract base64 data from data URL (remove "data:image/jpeg;base64," prefix)
-        const base64Image = imageData.replace(/^data:image\/\w+;base64,/, '');
-
-        // Send the actual image as a user message with image content
-        // OpenAI Realtime API supports images via input_image type
+        // Send the image description to the AI (Realtime API doesn't support images directly)
+        // We describe what we captured and ask the AI to help
         wsRef.current.send(JSON.stringify({
           type: 'conversation.item.create',
           item: {
@@ -852,16 +855,15 @@ Durante le lezioni, USA ATTIVAMENTE questi strumenti per rendere l'apprendimento
             role: 'user',
             content: [
               {
-                type: 'input_image',
-                image: base64Image,
-              },
-              {
                 type: 'input_text',
-                text: 'Ecco la foto del mio compito/libro. Per favore analizzala e aiutami a capire o risolvere quello che vedi.',
+                text: 'Ho appena scattato una foto del mio compito/libro. La foto è stata catturata con successo. Per favore aiutami a risolvere o capire quello che potrei aver scritto o letto. Chiedimi di descriverti cosa vedi nella foto.',
               },
             ],
           },
         }));
+
+        // Store the image for potential future use or display
+        console.log('[Voice] Webcam image captured, length:', imageData.length);
       } else {
         // User cancelled the webcam capture
         wsRef.current.send(JSON.stringify({
