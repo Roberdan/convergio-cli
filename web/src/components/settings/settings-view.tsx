@@ -630,7 +630,40 @@ function PrivacySettings() {
             </ul>
           </div>
 
-          <Button variant="outline" className="w-full text-red-600 border-red-200 hover:bg-red-50">
+          <Button
+            variant="outline"
+            className="w-full text-red-600 border-red-200 hover:bg-red-50"
+            onClick={async () => {
+              const confirmed = window.confirm(
+                'Sei sicuro di voler eliminare tutti i tuoi dati? Questa azione non può essere annullata.'
+              );
+              if (confirmed) {
+                // Clear all localStorage data
+                const keysToRemove = [];
+                for (let i = 0; i < localStorage.length; i++) {
+                  const key = localStorage.key(i);
+                  if (key?.startsWith('convergio')) {
+                    keysToRemove.push(key);
+                  }
+                }
+                keysToRemove.forEach(key => localStorage.removeItem(key));
+
+                // Also clear any other app-specific keys
+                localStorage.removeItem('voice-session');
+                localStorage.removeItem('accessibility-settings');
+
+                // Call API to delete server-side data
+                try {
+                  await fetch('/api/user/data', { method: 'DELETE' });
+                } catch {
+                  // Server deletion optional - local is primary
+                }
+
+                // Reload to reset state
+                window.location.reload();
+              }
+            }}
+          >
             Elimina tutti i miei dati
           </Button>
         </CardContent>

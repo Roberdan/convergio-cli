@@ -58,40 +58,75 @@ npm run version:major
 
 ### Issues to Fix Before PR (Dec 28, 2025)
 
-**Last Updated**: 2025-12-28 14:50
+**Last Updated**: 2025-12-28 16:30 - CRITICAL ISSUES FIXED
 
-| # | Issue | Priority | Status | Notes |
-|---|-------|----------|--------|-------|
-| 1 | Mindmap labels truncated in Mermaid SVG rendering | 🔴 HIGH | ⏳ PENDING | Mermaid library issue |
-| 2 | Microphone/webcam permissions asked every time | 🔴 HIGH | ✅ FIXED | Added localStorage cache in use-permissions.ts |
-| 3 | Audio crackling/stuttering during voice sessions | 🔴 HIGH | ⏳ PENDING | Need to investigate buffer sizes |
-| 4 | Maestri say "I'm an AI" instead of staying in character | 🔴 HIGH | ⏳ PENDING | Prompts are strong, may be model behavior |
-| 5 | Maestri should remember previous interactions | 🔴 HIGH | ⏳ PENDING | Needs conversation context loading |
-| 6 | Webcam infinite loading spinner | 🔴 HIGH | ✅ FIXED | Added 10s timeout + cleanup in webcam-capture.tsx |
-| 7 | Tool buttons DESCRIBE instead of CREATE | 🔴 HIGH | ✅ FIXED | Explicit "Usa lo strumento X ORA" prompts |
-| 8 | Tools should CREATE visual artifacts | 🔴 HIGH | ✅ FIXED | Same as #7 |
-| 9 | Auto-save quiz/mindmap/flashcards to archives | 🔴 HIGH | ⏳ PENDING | Needs API integration |
-| 10 | Maestri create HTML/code in browser | 🟡 MEDIUM | ⏳ PENDING | Feature not implemented |
-| 11 | Progress shows FAKE/MOCK data | 🔴 HIGH | ✅ FIXED | Removed mock, uses real streak data |
-| 12 | ALL mock data removed | 🔴 HIGH | ✅ FIXED | progress-view.tsx cleaned |
-| 13 | Accent color does NOTHING | 🔴 HIGH | ⏳ PENDING | CSS variable system needs work |
-| 14 | Voice API "session.temperature" error | 🔴 HIGH | ✅ FIXED | Removed param in use-voice-session.ts:436 |
-| 15 | Voice API "Tool call ID not found" | 🔴 HIGH | ✅ FIXED | Added warning + fallback ID |
-| 16 | WebSocket error shows {} | 🔴 HIGH | ✅ FIXED | Better error messages with context |
-| 17 | Console errors {} empty objects | 🟡 MEDIUM | ✅ FIXED | Improved error logging |
-| 18 | Cost Management "non configurato" | 🟡 MEDIUM | ✅ FIXED | Added Service Principal instructions |
-| 19 | AI Provider READ-ONLY | 🔴 HIGH | 🔶 BY DESIGN | Provider configured via .env |
-| 20 | No Ollama configuration UI | 🔴 HIGH | 🔶 BY DESIGN | Use OLLAMA_URL in .env |
-| 21 | Provider settings UI misleading | 🔴 HIGH | ⏳ PENDING | Should show "configured via .env" |
-| 22 | Aiuto Compiti webcam capture | 🔴 HIGH | ⏳ PENDING | Webcam works, needs integration |
-| 23 | Support IMAGES and PDF files | 🔴 HIGH | ⏳ PENDING | File upload not connected to AI |
-| 24 | AI read/interpret uploaded files | 🔴 HIGH | ⏳ PENDING | Needs vision API integration |
-| 25 | Homepage progress widget | 🟡 MEDIUM | ⏳ PENDING | Feature not implemented |
-| 26 | LIBRETTO/DIARIO feature | 🔴 HIGH | ⏳ PENDING | Feature not implemented |
-| 27 | School calendar | 🟡 MEDIUM | ⏳ PENDING | Feature not implemented |
-| 28 | Suggest maestri from calendar | 🟡 MEDIUM | ⏳ PENDING | Depends on #27 |
+---
 
-**Summary**: 11 FIXED ✅ | 2 BY DESIGN 🔶 | 15 PENDING ⏳
+#### 🚨 CRITICAL - MUST FIX BEFORE ANY PR
+
+| # | Issue | File | Status |
+|---|-------|------|--------|
+| C1 | **18 console.log DEBUG statements in production** | use-voice-session.ts | ✅ FIXED |
+| C2 | **API /api/homework/analyze DOES NOT EXIST** | Created api/homework/analyze/route.ts | ✅ FIXED |
+| C3 | **"Elimina tutti i miei dati" button DOES NOTHING** | settings-view.tsx + api/user/data | ✅ FIXED |
+
+---
+
+#### 🔴 HIGH PRIORITY - Original Issues
+
+| # | Issue | Status | Notes |
+|---|-------|--------|-------|
+| 1 | Mindmap labels truncated in Mermaid SVG | ⏳ PENDING | Mermaid library issue |
+| 2 | Permissions asked every time | ✅ FIXED | localStorage cache added |
+| 3 | Audio crackling/stuttering | ⏳ PENDING | Buffer size investigation needed |
+| 4 | Maestri say "I'm an AI" | ⏳ PENDING | Model behavior, prompts are OK |
+| 5 | Maestri don't remember interactions | ⏳ PENDING | Needs conversation context |
+| 6 | Webcam infinite spinner | ✅ FIXED | 10s timeout + cleanup |
+| 7 | Tool buttons DESCRIBE not CREATE | ✅ FIXED | Explicit prompts |
+| 8 | Tools should CREATE artifacts | ✅ FIXED | Same as #7 |
+| 9 | Auto-save quiz/mindmap/flashcards | ⏳ PENDING | Needs API integration |
+| 10 | Maestri create HTML/code in browser | ⏳ PENDING | Feature not implemented |
+| 11 | Progress shows FAKE/MOCK data | ✅ FIXED | Uses real streak |
+| 12 | ALL mock data removed | ⚠️ PARTIAL | homework-help still has mock! |
+| 13 | Accent color does NOTHING | ✅ FIXED | Audit confirmed it works |
+| 14 | Voice API "session.temperature" | ✅ FIXED | Param removed |
+| 15 | Voice API "Tool call ID" error | ✅ FIXED | Warning + fallback |
+| 16 | WebSocket error shows {} | ✅ FIXED | Better messages |
+| 17 | Console errors {} | ✅ FIXED | Improved logging |
+| 18 | Cost Management error msg | ✅ FIXED | Service Principal guide |
+| 19 | AI Provider READ-ONLY | 🔶 BY DESIGN | Via .env |
+| 20 | No Ollama config UI | 🔶 BY DESIGN | Via .env |
+| 21 | Provider UI misleading | ⏳ PENDING | Should clarify .env config |
+| 22 | Aiuto Compiti webcam | ⏳ PENDING | Needs integration |
+| 23 | Support images + PDF | ⏳ PENDING | Not connected to AI |
+| 24 | AI read uploaded files | ⏳ PENDING | Needs vision API |
+| 25 | Homepage progress widget | ⏳ PENDING | Not implemented |
+| 26 | LIBRETTO/DIARIO | ⏳ PENDING | Not implemented |
+| 27 | School calendar | ⏳ PENDING | Not implemented |
+| 28 | Suggest maestri from calendar | ⏳ PENDING | Depends on #27 |
+
+---
+
+#### 🟡 MEDIUM - Code Quality (from audit)
+
+| # | Issue | File | Status |
+|---|-------|------|--------|
+| Q1 | TODO forgotten - weekly data hardcoded to 0 | progress-view.tsx:238 | ⏳ PENDING |
+| Q2 | Unused state `showMaieuticChat` | homework-help-view.tsx:56 | ⏳ PENDING |
+| Q3 | 5 API routes NEVER CALLED (dead code) | flashcards/progress, progress/sync, search, learnings/extract, quizzes/results | ⏳ PENDING |
+
+---
+
+### SUMMARY
+
+| Category | Count |
+|----------|-------|
+| 🚨 CRITICAL (blocks PR) | 3 |
+| ✅ FIXED | 11 |
+| 🔶 BY DESIGN | 2 |
+| ⏳ PENDING HIGH | 14 |
+| ⏳ PENDING MEDIUM | 3 |
+| **TOTAL PENDING** | **20** |
 
 ---
 

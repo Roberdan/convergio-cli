@@ -101,7 +101,6 @@ export function useVoiceSession(options: UseVoiceSessionOptions = {}) {
       // Safari may need specific sample rate (some versions)
       if (isSafari) {
         audioConstraints.sampleRate = 48000;
-        console.log('[Voice] Safari detected, using 48kHz sample rate');
       }
 
       // Request microphone access
@@ -126,14 +125,10 @@ export function useVoiceSession(options: UseVoiceSessionOptions = {}) {
         protocols = ['realtime', `openai-insecure-api-key.${connectionInfo.token}`, 'openai-beta.realtime-v1'];
       }
 
-      console.log('[Voice] Connecting to:', connectionInfo.provider, wsUrl);
-
       // Connect WebSocket
       const ws = protocols ? new WebSocket(wsUrl, protocols) : new WebSocket(wsUrl);
 
       ws.onopen = () => {
-        console.log('[Voice] WebSocket connected to:', connectionInfo.provider);
-
         // All available tools for maestros
         const maestroTools = [
           {
@@ -469,7 +464,6 @@ Every word you say must be in ${languageNames[language]}. No exceptions.
           },
         };
 
-        console.log('[Voice] Sending session config with voice:', maestro.voice);
         ws.send(JSON.stringify(sessionConfig));
 
         setConnected(true);
@@ -505,7 +499,6 @@ Every word you say must be in ${languageNames[language]}. No exceptions.
               },
             }));
             ws.send(JSON.stringify({ type: 'response.create' }));
-            console.log('[Voice] Triggered initial greeting');
           }
         }, 500);
       };
@@ -513,25 +506,21 @@ Every word you say must be in ${languageNames[language]}. No exceptions.
       ws.onmessage = (event) => {
         try {
           const data = JSON.parse(event.data);
-          console.log('[Voice] Received:', data.type, data);
           handleServerEventRef.current?.(data);
-        } catch (e) {
-          console.error('[Voice] Failed to parse message:', e, event.data);
+        } catch {
+          // Silent parse failure - malformed server message
         }
       };
 
-      ws.onerror = (_event) => {
+      ws.onerror = () => {
         // WebSocket onerror receives an Event, not an Error
         // Browser security prevents access to actual error details
-        console.error('[Voice] WebSocket error - connection failed. Check network and Azure endpoint configuration.');
-        console.error('[Voice] URL attempted:', wsUrl ? wsUrl.split('?')[0] : 'unknown');
         setConnectionState('error');
         options.onStateChange?.('error');
         options.onError?.(new Error('WebSocket connection failed. Check Azure endpoint and API key.'));
       };
 
-      ws.onclose = (event) => {
-        console.log('[Voice] WebSocket closed:', event.code, event.reason);
+      ws.onclose = () => {
         setConnected(false);
         if (connectionState !== 'error') {
           setConnectionState('idle');
@@ -547,7 +536,6 @@ Every word you say must be in ${languageNames[language]}. No exceptions.
 
       wsRef.current = ws;
     } catch (error) {
-      console.error('[Voice] Connection error:', error);
       setConnectionState('error');
       options.onStateChange?.('error');
       options.onError?.(error as Error);
@@ -558,11 +546,8 @@ Every word you say must be in ${languageNames[language]}. No exceptions.
   const handleServerEvent = useCallback((event: Record<string, unknown>) => {
     switch (event.type) {
       case 'session.created':
-        console.log('[Voice] Session created');
-        break;
-
       case 'session.updated':
-        console.log('[Voice] Session updated');
+        // Session lifecycle events - no action needed
         break;
 
       case 'input_audio_buffer.speech_started':
@@ -617,26 +602,22 @@ Every word you say must be in ${languageNames[language]}. No exceptions.
         break;
 
       case 'response.done':
-        console.log('[Voice] Response complete');
+        // Response complete - no action needed
         break;
 
-      case 'error':
-        console.error('[Voice] Server error:', event.error);
+      case 'error': {
         const errorObj = event.error as { message?: string } | undefined;
         options.onError?.(new Error(errorObj?.message || 'Server error'));
         break;
+      }
 
       // Handle function/tool calls from the AI
       case 'response.function_call_arguments.done':
-        console.log('[Voice] Function call completed:', event.name, event.arguments);
         if (event.name && typeof event.name === 'string' && event.arguments && typeof event.arguments === 'string') {
           try {
             const args = JSON.parse(event.arguments);
             // IMPORTANT: Azure requires the exact call_id from the server
-            // If call_id is missing, we cannot send a valid response
-            if (typeof event.call_id !== 'string') {
-              console.warn('[Voice] Tool call missing call_id - response may fail');
-            }
+            // If call_id is missing, we use a local fallback (may not work with Azure)
             const callId = typeof event.call_id === 'string' ? event.call_id : `local-${crypto.randomUUID()}`;
             const toolCall = {
               id: callId,
@@ -649,7 +630,6 @@ Every word you say must be in ${languageNames[language]}. No exceptions.
 
             // Special handling for webcam capture - defer to UI
             if (event.name === 'capture_homework') {
-              console.log('[Voice] Webcam capture requested:', args);
               options.onWebcamRequest?.({
                 purpose: args.purpose || 'homework',
                 instructions: args.instructions,
@@ -675,17 +655,15 @@ Every word you say must be in ${languageNames[language]}. No exceptions.
               // Trigger response to continue after tool use
               wsRef.current.send(JSON.stringify({ type: 'response.create' }));
             }
-          } catch (e) {
-            console.error('[Voice] Failed to parse function arguments:', e);
+          } catch {
+            // Failed to parse function arguments - skip tool call
           }
         }
         break;
 
       default:
-        // Log unknown events for debugging
-        if (event.type) {
-          console.log('[Voice] Event:', event.type);
-        }
+        // Unknown event type - ignore
+        break;
     }
   }, [addTranscript, addToolCall, updateToolCall, options, setListening]);
 
@@ -786,8 +764,7 @@ Every word you say must be in ${languageNames[language]}. No exceptions.
     // Start playback with minimal delay
     try {
       source.start(0);
-    } catch (e) {
-      console.warn('[Voice] Audio playback error, retrying:', e);
+    } catch {
       // Safari sometimes throws if start is called too quickly after previous end
       requestAnimationFrame(() => {
         try {
@@ -796,8 +773,8 @@ Every word you say must be in ${languageNames[language]}. No exceptions.
           retrySource.connect(playbackContext.destination);
           retrySource.onended = () => requestAnimationFrame(() => playNextAudioChunkRef.current?.());
           retrySource.start(0);
-        } catch (retryError) {
-          console.error('[Voice] Audio playback retry failed:', retryError);
+        } catch {
+          // Retry failed - continue to next chunk
           playNextAudioChunkRef.current?.();
         }
       });
@@ -927,8 +904,6 @@ Every word you say must be in ${languageNames[language]}. No exceptions.
           },
         }));
 
-        // Store the image for potential future use or display
-        console.log('[Voice] Webcam image captured, length:', imageData.length);
       } else {
         // User cancelled the webcam capture
         wsRef.current.send(JSON.stringify({
