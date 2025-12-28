@@ -4,8 +4,8 @@ import { useState } from 'react';
 import { Search, Filter } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MaestroCard } from './maestro-card';
-import { VoiceSession } from '@/components/voice/voice-session';
-import { ChatSession } from '@/components/chat/chat-session';
+import { LazyVoiceSession } from '@/components/voice/lazy';
+import { LazyChatSession } from '@/components/chat/lazy';
 import { maestri, subjectNames, subjectIcons, subjectColors, getAllSubjects } from '@/data';
 import { cn } from '@/lib/utils';
 import type { Maestro, Subject } from '@/types';
@@ -146,10 +146,10 @@ export function MaestriGrid() {
         </div>
       )}
 
-      {/* Voice session */}
+      {/* Voice session (lazy loaded) */}
       <AnimatePresence mode="wait">
         {sessionMode === 'voice' && selectedMaestro && (
-          <VoiceSession
+          <LazyVoiceSession
             key={`voice-${selectedMaestro.id}-${sessionKey}`}
             maestro={selectedMaestro}
             onClose={handleCloseSession}
@@ -158,10 +158,10 @@ export function MaestriGrid() {
         )}
       </AnimatePresence>
 
-      {/* Chat session */}
+      {/* Chat session (lazy loaded) */}
       <AnimatePresence mode="wait">
         {sessionMode === 'chat' && selectedMaestro && (
-          <ChatSession
+          <LazyChatSession
             key={`chat-${selectedMaestro.id}`}
             maestro={selectedMaestro}
             onClose={handleCloseSession}

@@ -13,9 +13,9 @@ const nextConfig: NextConfig = {
             value: 'microphone=(self), camera=(self), display-capture=(self)',
           },
           {
-            // CORS for API routes
+            // CORS for API routes - restrict to same origin in production
             key: 'Access-Control-Allow-Origin',
-            value: '*',
+            value: process.env.ALLOWED_ORIGIN || 'http://localhost:3000',
           },
         ],
       },

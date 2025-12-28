@@ -18,9 +18,17 @@ import {
 } from 'lucide-react';
 import Image from 'next/image';
 import { MaestriGrid } from '@/components/maestros/maestri-grid';
-import { FlashcardsView, HomeworkHelpView, QuizView, MindmapsView, LibrettoView, CalendarView, HTMLSnippetsView } from '@/components/education';
-import { SettingsView } from '@/components/settings';
-import { ProgressView, HomeProgressWidget } from '@/components/progress';
+import {
+  LazyQuizView,
+  LazyFlashcardsView,
+  LazyMindmapsView,
+  LazyHomeworkHelpView,
+  LazyLibrettoView,
+  LazyCalendarView,
+  LazyHTMLSnippetsView,
+} from '@/components/education';
+import { LazySettingsView } from '@/components/settings';
+import { LazyProgressView, HomeProgressWidget } from '@/components/progress';
 import { Button } from '@/components/ui/button';
 import { useProgressStore, useSettingsStore } from '@/lib/stores/app-store';
 import { cn } from '@/lib/utils';
@@ -180,23 +188,23 @@ export default function Home() {
             </>
           )}
 
-          {currentView === 'quiz' && <QuizView />}
+          {currentView === 'quiz' && <LazyQuizView />}
 
-          {currentView === 'flashcards' && <FlashcardsView />}
+          {currentView === 'flashcards' && <LazyFlashcardsView />}
 
-          {currentView === 'mindmaps' && <MindmapsView />}
+          {currentView === 'mindmaps' && <LazyMindmapsView />}
 
-          {currentView === 'homework' && <HomeworkHelpView />}
+          {currentView === 'homework' && <LazyHomeworkHelpView />}
 
-          {currentView === 'libretto' && <LibrettoView />}
+          {currentView === 'libretto' && <LazyLibrettoView />}
 
-          {currentView === 'calendar' && <CalendarView />}
+          {currentView === 'calendar' && <LazyCalendarView />}
 
-          {currentView === 'demos' && <HTMLSnippetsView />}
+          {currentView === 'demos' && <LazyHTMLSnippetsView />}
 
-          {currentView === 'progress' && <ProgressView />}
+          {currentView === 'progress' && <LazyProgressView />}
 
-          {currentView === 'settings' && <SettingsView />}
+          {currentView === 'settings' && <LazySettingsView />}
         </motion.div>
       </main>
     </div>

@@ -9,3 +9,14 @@ export { LibrettoView } from './libretto-view';
 export { CalendarView } from './calendar-view';
 export { HTMLPreview } from './html-preview';
 export { HTMLSnippetsView } from './html-snippets-view';
+
+// Lazy-loaded versions for performance
+export {
+  LazyQuizView,
+  LazyFlashcardsView,
+  LazyMindmapsView,
+  LazyHomeworkHelpView,
+  LazyLibrettoView,
+  LazyCalendarView,
+  LazyHTMLSnippetsView,
+} from './lazy';
