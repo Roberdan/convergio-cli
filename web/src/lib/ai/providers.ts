@@ -25,30 +25,63 @@ export interface ChatCompletionResult {
 }
 
 /**
- * Get the active chat provider configuration
- * Priority: Azure OpenAI > Ollama
+ * Check if Azure OpenAI is configured
  */
-export function getActiveProvider(): ProviderConfig | null {
-  // 1. Check Azure OpenAI (preferred)
+export function isAzureConfigured(): boolean {
   const azureEndpoint = process.env.AZURE_OPENAI_ENDPOINT;
   const azureApiKey = process.env.AZURE_OPENAI_API_KEY;
+  return !!(azureEndpoint && azureApiKey);
+}
 
-  if (azureEndpoint && azureApiKey) {
-    return {
-      provider: 'azure',
-      endpoint: azureEndpoint.replace(/\/$/, ''),
-      apiKey: azureApiKey,
-      model: process.env.AZURE_OPENAI_CHAT_DEPLOYMENT || 'gpt-4o',
-    };
-  }
+/**
+ * Get Azure OpenAI configuration
+ */
+function getAzureConfig(): ProviderConfig {
+  const azureEndpoint = process.env.AZURE_OPENAI_ENDPOINT!;
+  const azureApiKey = process.env.AZURE_OPENAI_API_KEY!;
+  return {
+    provider: 'azure',
+    endpoint: azureEndpoint.replace(/\/$/, ''),
+    apiKey: azureApiKey,
+    model: process.env.AZURE_OPENAI_CHAT_DEPLOYMENT || 'gpt-4o',
+  };
+}
 
-  // 2. Fallback to Ollama (local, no API key needed)
+/**
+ * Get Ollama configuration
+ */
+function getOllamaConfig(): ProviderConfig {
   const ollamaUrl = process.env.OLLAMA_URL || 'http://localhost:11434';
   return {
     provider: 'ollama',
     endpoint: ollamaUrl,
     model: process.env.OLLAMA_MODEL || 'llama3.2',
   };
+}
+
+/**
+ * Get the active chat provider configuration
+ * Priority: User preference > Azure OpenAI > Ollama
+ * @param preference - User's preferred provider: 'azure', 'ollama', or 'auto'
+ */
+export function getActiveProvider(preference?: 'azure' | 'ollama' | 'auto'): ProviderConfig | null {
+  // If explicit preference for ollama, use ollama
+  if (preference === 'ollama') {
+    return getOllamaConfig();
+  }
+
+  // If explicit preference for azure AND azure is configured
+  if (preference === 'azure' && isAzureConfigured()) {
+    return getAzureConfig();
+  }
+
+  // Auto mode (default): Azure if configured, otherwise Ollama
+  if (isAzureConfigured()) {
+    return getAzureConfig();
+  }
+
+  // Fallback to Ollama (local, no API key needed)
+  return getOllamaConfig();
 }
 
 /**

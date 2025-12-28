@@ -7,6 +7,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { prisma } from '@/lib/db';
+import { logger } from '@/lib/logger';
 
 export async function GET(request: NextRequest) {
   try {
@@ -32,7 +33,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(sessions);
   } catch (error) {
-    console.error('Sessions GET error:', error);
+    logger.error('Sessions GET error', { error: String(error) });
     return NextResponse.json(
       { error: 'Failed to get sessions' },
       { status: 500 }
@@ -68,7 +69,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(session);
   } catch (error) {
-    console.error('Sessions POST error:', error);
+    logger.error('Sessions POST error', { error: String(error) });
     return NextResponse.json(
       { error: 'Failed to create session' },
       { status: 500 }
@@ -119,7 +120,7 @@ export async function PATCH(request: NextRequest) {
 
     return NextResponse.json(session);
   } catch (error) {
-    console.error('Sessions PATCH error:', error);
+    logger.error('Sessions PATCH error', { error: String(error) });
     return NextResponse.json(
       { error: 'Failed to update session' },
       { status: 500 }

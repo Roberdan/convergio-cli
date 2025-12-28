@@ -7,6 +7,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { prisma } from '@/lib/db';
+import { logger } from '@/lib/logger';
 
 export async function GET() {
   try {
@@ -30,7 +31,7 @@ export async function GET() {
 
     return NextResponse.json(settings);
   } catch (error) {
-    console.error('Settings GET error:', error);
+    logger.error('Settings GET error', { error: String(error) });
     return NextResponse.json(
       { error: 'Failed to get settings' },
       { status: 500 }
@@ -63,7 +64,7 @@ export async function PUT(request: NextRequest) {
 
     return NextResponse.json(settings);
   } catch (error) {
-    console.error('Settings PUT error:', error);
+    logger.error('Settings PUT error', { error: String(error) });
     return NextResponse.json(
       { error: 'Failed to update settings' },
       { status: 500 }

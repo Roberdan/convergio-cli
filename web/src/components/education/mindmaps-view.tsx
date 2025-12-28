@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Plus,
@@ -120,6 +120,27 @@ export function MindmapsView({ className }: MindmapsViewProps) {
     });
     return grouped;
   }, [mindmaps]);
+
+  // Close any open modal
+  const closeModals = useCallback(() => {
+    setSelectedMindmap(null);
+    setShowExamples(false);
+    setSelectedExample(null);
+  }, []);
+
+  // Handle Escape key to close modals
+  useEffect(() => {
+    const hasOpenModal = selectedMindmap || showExamples || selectedExample;
+    if (!hasOpenModal) return;
+
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        closeModals();
+      }
+    };
+    window.addEventListener('keydown', handleEscape);
+    return () => window.removeEventListener('keydown', handleEscape);
+  }, [selectedMindmap, showExamples, selectedExample, closeModals]);
 
   return (
     <div className={cn('space-y-6', className)}>

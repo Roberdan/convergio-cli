@@ -5,6 +5,7 @@
 
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { logger } from '@/lib/logger';
 import type {
   Maestro,
   Theme,
@@ -44,6 +45,9 @@ interface ExtendedStudentProfile {
   adhdMode: boolean;
 }
 
+// Provider preference for manual selection
+export type ProviderPreference = 'azure' | 'ollama' | 'auto';
+
 interface SettingsState {
   theme: Theme;
   provider: AIProvider;
@@ -52,6 +56,7 @@ interface SettingsState {
   totalSpent: number;
   studentProfile: ExtendedStudentProfile;
   appearance: AppearanceSettings;
+  preferredProvider: ProviderPreference;
   // Sync state
   lastSyncedAt: Date | null;
   pendingSync: boolean;
@@ -63,6 +68,7 @@ interface SettingsState {
   addCost: (cost: number) => void;
   updateStudentProfile: (profile: Partial<ExtendedStudentProfile>) => void;
   updateAppearance: (appearance: Partial<AppearanceSettings>) => void;
+  setPreferredProvider: (provider: ProviderPreference) => void;
   // Sync actions
   syncToServer: () => Promise<void>;
   loadFromServer: () => Promise<void>;
@@ -96,6 +102,7 @@ export const useSettingsStore = create<SettingsState>()(
         accentColor: 'blue',
         language: 'it',
       },
+      preferredProvider: 'auto',
       lastSyncedAt: null,
       pendingSync: false,
 
@@ -115,6 +122,8 @@ export const useSettingsStore = create<SettingsState>()(
           appearance: { ...state.appearance, ...appearance },
           pendingSync: true,
         })),
+      setPreferredProvider: (preferredProvider) =>
+        set({ preferredProvider, pendingSync: true }),
 
       syncToServer: async () => {
         const state = get();
@@ -159,7 +168,7 @@ export const useSettingsStore = create<SettingsState>()(
 
           set({ lastSyncedAt: new Date(), pendingSync: false });
         } catch (error) {
-          console.error('Settings sync failed:', error);
+          logger.error('Settings sync failed', { error: String(error) });
         }
       },
 
@@ -211,7 +220,7 @@ export const useSettingsStore = create<SettingsState>()(
 
           set({ lastSyncedAt: new Date(), pendingSync: false });
         } catch (error) {
-          console.error('Settings load failed:', error);
+          logger.error('Settings load failed', { error: String(error) });
         }
       },
     }),
@@ -491,7 +500,7 @@ export const useProgressStore = create<ProgressState>()(
 
           set({ lastSyncedAt: new Date(), pendingSync: false });
         } catch (error) {
-          console.error('Progress sync failed:', error);
+          logger.error('Progress sync failed', { error: String(error) });
         }
       },
 
@@ -538,7 +547,7 @@ export const useProgressStore = create<ProgressState>()(
 
           set({ lastSyncedAt: new Date(), pendingSync: false });
         } catch (error) {
-          console.error('Progress load failed:', error);
+          logger.error('Progress load failed', { error: String(error) });
         }
       },
     }),
@@ -689,7 +698,7 @@ export const useConversationStore = create<ConversationState>()(
             return serverConv.id;
           }
         } catch (error) {
-          console.error('Failed to create conversation on server:', error);
+          logger.error('Failed to create conversation on server', { error: String(error) });
         }
 
         return tempId;
@@ -732,7 +741,7 @@ export const useConversationStore = create<ConversationState>()(
             }),
           });
         } catch (error) {
-          console.error('Failed to add message to server:', error);
+          logger.error('Failed to add message to server', { error: String(error) });
         }
       },
 
@@ -752,7 +761,7 @@ export const useConversationStore = create<ConversationState>()(
         try {
           await fetch(`/api/conversations/${id}`, { method: 'DELETE' });
         } catch (error) {
-          console.error('Failed to delete conversation on server:', error);
+          logger.error('Failed to delete conversation on server', { error: String(error) });
         }
       },
 
@@ -788,7 +797,7 @@ export const useConversationStore = create<ConversationState>()(
             });
           }
         } catch (error) {
-          console.error('Conversations load failed:', error);
+          logger.error('Conversations load failed', { error: String(error) });
         }
       },
     }),
@@ -862,7 +871,7 @@ export const useLearningsStore = create<LearningsState>()(
             });
           }
         } catch (error) {
-          console.error('Failed to add learning:', error);
+          logger.error('Failed to add learning', { error: String(error) });
         }
       },
 
@@ -874,7 +883,7 @@ export const useLearningsStore = create<LearningsState>()(
         try {
           await fetch(`/api/learnings?id=${id}`, { method: 'DELETE' });
         } catch (error) {
-          console.error('Failed to remove learning:', error);
+          logger.error('Failed to remove learning', { error: String(error) });
         }
       },
 
@@ -897,7 +906,7 @@ export const useLearningsStore = create<LearningsState>()(
             });
           }
         } catch (error) {
-          console.error('Learnings load failed:', error);
+          logger.error('Learnings load failed', { error: String(error) });
         }
       },
     }),

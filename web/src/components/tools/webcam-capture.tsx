@@ -4,6 +4,7 @@ import { useState, useRef, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Camera, X, Check, RotateCcw, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { logger } from '@/lib/logger';
 import { Card } from '@/components/ui/card';
 
 interface WebcamCaptureProps {
@@ -57,7 +58,7 @@ export function WebcamCapture({ purpose, instructions, onCapture, onClose }: Web
           mediaStream.getTracks().forEach(track => track.stop());
         }
       } catch (err) {
-        console.error('Camera error:', err);
+        logger.error('Camera error', { error: String(err) });
         if (mounted) {
           setError('Unable to access camera. Please check permissions.');
           setIsLoading(false);
@@ -87,6 +88,17 @@ export function WebcamCapture({ purpose, instructions, onCapture, onClose }: Web
       }
     };
   }, [stream]);
+
+  // Handle Escape key to close modal
+  useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleEscape);
+    return () => window.removeEventListener('keydown', handleEscape);
+  }, [onClose]);
 
   // Capture image
   const handleCapture = useCallback(() => {
@@ -172,6 +184,7 @@ export function WebcamCapture({ purpose, instructions, onCapture, onClose }: Web
             size="icon"
             onClick={onClose}
             className="text-slate-400 hover:text-white"
+            aria-label="Chiudi webcam"
           >
             <X className="w-5 h-5" />
           </Button>

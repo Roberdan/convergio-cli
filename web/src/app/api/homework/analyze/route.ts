@@ -6,6 +6,7 @@
 
 import { NextResponse } from 'next/server';
 import { getActiveProvider } from '@/lib/ai/providers';
+import { logger } from '@/lib/logger';
 
 interface HomeworkStep {
   id: string;
@@ -99,7 +100,7 @@ Crea 3-5 passaggi maieutici che guidino lo studente a trovare la soluzione da so
 
       if (!response.ok) {
         const errorText = await response.text();
-        console.error('Azure Vision API error:', errorText);
+        logger.error('Azure Vision API error', { response: errorText });
         return NextResponse.json(
           { error: 'Failed to analyze image' },
           { status: 500 }
@@ -159,7 +160,7 @@ Crea 3-5 passaggi maieutici che guidino lo studente a trovare la soluzione da so
       { status: 501 }
     );
   } catch (error) {
-    console.error('Homework analyze error:', error);
+    logger.error('Homework analyze error', { error: String(error) });
     return NextResponse.json(
       { error: 'Failed to analyze homework' },
       { status: 500 }

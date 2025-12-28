@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAccessibilityStore } from '@/lib/accessibility/accessibility-store';
+import { logger } from '@/lib/logger';
 import { useTTS } from '@/components/accessibility';
 import type { Maestro, ChatMessage, ToolCall } from '@/types';
 import { ToolResultDisplay } from '@/components/tools';
@@ -64,6 +65,17 @@ export function ChatSession({ maestro, onClose, onSwitchToVoice }: ChatSessionPr
       speak(maestro.greeting);
     }
   }, [maestro.greeting, settings.ttsAutoRead, speak]);
+
+  // Handle Escape key to close modal
+  useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleEscape);
+    return () => window.removeEventListener('keydown', handleEscape);
+  }, [onClose]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -121,7 +133,7 @@ export function ChatSession({ maestro, onClose, onSwitchToVoice }: ChatSessionPr
         speak(data.content);
       }
     } catch (error) {
-      console.error('Chat error:', error);
+      logger.error('Chat error', { error: String(error) });
       const errorMessage: ChatMessage = {
         id: `error-${Date.now()}`,
         role: 'assistant',

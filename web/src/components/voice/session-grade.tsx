@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import Image from 'next/image';
 import { Star, Trophy, TrendingUp, Clock, MessageSquare, X, Sparkles } from 'lucide-react';
@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { useProgressStore, type SessionGrade } from '@/lib/stores/app-store';
 import { cn } from '@/lib/utils';
+import { logger } from '@/lib/logger';
 import type { Maestro } from '@/types';
 
 interface SessionGradeProps {
@@ -35,7 +36,7 @@ const GRADE_LABELS: Record<number, { label: string; emoji: string; color: string
 export function SessionGradeDisplay({ maestro, sessionDuration, questionsAsked, xpEarned, onClose, onRequestGrade }: SessionGradeProps) {
   const [isGenerating, setIsGenerating] = useState(true);
   const [grade, setGrade] = useState<SessionGrade | null>(null);
-  const { gradeCurrentSession, currentSession } = useProgressStore();
+  const { gradeCurrentSession } = useProgressStore();
 
   // Generate grade on mount
   useEffect(() => {
@@ -68,7 +69,7 @@ export function SessionGradeDisplay({ maestro, sessionDuration, questionsAsked, 
           gradeCurrentSession(autoGrade);
         }
       } catch (error) {
-        console.error('Failed to generate grade:', error);
+        logger.error('Failed to generate grade', { error: String(error) });
         // Fallback grade
         setGrade({
           score: 7,
@@ -83,6 +84,17 @@ export function SessionGradeDisplay({ maestro, sessionDuration, questionsAsked, 
 
     generateGrade();
   }, [onRequestGrade, questionsAsked, sessionDuration, gradeCurrentSession]);
+
+  // Handle Escape key to close modal
+  useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleEscape);
+    return () => window.removeEventListener('keydown', handleEscape);
+  }, [onClose]);
 
   const gradeInfo = grade ? GRADE_LABELS[grade.score] || GRADE_LABELS[5] : GRADE_LABELS[5];
 
@@ -121,6 +133,7 @@ export function SessionGradeDisplay({ maestro, sessionDuration, questionsAsked, 
                 size="icon"
                 onClick={onClose}
                 className="text-slate-400 hover:text-white hover:bg-slate-700"
+                aria-label="Chiudi valutazione"
               >
                 <X className="h-5 w-5" />
               </Button>
@@ -258,7 +271,7 @@ export function SessionGradeDisplay({ maestro, sessionDuration, questionsAsked, 
 }
 
 // Helper functions for automatic grade generation
-function generateFeedback(score: number, questions: number, duration: number): string {
+function generateFeedback(score: number, _questions: number, _duration: number): string {
   if (score >= 9) {
     return 'Sessione eccezionale! Hai dimostrato grande impegno e curiosita. Continua cosi!';
   } else if (score >= 7) {

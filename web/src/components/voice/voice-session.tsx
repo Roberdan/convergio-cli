@@ -190,6 +190,17 @@ export function VoiceSession({ maestro, onClose, onSwitchToChat }: VoiceSessionP
     }
   }, [disconnect, onClose, currentSession, transcript.length]);
 
+  // Handle Escape key to close modal
+  useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        handleClose();
+      }
+    };
+    window.addEventListener('keydown', handleEscape);
+    return () => window.removeEventListener('keydown', handleEscape);
+  }, [handleClose]);
+
   // Handle grade close
   const handleGradeClose = useCallback(() => {
     endSession();
@@ -404,6 +415,7 @@ AZURE_OPENAI_REALTIME_DEPLOYMENT=gpt-4o-realtime-preview`}
                 size="icon"
                 onClick={handleClose}
                 className="text-slate-400 hover:text-white hover:bg-slate-700"
+                aria-label="Chiudi sessione"
               >
                 <PhoneOff className="h-5 w-5" />
               </Button>

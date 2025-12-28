@@ -8,6 +8,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { prisma } from '@/lib/db';
+import { logger } from '@/lib/logger';
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -46,7 +47,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       keyFacts: conversation.keyFacts ? JSON.parse(conversation.keyFacts) : null,
     });
   } catch (error) {
-    console.error('Conversation GET error:', error);
+    logger.error('Conversation GET error', { error: String(error) });
     return NextResponse.json(
       { error: 'Failed to get conversation' },
       { status: 500 }
@@ -100,7 +101,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       keyFacts: conversation.keyFacts ? JSON.parse(conversation.keyFacts) : null,
     });
   } catch (error) {
-    console.error('Conversation PUT error:', error);
+    logger.error('Conversation PUT error', { error: String(error) });
     return NextResponse.json(
       { error: 'Failed to update conversation' },
       { status: 500 }
@@ -136,7 +137,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error('Conversation DELETE error:', error);
+    logger.error('Conversation DELETE error', { error: String(error) });
     return NextResponse.json(
       { error: 'Failed to delete conversation' },
       { status: 500 }

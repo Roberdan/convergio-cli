@@ -46,12 +46,14 @@ export function HTMLPreview({
   const { addSnippet } = useHTMLSnippetsStore();
 
   // Sanitize HTML to prevent XSS attacks
-  // Allow scripts for educational demos but block dangerous patterns
+  // Allow safe interactive styling but block scripts and dangerous handlers
   const sanitizedCode = useMemo(() => {
-    // Configure DOMPurify to allow safe interactive content
+    // Configure DOMPurify for safe educational content
+    // NO scripts, NO dangerous event handlers - iframe sandbox provides isolation
     return DOMPurify.sanitize(code, {
-      ADD_TAGS: ['style', 'script'],
-      ADD_ATTR: ['onclick', 'onload', 'onerror', 'onmouseover', 'onmouseout', 'onkeydown', 'onkeyup', 'onsubmit', 'onchange', 'oninput'],
+      ADD_TAGS: ['style'],
+      FORBID_TAGS: ['script', 'iframe', 'object', 'embed'],
+      FORBID_ATTR: ['onerror', 'onload', 'onclick', 'onmouseover', 'onmouseout', 'onfocus', 'onblur'],
       WHOLE_DOCUMENT: true,
       FORCE_BODY: true,
     });
@@ -120,6 +122,7 @@ export function HTMLPreview({
           <div className="flex bg-slate-100 dark:bg-slate-700 rounded-lg p-1">
             <button
               onClick={() => setView('preview')}
+              aria-label="Visualizza anteprima"
               className={cn(
                 'px-3 py-1.5 rounded-md text-sm font-medium transition-colors',
                 view === 'preview'
@@ -131,6 +134,7 @@ export function HTMLPreview({
             </button>
             <button
               onClick={() => setView('code')}
+              aria-label="Visualizza codice"
               className={cn(
                 'px-3 py-1.5 rounded-md text-sm font-medium transition-colors',
                 view === 'code'
@@ -142,16 +146,16 @@ export function HTMLPreview({
             </button>
           </div>
 
-          <Button variant="ghost" size="icon-sm" onClick={handleCopy}>
+          <Button variant="ghost" size="icon-sm" onClick={handleCopy} aria-label={copied ? 'Copiato' : 'Copia codice'}>
             {copied ? <Check className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4" />}
           </Button>
 
-          <Button variant="ghost" size="icon-sm" onClick={handleOpenInNewTab}>
+          <Button variant="ghost" size="icon-sm" onClick={handleOpenInNewTab} aria-label="Apri in nuova scheda">
             <ExternalLink className="w-4 h-4" />
           </Button>
 
           {allowSave && (
-            <Button variant="ghost" size="icon-sm" onClick={handleSave}>
+            <Button variant="ghost" size="icon-sm" onClick={handleSave} aria-label={saved ? 'Salvato' : 'Salva snippet'}>
               {saved ? <Check className="w-4 h-4 text-green-500" /> : <Save className="w-4 h-4" />}
             </Button>
           )}
@@ -160,12 +164,13 @@ export function HTMLPreview({
             variant="ghost"
             size="icon-sm"
             onClick={() => setIsFullscreen(!isFullscreen)}
+            aria-label={isFullscreen ? 'Esci da schermo intero' : 'Schermo intero'}
           >
             {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
           </Button>
 
           {onClose && (
-            <Button variant="ghost" size="icon-sm" onClick={onClose}>
+            <Button variant="ghost" size="icon-sm" onClick={onClose} aria-label="Chiudi anteprima">
               <X className="w-4 h-4" />
             </Button>
           )}

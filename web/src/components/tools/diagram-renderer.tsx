@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import mermaid from 'mermaid';
 import { cn } from '@/lib/utils';
+import { logger } from '@/lib/logger';
 import type { DiagramRequest } from '@/types';
 
 // Initialize Mermaid
@@ -72,7 +73,7 @@ export function DiagramRenderer({ request, className }: DiagramRendererProps) {
       } catch (err) {
         const errorMsg = err instanceof Error ? err.message : String(err);
         setError(errorMsg);
-        console.error('Mermaid render error:', err);
+        logger.error('Mermaid render error', { error: String(err) });
       }
     };
 

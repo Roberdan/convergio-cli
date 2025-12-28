@@ -5,6 +5,7 @@
 // ============================================================================
 
 import { NextRequest, NextResponse } from 'next/server';
+import { logger } from '@/lib/logger';
 
 interface CostByService {
   serviceName: string;
@@ -78,7 +79,7 @@ async function getAzureToken(): Promise<string | null> {
     });
 
     if (!response.ok) {
-      console.error('Azure token error:', await response.text());
+      logger.error('Azure token error', { response: await response.text() });
       return null;
     }
 
@@ -86,7 +87,7 @@ async function getAzureToken(): Promise<string | null> {
     setCache('azure_token', data.access_token);
     return data.access_token;
   } catch (error) {
-    console.error('Azure token fetch error:', error);
+    logger.error('Azure token fetch error', { error: String(error) });
     return null;
   }
 }
@@ -114,13 +115,13 @@ async function queryCosts(
     }
 
     if (!response.ok) {
-      console.error('Azure Cost API error:', await response.text());
+      logger.error('Azure Cost API error', { response: await response.text() });
       return null;
     }
 
     return response.json();
   } catch (error) {
-    console.error('Azure Cost query error:', error);
+    logger.error('Azure Cost query error', { error: String(error) });
     return null;
   }
 }
@@ -284,7 +285,7 @@ export async function GET(request: NextRequest) {
     setCache(cacheKey, summary);
     return NextResponse.json(summary);
   } catch (error) {
-    console.error('Azure costs API error:', error);
+    logger.error('Azure costs API error', { error: String(error) });
     return NextResponse.json(
       { error: 'Failed to fetch Azure costs' },
       { status: 500 }

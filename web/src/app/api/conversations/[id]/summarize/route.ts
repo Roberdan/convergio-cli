@@ -6,6 +6,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { prisma } from '@/lib/db';
+import { logger } from '@/lib/logger';
 import {
   generateConversationSummary,
   extractKeyFacts,
@@ -148,7 +149,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       learningsExtracted: learnings.length,
     });
   } catch (error) {
-    console.error('Summarize POST error:', error);
+    logger.error('Summarize POST error', { error: String(error) });
     return NextResponse.json(
       { error: 'Failed to summarize conversation' },
       { status: 500 }

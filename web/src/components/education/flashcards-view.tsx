@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Plus,
@@ -158,6 +158,32 @@ export function FlashcardsView({ className }: FlashcardsViewProps) {
       setSelectedDeck(null);
     }
   };
+
+  // Handle Escape key to close modals
+  const closeStudyModal = useCallback(() => {
+    setIsStudying(false);
+  }, []);
+
+  const closeCreateModal = useCallback(() => {
+    setShowCreateModal(false);
+    setEditingDeck(null);
+  }, []);
+
+  useEffect(() => {
+    if (!isStudying && !showCreateModal) return;
+
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        if (isStudying) {
+          closeStudyModal();
+        } else if (showCreateModal) {
+          closeCreateModal();
+        }
+      }
+    };
+    window.addEventListener('keydown', handleEscape);
+    return () => window.removeEventListener('keydown', handleEscape);
+  }, [isStudying, showCreateModal, closeStudyModal, closeCreateModal]);
 
   // Stats for a deck
   const getDeckStats = (deck: FlashcardDeck) => {

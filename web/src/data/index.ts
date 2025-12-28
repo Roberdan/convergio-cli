@@ -5,6 +5,7 @@
 
 import type { Maestro, Subject } from '@/types';
 import { SAFETY_GUIDELINES, getMaestroById as getFullMaestroById } from './maestri-full';
+import { logger } from '@/lib/logger';
 
 // Re-export safety guidelines
 export { SAFETY_GUIDELINES };
@@ -92,12 +93,12 @@ const ID_MAP: Record<string, string> = {
 function getFullSystemPrompt(shortId: string): string {
   const fullId = ID_MAP[shortId];
   if (!fullId) {
-    console.warn(`[Maestri] No CLI mapping for: ${shortId}`);
+    logger.warn('No CLI mapping for maestro', { shortId });
     return '';
   }
   const fullMaestro = getFullMaestroById(fullId);
   if (!fullMaestro) {
-    console.warn(`[Maestri] CLI maestro not found: ${fullId}`);
+    logger.warn('CLI maestro not found', { fullId });
     return '';
   }
   return fullMaestro.systemPrompt;

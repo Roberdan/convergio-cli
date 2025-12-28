@@ -6,6 +6,7 @@
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { prisma } from '@/lib/db';
+import { logger } from '@/lib/logger';
 
 export async function GET() {
   try {
@@ -67,7 +68,7 @@ export async function GET() {
 
     return NextResponse.json(user);
   } catch (error) {
-    console.error('User API error:', error);
+    logger.error('User API error', { error: String(error) });
     return NextResponse.json(
       { error: 'Failed to get user' },
       { status: 500 }

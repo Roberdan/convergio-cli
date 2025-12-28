@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Calendar,
@@ -185,6 +185,24 @@ export function CalendarView() {
     return MAESTRI.find(m => m.id === id);
   };
 
+  // Handle Escape key to close modal
+  const closeForm = useCallback(() => {
+    setShowAddForm(false);
+    setEditingEvent(null);
+  }, []);
+
+  useEffect(() => {
+    if (!showAddForm) return;
+
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        closeForm();
+      }
+    };
+    window.addEventListener('keydown', handleEscape);
+    return () => window.removeEventListener('keydown', handleEscape);
+  }, [showAddForm, closeForm]);
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -263,6 +281,7 @@ export function CalendarView() {
                   variant="ghost"
                   size="icon-sm"
                   onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1))}
+                  aria-label="Mese precedente"
                 >
                   <ChevronLeft className="w-4 h-4" />
                 </Button>
@@ -277,6 +296,7 @@ export function CalendarView() {
                   variant="ghost"
                   size="icon-sm"
                   onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1))}
+                  aria-label="Mese successivo"
                 >
                   <ChevronRight className="w-4 h-4" />
                 </Button>

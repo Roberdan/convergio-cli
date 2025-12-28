@@ -7,6 +7,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { prisma } from '@/lib/db';
+import { logger } from '@/lib/logger';
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -47,7 +48,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 
     return NextResponse.json(messages);
   } catch (error) {
-    console.error('Messages GET error:', error);
+    logger.error('Messages GET error', { error: String(error) });
     return NextResponse.json(
       { error: 'Failed to get messages' },
       { status: 500 }
@@ -113,7 +114,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
 
     return NextResponse.json(message);
   } catch (error) {
-    console.error('Messages POST error:', error);
+    logger.error('Messages POST error', { error: String(error) });
     return NextResponse.json(
       { error: 'Failed to create message' },
       { status: 500 }

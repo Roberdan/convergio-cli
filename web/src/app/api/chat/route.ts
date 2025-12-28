@@ -6,6 +6,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { chatCompletion, getActiveProvider } from '@/lib/ai/providers';
+import { logger } from '@/lib/logger';
 
 interface ChatMessage {
   role: 'user' | 'assistant' | 'system';
@@ -73,7 +74,7 @@ export async function POST(request: NextRequest) {
       );
     }
   } catch (error) {
-    console.error('Chat API error:', error);
+    logger.error('Chat API error', { error: String(error) });
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

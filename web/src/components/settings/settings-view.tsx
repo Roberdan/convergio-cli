@@ -28,6 +28,7 @@ import { AccessibilitySettings } from '@/components/accessibility/accessibility-
 import { useSettingsStore, type TeachingStyle } from '@/lib/stores/app-store';
 import { useAccessibilityStore } from '@/lib/accessibility/accessibility-store';
 import { cn } from '@/lib/utils';
+import { logger } from '@/lib/logger';
 
 // Teaching style options with descriptions
 const TEACHING_STYLES: Array<{
@@ -99,7 +100,7 @@ export function SettingsView() {
       // Actually sync settings to the server
       await useSettingsStore.getState().syncToServer();
     } catch (error) {
-      console.error('Failed to save settings:', error);
+      logger.error('Failed to save settings', { error: String(error) });
     } finally {
       setIsSaving(false);
     }
@@ -892,12 +893,50 @@ interface DetailedProviderStatus {
 }
 
 function AIProviderSettings() {
+  const { preferredProvider, setPreferredProvider } = useSettingsStore();
   const [providerStatus, setProviderStatus] = useState<DetailedProviderStatus | null>(null);
   const [costs, setCosts] = useState<CostSummary | null>(null);
   const [forecast, setForecast] = useState<CostForecast | null>(null);
   const [loadingCosts, setLoadingCosts] = useState(false);
   const [costsConfigured, setCostsConfigured] = useState(true);
   const [showEnvDetails, setShowEnvDetails] = useState(false);
+
+  // Azure Cost Config form state
+  const [azureCostConfig, setAzureCostConfig] = useState({
+    tenantId: '',
+    clientId: '',
+    clientSecret: '',
+    subscriptionId: '',
+  });
+  const [savingCostConfig, setSavingCostConfig] = useState(false);
+  const [costConfigSaved, setCostConfigSaved] = useState(false);
+
+  // Load existing config from localStorage
+  useEffect(() => {
+    const saved = localStorage.getItem('azure_cost_config');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        setAzureCostConfig(parsed);
+        setCostConfigSaved(true);
+      } catch {
+        // Invalid JSON, ignore
+      }
+    }
+  }, []);
+
+  // Save cost config to localStorage
+  const saveCostConfig = async () => {
+    setSavingCostConfig(true);
+    try {
+      localStorage.setItem('azure_cost_config', JSON.stringify(azureCostConfig));
+      setCostConfigSaved(true);
+      // Note: Server still needs env vars - this is for future API enhancement
+      // For now, show success and inform user to also set env vars
+    } finally {
+      setSavingCostConfig(false);
+    }
+  };
 
   // Check provider status on mount
   useEffect(() => {
@@ -909,23 +948,36 @@ function AIProviderSettings() {
 
   // Fetch costs if Azure is the provider
   useEffect(() => {
-    if (providerStatus?.activeProvider === 'azure') {
-      setLoadingCosts(true);
-      Promise.all([
-        fetch('/api/azure/costs?days=30').then(res => res.json()),
-        fetch('/api/azure/costs?type=forecast').then(res => res.json()),
-      ])
-        .then(([costData, forecastData]) => {
-          if (costData.error && costData.configured === false) {
-            setCostsConfigured(false);
-          } else {
-            setCosts(costData);
-            setForecast(forecastData);
-          }
-        })
-        .catch(() => setCostsConfigured(false))
-        .finally(() => setLoadingCosts(false));
-    }
+    if (providerStatus?.activeProvider !== 'azure') return;
+
+    let cancelled = false;
+
+    const fetchCosts = async () => {
+      try {
+        const [costData, forecastData] = await Promise.all([
+          fetch('/api/azure/costs?days=30').then(res => res.json()),
+          fetch('/api/azure/costs?type=forecast').then(res => res.json()),
+        ]);
+
+        if (cancelled) return;
+
+        if (costData.error && costData.configured === false) {
+          setCostsConfigured(false);
+        } else {
+          setCosts(costData);
+          setForecast(forecastData);
+        }
+      } catch {
+        if (!cancelled) setCostsConfigured(false);
+      } finally {
+        if (!cancelled) setLoadingCosts(false);
+      }
+    };
+
+    setLoadingCosts(true);
+    fetchCosts();
+
+    return () => { cancelled = true; };
   }, [providerStatus?.activeProvider]);
 
   const formatCurrency = (amount: number, currency = 'USD') => {
@@ -953,12 +1005,17 @@ function AIProviderSettings() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {/* Azure Card */}
                 <div
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => setPreferredProvider('azure')}
+                  onKeyDown={(e) => e.key === 'Enter' && setPreferredProvider('azure')}
                   className={cn(
-                    'p-4 rounded-xl border-2 transition-all',
+                    'p-4 rounded-xl border-2 transition-all cursor-pointer',
+                    preferredProvider === 'azure' && 'ring-2 ring-blue-500 ring-offset-2',
                     providerStatus.activeProvider === 'azure'
                       ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
                       : providerStatus.azure.configured
-                        ? 'border-slate-300 dark:border-slate-600'
+                        ? 'border-slate-300 dark:border-slate-600 hover:border-blue-300'
                         : 'border-slate-200 dark:border-slate-700 opacity-60'
                   )}
                 >
@@ -995,12 +1052,17 @@ function AIProviderSettings() {
 
                 {/* Ollama Card */}
                 <div
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => setPreferredProvider('ollama')}
+                  onKeyDown={(e) => e.key === 'Enter' && setPreferredProvider('ollama')}
                   className={cn(
-                    'p-4 rounded-xl border-2 transition-all',
+                    'p-4 rounded-xl border-2 transition-all cursor-pointer',
+                    preferredProvider === 'ollama' && 'ring-2 ring-green-500 ring-offset-2',
                     providerStatus.activeProvider === 'ollama'
                       ? 'border-green-500 bg-green-50 dark:bg-green-900/20'
                       : providerStatus.ollama.configured
-                        ? 'border-slate-300 dark:border-slate-600'
+                        ? 'border-slate-300 dark:border-slate-600 hover:border-green-300'
                         : 'border-slate-200 dark:border-slate-700 opacity-60'
                   )}
                 >
@@ -1032,6 +1094,35 @@ function AIProviderSettings() {
                     URL: {providerStatus.ollama.url}
                   </div>
                 </div>
+              </div>
+
+              {/* Selection Mode Indicator */}
+              <div className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-800/50 rounded-lg">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-slate-600 dark:text-slate-400">
+                    Modalità selezione:
+                  </span>
+                  <span className={cn(
+                    'px-2 py-0.5 text-xs font-medium rounded-full',
+                    preferredProvider === 'auto'
+                      ? 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300'
+                      : preferredProvider === 'azure'
+                        ? 'bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300'
+                        : 'bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-300'
+                  )}>
+                    {preferredProvider === 'auto' ? 'Automatica' : preferredProvider === 'azure' ? 'Azure' : 'Ollama'}
+                  </span>
+                </div>
+                {preferredProvider !== 'auto' && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setPreferredProvider('auto')}
+                    className="text-xs"
+                  >
+                    Ripristina Auto
+                  </Button>
+                )}
               </div>
 
               {/* No provider warning */}
@@ -1148,7 +1239,56 @@ function AIProviderSettings() {
                 <p className="text-sm text-amber-600 dark:text-amber-400 mb-3">
                   Per visualizzare i costi Azure, configura un Service Principal con ruolo &quot;Cost Management Reader&quot;:
                 </p>
-                <div className="bg-slate-900 dark:bg-slate-950 p-3 rounded-lg mb-3">
+
+                {/* Cost Config Form */}
+                <div className="space-y-3 mb-4">
+                  <input
+                    type="text"
+                    placeholder="AZURE_TENANT_ID"
+                    value={azureCostConfig.tenantId}
+                    onChange={(e) => setAzureCostConfig(prev => ({...prev, tenantId: e.target.value}))}
+                    className="w-full px-3 py-2 text-sm rounded-lg bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                  <input
+                    type="text"
+                    placeholder="AZURE_CLIENT_ID"
+                    value={azureCostConfig.clientId}
+                    onChange={(e) => setAzureCostConfig(prev => ({...prev, clientId: e.target.value}))}
+                    className="w-full px-3 py-2 text-sm rounded-lg bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                  <input
+                    type="password"
+                    placeholder="AZURE_CLIENT_SECRET"
+                    value={azureCostConfig.clientSecret}
+                    onChange={(e) => setAzureCostConfig(prev => ({...prev, clientSecret: e.target.value}))}
+                    className="w-full px-3 py-2 text-sm rounded-lg bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                  <input
+                    type="text"
+                    placeholder="AZURE_SUBSCRIPTION_ID"
+                    value={azureCostConfig.subscriptionId}
+                    onChange={(e) => setAzureCostConfig(prev => ({...prev, subscriptionId: e.target.value}))}
+                    className="w-full px-3 py-2 text-sm rounded-lg bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                  <Button
+                    onClick={saveCostConfig}
+                    disabled={savingCostConfig || !azureCostConfig.tenantId || !azureCostConfig.clientId || !azureCostConfig.clientSecret || !azureCostConfig.subscriptionId}
+                    className="w-full"
+                  >
+                    {savingCostConfig ? 'Salvataggio...' : costConfigSaved ? 'Configurazione Salvata' : 'Salva Configurazione'}
+                  </Button>
+                </div>
+
+                {costConfigSaved && (
+                  <div className="p-3 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800 mb-3">
+                    <p className="text-sm text-green-700 dark:text-green-400">
+                      Configurazione salvata localmente. Per attivare i costi, aggiungi anche le variabili nel file .env del server.
+                    </p>
+                  </div>
+                )}
+
+                <div className="bg-slate-900 dark:bg-slate-950 p-3 rounded-lg">
+                  <p className="text-xs text-slate-400 mb-2">Variabili .env richieste:</p>
                   <code className="text-xs text-green-400 font-mono block leading-relaxed">
                     AZURE_TENANT_ID=...<br />
                     AZURE_CLIENT_ID=...<br />

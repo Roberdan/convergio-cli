@@ -7,6 +7,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { prisma } from '@/lib/db';
+import { logger } from '@/lib/logger';
 
 export async function GET(request: NextRequest) {
   try {
@@ -34,7 +35,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(progress);
   } catch (error) {
-    console.error('Flashcard progress GET error:', error);
+    logger.error('Flashcard progress GET error', { error: String(error) });
     return NextResponse.json(
       { error: 'Failed to get flashcard progress' },
       { status: 500 }
@@ -96,7 +97,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(progress);
   } catch (error) {
-    console.error('Flashcard progress POST error:', error);
+    logger.error('Flashcard progress POST error', { error: String(error) });
     return NextResponse.json(
       { error: 'Failed to save flashcard progress' },
       { status: 500 }

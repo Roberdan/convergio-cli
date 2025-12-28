@@ -7,6 +7,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { prisma } from '@/lib/db';
+import { logger } from '@/lib/logger';
 
 export async function GET(request: NextRequest) {
   try {
@@ -48,7 +49,7 @@ export async function GET(request: NextRequest) {
       }))
     );
   } catch (error) {
-    console.error('Conversations GET error:', error);
+    logger.error('Conversations GET error', { error: String(error) });
     return NextResponse.json(
       { error: 'Failed to get conversations' },
       { status: 500 }
@@ -87,7 +88,7 @@ export async function POST(request: NextRequest) {
       topics: JSON.parse(conversation.topics || '[]'),
     });
   } catch (error) {
-    console.error('Conversations POST error:', error);
+    logger.error('Conversations POST error', { error: String(error) });
     return NextResponse.json(
       { error: 'Failed to create conversation' },
       { status: 500 }

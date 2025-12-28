@@ -14,6 +14,8 @@
  * Licensed under MIT License
  */
 
+import { logger } from '@/lib/logger';
+
 // ============================================================================
 // CONSTANTS
 // ============================================================================
@@ -102,7 +104,7 @@ export function saveMasteryState(state: MasteryState): void {
     };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(serialized));
   } catch (error) {
-    console.error("[Mastery] Failed to save state:", error);
+    logger.error('[Mastery] Failed to save state', { error: String(error) });
   }
 }
 
@@ -132,7 +134,7 @@ export function loadMasteryState(): MasteryState {
       topics,
     };
   } catch (error) {
-    console.error("[Mastery] Failed to load state:", error);
+    logger.error('[Mastery] Failed to load state', { error: String(error) });
     return { topics: new Map() };
   }
 }

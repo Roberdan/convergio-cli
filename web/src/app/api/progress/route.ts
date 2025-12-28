@@ -7,6 +7,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { prisma } from '@/lib/db';
+import { logger } from '@/lib/logger';
 
 export async function GET() {
   try {
@@ -40,7 +41,7 @@ export async function GET() {
       },
     });
   } catch (error) {
-    console.error('Progress GET error:', error);
+    logger.error('Progress GET error', { error: String(error) });
     return NextResponse.json(
       { error: 'Failed to get progress' },
       { status: 500 }
@@ -102,7 +103,7 @@ export async function PUT(request: NextRequest) {
       },
     });
   } catch (error) {
-    console.error('Progress PUT error:', error);
+    logger.error('Progress PUT error', { error: String(error) });
     return NextResponse.json(
       { error: 'Failed to update progress' },
       { status: 500 }

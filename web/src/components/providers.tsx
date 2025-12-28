@@ -42,8 +42,8 @@ function StoreInitializer() {
     initialized.current = true;
 
     // Initialize stores from database
-    initializeStores().catch((error) => {
-      console.error('Failed to initialize stores:', error);
+    initializeStores().catch(() => {
+      // Silent fail - stores will use localStorage fallback
     });
 
     // Setup auto-sync every 30 seconds

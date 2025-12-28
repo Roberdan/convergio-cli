@@ -6,6 +6,7 @@
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { prisma } from '@/lib/db';
+import { logger } from '@/lib/logger';
 
 export async function DELETE() {
   try {
@@ -31,7 +32,7 @@ export async function DELETE() {
       message: 'All user data has been deleted',
     });
   } catch (error) {
-    console.error('Delete user data error:', error);
+    logger.error('Delete user data error', { error: String(error) });
     return NextResponse.json(
       { error: 'Failed to delete user data' },
       { status: 500 }

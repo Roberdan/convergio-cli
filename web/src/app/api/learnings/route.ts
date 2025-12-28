@@ -7,6 +7,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { prisma } from '@/lib/db';
+import { logger } from '@/lib/logger';
 
 export async function GET(request: NextRequest) {
   try {
@@ -36,7 +37,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(learnings);
   } catch (error) {
-    console.error('Learnings GET error:', error);
+    logger.error('Learnings GET error', { error: String(error) });
     return NextResponse.json(
       { error: 'Failed to get learnings' },
       { status: 500 }
@@ -99,7 +100,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ ...learning, reinforced: false });
   } catch (error) {
-    console.error('Learnings POST error:', error);
+    logger.error('Learnings POST error', { error: String(error) });
     return NextResponse.json(
       { error: 'Failed to create learning' },
       { status: 500 }
@@ -145,7 +146,7 @@ export async function DELETE(request: NextRequest) {
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error('Learnings DELETE error:', error);
+    logger.error('Learnings DELETE error', { error: String(error) });
     return NextResponse.json(
       { error: 'Failed to delete learning' },
       { status: 500 }

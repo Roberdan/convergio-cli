@@ -11,14 +11,13 @@ import {
   MessageSquare,
   Star,
   TrendingUp,
-  Filter,
   ChevronDown,
   ChevronUp,
   Award,
   Target,
   Flame,
 } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useProgressStore } from '@/lib/stores/app-store';
 import { cn } from '@/lib/utils';
@@ -44,7 +43,10 @@ export function LibrettoView() {
   const [filter, setFilter] = useState<FilterType>('all');
   const [expandedEntries, setExpandedEntries] = useState<Set<string>>(new Set());
 
-  const { sessionHistory, achievements, streak, xp, level, totalStudyMinutes, questionsAsked } = useProgressStore();
+  const { sessionHistory, achievements, streak, totalStudyMinutes, questionsAsked } = useProgressStore();
+
+  // Extract streak value for dependency tracking
+  const currentStreak = streak.current;
 
   // Build diary entries from session history and achievements
   const entries: DiaryEntry[] = useMemo(() => {
@@ -85,20 +87,20 @@ export function LibrettoView() {
     });
 
     // Add streak milestones
-    if (streak.current >= 7) {
+    if (currentStreak >= 7) {
       result.push({
         id: 'streak-week',
         type: 'streak',
         date: new Date(),
         title: 'Streak settimanale!',
-        description: `${streak.current} giorni consecutivi di studio`,
+        description: `${currentStreak} giorni consecutivi di studio`,
         details: { xp: 50 },
       });
     }
 
     // Sort by date (newest first)
     return result.sort((a, b) => b.date.getTime() - a.date.getTime());
-  }, [sessionHistory, achievements, streak]);
+  }, [sessionHistory, achievements, currentStreak]);
 
   // Filter entries
   const filteredEntries = useMemo(() => {

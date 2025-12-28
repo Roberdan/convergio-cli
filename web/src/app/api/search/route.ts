@@ -4,6 +4,7 @@
 // ============================================================================
 
 import { NextRequest, NextResponse } from 'next/server';
+import { logger } from '@/lib/logger';
 
 // Blocked domains that are inappropriate for educational context
 const BLOCKED_DOMAINS = [
@@ -162,7 +163,7 @@ export async function POST(request: NextRequest) {
     } as SafeSearchResponse);
 
   } catch (error) {
-    console.error('Safe search error:', error);
+    logger.error('Safe search error', { error: String(error) });
     return NextResponse.json(
       { error: 'Search failed', message: String(error) },
       { status: 500 }

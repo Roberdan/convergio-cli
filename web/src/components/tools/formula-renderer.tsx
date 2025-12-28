@@ -5,6 +5,7 @@ import { motion } from 'framer-motion';
 import katex from 'katex';
 import 'katex/dist/katex.min.css';
 import { cn } from '@/lib/utils';
+import { logger } from '@/lib/logger';
 import type { FormulaRequest } from '@/types';
 
 interface FormulaRendererProps {
@@ -90,7 +91,7 @@ export function InlineFormula({ latex, className }: InlineFormulaProps) {
         errorColor: '#ef4444',
       });
     } catch (err) {
-      console.error('KaTeX error:', err);
+      logger.error('KaTeX error', { error: String(err) });
     }
   }, [latex]);
 

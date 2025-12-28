@@ -6,6 +6,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { prisma } from '@/lib/db';
+import { logger } from '@/lib/logger';
 import { extractLearnings } from '@/lib/ai/summarize';
 
 export async function POST(request: NextRequest) {
@@ -119,7 +120,7 @@ export async function POST(request: NextRequest) {
       learnings: results,
     });
   } catch (error) {
-    console.error('Learnings extract POST error:', error);
+    logger.error('Learnings extract POST error', { error: String(error) });
     return NextResponse.json(
       { error: 'Failed to extract learnings' },
       { status: 500 }

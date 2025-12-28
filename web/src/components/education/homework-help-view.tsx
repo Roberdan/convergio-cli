@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { HomeworkHelp } from './homework-help';
 import { Button } from '@/components/ui/button';
+import { logger } from '@/lib/logger';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 import type { Homework, Subject } from '@/types';
@@ -68,7 +69,7 @@ export function HomeworkHelpView() {
         }));
         setHomeworkHistory(homework);
       } catch (e) {
-        console.error('Failed to parse homework history:', e);
+        logger.error('Failed to parse homework history', { error: String(e) });
       }
     }
   }, []);
@@ -357,6 +358,7 @@ export function HomeworkHelpView() {
                         variant="ghost"
                         size="icon-sm"
                         onClick={() => setShowHistory(false)}
+                        aria-label="Chiudi cronologia"
                       >
                         <X className="w-4 h-4" />
                       </Button>
@@ -401,6 +403,7 @@ export function HomeworkHelpView() {
                                   e.stopPropagation();
                                   deleteHomework(hw.id);
                                 }}
+                                aria-label="Elimina problema"
                               >
                                 <Trash2 className="w-3 h-3 text-red-500" />
                               </Button>

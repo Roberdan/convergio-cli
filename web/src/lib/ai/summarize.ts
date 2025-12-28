@@ -4,6 +4,7 @@
 // ============================================================================
 
 import { chatCompletion, getActiveProvider } from './providers';
+import { logger } from '@/lib/logger';
 
 interface Message {
   role: string;
@@ -94,7 +95,7 @@ Max 3 elementi per categoria.`;
       return JSON.parse(jsonMatch[0]);
     }
   } catch (error) {
-    console.error('Failed to extract key facts:', error);
+    logger.error('Failed to extract key facts', { error: String(error) });
   }
 
   return { decisions: [], preferences: [], learned: [] };
@@ -133,7 +134,7 @@ Usa termini brevi e chiari.`;
       return JSON.parse(arrayMatch[0]);
     }
   } catch (error) {
-    console.error('Failed to extract topics:', error);
+    logger.error('Failed to extract topics', { error: String(error) });
   }
 
   return [];
@@ -200,7 +201,7 @@ Regole:
         .slice(0, 3);
     }
   } catch (error) {
-    console.error('Failed to extract learnings:', error);
+    logger.error('Failed to extract learnings', { error: String(error) });
   }
 
   return [];

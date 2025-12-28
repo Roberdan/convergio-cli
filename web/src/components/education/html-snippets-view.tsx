@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Code,
@@ -10,15 +10,12 @@ import {
   ExternalLink,
   Calendar,
   Tag,
-  Filter,
-  X,
 } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useHTMLSnippetsStore, type HTMLSnippet } from '@/lib/stores/app-store';
 import { HTMLPreview } from './html-preview';
 import { MAESTRI } from '@/data/maestri-full';
-import { cn } from '@/lib/utils';
 
 export function HTMLSnippetsView() {
   const [searchQuery, setSearchQuery] = useState('');
@@ -52,6 +49,23 @@ export function HTMLSnippetsView() {
     const maestro = MAESTRI.find(m => m.id === maestroId);
     return maestro?.displayName;
   };
+
+  // Handle Escape key to close modal
+  const closePreview = useCallback(() => {
+    setPreviewSnippet(null);
+  }, []);
+
+  useEffect(() => {
+    if (!previewSnippet) return;
+
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        closePreview();
+      }
+    };
+    window.addEventListener('keydown', handleEscape);
+    return () => window.removeEventListener('keydown', handleEscape);
+  }, [previewSnippet, closePreview]);
 
   const handleOpenInNewTab = (snippet: HTMLSnippet) => {
     const blob = new Blob([snippet.code], { type: 'text/html' });

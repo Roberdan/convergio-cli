@@ -7,6 +7,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { prisma } from '@/lib/db';
+import { logger } from '@/lib/logger';
 
 export async function GET() {
   try {
@@ -34,7 +35,7 @@ export async function GET() {
       learningGoals: JSON.parse(profile.learningGoals || '[]'),
     });
   } catch (error) {
-    console.error('Profile GET error:', error);
+    logger.error('Profile GET error', { error: String(error) });
     return NextResponse.json(
       { error: 'Failed to get profile' },
       { status: 500 }
@@ -78,7 +79,7 @@ export async function PUT(request: NextRequest) {
       learningGoals: JSON.parse(profile.learningGoals || '[]'),
     });
   } catch (error) {
-    console.error('Profile PUT error:', error);
+    logger.error('Profile PUT error', { error: String(error) });
     return NextResponse.json(
       { error: 'Failed to update profile' },
       { status: 500 }

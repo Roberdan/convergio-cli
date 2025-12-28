@@ -5,6 +5,7 @@ import { motion } from 'framer-motion';
 import mermaid from 'mermaid';
 import { Printer, Download, ZoomIn, ZoomOut, Accessibility } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { logger } from '@/lib/logger';
 import { useAccessibilityStore } from '@/lib/accessibility/accessibility-store';
 
 interface MindmapNode {
@@ -22,9 +23,11 @@ interface MindmapRendererProps {
 }
 
 // Initialize Mermaid with accessibility-focused settings
+// CRITICAL: securityLevel 'loose' allows inline styles to prevent text truncation
 const initMermaidAccessible = (dyslexiaFont: boolean, highContrast: boolean) => {
   mermaid.initialize({
     startOnLoad: false,
+    securityLevel: 'loose', // Required for inline styles and proper text rendering
     theme: highContrast ? 'dark' : 'default',
     themeVariables: highContrast
       ? {
@@ -36,7 +39,7 @@ const initMermaidAccessible = (dyslexiaFont: boolean, highContrast: boolean) => 
           background: '#000000',
           mainBkg: '#000000',
           nodeBorder: '#ffffff',
-          fontFamily: dyslexiaFont ? 'OpenDyslexic, Comic Sans MS, sans-serif' : 'inherit',
+          fontFamily: dyslexiaFont ? 'OpenDyslexic, Comic Sans MS, sans-serif' : 'Arial, sans-serif',
         }
       : {
           primaryColor: '#3b82f6',
@@ -47,11 +50,11 @@ const initMermaidAccessible = (dyslexiaFont: boolean, highContrast: boolean) => 
           background: '#ffffff',
           mainBkg: '#f8fafc',
           nodeBorder: '#94a3b8',
-          fontFamily: dyslexiaFont ? 'OpenDyslexic, Comic Sans MS, sans-serif' : 'inherit',
+          fontFamily: dyslexiaFont ? 'OpenDyslexic, Comic Sans MS, sans-serif' : 'Arial, sans-serif',
         },
     mindmap: {
-      padding: 20,
-      useMaxWidth: true,
+      padding: 30,
+      useMaxWidth: false, // Don't constrain width - allows full text
     },
   });
 };
@@ -76,12 +79,34 @@ function nodesToMermaidSyntax(nodes: MindmapNode[], title: string): string {
     return cleaned || 'Node';
   };
 
-  // Format label with markdown string syntax for automatic text wrapping
-  // Mermaid markdown strings use backticks: `"label text"`
+  // Format label with line breaks for words longer than maxCharsPerLine
+  // Mermaid markdown strings use backticks for multi-line text support
   const formatLabel = (label: string): string => {
     const escaped = escapeLabel(label);
-    // Use markdown string syntax with backticks for auto-wrapping of long text
-    return `\`${escaped}\``;
+    const maxCharsPerLine = 20;
+
+    // Split text into words and build lines respecting max length
+    const words = escaped.split(' ');
+    const lines: string[] = [];
+    let currentLine = '';
+
+    for (const word of words) {
+      if (currentLine.length === 0) {
+        currentLine = word;
+      } else if ((currentLine + ' ' + word).length <= maxCharsPerLine) {
+        currentLine += ' ' + word;
+      } else {
+        lines.push(currentLine);
+        currentLine = word;
+      }
+    }
+    if (currentLine) {
+      lines.push(currentLine);
+    }
+
+    // Join with <br> for line breaks in Mermaid markdown strings
+    const multilineText = lines.join('<br>');
+    return `\`${multilineText}\``;
   };
 
   const buildNode = (node: MindmapNode, depth: number = 1): string => {
@@ -178,6 +203,50 @@ export function MindmapRenderer({ title, nodes, className }: MindmapRendererProp
             svgElement.setAttribute('role', 'img');
             svgElement.setAttribute('aria-label', `Mappa mentale: ${title}`);
 
+            // CRITICAL FIX: Inject CSS to allow text wrapping and prevent clipping
+            // Uses pre-wrap to respect <br> line breaks while allowing wrapping
+            const styleEl = document.createElementNS('http://www.w3.org/2000/svg', 'style');
+            styleEl.textContent = `
+              .mindmap-node text,
+              .node text,
+              text,
+              .nodeLabel,
+              .label {
+                overflow: visible !important;
+                text-overflow: clip !important;
+              }
+              foreignObject,
+              foreignObject div,
+              .label-container {
+                overflow: visible !important;
+                white-space: pre-wrap !important;
+                word-wrap: break-word !important;
+                max-width: none !important;
+              }
+              .mindmap-node rect,
+              .node rect,
+              rect.label-container {
+                rx: 8;
+                ry: 8;
+              }
+              /* Ensure node backgrounds expand to fit text */
+              .mindmap-node,
+              .node {
+                overflow: visible !important;
+              }
+              /* Support HTML line breaks in foreignObject */
+              foreignObject br {
+                display: block;
+                content: "";
+              }
+            `;
+            svgElement.insertBefore(styleEl, svgElement.firstChild);
+
+            // Force SVG to auto-size
+            svgElement.setAttribute('width', '100%');
+            svgElement.setAttribute('height', 'auto');
+            svgElement.style.minWidth = '800px';
+
             // Add title and desc elements for screen readers
             const titleEl = document.createElementNS('http://www.w3.org/2000/svg', 'title');
             titleEl.textContent = `Mappa mentale: ${title}`;
@@ -193,7 +262,7 @@ export function MindmapRenderer({ title, nodes, className }: MindmapRendererProp
       } catch (err) {
         const errorMsg = err instanceof Error ? err.message : String(err);
         setError(errorMsg);
-        console.error('Mindmap render error:', err);
+        logger.error('Mindmap render error', { error: String(err) });
       }
     };
 
@@ -279,7 +348,7 @@ export function MindmapRenderer({ title, nodes, className }: MindmapRendererProp
     printWindow.document.close();
   }, [title, settings.dyslexiaFont, settings.largeText, settings.highContrast]);
 
-  // Download as JPG (convert SVG to canvas then to JPG)
+  // Download as PNG (convert SVG to canvas then to PNG - better quality than JPG for diagrams)
   const handleDownload = useCallback(async () => {
     if (!containerRef.current) return;
 
@@ -287,58 +356,118 @@ export function MindmapRenderer({ title, nodes, className }: MindmapRendererProp
     if (!svg) return;
 
     try {
-      // Get SVG dimensions
-      const svgRect = svg.getBoundingClientRect();
-      const width = svgRect.width * 2; // 2x for better quality
-      const height = svgRect.height * 2;
+      // Clone SVG to avoid modifying the displayed one
+      const svgClone = svg.cloneNode(true) as SVGSVGElement;
+
+      // Get actual dimensions from viewBox or attributes
+      const viewBox = svg.getAttribute('viewBox');
+      let width = 1600; // Default high resolution
+      let height = 1200;
+
+      if (viewBox) {
+        const parts = viewBox.split(' ').map(Number);
+        if (parts.length === 4) {
+          width = Math.max(parts[2] * 2, 1600); // At least 1600px wide
+          height = Math.max(parts[3] * 2, 1200);
+        }
+      } else {
+        const bbox = svg.getBBox();
+        width = Math.max(bbox.width * 2, 1600);
+        height = Math.max(bbox.height * 2, 1200);
+      }
+
+      // Set explicit dimensions on clone
+      svgClone.setAttribute('width', String(width));
+      svgClone.setAttribute('height', String(height));
+
+      // Inline all computed styles to ensure they're preserved in export
+      const allElements = svgClone.querySelectorAll('*');
+      allElements.forEach((el) => {
+        if (el instanceof SVGElement || el instanceof HTMLElement) {
+          const computed = window.getComputedStyle(el);
+          // Copy key style properties
+          const stylesToCopy = ['fill', 'stroke', 'stroke-width', 'font-family', 'font-size', 'font-weight', 'opacity'];
+          stylesToCopy.forEach((prop) => {
+            const value = computed.getPropertyValue(prop);
+            if (value && value !== 'none' && value !== 'initial') {
+              (el as HTMLElement).style.setProperty(prop, value);
+            }
+          });
+        }
+      });
 
       // Create canvas
       const canvas = document.createElement('canvas');
       canvas.width = width;
       canvas.height = height;
       const ctx = canvas.getContext('2d');
-      if (!ctx) return;
+      if (!ctx) {
+        logger.error('Failed to get canvas context');
+        return;
+      }
 
-      // Fill with white background (JPG doesn't support transparency)
+      // Fill with white background
       ctx.fillStyle = '#ffffff';
       ctx.fillRect(0, 0, width, height);
 
-      // Convert SVG to data URL
-      const svgData = new XMLSerializer().serializeToString(svg);
-      const svgBlob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
-      const svgUrl = URL.createObjectURL(svgBlob);
+      // Serialize SVG with proper XML declaration
+      const serializer = new XMLSerializer();
+      let svgString = serializer.serializeToString(svgClone);
+
+      // Ensure proper XML namespace
+      if (!svgString.includes('xmlns=')) {
+        svgString = svgString.replace('<svg', '<svg xmlns="http://www.w3.org/2000/svg"');
+      }
+
+      // Encode as base64 data URL (more reliable than blob URL)
+      const base64 = btoa(unescape(encodeURIComponent(svgString)));
+      const dataUrl = `data:image/svg+xml;base64,${base64}`;
 
       // Load SVG into image
       const img = new Image();
-      img.onload = () => {
-        // Draw image on canvas at 2x scale
-        ctx.drawImage(img, 0, 0, width, height);
-        URL.revokeObjectURL(svgUrl);
+      img.crossOrigin = 'anonymous';
 
-        // Convert canvas to JPG and download
+      img.onload = () => {
+        // Draw image on canvas
+        ctx.drawImage(img, 0, 0, width, height);
+
+        // Convert canvas to PNG and download
         canvas.toBlob(
           (blob) => {
-            if (!blob) return;
+            if (!blob) {
+              logger.error('Failed to create blob from canvas');
+              return;
+            }
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = `mappa-mentale-${title.toLowerCase().replace(/\s+/g, '-')}.jpg`;
+            a.download = `mappa-mentale-${title.toLowerCase().replace(/\s+/g, '-')}.png`;
             document.body.appendChild(a);
             a.click();
             document.body.removeChild(a);
             URL.revokeObjectURL(url);
           },
-          'image/jpeg',
-          0.95 // High quality
+          'image/png'
         );
       };
-      img.onerror = () => {
-        URL.revokeObjectURL(svgUrl);
-        console.error('Failed to load SVG for export');
+
+      img.onerror = (err) => {
+        logger.error('Failed to load SVG for export', { error: String(err) });
+        // Fallback: download as SVG directly
+        const svgBlob = new Blob([svgString], { type: 'image/svg+xml' });
+        const url = URL.createObjectURL(svgBlob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `mappa-mentale-${title.toLowerCase().replace(/\s+/g, '-')}.svg`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
       };
-      img.src = svgUrl;
+
+      img.src = dataUrl;
     } catch (err) {
-      console.error('Export error:', err);
+      logger.error('Export error', { error: String(err) });
     }
   }, [title]);
 
@@ -447,8 +576,8 @@ export function MindmapRenderer({ title, nodes, className }: MindmapRendererProp
                 ? 'bg-yellow-400 text-black hover:bg-yellow-300'
                 : 'bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600'
             )}
-            title="Scarica JPG"
-            aria-label="Scarica mappa come JPG"
+            title="Scarica PNG"
+            aria-label="Scarica mappa come PNG"
           >
             <Download className="w-4 h-4" />
           </button>

@@ -7,6 +7,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { prisma } from '@/lib/db';
+import { logger } from '@/lib/logger';
 
 export async function GET(request: NextRequest) {
   try {
@@ -40,7 +41,7 @@ export async function GET(request: NextRequest) {
       }))
     );
   } catch (error) {
-    console.error('Quiz results GET error:', error);
+    logger.error('Quiz results GET error', { error: String(error) });
     return NextResponse.json(
       { error: 'Failed to get quiz results' },
       { status: 500 }
@@ -85,7 +86,7 @@ export async function POST(request: NextRequest) {
       answers: JSON.parse(result.answers || '[]'),
     });
   } catch (error) {
-    console.error('Quiz results POST error:', error);
+    logger.error('Quiz results POST error', { error: String(error) });
     return NextResponse.json(
       { error: 'Failed to save quiz result' },
       { status: 500 }
