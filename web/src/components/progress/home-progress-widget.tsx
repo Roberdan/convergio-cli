@@ -1,8 +1,7 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { Trophy, Flame, Clock, BookOpen, TrendingUp, Star } from 'lucide-react';
-import { Card, CardContent } from '@/components/ui/card';
+import { Trophy, Flame, Clock, BookOpen, Star } from 'lucide-react';
 import { useProgressStore } from '@/lib/stores/app-store';
 import { cn } from '@/lib/utils';
 
@@ -21,131 +20,68 @@ export function HomeProgressWidget() {
   // Format study time
   const hours = Math.floor(totalStudyMinutes / 60);
   const minutes = totalStudyMinutes % 60;
-  const studyTimeStr = hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`;
-
-  const stats = [
-    {
-      icon: Flame,
-      value: streak.current,
-      label: 'Streak',
-      color: 'text-orange-500',
-      bgColor: 'from-orange-50 to-amber-50 dark:from-orange-900/20 dark:to-amber-900/20',
-      suffix: streak.current === 1 ? 'giorno' : 'giorni',
-    },
-    {
-      icon: BookOpen,
-      value: sessionsThisWeek,
-      label: 'Questa settimana',
-      color: 'text-blue-500',
-      bgColor: 'from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20',
-      suffix: sessionsThisWeek === 1 ? 'sessione' : 'sessioni',
-    },
-    {
-      icon: Clock,
-      value: studyTimeStr,
-      label: 'Tempo totale',
-      color: 'text-green-500',
-      bgColor: 'from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20',
-      suffix: '',
-    },
-    {
-      icon: Star,
-      value: questionsAsked,
-      label: 'Domande',
-      color: 'text-purple-500',
-      bgColor: 'from-purple-50 to-violet-50 dark:from-purple-900/20 dark:to-violet-900/20',
-      suffix: 'fatte',
-    },
-  ];
+  const studyTimeStr = hours > 0 ? `${hours}h${minutes}m` : `${minutes}m`;
 
   return (
-    <Card className="mb-6 overflow-hidden">
-      <CardContent className="p-0">
-        {/* Level and XP header */}
-        <div className="p-4 bg-gradient-to-r from-blue-500 to-indigo-600 text-white">
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-3">
-              <div className="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center">
-                <Trophy className="w-6 h-6" />
-              </div>
-              <div>
-                <p className="text-sm opacity-80">Livello</p>
-                <p className="text-2xl font-bold">{level}</p>
-              </div>
-            </div>
-            <div className="text-right">
-              <p className="text-sm opacity-80">XP Totali</p>
-              <p className="text-2xl font-bold">{xp.toLocaleString()}</p>
-            </div>
+    <div className="mb-6 p-3 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm">
+      <div className="flex items-center gap-4 flex-wrap">
+        {/* Level + XP Progress */}
+        <div className="flex items-center gap-2 min-w-[180px] flex-1">
+          <div className="w-8 h-8 rounded-full bg-accent-themed flex items-center justify-center flex-shrink-0">
+            <Trophy className="w-4 h-4 text-white" />
           </div>
-
-          {/* XP Progress bar */}
-          <div className="space-y-1">
-            <div className="flex justify-between text-xs opacity-80">
-              <span>Livello {level}</span>
-              <span>{xpInLevel.toLocaleString()} / {xpNeeded.toLocaleString()} XP</span>
-              <span>Livello {level + 1}</span>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-baseline gap-2 text-sm">
+              <span className="font-bold text-slate-900 dark:text-white">Lv.{level}</span>
+              <span className="text-xs text-slate-500">{xpInLevel}/{xpNeeded} XP</span>
             </div>
-            <div className="h-2 bg-white/20 rounded-full overflow-hidden">
+            <div className="h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden mt-1">
               <motion.div
-                className="h-full bg-white rounded-full"
+                className="h-full bg-accent-themed rounded-full"
                 initial={{ width: 0 }}
                 animate={{ width: `${progressPercent}%` }}
-                transition={{ duration: 1, ease: 'easeOut' }}
+                transition={{ duration: 0.5 }}
               />
             </div>
           </div>
         </div>
 
-        {/* Stats grid */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 p-4">
-          {stats.map((stat, i) => (
-            <motion.div
-              key={stat.label}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: i * 0.1 }}
-              className={cn(
-                'p-3 rounded-xl bg-gradient-to-br',
-                stat.bgColor
-              )}
-            >
-              <stat.icon className={cn('w-5 h-5 mb-1', stat.color)} />
-              <p className={cn('text-xl font-bold', stat.color)}>
-                {stat.value}
-              </p>
-              <p className="text-xs text-slate-600 dark:text-slate-400">
-                {stat.label}
-                {stat.suffix && <span className="block text-[10px] opacity-70">{stat.suffix}</span>}
-              </p>
-            </motion.div>
-          ))}
+        {/* Divider */}
+        <div className="hidden md:block w-px h-8 bg-slate-200 dark:bg-slate-700" />
+
+        {/* Quick Stats */}
+        <div className="flex items-center gap-4 text-sm">
+          <div className="flex items-center gap-1.5" title="Streak">
+            <Flame className={cn("w-4 h-4", streak.current > 0 ? "text-orange-500" : "text-slate-400")} />
+            <span className={cn("font-semibold", streak.current > 0 ? "text-orange-500" : "text-slate-500")}>
+              {streak.current}
+            </span>
+          </div>
+
+          <div className="flex items-center gap-1.5" title="Sessioni questa settimana">
+            <BookOpen className="w-4 h-4 text-blue-500" />
+            <span className="font-semibold text-slate-700 dark:text-slate-300">{sessionsThisWeek}</span>
+          </div>
+
+          <div className="flex items-center gap-1.5" title="Tempo di studio">
+            <Clock className="w-4 h-4 text-green-500" />
+            <span className="font-semibold text-slate-700 dark:text-slate-300">{studyTimeStr}</span>
+          </div>
+
+          <div className="flex items-center gap-1.5" title="Domande fatte">
+            <Star className="w-4 h-4 text-purple-500" />
+            <span className="font-semibold text-slate-700 dark:text-slate-300">{questionsAsked}</span>
+          </div>
         </div>
 
-        {/* Streak bonus info */}
+        {/* Streak bonus badge - only if active */}
         {streak.current >= 3 && (
-          <div className="px-4 pb-4">
-            <div className="p-3 rounded-xl bg-gradient-to-r from-amber-100 to-orange-100 dark:from-amber-900/30 dark:to-orange-900/30 border border-amber-200 dark:border-amber-800">
-              <div className="flex items-center gap-2">
-                <Flame className="w-5 h-5 text-orange-500" />
-                <span className="text-sm font-medium text-amber-800 dark:text-amber-300">
-                  Streak bonus attivo! +{Math.min(streak.current * 10, 50)}% XP
-                </span>
-              </div>
-            </div>
+          <div className="flex items-center gap-1 px-2 py-1 rounded-full bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400 text-xs font-medium">
+            <Flame className="w-3 h-3" />
+            +{Math.min(streak.current * 10, 50)}% XP
           </div>
         )}
-
-        {/* Longest streak */}
-        {streak.longest > 0 && streak.longest > streak.current && (
-          <div className="px-4 pb-4 -mt-2">
-            <p className="text-xs text-slate-500 flex items-center gap-1">
-              <TrendingUp className="w-3 h-3" />
-              Record: {streak.longest} giorni di fila
-            </p>
-          </div>
-        )}
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }

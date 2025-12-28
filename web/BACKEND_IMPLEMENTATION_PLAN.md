@@ -119,17 +119,33 @@ npm run version:major
 
 ---
 
+### New Issues (Session Dec 28 - Evening)
+
+| # | Issue | File | Status |
+|---|-------|------|--------|
+| 31 | Accent color not working on nav buttons | page.tsx | ✅ FIXED - bg-accent-themed class |
+| 32 | Nav/XP bar overlap with large font | page.tsx | ✅ FIXED - nav scrollable + padding |
+| 33 | Logo not clickable to return home | page.tsx | ✅ FIXED - button wrapper |
+| 34 | Home progress widget too large | home-progress-widget.tsx | ✅ FIXED - compact horizontal layout |
+| 35 | Mindmap labels still truncated (40 chars) | mindmap-renderer.tsx | ✅ FIXED - increased to 100 chars |
+| 36 | Azure API max_response_output_tokens error | use-voice-session.ts | ✅ FIXED - removed param |
+| 37 | Maestri change language randomly | use-voice-session.ts | ✅ FIXED - stronger language instructions |
+| 38 | Homework help camera vs upload confusion | homework-help.tsx | ✅ FIXED - separate inputs |
+| 39 | Accessibility UI confusing (cards look like buttons) | settings-view.tsx | ✅ FIXED - clickable toggles |
+| 40 | "Apri Pannello" button not visible as button | settings-view.tsx | ✅ FIXED - larger purple button |
+
+---
+
 ### SUMMARY
 
 | Category | Count |
 |----------|-------|
-| 🚨 CRITICAL (blocks PR) | 0 (all fixed!) |
-| ✅ FIXED | 35 |
+| 🚨 CRITICAL (blocks PR) | 0 |
+| ✅ FIXED | 45 |
 | 🔶 BY DESIGN | 1 |
-| ⏳ PENDING HIGH | 0 |
-| **TOTAL PENDING** | **0** |
+| ⏳ PENDING | 0 |
 
-**ALL FEATURES COMPLETED!**
+**ALL ISSUES FIXED!**
 
 **Completed in current session:**
 - #5: Maestri remember interactions (fetchConversationMemory in voice session) - ✅ DONE

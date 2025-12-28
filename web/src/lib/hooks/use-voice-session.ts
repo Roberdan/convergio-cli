@@ -472,20 +472,39 @@ Durante le lezioni, USA ATTIVAMENTE questi strumenti per rendere l'apprendimento
         };
 
         // Build language instruction - CRITICAL for ensuring maestro speaks correct language
-        // Language instruction is repeated at start AND end for maximum emphasis
+        // Language instruction is repeated at start, middle, AND end for maximum emphasis
+        const languageExamples: Record<string, string> = {
+          it: 'Esempio: "Ciao! Oggi parleremo di..." NOT "Hello! Today we will..."',
+          en: 'Example: "Hello! Today we will discuss..." NOT "Ciao! Oggi parleremo di..."',
+          es: 'Ejemplo: "¡Hola! Hoy hablaremos de..." NOT "Hello! Today we will..."',
+          fr: 'Exemple: "Bonjour! Aujourd\'hui nous allons..." NOT "Hello! Today we will..."',
+          de: 'Beispiel: "Hallo! Heute werden wir..." NOT "Hello! Today we will..."',
+        };
+
         const languageInstruction = `
-# MANDATORY LANGUAGE RULE - READ THIS FIRST!
+# ⚠️ MANDATORY LANGUAGE RULE - HIGHEST PRIORITY! ⚠️
 **YOU MUST SPEAK ONLY IN ${languageNames[language].toUpperCase()}!**
-This is an absolute requirement. The student has selected ${languageNames[language]} as their language.
-ALL your responses, explanations, questions, and examples MUST be in ${languageNames[language]}.
-DO NOT speak in any other language under any circumstances.
+
+This is NON-NEGOTIABLE. The student has selected ${languageNames[language]}.
+- EVERY word you speak MUST be in ${languageNames[language]}
+- EVERY response MUST be in ${languageNames[language]}
+- EVERY question MUST be in ${languageNames[language]}
+- EVERY explanation MUST be in ${languageNames[language]}
+- NO mixing languages. NO exceptions. NO switching.
+
+${languageExamples[language] || ''}
+
+If you accidentally start speaking another language, IMMEDIATELY switch back to ${languageNames[language]}.
 `;
 
         const languageReminder = `
 
-# LANGUAGE REMINDER - CRITICAL!
-Remember: You MUST speak ONLY in ${languageNames[language].toUpperCase()}.
-Every word you say must be in ${languageNames[language]}. No exceptions.
+# ⚠️ FINAL LANGUAGE CHECK ⚠️
+Before EVERY response, verify: Am I speaking in ${languageNames[language].toUpperCase()}?
+If not, STOP and reformulate in ${languageNames[language]}.
+NEVER respond in English if the selected language is not English.
+NEVER respond in Italian if the selected language is not Italian.
+ONLY speak in: ${languageNames[language].toUpperCase()}.
 `;
 
         // Character immersion instruction - NEVER break character
@@ -531,8 +550,7 @@ You have a rich life, experiences, and opinions as ${maestro.name}. Share anecdo
             instructions: fullInstructions,
             output_modalities: ['audio'],
             tools: maestroTools,
-            // NOTE: temperature removed - Azure Realtime API doesn't support it in session.update
-            max_response_output_tokens: 'inf',
+            // NOTE: temperature and max_response_output_tokens removed - Azure Realtime API doesn't support them
             audio: {
               input: {
                 transcription: {

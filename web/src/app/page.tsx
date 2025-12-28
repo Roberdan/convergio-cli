@@ -56,11 +56,12 @@ export default function Home() {
           sidebarOpen ? 'w-64' : 'w-20'
         )}
       >
-        {/* Logo */}
+        {/* Logo - clickable to return home */}
         <div className="h-16 flex items-center justify-between px-4 border-b border-slate-200 dark:border-slate-800">
-          <motion.div
-            className="flex items-center gap-3"
-            animate={{ opacity: sidebarOpen ? 1 : 0 }}
+          <button
+            onClick={() => setCurrentView('maestri')}
+            className="flex items-center gap-3 hover:opacity-80 transition-opacity"
+            aria-label="Torna alla home"
           >
             <div className="w-10 h-10 rounded-xl overflow-hidden flex-shrink-0">
               <Image
@@ -76,7 +77,7 @@ export default function Home() {
                 Convergio-Edu
               </span>
             )}
-          </motion.div>
+          </button>
           <Button
             variant="ghost"
             size="icon-sm"
@@ -106,8 +107,8 @@ export default function Home() {
           </div>
         )}
 
-        {/* Navigation */}
-        <nav className="p-4 space-y-2">
+        {/* Navigation - with bottom padding for XP bar */}
+        <nav className="p-4 space-y-2 overflow-y-auto pb-24" style={{ maxHeight: 'calc(100vh - 180px)' }}>
           {navItems.map((item) => (
             <button
               key={item.id}
@@ -115,9 +116,10 @@ export default function Home() {
               className={cn(
                 'w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all',
                 currentView === item.id
-                  ? 'bg-blue-500 text-white shadow-lg shadow-blue-500/30'
+                  ? 'bg-accent-themed text-white shadow-lg'
                   : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
               )}
+              style={currentView === item.id ? { boxShadow: '0 10px 15px -3px var(--accent-color, #3b82f6)40' } : undefined}
             >
               <item.icon className="h-5 w-5 flex-shrink-0" />
               {sidebarOpen && <span className="font-medium">{item.label}</span>}
@@ -127,7 +129,7 @@ export default function Home() {
 
         {/* XP Progress */}
         {sidebarOpen && (
-          <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-slate-200 dark:border-slate-800">
+          <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
             <div className="mb-2 flex justify-between text-sm">
               <span className="text-slate-600 dark:text-slate-400">XP</span>
               <span className="font-medium text-slate-900 dark:text-white">
@@ -136,7 +138,7 @@ export default function Home() {
             </div>
             <div className="h-2 rounded-full bg-slate-200 dark:bg-slate-700 overflow-hidden">
               <motion.div
-                className="h-full bg-gradient-to-r from-blue-500 to-indigo-500"
+                className="h-full bg-accent-themed"
                 initial={{ width: 0 }}
                 animate={{ width: `${(xp % 1000) / 10}%` }}
               />

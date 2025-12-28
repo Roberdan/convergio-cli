@@ -20,6 +20,7 @@ import {
   TrendingUp,
   Cloud,
   Server,
+  Check,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -90,7 +91,7 @@ export function SettingsView() {
   const [isSaving, setIsSaving] = useState(false);
 
   const { studentProfile, updateStudentProfile, appearance, updateAppearance } = useSettingsStore();
-  const { settings: accessibilitySettings } = useAccessibilityStore();
+  const { settings: accessibilitySettings, updateSettings: updateAccessibilitySettings } = useAccessibilityStore();
 
   const handleSave = useCallback(async () => {
     setIsSaving(true);
@@ -159,6 +160,8 @@ export function SettingsView() {
           <AccessibilityTab
             settings={accessibilitySettings}
             onOpenModal={() => setShowAccessibilityModal(true)}
+            onToggleDyslexia={() => updateAccessibilitySettings({ dyslexiaFont: !accessibilitySettings.dyslexiaFont })}
+            onToggleADHD={() => updateAccessibilitySettings({ adhdMode: !accessibilitySettings.adhdMode })}
           />
         )}
 
@@ -406,9 +409,11 @@ interface AccessibilitySettings {
 interface AccessibilityTabProps {
   settings: AccessibilitySettings;
   onOpenModal: () => void;
+  onToggleDyslexia: () => void;
+  onToggleADHD: () => void;
 }
 
-function AccessibilityTab({ settings, onOpenModal }: AccessibilityTabProps) {
+function AccessibilityTab({ settings, onOpenModal, onToggleDyslexia, onToggleADHD }: AccessibilityTabProps) {
   const activeFeatures = [
     settings.dyslexiaFont && 'Font dislessia',
     settings.highContrast && 'Alto contrasto',
@@ -452,35 +457,68 @@ function AccessibilityTab({ settings, onOpenModal }: AccessibilityTabProps) {
             </div>
           )}
 
-          <Button onClick={onOpenModal} className="w-full">
-            <Accessibility className="w-4 h-4 mr-2" />
+          <Button
+            onClick={onOpenModal}
+            className="w-full py-6 text-lg font-semibold bg-purple-600 hover:bg-purple-700 text-white"
+            size="lg"
+          >
+            <Accessibility className="w-5 h-5 mr-2" />
             Apri Pannello Accessibilita Completo
           </Button>
         </CardContent>
       </Card>
 
+      {/* Quick toggles - clickable cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Card className="bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800">
-          <CardContent className="p-4">
-            <h4 className="font-medium text-blue-700 dark:text-blue-300 mb-2">
+        <button
+          onClick={onToggleDyslexia}
+          className={cn(
+            "text-left p-4 rounded-xl border-2 transition-all",
+            settings.dyslexiaFont
+              ? "bg-blue-100 dark:bg-blue-900/40 border-blue-500 ring-2 ring-blue-500/50"
+              : "bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800 hover:border-blue-400"
+          )}
+        >
+          <div className="flex items-center justify-between mb-2">
+            <h4 className="font-medium text-blue-700 dark:text-blue-300">
               Supporto Dislessia
             </h4>
-            <p className="text-sm text-blue-600 dark:text-blue-400">
-              Font OpenDyslexic, spaziatura ottimizzata e sintesi vocale
-            </p>
-          </CardContent>
-        </Card>
+            <div className={cn(
+              "w-5 h-5 rounded-full border-2 flex items-center justify-center",
+              settings.dyslexiaFont ? "bg-blue-500 border-blue-500" : "border-blue-300"
+            )}>
+              {settings.dyslexiaFont && <Check className="w-3 h-3 text-white" />}
+            </div>
+          </div>
+          <p className="text-sm text-blue-600 dark:text-blue-400">
+            Font OpenDyslexic, spaziatura ottimizzata
+          </p>
+        </button>
 
-        <Card className="bg-purple-50 dark:bg-purple-900/20 border-purple-200 dark:border-purple-800">
-          <CardContent className="p-4">
-            <h4 className="font-medium text-purple-700 dark:text-purple-300 mb-2">
+        <button
+          onClick={onToggleADHD}
+          className={cn(
+            "text-left p-4 rounded-xl border-2 transition-all",
+            settings.adhdMode
+              ? "bg-purple-100 dark:bg-purple-900/40 border-purple-500 ring-2 ring-purple-500/50"
+              : "bg-purple-50 dark:bg-purple-900/20 border-purple-200 dark:border-purple-800 hover:border-purple-400"
+          )}
+        >
+          <div className="flex items-center justify-between mb-2">
+            <h4 className="font-medium text-purple-700 dark:text-purple-300">
               Supporto ADHD
             </h4>
-            <p className="text-sm text-purple-600 dark:text-purple-400">
-              Timer Pomodoro, focus mode e promemoria pause
-            </p>
-          </CardContent>
-        </Card>
+            <div className={cn(
+              "w-5 h-5 rounded-full border-2 flex items-center justify-center",
+              settings.adhdMode ? "bg-purple-500 border-purple-500" : "border-purple-300"
+            )}>
+              {settings.adhdMode && <Check className="w-3 h-3 text-white" />}
+            </div>
+          </div>
+          <p className="text-sm text-purple-600 dark:text-purple-400">
+            Timer Pomodoro, focus mode e promemoria
+          </p>
+        </button>
       </div>
     </div>
   );

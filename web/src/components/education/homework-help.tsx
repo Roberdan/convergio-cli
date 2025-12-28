@@ -108,8 +108,9 @@ export function HomeworkHelp({
             </div>
           )}
 
-          {/* Upload buttons */}
+          {/* Upload buttons - separate inputs for camera vs file picker */}
           <div className="grid grid-cols-2 gap-4">
+            {/* Camera input */}
             <input
               ref={fileInputRef}
               type="file"
@@ -117,11 +118,26 @@ export function HomeworkHelp({
               capture="environment"
               onChange={handleFileSelect}
               className="hidden"
+              id="camera-input"
+            />
+            {/* File picker input (no capture) */}
+            <input
+              type="file"
+              accept="image/*"
+              onChange={handleFileSelect}
+              className="hidden"
+              id="file-input"
             />
             <Button
               variant="outline"
               className="h-auto py-6 flex-col"
-              onClick={() => fileInputRef.current?.click()}
+              onClick={() => {
+                const input = document.getElementById('camera-input') as HTMLInputElement;
+                if (input) {
+                  input.value = ''; // Reset to allow re-selection
+                  input.click();
+                }
+              }}
               disabled={isUploading}
             >
               <Camera className="w-6 h-6 mb-2" />
@@ -131,9 +147,10 @@ export function HomeworkHelp({
               variant="outline"
               className="h-auto py-6 flex-col"
               onClick={() => {
-                if (fileInputRef.current) {
-                  fileInputRef.current.removeAttribute('capture');
-                  fileInputRef.current.click();
+                const input = document.getElementById('file-input') as HTMLInputElement;
+                if (input) {
+                  input.value = ''; // Reset to allow re-selection
+                  input.click();
                 }
               }}
               disabled={isUploading}
