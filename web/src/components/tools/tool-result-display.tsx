@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Loader2, CheckCircle, XCircle, Code, BarChart2, GitBranch, Calculator, HelpCircle, Layers, Network } from 'lucide-react';
 import { CodeRunner } from './code-runner';
@@ -11,6 +12,79 @@ import { FlashcardTool } from './flashcard-tool';
 import { MindmapRenderer } from './mindmap-renderer';
 import { cn } from '@/lib/utils';
 import type { ToolCall, CodeExecutionRequest, ChartRequest, DiagramRequest, FormulaRequest, QuizRequest, FlashcardDeckRequest, MindmapRequest } from '@/types';
+
+// Auto-save utilities for tool results
+function autoSaveMindmap(request: MindmapRequest): void {
+  if (typeof window === 'undefined') return;
+  try {
+    const saved = localStorage.getItem('convergio-mindmaps');
+    const mindmaps = saved ? JSON.parse(saved) : [];
+
+    // Check if already saved (by title)
+    if (mindmaps.some((m: { title: string }) => m.title === request.title)) return;
+
+    mindmaps.unshift({
+      id: crypto.randomUUID(),
+      title: request.title,
+      nodes: request.nodes,
+      subject: 'general', // Mindmaps don't have subject in request
+      createdAt: new Date().toISOString(),
+    });
+
+    // Keep only last 50 mindmaps
+    localStorage.setItem('convergio-mindmaps', JSON.stringify(mindmaps.slice(0, 50)));
+  } catch {
+    // Silent failure - localStorage might be full
+  }
+}
+
+function autoSaveQuiz(request: QuizRequest): void {
+  if (typeof window === 'undefined') return;
+  try {
+    const saved = localStorage.getItem('convergio-quizzes');
+    const quizzes = saved ? JSON.parse(saved) : [];
+
+    // Check if already saved (by title)
+    if (quizzes.some((q: { title: string }) => q.title === request.title)) return;
+
+    quizzes.unshift({
+      id: crypto.randomUUID(),
+      title: request.title,
+      subject: request.subject,
+      questions: request.questions,
+      createdAt: new Date().toISOString(),
+    });
+
+    // Keep only last 50 quizzes
+    localStorage.setItem('convergio-quizzes', JSON.stringify(quizzes.slice(0, 50)));
+  } catch {
+    // Silent failure
+  }
+}
+
+function autoSaveFlashcards(request: FlashcardDeckRequest): void {
+  if (typeof window === 'undefined') return;
+  try {
+    const saved = localStorage.getItem('convergio-flashcard-decks');
+    const decks = saved ? JSON.parse(saved) : [];
+
+    // Check if already saved (by name)
+    if (decks.some((d: { name: string }) => d.name === request.name)) return;
+
+    decks.unshift({
+      id: crypto.randomUUID(),
+      name: request.name,
+      subject: request.subject,
+      cards: request.cards,
+      createdAt: new Date().toISOString(),
+    });
+
+    // Keep only last 50 decks
+    localStorage.setItem('convergio-flashcard-decks', JSON.stringify(decks.slice(0, 50)));
+  } catch {
+    // Silent failure
+  }
+}
 
 interface ToolResultDisplayProps {
   toolCall: ToolCall;
@@ -165,25 +239,17 @@ function ToolContent({ toolCall }: { toolCall: ToolCall }) {
 
     case 'create_quiz':
       return (
-        <QuizTool
-          request={toolCall.arguments as unknown as QuizRequest}
-        />
+        <AutoSaveQuiz request={toolCall.arguments as unknown as QuizRequest} />
       );
 
     case 'create_flashcard':
       return (
-        <FlashcardTool
-          request={toolCall.arguments as unknown as FlashcardDeckRequest}
-        />
+        <AutoSaveFlashcard request={toolCall.arguments as unknown as FlashcardDeckRequest} />
       );
 
     case 'create_mindmap':
-      const mindmapReq = toolCall.arguments as unknown as MindmapRequest;
       return (
-        <MindmapRenderer
-          title={mindmapReq.title}
-          nodes={mindmapReq.nodes}
-        />
+        <AutoSaveMindmap request={toolCall.arguments as unknown as MindmapRequest} />
       );
 
     default:
@@ -195,6 +261,40 @@ function ToolContent({ toolCall }: { toolCall: ToolCall }) {
         </div>
       );
   }
+}
+
+// Auto-save wrapper components
+function AutoSaveQuiz({ request }: { request: QuizRequest }) {
+  const savedRef = useRef(false);
+  useEffect(() => {
+    if (!savedRef.current) {
+      savedRef.current = true;
+      autoSaveQuiz(request);
+    }
+  }, [request]);
+  return <QuizTool request={request} />;
+}
+
+function AutoSaveFlashcard({ request }: { request: FlashcardDeckRequest }) {
+  const savedRef = useRef(false);
+  useEffect(() => {
+    if (!savedRef.current) {
+      savedRef.current = true;
+      autoSaveFlashcards(request);
+    }
+  }, [request]);
+  return <FlashcardTool request={request} />;
+}
+
+function AutoSaveMindmap({ request }: { request: MindmapRequest }) {
+  const savedRef = useRef(false);
+  useEffect(() => {
+    if (!savedRef.current) {
+      savedRef.current = true;
+      autoSaveMindmap(request);
+    }
+  }, [request]);
+  return <MindmapRenderer title={request.title} nodes={request.nodes} />;
 }
 
 // Multiple tools display

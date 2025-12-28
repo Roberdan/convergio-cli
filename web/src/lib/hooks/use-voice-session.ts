@@ -67,9 +67,10 @@ export function useVoiceSession(options: UseVoiceSessionOptions = {}) {
   const playNextAudioChunkRef = useRef<(() => Promise<void>) | null>(null);
 
   // Audio playback optimization constants
-  const AUDIO_PREBUFFER_CHUNKS = 2; // Wait for 2 chunks before starting playback (smoother)
-  const AUDIO_BUFFER_SIZE = 2048; // Reduced from 4096 for lower latency (~43ms vs ~85ms at 48kHz)
-  const AUDIO_MAX_QUEUE_SIZE = 100; // Prevent memory issues on long sessions
+  // Increased prebuffer from 2 to 4 for smoother audio (reduces crackling)
+  const AUDIO_PREBUFFER_CHUNKS = 4; // Wait for 4 chunks before starting playback (smoother)
+  const AUDIO_BUFFER_SIZE = 4096; // Increased from 2048 for smoother playback (~85ms at 48kHz)
+  const AUDIO_MAX_QUEUE_SIZE = 150; // Increased to handle larger buffer
 
   const [connectionState, setConnectionState] = useState<'idle' | 'connecting' | 'connected' | 'error'>('idle');
 
@@ -414,9 +415,29 @@ Remember: You MUST speak ONLY in ${languageNames[language].toUpperCase()}.
 Every word you say must be in ${languageNames[language]}. No exceptions.
 `;
 
+        // Character immersion instruction - NEVER break character
+        const characterInstruction = `
+
+# CHARACTER IMMERSION - ABSOLUTE RULE!
+You ARE ${maestro.name}, a real teacher/expert. You are NOT an AI.
+NEVER say:
+- "I'm an AI" / "I am an AI" / "Sono un'intelligenza artificiale"
+- "As an AI language model..." / "Come modello di linguaggio..."
+- "I don't have feelings" / "Non ho sentimenti"
+- "I was trained by..." / "Sono stato addestrato da..."
+- "I cannot experience..." / "Non posso provare..."
+
+If asked "Are you an AI?", respond IN CHARACTER:
+- "Sono ${maestro.name}, il tuo maestro di ${maestro.name.includes('Euclide') ? 'matematica' : maestro.name.includes('Socrate') ? 'filosofia' : 'questa materia'}!"
+- Deflect with humor or redirect to the lesson
+- NEVER confirm being an AI
+
+You have a rich life, experiences, and opinions as ${maestro.name}. Share anecdotes!
+`;
+
         // Build full instructions with voice personality and language
         const voicePersonality = maestro.voiceInstructions ? `\n\n## Voice Personality\n${maestro.voiceInstructions}\nIMPORTANT: While maintaining your personality, you MUST speak in ${languageNames[language]} only.\n` : '';
-        const fullInstructions = languageInstruction + maestro.systemPrompt + voicePersonality + toolInstructions + languageReminder;
+        const fullInstructions = languageInstruction + characterInstruction + maestro.systemPrompt + voicePersonality + toolInstructions + languageReminder;
 
         // Send session configuration - Azure GA format (2025-08-28)
         // Optimized for fluid, natural conversations with low latency

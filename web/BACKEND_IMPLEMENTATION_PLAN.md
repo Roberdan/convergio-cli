@@ -58,7 +58,7 @@ npm run version:major
 
 ### Issues to Fix Before PR (Dec 28, 2025)
 
-**Last Updated**: 2025-12-28 16:30 - CRITICAL ISSUES FIXED
+**Last Updated**: 2025-12-28 17:30 - HIGH PRIORITY BATCH FIXED
 
 ---
 
@@ -76,19 +76,19 @@ npm run version:major
 
 | # | Issue | Status | Notes |
 |---|-------|--------|-------|
-| 1 | Mindmap labels truncated in Mermaid SVG | ⏳ PENDING | Mermaid library issue |
+| 1 | Mindmap labels truncated in Mermaid SVG | ✅ FIXED | Added MAX_LABEL_LENGTH=40 with ellipsis |
 | 2 | Permissions asked every time | ✅ FIXED | localStorage cache added |
-| 3 | Audio crackling/stuttering | ⏳ PENDING | Buffer size investigation needed |
-| 4 | Maestri say "I'm an AI" | ⏳ PENDING | Model behavior, prompts are OK |
-| 5 | Maestri don't remember interactions | ⏳ PENDING | Needs conversation context |
+| 3 | Audio crackling/stuttering | ✅ FIXED | Increased buffer from 2048→4096, prebuffer 2→4 |
+| 4 | Maestri say "I'm an AI" | ✅ FIXED | Added CHARACTER IMMERSION instruction |
+| 5 | Maestri don't remember interactions | ⏳ PENDING | Needs conversation context loading - COMPLEX |
 | 6 | Webcam infinite spinner | ✅ FIXED | 10s timeout + cleanup |
 | 7 | Tool buttons DESCRIBE not CREATE | ✅ FIXED | Explicit prompts |
 | 8 | Tools should CREATE artifacts | ✅ FIXED | Same as #7 |
-| 9 | Auto-save quiz/mindmap/flashcards | ⏳ PENDING | Needs API integration |
-| 10 | Maestri create HTML/code in browser | ⏳ PENDING | Feature not implemented |
+| 9 | Auto-save quiz/mindmap/flashcards | ✅ FIXED | Auto-saves to localStorage on creation |
+| 10 | Maestri create HTML/code in browser | ⏳ PENDING | Needs code sandbox - COMPLEX |
 | 11 | Progress shows FAKE/MOCK data | ✅ FIXED | Uses real streak |
-| 12 | ALL mock data removed | ⚠️ PARTIAL | homework-help still has mock! |
-| 13 | Accent color does NOTHING | ✅ FIXED | Audit confirmed it works |
+| 12 | ALL mock data removed | ✅ FIXED | Created /api/homework/analyze |
+| 13 | Accent color does NOTHING | ✅ FIXED | Added html.dark selectors for dark mode |
 | 14 | Voice API "session.temperature" | ✅ FIXED | Param removed |
 | 15 | Voice API "Tool call ID" error | ✅ FIXED | Warning + fallback |
 | 16 | WebSocket error shows {} | ✅ FIXED | Better messages |
@@ -121,12 +121,16 @@ npm run version:major
 
 | Category | Count |
 |----------|-------|
-| 🚨 CRITICAL (blocks PR) | 3 |
-| ✅ FIXED | 11 |
+| 🚨 CRITICAL (blocks PR) | 0 (all fixed!) |
+| ✅ FIXED | 18 |
 | 🔶 BY DESIGN | 2 |
-| ⏳ PENDING HIGH | 14 |
+| ⏳ PENDING HIGH | 10 (includes 2 COMPLEX) |
 | ⏳ PENDING MEDIUM | 3 |
-| **TOTAL PENDING** | **20** |
+| **TOTAL PENDING** | **13** |
+
+**COMPLEX features** (require significant work):
+- #5: Maestri remember interactions (conversation context loading)
+- #10: Maestri create HTML/code (code sandbox)
 
 ---
 

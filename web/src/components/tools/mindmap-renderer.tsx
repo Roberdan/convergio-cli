@@ -59,19 +59,27 @@ const initMermaidAccessible = (dyslexiaFont: boolean, highContrast: boolean) => 
 // Convert nodes to Mermaid mindmap syntax
 function nodesToMermaidSyntax(nodes: MindmapNode[], title: string): string {
   // Escape and sanitize labels for Mermaid mindmap syntax
+  // Also truncate very long labels to prevent rendering issues
+  const MAX_LABEL_LENGTH = 40;
   const escapeLabel = (label: string): string => {
     if (!label || typeof label !== 'string') {
       return 'Untitled';
     }
     // Remove or replace problematic characters for Mermaid
-    return label
+    let cleaned = label
       .replace(/[()[\]{}]/g, '') // Remove brackets/parens
       .replace(/[<>]/g, '') // Remove angle brackets
       .replace(/["'`]/g, '') // Remove quotes
       .replace(/[\n\r]/g, ' ') // Replace newlines with space
       .replace(/\s+/g, ' ') // Normalize whitespace
-      .trim() // Remove leading/trailing whitespace
-      || 'Node'; // Fallback if empty after processing
+      .trim(); // Remove leading/trailing whitespace
+
+    // Truncate long labels with ellipsis
+    if (cleaned.length > MAX_LABEL_LENGTH) {
+      cleaned = cleaned.substring(0, MAX_LABEL_LENGTH - 3) + '...';
+    }
+
+    return cleaned || 'Node'; // Fallback if empty after processing
   };
 
   const buildNode = (node: MindmapNode, depth: number = 1): string => {
