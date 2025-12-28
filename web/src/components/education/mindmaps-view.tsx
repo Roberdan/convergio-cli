@@ -11,7 +11,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { MindmapRenderer, createMindmapFromTopics } from '@/components/tools/mindmap-renderer';
+import { MindmapRenderer, createMindmapFromTopics } from '@/components/tools/markmap-renderer';
 import { cn } from '@/lib/utils';
 import { subjectNames, subjectIcons, subjectColors } from '@/data';
 import type { Subject } from '@/types';

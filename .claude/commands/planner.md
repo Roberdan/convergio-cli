@@ -207,6 +207,73 @@ When asked to optimize an existing large plan:
 - ✅ Completed
 - ❌ Blocked/Problem
 
+---
+
+## PARALLEL EXECUTION (Kitty Orchestration)
+
+When the user asks to execute a plan in parallel, or says "esegui in parallelo":
+
+### Step 1: Add Claude Assignments to Plan
+
+Add this section to the plan:
+
+```markdown
+## 🎭 CLAUDE ASSIGNMENTS
+
+| Claude | Role | Tasks | Files (NO OVERLAP!) |
+|--------|------|-------|---------------------|
+| CLAUDE 1 | Coordinator | Monitor, verify, merge | - |
+| CLAUDE 2 | Implementer | P1-T1, P1-T2 | src/api/*.ts |
+| CLAUDE 3 | Implementer | P1-T3, P1-T4 | src/components/*.tsx |
+| CLAUDE 4 | Implementer | P1-T5, P1-T6 | src/lib/*.ts |
+
+### CLAUDE 2: [Domain]
+- P1-T1: [task] → `file.ts`
+- P1-T2: [task] → `file.ts`
+
+### CLAUDE 3: [Domain]
+- P1-T3: [task] → `file.tsx`
+
+### CLAUDE 4: [Domain]
+- P1-T5: [task] → `file.ts`
+
+## VERIFICATION (Final Step)
+```bash
+npm run lint && npm run typecheck && npm run build
+```
+```
+
+### Step 2: Execute in Kitty
+
+**IMPORTANT**: Must run FROM Kitty terminal (check `$KITTY_PID`)
+
+```bash
+# Launch workers
+~/.claude/scripts/claude-parallel.sh 4
+
+# Send tasks to each (or use orchestrate.sh)
+kitty @ send-text --match title:Claude-2 "Leggi [plan], sei CLAUDE 2, esegui i tuoi task"
+kitty @ send-text --match title:Claude-3 "Leggi [plan], sei CLAUDE 3, esegui i tuoi task"
+kitty @ send-text --match title:Claude-4 "Leggi [plan], sei CLAUDE 4, esegui i tuoi task"
+
+# Monitor
+~/.claude/scripts/claude-monitor.sh
+```
+
+### Critical Rules
+1. **NO FILE OVERLAP**: Each Claude works on DIFFERENT files (avoid git conflicts)
+2. **CLEAR IDs**: Each task has explicit Claude assignment
+3. **VERIFICATION LAST**: Final wave runs lint/typecheck/build
+4. **ONE COMMIT AT A TIME**: Coordinate commits to avoid conflicts
+
+### Orchestration Scripts
+- `~/.claude/scripts/orchestrate.sh <plan>` - Full automation
+- `~/.claude/scripts/claude-parallel.sh [N]` - Launch N Claude tabs
+- `~/.claude/scripts/claude-monitor.sh` - Monitor status
+- `~/.claude/scripts/kitty-check.sh` - Verify Kitty setup
+
+---
+
 ## Documentation Requirements
 
 Every task should consider:

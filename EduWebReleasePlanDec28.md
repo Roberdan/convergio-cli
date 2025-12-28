@@ -89,6 +89,17 @@
 |:------:|-----|------|----------|------|
 | ✅ | PERF-01 | Lazy Loading | ALTRO | Dynamic imports done |
 
+### Phase 6: Critical Fixes — 1/1 ✅ COMPLETE
+
+| Status | ID | Task | Assignee | Note |
+|:------:|-----|------|----------|------|
+| ✅ | MINDMAP-01 | Replace Mermaid with MarkMap | **CLAUDE 3** | MarkMapRenderer implemented, verified |
+
+**Problema**: Mermaid mindmaps tronca il testo (10+ segnalazioni utente)
+**Soluzione**: Migrazione a MarkMap (MIT license, Markdown input)
+**ADR**: `docs/adr/0001-markmap-for-mindmaps.md`
+**Verifica**: lint ✅ | typecheck ✅ | build ✅
+
 ---
 
 ## 📋 TASK DETTAGLIATI PER CLAUDE
@@ -353,7 +364,8 @@ Aggiorna questo file:
 | Missing Features | 2 | 2 | ✅ COMPLETE |
 | Accessibility | 2 | 2 | ✅ COMPLETE |
 | Performance | 1 | 1 | ✅ COMPLETE |
-| **TOTAL** | **15** | **15** | **100%** |
+| Critical Fixes | 1 | 1 | ✅ COMPLETE |
+| **TOTAL** | **16** | **16** | **100%** |
 
 ---
 
@@ -375,5 +387,5 @@ grep -r "console\.log" src --include="*.ts" --include="*.tsx" | wc -l
 
 ---
 
-**Versione**: 5.0 (ALL 15 TASKS COMPLETE + P0 GPT ISSUES VERIFIED)
-**Ultimo aggiornamento**: 2025-12-28 by CLAUDE 1 (COORDINATORE)
+**Versione**: 6.0 (ALL 16 TASKS COMPLETE - MINDMAP MIGRATED TO MARKMAP)
+**Ultimo aggiornamento**: 2025-12-28 by CLAUDE 3 (IMPLEMENTER)

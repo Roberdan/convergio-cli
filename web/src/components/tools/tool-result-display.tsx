@@ -9,7 +9,7 @@ import { DiagramRenderer } from './diagram-renderer';
 import { FormulaRenderer } from './formula-renderer';
 import { QuizTool } from './quiz-tool';
 import { FlashcardTool } from './flashcard-tool';
-import { MindmapRenderer } from './mindmap-renderer';
+import { MindmapRenderer } from './markmap-renderer';
 import { cn } from '@/lib/utils';
 import type { ToolCall, CodeExecutionRequest, ChartRequest, DiagramRequest, FormulaRequest, QuizRequest, FlashcardDeckRequest, MindmapRequest } from '@/types';
 
