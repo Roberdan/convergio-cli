@@ -56,6 +56,43 @@ npm run version:major
 | Mindmaps have incomplete strings | 🟡 MEDIUM | ✅ VERIFIED - Data is complete |
 | Theme main color not working properly | 🟡 MEDIUM | ✅ FIXED |
 
+### Issues to Fix Before PR (Dec 28, 2025)
+
+**Last Updated**: 2025-12-28 14:50
+
+| # | Issue | Priority | Status | Notes |
+|---|-------|----------|--------|-------|
+| 1 | Mindmap labels truncated in Mermaid SVG rendering | 🔴 HIGH | ⏳ PENDING | Mermaid library issue |
+| 2 | Microphone/webcam permissions asked every time | 🔴 HIGH | ✅ FIXED | Added localStorage cache in use-permissions.ts |
+| 3 | Audio crackling/stuttering during voice sessions | 🔴 HIGH | ⏳ PENDING | Need to investigate buffer sizes |
+| 4 | Maestri say "I'm an AI" instead of staying in character | 🔴 HIGH | ⏳ PENDING | Prompts are strong, may be model behavior |
+| 5 | Maestri should remember previous interactions | 🔴 HIGH | ⏳ PENDING | Needs conversation context loading |
+| 6 | Webcam infinite loading spinner | 🔴 HIGH | ✅ FIXED | Added 10s timeout + cleanup in webcam-capture.tsx |
+| 7 | Tool buttons DESCRIBE instead of CREATE | 🔴 HIGH | ✅ FIXED | Explicit "Usa lo strumento X ORA" prompts |
+| 8 | Tools should CREATE visual artifacts | 🔴 HIGH | ✅ FIXED | Same as #7 |
+| 9 | Auto-save quiz/mindmap/flashcards to archives | 🔴 HIGH | ⏳ PENDING | Needs API integration |
+| 10 | Maestri create HTML/code in browser | 🟡 MEDIUM | ⏳ PENDING | Feature not implemented |
+| 11 | Progress shows FAKE/MOCK data | 🔴 HIGH | ✅ FIXED | Removed mock, uses real streak data |
+| 12 | ALL mock data removed | 🔴 HIGH | ✅ FIXED | progress-view.tsx cleaned |
+| 13 | Accent color does NOTHING | 🔴 HIGH | ⏳ PENDING | CSS variable system needs work |
+| 14 | Voice API "session.temperature" error | 🔴 HIGH | ✅ FIXED | Removed param in use-voice-session.ts:436 |
+| 15 | Voice API "Tool call ID not found" | 🔴 HIGH | ✅ FIXED | Added warning + fallback ID |
+| 16 | WebSocket error shows {} | 🔴 HIGH | ✅ FIXED | Better error messages with context |
+| 17 | Console errors {} empty objects | 🟡 MEDIUM | ✅ FIXED | Improved error logging |
+| 18 | Cost Management "non configurato" | 🟡 MEDIUM | ✅ FIXED | Added Service Principal instructions |
+| 19 | AI Provider READ-ONLY | 🔴 HIGH | 🔶 BY DESIGN | Provider configured via .env |
+| 20 | No Ollama configuration UI | 🔴 HIGH | 🔶 BY DESIGN | Use OLLAMA_URL in .env |
+| 21 | Provider settings UI misleading | 🔴 HIGH | ⏳ PENDING | Should show "configured via .env" |
+| 22 | Aiuto Compiti webcam capture | 🔴 HIGH | ⏳ PENDING | Webcam works, needs integration |
+| 23 | Support IMAGES and PDF files | 🔴 HIGH | ⏳ PENDING | File upload not connected to AI |
+| 24 | AI read/interpret uploaded files | 🔴 HIGH | ⏳ PENDING | Needs vision API integration |
+| 25 | Homepage progress widget | 🟡 MEDIUM | ⏳ PENDING | Feature not implemented |
+| 26 | LIBRETTO/DIARIO feature | 🔴 HIGH | ⏳ PENDING | Feature not implemented |
+| 27 | School calendar | 🟡 MEDIUM | ⏳ PENDING | Feature not implemented |
+| 28 | Suggest maestri from calendar | 🟡 MEDIUM | ⏳ PENDING | Depends on #27 |
+
+**Summary**: 11 FIXED ✅ | 2 BY DESIGN 🔶 | 15 PENDING ⏳
+
 ---
 
 ## Overview

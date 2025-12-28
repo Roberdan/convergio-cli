@@ -422,7 +422,7 @@ export function MindmapRenderer({ title, nodes, className }: MindmapRendererProp
         </div>
       </div>
 
-      {/* Mindmap container */}
+      {/* Mindmap container - uses wrapper to properly contain scaled content */}
       <div
         className={cn(
           'p-4 overflow-auto',
@@ -444,17 +444,25 @@ export function MindmapRenderer({ title, nodes, className }: MindmapRendererProp
           </div>
         ) : (
           <div
-            ref={containerRef}
-            className={cn(
-              'flex justify-center items-center min-h-[300px] transition-transform',
-              !rendered && 'animate-pulse rounded-lg',
-              !rendered && (settings.highContrast ? 'bg-gray-800' : 'bg-slate-100 dark:bg-slate-700/50')
-            )}
             style={{
-              transform: `scale(${zoom})`,
-              transformOrigin: 'center top',
+              // Wrapper expands to contain scaled content for proper scrolling
+              width: `${100 * zoom}%`,
+              minHeight: `${300 * zoom}px`,
             }}
-          />
+          >
+            <div
+              ref={containerRef}
+              className={cn(
+                'flex justify-center items-center min-h-[300px] transition-transform',
+                !rendered && 'animate-pulse rounded-lg',
+                !rendered && (settings.highContrast ? 'bg-gray-800' : 'bg-slate-100 dark:bg-slate-700/50')
+              )}
+              style={{
+                transform: `scale(${zoom})`,
+                transformOrigin: 'left top',
+              }}
+            />
+          </div>
         )}
       </div>
 

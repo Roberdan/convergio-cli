@@ -59,6 +59,9 @@ export async function PUT(request: NextRequest) {
     delete data.createdAt;
     delete data.updatedAt;
 
+    // Remove accessibility object - it belongs to Settings, not Profile
+    delete data.accessibility;
+
     // Stringify learningGoals if it's an array
     if (Array.isArray(data.learningGoals)) {
       data.learningGoals = JSON.stringify(data.learningGoals);

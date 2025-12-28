@@ -21,11 +21,21 @@ export function WebcamCapture({ purpose, instructions, onCapture, onClose }: Web
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Start camera
+  // Start camera with timeout to prevent infinite loading
   useEffect(() => {
     let mounted = true;
+    let timeoutId: NodeJS.Timeout | null = null;
+    let currentStream: MediaStream | null = null;
 
     async function startCamera() {
+      // Set a timeout for camera initialization (10 seconds)
+      timeoutId = setTimeout(() => {
+        if (mounted && isLoading) {
+          setError('Camera initialization timed out. Please try again.');
+          setIsLoading(false);
+        }
+      }, 10000);
+
       try {
         const mediaStream = await navigator.mediaDevices.getUserMedia({
           video: {
@@ -35,16 +45,23 @@ export function WebcamCapture({ purpose, instructions, onCapture, onClose }: Web
           },
         });
 
+        currentStream = mediaStream;
+
         if (mounted && videoRef.current) {
           videoRef.current.srcObject = mediaStream;
           setStream(mediaStream);
           setIsLoading(false);
+          if (timeoutId) clearTimeout(timeoutId);
+        } else {
+          // Component unmounted, stop the stream
+          mediaStream.getTracks().forEach(track => track.stop());
         }
       } catch (err) {
         console.error('Camera error:', err);
         if (mounted) {
           setError('Unable to access camera. Please check permissions.');
           setIsLoading(false);
+          if (timeoutId) clearTimeout(timeoutId);
         }
       }
     }
@@ -53,8 +70,10 @@ export function WebcamCapture({ purpose, instructions, onCapture, onClose }: Web
 
     return () => {
       mounted = false;
-      if (stream) {
-        stream.getTracks().forEach(track => track.stop());
+      if (timeoutId) clearTimeout(timeoutId);
+      // Stop the stream captured during this effect
+      if (currentStream) {
+        currentStream.getTracks().forEach(track => track.stop());
       }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps

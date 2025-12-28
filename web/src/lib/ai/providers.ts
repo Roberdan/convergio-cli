@@ -90,6 +90,30 @@ export async function isOllamaAvailable(): Promise<boolean> {
 }
 
 /**
+ * Check if a specific Ollama model is available
+ */
+export async function isOllamaModelAvailable(model: string): Promise<boolean> {
+  const ollamaUrl = process.env.OLLAMA_URL || 'http://localhost:11434';
+
+  try {
+    const response = await fetch(`${ollamaUrl}/api/tags`, {
+      method: 'GET',
+      signal: AbortSignal.timeout(2000),
+    });
+    if (!response.ok) return false;
+
+    const data = await response.json();
+    const models = data.models || [];
+    // Check if the requested model exists (handle name:tag format)
+    return models.some((m: { name: string }) =>
+      m.name === model || m.name.startsWith(`${model}:`)
+    );
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Perform chat completion using the active provider
  */
 export async function chatCompletion(
@@ -118,6 +142,13 @@ export async function chatCompletion(
     if (!available) {
       throw new Error(
         'Ollama is not running. Start it with: ollama serve && ollama pull llama3.2'
+      );
+    }
+    // Validate the model exists
+    const modelAvailable = await isOllamaModelAvailable(config.model);
+    if (!modelAvailable) {
+      throw new Error(
+        `Ollama model "${config.model}" not found. Install it with: ollama pull ${config.model}`
       );
     }
     return ollamaChatCompletion(config, messages, systemPrompt, temperature);

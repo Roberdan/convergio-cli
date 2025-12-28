@@ -206,23 +206,46 @@ interface OverviewTabProps {
 }
 
 function OverviewTab({ xp, level, levelProgress, streak, masteries }: OverviewTabProps) {
-  // Pre-generate random streak calendar data (stable between renders)
-  const streakCalendarData = useMemo(() =>
-    Array.from({ length: 28 }).map((_, i) => i < streak.current || Math.random() > 0.3),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [streak.current] // Only regenerate when streak changes
-  );
+  // Generate streak calendar data based on ACTUAL streak data
+  // Shows last 28 days, with streak.current consecutive days marked as active
+  const streakCalendarData = useMemo(() => {
+    const today = new Date();
+    const lastStudy = streak.lastStudyDate ? new Date(streak.lastStudyDate) : null;
 
-  // Simulated weekly activity data
-  const weeklyData = [
-    { day: 'Lun', minutes: 45 },
-    { day: 'Mar', minutes: 30 },
-    { day: 'Mer', minutes: 60 },
-    { day: 'Gio', minutes: 15 },
-    { day: 'Ven', minutes: 90 },
-    { day: 'Sab', minutes: 0 },
-    { day: 'Dom', minutes: 25 },
-  ];
+    return Array.from({ length: 28 }).map((_, i) => {
+      // Days from oldest (27 days ago) to today (0)
+      const daysAgo = 27 - i;
+
+      // If we have a lastStudyDate, mark consecutive days back from it
+      if (lastStudy && streak.current > 0) {
+        const dayDate = new Date(today);
+        dayDate.setDate(dayDate.getDate() - daysAgo);
+
+        // Check if this day falls within the current streak
+        const lastStudyDaysAgo = Math.floor((today.getTime() - lastStudy.getTime()) / (1000 * 60 * 60 * 24));
+        const streakStartDaysAgo = lastStudyDaysAgo + streak.current - 1;
+
+        return daysAgo >= lastStudyDaysAgo && daysAgo <= streakStartDaysAgo;
+      }
+
+      return false; // No activity if no streak data
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- React Compiler infers streak.current
+  }, [streak.current, streak.lastStudyDate]);
+
+  // Weekly activity data - calculate from actual session history
+  // For now, show empty/zero data since we don't have session history passed in
+  // TODO: Pass sessionHistory prop and calculate real weekly data
+  const weeklyData = useMemo(() => {
+    const days = ['Dom', 'Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab'];
+    const today = new Date().getDay();
+
+    // Rotate days array to start from today - 6 days
+    return Array.from({ length: 7 }).map((_, i) => {
+      const dayIndex = (today - 6 + i + 7) % 7;
+      return { day: days[dayIndex], minutes: 0 }; // Real data should come from props
+    });
+  }, []);
 
   const maxMinutes = Math.max(...weeklyData.map(d => d.minutes), 1);
 

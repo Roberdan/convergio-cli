@@ -433,7 +433,7 @@ Every word you say must be in ${languageNames[language]}. No exceptions.
             instructions: fullInstructions,
             output_modalities: ['audio'],
             tools: maestroTools,
-            temperature: 0.7, // Slightly lower for more consistent responses
+            // NOTE: temperature removed - Azure Realtime API doesn't support it in session.update
             max_response_output_tokens: 'inf',
             audio: {
               input: {
@@ -520,11 +520,14 @@ Every word you say must be in ${languageNames[language]}. No exceptions.
         }
       };
 
-      ws.onerror = (error) => {
-        console.error('[Voice] WebSocket error:', error);
+      ws.onerror = (_event) => {
+        // WebSocket onerror receives an Event, not an Error
+        // Browser security prevents access to actual error details
+        console.error('[Voice] WebSocket error - connection failed. Check network and Azure endpoint configuration.');
+        console.error('[Voice] URL attempted:', wsUrl ? wsUrl.split('?')[0] : 'unknown');
         setConnectionState('error');
         options.onStateChange?.('error');
-        options.onError?.(new Error('WebSocket connection failed'));
+        options.onError?.(new Error('WebSocket connection failed. Check Azure endpoint and API key.'));
       };
 
       ws.onclose = (event) => {
@@ -629,7 +632,12 @@ Every word you say must be in ${languageNames[language]}. No exceptions.
         if (event.name && typeof event.name === 'string' && event.arguments && typeof event.arguments === 'string') {
           try {
             const args = JSON.parse(event.arguments);
-            const callId = typeof event.call_id === 'string' ? event.call_id : crypto.randomUUID();
+            // IMPORTANT: Azure requires the exact call_id from the server
+            // If call_id is missing, we cannot send a valid response
+            if (typeof event.call_id !== 'string') {
+              console.warn('[Voice] Tool call missing call_id - response may fail');
+            }
+            const callId = typeof event.call_id === 'string' ? event.call_id : `local-${crypto.randomUUID()}`;
             const toolCall = {
               id: callId,
               type: event.name as import('@/types').ToolType,

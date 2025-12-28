@@ -182,18 +182,20 @@ export function VoiceSession({ maestro, onClose, onSwitchToChat }: VoiceSessionP
     : 'Disconnesso';
 
   // Manual tool trigger function
+  // IMPORTANT: These prompts MUST instruct the AI to USE THE TOOL, not just describe what a tool would do
   const triggerManualTool = useCallback((toolName: string) => {
     if (toolName === 'capture_homework') {
       setWebcamRequest({ purpose: 'homework', instructions: 'Mostra il tuo compito o libro', callId: `manual-${Date.now()}` });
       setShowWebcam(true);
     }
-    // For other tools, we send a text request to the AI
+    // For other tools, we send explicit tool-call requests
     else {
       const toolPrompts: Record<string, string> = {
-        mindmap: 'Crea una mappa mentale sull\'argomento che stiamo discutendo',
-        quiz: 'Crea un quiz per verificare la mia comprensione',
-        flashcard: 'Crea delle flashcard sugli argomenti trattati',
-        search: 'Cerca informazioni utili sull\'argomento',
+        // Each prompt explicitly asks for tool creation, not description
+        mindmap: 'Usa lo strumento create_mindmap per creare ORA una mappa mentale visiva sull\'argomento che stiamo discutendo. Genera i nodi e mostrala.',
+        quiz: 'Usa lo strumento create_quiz per creare ORA un quiz interattivo con domande a scelta multipla sull\'argomento. Genera le domande.',
+        flashcard: 'Usa lo strumento create_flashcards per creare ORA delle flashcard interattive sugli argomenti trattati. Genera le card.',
+        search: 'Usa lo strumento web_search per cercare ORA informazioni aggiornate sull\'argomento.',
       };
       if (toolPrompts[toolName]) {
         sendText(toolPrompts[toolName]);

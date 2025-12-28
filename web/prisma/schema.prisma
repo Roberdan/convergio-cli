@@ -37,6 +37,7 @@ model Profile {
 
   name          String?
   age           Int?
+  schoolYear    Int?
   schoolLevel   String   @default("superiore")
   gradeLevel    String?
   learningGoals String   @default("[]")
@@ -60,11 +61,13 @@ model Settings {
   accentColor   String  @default("blue")
 
   // Accessibility
-  fontSize      String  @default("medium")
-  highContrast  Boolean @default(false)
-  dyslexiaFont  Boolean @default(false)
-  reducedMotion Boolean @default(false)
-  voiceEnabled  Boolean @default(true)
+  fontSize           String  @default("medium")
+  highContrast       Boolean @default(false)
+  dyslexiaFont       Boolean @default(false)
+  reducedMotion      Boolean @default(false)
+  voiceEnabled       Boolean @default(true)
+  simplifiedLanguage Boolean @default(false)
+  adhdMode           Boolean @default(false)
 
   // AI Provider
   provider      String  @default("azure")

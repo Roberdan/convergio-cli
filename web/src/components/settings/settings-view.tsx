@@ -49,9 +49,14 @@ export function SettingsView() {
 
   const handleSave = useCallback(async () => {
     setIsSaving(true);
-    // Simulate API save
-    await new Promise(resolve => setTimeout(resolve, 500));
-    setIsSaving(false);
+    try {
+      // Actually sync settings to the server
+      await useSettingsStore.getState().syncToServer();
+    } catch (error) {
+      console.error('Failed to save settings:', error);
+    } finally {
+      setIsSaving(false);
+    }
   }, []);
 
   return (
@@ -812,19 +817,25 @@ function AIProviderSettings() {
           </CardHeader>
           <CardContent className="space-y-4">
             {!costsConfigured ? (
-              <div className="p-4 bg-slate-100 dark:bg-slate-800 rounded-xl">
-                <h4 className="font-medium text-slate-700 dark:text-slate-300 mb-2">
+              <div className="p-4 bg-amber-50 dark:bg-amber-900/20 rounded-xl border border-amber-200 dark:border-amber-800">
+                <h4 className="font-medium text-amber-700 dark:text-amber-300 mb-2">
                   Cost Management non configurato
                 </h4>
-                <p className="text-sm text-slate-500 mb-3">
-                  Per visualizzare i costi, configura le credenziali Azure Cost Management nel file .env
+                <p className="text-sm text-amber-600 dark:text-amber-400 mb-3">
+                  Per visualizzare i costi Azure, devi creare un Service Principal con ruolo &quot;Cost Management Reader&quot;
+                  sulla tua subscription e configurare le seguenti 4 variabili nel file .env:
                 </p>
-                <code className="text-xs bg-slate-200 dark:bg-slate-700 p-2 rounded block">
-                  AZURE_TENANT_ID=...<br />
-                  AZURE_CLIENT_ID=...<br />
-                  AZURE_CLIENT_SECRET=...<br />
-                  AZURE_SUBSCRIPTION_ID=...
-                </code>
+                <div className="bg-slate-900 dark:bg-slate-950 p-3 rounded-lg mb-3">
+                  <code className="text-xs text-green-400 font-mono block leading-relaxed">
+                    AZURE_TENANT_ID=xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx<br />
+                    AZURE_CLIENT_ID=xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx<br />
+                    AZURE_CLIENT_SECRET=your-secret-here<br />
+                    AZURE_SUBSCRIPTION_ID=xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+                  </code>
+                </div>
+                <p className="text-xs text-slate-500">
+                  Guida: Azure Portal → App registrations → New registration → Add role &quot;Cost Management Reader&quot;
+                </p>
               </div>
             ) : loadingCosts ? (
               <div className="animate-pulse space-y-4">
