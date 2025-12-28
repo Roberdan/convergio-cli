@@ -1,0 +1,109 @@
+#!/bin/bash
+# Convergio Azure Cost Monitor CLI
+# Usage: ./azure-costs [--forecast] [--daily] [--days N] [--json]
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+source "$SCRIPT_DIR/.venv/bin/activate"
+
+python3 - "$@" << 'PYTHON_SCRIPT'
+import argparse
+import json
+import sys
+from datetime import date
+
+import httpx
+
+API_URL = "http://127.0.0.1:8000"
+
+
+def fetch(endpoint: str) -> dict:
+    try:
+        response = httpx.get(f"{API_URL}{endpoint}", timeout=60.0)
+        response.raise_for_status()
+        return response.json()
+    except httpx.ConnectError:
+        print("Error: API server not running. Start with:")
+        print("  cd backend && source .venv/bin/activate && uvicorn api.main:app")
+        sys.exit(1)
+    except Exception as e:
+        print(f"Error: {e}")
+        sys.exit(1)
+
+
+def print_costs(data: dict):
+    print(f"""
+╔══════════════════════════════════════════════════════════════╗
+║  AZURE COSTS - {data['subscription_name']}
+╠══════════════════════════════════════════════════════════════╣
+║  Periodo: {data['period_start']} → {data['period_end']}
+║  TOTALE:  ${data['total_cost']:.2f} {data['currency']}
+╠══════════════════════════════════════════════════════════════╣
+║  DETTAGLIO PER SERVIZIO:
+║""")
+
+    for s in data['costs_by_service']:
+        pct = (s['cost'] / data['total_cost'] * 100) if data['total_cost'] > 0 else 0
+        bar = '█' * int(pct / 5) + '░' * (20 - int(pct / 5))
+        print(f"║  {s['service_name']:<25} ${s['cost']:>8.2f}  {bar} {pct:>5.1f}%")
+
+    print("╚══════════════════════════════════════════════════════════════╝")
+
+
+def print_forecast(data: dict):
+    today = date.today()
+    end = date.fromisoformat(data['forecast_period_end'])
+    days_left = (end - today).days
+
+    print(f"""
+╔══════════════════════════════════════════════════════════════╗
+║  FORECAST {end.strftime('%B %Y').upper()}
+╠══════════════════════════════════════════════════════════════╣
+║  Stima fine mese:  ${data['estimated_total']:.2f} {data['currency']}
+║  Giorni rimanenti: {days_left}
+╚══════════════════════════════════════════════════════════════╝
+""")
+
+
+def print_daily(data: dict):
+    print(f"""
+╔══════════════════════════════════════════════════════════════╗
+║  COSTI GIORNALIERI - {data['subscription_name']}
+╠══════════════════════════════════════════════════════════════╣""")
+
+    max_cost = max((d['cost'] for d in data['daily_costs']), default=1)
+
+    for d in data['daily_costs'][-14:]:
+        pct = (d['cost'] / max_cost * 100) if max_cost > 0 else 0
+        bar = '█' * int(pct / 5) + '░' * (20 - int(pct / 5))
+        print(f"║  {d['date']}  ${d['cost']:>6.2f}  {bar}")
+
+    print("╚══════════════════════════════════════════════════════════════╝")
+
+
+def main():
+    parser = argparse.ArgumentParser(description="Convergio Azure Cost Monitor")
+    parser.add_argument("--forecast", "-f", action="store_true", help="Show forecast")
+    parser.add_argument("--daily", "-d", action="store_true", help="Show daily breakdown")
+    parser.add_argument("--days", "-n", type=int, default=30, help="Days (default: 30)")
+    parser.add_argument("--json", "-j", action="store_true", help="Output raw JSON")
+    args = parser.parse_args()
+
+    if args.forecast:
+        data = fetch("/api/v1/costs/forecast")
+        if args.json:
+            print(json.dumps(data, indent=2))
+        else:
+            print_forecast(data)
+    else:
+        data = fetch(f"/api/v1/costs?days={args.days}")
+        if args.json:
+            print(json.dumps(data, indent=2))
+        elif args.daily:
+            print_daily(data)
+        else:
+            print_costs(data)
+
+
+if __name__ == "__main__":
+    main()
+PYTHON_SCRIPT

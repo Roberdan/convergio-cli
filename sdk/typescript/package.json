@@ -1,0 +1,28 @@
+{
+  "name": "@convergio/cost-client",
+  "version": "1.0.0",
+  "description": "Convergio Azure Cost Management API Client",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "prepublishOnly": "npm run build"
+  },
+  "files": [
+    "dist",
+    "src"
+  ],
+  "keywords": [
+    "convergio",
+    "azure",
+    "cost",
+    "api",
+    "client"
+  ],
+  "author": "VirtualBPM",
+  "license": "MIT",
+  "devDependencies": {
+    "typescript": "^5.3.0"
+  }
+}
