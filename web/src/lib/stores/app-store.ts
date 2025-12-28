@@ -1,16 +1,14 @@
 // ============================================================================
 // CONVERGIO WEB - MAIN APPLICATION STORE (Zustand)
+// With database sync via API routes
 // ============================================================================
 
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type {
   Maestro,
-  Settings,
   Theme,
   AIProvider,
-  StudentProfile,
-  Progress,
   Streak,
   Achievement,
   SubjectMastery,
@@ -50,6 +48,9 @@ interface SettingsState {
   totalSpent: number;
   studentProfile: ExtendedStudentProfile;
   appearance: AppearanceSettings;
+  // Sync state
+  lastSyncedAt: Date | null;
+  pendingSync: boolean;
   // Actions
   setTheme: (theme: Theme) => void;
   setProvider: (provider: AIProvider) => void;
@@ -58,11 +59,14 @@ interface SettingsState {
   addCost: (cost: number) => void;
   updateStudentProfile: (profile: Partial<ExtendedStudentProfile>) => void;
   updateAppearance: (appearance: Partial<AppearanceSettings>) => void;
+  // Sync actions
+  syncToServer: () => Promise<void>;
+  loadFromServer: () => Promise<void>;
 }
 
 export const useSettingsStore = create<SettingsState>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       theme: 'system',
       provider: 'openai',
       model: 'gpt-4o',
@@ -87,20 +91,124 @@ export const useSettingsStore = create<SettingsState>()(
         accentColor: 'blue',
         language: 'it',
       },
-      setTheme: (theme) => set({ theme }),
-      setProvider: (provider) => set({ provider }),
-      setModel: (model) => set({ model }),
-      setBudgetLimit: (budgetLimit) => set({ budgetLimit }),
+      lastSyncedAt: null,
+      pendingSync: false,
+
+      setTheme: (theme) => set({ theme, pendingSync: true }),
+      setProvider: (provider) => set({ provider, pendingSync: true }),
+      setModel: (model) => set({ model, pendingSync: true }),
+      setBudgetLimit: (budgetLimit) => set({ budgetLimit, pendingSync: true }),
       addCost: (cost) =>
-        set((state) => ({ totalSpent: state.totalSpent + cost })),
+        set((state) => ({ totalSpent: state.totalSpent + cost, pendingSync: true })),
       updateStudentProfile: (profile) =>
         set((state) => ({
           studentProfile: { ...state.studentProfile, ...profile },
+          pendingSync: true,
         })),
       updateAppearance: (appearance) =>
         set((state) => ({
           appearance: { ...state.appearance, ...appearance },
+          pendingSync: true,
         })),
+
+      syncToServer: async () => {
+        const state = get();
+        if (!state.pendingSync) return;
+
+        try {
+          // Sync settings
+          await fetch('/api/user/settings', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              theme: state.theme,
+              provider: state.provider,
+              model: state.model,
+              budgetLimit: state.budgetLimit,
+              language: state.appearance.language,
+              accentColor: state.appearance.accentColor,
+            }),
+          });
+
+          // Sync profile
+          await fetch('/api/user/profile', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              name: state.studentProfile.name,
+              age: state.studentProfile.age,
+              schoolYear: state.studentProfile.schoolYear,
+              schoolLevel: state.studentProfile.schoolLevel,
+              gradeLevel: state.studentProfile.gradeLevel,
+              learningGoals: state.studentProfile.learningGoals,
+              accessibility: {
+                fontSize: state.studentProfile.fontSize,
+                highContrast: state.studentProfile.highContrast,
+                dyslexiaFont: state.studentProfile.dyslexiaFont,
+                voiceEnabled: state.studentProfile.voiceEnabled,
+                simplifiedLanguage: state.studentProfile.simplifiedLanguage,
+                adhdMode: state.studentProfile.adhdMode,
+              },
+            }),
+          });
+
+          set({ lastSyncedAt: new Date(), pendingSync: false });
+        } catch (error) {
+          console.error('Settings sync failed:', error);
+        }
+      },
+
+      loadFromServer: async () => {
+        try {
+          const [settingsRes, profileRes] = await Promise.all([
+            fetch('/api/user/settings'),
+            fetch('/api/user/profile'),
+          ]);
+
+          if (settingsRes.ok) {
+            const settings = await settingsRes.json();
+            set((state) => ({
+              theme: settings.theme ?? state.theme,
+              provider: settings.provider ?? state.provider,
+              model: settings.model ?? state.model,
+              budgetLimit: settings.budgetLimit ?? state.budgetLimit,
+              appearance: {
+                ...state.appearance,
+                language: settings.language ?? state.appearance.language,
+                accentColor: settings.accentColor ?? state.appearance.accentColor,
+              },
+            }));
+          }
+
+          if (profileRes.ok) {
+            const profile = await profileRes.json();
+            if (profile) {
+              const accessibility = profile.accessibility || {};
+              set((state) => ({
+                studentProfile: {
+                  ...state.studentProfile,
+                  name: profile.name ?? state.studentProfile.name,
+                  age: profile.age ?? state.studentProfile.age,
+                  schoolYear: profile.schoolYear ?? state.studentProfile.schoolYear,
+                  schoolLevel: profile.schoolLevel ?? state.studentProfile.schoolLevel,
+                  gradeLevel: profile.gradeLevel ?? state.studentProfile.gradeLevel,
+                  learningGoals: profile.learningGoals ?? state.studentProfile.learningGoals,
+                  fontSize: accessibility.fontSize ?? state.studentProfile.fontSize,
+                  highContrast: accessibility.highContrast ?? state.studentProfile.highContrast,
+                  dyslexiaFont: accessibility.dyslexiaFont ?? state.studentProfile.dyslexiaFont,
+                  voiceEnabled: accessibility.voiceEnabled ?? state.studentProfile.voiceEnabled,
+                  simplifiedLanguage: accessibility.simplifiedLanguage ?? state.studentProfile.simplifiedLanguage,
+                  adhdMode: accessibility.adhdMode ?? state.studentProfile.adhdMode,
+                },
+              }));
+            }
+          }
+
+          set({ lastSyncedAt: new Date(), pendingSync: false });
+        } catch (error) {
+          console.error('Settings load failed:', error);
+        }
+      },
     }),
     { name: 'convergio-settings' }
   )
@@ -328,25 +436,35 @@ export const useProgressStore = create<ProgressState>()(
         if (!state.pendingSync) return;
 
         try {
-          const response = await fetch('/api/progress/sync', {
-            method: 'POST',
+          // Sync main progress
+          await fetch('/api/progress', {
+            method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               xp: state.xp,
               level: state.level,
               streak: state.streak,
+              totalStudyMinutes: state.totalStudyMinutes,
+              questionsAsked: state.questionsAsked,
               masteries: state.masteries,
               achievements: state.achievements,
-              totalStudyMinutes: state.totalStudyMinutes,
-              sessionsThisWeek: state.sessionsThisWeek,
-              questionsAsked: state.questionsAsked,
-              sessionHistory: state.sessionHistory.slice(0, 20),
             }),
           });
 
-          if (response.ok) {
-            set({ lastSyncedAt: new Date(), pendingSync: false });
+          // Sync recent sessions
+          const unsyncedSessions = state.sessionHistory.filter(
+            (s) => s.endedAt && !s.id.startsWith('synced-')
+          ).slice(0, 10);
+
+          for (const session of unsyncedSessions) {
+            await fetch('/api/progress/sessions', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(session),
+            });
           }
+
+          set({ lastSyncedAt: new Date(), pendingSync: false });
         } catch (error) {
           console.error('Progress sync failed:', error);
         }
@@ -354,22 +472,46 @@ export const useProgressStore = create<ProgressState>()(
 
       loadFromServer: async () => {
         try {
-          const response = await fetch('/api/progress');
-          if (response.ok) {
-            const data = await response.json();
-            set({
-              xp: data.xp ?? get().xp,
-              level: data.level ?? get().level,
-              streak: data.streak ?? get().streak,
-              masteries: data.masteries ?? get().masteries,
-              achievements: data.achievements ?? get().achievements,
-              totalStudyMinutes: data.totalStudyMinutes ?? get().totalStudyMinutes,
-              sessionsThisWeek: data.sessionsThisWeek ?? get().sessionsThisWeek,
-              questionsAsked: data.questionsAsked ?? get().questionsAsked,
-              lastSyncedAt: new Date(),
-              pendingSync: false,
-            });
+          const [progressRes, sessionsRes] = await Promise.all([
+            fetch('/api/progress'),
+            fetch('/api/progress/sessions?limit=20'),
+          ]);
+
+          if (progressRes.ok) {
+            const data = await progressRes.json();
+            set((state) => ({
+              xp: data.xp ?? state.xp,
+              level: data.level ?? state.level,
+              streak: data.streak ?? state.streak,
+              masteries: data.masteries ?? state.masteries,
+              achievements: data.achievements ?? state.achievements,
+              totalStudyMinutes: data.totalStudyMinutes ?? state.totalStudyMinutes,
+              questionsAsked: data.questionsAsked ?? state.questionsAsked,
+            }));
           }
+
+          if (sessionsRes.ok) {
+            const sessions = await sessionsRes.json();
+            if (Array.isArray(sessions)) {
+              // Calculate sessionsThisWeek from DB sessions
+              const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+              const recentCount = sessions.filter(
+                (s: StudySession) => new Date(s.startedAt) > weekAgo
+              ).length;
+
+              set({
+                sessionHistory: sessions.map((s: StudySession) => ({
+                  ...s,
+                  id: `synced-${s.id}`, // Mark as synced
+                  startedAt: new Date(s.startedAt),
+                  endedAt: s.endedAt ? new Date(s.endedAt) : undefined,
+                })),
+                sessionsThisWeek: recentCount,
+              });
+            }
+          }
+
+          set({ lastSyncedAt: new Date(), pendingSync: false });
         } catch (error) {
           console.error('Progress load failed:', error);
         }
@@ -460,47 +602,88 @@ export const useVoiceSessionStore = create<VoiceSessionState>((set) => ({
 interface ConversationState {
   conversations: Conversation[];
   currentConversationId: string | null;
+  // Sync state
+  lastSyncedAt: Date | null;
+  pendingSync: boolean;
   // Actions
-  createConversation: (maestroId?: string) => string;
-  addMessage: (conversationId: string, message: Omit<ChatMessage, 'id' | 'timestamp'>) => void;
+  createConversation: (maestroId?: string) => Promise<string>;
+  addMessage: (conversationId: string, message: Omit<ChatMessage, 'id' | 'timestamp'>) => Promise<void>;
   setCurrentConversation: (id: string | null) => void;
-  deleteConversation: (id: string) => void;
+  deleteConversation: (id: string) => Promise<void>;
   clearConversations: () => void;
+  // Sync actions
+  syncToServer: () => Promise<void>;
+  loadFromServer: () => Promise<void>;
 }
 
 export const useConversationStore = create<ConversationState>()(
   persist(
-    (set, get) => ({
+    (set) => ({
       conversations: [],
       currentConversationId: null,
+      lastSyncedAt: null,
+      pendingSync: false,
 
-      createConversation: (maestroId) => {
-        const id = crypto.randomUUID();
+      createConversation: async (maestroId) => {
+        const tempId = crypto.randomUUID();
         const conversation: Conversation = {
-          id,
+          id: tempId,
           title: 'New Conversation',
           messages: [],
           maestroId,
           createdAt: new Date(),
           updatedAt: new Date(),
         };
+
+        // Optimistic update
         set((state) => ({
           conversations: [conversation, ...state.conversations],
-          currentConversationId: id,
+          currentConversationId: tempId,
         }));
-        return id;
+
+        // Sync to server
+        try {
+          const response = await fetch('/api/conversations', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ maestroId }),
+          });
+
+          if (response.ok) {
+            const serverConv = await response.json();
+            // Update with server ID
+            set((state) => ({
+              conversations: state.conversations.map((c) =>
+                c.id === tempId ? { ...c, id: serverConv.id } : c
+              ),
+              currentConversationId:
+                state.currentConversationId === tempId
+                  ? serverConv.id
+                  : state.currentConversationId,
+            }));
+            return serverConv.id;
+          }
+        } catch (error) {
+          console.error('Failed to create conversation on server:', error);
+        }
+
+        return tempId;
       },
 
-      addMessage: (conversationId, message) =>
+      addMessage: async (conversationId, message) => {
+        const messageWithId = {
+          ...message,
+          id: crypto.randomUUID(),
+          timestamp: new Date(),
+        };
+
+        // Optimistic update
         set((state) => ({
           conversations: state.conversations.map((conv) =>
             conv.id === conversationId
               ? {
                   ...conv,
-                  messages: [
-                    ...conv.messages,
-                    { ...message, id: crypto.randomUUID(), timestamp: new Date() },
-                  ],
+                  messages: [...conv.messages, messageWithId],
                   updatedAt: new Date(),
                   title:
                     conv.messages.length === 0 && message.role === 'user'
@@ -509,23 +692,191 @@ export const useConversationStore = create<ConversationState>()(
                 }
               : conv
           ),
-        })),
+          pendingSync: true,
+        }));
+
+        // Sync to server
+        try {
+          await fetch(`/api/conversations/${conversationId}/messages`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              role: message.role,
+              content: message.content,
+              toolCalls: (message as { toolCalls?: unknown }).toolCalls,
+            }),
+          });
+        } catch (error) {
+          console.error('Failed to add message to server:', error);
+        }
+      },
 
       setCurrentConversation: (id) => set({ currentConversationId: id }),
 
-      deleteConversation: (id) =>
+      deleteConversation: async (id) => {
+        // Optimistic update
         set((state) => ({
           conversations: state.conversations.filter((c) => c.id !== id),
           currentConversationId:
             state.currentConversationId === id
               ? null
               : state.currentConversationId,
-        })),
+        }));
+
+        // Sync to server
+        try {
+          await fetch(`/api/conversations/${id}`, { method: 'DELETE' });
+        } catch (error) {
+          console.error('Failed to delete conversation on server:', error);
+        }
+      },
 
       clearConversations: () =>
         set({ conversations: [], currentConversationId: null }),
+
+      syncToServer: async () => {
+        // Conversations are synced immediately on each action
+        set({ lastSyncedAt: new Date(), pendingSync: false });
+      },
+
+      loadFromServer: async () => {
+        try {
+          const response = await fetch('/api/conversations?limit=50');
+          if (response.ok) {
+            const conversations = await response.json();
+            set({
+              conversations: conversations.map((c: {
+                id: string;
+                title: string;
+                maestroId: string;
+                createdAt: string;
+                updatedAt: string;
+                lastMessage?: string;
+              }) => ({
+                ...c,
+                messages: [], // Messages are loaded on-demand
+                createdAt: new Date(c.createdAt),
+                updatedAt: new Date(c.updatedAt),
+              })),
+              lastSyncedAt: new Date(),
+              pendingSync: false,
+            });
+          }
+        } catch (error) {
+          console.error('Conversations load failed:', error);
+        }
+      },
     }),
     { name: 'convergio-conversations' }
+  )
+);
+
+// === LEARNINGS STORE ===
+
+interface Learning {
+  id: string;
+  category: 'preference' | 'strength' | 'weakness' | 'interest' | 'style';
+  insight: string;
+  maestroId?: string;
+  subject?: string;
+  confidence: number;
+  occurrences: number;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+interface LearningsState {
+  learnings: Learning[];
+  lastSyncedAt: Date | null;
+  // Actions
+  addLearning: (learning: Omit<Learning, 'id' | 'occurrences' | 'createdAt' | 'updatedAt'>) => Promise<void>;
+  removeLearning: (id: string) => Promise<void>;
+  getLearningsByCategory: (category: Learning['category']) => Learning[];
+  // Sync
+  loadFromServer: () => Promise<void>;
+}
+
+export const useLearningsStore = create<LearningsState>()(
+  persist(
+    (set, get) => ({
+      learnings: [],
+      lastSyncedAt: null,
+
+      addLearning: async (learning) => {
+        try {
+          const response = await fetch('/api/learnings', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(learning),
+          });
+
+          if (response.ok) {
+            const serverLearning = await response.json();
+            set((state) => {
+              // Check if this was a reinforcement
+              if (serverLearning.reinforced) {
+                return {
+                  learnings: state.learnings.map((l) =>
+                    l.id === serverLearning.id
+                      ? { ...l, confidence: serverLearning.confidence, occurrences: serverLearning.occurrences }
+                      : l
+                  ),
+                };
+              }
+              // New learning
+              return {
+                learnings: [
+                  {
+                    ...serverLearning,
+                    createdAt: new Date(serverLearning.createdAt),
+                    updatedAt: new Date(serverLearning.updatedAt),
+                  },
+                  ...state.learnings,
+                ],
+              };
+            });
+          }
+        } catch (error) {
+          console.error('Failed to add learning:', error);
+        }
+      },
+
+      removeLearning: async (id) => {
+        set((state) => ({
+          learnings: state.learnings.filter((l) => l.id !== id),
+        }));
+
+        try {
+          await fetch(`/api/learnings?id=${id}`, { method: 'DELETE' });
+        } catch (error) {
+          console.error('Failed to remove learning:', error);
+        }
+      },
+
+      getLearningsByCategory: (category) => {
+        return get().learnings.filter((l) => l.category === category);
+      },
+
+      loadFromServer: async () => {
+        try {
+          const response = await fetch('/api/learnings');
+          if (response.ok) {
+            const learnings = await response.json();
+            set({
+              learnings: learnings.map((l: Learning & { createdAt: string; updatedAt: string }) => ({
+                ...l,
+                createdAt: new Date(l.createdAt),
+                updatedAt: new Date(l.updatedAt),
+              })),
+              lastSyncedAt: new Date(),
+            });
+          }
+        } catch (error) {
+          console.error('Learnings load failed:', error);
+        }
+      },
+    }),
+    { name: 'convergio-learnings' }
   )
 );
 
@@ -551,3 +902,33 @@ export const useUIStore = create<UIState>((set) => ({
   toggleSettings: () => set((state) => ({ settingsOpen: !state.settingsOpen })),
   setCurrentView: (currentView) => set({ currentView }),
 }));
+
+// === SYNC HOOK ===
+
+export async function initializeStores() {
+  // Ensure user exists (creates cookie if needed)
+  await fetch('/api/user');
+
+  // Load data from server
+  await Promise.all([
+    useSettingsStore.getState().loadFromServer(),
+    useProgressStore.getState().loadFromServer(),
+    useConversationStore.getState().loadFromServer(),
+    useLearningsStore.getState().loadFromServer(),
+  ]);
+}
+
+export function setupAutoSync(intervalMs = 30000) {
+  // Auto-sync every 30 seconds if there are pending changes
+  return setInterval(async () => {
+    const settings = useSettingsStore.getState();
+    const progress = useProgressStore.getState();
+
+    if (settings.pendingSync) {
+      await settings.syncToServer();
+    }
+    if (progress.pendingSync) {
+      await progress.syncToServer();
+    }
+  }, intervalMs);
+}

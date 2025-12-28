@@ -148,7 +148,7 @@ export default function TestVoicePage() {
 
       <div className="mt-4 bg-gray-900 text-green-400 p-4 rounded font-mono text-xs overflow-auto max-h-96">
         {logs.length === 0 ? (
-          <span className="text-gray-500">Click "Test Connection" to start...</span>
+          <span className="text-gray-500">Click &quot;Test Connection&quot; to start...</span>
         ) : (
           logs.map((l, i) => <div key={i}>{l}</div>)
         )}

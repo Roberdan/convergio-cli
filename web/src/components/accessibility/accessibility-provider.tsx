@@ -2,7 +2,6 @@
 
 import { useEffect } from 'react';
 import { useAccessibilityStore } from '@/lib/accessibility/accessibility-store';
-import { cn } from '@/lib/utils';
 
 interface AccessibilityProviderProps {
   children: React.ReactNode;

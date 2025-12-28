@@ -1,9 +1,13 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { ThemeProvider } from 'next-themes';
 import { AccessibilityProvider } from '@/components/accessibility';
-import { useSettingsStore } from '@/lib/stores/app-store';
+import {
+  useSettingsStore,
+  initializeStores,
+  setupAutoSync,
+} from '@/lib/stores/app-store';
 
 interface ProvidersProps {
   children: React.ReactNode;
@@ -14,11 +18,57 @@ function AccentColorApplier() {
   const { appearance } = useSettingsStore();
 
   useEffect(() => {
-    // Apply accent color to document root
-    if (appearance?.accentColor) {
-      document.documentElement.setAttribute('data-accent', appearance.accentColor);
-    }
+    // Apply accent color to document root (default to 'blue' if not set)
+    const accentColor = appearance?.accentColor || 'blue';
+    document.documentElement.setAttribute('data-accent', accentColor);
   }, [appearance?.accentColor]);
+
+  // Set default on mount before store hydrates
+  useEffect(() => {
+    if (!document.documentElement.hasAttribute('data-accent')) {
+      document.documentElement.setAttribute('data-accent', 'blue');
+    }
+  }, []);
+
+  return null;
+}
+
+// Component to initialize stores and sync with database
+function StoreInitializer() {
+  const initialized = useRef(false);
+
+  useEffect(() => {
+    if (initialized.current) return;
+    initialized.current = true;
+
+    // Initialize stores from database
+    initializeStores().catch((error) => {
+      console.error('Failed to initialize stores:', error);
+    });
+
+    // Setup auto-sync every 30 seconds
+    const syncInterval = setupAutoSync(30000);
+
+    // Sync on page unload
+    const handleUnload = () => {
+      const settings = useSettingsStore.getState();
+      if (settings.pendingSync) {
+        // Use sendBeacon for reliable sync on close
+        navigator.sendBeacon('/api/user/settings', JSON.stringify({
+          theme: settings.theme,
+          language: settings.appearance.language,
+          accentColor: settings.appearance.accentColor,
+        }));
+      }
+    };
+
+    window.addEventListener('beforeunload', handleUnload);
+
+    return () => {
+      clearInterval(syncInterval);
+      window.removeEventListener('beforeunload', handleUnload);
+    };
+  }, []);
 
   return null;
 }
@@ -32,6 +82,7 @@ export function Providers({ children }: ProvidersProps) {
       disableTransitionOnChange
     >
       <AccessibilityProvider>
+        <StoreInitializer />
         <AccentColorApplier />
         {children}
       </AccessibilityProvider>

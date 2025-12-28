@@ -8,7 +8,6 @@ import {
   Brain,
   Trophy,
   Settings,
-  Menu,
   PanelLeftClose,
   PanelLeftOpen,
   TrendingUp,
@@ -22,7 +21,6 @@ import { FlashcardsView, HomeworkHelpView, QuizView, MindmapsView } from '@/comp
 import { SettingsView } from '@/components/settings';
 import { ProgressView } from '@/components/progress';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useProgressStore, useSettingsStore } from '@/lib/stores/app-store';
 import { cn } from '@/lib/utils';
 
@@ -32,7 +30,7 @@ export default function Home() {
   const [currentView, setCurrentView] = useState<View>('maestri');
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
-  const { xp, level, streak, totalStudyMinutes } = useProgressStore();
+  const { xp, level, streak } = useProgressStore();
   const { studentProfile } = useSettingsStore();
 
   const navItems = [

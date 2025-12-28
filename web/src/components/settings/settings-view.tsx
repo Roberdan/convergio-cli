@@ -15,6 +15,11 @@ import {
   Sun,
   Laptop,
   Globe,
+  Bot,
+  DollarSign,
+  TrendingUp,
+  Cloud,
+  Server,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -23,12 +28,13 @@ import { useSettingsStore } from '@/lib/stores/app-store';
 import { useAccessibilityStore } from '@/lib/accessibility/accessibility-store';
 import { cn } from '@/lib/utils';
 
-type SettingsTab = 'profile' | 'accessibility' | 'appearance' | 'notifications' | 'privacy';
+type SettingsTab = 'profile' | 'accessibility' | 'appearance' | 'ai' | 'notifications' | 'privacy';
 
 const tabs: Array<{ id: SettingsTab; label: string; icon: React.ReactNode }> = [
   { id: 'profile', label: 'Profilo', icon: <User className="w-5 h-5" /> },
   { id: 'accessibility', label: 'Accessibilita', icon: <Accessibility className="w-5 h-5" /> },
   { id: 'appearance', label: 'Aspetto', icon: <Palette className="w-5 h-5" /> },
+  { id: 'ai', label: 'AI Provider', icon: <Bot className="w-5 h-5" /> },
   { id: 'notifications', label: 'Notifiche', icon: <Bell className="w-5 h-5" /> },
   { id: 'privacy', label: 'Privacy', icon: <Shield className="w-5 h-5" /> },
 ];
@@ -112,6 +118,8 @@ export function SettingsView() {
             onUpdate={updateAppearance}
           />
         )}
+
+        {activeTab === 'ai' && <AIProviderSettings />}
 
         {activeTab === 'notifications' && <NotificationSettings />}
 
@@ -260,8 +268,18 @@ function ProfileSettings({ profile, onUpdate }: ProfileSettingsProps) {
 }
 
 // Accessibility Tab
+interface AccessibilitySettings {
+  dyslexiaFont?: boolean;
+  highContrast?: boolean;
+  largeText?: boolean;
+  ttsEnabled?: boolean;
+  adhdMode?: boolean;
+  reducedMotion?: boolean;
+  keyboardNavigation?: boolean;
+}
+
 interface AccessibilityTabProps {
-  settings: any;
+  settings: AccessibilitySettings;
   onOpenModal: () => void;
 }
 
@@ -287,7 +305,7 @@ function AccessibilityTab({ settings, onOpenModal }: AccessibilityTabProps) {
         </CardHeader>
         <CardContent className="space-y-4">
           <p className="text-slate-600 dark:text-slate-400">
-            Convergio e progettato per essere accessibile a tutti. Personalizza l'esperienza
+            Convergio e progettato per essere accessibile a tutti. Personalizza l&apos;esperienza
             in base alle tue esigenze.
           </p>
 
@@ -359,6 +377,7 @@ function AppearanceSettings({ appearance, onUpdate }: AppearanceSettingsProps) {
 
   // Avoid hydration mismatch
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setMounted(true);
   }, []);
 
@@ -422,7 +441,7 @@ function AppearanceSettings({ appearance, onUpdate }: AppearanceSettingsProps) {
                 className={cn(
                   'flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all',
                   currentTheme === theme.value
-                    ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
+                    ? 'border-accent-themed bg-primary/10'
                     : 'border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600'
                 )}
               >
@@ -453,7 +472,7 @@ function AppearanceSettings({ appearance, onUpdate }: AppearanceSettingsProps) {
                   'w-12 h-12 rounded-full transition-transform',
                   color.class,
                   appearance.accentColor === color.value
-                    ? 'ring-4 ring-offset-2 ring-slate-400 scale-110'
+                    ? 'ring-4 ring-offset-2 ring-offset-background ring-slate-400 dark:ring-slate-500 scale-110'
                     : 'hover:scale-105'
                 )}
                 title={color.label}
@@ -566,6 +585,19 @@ function NotificationSettings() {
 
 // Privacy Settings
 function PrivacySettings() {
+  const [version, setVersion] = useState<{
+    version: string;
+    buildTime: string;
+    environment: string;
+  } | null>(null);
+
+  useEffect(() => {
+    fetch('/api/version')
+      .then(res => res.json())
+      .then(setVersion)
+      .catch(() => null);
+  }, []);
+
   return (
     <div className="space-y-6">
       <Card>
@@ -596,6 +628,298 @@ function PrivacySettings() {
           <Button variant="outline" className="w-full text-red-600 border-red-200 hover:bg-red-50">
             Elimina tutti i miei dati
           </Button>
+        </CardContent>
+      </Card>
+
+      {/* Version Info */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Informazioni App</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-slate-500">Versione</span>
+            <span className="font-mono">
+              {version ? `v${version.version}` : 'Loading...'}
+            </span>
+          </div>
+          {version?.environment === 'development' && (
+            <div className="mt-2 flex items-center justify-between text-sm">
+              <span className="text-slate-500">Ambiente</span>
+              <span className="px-2 py-0.5 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 rounded text-xs">
+                Development
+              </span>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+// AI Provider Settings with Cost Management
+interface CostSummary {
+  totalCost: number;
+  currency: string;
+  periodStart: string;
+  periodEnd: string;
+  costsByService: Array<{ serviceName: string; cost: number }>;
+}
+
+interface CostForecast {
+  estimatedTotal: number;
+  currency: string;
+  forecastPeriodEnd: string;
+}
+
+function AIProviderSettings() {
+  const { provider: _provider } = useSettingsStore();
+  const [providerStatus, setProviderStatus] = useState<{
+    available: boolean;
+    provider: string | null;
+    model: string | null;
+  } | null>(null);
+  const [costs, setCosts] = useState<CostSummary | null>(null);
+  const [forecast, setForecast] = useState<CostForecast | null>(null);
+  const [loadingCosts, setLoadingCosts] = useState(false);
+  const [costsConfigured, setCostsConfigured] = useState(true);
+
+  // Check provider status on mount
+  useEffect(() => {
+    fetch('/api/chat')
+      .then(res => res.json())
+      .then(data => setProviderStatus(data))
+      .catch(() => setProviderStatus({ available: false, provider: null, model: null }));
+  }, []);
+
+  // Fetch costs if Azure is the provider
+  useEffect(() => {
+    if (providerStatus?.provider === 'azure') {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setLoadingCosts(true);
+      Promise.all([
+        fetch('/api/azure/costs?days=30').then(res => res.json()),
+        fetch('/api/azure/costs?type=forecast').then(res => res.json()),
+      ])
+        .then(([costData, forecastData]) => {
+          if (costData.error && costData.configured === false) {
+            setCostsConfigured(false);
+          } else {
+            setCosts(costData);
+            setForecast(forecastData);
+          }
+        })
+        .catch(() => setCostsConfigured(false))
+        .finally(() => setLoadingCosts(false));
+    }
+  }, [providerStatus?.provider]);
+
+  const formatCurrency = (amount: number, currency = 'USD') => {
+    return new Intl.NumberFormat('it-IT', {
+      style: 'currency',
+      currency,
+    }).format(amount);
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* Provider Status */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Bot className="w-5 h-5 text-blue-500" />
+            Provider AI Attivo
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {providerStatus === null ? (
+            <div className="animate-pulse h-20 bg-slate-100 dark:bg-slate-800 rounded-lg" />
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div
+                className={cn(
+                  'p-4 rounded-xl border-2',
+                  providerStatus.provider === 'azure'
+                    ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
+                    : 'border-slate-200 dark:border-slate-700'
+                )}
+              >
+                <div className="flex items-center gap-3 mb-2">
+                  <Cloud className="w-6 h-6 text-blue-500" />
+                  <div>
+                    <h4 className="font-medium">Azure OpenAI</h4>
+                    <p className="text-xs text-slate-500">Cloud - Chat + Voice</p>
+                  </div>
+                </div>
+                {providerStatus.provider === 'azure' && (
+                  <div className="mt-2 flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-green-500" />
+                    <span className="text-sm text-green-600 dark:text-green-400">
+                      Attivo: {providerStatus.model}
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              <div
+                className={cn(
+                  'p-4 rounded-xl border-2',
+                  providerStatus.provider === 'ollama'
+                    ? 'border-green-500 bg-green-50 dark:bg-green-900/20'
+                    : 'border-slate-200 dark:border-slate-700'
+                )}
+              >
+                <div className="flex items-center gap-3 mb-2">
+                  <Server className="w-6 h-6 text-green-500" />
+                  <div>
+                    <h4 className="font-medium">Ollama</h4>
+                    <p className="text-xs text-slate-500">Locale - Solo Chat</p>
+                  </div>
+                </div>
+                {providerStatus.provider === 'ollama' && (
+                  <div className="mt-2 flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-green-500" />
+                    <span className="text-sm text-green-600 dark:text-green-400">
+                      Attivo: {providerStatus.model}
+                    </span>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {!providerStatus?.available && providerStatus !== null && (
+            <div className="p-4 bg-amber-50 dark:bg-amber-900/20 rounded-xl">
+              <h4 className="font-medium text-amber-700 dark:text-amber-300">
+                Nessun provider configurato
+              </h4>
+              <p className="text-sm text-amber-600 dark:text-amber-400 mt-1">
+                Configura Azure OpenAI o avvia Ollama per utilizzare i maestri.
+              </p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Azure Costs - Only show if Azure is active */}
+      {providerStatus?.provider === 'azure' && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <DollarSign className="w-5 h-5 text-green-500" />
+              Costi Azure OpenAI
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {!costsConfigured ? (
+              <div className="p-4 bg-slate-100 dark:bg-slate-800 rounded-xl">
+                <h4 className="font-medium text-slate-700 dark:text-slate-300 mb-2">
+                  Cost Management non configurato
+                </h4>
+                <p className="text-sm text-slate-500 mb-3">
+                  Per visualizzare i costi, configura le credenziali Azure Cost Management nel file .env
+                </p>
+                <code className="text-xs bg-slate-200 dark:bg-slate-700 p-2 rounded block">
+                  AZURE_TENANT_ID=...<br />
+                  AZURE_CLIENT_ID=...<br />
+                  AZURE_CLIENT_SECRET=...<br />
+                  AZURE_SUBSCRIPTION_ID=...
+                </code>
+              </div>
+            ) : loadingCosts ? (
+              <div className="animate-pulse space-y-4">
+                <div className="h-24 bg-slate-100 dark:bg-slate-800 rounded-lg" />
+                <div className="h-32 bg-slate-100 dark:bg-slate-800 rounded-lg" />
+              </div>
+            ) : costs ? (
+              <>
+                {/* Summary Cards */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="p-4 bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/30 dark:to-blue-800/30 rounded-xl">
+                    <div className="flex items-center gap-2 mb-2">
+                      <DollarSign className="w-5 h-5 text-blue-600" />
+                      <span className="text-sm text-blue-600 dark:text-blue-400">Ultimi 30 giorni</span>
+                    </div>
+                    <p className="text-2xl font-bold text-blue-700 dark:text-blue-300">
+                      {formatCurrency(costs.totalCost, costs.currency)}
+                    </p>
+                    <p className="text-xs text-blue-500 mt-1">
+                      {costs.periodStart} - {costs.periodEnd}
+                    </p>
+                  </div>
+
+                  {forecast && (
+                    <div className="p-4 bg-gradient-to-br from-green-50 to-green-100 dark:from-green-900/30 dark:to-green-800/30 rounded-xl">
+                      <div className="flex items-center gap-2 mb-2">
+                        <TrendingUp className="w-5 h-5 text-green-600" />
+                        <span className="text-sm text-green-600 dark:text-green-400">Stima fine mese</span>
+                      </div>
+                      <p className="text-2xl font-bold text-green-700 dark:text-green-300">
+                        {formatCurrency(forecast.estimatedTotal, forecast.currency)}
+                      </p>
+                      <p className="text-xs text-green-500 mt-1">
+                        Entro {forecast.forecastPeriodEnd}
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Cost breakdown by service */}
+                {costs.costsByService && costs.costsByService.length > 0 && (
+                  <div className="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-xl">
+                    <h4 className="font-medium mb-3">Dettaglio per servizio</h4>
+                    <div className="space-y-2">
+                      {costs.costsByService.slice(0, 5).map((service, i) => (
+                        <div key={i} className="flex justify-between items-center">
+                          <span className="text-sm text-slate-600 dark:text-slate-400 truncate max-w-[200px]">
+                            {service.serviceName}
+                          </span>
+                          <span className="text-sm font-medium">
+                            {formatCurrency(service.cost, costs.currency)}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </>
+            ) : null}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Voice availability info */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Funzionalita Voce</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {providerStatus?.provider === 'azure' ? (
+            <div className="p-4 bg-green-50 dark:bg-green-900/20 rounded-xl">
+              <div className="flex items-center gap-2 mb-2">
+                <span className="w-3 h-3 rounded-full bg-green-500" />
+                <span className="font-medium text-green-700 dark:text-green-300">
+                  Voce disponibile
+                </span>
+              </div>
+              <p className="text-sm text-green-600 dark:text-green-400">
+                Azure OpenAI Realtime supporta conversazioni vocali in tempo reale con i maestri.
+              </p>
+            </div>
+          ) : (
+            <div className="p-4 bg-amber-50 dark:bg-amber-900/20 rounded-xl">
+              <div className="flex items-center gap-2 mb-2">
+                <span className="w-3 h-3 rounded-full bg-amber-500" />
+                <span className="font-medium text-amber-700 dark:text-amber-300">
+                  Voce non disponibile
+                </span>
+              </div>
+              <p className="text-sm text-amber-600 dark:text-amber-400">
+                Le conversazioni vocali richiedono Azure OpenAI Realtime.
+                Con Ollama puoi usare solo la chat testuale.
+              </p>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

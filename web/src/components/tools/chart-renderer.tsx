@@ -130,7 +130,7 @@ export function DoughnutRenderer({ request, className }: ChartRendererProps) {
   const chartData = useMemo(() => {
     return {
       labels: request.data.labels,
-      datasets: request.data.datasets.map((ds, index) => ({
+      datasets: request.data.datasets.map((ds, _index) => ({
         label: ds.label,
         data: ds.data,
         backgroundColor: request.data.labels.map((_, i) => defaultColors[i % defaultColors.length]),

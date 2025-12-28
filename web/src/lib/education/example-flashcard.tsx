@@ -5,7 +5,7 @@
  * Copy and adapt this code for your own flashcard components.
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useMemo } from 'react';
 import {
   createCard,
   reviewCard,
@@ -45,16 +45,14 @@ export function FlashcardSession({
 }: FlashcardSessionProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [showAnswer, setShowAnswer] = useState(false);
-  const [sessionCards, setSessionCards] = useState<Flashcard[]>([]);
 
-  // Initialize session with due cards
-  useEffect(() => {
+  // Initialize session with due cards (derived from props, no state needed)
+  const sessionCards = useMemo(() => {
     const due = getDueCards(cards.map(c => c.fsrs), 20);
     const dueCardIds = new Set(
       due.map(d => cards.find(c => c.fsrs === d)?.id).filter(Boolean)
     );
-    const dueCards = cards.filter(c => dueCardIds.has(c.id));
-    setSessionCards(dueCards);
+    return cards.filter(c => dueCardIds.has(c.id));
   }, [cards]);
 
   // No cards due

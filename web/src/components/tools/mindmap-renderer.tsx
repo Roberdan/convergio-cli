@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import mermaid from 'mermaid';
-import { Printer, Download, ZoomIn, ZoomOut, Accessibility, Eye, EyeOff } from 'lucide-react';
+import { Printer, Download, ZoomIn, ZoomOut, Accessibility } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAccessibilityStore } from '@/lib/accessibility/accessibility-store';
 
@@ -58,25 +58,56 @@ const initMermaidAccessible = (dyslexiaFont: boolean, highContrast: boolean) => 
 
 // Convert nodes to Mermaid mindmap syntax
 function nodesToMermaidSyntax(nodes: MindmapNode[], title: string): string {
-  // Escape special characters in labels
-  const escapeLabel = (label: string) => {
-    return label.replace(/[()[\]{}]/g, '');
+  // Escape and sanitize labels for Mermaid mindmap syntax
+  const escapeLabel = (label: string): string => {
+    if (!label || typeof label !== 'string') {
+      return 'Untitled';
+    }
+    // Remove or replace problematic characters for Mermaid
+    return label
+      .replace(/[()[\]{}]/g, '') // Remove brackets/parens
+      .replace(/[<>]/g, '') // Remove angle brackets
+      .replace(/["'`]/g, '') // Remove quotes
+      .replace(/[\n\r]/g, ' ') // Replace newlines with space
+      .replace(/\s+/g, ' ') // Normalize whitespace
+      .trim() // Remove leading/trailing whitespace
+      || 'Node'; // Fallback if empty after processing
   };
 
   const buildNode = (node: MindmapNode, depth: number = 1): string => {
-    // Mermaid mindmap uses 2-space indentation for each level
+    // Validate node
+    if (!node || !node.label) {
+      return '';
+    }
+
+    // Mermaid mindmap uses 4-space indentation for each level
     const indent = '    '.repeat(depth);
     const escapedLabel = escapeLabel(node.label);
 
+    // Skip empty labels
+    if (!escapedLabel || escapedLabel === 'Node') {
+      return '';
+    }
+
     if (node.children && node.children.length > 0) {
-      const childLines = node.children.map((child) => buildNode(child, depth + 1));
-      return `${indent}${escapedLabel}\n${childLines.join('\n')}`;
+      const validChildren = node.children
+        .map((child) => buildNode(child, depth + 1))
+        .filter((line) => line.trim() !== '');
+
+      if (validChildren.length > 0) {
+        return `${indent}${escapedLabel}\n${validChildren.join('\n')}`;
+      }
     }
 
     return `${indent}${escapedLabel}`;
   };
 
-  const rootContent = nodes.map((node) => buildNode(node)).join('\n');
+  // Filter out empty/invalid nodes
+  const validNodes = nodes.filter((n) => n && n.label);
+  const rootContent = validNodes
+    .map((node) => buildNode(node))
+    .filter((line) => line.trim() !== '')
+    .join('\n');
 
   // Use proper Mermaid mindmap syntax
   return `mindmap
@@ -92,6 +123,19 @@ export function MindmapRenderer({ title, nodes, className }: MindmapRendererProp
   const [accessibilityMode, setAccessibilityMode] = useState(false);
 
   const { settings } = useAccessibilityStore();
+
+  // Generate text description for screen readers (defined before useEffect that uses it)
+  const generateTextDescription = useCallback((rootTitle: string, nodeList: MindmapNode[]): string => {
+    const describeNode = (node: MindmapNode, prefix: string = ''): string => {
+      let desc = `${prefix}${node.label}`;
+      if (node.children && node.children.length > 0) {
+        desc += ': ' + node.children.map((c) => describeNode(c, '')).join(', ');
+      }
+      return desc;
+    };
+
+    return `${rootTitle} con i seguenti rami: ${nodeList.map((n) => describeNode(n)).join('; ')}`;
+  }, []);
 
   // Render mindmap
   useEffect(() => {
@@ -149,20 +193,7 @@ export function MindmapRenderer({ title, nodes, className }: MindmapRendererProp
     };
 
     renderMindmap();
-  }, [nodes, title, settings.dyslexiaFont, settings.highContrast, accessibilityMode]);
-
-  // Generate text description for screen readers
-  const generateTextDescription = (rootTitle: string, nodeList: MindmapNode[]): string => {
-    const describeNode = (node: MindmapNode, prefix: string = ''): string => {
-      let desc = `${prefix}${node.label}`;
-      if (node.children && node.children.length > 0) {
-        desc += ': ' + node.children.map((c) => describeNode(c, '')).join(', ');
-      }
-      return desc;
-    };
-
-    return `${rootTitle} con i seguenti rami: ${nodeList.map((n) => describeNode(n)).join('; ')}`;
-  };
+  }, [nodes, title, settings.dyslexiaFont, settings.highContrast, accessibilityMode, generateTextDescription]);
 
   // Print functionality
   const handlePrint = useCallback(() => {

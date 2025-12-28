@@ -1,15 +1,12 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Plus,
   Play,
   Trash2,
   Edit,
-  BookOpen,
-  Calendar,
-  BarChart2,
   X,
   Save,
   Layers,

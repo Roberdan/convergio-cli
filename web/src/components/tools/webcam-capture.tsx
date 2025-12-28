@@ -57,7 +57,8 @@ export function WebcamCapture({ purpose, instructions, onCapture, onClose }: Web
         stream.getTracks().forEach(track => track.stop());
       }
     };
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Intentionally empty - stream is captured in closure at mount time
 
   // Cleanup on unmount
   useEffect(() => {
@@ -113,7 +114,7 @@ export function WebcamCapture({ purpose, instructions, onCapture, onClose }: Web
         setStream(mediaStream);
         setIsLoading(false);
       }
-    } catch (err) {
+    } catch (_err) {
       setError('Unable to restart camera.');
       setIsLoading(false);
     }

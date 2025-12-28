@@ -3,7 +3,7 @@
 import { useMemo, useCallback } from 'react';
 import { Quiz } from '@/components/education/quiz';
 import { useProgressStore } from '@/lib/stores/app-store';
-import type { QuizRequest, Quiz as QuizType, QuizResult, Subject } from '@/types';
+import type { QuizRequest, Quiz as QuizType, QuizResult } from '@/types';
 
 interface QuizToolProps {
   request: QuizRequest;

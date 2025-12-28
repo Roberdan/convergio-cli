@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import Image from 'next/image';
 import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
@@ -20,16 +20,35 @@ export function Waveform({
   barCount = 20,
   className,
 }: WaveformProps) {
-  const bars = Array.from({ length: barCount }, (_, i) => i);
+  const bars = useMemo(() => Array.from({ length: barCount }, (_, i) => i), [barCount]);
+  // Pre-compute random factors for each bar (stable between renders)
+  const randomFactors = useMemo(
+    () => bars.map(() => 0.5 + Math.random() * 0.5),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [barCount] // Only regenerate when bar count changes
+  );
+  const [time, setTime] = useState(0);
+
+  // Animation loop for wave effect
+  useEffect(() => {
+    if (!isActive) return;
+    let animationId: number;
+    const animate = () => {
+      setTime(Date.now());
+      animationId = requestAnimationFrame(animate);
+    };
+    animationId = requestAnimationFrame(animate);
+    return () => cancelAnimationFrame(animationId);
+  }, [isActive]);
 
   return (
     <div className={cn('flex items-center justify-center gap-1 h-16', className)}>
       {bars.map((i) => {
-        // Create natural-looking wave pattern
+        // Create natural-looking wave pattern using state-based time
         const phase = (i / barCount) * Math.PI * 2;
-        const baseHeight = 0.3 + Math.sin(phase + Date.now() / 500) * 0.2;
+        const baseHeight = 0.3 + Math.sin(phase + time / 500) * 0.2;
         const activeHeight = isActive
-          ? level * (0.5 + Math.random() * 0.5)
+          ? level * randomFactors[i]
           : baseHeight * 0.3;
 
         return (

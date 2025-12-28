@@ -1,13 +1,13 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { CheckCircle, XCircle, Lightbulb, ArrowRight, Trophy, RotateCcw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { cn } from '@/lib/utils';
-import type { Quiz as QuizType, Question, QuizResult } from '@/types';
+import type { Quiz as QuizType, QuizResult } from '@/types';
 
 interface QuizProps {
   quiz: QuizType;
@@ -23,7 +23,12 @@ export function Quiz({ quiz, onComplete, onClose }: QuizProps) {
   const [hintsUsed, setHintsUsed] = useState(0);
   const [showHint, setShowHint] = useState(false);
   const [isComplete, setIsComplete] = useState(false);
-  const [startTime] = useState(Date.now());
+  const startTimeRef = useRef(0);
+
+  // Set start time on mount (avoid impure Date.now() during render)
+  useEffect(() => {
+    startTimeRef.current = Date.now();
+  }, []);
 
   const currentQuestion = quiz.questions[currentIndex];
   const progress = ((currentIndex + (showResult ? 1 : 0)) / quiz.questions.length) * 100;
@@ -51,7 +56,7 @@ export function Quiz({ quiz, onComplete, onClose }: QuizProps) {
       setShowHint(false);
     } else {
       // Quiz complete
-      const timeSpent = Math.round((Date.now() - startTime) / 1000);
+      const timeSpent = Math.round((Date.now() - startTimeRef.current) / 1000);
       const score = Math.round((correctCount / quiz.questions.length) * 100);
       const xpEarned = Math.round(quiz.xpReward * (score / 100) * (1 - hintsUsed * 0.1));
 
@@ -69,7 +74,7 @@ export function Quiz({ quiz, onComplete, onClose }: QuizProps) {
       setIsComplete(true);
       onComplete(result);
     }
-  }, [currentIndex, quiz, correctCount, startTime, hintsUsed, onComplete]);
+  }, [currentIndex, quiz, correctCount, hintsUsed, onComplete]);
 
   const handleShowHint = useCallback(() => {
     if (!showHint && currentQuestion.hints.length > 0) {

@@ -2,7 +2,7 @@
 
 import { useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { RotateCcw, ThumbsDown, ThumbsUp, Zap, Check, ChevronLeft, ChevronRight } from 'lucide-react';
+import { RotateCcw, ThumbsDown, ThumbsUp, Zap, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { cn } from '@/lib/utils';

@@ -3,11 +3,12 @@
 import { useState, useEffect, useCallback } from 'react';
 import Image from 'next/image';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Mic, MicOff, PhoneOff, VolumeX, Send, MessageSquare, Camera, Brain, BookOpen, Search, Network } from 'lucide-react';
+import { Mic, MicOff, PhoneOff, VolumeX, Send, MessageSquare, Camera, Brain, BookOpen, Search, Network, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Waveform, CircularWaveform } from './waveform';
 import { useVoiceSession } from '@/lib/hooks/use-voice-session';
+import { usePermissions } from '@/lib/hooks/use-permissions';
 import { ToolResultDisplay } from '@/components/tools';
 import { WebcamCapture } from '@/components/tools/webcam-capture';
 import { cn } from '@/lib/utils';
@@ -38,6 +39,10 @@ export function VoiceSession({ maestro, onClose, onSwitchToChat }: VoiceSessionP
   const [showTextInput, setShowTextInput] = useState(false);
   const [showWebcam, setShowWebcam] = useState(false);
   const [webcamRequest, setWebcamRequest] = useState<{ purpose: string; instructions?: string; callId: string } | null>(null);
+  const [permissionError, setPermissionError] = useState<string | null>(null);
+
+  // Check permissions before starting
+  const { permissions, requestMicrophone, isLoading: permissionsLoading } = usePermissions();
 
   const {
     isConnected,
@@ -54,7 +59,7 @@ export function VoiceSession({ maestro, onClose, onSwitchToChat }: VoiceSessionP
     toggleMute,
     sendText,
     cancelResponse,
-    clearTranscript,
+    clearTranscript: _clearTranscript,
     clearToolCalls,
     sendWebcamResult,
   } = useVoiceSession({
@@ -110,11 +115,36 @@ export function VoiceSession({ maestro, onClose, onSwitchToChat }: VoiceSessionP
   }, []);
 
   // Connect when connection info is available
+  // Permission handling is done inside connect() to avoid duplicate getUserMedia calls
   useEffect(() => {
-    if (connectionInfo && !isConnected && connectionState === 'idle') {
-      connect(maestro, connectionInfo);
-    }
-  }, [connectionInfo, isConnected, connectionState, maestro, connect]);
+    const startConnection = async () => {
+      if (!connectionInfo || isConnected || connectionState !== 'idle' || permissionsLoading) {
+        return;
+      }
+
+      // Only block if permission was explicitly denied
+      if (permissions.microphone === 'denied') {
+        setPermissionError('Microphone access was denied. Please enable it in your browser settings.');
+        return;
+      }
+
+      // Clear any previous permission error and connect
+      // The connect() function handles getUserMedia internally,
+      // so we don't need to request permission separately (avoids double prompts)
+      setPermissionError(null);
+
+      try {
+        await connect(maestro, connectionInfo);
+      } catch (error) {
+        // Handle permission denial during connect
+        if (error instanceof DOMException && error.name === 'NotAllowedError') {
+          setPermissionError('Microphone access is required for voice sessions. Please grant permission.');
+        }
+      }
+    };
+
+    startConnection();
+  }, [connectionInfo, isConnected, connectionState, maestro, connect, permissions.microphone, permissionsLoading]);
 
   // Handle close
   const handleClose = useCallback(() => {
@@ -139,6 +169,8 @@ export function VoiceSession({ maestro, onClose, onSwitchToChat }: VoiceSessionP
   // State indicator
   const stateText = configError
     ? 'Errore di configurazione'
+    : permissionsLoading
+    ? 'Controllo permessi...'
     : connectionState === 'connecting'
     ? 'Connessione in corso...'
     : isListening
@@ -168,6 +200,65 @@ export function VoiceSession({ maestro, onClose, onSwitchToChat }: VoiceSessionP
       }
     }
   }, [sendText]);
+
+  // Show permission error
+  if (permissionError) {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="w-full max-w-md mx-4"
+        >
+          <Card className="bg-gradient-to-b from-amber-900 to-slate-950 border-amber-700 text-white">
+            <div className="p-6">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-12 h-12 rounded-full bg-amber-500/20 flex items-center justify-center">
+                  <AlertCircle className="w-6 h-6 text-amber-400" />
+                </div>
+                <div>
+                  <h2 className="text-xl font-semibold">Permesso Microfono Richiesto</h2>
+                  <p className="text-sm text-amber-300">La voce richiede accesso al microfono</p>
+                </div>
+              </div>
+
+              <div className="bg-amber-950/50 rounded-lg p-4 mb-4">
+                <p className="text-sm text-amber-200">{permissionError}</p>
+              </div>
+
+              <div className="space-y-2 mb-4">
+                <p className="text-sm text-slate-300">Per abilitare il microfono:</p>
+                <ol className="text-sm text-slate-400 list-decimal list-inside space-y-1">
+                  <li>Clicca sull&apos;icona del lucchetto nella barra degli indirizzi</li>
+                  <li>Trova &quot;Microfono&quot; nelle impostazioni del sito</li>
+                  <li>Seleziona &quot;Consenti&quot;</li>
+                  <li>Ricarica la pagina</li>
+                </ol>
+              </div>
+
+              <div className="flex gap-2">
+                <Button
+                  onClick={() => requestMicrophone().then((granted) => {
+                    if (granted) setPermissionError(null);
+                  })}
+                  className="flex-1 bg-amber-600 hover:bg-amber-700"
+                >
+                  Riprova
+                </Button>
+                <Button
+                  onClick={onClose}
+                  variant="outline"
+                  className="flex-1 border-slate-600"
+                >
+                  Chiudi
+                </Button>
+              </div>
+            </div>
+          </Card>
+        </motion.div>
+      </div>
+    );
+  }
 
   // Show configuration error
   if (configError) {

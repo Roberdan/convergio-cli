@@ -1,7 +1,7 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { Flame, Star, Trophy, BookOpen, Zap } from 'lucide-react';
+import { Flame, Trophy, BookOpen, Zap } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 import type { Progress } from '@/types';

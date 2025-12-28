@@ -96,18 +96,25 @@
   --ring: 224.3 76.3% 48%;
 }
 
-/* Accent color themes */
-:root[data-accent="blue"] { --primary: 221.2 83.2% 53.3%; --ring: 221.2 83.2% 53.3%; }
-:root[data-accent="green"] { --primary: 142.1 76.2% 36.3%; --ring: 142.1 76.2% 36.3%; }
-:root[data-accent="purple"] { --primary: 262.1 83.3% 57.8%; --ring: 262.1 83.3% 57.8%; }
-:root[data-accent="orange"] { --primary: 24.6 95% 53.1%; --ring: 24.6 95% 53.1%; }
-:root[data-accent="pink"] { --primary: 330 81% 60%; --ring: 330 81% 60%; }
+/* Accent color themes - Light mode */
+[data-accent="blue"] { --primary: 221.2 83.2% 53.3%; --ring: 221.2 83.2% 53.3%; --accent-color: #3b82f6; }
+[data-accent="green"] { --primary: 142.1 76.2% 36.3%; --ring: 142.1 76.2% 36.3%; --accent-color: #22c55e; }
+[data-accent="purple"] { --primary: 262.1 83.3% 57.8%; --ring: 262.1 83.3% 57.8%; --accent-color: #a855f7; }
+[data-accent="orange"] { --primary: 24.6 95% 53.1%; --ring: 24.6 95% 53.1%; --accent-color: #f97316; }
+[data-accent="pink"] { --primary: 330 81% 60%; --ring: 330 81% 60%; --accent-color: #ec4899; }
 
-.dark[data-accent="blue"] { --primary: 217.2 91.2% 59.8%; --ring: 224.3 76.3% 48%; }
-.dark[data-accent="green"] { --primary: 142.1 70.6% 45.3%; --ring: 142.1 70.6% 45.3%; }
-.dark[data-accent="purple"] { --primary: 262.1 83.3% 67.8%; --ring: 262.1 83.3% 67.8%; }
-.dark[data-accent="orange"] { --primary: 24.6 95% 63.1%; --ring: 24.6 95% 63.1%; }
-.dark[data-accent="pink"] { --primary: 330 81% 70%; --ring: 330 81% 70%; }
+/* Accent color themes - Dark mode (higher specificity with .dark) */
+.dark[data-accent="blue"], [data-accent="blue"].dark { --primary: 217.2 91.2% 59.8%; --ring: 224.3 76.3% 48%; --accent-color: #60a5fa; }
+.dark[data-accent="green"], [data-accent="green"].dark { --primary: 142.1 70.6% 45.3%; --ring: 142.1 70.6% 45.3%; --accent-color: #4ade80; }
+.dark[data-accent="purple"], [data-accent="purple"].dark { --primary: 262.1 83.3% 67.8%; --ring: 262.1 83.3% 67.8%; --accent-color: #c084fc; }
+.dark[data-accent="orange"], [data-accent="orange"].dark { --primary: 24.6 95% 63.1%; --ring: 24.6 95% 63.1%; --accent-color: #fb923c; }
+.dark[data-accent="pink"], [data-accent="pink"].dark { --primary: 330 81% 70%; --ring: 330 81% 70%; --accent-color: #f472b6; }
+
+/* Utility class for accent color usage */
+.bg-accent-themed { background-color: var(--accent-color, hsl(var(--primary))); }
+.text-accent-themed { color: var(--accent-color, hsl(var(--primary))); }
+.border-accent-themed { border-color: var(--accent-color, hsl(var(--primary))); }
+.ring-accent-themed { --tw-ring-color: var(--accent-color, hsl(var(--ring))); }
 
 * {
   border-color: hsl(var(--border));

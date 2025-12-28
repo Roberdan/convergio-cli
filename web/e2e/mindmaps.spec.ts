@@ -16,7 +16,7 @@ test.describe('Mindmaps View', () => {
   test('displays example mindmaps', async ({ page }) => {
     // Should show example mindmaps or categories in main content
     await page.waitForTimeout(1000);
-    const hasContent = await page
+    await page
       .locator('main')
       .first()
       .locator('text=Matematica')
@@ -46,7 +46,7 @@ test.describe('Mindmaps View', () => {
       await page.waitForTimeout(1000);
 
       // Check for toolbar controls
-      const hasToolbar = await page.locator('[aria-label*="zoom"], [title*="zoom"], text=100%').first().isVisible().catch(() => false);
+      await page.locator('[aria-label*="zoom"], [title*="zoom"], text=100%').first().isVisible().catch(() => false);
     }
   });
 });

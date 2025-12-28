@@ -89,6 +89,7 @@ export function HomeworkHelp({
           {/* Photo preview */}
           {photoPreview && (
             <div className="relative mb-6 rounded-xl overflow-hidden">
+              {/* eslint-disable-next-line @next/next/no-img-element -- User-uploaded data URL */}
               <img src={photoPreview} alt="Preview" className="w-full" />
               {isUploading && (
                 <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
@@ -186,6 +187,7 @@ export function HomeworkHelp({
               <ImageIcon className="w-4 h-4" />
               <span>Problema originale</span>
             </div>
+            {/* eslint-disable-next-line @next/next/no-img-element -- User-uploaded data URL */}
             <img
               src={homework.photoUrl}
               alt="Problema"

@@ -25,6 +25,7 @@ export function FormulaRenderer({
     if (!containerRef.current) return;
 
     try {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setError(null);
       katex.render(request.latex, containerRef.current, {
         displayMode,

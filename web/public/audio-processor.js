@@ -11,7 +11,8 @@ class AudioProcessor extends AudioWorkletProcessor {
     this.chunkSize = 2400; // 100ms of audio at 24kHz
   }
 
-  process(inputs, outputs, parameters) {
+   
+  process(inputs, _outputs, _parameters) {
     const input = inputs[0];
     if (input.length === 0) return true;
 

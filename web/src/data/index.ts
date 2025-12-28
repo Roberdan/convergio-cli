@@ -4,7 +4,7 @@
 // ============================================================================
 
 import type { Maestro, Subject } from '@/types';
-import { MAESTRI as MAESTRI_FULL, SAFETY_GUIDELINES, getMaestroById as getFullMaestroById } from './maestri-full';
+import { SAFETY_GUIDELINES, getMaestroById as getFullMaestroById } from './maestri-full';
 
 // Re-export safety guidelines
 export { SAFETY_GUIDELINES };

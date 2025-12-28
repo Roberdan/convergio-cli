@@ -149,7 +149,7 @@ export function useEducationAccessibility() {
  * Hook for ADHD-specific session management
  */
 export function useADHDSession() {
-  const { profile, getSessionDuration, shouldShowBreakReminder } = useEducationAccessibility();
+  const { getSessionDuration, shouldShowBreakReminder } = useEducationAccessibility();
   const { adhdSessionState, adhdTimeRemaining, startADHDSession, stopADHDSession } =
     useAccessibilityStore();
 

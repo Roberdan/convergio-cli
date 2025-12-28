@@ -27,7 +27,7 @@ test.describe('Voice Session', () => {
       .first();
 
     // Close button should exist in the modal
-    const hasClose = await closeButton.isVisible().catch(() => false);
+    await closeButton.isVisible().catch(() => false);
     // If modal exists, there should be a way to close it
   });
 
@@ -81,7 +81,7 @@ test.describe('Voice Session Status', () => {
 
     // If Azure is configured, should show Italian status messages
     // If not configured, should show configuration message
-    const hasItalianOrConfig = await page
+    await page
       .locator('text=Connessione')
       .or(page.locator('text=Configura'))
       .or(page.locator('text=Azure'))
@@ -100,7 +100,7 @@ test.describe('Voice Session Tools', () => {
 
     // Check for any tool buttons if session is fully active
     // These may or may not be visible depending on Azure configuration
-    const toolButtonCount = await page
+    await page
       .locator('[aria-label*="Webcam"], [aria-label*="Mappa"], [aria-label*="Quiz"]')
       .count();
     // Tool buttons are optional - depends on session state

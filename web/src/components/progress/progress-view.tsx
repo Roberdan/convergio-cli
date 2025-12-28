@@ -8,9 +8,7 @@ import {
   TrendingUp,
   Clock,
   Star,
-  Target,
   BookOpen,
-  Brain,
   Award,
   Calendar,
   ChevronRight,
@@ -208,6 +206,13 @@ interface OverviewTabProps {
 }
 
 function OverviewTab({ xp, level, levelProgress, streak, masteries }: OverviewTabProps) {
+  // Pre-generate random streak calendar data (stable between renders)
+  const streakCalendarData = useMemo(() =>
+    Array.from({ length: 28 }).map((_, i) => i < streak.current || Math.random() > 0.3),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [streak.current] // Only regenerate when streak changes
+  );
+
   // Simulated weekly activity data
   const weeklyData = [
     { day: 'Lun', minutes: 45 },
@@ -292,20 +297,17 @@ function OverviewTab({ xp, level, levelProgress, streak, masteries }: OverviewTa
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-7 gap-2">
-            {Array.from({ length: 28 }).map((_, i) => {
-              const isActive = i < streak.current || Math.random() > 0.3;
-              return (
-                <div
-                  key={i}
-                  className={cn(
-                    'aspect-square rounded-sm',
-                    isActive
-                      ? 'bg-orange-400'
-                      : 'bg-slate-200 dark:bg-slate-700'
-                  )}
-                />
-              );
-            })}
+            {streakCalendarData.map((isActive, i) => (
+              <div
+                key={i}
+                className={cn(
+                  'aspect-square rounded-sm',
+                  isActive
+                    ? 'bg-orange-400'
+                    : 'bg-slate-200 dark:bg-slate-700'
+                )}
+              />
+            ))}
           </div>
           <div className="flex items-center justify-between mt-4 text-sm">
             <span className="text-slate-500">4 settimane fa</span>
@@ -323,7 +325,7 @@ function OverviewTab({ xp, level, levelProgress, streak, masteries }: OverviewTa
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
-          {Object.entries(masteries || {}).slice(0, 4).map(([subject, data]: [string, any]) => (
+          {Object.entries(masteries || {}).slice(0, 4).map(([subject, data]) => (
             <div key={subject} className="flex items-center gap-3">
               <span className="text-2xl">{subjectIcons[subject as Subject]}</span>
               <div className="flex-1">

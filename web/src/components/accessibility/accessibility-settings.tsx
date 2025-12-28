@@ -11,7 +11,6 @@ import {
   Star,
   TextIcon,
   Volume2,
-  Sparkles,
   RotateCcw,
   ChevronRight,
 } from 'lucide-react';
@@ -62,7 +61,6 @@ export function AccessibilitySettings({ isOpen, onClose }: AccessibilitySettings
   const [selectedCategory, setSelectedCategory] = useState<Category>('dyslexia');
   const {
     settings,
-    updateSettings,
     resetSettings,
     applyDyslexiaProfile,
     applyADHDProfile,

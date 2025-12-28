@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useRef } from 'react';
+import { useState } from 'react';
 import { Search, Filter } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MaestroCard } from './maestro-card';
@@ -17,27 +17,26 @@ export function MaestriGrid() {
   const [selectedSubject, setSelectedSubject] = useState<Subject | 'all'>('all');
   const [selectedMaestro, setSelectedMaestro] = useState<Maestro | null>(null);
   const [sessionMode, setSessionMode] = useState<SessionMode>(null);
-  const sessionKeyRef = useRef(0); // Key to force remount on session restart
+  const [sessionKey, setSessionKey] = useState(0); // Key to force remount on session restart
 
   const subjects = getAllSubjects();
 
-  const filteredMaestri = useMemo(() => {
-    return maestri.filter((m) => {
-      const matchesSearch =
-        m.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        m.specialty.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        subjectNames[m.subject].toLowerCase().includes(searchQuery.toLowerCase());
+  // Filter maestri based on search and subject (React Compiler handles memoization)
+  const filteredMaestri = maestri.filter((m) => {
+    const matchesSearch =
+      m.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      m.specialty.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      subjectNames[m.subject].toLowerCase().includes(searchQuery.toLowerCase());
 
-      const matchesSubject =
-        selectedSubject === 'all' || m.subject === selectedSubject;
+    const matchesSubject =
+      selectedSubject === 'all' || m.subject === selectedSubject;
 
-      return matchesSearch && matchesSubject;
-    });
-  }, [searchQuery, selectedSubject]);
+    return matchesSearch && matchesSubject;
+  });
 
   // Click on maestro goes directly to voice
   const handleSelect = (maestro: Maestro) => {
-    sessionKeyRef.current += 1; // Force fresh component mount
+    setSessionKey(prev => prev + 1); // Force fresh component mount
     setSelectedMaestro(maestro);
     setSessionMode('voice');
   };
@@ -151,7 +150,7 @@ export function MaestriGrid() {
       <AnimatePresence mode="wait">
         {sessionMode === 'voice' && selectedMaestro && (
           <VoiceSession
-            key={`voice-${selectedMaestro.id}-${sessionKeyRef.current}`}
+            key={`voice-${selectedMaestro.id}-${sessionKey}`}
             maestro={selectedMaestro}
             onClose={handleCloseSession}
             onSwitchToChat={() => setSessionMode('chat')}

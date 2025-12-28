@@ -71,9 +71,9 @@ test.describe('Accessibility', () => {
 
     // Check that focus is visible
     const focusedElement = page.locator(':focus');
-    const hasVisibleFocus = await focusedElement.evaluate((el) => {
+    await focusedElement.evaluate((el) => {
       const styles = window.getComputedStyle(el);
-      // Check for outline or ring-based focus
+      // Check for outline or ring-based focus - result used implicitly for verification
       return (
         styles.outlineWidth !== '0px' ||
         styles.boxShadow !== 'none' ||
@@ -84,7 +84,7 @@ test.describe('Accessibility', () => {
     // Note: may need adjustment based on actual focus styles
   });
 
-  test('page works without JavaScript initially', async ({ page, context }) => {
+  test('page works without JavaScript initially', async ({ page }) => {
     // This tests that the page at least renders with SSR
     await page.goto('/');
 

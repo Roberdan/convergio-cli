@@ -1,19 +1,16 @@
 'use client';
 
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Image from 'next/image';
 import {
   Send,
   X,
   Mic,
-  MicOff,
   Volume2,
   VolumeX,
   Loader2,
-  Bot,
   User,
-  Sparkles,
   Copy,
   Check,
   RotateCcw,

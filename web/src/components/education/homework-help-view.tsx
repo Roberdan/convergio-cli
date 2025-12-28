@@ -10,13 +10,12 @@ import {
   Send,
   Loader2,
   CheckCircle,
-  ChevronRight,
 } from 'lucide-react';
 import { HomeworkHelp } from './homework-help';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
-import type { Homework, HomeworkStep, Subject } from '@/types';
+import type { Homework, Subject } from '@/types';
 
 interface MaieuticMessage {
   role: 'user' | 'assistant';
@@ -53,6 +52,7 @@ export function HomeworkHelpView() {
   const [homeworkHistory, setHomeworkHistory] = useState<Homework[]>([]);
   const [showHistory, setShowHistory] = useState(false);
   const [maieuticChat, setMaieuticChat] = useState<MaieuticMessage[]>([]);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- State setter used to show chat
   const [showMaieuticChat, setShowMaieuticChat] = useState(false);
   const [chatInput, setChatInput] = useState('');
   const [isLoadingChat, setIsLoadingChat] = useState(false);
@@ -215,8 +215,9 @@ export function HomeworkHelpView() {
     setShowMaieuticChat(true);
     setChatInput('');
 
-    // Trigger API call
-    sendMaieuticMessage(question);
+    // Trigger API call - deferred to avoid declaration order issue
+    setTimeout(() => sendMaieuticMessage(question), 0);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- sendMaieuticMessage defined after
   }, []);
 
   // Send message to maieutic API
@@ -255,7 +256,7 @@ export function HomeworkHelpView() {
         content: data.response || data.message || 'Prova a pensare: cosa sai già su questo argomento?',
         timestamp: new Date(),
       }]);
-    } catch (error) {
+    } catch {
       setMaieuticChat(prev => [...prev, {
         role: 'assistant',
         content: 'Scusa, c\'è stato un problema. Prova a riformulare la domanda: cosa esattamente non ti è chiaro?',

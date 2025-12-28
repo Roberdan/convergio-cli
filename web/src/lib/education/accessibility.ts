@@ -12,7 +12,6 @@
  * Reference: /Users/roberdan/GitHub/ConvergioCLI/include/nous/education.h
  */
 
-import { ReactNode } from 'react';
 import { CSSProperties } from 'react';
 
 // ============================================================================
@@ -857,9 +856,17 @@ export function createDefaultProfile(): AccessibilityProfile {
 /**
  * Merge accessibility profile with settings from store
  */
+interface PartialAccessibilitySettings {
+  ttsEnabled?: boolean;
+  ttsSpeed?: number;
+  highContrast?: boolean;
+  reducedMotion?: boolean;
+  dyslexiaFont?: boolean;
+}
+
 export function mergeWithAccessibilitySettings(
   profile: AccessibilityProfile,
-  settings: any
+  settings: PartialAccessibilitySettings
 ): AccessibilityProfile {
   return {
     ...profile,
@@ -875,7 +882,7 @@ export function mergeWithAccessibilitySettings(
 // EXPORTS
 // ============================================================================
 
-export default {
+const accessibilityUtils = {
   // Types
   Severity,
   ADHDType,
@@ -935,3 +942,5 @@ export default {
   createDefaultProfile,
   mergeWithAccessibilitySettings,
 };
+
+export default accessibilityUtils;
