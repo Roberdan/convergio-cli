@@ -140,7 +140,7 @@ Maestri have access to these tools during lessons:
 
 | Tool | Description |
 |------|-------------|
-| `create_mindmap` | Generate Mermaid.js concept maps |
+| `create_mindmap` | Generate interactive mind maps (MarkMap) |
 | `create_flashcard` | Create spaced repetition cards |
 | `create_quiz` | Generate interactive quizzes |
 | `web_search` | Safe search for educational content |
@@ -172,7 +172,7 @@ npx playwright test --ui
 - **State**: Zustand
 - **Voice**: OpenAI Realtime API (Azure)
 - **Charts**: Chart.js
-- **Diagrams**: Mermaid.js
+- **Diagrams**: Mermaid.js (flowcharts, sequence, ER) + MarkMap (mindmaps)
 - **Math**: KaTeX
 - **Animation**: Framer Motion
 - **Testing**: Playwright

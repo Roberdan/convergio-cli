@@ -256,11 +256,11 @@ export function useVoiceSession(options: UseVoiceSessionOptions = {}) {
           {
             type: 'function',
             name: 'create_diagram',
-            description: 'Create diagrams (flowchart, sequence, class, state, er, mindmap) using Mermaid syntax',
+            description: 'Create diagrams (flowchart, sequence, class, state, er) using Mermaid syntax. For mind maps use create_mindmap instead.',
             parameters: {
               type: 'object',
               properties: {
-                type: { type: 'string', enum: ['flowchart', 'sequence', 'class', 'state', 'er', 'mindmap'] },
+                type: { type: 'string', enum: ['flowchart', 'sequence', 'class', 'state', 'er'] },
                 code: { type: 'string', description: 'Mermaid diagram code' },
                 title: { type: 'string' },
               },
