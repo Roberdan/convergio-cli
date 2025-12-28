@@ -16,12 +16,19 @@ class ConvergioBiz < Formula
 
   def install
     bin.install "convergio-biz"
-    # Install Metal libraries for MLX local models
+    # Install Metal libraries to shared lib directory
+    # This allows multiple editions to coexist without conflicts
+    (lib/"convergio").mkpath
+    # MLX Metal libraries (for local LLM inference)
     if File.exist?("mlx.metallib")
-      bin.install "mlx.metallib"
+      (lib/"convergio").install "mlx.metallib"
     end
     if File.exist?("default.metallib")
-      bin.install "default.metallib"
+      (lib/"convergio").install "default.metallib"
+    end
+    # NOUS Metal shaders (for GPU-accelerated similarity search)
+    if File.exist?("similarity.metallib")
+      (lib/"convergio").install "similarity.metallib"
     end
   end
 

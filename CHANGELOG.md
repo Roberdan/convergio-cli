@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.4.1] - 2025-12-28
+
+### Fixed
+
+- **Homebrew Multi-Edition Coexistence** - Fixed Metal library conflicts when installing multiple editions
+  - Metal libraries (mlx.metallib, default.metallib, similarity.metallib) now install to `lib/convergio/` instead of `bin/`
+  - All editions can now be installed simultaneously via Homebrew without conflicts
+  - Binaries search for Metal libraries in multiple paths for compatibility
+
+### Changed
+
+- **Makefile Distribution** - Updated `make dist` to support all editions properly
+  - Now uses `EDITION_SUFFIX` for correct binary naming in tarballs
+  - Includes similarity.metallib in distribution when available
+  - Tarball naming matches GitHub release conventions
+
+### Documentation
+
+- Updated app-release-manager agent with Metal library architecture documentation
+- Added Homebrew installation structure diagram
+- Documented runtime library loading paths
+
 ## [6.4.0] - 2025-12-27
 
 ### Added
