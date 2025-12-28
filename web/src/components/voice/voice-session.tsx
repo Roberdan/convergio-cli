@@ -14,12 +14,13 @@ import { WebcamCapture } from '@/components/tools/webcam-capture';
 import { SessionGradeDisplay } from './session-grade';
 import { useProgressStore } from '@/lib/stores/app-store';
 import { cn } from '@/lib/utils';
+import { logger } from '@/lib/logger';
 import type { Maestro } from '@/types';
 
 interface ConnectionInfo {
   provider: 'azure';
-  wsUrl: string;
-  apiKey: string;
+  proxyPort: number;
+  configured: boolean;
 }
 
 interface ConnectionError {
@@ -43,6 +44,8 @@ export function VoiceSession({ maestro, onClose, onSwitchToChat }: VoiceSessionP
   const [webcamRequest, setWebcamRequest] = useState<{ purpose: string; instructions?: string; callId: string } | null>(null);
   const [permissionError, setPermissionError] = useState<string | null>(null);
   const [showGrade, setShowGrade] = useState(false);
+  const [finalSessionDuration, setFinalSessionDuration] = useState(0);
+  const [finalQuestionCount, setFinalQuestionCount] = useState(0);
 
   // Track session start time
   const sessionStartTime = useRef<Date>(new Date());
@@ -73,16 +76,16 @@ export function VoiceSession({ maestro, onClose, onSwitchToChat }: VoiceSessionP
     clearToolCalls,
     sendWebcamResult,
   } = useVoiceSession({
-    onError: (error) => console.error('Voice error:', error),
+    onError: (error) => logger.error('Voice error', { error: String(error) }),
     onTranscript: (role, text) => {
-      console.log(`${role}: ${text}`);
+      logger.debug('Transcript', { role, text: text.substring(0, 100) });
       // Count user questions
       if (role === 'user' && text.includes('?')) {
         questionCount.current++;
       }
     },
     onWebcamRequest: (request) => {
-      console.log('Webcam requested:', request);
+      logger.debug('Webcam requested', { purpose: request.purpose });
       setWebcamRequest(request);
       setShowWebcam(true);
     },
@@ -121,14 +124,14 @@ export function VoiceSession({ maestro, onClose, onSwitchToChat }: VoiceSessionP
         const response = await fetch('/api/realtime/token');
         const data = await response.json();
         if (data.error) {
-          console.error('API error:', data.error);
+          logger.error('API error', { error: data.error });
           setConfigError(data as ConnectionError);
           return;
         }
         // Store Azure connection info
         setConnectionInfo(data as ConnectionInfo);
       } catch (error) {
-        console.error('Failed to get connection info:', error);
+        logger.error('Failed to get connection info', { error: String(error) });
         setConfigError({
           error: 'Connection failed',
           message: 'Unable to connect to the API server',
@@ -175,6 +178,12 @@ export function VoiceSession({ maestro, onClose, onSwitchToChat }: VoiceSessionP
     disconnect();
     // Show grade if session was active
     if (currentSession || transcript.length > 0) {
+      // Calculate metrics at the moment of closing (not during render)
+      const durationMinutes = Math.round(
+        (Date.now() - sessionStartTime.current.getTime()) / 60000
+      );
+      setFinalSessionDuration(durationMinutes);
+      setFinalQuestionCount(questionCount.current);
       setShowGrade(true);
     } else {
       onClose();
@@ -188,10 +197,7 @@ export function VoiceSession({ maestro, onClose, onSwitchToChat }: VoiceSessionP
     onClose();
   }, [endSession, onClose]);
 
-  // Calculate session metrics for grade
-  const sessionDuration = Math.round(
-    (Date.now() - sessionStartTime.current.getTime()) / 60000
-  );
+  // XP earned from session
   const xpEarned = currentSession?.xpEarned || Math.max(5, transcript.length * 2);
 
   // Handle switch to chat
@@ -676,8 +682,8 @@ AZURE_OPENAI_REALTIME_DEPLOYMENT=gpt-4o-realtime-preview`}
         {showGrade && (
           <SessionGradeDisplay
             maestro={maestro}
-            sessionDuration={sessionDuration}
-            questionsAsked={questionCount.current}
+            sessionDuration={finalSessionDuration}
+            questionsAsked={finalQuestionCount}
             xpEarned={xpEarned}
             onClose={handleGradeClose}
           />

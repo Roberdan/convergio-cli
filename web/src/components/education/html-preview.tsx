@@ -1,9 +1,9 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import { motion } from 'framer-motion';
+import DOMPurify from 'dompurify';
 import {
-  Play,
   Maximize2,
   Minimize2,
   Code,
@@ -45,18 +45,30 @@ export function HTMLPreview({
 
   const { addSnippet } = useHTMLSnippetsStore();
 
-  // Inject the HTML into the iframe
+  // Sanitize HTML to prevent XSS attacks
+  // Allow scripts for educational demos but block dangerous patterns
+  const sanitizedCode = useMemo(() => {
+    // Configure DOMPurify to allow safe interactive content
+    return DOMPurify.sanitize(code, {
+      ADD_TAGS: ['style', 'script'],
+      ADD_ATTR: ['onclick', 'onload', 'onerror', 'onmouseover', 'onmouseout', 'onkeydown', 'onkeyup', 'onsubmit', 'onchange', 'oninput'],
+      WHOLE_DOCUMENT: true,
+      FORCE_BODY: true,
+    });
+  }, [code]);
+
+  // Inject the sanitized HTML into the iframe
   useEffect(() => {
     if (iframeRef.current && view === 'preview') {
       const iframe = iframeRef.current;
       const doc = iframe.contentDocument || iframe.contentWindow?.document;
       if (doc) {
         doc.open();
-        doc.write(code);
+        doc.write(sanitizedCode);
         doc.close();
       }
     }
-  }, [code, view]);
+  }, [sanitizedCode, view]);
 
   const handleCopy = async () => {
     await navigator.clipboard.writeText(code);
@@ -167,7 +179,7 @@ export function HTMLPreview({
             ref={iframeRef}
             title={title}
             className="w-full h-full min-h-[400px] bg-white"
-            sandbox="allow-scripts allow-same-origin"
+            sandbox="allow-scripts"
           />
         ) : (
           <pre className="p-4 h-full overflow-auto bg-slate-900 text-slate-100 text-sm font-mono">

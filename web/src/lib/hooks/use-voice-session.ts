@@ -18,8 +18,10 @@ interface UseVoiceSessionOptions {
 
 interface ConnectionInfo {
   provider: 'azure' | 'openai';
+  proxyPort?: number;
+  configured?: boolean;
+  // Legacy fields for OpenAI direct connection (deprecated)
   wsUrl?: string;
-  apiKey?: string;
   token?: string;
 }
 
@@ -191,9 +193,12 @@ export function useVoiceSession(options: UseVoiceSessionOptions = {}) {
       let protocols: string[] | undefined;
 
       if (connectionInfo.provider === 'azure') {
-        // Azure requires api-key as query parameter
-        wsUrl = `${connectionInfo.wsUrl!}&api-key=${connectionInfo.apiKey}`;
-        protocols = undefined; // Azure uses query params, not subprotocols
+        // Connect to local WebSocket proxy - API key stays server-side
+        // Proxy handles authentication with Azure
+        const proxyPort = connectionInfo.proxyPort || 3001;
+        const host = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
+        wsUrl = `ws://${host}:${proxyPort}?maestroId=${maestro.id}`;
+        protocols = undefined;
       } else {
         wsUrl = 'wss://api.openai.com/v1/realtime?model=gpt-4o-realtime-preview-2024-12-17';
         protocols = ['realtime', `openai-insecure-api-key.${connectionInfo.token}`, 'openai-beta.realtime-v1'];
@@ -648,12 +653,8 @@ You have a rich life, experiences, and opinions as ${maestro.name}. Share anecdo
         }
       };
 
-      // For Azure, we need to add the API key header
-      // Since WebSocket doesn't support custom headers in browser, Azure uses query param
-      if (connectionInfo.provider === 'azure' && connectionInfo.apiKey) {
-        // Azure OpenAI Realtime accepts api-key as query parameter
-        // Already included in wsUrl from server
-      }
+      // Note: API key is handled server-side via WebSocket proxy
+      // The wsUrl from server already contains necessary auth
 
       wsRef.current = ws;
     } catch (error) {
@@ -666,6 +667,11 @@ You have a rich life, experiences, and opinions as ${maestro.name}. Share anecdo
   // Handle server events
   const handleServerEvent = useCallback((event: Record<string, unknown>) => {
     switch (event.type) {
+      case 'proxy.ready':
+        // WebSocket proxy is ready - connection to Azure established
+        // Session config will be sent in ws.onopen
+        break;
+
       case 'session.created':
       case 'session.updated':
         // Session lifecycle events - no action needed

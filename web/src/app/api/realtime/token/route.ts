@@ -1,9 +1,13 @@
 // ============================================================================
 // API ROUTE: Provide Azure OpenAI Realtime connection info
-// Azure-only configuration (no OpenAI fallback)
+// Returns proxy WebSocket URL - API key stays server-side
+// SECURITY: API key is NEVER exposed to client
 // ============================================================================
 
 import { NextResponse } from 'next/server';
+
+// WebSocket proxy port (must match instrumentation.ts)
+const WS_PROXY_PORT = parseInt(process.env.WS_PROXY_PORT || '3001', 10);
 
 export async function GET() {
   // Azure OpenAI Realtime configuration (required)
@@ -28,17 +32,13 @@ export async function GET() {
     );
   }
 
-  // Build WebSocket URL for Azure OpenAI Realtime GA
-  // GA endpoint: /openai/v1/realtime?model=<deployment>
-  const wsUrl = azureEndpoint
-    .replace('https://', 'wss://')
-    .replace(/\/$/, '') +
-    `/openai/v1/realtime?model=${azureDeployment}`;
-
+  // Return proxy WebSocket URL - client connects here, NOT directly to Azure
+  // API key is used server-side only in the proxy (see instrumentation.ts)
   return NextResponse.json({
     provider: 'azure',
-    wsUrl,
-    apiKey: azureApiKey,
+    proxyPort: WS_PROXY_PORT,
+    configured: true,
+    // SECURITY: apiKey is NOT included - stays server-side
   });
 }
 
