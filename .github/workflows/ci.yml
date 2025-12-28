@@ -193,75 +193,19 @@ jobs:
   # ============================================================================
 
   # ============================================================================
-  # OLLAMA TESTS - Local LLM integration tests
+  # OLLAMA TESTS - Disabled on GitHub CI (requires GPU, run locally)
   # ============================================================================
-
-  ollama-tests:
-    name: Ollama Integration Tests
-    runs-on: macos-14
-    needs: build
-    continue-on-error: true  # Don't block CI if Ollama tests fail
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install dependencies
-        run: |
-          brew install cjson ollama
-          brew link cjson --overwrite 2>/dev/null || true
-
-      - name: Select Xcode
-        run: sudo xcode-select -s ${{ env.XCODE_VERSION }}
-
-      - name: Start Ollama server
-        run: |
-          echo "=== Starting Ollama server ==="
-          ollama serve > /tmp/ollama.log 2>&1 &
-          sleep 5
-          # Wait for server to be ready
-          for i in {1..30}; do
-            if curl -s http://localhost:11434/api/tags > /dev/null 2>&1; then
-              echo "Ollama server is ready"
-              break
-            fi
-            echo "Waiting for Ollama... ($i/30)"
-            sleep 2
-          done
-
-      - name: Pull test model
-        run: |
-          echo "=== Pulling qwen2.5:0.5b (494MB) ==="
-          ollama pull qwen2.5:0.5b
-          echo "=== Model ready ==="
-          ollama list
-
-      - name: Build Convergio
-        run: make clean && make -j8
-
-      - name: Run delegation tests with Ollama
-        run: |
-          echo "=== Running delegation tests ==="
-          make delegation_test
-          ./build/bin/delegation_test
-
-      - name: Run workflow tests with Ollama
-        run: |
-          echo "=== Running workflow monitor tests ==="
-          make workflow_test
-          ./build/bin/workflow_test
-
-      - name: Test Ollama provider integration
-        run: |
-          echo "=== Testing Ollama provider ==="
-          # Quick smoke test - just verify CLI starts with Ollama
-          timeout 30 ./build/bin/convergio --provider ollama --ollama-model qwen2.5:0.5b -q <<< "say hello" || true
-          echo "=== Ollama integration test complete ==="
-
-      - name: Show Ollama logs on failure
-        if: failure()
-        run: |
-          echo "=== Ollama server logs ==="
-          cat /tmp/ollama.log || true
+  #
+  # Ollama integration tests are meant for local development only.
+  # GitHub runners don't have GPU support, making these tests slow and unreliable.
+  #
+  # To run locally:
+  #   brew install ollama
+  #   ollama serve &
+  #   ollama pull qwen2.5:0.5b
+  #   make delegation_test && ./build/bin/delegation_test
+  #   ./build/bin/convergio --provider ollama --ollama-model qwen2.5:0.5b -q <<< "hello"
+  #
 
   # ============================================================================
   # FINAL STATUS - aggregates all job results
