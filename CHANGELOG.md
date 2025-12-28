@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed (Web App)
+
+- **Mindmap Renderer Migration** - Replaced Mermaid.js with MarkMap for mindmaps
+  - Fixes critical text truncation issue (10+ user reports)
+  - Full text display with proper word wrapping
+  - Zoom/pan controls, PNG export, accessibility features
+  - See ADR: `web/docs/adr/0001-markmap-for-mindmaps.md`
+
+### Security (Web App)
+
+- **16 security and quality fixes** - Complete release checklist passed
+  - SEC-01: WebSocket proxy for API keys (no client exposure)
+  - SEC-02: DOMPurify hardened for HTML preview
+  - SEC-03: Removed unused progress/sync stub endpoint
+  - SEC-04: Fixed CORS wildcard configuration
+  - A11Y-01: Escape key handlers for all modals
+  - A11Y-02: ARIA labels for all icon-only buttons
+  - CQ-01: Zero ESLint errors
+  - CQ-02: Console.log replaced with structured logger
+
 ## [6.4.1] - 2025-12-28
 
 ### Fixed

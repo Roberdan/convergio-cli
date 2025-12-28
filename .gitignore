@@ -9,8 +9,9 @@ build/
 !resources/default.metallib
 dist/
 
-# Data files (user-specific)
-data/
+# Data files (user-specific, root only)
+/data/
+!web/src/data/
 *.db
 
 # IDE
@@ -65,3 +66,8 @@ CMakeFiles/
 
 \!NOGIT
 cmake-build/
+BrutalReportClaude.md
+BrutalReportConvergio.md
+BrutalReportCursor.md
+BrutalReportGPT.md
+EduWebReleasePlanDec28GPT.md
