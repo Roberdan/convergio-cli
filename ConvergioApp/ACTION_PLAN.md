@@ -502,3 +502,4 @@ struct MessageBubble: View {
 
 
 
+
