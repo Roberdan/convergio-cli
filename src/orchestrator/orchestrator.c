@@ -1364,13 +1364,11 @@ char* orchestrator_process_stream(const char* user_input, OrchestratorStreamCall
         cost_record_usage(input_tokens, output_tokens);
         cost_record_agent_usage(g_orchestrator->ali, input_tokens, output_tokens);
 
-        // FIX: Check for delegation requests in streamed response
-        fprintf(stderr, "\n[STREAM DEBUG] Checking response for [DELEGATE:] markers...\n");
+        // Check for delegation requests in streamed response
         DelegationList* delegations = parse_all_delegations(response);
         if (delegations && delegations->count > 0) {
             LOG_INFO(LOG_CAT_AGENT, "[STREAM] Found %zu delegation request(s) in Ali's response",
                      delegations->count);
-            fprintf(stderr, "[STREAM DEBUG] Found %zu delegation(s)!\n", delegations->count);
 
             // Execute all delegations in parallel with progress updates
             // Pass the same callback for real-time progress
@@ -1404,10 +1402,7 @@ char* orchestrator_process_stream(const char* user_input, OrchestratorStreamCall
                     callback("\n*Delegation failed - agents could not respond.*\n", user_data);
                 }
                 LOG_ERROR(LOG_CAT_AGENT, "[STREAM] Delegation failed - execute_delegations returned NULL");
-                fprintf(stderr, "[STREAM DEBUG] Delegation execution failed!\n");
             }
-        } else {
-            fprintf(stderr, "[STREAM DEBUG] No [DELEGATE:] markers found in response.\n");
         }
 
         // Save response to persistence and project history

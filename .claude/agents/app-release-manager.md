@@ -194,6 +194,63 @@ Even though the workflow is automated, YOU MUST:
 
 ---
 
+## 🔧 METAL LIBRARY ARCHITECTURE (v6.4.1+)
+
+### Why Metal Libraries Are Shared
+
+All Convergio editions use the same Metal GPU libraries:
+- **mlx.metallib** - MLX-Swift Metal backend for local LLM inference
+- **default.metallib** - MLX default Metal shaders
+- **similarity.metallib** - NOUS GPU-accelerated similarity search (optional)
+
+These are **identical across all editions** because they come from the same MLX build.
+
+### Homebrew Installation Structure
+
+```
+/opt/homebrew/
+├── bin/
+│   ├── convergio          # Master edition binary
+│   ├── convergio-edu      # Education edition binary
+│   ├── convergio-biz      # Business edition binary
+│   └── convergio-dev      # Developer edition binary
+└── lib/
+    └── convergio/         # SHARED Metal libraries
+        ├── mlx.metallib
+        ├── default.metallib
+        └── similarity.metallib
+```
+
+### Why lib/convergio/ Instead of bin/
+
+**Problem (pre-v6.4.1)**: Installing multiple editions caused Homebrew conflicts:
+```
+Error: Could not symlink bin/default.metallib
+Target /opt/homebrew/bin/default.metallib is a symlink belonging to convergio
+```
+
+**Solution**: Metal libraries are now installed to `lib/convergio/` which:
+1. Allows all editions to coexist without conflicts
+2. Follows Homebrew conventions (libraries in lib/, binaries in bin/)
+3. Uses a shared location for identical files
+
+### Runtime Library Loading
+
+The CLI (`src/metal/gpu.m`) searches for Metal libraries in this order:
+1. Same directory as binary (development/direct install)
+2. `../lib/convergio/` relative to binary (Homebrew structure)
+3. `/opt/homebrew/lib/convergio/` (absolute fallback)
+
+### Verification After Release
+
+After installing via Homebrew, verify Metal libraries are found:
+```bash
+# Should show lib/convergio/ path or use MPS fallback
+convergio --help  # If it runs, Metal libs are working
+```
+
+---
+
 ## Parallel Execution Architecture
 
 **CRITICAL: This agent MUST maximize parallelization. USE ALL CPU CORES.**
@@ -1110,10 +1167,20 @@ VERSION=$(cat VERSION)
    mkdir -p dist
 
 2. Create tarballs (include Metal shaders):
-   tar -czvf dist/convergio-${VERSION}-arm64-apple-darwin.tar.gz -C build/bin convergio default.metallib
-   tar -czvf dist/convergio-edu-${VERSION}-arm64-apple-darwin.tar.gz -C build/bin convergio-edu default.metallib
-   tar -czvf dist/convergio-biz-${VERSION}-arm64-apple-darwin.tar.gz -C build/bin convergio-biz default.metallib
-   tar -czvf dist/convergio-dev-${VERSION}-arm64-apple-darwin.tar.gz -C build/bin convergio-dev default.metallib
+   # Use Makefile targets which handle metallib inclusion automatically:
+   make dist                          # Master edition
+   make dist EDITION=education        # Education edition
+   make dist EDITION=business         # Business edition
+   make dist EDITION=developer        # Developer edition
+
+   # Metal libraries included in each tarball:
+   # - mlx.metallib (MLX local LLM inference)
+   # - default.metallib (MLX Metal backend)
+   # - similarity.metallib (NOUS GPU similarity search, if compiled)
+
+   # ⚠️ IMPORTANT: Homebrew formulas install Metal libs to lib/convergio/
+   # This allows multiple editions to coexist without conflicts.
+   # See Formula/*.rb for the install paths.
 
 3. Calculate SHA256 for each:
    shasum -a 256 dist/*.tar.gz > dist/SHA256SUMS.txt

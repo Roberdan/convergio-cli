@@ -66,17 +66,39 @@ int nous_gpu_init(void) {
         // Create command queue with max concurrent execution
         g_gpu->commandQueue = [g_gpu->device newCommandQueueWithMaxCommandBufferCount:64];
 
-        // Load shader library
+        // Load shader library - try multiple paths for Homebrew compatibility
         NSError* error = nil;
-        NSString* shaderPath = [[NSBundle mainBundle] pathForResource:@"similarity"
-                                                              ofType:@"metallib"];
-        id<MTLLibrary> library;
+        NSString* shaderPath = nil;
+        id<MTLLibrary> library = nil;
+
+        // Get the path to the executable
+        NSString* execPath = [[NSBundle mainBundle] executablePath];
+        NSString* execDir = [execPath stringByDeletingLastPathComponent];
+
+        // Try paths in order of preference:
+        // 1. Same directory as binary (development/direct install)
+        // 2. ../lib/convergio/ relative to binary (Homebrew install)
+        // 3. /opt/homebrew/lib/convergio/ (Homebrew absolute path)
+        NSArray* searchPaths = @[
+            [execDir stringByAppendingPathComponent:@"similarity.metallib"],
+            [[execDir stringByDeletingLastPathComponent] stringByAppendingPathComponent:@"lib/convergio/similarity.metallib"],
+            @"/opt/homebrew/lib/convergio/similarity.metallib"
+        ];
+
+        for (NSString* path in searchPaths) {
+            if ([[NSFileManager defaultManager] fileExistsAtPath:path]) {
+                shaderPath = path;
+                break;
+            }
+        }
 
         if (shaderPath) {
             // Use newLibraryWithURL instead of deprecated newLibraryWithFile
             NSURL* shaderURL = [NSURL fileURLWithPath:shaderPath];
             library = [g_gpu->device newLibraryWithURL:shaderURL error:&error];
-        } else {
+        }
+
+        if (!library) {
             // Try to load from source
             NSString* sourcePath = @"shaders/similarity.metal";
             NSString* source = [NSString stringWithContentsOfFile:sourcePath

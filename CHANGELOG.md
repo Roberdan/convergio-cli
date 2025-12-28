@@ -7,6 +7,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.4.1] - 2025-12-28
+
+### Fixed
+
+- **Homebrew Multi-Edition Coexistence** - Fixed Metal library conflicts when installing multiple editions
+  - Metal libraries (mlx.metallib, default.metallib, similarity.metallib) now install to `lib/convergio/` instead of `bin/`
+  - All editions can now be installed simultaneously via Homebrew without conflicts
+  - Binaries search for Metal libraries in multiple paths for compatibility
+
+### Changed
+
+- **Makefile Distribution** - Updated `make dist` to support all editions properly
+  - Now uses `EDITION_SUFFIX` for correct binary naming in tarballs
+  - Includes similarity.metallib in distribution when available
+  - Tarball naming matches GitHub release conventions
+
+### Documentation
+
+- Updated app-release-manager agent with Metal library architecture documentation
+- Added Homebrew installation structure diagram
+- Documented runtime library loading paths
+
+## [6.4.0] - 2025-12-27
+
+### Added
+
+- **Conversational Setup Wizard** - AI-guided configuration in all editions
+  - Natural language setup instead of forms
+  - User Profile setup through conversation
+  - Project configuration via dialogue
+  - Preferences gathering conversationally
+  - Automatic JSON extraction and saving
+  - Fallback to form mode if LLM unavailable
+
 ## [6.3.0] - 2025-12-27
 
 ### Added
@@ -25,14 +59,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Start/stop Ollama server from within Convergio
   - Pull new models with recommended suggestions
   - Test connection and verify configuration
-
-- **Conversational Setup Wizard** - AI-guided configuration in all editions
-  - Natural language setup instead of forms
-  - User Profile setup through conversation
-  - Project configuration via dialogue
-  - Preferences gathering conversationally
-  - Automatic JSON extraction and saving
-  - Fallback to form mode if LLM unavailable
 
 - **Extended Workflow Monitor** - Support for complex multi-stage workflows
   - Sequential workflows: step-by-step execution with dependencies

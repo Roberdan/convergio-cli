@@ -682,16 +682,18 @@ hwinfo:
 version:
 	@echo "Convergio v$(VERSION)"
 
-# Distribution tarball
+# Distribution tarball (supports editions: make dist EDITION=education)
 dist: all
 	@mkdir -p dist
 	@cd $(BIN_DIR) && \
-	DIST_FILES="convergio"; \
+	BINARY_NAME="convergio$(EDITION_SUFFIX)"; \
+	DIST_FILES="$$BINARY_NAME"; \
 	if [ -f mlx.metallib ]; then DIST_FILES="$$DIST_FILES mlx.metallib"; fi; \
 	if [ -f default.metallib ]; then DIST_FILES="$$DIST_FILES default.metallib"; fi; \
+	if [ -f similarity.metallib ]; then DIST_FILES="$$DIST_FILES similarity.metallib"; fi; \
 	if [ -d ConvergioNotify.app ]; then DIST_FILES="$$DIST_FILES ConvergioNotify.app"; fi; \
-	tar -czvf ../../dist/convergio-$(VERSION)-darwin-arm64.tar.gz $$DIST_FILES
-	@echo "Created dist/convergio-$(VERSION)-darwin-arm64.tar.gz"
+	tar -czvf ../../dist/$$BINARY_NAME-$(VERSION)-arm64-apple-darwin.tar.gz $$DIST_FILES
+	@echo "Created dist/$$BINARY_NAME-$(VERSION)-arm64-apple-darwin.tar.gz"
 
 release: dist
 	@echo "Release build complete!"

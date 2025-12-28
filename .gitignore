@@ -65,3 +65,4 @@ CMakeFiles/
 *.plist
 
 \!NOGIT
+cmake-build/

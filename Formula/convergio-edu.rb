@@ -1,13 +1,13 @@
 class ConvergioEdu < Formula
   desc "Convergio Education Edition - AI Maestri teachers for K-12 students"
   homepage "https://github.com/Roberdan/convergio-cli"
-  version "6.2.0"
+  version "6.4.0"
   license "MIT"
 
   on_macos do
     on_arm do
-      url "https://github.com/Roberdan/convergio-cli/releases/download/v6.2.0/convergio-edu-6.2.0-arm64-apple-darwin.tar.gz"
-      sha256 "fac2aa160dc9ec25b6d60159b1271616bbf394f65b4a9a501dd7cadc573db2ec"
+      url "https://github.com/Roberdan/convergio-cli/releases/download/v6.4.0/convergio-edu-6.4.0-arm64-apple-darwin.tar.gz"
+      sha256 "8c13e2a3d572836fba7f784a7c622f46dc83e506f4420b252379747cf1f66aac"
     end
   end
 
@@ -16,12 +16,19 @@ class ConvergioEdu < Formula
 
   def install
     bin.install "convergio-edu"
-    # Install Metal libraries for MLX local models
+    # Install Metal libraries to shared lib directory
+    # This allows multiple editions to coexist without conflicts
+    (lib/"convergio").mkpath
+    # MLX Metal libraries (for local LLM inference)
     if File.exist?("mlx.metallib")
-      bin.install "mlx.metallib"
+      (lib/"convergio").install "mlx.metallib"
     end
     if File.exist?("default.metallib")
-      bin.install "default.metallib"
+      (lib/"convergio").install "default.metallib"
+    end
+    # NOUS Metal shaders (for GPU-accelerated similarity search)
+    if File.exist?("similarity.metallib")
+      (lib/"convergio").install "similarity.metallib"
     end
   end
 

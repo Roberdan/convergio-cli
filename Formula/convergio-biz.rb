@@ -1,13 +1,13 @@
 class ConvergioBiz < Formula
   desc "Convergio Business Edition - AI agents for sales, marketing & strategy"
   homepage "https://github.com/Roberdan/convergio-cli"
-  version "6.2.0"
+  version "6.4.0"
   license "MIT"
 
   on_macos do
     on_arm do
-      url "https://github.com/Roberdan/convergio-cli/releases/download/v6.2.0/convergio-biz-6.2.0-arm64-apple-darwin.tar.gz"
-      sha256 "841948547c57b0a3165822950032ef525311686552847661c2adba35cbf4d9fc"
+      url "https://github.com/Roberdan/convergio-cli/releases/download/v6.4.0/convergio-biz-6.4.0-arm64-apple-darwin.tar.gz"
+      sha256 "3d2f9871308ffffb89323c14096dd9e8a26b79e268c4ee2fc3dfd99062f51cfc"
     end
   end
 
@@ -16,12 +16,19 @@ class ConvergioBiz < Formula
 
   def install
     bin.install "convergio-biz"
-    # Install Metal libraries for MLX local models
+    # Install Metal libraries to shared lib directory
+    # This allows multiple editions to coexist without conflicts
+    (lib/"convergio").mkpath
+    # MLX Metal libraries (for local LLM inference)
     if File.exist?("mlx.metallib")
-      bin.install "mlx.metallib"
+      (lib/"convergio").install "mlx.metallib"
     end
     if File.exist?("default.metallib")
-      bin.install "default.metallib"
+      (lib/"convergio").install "default.metallib"
+    end
+    # NOUS Metal shaders (for GPU-accelerated similarity search)
+    if File.exist?("similarity.metallib")
+      (lib/"convergio").install "similarity.metallib"
     end
   end
 
