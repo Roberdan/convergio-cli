@@ -3,9 +3,9 @@
 const fs = require('fs');
 const path = require('path');
 
-// Paths
-const sourceDir = '/Users/roberdan/GitHub/ConvergioCLI/src/agents/definitions/education';
-const outputFile = '/Users/roberdan/GitHub/ConvergioWeb/web/src/data/maestri-full.ts';
+// Paths - use relative paths from script location
+const sourceDir = path.join(__dirname, '../src/agents/definitions/education');
+const outputFile = process.env.EDU_OUTPUT || path.join(__dirname, '../../ConvergioEdu/src/data/maestri-full.ts');
 
 // Files to exclude
 const excludeFiles = [
