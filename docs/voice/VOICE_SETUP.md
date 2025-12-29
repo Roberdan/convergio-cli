@@ -1,7 +1,29 @@
 # Convergio Education - Voice Interaction Setup
 
 **Created**: 2025-12-20
+**Updated**: 2025-12-29
 **ADR**: ADR-002-voice-interaction-architecture.md
+
+> ⚠️ **PRIMA DI INIZIARE**: Leggi [AZURE_REALTIME_API.md](./AZURE_REALTIME_API.md) per la documentazione tecnica completa e i bug già risolti.
+
+## ATTENZIONE: Preview vs GA API
+
+Azure ha **DUE versioni** dell'API Realtime con **event names DIVERSI**:
+
+| Evento | Preview API (`gpt-4o-realtime-preview`) | GA API (`gpt-realtime`) |
+|--------|----------------------------------------|-------------------------|
+| Audio chunk | `response.audio.delta` | `response.output_audio.delta` |
+| Transcript | `response.audio_transcript.delta` | `response.output_audio_transcript.delta` |
+
+**Se il codice aspetta l'evento sbagliato, l'audio arriva ma NON viene riprodotto!**
+
+Controlla sempre il deployment name:
+- Contiene `4o` o `preview`? → Preview API
+- Altrimenti → GA API
+
+Vedi [AZURE_REALTIME_API.md](./AZURE_REALTIME_API.md) per dettagli completi.
+
+---
 
 ## Overview
 
