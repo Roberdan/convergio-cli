@@ -115,7 +115,7 @@ fn extract_iface_name(line: &str) -> Option<String> {
 
 /// Test Anthropic API key with a minimal models endpoint call.
 pub(crate) async fn validate_api_key(key: &str) -> bool {
-    let client = reqwest::Client::new();
+    let client = crate::security::hardened_http_client();
     let resp = client
         .get("https://api.anthropic.com/v1/models")
         .header("x-api-key", key)
@@ -148,7 +148,8 @@ pub(crate) fn write_env_file(api_key: &str) -> io::Result<()> {
         .map(|l| l.to_string())
         .collect();
     lines.push(format!("ANTHROPIC_API_KEY={api_key}"));
-    std::fs::write(&path, lines.join("\n") + "\n")
+    let contents = lines.join("\n") + "\n";
+    crate::security::write_secret_file(&path, &contents)
 }
 
 // ---------------------------------------------------------------------------

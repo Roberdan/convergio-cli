@@ -13,8 +13,14 @@ pub async fn handle(
     yes: bool,
     api_url: &str,
 ) -> Result<(), CliError> {
+    // Validate project ID to prevent path traversal when writing output
+    crate::security::validate_identifier(project_id, "project ID")
+        .map_err(CliError::InvalidInput)?;
+
     let url = format!("{api_url}/api/audit/project/{project_id}");
-    let resp = reqwest::get(&url)
+    let resp = crate::security::hardened_http_client()
+        .get(&url)
+        .send()
         .await
         .map_err(|e| CliError::ApiCallFailed(format!("error connecting to daemon: {e}")))?;
 
@@ -105,7 +111,7 @@ async fn write_report(
         "name": format!("audit_{date_prefix}"),
         "output_type": "audit",
     });
-    let client = reqwest::Client::new();
+    let client = crate::security::hardened_http_client();
     match client
         .post(format!("{api_url}/api/deliverables"))
         .json(&body)

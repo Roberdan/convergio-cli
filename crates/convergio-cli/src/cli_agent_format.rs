@@ -113,7 +113,9 @@ async fn handle_transpile(name: &str, provider: &str, api_url: &str) -> Result<(
         })
         .collect();
     let url = format!("{api_url}/api/agents/catalog?name={enc}");
-    let resp = reqwest::get(&url)
+    let resp = crate::security::hardened_http_client()
+        .get(&url)
+        .send()
         .await
         .map_err(|e| CliError::ApiCallFailed(format!("error connecting to daemon: {e}")))?;
     let val: serde_json::Value = resp

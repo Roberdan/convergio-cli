@@ -9,7 +9,7 @@ const RESET: &str = "\x1b[0m";
 
 pub async fn run_watch(name: &str, api_url: &str) -> Result<(), CliError> {
     let url = format!("{api_url}/api/ipc/stream?agent={name}");
-    let resp = reqwest::Client::new()
+    let resp = crate::security::hardened_http_client()
         .get(&url)
         .send()
         .await

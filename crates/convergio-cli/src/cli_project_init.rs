@@ -146,7 +146,7 @@ async fn register_project(opts: &InitOpts<'_>) -> Result<(), CliError> {
         "repo_path": abs_path.to_string_lossy(),
     });
     let url = format!("{}/api/org/projects/onboard", opts.api_url);
-    let client = reqwest::Client::new();
+    let client = crate::security::hardened_http_client();
 
     let max_attempts: u32 = 3;
     for attempt in 1..=max_attempts {

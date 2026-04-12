@@ -54,7 +54,7 @@ async fn register_agent(
     if let Some(p) = parent {
         body["parent_agent"] = serde_json::json!(p);
     }
-    let client = reqwest::Client::new();
+    let client = crate::security::hardened_http_client();
     let url = format!("{api_url}/api/ipc/agents/register");
     match client.post(&url).json(&body).send().await {
         Ok(resp) if resp.status().is_success() => {
@@ -76,7 +76,7 @@ async fn register_agent(
 
 async fn deregister_agent(api_url: &str, name: &str) {
     let host = hostname();
-    let client = reqwest::Client::new();
+    let client = crate::security::hardened_http_client();
     let url = format!("{api_url}/api/ipc/agents/{name}");
     match client.delete(&url).send().await {
         Ok(_) => eprintln!("✓ deregistered {name}@{host}"),

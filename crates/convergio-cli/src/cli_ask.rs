@@ -132,7 +132,7 @@ fn handle_set(alias: &str, agent: &str) -> Result<(), CliError> {
 }
 
 async fn run_ask(_from: &str, to: &str, message: &str, _timeout_secs: u64, api_url: &str) {
-    let client = reqwest::Client::new();
+    let client = crate::security::hardened_http_client();
     let body = json!({
         "agent": to,
         "message": message,

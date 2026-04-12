@@ -21,8 +21,18 @@ pub fn env_file_path() -> PathBuf {
 }
 
 /// Output directory for a project: ~/.convergio/projects/{name}/output
+/// Validates `name` to prevent path traversal.
 pub fn project_output_dir(name: &str) -> PathBuf {
-    convergio_dir().join("projects").join(name).join("output")
+    if let Err(e) = crate::security::validate_identifier(name, "project name") {
+        eprintln!("error: {e}");
+        // Return a safe fallback that won't create dirs in unexpected places
+        convergio_dir()
+            .join("projects")
+            .join("_invalid")
+            .join("output")
+    } else {
+        convergio_dir().join("projects").join(name).join("output")
+    }
 }
 
 #[cfg(test)]

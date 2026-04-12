@@ -21,6 +21,9 @@ pub async fn handle_create(
     yes: bool,
     api_url: &str,
 ) -> Result<(), CliError> {
+    // Validate project name to prevent path traversal
+    crate::security::validate_identifier(name, "project name").map_err(CliError::InvalidInput)?;
+
     if !input.exists() {
         return Err(CliError::InvalidInput(format!(
             "input folder does not exist: {}",
@@ -66,7 +69,7 @@ pub async fn handle_create(
         "output_path": output_abs.to_string_lossy(),
     });
 
-    let client = reqwest::Client::new();
+    let client = crate::security::hardened_http_client();
     let resp = client
         .post(format!("{api_url}/api/dashboard/projects"))
         .json(&body)
@@ -91,7 +94,9 @@ pub async fn handle_create(
 
 pub async fn handle_show(id: &str, api_url: &str) -> Result<(), CliError> {
     let project_url = format!("{api_url}/api/dashboard/projects");
-    let resp = reqwest::get(&project_url)
+    let resp = crate::security::hardened_http_client()
+        .get(&project_url)
+        .send()
         .await
         .map_err(|e| CliError::ApiCallFailed(format!("daemon: {e}")))?;
     let val: serde_json::Value = resp
@@ -128,7 +133,11 @@ pub async fn handle_plans(id: &str, api_url: &str) -> Result<(), CliError> {
 
 async fn fetch_deliverable_count(project_id: &str, api_url: &str) -> i64 {
     let url = format!("{api_url}/api/deliverables?project_id={project_id}&count_only=true");
-    match reqwest::get(&url).await {
+    match crate::security::hardened_http_client()
+        .get(&url)
+        .send()
+        .await
+    {
         Ok(resp) => match resp.json::<serde_json::Value>().await {
             Ok(v) => v
                 .get("count")

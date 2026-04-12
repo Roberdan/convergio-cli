@@ -97,7 +97,9 @@ pub async fn handle(cmd: BuildCommands) -> Result<(), CliError> {
 }
 
 async fn fetch_and_print(url: &str, human: bool) -> Result<(), CliError> {
-    let resp = reqwest::get(url)
+    let resp = crate::security::hardened_http_client()
+        .get(url)
+        .send()
         .await
         .map_err(|e| CliError::ApiCallFailed(format!("error connecting to daemon: {e}")))?;
     let status = resp.status();
@@ -113,7 +115,7 @@ async fn fetch_and_print(url: &str, human: bool) -> Result<(), CliError> {
 }
 
 async fn post_and_print(url: &str, body: &serde_json::Value, human: bool) -> Result<(), CliError> {
-    let client = reqwest::Client::new();
+    let client = crate::security::hardened_http_client();
     let resp = client
         .post(url)
         .json(body)

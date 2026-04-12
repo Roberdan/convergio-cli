@@ -187,7 +187,12 @@ pub async fn handle(skill_dir: &Path, api_url: &str, human: bool) -> Result<(), 
         }
         let body = serde_json::json!({"name": agent_name});
         let url = format!("{api_url}/api/agents/disable");
-        match reqwest::Client::new().post(&url).json(&body).send().await {
+        match crate::security::hardened_http_client()
+            .post(&url)
+            .json(&body)
+            .send()
+            .await
+        {
             Ok(resp) if resp.status().is_success() => {
                 plugin_result.disabled_agents.push(agent_name.clone());
                 if human {

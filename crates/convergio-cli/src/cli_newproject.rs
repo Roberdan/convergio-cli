@@ -142,7 +142,7 @@ async fn register_agent(api_url: &str, name: &str, agent_type: &str) -> Result<(
         "agent_type": agent_type,
         "pid": std::process::id(),
     });
-    let client = reqwest::Client::new();
+    let client = crate::security::hardened_http_client();
     let url = format!("{api_url}/api/ipc/agents/register");
     let resp = client
         .post(&url)
@@ -161,7 +161,7 @@ async fn register_agent(api_url: &str, name: &str, agent_type: &str) -> Result<(
 }
 
 async fn deregister_agent(api_url: &str, name: &str) -> Result<(), CliError> {
-    let client = reqwest::Client::new();
+    let client = crate::security::hardened_http_client();
     let url = format!("{api_url}/api/ipc/agents/{name}");
     let resp = client
         .delete(&url)

@@ -115,7 +115,7 @@ pub async fn handle_mesh(cmd: MeshCommands) {
                 }
             }
 
-            let client = reqwest::Client::new();
+            let client = crate::security::hardened_http_client();
             let url = format!("{api_url}/api/heartbeat");
             let req = client
                 .post(&url)
@@ -206,11 +206,11 @@ fn compute_mesh_signature(body: &[u8]) -> Option<String> {
     let text = std::fs::read_to_string(&conf_path).ok()?;
     let secret = text.lines().find_map(|line| {
         let trimmed = line.trim();
-        if trimmed.starts_with("shared_secret") {
-            trimmed.split('=').nth(1).map(|v| v.trim().to_string())
-        } else {
-            None
-        }
+        // Strict key match: only "shared_secret = <value>" or "shared_secret=<value>"
+        trimmed
+            .strip_prefix("shared_secret")
+            .and_then(|rest| rest.trim_start().strip_prefix('='))
+            .map(|v| v.trim().to_string())
     })?;
     if secret.is_empty() {
         return None;

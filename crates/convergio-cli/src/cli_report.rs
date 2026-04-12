@@ -125,7 +125,7 @@ pub async fn handle(cmd: ReportCommands) -> Result<(), CliError> {
             api_url,
         } => {
             let url = format!("{api_url}/api/reports/{id}/download");
-            let client = reqwest::Client::new();
+            let client = crate::security::hardened_http_client();
             let resp = client
                 .get(&url)
                 .send()

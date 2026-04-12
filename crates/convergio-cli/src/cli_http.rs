@@ -10,7 +10,11 @@ fn auth_header_value(token: Option<&str>) -> Option<String> {
         .map(|value| format!("Bearer {value}"))
 }
 
-fn with_auth(req: reqwest::RequestBuilder) -> reqwest::RequestBuilder {
+/// Attach auth header only when the target URL is safe (loopback or HTTPS).
+fn with_auth(req: reqwest::RequestBuilder, url: &str) -> reqwest::RequestBuilder {
+    if crate::security::validate_daemon_url(url).is_err() {
+        return req;
+    }
     match auth_header_value(std::env::var("CONVERGIO_AUTH_TOKEN").ok().as_deref()) {
         Some(value) => req.header("Authorization", value),
         None => req,
@@ -18,8 +22,8 @@ fn with_auth(req: reqwest::RequestBuilder) -> reqwest::RequestBuilder {
 }
 
 pub async fn fetch_and_print(url: &str, human: bool) -> Result<(), CliError> {
-    let client = reqwest::Client::new();
-    match with_auth(client.get(url)).send().await {
+    let client = crate::security::hardened_http_client();
+    match with_auth(client.get(url), url).send().await {
         Ok(resp) => {
             let status = resp.status();
             let val: serde_json::Value = resp
@@ -43,8 +47,8 @@ pub async fn post_and_print(
     body: &serde_json::Value,
     human: bool,
 ) -> Result<(), CliError> {
-    let client = reqwest::Client::new();
-    match with_auth(client.post(url)).json(body).send().await {
+    let client = crate::security::hardened_http_client();
+    match with_auth(client.post(url), url).json(body).send().await {
         Ok(resp) => {
             let status = resp.status();
             let val: serde_json::Value = resp
@@ -70,8 +74,8 @@ pub async fn patch_and_print(
     body: &serde_json::Value,
     human: bool,
 ) -> Result<(), CliError> {
-    let client = reqwest::Client::new();
-    match with_auth(client.patch(url)).json(body).send().await {
+    let client = crate::security::hardened_http_client();
+    match with_auth(client.patch(url), url).json(body).send().await {
         Ok(resp) => {
             let status = resp.status();
             let val: serde_json::Value = resp
@@ -95,8 +99,8 @@ pub async fn post_and_return(
     url: &str,
     body: &serde_json::Value,
 ) -> Result<serde_json::Value, i32> {
-    let client = reqwest::Client::new();
-    match with_auth(client.post(url)).json(body).send().await {
+    let client = crate::security::hardened_http_client();
+    match with_auth(client.post(url), url).json(body).send().await {
         Ok(resp) => {
             let status = resp.status();
             match resp.json::<serde_json::Value>().await {
@@ -104,18 +108,18 @@ pub async fn post_and_return(
                     if status.is_success() {
                         Ok(val)
                     } else {
-                        eprintln!("error response from {url}: {val}");
+                        eprintln!("error: daemon returned HTTP {status}");
                         Err(1)
                     }
                 }
-                Err(e) => {
-                    eprintln!("error parsing response from {url}: {e}");
+                Err(_) => {
+                    eprintln!("error: failed to parse daemon response");
                     Err(2)
                 }
             }
         }
-        Err(e) => {
-            eprintln!("error connecting to daemon ({url}): {e}");
+        Err(_) => {
+            eprintln!("error: cannot connect to daemon");
             Err(2)
         }
     }
@@ -123,8 +127,8 @@ pub async fn post_and_return(
 
 /// GET `url` and return the parsed JSON value without printing.
 pub async fn get_and_return(url: &str) -> Result<serde_json::Value, i32> {
-    let client = reqwest::Client::new();
-    match with_auth(client.get(url)).send().await {
+    let client = crate::security::hardened_http_client();
+    match with_auth(client.get(url), url).send().await {
         Ok(resp) => {
             let status = resp.status();
             match resp.json::<serde_json::Value>().await {
@@ -132,18 +136,18 @@ pub async fn get_and_return(url: &str) -> Result<serde_json::Value, i32> {
                     if status.is_success() {
                         Ok(val)
                     } else {
-                        eprintln!("error response from {url}: {val}");
+                        eprintln!("error: daemon returned HTTP {status}");
                         Err(1)
                     }
                 }
-                Err(e) => {
-                    eprintln!("error parsing response from {url}: {e}");
+                Err(_) => {
+                    eprintln!("error: failed to parse daemon response");
                     Err(2)
                 }
             }
         }
-        Err(e) => {
-            eprintln!("error connecting to daemon ({url}): {e}");
+        Err(_) => {
+            eprintln!("error: cannot connect to daemon");
             Err(2)
         }
     }
@@ -153,8 +157,8 @@ pub async fn get_and_return(url: &str) -> Result<serde_json::Value, i32> {
 /// Unlike `get_and_return`, this never prints to stderr — useful
 /// for enrichment calls where failure is non-fatal.
 pub async fn get_json_or_default(url: &str, fallback: serde_json::Value) -> serde_json::Value {
-    let client = reqwest::Client::new();
-    let Ok(resp) = with_auth(client.get(url)).send().await else {
+    let client = crate::security::hardened_http_client();
+    let Ok(resp) = with_auth(client.get(url), url).send().await else {
         return fallback;
     };
     if !resp.status().is_success() {

@@ -8,6 +8,7 @@ pub mod cli_http;
 pub mod human_output;
 pub mod message_error;
 pub mod paths;
+pub mod security;
 pub mod transpiler;
 
 // Command enum + dispatch

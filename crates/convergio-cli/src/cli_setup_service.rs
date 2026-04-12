@@ -117,9 +117,15 @@ pub(crate) fn offer_tailscale_install() -> bool {
 
     #[cfg(target_os = "linux")]
     {
-        println!("  Installing via official script...");
+        println!("  Installing via package manager...");
+        // Avoid curl|sh — use apt/dnf when available for supply-chain safety
         let out = std::process::Command::new("sh")
-            .args(["-c", "curl -fsSL https://tailscale.com/install.sh | sh"])
+            .args([
+                "-c",
+                "command -v apt-get >/dev/null 2>&1 && sudo apt-get install -y tailscale || \
+                 command -v dnf >/dev/null 2>&1 && sudo dnf install -y tailscale || \
+                 { echo 'No supported package manager. Visit https://tailscale.com/download'; exit 1; }",
+            ])
             .output();
         match out {
             Ok(o) if o.status.success() => {

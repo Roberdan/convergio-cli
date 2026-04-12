@@ -75,7 +75,7 @@ pub(crate) async fn setup_telegram() -> Result<bool, CliError> {
 
 async fn validate_bot_token(token: &str) -> Result<String, String> {
     let url = format!("https://api.telegram.org/bot{token}/getMe");
-    let client = reqwest::Client::new();
+    let client = crate::security::hardened_http_client();
     let resp = client
         .get(&url)
         .send()
@@ -100,10 +100,15 @@ async fn validate_bot_token(token: &str) -> Result<String, String> {
 
 fn store_telegram_token(token: &str) -> Result<(), CliError> {
     let env_path = crate::paths::env_file_path();
-    // Backup existing env file before modifying
+    // Backup existing env file before modifying (with restrictive perms)
     if env_path.exists() {
         let backup = env_path.with_extension("env.bak");
         std::fs::copy(&env_path, &backup).map_err(CliError::Io)?;
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let _ = std::fs::set_permissions(&backup, std::fs::Permissions::from_mode(0o600));
+        }
     }
 
     let existing = std::fs::read_to_string(&env_path).unwrap_or_default();
@@ -117,7 +122,8 @@ fn store_telegram_token(token: &str) -> Result<(), CliError> {
     if let Some(parent) = env_path.parent() {
         std::fs::create_dir_all(parent).map_err(CliError::Io)?;
     }
-    std::fs::write(&env_path, lines.join("\n") + "\n").map_err(CliError::Io)
+    let contents = lines.join("\n") + "\n";
+    crate::security::write_secret_file(&env_path, &contents).map_err(CliError::Io)
 }
 
 #[cfg(target_os = "macos")]

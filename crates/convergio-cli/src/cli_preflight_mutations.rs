@@ -21,7 +21,11 @@ pub(crate) async fn check_auth(api: &str, r: &mut Report) {
         .filter(|t| !t.trim().is_empty())
         .is_some();
 
-    let status = match reqwest::Client::new().get(&url).send().await {
+    let status = match crate::security::hardened_http_client()
+        .get(&url)
+        .send()
+        .await
+    {
         Ok(resp) => resp.status().as_u16(),
         Err(_) => {
             r.auth_mode = "unreachable".into();
@@ -110,7 +114,7 @@ pub(crate) async fn check_mutations(api: &str, r: &mut Report) {
     }
 
     // Best-effort cleanup
-    let client = reqwest::Client::new();
+    let client = crate::security::hardened_http_client();
     let _ = client
         .delete(format!("{api}/api/orgs/{org_id}/members/preflight-cleanup"))
         .send()

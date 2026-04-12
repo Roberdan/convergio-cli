@@ -103,7 +103,12 @@ pub async fn handle(skill_dir: &Path, api_url: &str, human: bool) -> Result<(), 
         }
         let body = serde_json::json!({"name": agent_name, "target_dir": ".github/agents"});
         let url = format!("{api_url}/api/agents/enable");
-        match reqwest::Client::new().post(&url).json(&body).send().await {
+        match crate::security::hardened_http_client()
+            .post(&url)
+            .json(&body)
+            .send()
+            .await
+        {
             Ok(resp) if resp.status().is_success() => {
                 agents_enabled += 1;
                 if human {

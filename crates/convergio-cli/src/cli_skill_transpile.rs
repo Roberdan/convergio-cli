@@ -73,7 +73,7 @@ pub fn transpile_claude(yaml: &str, md: &str, output_dir: &Path) -> MessageResul
     }
     out.push_str(&md_body);
 
-    let out_path = output_dir.join(format!("{name}.md"));
+    let out_path = output_dir.join(format!("{}.md", crate::security::sanitize_filename(&name)));
     std::fs::write(&out_path, &out).map_err(|e| format!("write error: {e}"))?;
     Ok(out_path)
 }
@@ -98,7 +98,10 @@ pub fn transpile_copilot(yaml: &str, md: &str, output_dir: &Path) -> MessageResu
     out.push_str(&format!("# {cap_name}\n\n"));
     out.push_str(&md_body);
 
-    let out_path = output_dir.join(format!("{name}.agent.md"));
+    let out_path = output_dir.join(format!(
+        "{}.agent.md",
+        crate::security::sanitize_filename(&name)
+    ));
     std::fs::write(&out_path, &out).map_err(|e| format!("write error: {e}"))?;
     Ok(out_path)
 }

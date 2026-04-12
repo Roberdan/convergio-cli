@@ -152,7 +152,7 @@ async fn create_org_and_spawn_ceo(
     ceo_agent: &str,
     api_url: &str,
 ) -> Result<(), CliError> {
-    let client = reqwest::Client::new();
+    let client = crate::security::hardened_http_client();
     let create_body = json!({
         "id": name,
         "mission": mission,

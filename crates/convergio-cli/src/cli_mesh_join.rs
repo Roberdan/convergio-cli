@@ -40,11 +40,13 @@ pub(crate) async fn handle_mesh_join(coordinator_url: &str) -> Result<(), CliErr
 
     print!("  Registering with coordinator... ");
     let url = format!("{coordinator_url}/api/mesh/register");
-    let client = reqwest::Client::new();
+    let client = crate::security::hardened_http_client();
     let mut request = client.post(&url).json(&body);
-    if let Ok(token) = std::env::var("CONVERGIO_AUTH_TOKEN") {
-        if !token.is_empty() {
-            request = request.bearer_auth(token);
+    if crate::security::validate_daemon_url(coordinator_url).is_ok() {
+        if let Ok(token) = std::env::var("CONVERGIO_AUTH_TOKEN") {
+            if !token.is_empty() {
+                request = request.bearer_auth(token);
+            }
         }
     }
     let resp = request
@@ -71,7 +73,7 @@ pub(crate) async fn handle_mesh_join(coordinator_url: &str) -> Result<(), CliErr
         if let Some(parent) = path.parent() {
             std::fs::create_dir_all(parent).map_err(CliError::Io)?;
         }
-        std::fs::write(&path, peers_config).map_err(CliError::Io)?;
+        crate::security::write_secret_file(&path, peers_config).map_err(CliError::Io)?;
         println!("  peers.conf written to {}", path.display());
     }
 
@@ -177,6 +179,11 @@ fn merge_env_file(new_content: &str) -> Result<(), CliError> {
             if k.is_empty() {
                 continue;
             }
+            // Security: only allow known env keys from remote sources
+            if !crate::security::is_allowed_env_key(k) {
+                eprintln!("  warning: skipping disallowed env key from coordinator: {k}");
+                continue;
+            }
             // F-30: exact key match — split existing lines on '=' and compare full key name
             if !lines.iter().any(|l| {
                 l.trim_start()
@@ -188,5 +195,6 @@ fn merge_env_file(new_content: &str) -> Result<(), CliError> {
             }
         }
     }
-    std::fs::write(&path, lines.join("\n") + "\n").map_err(CliError::Io)
+    let contents = lines.join("\n") + "\n";
+    crate::security::write_secret_file(&path, &contents).map_err(CliError::Io)
 }

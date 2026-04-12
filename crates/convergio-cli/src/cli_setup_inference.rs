@@ -83,11 +83,19 @@ pub(crate) async fn setup_inference() -> Result<InferenceChoice, CliError> {
                 } else {
                     println!("FAILED (saving anyway)");
                 }
-                // Backup env before writing
+                // Backup env before writing (with restrictive perms)
                 let env_path = crate::paths::env_file_path();
                 if env_path.exists() {
                     let backup = env_path.with_extension("env.bak");
                     let _ = std::fs::copy(&env_path, &backup);
+                    #[cfg(unix)]
+                    {
+                        use std::os::unix::fs::PermissionsExt;
+                        let _ = std::fs::set_permissions(
+                            &backup,
+                            std::fs::Permissions::from_mode(0o600),
+                        );
+                    }
                 }
                 crate::cli_setup_steps::write_env_file(&key).map_err(CliError::Io)?;
                 result.api_key = Some(key);
