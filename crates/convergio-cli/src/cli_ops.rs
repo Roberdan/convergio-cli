@@ -215,7 +215,7 @@ fn compute_mesh_signature(body: &[u8]) -> Option<String> {
     if secret.is_empty() {
         return None;
     }
-    use hmac::{Hmac, Mac};
+    use hmac::{Hmac, KeyInit, Mac};
     use sha2::Sha256;
     let mut mac = Hmac::<Sha256>::new_from_slice(secret.as_bytes()).ok()?;
     mac.update(body);

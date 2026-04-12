@@ -45,7 +45,7 @@ pub(crate) async fn handle_setup(defaults: bool) -> Result<(), CliError> {
     }
     let role_idx = Select::new()
         .with_prompt("Select role")
-        .items(&ROLES)
+        .items(ROLES)
         .default(0)
         .interact()
         .map_err(|e| CliError::InvalidInput(e.to_string()))?;

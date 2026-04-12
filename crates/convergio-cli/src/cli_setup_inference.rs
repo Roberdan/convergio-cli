@@ -148,7 +148,7 @@ fn select_mlx_model() -> Result<String, CliError> {
     }
     let idx = Select::new()
         .with_prompt("  Select MLX model")
-        .items(&models)
+        .items(models)
         .default(0)
         .interact()
         .map_err(|e| CliError::InvalidInput(e.to_string()))?;
