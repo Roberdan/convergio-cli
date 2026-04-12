@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.2](https://github.com/Roberdan/convergio-cli/compare/convergio-cli-v0.1.1...convergio-cli-v0.1.2) (2026-04-12)
+
+
+### Bug Fixes
+
+* Add KeyInit import for Hmac API change in v0.1.9 ([e770000](https://github.com/Roberdan/convergio-cli/commit/e770000536c207381fb6afc344f9506cae92caf3))
+
 ## [0.1.1](https://github.com/Roberdan/convergio-cli/compare/convergio-cli-v0.1.0...convergio-cli-v0.1.1) (2026-04-12)
 
 
