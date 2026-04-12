@@ -21,7 +21,7 @@ serde_json = "1.0"
 tokio = { version = "1.44", features = ["macros", "rt-multi-thread", "signal", "sync", "time", "fs", "io-util", "process"] }
 reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls", "stream"] }
 clap = { version = "4", features = ["derive"] }
-dirs = "5"
+dirs = "6"
 dialoguer = "0.12"
 hostname = "0.4"
 toml = "1.1"
