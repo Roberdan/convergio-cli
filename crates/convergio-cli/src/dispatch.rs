@@ -5,10 +5,10 @@ use crate::cli_commands::Commands;
 use crate::cli_error::CliError;
 use crate::{
     cli_agent_format, cli_ask, cli_audit, cli_audit_project, cli_build, cli_bus, cli_capability,
-    cli_channel, cli_chat, cli_checkpoint, cli_delegation, cli_deploy, cli_doctor, cli_domain,
-    cli_kb, cli_kernel, cli_launch, cli_lock, cli_memory, cli_night, cli_night_agents, cli_ops,
-    cli_org, cli_plan, cli_project, cli_reap, cli_repo, cli_report, cli_review, cli_run, cli_setup,
-    cli_skill, cli_status, cli_task, cli_voice, cli_wave, cli_who, cli_workspace,
+    cli_chain, cli_channel, cli_chat, cli_checkpoint, cli_delegation, cli_deploy, cli_doctor,
+    cli_domain, cli_kb, cli_kernel, cli_launch, cli_lock, cli_memory, cli_night, cli_night_agents,
+    cli_ops, cli_org, cli_plan, cli_project, cli_reap, cli_repo, cli_report, cli_review, cli_run,
+    cli_setup, cli_skill, cli_status, cli_task, cli_voice, cli_wave, cli_who, cli_workspace,
 };
 use std::process::ExitCode;
 
@@ -111,6 +111,7 @@ pub async fn dispatch(command: Commands) -> ExitCode {
         Commands::Night { command } => exit_on_err(cli_night::handle(command).await),
         Commands::NightAgents { command } => exit_on_err(cli_night_agents::handle(command).await),
         Commands::Report { command } => exit_on_err(cli_report::handle(command).await),
+        Commands::Chain { command } => exit_on_err(cli_chain::handle(command).await),
         Commands::Cleanup => exit_on_err(crate::cli_cleanup::handle().await),
         Commands::Claude {
             name,

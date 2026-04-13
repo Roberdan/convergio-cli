@@ -1,9 +1,10 @@
 // CLI Commands enum — all top-level subcommands for cvg.
 use crate::{
-    cli_agent, cli_build, cli_bus, cli_capability, cli_channel, cli_checkpoint, cli_delegation,
-    cli_deploy, cli_doctor, cli_domain, cli_kb, cli_kernel, cli_lock, cli_memory, cli_night,
-    cli_night_agents, cli_ops, cli_org, cli_plan, cli_project, cli_reap, cli_repo, cli_report,
-    cli_review, cli_run, cli_skill, cli_task, cli_voice, cli_wave, cli_who, cli_workspace,
+    cli_agent, cli_build, cli_bus, cli_capability, cli_chain, cli_channel, cli_checkpoint,
+    cli_delegation, cli_deploy, cli_doctor, cli_domain, cli_kb, cli_kernel, cli_lock, cli_memory,
+    cli_night, cli_night_agents, cli_ops, cli_org, cli_plan, cli_project, cli_reap, cli_repo,
+    cli_report, cli_review, cli_run, cli_skill, cli_task, cli_voice, cli_wave, cli_who,
+    cli_workspace,
 };
 use clap::Subcommand;
 use std::path::PathBuf;
@@ -212,6 +213,11 @@ pub enum Commands {
     Report {
         #[command(subcommand)]
         command: cli_report::ReportCommands,
+    },
+    #[command(about = "Ecosystem dependency chain: overview, status, cascade bumps")]
+    Chain {
+        #[command(subcommand)]
+        command: cli_chain::ChainCommands,
     },
     #[command(about = "Clean up stale worktree branches")]
     Cleanup,

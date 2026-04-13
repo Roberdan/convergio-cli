@@ -30,6 +30,8 @@ pub mod cli_bus_ask;
 pub mod cli_bus_org;
 pub mod cli_bus_watch;
 pub mod cli_capability;
+pub mod cli_chain;
+pub mod cli_chain_handlers;
 pub mod cli_channel;
 pub mod cli_chat;
 pub mod cli_cheatsheet;
