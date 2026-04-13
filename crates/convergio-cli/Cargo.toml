@@ -4,6 +4,7 @@ description = "Convergio CLI — command-line interface for all Convergio operat
 version = "0.1.4"
 edition.workspace = true
 license.workspace = true
+repository = "https://github.com/Roberdan/convergio-cli"
 
 [[bin]]
 name = "cvg"
