@@ -4,20 +4,27 @@
 
 /// Generate Claude Code .agent.md format with YAML frontmatter.
 pub fn transpile_claude_code(name: &str, description: &str, model: &str, tools: &str) -> String {
+    let safe_desc = description
+        .replace('\\', "\\\\")
+        .replace('"', "\\\"")
+        .replace('\n', " ");
+    let safe_name = name.replace(['\n', ':'], " ");
+    let safe_model = model.replace('\n', " ");
     let mut out = String::new();
     out.push_str("---\n");
-    out.push_str(&format!("name: {name}\n"));
-    out.push_str(&format!("description: \"{description}\"\n"));
-    out.push_str(&format!("model: {model}\n"));
+    out.push_str(&format!("name: {safe_name}\n"));
+    out.push_str(&format!("description: \"{safe_desc}\"\n"));
+    out.push_str(&format!("model: {safe_model}\n"));
     out.push_str("tools:\n");
     for tool in tools.split(',') {
         let tool = tool.trim();
         if !tool.is_empty() {
-            out.push_str(&format!("  - {tool}\n"));
+            let safe_tool = tool.replace('\n', "");
+            out.push_str(&format!("  - {safe_tool}\n"));
         }
     }
     out.push_str("---\n\n");
-    out.push_str(&format!("# {name}\n\n"));
+    out.push_str(&format!("# {safe_name}\n\n"));
     out.push_str(description);
     out.push('\n');
     out

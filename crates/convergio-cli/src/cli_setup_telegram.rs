@@ -99,6 +99,8 @@ async fn validate_bot_token(token: &str) -> Result<String, String> {
 }
 
 fn store_telegram_token(token: &str) -> Result<(), CliError> {
+    let token = crate::security::sanitize_env_value(token)
+        .map_err(|e| CliError::InvalidInput(format!("invalid token: {e}")))?;
     let env_path = crate::paths::env_file_path();
     // Backup existing env file before modifying (with restrictive perms)
     if env_path.exists() {

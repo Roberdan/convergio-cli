@@ -19,11 +19,7 @@ fn status_icon(status: &str) -> &'static str {
 
 /// Truncate a string to `max` chars, appending ellipsis if needed.
 fn truncate(s: &str, max: usize) -> String {
-    if s.len() <= max {
-        s.to_string()
-    } else {
-        format!("{}...", &s[..max.saturating_sub(3)])
-    }
+    crate::security::safe_truncate(s, max)
 }
 
 /// Print a plan in human-readable format from the /api/plan-db/json response.

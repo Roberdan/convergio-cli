@@ -77,7 +77,8 @@ async fn register_agent(
 async fn deregister_agent(api_url: &str, name: &str) {
     let host = hostname();
     let client = crate::security::hardened_http_client();
-    let url = format!("{api_url}/api/ipc/agents/{name}");
+    let encoded = crate::security::encode_path_segment(name);
+    let url = format!("{api_url}/api/ipc/agents/{encoded}");
     match client.delete(&url).send().await {
         Ok(_) => eprintln!("✓ deregistered {name}@{host}"),
         Err(e) => eprintln!("⚠ deregister failed: {e}"),

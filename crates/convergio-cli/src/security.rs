@@ -124,6 +124,44 @@ pub fn is_allowed_env_key(key: &str) -> bool {
         .any(|&allowed| allowed == key.trim())
 }
 
+/// Truncate a string to `max` characters on a valid UTF-8 boundary.
+/// Appends "..." when truncated.
+pub fn safe_truncate(s: &str, max: usize) -> String {
+    if s.chars().count() <= max {
+        s.to_string()
+    } else {
+        let truncated: String = s.chars().take(max.saturating_sub(3)).collect();
+        format!("{truncated}...")
+    }
+}
+
+/// Sanitize an environment variable value: reject newlines and control chars
+/// that could inject additional KEY=VALUE lines into env files.
+pub fn sanitize_env_value(val: &str) -> Result<String, String> {
+    let trimmed = val.trim();
+    if trimmed.contains('\n') || trimmed.contains('\r') || trimmed.contains('\0') {
+        return Err("value contains newline or null characters".into());
+    }
+    if trimmed.chars().any(|c| c.is_control() && c != '\t') {
+        return Err("value contains control characters".into());
+    }
+    Ok(trimmed.to_string())
+}
+
+/// Percent-encode a string for safe use as a URL path segment.
+pub fn encode_path_segment(segment: &str) -> String {
+    url::form_urlencoded::byte_serialize(segment.as_bytes()).collect()
+}
+
+/// Escape a string for safe inclusion in a TOML quoted value.
+pub fn escape_toml_value(s: &str) -> String {
+    s.replace('\\', "\\\\")
+        .replace('"', "\\\"")
+        .replace('\n', "\\n")
+        .replace('\r', "\\r")
+        .replace('\t', "\\t")
+}
+
 /// Create a hardened reqwest client with timeouts and restricted redirects.
 pub fn hardened_http_client() -> reqwest::Client {
     reqwest::Client::builder()
@@ -215,5 +253,42 @@ mod tests {
         assert!(is_allowed_env_key("ANTHROPIC_API_KEY"));
         assert!(!is_allowed_env_key("PATH"));
         assert!(!is_allowed_env_key("LD_PRELOAD"));
+    }
+
+    #[test]
+    fn safe_truncate_ascii() {
+        assert_eq!(safe_truncate("hello", 10), "hello");
+        assert_eq!(safe_truncate("hello world!", 8), "hello...");
+    }
+
+    #[test]
+    fn safe_truncate_multibyte() {
+        // 5 chars, each 3 bytes in UTF-8
+        let s = "àèìòù";
+        let result = safe_truncate(s, 4);
+        assert!(result.ends_with("..."));
+        // Must not panic
+        let _ = safe_truncate(s, 1);
+    }
+
+    #[test]
+    fn sanitize_env_value_rejects_newlines() {
+        assert!(sanitize_env_value("good-value").is_ok());
+        assert!(sanitize_env_value("has\nnewline").is_err());
+        assert!(sanitize_env_value("has\r\nCRLF").is_err());
+        assert!(sanitize_env_value("has\0null").is_err());
+    }
+
+    #[test]
+    fn encode_path_segment_encodes_special_chars() {
+        assert_eq!(encode_path_segment("foo/bar"), "foo%2Fbar");
+        assert_eq!(encode_path_segment("a&b=c"), "a%26b%3Dc");
+    }
+
+    #[test]
+    fn escape_toml_handles_special_chars() {
+        assert_eq!(escape_toml_value("hello"), "hello");
+        assert_eq!(escape_toml_value("a\"b"), "a\\\"b");
+        assert_eq!(escape_toml_value("line\nbreak"), "line\\nbreak");
     }
 }

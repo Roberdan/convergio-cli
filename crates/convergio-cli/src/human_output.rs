@@ -197,9 +197,8 @@ fn format_table(arr: &[Value], columns: &[String]) -> String {
                 .get(col)
                 .map(format_scalar)
                 .unwrap_or_else(|| "-".to_string());
-            // Truncate long cells
-            let cell = if cell.len() > 40 {
-                format!("{}...", &cell[..37])
+            let cell = if cell.chars().count() > 40 {
+                crate::security::safe_truncate(&cell, 40)
             } else {
                 cell
             };

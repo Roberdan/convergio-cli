@@ -109,7 +109,10 @@ async fn dispatch_inner(cmd: KernelCommands) -> Result<(), CliError> {
         } => {
             let mut url = format!("{api_url}/api/kernel/logs?limit={limit}");
             if let Some(l) = level {
-                url.push_str(&format!("&level={l}"));
+                url.push_str(&format!(
+                    "&level={}",
+                    crate::security::encode_path_segment(&l)
+                ));
             }
             let val = crate::cli_http::get_and_return(&url)
                 .await
@@ -156,6 +159,7 @@ async fn dispatch_inner(cmd: KernelCommands) -> Result<(), CliError> {
             let script_path =
                 script.unwrap_or_else(|| "scripts/kernel/setup-models.sh".to_string());
             let status = std::process::Command::new("bash")
+                .arg("--")
                 .arg(&script_path)
                 .status()
                 .map_err(|e| {

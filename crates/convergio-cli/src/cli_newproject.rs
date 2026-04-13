@@ -162,7 +162,8 @@ async fn register_agent(api_url: &str, name: &str, agent_type: &str) -> Result<(
 
 async fn deregister_agent(api_url: &str, name: &str) -> Result<(), CliError> {
     let client = crate::security::hardened_http_client();
-    let url = format!("{api_url}/api/ipc/agents/{name}");
+    let encoded = crate::security::encode_path_segment(name);
+    let url = format!("{api_url}/api/ipc/agents/{encoded}");
     let resp = client
         .delete(&url)
         .send()
