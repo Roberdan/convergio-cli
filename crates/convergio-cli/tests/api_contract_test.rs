@@ -209,6 +209,9 @@ fn cli_endpoints_match_server_routes() {
         "/api/night-agents/routing/migrate-all", // extracted to external repo (night-agents)
         "/api/night-agents/routing/stats",       // extracted to external repo (night-agents)
         "/api/plan-db/list",                     // extracted to external repo (orchestrator)
+        "/api/chain/overview",                   // daemon chain API (not in CLI crate routes)
+        "/api/chain/status",                     // daemon chain API (not in CLI crate routes)
+        "/api/chain/bump",                       // daemon chain API (not in CLI crate routes)
     ]
     .into_iter()
     .collect();
