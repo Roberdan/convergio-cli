@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.6](https://github.com/Roberdan/convergio-cli/compare/v0.1.5...v0.1.6) (2026-04-13)
+
+
+### Bug Fixes
+
+* pass CARGO_REGISTRY_TOKEN to release workflow ([56f5006](https://github.com/Roberdan/convergio-cli/commit/56f50065d4f688fa5fc7d3ac5709ddb3702d4331))
+
 ## [0.1.5](https://github.com/Roberdan/convergio-cli/compare/v0.1.4...v0.1.5) (2026-04-13)
 
 
