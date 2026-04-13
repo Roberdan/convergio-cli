@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.1.4](https://github.com/Roberdan/convergio-cli/compare/v0.1.3...v0.1.4) (2026-04-13)
+
+
+### Features
+
+* add cvg chain command — ecosystem status + cascade bump ([1a6b1b5](https://github.com/Roberdan/convergio-cli/commit/1a6b1b5ae34e990bea151e7e44dae6c24d347829))
+* add cvg chain command — ecosystem status + cascade bump ([8257d07](https://github.com/Roberdan/convergio-cli/commit/8257d072025d2454521e1736ff9acaab2ccfbf2c))
+
+
+### Bug Fixes
+
+* propagate chain dispatch errors to caller ([81978f0](https://github.com/Roberdan/convergio-cli/commit/81978f0f99dcbeb2d52c8fc9f2dfa9d1dfbf7155))
+
 ## [0.1.3](https://github.com/Roberdan/convergio-cli/compare/v0.1.2...v0.1.3) (2026-04-13)
 
 
