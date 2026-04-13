@@ -5,15 +5,11 @@ pub async fn dispatch(cmd: ChainCommands) -> Result<(), CliError> {
     match cmd {
         ChainCommands::Overview { human, api_url } => {
             let url = format!("{api_url}/api/chain/overview");
-            if let Err(e) = crate::cli_http::fetch_and_print(&url, human).await {
-                eprintln!("error: {e}");
-            }
+            crate::cli_http::fetch_and_print(&url, human).await?;
         }
         ChainCommands::Status { human, api_url } => {
             let url = format!("{api_url}/api/chain/status");
-            if let Err(e) = crate::cli_http::fetch_and_print(&url, human).await {
-                eprintln!("error: {e}");
-            }
+            crate::cli_http::fetch_and_print(&url, human).await?;
         }
         ChainCommands::Bump {
             crate_name,
@@ -29,12 +25,8 @@ pub async fn dispatch(cmd: ChainCommands) -> Result<(), CliError> {
                 "to_tag": to,
                 "dry_run": dry_run,
             });
-            if let Err(e) =
-                crate::cli_http::post_and_print(&format!("{api_url}/api/chain/bump"), &body, human)
-                    .await
-            {
-                eprintln!("error: {e}");
-            }
+            crate::cli_http::post_and_print(&format!("{api_url}/api/chain/bump"), &body, human)
+                .await?;
         }
     }
     Ok(())
