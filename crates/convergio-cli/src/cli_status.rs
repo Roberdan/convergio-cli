@@ -16,7 +16,7 @@ pub async fn handle(api_url: &str) -> Result<(), CliError> {
     let runtime = fetch_json(&format!("{api_url}/api/agents/runtime")).await;
     let orgs = fetch_json(&format!("{api_url}/api/orgs")).await;
     let mesh = fetch_json(&format!("{api_url}/api/mesh")).await;
-    let deploy = fetch_json(&format!("{api_url}/api/deploy/status")).await;
+    let _deploy = fetch_json(&format!("{api_url}/api/deploy/status")).await;
 
     let proj_total = summary
         .get("total_tasks")
@@ -37,7 +37,7 @@ pub async fn handle(api_url: &str) -> Result<(), CliError> {
         .unwrap_or(0);
 
     let ok = health.get("status").and_then(|v| v.as_str()) == Some("ok");
-    let version = deploy
+    let version = health
         .get("version")
         .and_then(|v| v.as_str())
         .unwrap_or(env!("CARGO_PKG_VERSION"));
