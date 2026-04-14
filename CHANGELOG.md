@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.7](https://github.com/Roberdan/convergio-cli/compare/v0.1.6...v0.1.7) (2026-04-14)
+
+
+### Bug Fixes
+
+* read platform version from /api/health instead of /api/deploy/status ([680496d](https://github.com/Roberdan/convergio-cli/commit/680496dfa283b1bca455b6d5dc56f1a337111e93))
+
 ## [0.1.6](https://github.com/Roberdan/convergio-cli/compare/v0.1.5...v0.1.6) (2026-04-13)
 
 
