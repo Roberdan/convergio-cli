@@ -158,8 +158,11 @@ pub enum AgentCommands {
     Create {
         /// Agent name
         name: String,
+        /// Agent role description
+        #[arg(long, default_value = "AI Agent")]
+        role: String,
         /// Agent category
-        #[arg(long, default_value = "")]
+        #[arg(long, default_value = "technical_development")]
         category: String,
         /// Agent description
         #[arg(long, default_value = "")]

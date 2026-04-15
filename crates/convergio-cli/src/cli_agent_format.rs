@@ -14,33 +14,63 @@ pub(crate) async fn dispatch(cmd: AgentCommands) -> Result<(), CliError> {
             handle_transpile(&name, &provider, &api_url).await?;
         }
         AgentCommands::Start {
-            name: _,
-            task_id: _,
-            human: _,
-            api_url: _,
+            name,
+            task_id,
+            human,
+            api_url,
         } => {
-            eprintln!("Not implemented — planned for future release");
+            let mut body = serde_json::json!({
+                "agent_id": name, "action": "start",
+            });
+            if let Some(tid) = task_id {
+                body["task_id"] = serde_json::json!(tid);
+            }
+            crate::cli_http::post_and_print(
+                &format!("{api_url}/api/tracking/agent-activity"),
+                &body,
+                human,
+            )
+            .await?;
         }
         AgentCommands::Complete {
-            agent_id: _,
-            summary: _,
-            human: _,
-            api_url: _,
+            agent_id,
+            summary,
+            human,
+            api_url,
         } => {
-            eprintln!("Not implemented — planned for future release");
+            let mut body = serde_json::json!({
+                "agent_id": agent_id, "action": "complete",
+            });
+            if let Some(s) = summary {
+                body["summary"] = serde_json::json!(s);
+            }
+            crate::cli_http::post_and_print(
+                &format!("{api_url}/api/tracking/agent-activity"),
+                &body,
+                human,
+            )
+            .await?;
         }
         AgentCommands::List { human, api_url } => {
             crate::cli_http::fetch_and_print(&format!("{api_url}/api/agents/catalog"), human)
                 .await?;
         }
-        AgentCommands::Sync { .. } => {
-            eprintln!("Not implemented — planned for future release");
+        AgentCommands::Sync {
+            source_dir,
+            human,
+            api_url,
+        } => {
+            handle_sync(&source_dir, human, &api_url).await?;
         }
-        AgentCommands::Enable { .. } => {
-            eprintln!("Not implemented — planned for future release");
+        AgentCommands::Enable {
+            name, human, api_url, ..
+        } => {
+            handle_set_status(&name, "active", human, &api_url).await?;
         }
-        AgentCommands::Disable { .. } => {
-            eprintln!("Not implemented — planned for future release");
+        AgentCommands::Disable {
+            name, human, api_url, ..
+        } => {
+            handle_set_status(&name, "disabled", human, &api_url).await?;
         }
         AgentCommands::Catalog {
             category,
@@ -62,8 +92,16 @@ pub(crate) async fn dispatch(cmd: AgentCommands) -> Result<(), CliError> {
         } => {
             handle_triage(&description, domain.as_deref(), human, &api_url).await?;
         }
-        AgentCommands::History { .. } => {
-            eprintln!("Not implemented — planned for future release");
+        AgentCommands::History {
+            api_url, ..
+        } => {
+            // Agent session history endpoint not yet available in daemon.
+            // Show currently active agents as fallback.
+            crate::cli_http::fetch_and_print(
+                &format!("{api_url}/api/ipc/agents"),
+                true,
+            )
+            .await?;
         }
         AgentCommands::Spawn {
             name,
@@ -84,6 +122,7 @@ pub(crate) async fn dispatch(cmd: AgentCommands) -> Result<(), CliError> {
         }
         AgentCommands::Create {
             name,
+            role,
             category,
             description,
             model,
@@ -91,13 +130,141 @@ pub(crate) async fn dispatch(cmd: AgentCommands) -> Result<(), CliError> {
             api_url,
         } => {
             let body = serde_json::json!({
-                "name": name, "category": category,
+                "name": name, "role": role, "category": category,
                 "description": description, "model": model,
             });
             crate::cli_http::post_and_print(&format!("{api_url}/api/agents/catalog"), &body, human)
                 .await?;
         }
     }
+    Ok(())
+}
+
+async fn handle_set_status(
+    name: &str,
+    status: &str,
+    human: bool,
+    api_url: &str,
+) -> Result<(), CliError> {
+    // GET the current agent, update status, PUT back (daemon requires full body on PUT)
+    let url = format!("{api_url}/api/agents/catalog/{name}");
+    let mut agent = crate::cli_http::get_and_return(&url).await.map_err(|_| {
+        CliError::NotFound(format!("agent '{name}' not found in catalog"))
+    })?;
+    if let Some(obj) = agent.as_object_mut() {
+        obj.insert("status".to_string(), serde_json::json!(status));
+    }
+    // PUT requires name + role + category at minimum
+    let client = crate::security::hardened_http_client();
+    let resp = client.put(&url).json(&agent).send().await.map_err(|e| {
+        CliError::ApiCallFailed(format!("error connecting to daemon: {e}"))
+    })?;
+    let resp_status = resp.status();
+    if resp_status.as_u16() == 204 {
+        // 204 No Content — success with no body
+        let val = serde_json::json!({ "ok": true, "name": name, "status": status });
+        crate::cli_http::print_value(&val, human);
+        return Ok(());
+    }
+    let val: serde_json::Value = resp.json().await.map_err(|e| {
+        CliError::ApiCallFailed(format!("error parsing response: {e}"))
+    })?;
+    crate::cli_http::print_value(&val, human);
+    if !resp_status.is_success() {
+        return Err(CliError::NotFound(val.to_string()));
+    }
+    Ok(())
+}
+
+async fn handle_sync(source_dir: &str, human: bool, api_url: &str) -> Result<(), CliError> {
+    let dir = std::path::Path::new(source_dir);
+    if !dir.is_dir() {
+        return Err(CliError::InvalidInput(format!(
+            "'{source_dir}' is not a directory"
+        )));
+    }
+
+    let mut synced = 0u32;
+    let mut errors = 0u32;
+
+    let entries = std::fs::read_dir(dir)
+        .map_err(|e| CliError::InvalidInput(format!("cannot read directory: {e}")))?;
+
+    for entry in entries.flatten() {
+        let path = entry.path();
+        let fname = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
+        if !fname.ends_with(".agent.md") {
+            continue;
+        }
+
+        let content = match std::fs::read_to_string(&path) {
+            Ok(c) => c,
+            Err(e) => {
+                eprintln!("error reading {fname}: {e}");
+                errors += 1;
+                continue;
+            }
+        };
+
+        // Parse YAML frontmatter between --- delimiters
+        let frontmatter = if content.starts_with("---") {
+            content
+                .split("---")
+                .nth(1)
+                .unwrap_or("")
+                .trim()
+                .to_string()
+        } else {
+            String::new()
+        };
+
+        if frontmatter.is_empty() {
+            eprintln!("warning: {fname} has no YAML frontmatter, skipping");
+            continue;
+        }
+
+        let yaml: serde_json::Value = match serde_yaml::from_str(&frontmatter) {
+            Ok(v) => v,
+            Err(e) => {
+                eprintln!("error parsing {fname} frontmatter: {e}");
+                errors += 1;
+                continue;
+            }
+        };
+
+        let name = yaml["name"].as_str().unwrap_or(
+            fname.trim_end_matches(".agent.md"),
+        );
+
+        let body = serde_json::json!({
+            "name": name,
+            "role": yaml["role"].as_str().unwrap_or("AI Agent"),
+            "category": yaml["category"].as_str().unwrap_or("technical_development"),
+            "description": yaml["description"].as_str().unwrap_or(""),
+            "model": yaml["model"].as_str().unwrap_or("claude-sonnet-4-6"),
+        });
+
+        match crate::cli_http::post_and_return(
+            &format!("{api_url}/api/agents/catalog"),
+            &body,
+        )
+        .await
+        {
+            Ok(_) => {
+                if human {
+                    eprintln!("  synced: {name}");
+                }
+                synced += 1;
+            }
+            Err(_) => {
+                eprintln!("  failed: {name}");
+                errors += 1;
+            }
+        }
+    }
+
+    let result = serde_json::json!({ "synced": synced, "errors": errors });
+    crate::cli_http::print_value(&result, human);
     Ok(())
 }
 

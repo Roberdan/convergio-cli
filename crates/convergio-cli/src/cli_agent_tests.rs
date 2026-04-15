@@ -121,6 +121,7 @@ fn agent_commands_catalog_variant_exists() {
 fn agent_commands_create_variant_exists() {
     let cmd = AgentCommands::Create {
         name: "new-agent".to_string(),
+        role: "AI Agent".to_string(),
         category: "technical".to_string(),
         description: "A new agent".to_string(),
         model: "claude-sonnet-4-6".to_string(),
