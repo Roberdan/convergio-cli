@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.8](https://github.com/Roberdan/convergio-cli/compare/v0.1.7...v0.1.8) (2026-04-15)
+
+
+### Bug Fixes
+
+* implement all cvg agent subcommands (create/start/complete/enable/disable/sync/history) ([ce7a742](https://github.com/Roberdan/convergio-cli/commit/ce7a7424f2269d2b9c5ec9f0b098afd6c6789b30))
+
 ## [0.1.7](https://github.com/Roberdan/convergio-cli/compare/v0.1.6...v0.1.7) (2026-04-14)
 
 
