@@ -127,7 +127,14 @@ pub async fn post_and_return(
 
 /// GET `url` and return the parsed JSON value without printing.
 pub async fn get_and_return(url: &str) -> Result<serde_json::Value, i32> {
-    let client = crate::security::hardened_http_client();
+    // Doctor full-suite calls run E2E checks that include up-to-45s mesh
+    // sync polling; the default 30s client times out before the response
+    // arrives. Long-running diagnostic endpoints get a 180s budget.
+    let client = if url.contains("/api/doctor/full") || url.contains("/api/stress") {
+        crate::security::long_running_http_client()
+    } else {
+        crate::security::hardened_http_client()
+    };
     match with_auth(client.get(url), url).send().await {
         Ok(resp) => {
             let status = resp.status();

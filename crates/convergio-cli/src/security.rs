@@ -134,6 +134,17 @@ pub fn hardened_http_client() -> reqwest::Client {
         .unwrap_or_else(|_| reqwest::Client::new())
 }
 
+/// HTTP client for endpoints that legitimately exceed 30s
+/// (doctor full suite with mesh sync polling, stress runs, etc.).
+pub fn long_running_http_client() -> reqwest::Client {
+    reqwest::Client::builder()
+        .timeout(Duration::from_secs(180))
+        .connect_timeout(Duration::from_secs(10))
+        .redirect(reqwest::redirect::Policy::limited(5))
+        .build()
+        .unwrap_or_else(|_| reqwest::Client::new())
+}
+
 /// Write a file with restrictive permissions (0600 on Unix).
 #[cfg(unix)]
 pub fn write_secret_file(path: &Path, contents: &str) -> std::io::Result<()> {
