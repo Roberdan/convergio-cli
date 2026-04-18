@@ -47,7 +47,7 @@ pub async fn handle(cmd: WhoCommands, api_url: &str) -> Result<(), CliError> {
                             host,
                             model,
                             plan,
-                            &desc[..desc.len().min(40)]
+                            crate::security::safe_truncate(desc, 40)
                         );
                     }
                 }
@@ -124,10 +124,10 @@ pub async fn handle(cmd: WhoCommands, api_url: &str) -> Result<(), CliError> {
                     for t in &active {
                         let title = t["title"].as_str().unwrap_or("");
                         println!(
-                            "  {} [{}]: {}...",
+                            "  {} [{}]: {}",
                             t["task_id"].as_str().unwrap_or("?"),
                             t["executor_host"].as_str().unwrap_or("local"),
-                            &title[..title.len().min(60)]
+                            crate::security::safe_truncate(title, 60)
                         );
                     }
                 }

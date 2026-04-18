@@ -131,11 +131,15 @@ pub async fn handle_validate(
                 }
             }
             Err(code) => {
-                eprintln!("quality gate check failed (exit {code}); proceeding to Thor anyway");
+                return Err(CliError::ApiCallFailed(format!(
+                    "quality gate check failed (exit {code}); cannot proceed to Thor validation"
+                )));
             }
         }
     } else {
-        eprintln!("no workspace found for wave {wave_id}; skipping quality gates");
+        return Err(CliError::NotFound(format!(
+            "no workspace found for wave {wave_id}; cannot run quality gates"
+        )));
     }
     let thor_body = serde_json::json!({"plan_id": plan_id, "wave_id": wave_id, "scope": "wave"});
     crate::cli_http::post_and_print(

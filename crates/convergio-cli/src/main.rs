@@ -36,8 +36,12 @@ async fn main() -> ExitCode {
                 continue;
             }
             if let Some((k, v)) = line.split_once('=') {
-                if env::var(k.trim()).is_err() {
-                    env::set_var(k.trim(), v.trim());
+                let k = k.trim();
+                if !convergio_cli::security::is_allowed_env_key(k) {
+                    continue;
+                }
+                if env::var(k).is_err() {
+                    env::set_var(k, v.trim());
                 }
             }
         }
