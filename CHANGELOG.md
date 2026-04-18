@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.1.9](https://github.com/Roberdan/convergio-cli/compare/v0.1.8...v0.1.9) (2026-04-18)
+
+
+### Bug Fixes
+
+* **cli:** long-running HTTP client for doctor full + stress ([4580ff9](https://github.com/Roberdan/convergio-cli/commit/4580ff9780486fc0c1ad76d778cc3b72850020b3))
+* **cli:** use long-running HTTP client for doctor full + stress endpoints ([beaf3d9](https://github.com/Roberdan/convergio-cli/commit/beaf3d931db116727b28665a9223344ed2fb033d))
+* **deps:** bump rustls-webpki 0.103.11 -&gt; 0.103.12 (RUSTSEC-2026-0099) ([6f20eb7](https://github.com/Roberdan/convergio-cli/commit/6f20eb764ff227c2c6f8c362f6bfacfaffd90fa0))
+
 ## [0.1.8](https://github.com/Roberdan/convergio-cli/compare/v0.1.7...v0.1.8) (2026-04-15)
 
 
