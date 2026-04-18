@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.10](https://github.com/Roberdan/convergio-cli/compare/v0.1.9...v0.1.10) (2026-04-18)
+
+
+### Bug Fixes
+
+* security and quality audit pass 2 ([782e0fb](https://github.com/Roberdan/convergio-cli/commit/782e0fb94d5d1e626835beb04cba341fb640f56d))
+
 ## [0.1.9](https://github.com/Roberdan/convergio-cli/compare/v0.1.8...v0.1.9) (2026-04-18)
 
 
