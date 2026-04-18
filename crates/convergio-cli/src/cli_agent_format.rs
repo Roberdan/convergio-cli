@@ -63,12 +63,18 @@ pub(crate) async fn dispatch(cmd: AgentCommands) -> Result<(), CliError> {
             handle_sync(&source_dir, human, &api_url).await?;
         }
         AgentCommands::Enable {
-            name, human, api_url, ..
+            name,
+            human,
+            api_url,
+            ..
         } => {
             handle_set_status(&name, "active", human, &api_url).await?;
         }
         AgentCommands::Disable {
-            name, human, api_url, ..
+            name,
+            human,
+            api_url,
+            ..
         } => {
             handle_set_status(&name, "disabled", human, &api_url).await?;
         }
@@ -92,16 +98,10 @@ pub(crate) async fn dispatch(cmd: AgentCommands) -> Result<(), CliError> {
         } => {
             handle_triage(&description, domain.as_deref(), human, &api_url).await?;
         }
-        AgentCommands::History {
-            api_url, ..
-        } => {
+        AgentCommands::History { api_url, .. } => {
             // Agent session history endpoint not yet available in daemon.
             // Show currently active agents as fallback.
-            crate::cli_http::fetch_and_print(
-                &format!("{api_url}/api/ipc/agents"),
-                true,
-            )
-            .await?;
+            crate::cli_http::fetch_and_print(&format!("{api_url}/api/ipc/agents"), true).await?;
         }
         AgentCommands::Spawn {
             name,
@@ -148,17 +148,20 @@ async fn handle_set_status(
 ) -> Result<(), CliError> {
     // GET the current agent, update status, PUT back (daemon requires full body on PUT)
     let url = format!("{api_url}/api/agents/catalog/{name}");
-    let mut agent = crate::cli_http::get_and_return(&url).await.map_err(|_| {
-        CliError::NotFound(format!("agent '{name}' not found in catalog"))
-    })?;
+    let mut agent = crate::cli_http::get_and_return(&url)
+        .await
+        .map_err(|_| CliError::NotFound(format!("agent '{name}' not found in catalog")))?;
     if let Some(obj) = agent.as_object_mut() {
         obj.insert("status".to_string(), serde_json::json!(status));
     }
     // PUT requires name + role + category at minimum
     let client = crate::security::hardened_http_client();
-    let resp = client.put(&url).json(&agent).send().await.map_err(|e| {
-        CliError::ApiCallFailed(format!("error connecting to daemon: {e}"))
-    })?;
+    let resp = client
+        .put(&url)
+        .json(&agent)
+        .send()
+        .await
+        .map_err(|e| CliError::ApiCallFailed(format!("error connecting to daemon: {e}")))?;
     let resp_status = resp.status();
     if resp_status.as_u16() == 204 {
         // 204 No Content — success with no body
@@ -166,9 +169,10 @@ async fn handle_set_status(
         crate::cli_http::print_value(&val, human);
         return Ok(());
     }
-    let val: serde_json::Value = resp.json().await.map_err(|e| {
-        CliError::ApiCallFailed(format!("error parsing response: {e}"))
-    })?;
+    let val: serde_json::Value = resp
+        .json()
+        .await
+        .map_err(|e| CliError::ApiCallFailed(format!("error parsing response: {e}")))?;
     crate::cli_http::print_value(&val, human);
     if !resp_status.is_success() {
         return Err(CliError::NotFound(val.to_string()));
@@ -208,12 +212,7 @@ async fn handle_sync(source_dir: &str, human: bool, api_url: &str) -> Result<(),
 
         // Parse YAML frontmatter between --- delimiters
         let frontmatter = if content.starts_with("---") {
-            content
-                .split("---")
-                .nth(1)
-                .unwrap_or("")
-                .trim()
-                .to_string()
+            content.split("---").nth(1).unwrap_or("").trim().to_string()
         } else {
             String::new()
         };
@@ -232,9 +231,9 @@ async fn handle_sync(source_dir: &str, human: bool, api_url: &str) -> Result<(),
             }
         };
 
-        let name = yaml["name"].as_str().unwrap_or(
-            fname.trim_end_matches(".agent.md"),
-        );
+        let name = yaml["name"]
+            .as_str()
+            .unwrap_or(fname.trim_end_matches(".agent.md"));
 
         let body = serde_json::json!({
             "name": name,
@@ -244,11 +243,8 @@ async fn handle_sync(source_dir: &str, human: bool, api_url: &str) -> Result<(),
             "model": yaml["model"].as_str().unwrap_or("claude-sonnet-4-6"),
         });
 
-        match crate::cli_http::post_and_return(
-            &format!("{api_url}/api/agents/catalog"),
-            &body,
-        )
-        .await
+        match crate::cli_http::post_and_return(&format!("{api_url}/api/agents/catalog"), &body)
+            .await
         {
             Ok(_) => {
                 if human {
