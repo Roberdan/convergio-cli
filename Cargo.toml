@@ -17,7 +17,7 @@ thiserror = "1"
 chrono = { version = "0.4", features = ["serde"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
-tokio = { version = "1.44", features = ["macros", "rt-multi-thread", "signal", "sync", "time", "fs", "io-util", "process"] }
+tokio = { version = "1.52", features = ["macros", "rt-multi-thread", "signal", "sync", "time", "fs", "io-util", "process"] }
 reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls", "stream"] }
 clap = { version = "4", features = ["derive"] }
 dirs = "6"
